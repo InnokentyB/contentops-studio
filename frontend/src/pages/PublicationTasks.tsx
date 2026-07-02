@@ -171,6 +171,19 @@ function supportsDirectPlannerPublish(task: PublicationTask | null | undefined) 
     return ['telegram', 'vk', 'linkedin', 'reddit', 'tilda'].includes(type)
 }
 
+function formatUiError(error: unknown, fallback: string) {
+    if (!(error instanceof Error)) return fallback
+
+    const message = error.message?.trim()
+    if (!message) return fallback
+
+    if (message === 'Bad Request') {
+        return `${fallback} Сервер вернул 400 — проверь настройки канала, доступ адаптера и обязательные поля публикации.`
+    }
+
+    return message
+}
+
 function assetInlineContent(entry: JsonRecord | null | undefined) {
     if (!entry) return ''
     if (typeof entry.content === 'string' && entry.content.trim()) return entry.content
@@ -688,8 +701,12 @@ export default function PublicationTasks() {
                                                 <button
                                                     onClick={() => publishTaskNow.mutate()}
                                                     disabled={publishTaskNow.isPending || prepareHandoff.isPending || isLoadingTask}
-                                                    className="bg-success text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
+                                                    className="ai-gradient text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 inline-flex items-center gap-2"
+                                                    title={executionMode === 'manual'
+                                                        ? 'Отправить текущий текст публикации прямо в подключённый канал'
+                                                        : 'Запустить публикацию через подключённый адаптер'}
                                                 >
+                                                    <span className="material-symbols-outlined text-base">send</span>
                                                     {publishTaskNow.isPending ? 'Публикуем...' : (executionMode === 'manual' ? 'Опубликовать в канал' : 'Опубликовать сейчас')}
                                                 </button>
                                             )}
@@ -704,25 +721,14 @@ export default function PublicationTasks() {
 
                                     {(prepareHandoff.error || publishTaskNow.error || saveTaskContent.error || confirmPublication.error || collectMetrics.error || recordMetrics.error || sendCommentAlert.error) && (
                                         <div className="mt-4 rounded-2xl bg-error-container/30 text-error px-4 py-3 text-sm font-medium">
-                                            {[
-                                                prepareHandoff.error,
-                                                publishTaskNow.error,
-                                                saveTaskContent.error,
-                                                confirmPublication.error,
-                                                collectMetrics.error,
-                                                recordMetrics.error,
-                                                sendCommentAlert.error
-                                            ].find(Boolean) instanceof Error
-                                                ? (([
-                                                    prepareHandoff.error,
-                                                    publishTaskNow.error,
-                                                    saveTaskContent.error,
-                                                    confirmPublication.error,
-                                                    collectMetrics.error,
-                                                    recordMetrics.error,
-                                                    sendCommentAlert.error
-                                                ].find(Boolean) as Error).message)
-                                                : 'Something went wrong'}
+                                            {prepareHandoff.error ? formatUiError(prepareHandoff.error, 'Не удалось подготовить handoff.') :
+                                                publishTaskNow.error ? formatUiError(publishTaskNow.error, 'Не удалось отправить публикацию в канал.') :
+                                                    saveTaskContent.error ? formatUiError(saveTaskContent.error, 'Не удалось сохранить текст публикации.') :
+                                                        confirmPublication.error ? formatUiError(confirmPublication.error, 'Не удалось подтвердить публикацию.') :
+                                                            collectMetrics.error ? formatUiError(collectMetrics.error, 'Не удалось получить метрики.') :
+                                                                recordMetrics.error ? formatUiError(recordMetrics.error, 'Не удалось сохранить метрики.') :
+                                                                    sendCommentAlert.error ? formatUiError(sendCommentAlert.error, 'Не удалось сохранить комментарий.') :
+                                                                        'Произошла ошибка.'}
                                         </div>
                                     )}
                                 </div>

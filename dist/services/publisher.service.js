@@ -1242,13 +1242,22 @@ class PublisherService {
         if (channelType === 'telegram') {
             const telegramConfig = channelConfig.raw_account || channelConfig;
             const rawChannelId = telegramConfig.telegram_channel_id?.toString();
-            if (!rawChannelId) {
-                throw new Error('Telegram channel config is missing telegram_channel_id');
+            const rawHandle = typeof telegramConfig.handle === 'string' && telegramConfig.handle.trim()
+                ? telegramConfig.handle.trim()
+                : (typeof telegramConfig.channel_username === 'string' && telegramConfig.channel_username.trim()
+                    ? telegramConfig.channel_username.trim()
+                    : null);
+            const normalizedHandle = rawHandle
+                ? (rawHandle.startsWith('@') ? rawHandle : `@${rawHandle}`)
+                : null;
+            const telegramTarget = rawChannelId || normalizedHandle;
+            if (!telegramTarget) {
+                throw new Error('Telegram channel config is missing telegram_channel_id or public handle');
             }
             const localTestChannel = process.env.LOCAL_TEST_CHANNEL;
             const targetChannelId = (process.env.NODE_ENV !== 'production' && localTestChannel)
                 ? localTestChannel
-                : rawChannelId;
+                : telegramTarget;
             const mtprotoCheck = await this.checkMTProto(task.project_id);
             let sentMessageId;
             let publishWarning;
@@ -1274,7 +1283,7 @@ class PublisherService {
                 sentMessageId = sentMessage?.message_id;
             }
             let publishedLink = null;
-            const channelUsername = telegramConfig.channel_username;
+            const channelUsername = normalizedHandle ? normalizedHandle.replace(/^@/, '') : null;
             if (channelUsername && sentMessageId) {
                 publishedLink = `https://t.me/${channelUsername}/${sentMessageId}`;
             }
