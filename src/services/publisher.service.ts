@@ -146,6 +146,20 @@ class PublisherService {
             || messageParts.includes('bad request');
     }
 
+    private extractTelegramErrorDescription(error: any) {
+        const responseDescription = typeof error?.response?.description === 'string'
+            ? error.response.description.trim()
+            : '';
+        const directDescription = typeof error?.description === 'string'
+            ? error.description.trim()
+            : '';
+        const directMessage = typeof error?.message === 'string'
+            ? error.message.trim()
+            : '';
+
+        return responseDescription || directDescription || directMessage || 'Unknown Telegram error';
+    }
+
     private async sendTelegramMessageWithFallback(chatId: string | number, text: string, extraOptions: any = {}) {
         try {
             return await telegramService.sendMessage(chatId, text, {
@@ -1464,9 +1478,29 @@ class PublisherService {
             const resolvedTelegram = await this.resolveTelegramDeliveryConfig(task, channelConfig);
             const rawChannelId = resolvedTelegram.rawChannelId;
             const normalizedHandle = resolvedTelegram.normalizedHandle;
-            const telegramTarget = rawChannelId || normalizedHandle;
+            let resolvedChatId = rawChannelId;
+            let channelUsername = normalizedHandle ? normalizedHandle.replace(/^@/, '') : null;
+            let telegramTarget = rawChannelId || normalizedHandle;
             if (!telegramTarget) {
                 throw new Error('Telegram channel config is missing telegram_channel_id or public handle');
+            }
+
+            if (!resolvedChatId && normalizedHandle) {
+                try {
+                    const chat = await telegramService.bot.telegram.getChat(normalizedHandle) as any;
+                    resolvedChatId = chat?.id ? String(chat.id) : null;
+                    if (resolvedChatId) {
+                        telegramTarget = resolvedChatId;
+                    }
+                    if (typeof chat?.username === 'string' && chat.username.trim()) {
+                        channelUsername = chat.username.trim().replace(/^@/, '');
+                    }
+                } catch (error: any) {
+                    logToFile('WARN', '[Publisher] Failed to resolve Telegram handle to chat id.', {
+                        handle: normalizedHandle,
+                        description: this.extractTelegramErrorDescription(error)
+                    });
+                }
             }
 
             const localTestChannel = process.env.LOCAL_TEST_CHANNEL;
@@ -1497,12 +1531,17 @@ class PublisherService {
             }
 
             if (!sentMessageId) {
-                const sentMessage = await this.sendTextSplitting(targetChannelId, text);
-                sentMessageId = sentMessage?.message_id;
+                try {
+                    const sentMessage = await this.sendTextSplitting(targetChannelId, text);
+                    sentMessageId = sentMessage?.message_id;
+                } catch (error: any) {
+                    throw new Error(
+                        `Telegram publish failed for ${normalizedHandle || rawChannelId || task.channel?.name || 'channel'}: ${this.extractTelegramErrorDescription(error)}`
+                    );
+                }
             }
 
             let publishedLink: string | null = null;
-            const channelUsername = normalizedHandle ? normalizedHandle.replace(/^@/, '') : null;
             if (channelUsername && sentMessageId) {
                 publishedLink = `https://t.me/${channelUsername}/${sentMessageId}`;
             } else if (targetChannelId.startsWith('-100') && sentMessageId) {
