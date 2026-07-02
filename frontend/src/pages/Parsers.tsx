@@ -244,8 +244,9 @@ export default function Parsers() {
 
     const postsQuery = useQuery({
         queryKey: ['parser_posts', currentProject?.id],
-        queryFn: () => parserApi.listPosts(currentProject!.id, { limit: 40 }),
-        enabled: !!currentProject
+        queryFn: () => parserApi.listPosts(currentProject!.id, { limit: 20 }),
+        enabled: !!currentProject,
+        staleTime: 60_000
     })
 
     const searchJobQuery = useQuery({
@@ -254,20 +255,23 @@ export default function Parsers() {
         enabled: !!currentProject && !!activeJobId,
         refetchInterval: (query) => {
             const status = query.state.data?.parser_response?.status || query.state.data?.status
-            return status && !String(status).toLowerCase().includes('complete') ? 3000 : false
-        }
+            return status && !String(status).toLowerCase().includes('complete') ? 10000 : false
+        },
+        staleTime: 5_000
     })
 
     const summaryQuery = useQuery({
         queryKey: ['parser_summary', currentProject?.id, activeJobId],
         queryFn: () => parserApi.getSummary(currentProject!.id, activeJobId!),
-        enabled: !!currentProject && !!activeJobId
+        enabled: !!currentProject && !!activeJobId,
+        staleTime: 60_000
     })
 
     const insightsQuery = useQuery({
         queryKey: ['parser_insights', currentProject?.id, activeJobId],
         queryFn: () => parserApi.getInsights(currentProject!.id, { limit: 25, jobId: activeJobId || undefined }),
-        enabled: !!currentProject
+        enabled: !!currentProject && !!activeJobId,
+        staleTime: 60_000
     })
 
     const createSearchJob = useMutation({

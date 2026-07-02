@@ -11,6 +11,62 @@ const schema_plan_service_1 = __importDefault(require("./schema_plan.service"));
 function compactObject(value) {
     return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined));
 }
+function trimText(value, maxLength) {
+    if (typeof value !== 'string') {
+        return '';
+    }
+    const normalized = value.trim();
+    if (normalized.length <= maxLength) {
+        return normalized;
+    }
+    return `${normalized.slice(0, maxLength - 1)}…`;
+}
+function slimParserPost(item) {
+    return {
+        reddit_post_id: item.reddit_post_id || item.post_id || item.id || item.uuid || null,
+        title: trimText(item.title || item.headline || item.subject || '', 300),
+        body: trimText(item.body || item.selftext || item.content || item.text || item.snippet || '', 1200),
+        author: item.author || item.author_name || null,
+        subreddit: item.subreddit || item.group_name || item.community || item.source_name || null,
+        url: item.url || item.permalink || item.link_url || item.target_url || null,
+        created_at: item.created_at || item.createdAt || item.posted_at || item.ts || null,
+        score: item.score || item.rank_score || item.upvotes || 0,
+        comments_count: item.comments_count || item.num_comments || item.comment_count || 0
+    };
+}
+function slimListPostsResult(result) {
+    const records = result?.data || result?.posts || [];
+    const slimmedRecords = Array.isArray(records) ? records.map((entry) => slimParserPost(entry || {})) : [];
+    return {
+        data: slimmedRecords,
+        posts: slimmedRecords,
+        pagination: result?.pagination || null,
+        total: result?.total ?? result?.pagination?.total ?? slimmedRecords.length
+    };
+}
+function slimSearchJobResult(result) {
+    return {
+        job_id: result?.job_id || null,
+        run_id: result?.run_id || null,
+        status: result?.status || null,
+        workspace_id: result?.workspace_id || null,
+        source: result?.source || null,
+        query: result?.query || null,
+        created_at: result?.created_at || null,
+        updated_at: result?.updated_at || null,
+        progress: result?.progress || null,
+        counts: result?.counts || null
+    };
+}
+function slimInsightsResult(result) {
+    return {
+        groups: result?.groups || {},
+        pagination: result?.pagination || null,
+        returned: result?.pagination?.returned ?? result?.data?.length ?? 0,
+        type: result?.type || null,
+        job_id: result?.job_id || null
+    };
+}
 class ParserIntegrationService {
     async getHealth() {
         return {
@@ -48,7 +104,7 @@ class ParserIntegrationService {
         return {
             project: context.project,
             workspace_id: context.workspaceId,
-            parser_response: result
+            parser_response: slimSearchJobResult(result)
         };
     }
     async refreshSearchJob(params, actor) {
@@ -76,7 +132,7 @@ class ParserIntegrationService {
         return {
             project: context.project,
             workspace_id: context.workspaceId,
-            parser_response: result
+            parser_response: slimListPostsResult(result)
         };
     }
     async getInsights(params, actor) {
@@ -95,7 +151,7 @@ class ParserIntegrationService {
         return {
             project: context.project,
             workspace_id: context.workspaceId,
-            parser_response: result
+            parser_response: slimInsightsResult(result)
         };
     }
     async getSummary(params, actor) {
