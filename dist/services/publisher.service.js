@@ -43,6 +43,7 @@ const telegram_service_1 = __importDefault(require("./telegram.service"));
 const vk_service_1 = __importDefault(require("./vk.service"));
 const storage_service_1 = __importDefault(require("./storage.service"));
 const publication_plan_service_1 = __importDefault(require("./publication_plan.service"));
+const publication_adapter_service_1 = __importDefault(require("./publication_adapter.service"));
 const reddit_service_1 = __importDefault(require("./reddit.service"));
 const gsc_service_1 = __importDefault(require("./gsc.service"));
 const tilda_service_1 = __importDefault(require("./tilda.service"));
@@ -1032,7 +1033,8 @@ class PublisherService {
         const bundle = publication_plan_service_1.default.buildHandoffBundle(plan, task);
         const channelConfig = task.channel?.config || {};
         const executionMode = bundle.mode;
-        if (executionMode === 'manual') {
+        const directExecutionSupported = publication_adapter_service_1.default.supportsDirectExecution((channelConfig.raw_account || channelConfig || {}));
+        if (executionMode === 'manual' && !(options.manualTrigger && directExecutionSupported)) {
             await prisma.contentItem.update({
                 where: { id: task.id },
                 data: {
@@ -1169,13 +1171,17 @@ class PublisherService {
     async executeAutomatedPublicationTask(task, bundle, channelConfig, plan) {
         const channelType = task.channel?.type;
         const action = task.assets?.action || {};
+        const text = bundle.publication?.body || '';
+        const generatedVisual = Array.isArray(task.assets?.generated_visuals)
+            ? task.assets.generated_visuals[0]
+            : null;
+        const imageUrl = generatedVisual?.url || generatedVisual?.image_url || generatedVisual?.src || null;
         if (channelType === 'reddit') {
             const title = bundle.publication?.html_bundle?.[0]?.asset?.title
                 || action.parameters?.title
                 || task.title
                 || 'Reddit discussion';
             const subreddit = action.parameters?.subreddit || action.parameters?.sr || action.assets?.subreddit || task.layer;
-            const text = bundle.publication?.body || '';
             const result = await reddit_service_1.default.submitDiscussionPost(channelConfig.raw_account || channelConfig, {
                 subreddit,
                 title,
@@ -1205,6 +1211,82 @@ class PublisherService {
                     gsc_inspection: inspection,
                     gsc_page_metrics: metrics
                 }
+            };
+        }
+        if (channelType === 'vk') {
+            const vkConfig = channelConfig.raw_account || channelConfig;
+            const vkId = vkConfig.vk_id;
+            const apiKey = vkConfig.api_key;
+            if (!vkId || !apiKey) {
+                throw new Error('VK channel config is missing vk_id or api_key');
+            }
+            const publishedLink = await vk_service_1.default.publishPost(vkId, apiKey, text, imageUrl || undefined);
+            return {
+                adapter: 'vk',
+                publishedLink
+            };
+        }
+        if (channelType === 'linkedin') {
+            const linkedinConfig = channelConfig.raw_account || channelConfig;
+            const urn = linkedinConfig.linkedin_urn;
+            const token = linkedinConfig.access_token;
+            if (!urn || !token) {
+                throw new Error('LinkedIn channel config is missing linkedin_urn or access_token');
+            }
+            const publishedLink = await linkedin_service_1.default.publishPost(urn, token, text, imageUrl || undefined);
+            return {
+                adapter: 'linkedin',
+                publishedLink
+            };
+        }
+        if (channelType === 'telegram') {
+            const telegramConfig = channelConfig.raw_account || channelConfig;
+            const rawChannelId = telegramConfig.telegram_channel_id?.toString();
+            if (!rawChannelId) {
+                throw new Error('Telegram channel config is missing telegram_channel_id');
+            }
+            const localTestChannel = process.env.LOCAL_TEST_CHANNEL;
+            const targetChannelId = (process.env.NODE_ENV !== 'production' && localTestChannel)
+                ? localTestChannel
+                : rawChannelId;
+            const mtprotoCheck = await this.checkMTProto(task.project_id);
+            let sentMessageId;
+            let publishWarning;
+            if (!mtprotoCheck.available) {
+                publishWarning = `MTProto недоступен (${mtprotoCheck.reason}). Публикация через Bot API.`;
+                logToFile('WARN', `[Publisher] ${publishWarning}`);
+            }
+            if (mtprotoCheck.available) {
+                try {
+                    const importedClient = require('./telegram_client.service').default;
+                    const result = await importedClient.publishPost(task.project_id, targetChannelId, text, imageUrl || undefined);
+                    if (result?.id) {
+                        sentMessageId = result.id;
+                    }
+                }
+                catch (clientErr) {
+                    publishWarning = `MTProto отказал: ${clientErr.message || clientErr}. Публикация через Bot API.`;
+                    logToFile('WARN', `[Publisher] ${publishWarning}`);
+                }
+            }
+            if (!sentMessageId) {
+                const sentMessage = await this.sendTextSplitting(targetChannelId, text);
+                sentMessageId = sentMessage?.message_id;
+            }
+            let publishedLink = null;
+            const channelUsername = telegramConfig.channel_username;
+            if (channelUsername && sentMessageId) {
+                publishedLink = `https://t.me/${channelUsername}/${sentMessageId}`;
+            }
+            else if (targetChannelId.startsWith('-100') && sentMessageId) {
+                const cleanId = targetChannelId.substring(4);
+                publishedLink = `https://t.me/c/${cleanId}/${sentMessageId}`;
+            }
+            return {
+                adapter: 'telegram',
+                publishedLink,
+                warning: publishWarning,
+                metrics: sentMessageId ? { telegram_message_id: sentMessageId } : undefined
             };
         }
         if (channelType === 'tilda') {

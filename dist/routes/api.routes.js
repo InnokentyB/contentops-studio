@@ -80,6 +80,37 @@ function resolveTaskScheduleAt(item) {
     }
     return item?.schedule_at?.toISOString?.() || item?.schedule_at || null;
 }
+function buildPublicationTaskListItem(item) {
+    const qualityReport = item.quality_report || {};
+    const metrics = item.metrics || {};
+    return {
+        id: item.id,
+        type: item.type,
+        layer: item.layer,
+        title: item.title,
+        brief: item.brief,
+        status: item.status,
+        schedule_at: item?.schedule_at?.toISOString?.() || item?.schedule_at || null,
+        published_link: item.published_link,
+        metrics: {
+            monitoring: metrics.monitoring || null,
+            collected_metrics: metrics.collected_metrics || null,
+            publication_outcome: metrics.publication_outcome || null,
+            account_ref: metrics.account_ref || null,
+            metrics_updated_at: metrics.metrics_updated_at || null
+        },
+        quality_report: {
+            execution_mode: qualityReport.execution_mode || null,
+            publication_outcome: qualityReport.publication_outcome || null
+        },
+        channel: item.channel ? {
+            id: item.channel.id,
+            name: item.channel.name,
+            type: item.channel.type,
+            config: item.channel.config || null
+        } : null
+    };
+}
 async function apiRoutes(fastify) {
     // Auth and Project context middleware
     fastify.addHook('preHandler', async (request, reply) => {
@@ -576,34 +607,32 @@ async function apiRoutes(fastify) {
         }
         const items = await prisma.contentItem.findMany({
             where,
-            include: { channel: true },
+            select: {
+                id: true,
+                type: true,
+                layer: true,
+                title: true,
+                brief: true,
+                status: true,
+                schedule_at: true,
+                published_link: true,
+                quality_report: true,
+                metrics: true,
+                channel: {
+                    select: {
+                        id: true,
+                        name: true,
+                        type: true,
+                        config: true
+                    }
+                }
+            },
             orderBy: { schedule_at: 'asc' }
         });
         const filtered = manualOnly === 'true'
             ? items.filter((item) => item.quality_report?.execution_mode === 'manual')
             : items;
-        const plan = await loadPublicationPlanContext(projectId);
-        if (!plan) {
-            return filtered;
-        }
-        return filtered.map((item) => {
-            const action = item.assets?.action;
-            if (!action) {
-                return {
-                    ...item,
-                    schedule_at: resolveTaskScheduleAt(item)
-                };
-            }
-            const bundle = publication_plan_service_1.default.buildHandoffBundle({ ...plan, actions: [action] }, item);
-            return {
-                ...item,
-                schedule_at: resolveTaskScheduleAt(item),
-                quality_report: {
-                    ...(item.quality_report || {}),
-                    handoff_bundle: bundle
-                }
-            };
-        });
+        return filtered.map(buildPublicationTaskListItem);
     });
     fastify.get('/api/publication-tasks/:id', async (request, reply) => {
         const projectId = request.projectId;

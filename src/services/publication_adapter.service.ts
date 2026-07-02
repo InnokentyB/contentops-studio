@@ -16,6 +16,10 @@ type PublicationAction = {
 type PublicationAccount = Record<string, any>;
 
 class PublicationAdapterService {
+    supportsDirectExecution(account: PublicationAccount) {
+        return ['telegram', 'vk', 'linkedin', 'reddit', 'tilda'].includes(account.platform);
+    }
+
     inferExecutionMode(account: PublicationAccount, action: PublicationAction): 'manual' | 'automated' {
         if (action.human_review) {
             return 'manual';
@@ -50,7 +54,8 @@ class PublicationAdapterService {
             forbidden_content_types: account.forbidden_content_types || [],
             usage_rule: account.usage_rule || null,
             capability_flags: {
-                api_publish: account.cms_api_enabled === true || account.platform === 'reddit' || account.platform === 'google_search_console',
+                api_publish: account.cms_api_enabled === true
+                    || ['telegram', 'vk', 'linkedin', 'reddit', 'google_search_console', 'tilda'].includes(account.platform),
                 manual_handoff: account.platform === 'linkedin' || account.platform === 'medium' || account.platform === 'indiehackers' || account.platform === 'reddit',
                 analytics_supported: account.platform === 'linkedin' || account.platform === 'reddit' || account.platform === 'google_search_console'
             },

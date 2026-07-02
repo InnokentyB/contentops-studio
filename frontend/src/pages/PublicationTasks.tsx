@@ -165,6 +165,12 @@ function supportsAutoMetrics(task: PublicationTask | null | undefined) {
     return false
 }
 
+function supportsDirectPlannerPublish(task: PublicationTask | null | undefined) {
+    const type = task?.channel?.type
+    if (!type) return false
+    return ['telegram', 'vk', 'linkedin', 'reddit', 'tilda'].includes(type)
+}
+
 function assetInlineContent(entry: JsonRecord | null | undefined) {
     if (!entry) return ''
     if (typeof entry.content === 'string' && entry.content.trim()) return entry.content
@@ -462,8 +468,8 @@ export default function PublicationTasks() {
         && new Date(activeTask.schedule_at).getTime() < Date.now()
     const canPrepareHandoff = !!activeTask && !['published', 'skipped'].includes(activeTask.status)
     const canPublishNow = !!activeTask
-        && executionMode === 'automated'
-        && ['planned', 'ready_for_execution', 'failed'].includes(activeTask.status)
+        && supportsDirectPlannerPublish(activeTask)
+        && ['planned', 'ready_for_execution', 'awaiting_manual_publication', 'failed'].includes(activeTask.status)
     const canFetchMetrics = !!activeTask?.published_link && supportsAutoMetrics(activeTask)
     const targetResourceUrl = activeTask?.workspace_context?.target_resource_url || handoffBundle?.publication?.link_url || ''
     const planItemRef = activeTask?.workspace_context?.plan_item_ref || (activeTask?.assets as JsonRecord | undefined)?.action?.id || (activeTask?.metrics as JsonRecord | undefined)?.task_id || ''
@@ -684,7 +690,7 @@ export default function PublicationTasks() {
                                                     disabled={publishTaskNow.isPending || prepareHandoff.isPending || isLoadingTask}
                                                     className="bg-success text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
                                                 >
-                                                    {publishTaskNow.isPending ? 'Публикуем...' : 'Опубликовать сейчас'}
+                                                    {publishTaskNow.isPending ? 'Публикуем...' : (executionMode === 'manual' ? 'Опубликовать в канал' : 'Опубликовать сейчас')}
                                                 </button>
                                             )}
                                         </div>

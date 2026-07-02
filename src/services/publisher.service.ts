@@ -1105,8 +1105,9 @@ class PublisherService {
         const bundle = publicationPlanService.buildHandoffBundle(plan as any, task);
         const channelConfig: any = task.channel?.config || {};
         const executionMode = bundle.mode;
+        const directExecutionSupported = publicationAdapterService.supportsDirectExecution((channelConfig.raw_account || channelConfig || {}) as any);
 
-        if (executionMode === 'manual') {
+        if (executionMode === 'manual' && !(options.manualTrigger && directExecutionSupported)) {
             await prisma.contentItem.update({
                 where: { id: task.id },
                 data: {
@@ -1265,6 +1266,11 @@ class PublisherService {
     private async executeAutomatedPublicationTask(task: any, bundle: any, channelConfig: any, plan: any) {
         const channelType = task.channel?.type;
         const action = (task.assets as any)?.action || {};
+        const text = bundle.publication?.body || '';
+        const generatedVisual = Array.isArray((task.assets as any)?.generated_visuals)
+            ? (task.assets as any).generated_visuals[0]
+            : null;
+        const imageUrl = generatedVisual?.url || generatedVisual?.image_url || generatedVisual?.src || null;
 
         if (channelType === 'reddit') {
             const title = bundle.publication?.html_bundle?.[0]?.asset?.title
@@ -1272,7 +1278,6 @@ class PublisherService {
                 || task.title
                 || 'Reddit discussion';
             const subreddit = action.parameters?.subreddit || action.parameters?.sr || action.assets?.subreddit || task.layer;
-            const text = bundle.publication?.body || '';
             const result = await redditService.submitDiscussionPost(channelConfig.raw_account || channelConfig, {
                 subreddit,
                 title,
@@ -1304,6 +1309,92 @@ class PublisherService {
                     gsc_inspection: inspection,
                     gsc_page_metrics: metrics
                 }
+            };
+        }
+
+        if (channelType === 'vk') {
+            const vkConfig = channelConfig.raw_account || channelConfig;
+            const vkId = vkConfig.vk_id;
+            const apiKey = vkConfig.api_key;
+            if (!vkId || !apiKey) {
+                throw new Error('VK channel config is missing vk_id or api_key');
+            }
+
+            const publishedLink = await vkService.publishPost(vkId, apiKey, text, imageUrl || undefined);
+            return {
+                adapter: 'vk',
+                publishedLink
+            };
+        }
+
+        if (channelType === 'linkedin') {
+            const linkedinConfig = channelConfig.raw_account || channelConfig;
+            const urn = linkedinConfig.linkedin_urn;
+            const token = linkedinConfig.access_token;
+            if (!urn || !token) {
+                throw new Error('LinkedIn channel config is missing linkedin_urn or access_token');
+            }
+
+            const publishedLink = await linkedinService.publishPost(urn, token, text, imageUrl || undefined);
+            return {
+                adapter: 'linkedin',
+                publishedLink
+            };
+        }
+
+        if (channelType === 'telegram') {
+            const telegramConfig = channelConfig.raw_account || channelConfig;
+            const rawChannelId = telegramConfig.telegram_channel_id?.toString();
+            if (!rawChannelId) {
+                throw new Error('Telegram channel config is missing telegram_channel_id');
+            }
+
+            const localTestChannel = process.env.LOCAL_TEST_CHANNEL;
+            const targetChannelId = (process.env.NODE_ENV !== 'production' && localTestChannel)
+                ? localTestChannel
+                : rawChannelId;
+
+            const mtprotoCheck = await this.checkMTProto(task.project_id);
+            let sentMessageId: number | undefined;
+            let publishWarning: string | undefined;
+
+            if (!mtprotoCheck.available) {
+                publishWarning = `MTProto недоступен (${mtprotoCheck.reason}). Публикация через Bot API.`;
+                logToFile('WARN', `[Publisher] ${publishWarning}`);
+            }
+
+            if (mtprotoCheck.available) {
+                try {
+                    const importedClient = require('./telegram_client.service').default;
+                    const result = await importedClient.publishPost(task.project_id, targetChannelId, text, imageUrl || undefined);
+                    if (result?.id) {
+                        sentMessageId = result.id;
+                    }
+                } catch (clientErr: any) {
+                    publishWarning = `MTProto отказал: ${clientErr.message || clientErr}. Публикация через Bot API.`;
+                    logToFile('WARN', `[Publisher] ${publishWarning}`);
+                }
+            }
+
+            if (!sentMessageId) {
+                const sentMessage = await this.sendTextSplitting(targetChannelId, text);
+                sentMessageId = sentMessage?.message_id;
+            }
+
+            let publishedLink: string | null = null;
+            const channelUsername = telegramConfig.channel_username;
+            if (channelUsername && sentMessageId) {
+                publishedLink = `https://t.me/${channelUsername}/${sentMessageId}`;
+            } else if (targetChannelId.startsWith('-100') && sentMessageId) {
+                const cleanId = targetChannelId.substring(4);
+                publishedLink = `https://t.me/c/${cleanId}/${sentMessageId}`;
+            }
+
+            return {
+                adapter: 'telegram',
+                publishedLink,
+                warning: publishWarning,
+                metrics: sentMessageId ? { telegram_message_id: sentMessageId } : undefined
             };
         }
 
