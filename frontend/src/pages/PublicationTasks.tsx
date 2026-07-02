@@ -283,10 +283,14 @@ export default function PublicationTasks() {
     )
 
     const { data: selectedTask, isFetching: isLoadingTask } = useQuery<PublicationTask>({
-        queryKey: ['publication_task_detail', selectedTaskId],
+        queryKey: ['publication_task_detail', currentProject?.id, selectedTaskId],
         queryFn: () => publicationTasksApi.get(selectedTaskId as number),
         enabled: !!selectedTaskId && !!currentProject
     })
+
+    useEffect(() => {
+        setSelectedTaskId(null)
+    }, [currentProject?.id])
 
     useEffect(() => {
         if (!filteredTasks.length) {
@@ -356,10 +360,13 @@ export default function PublicationTasks() {
         }
     })
 
+    const activeTask = selectedTask || selectedFromList
+    const activeTaskId = activeTask?.id ?? selectedTaskId
+
     const saveTaskContent = useMutation({
         mutationFn: () => {
-            if (!selectedTaskId) throw new Error('Задача не выбрана')
-            return publicationTasksApi.saveContent(selectedTaskId, {
+            if (!activeTaskId) throw new Error('Задача не выбрана')
+            return publicationTasksApi.saveContent(activeTaskId, {
                 body: publicationBody
             })
         },
@@ -371,8 +378,8 @@ export default function PublicationTasks() {
 
     const confirmPublication = useMutation({
         mutationFn: () => {
-            if (!selectedTaskId) throw new Error('Задача не выбрана')
-            return publicationTasksApi.confirmPublication(selectedTaskId, {
+            if (!activeTaskId) throw new Error('Задача не выбрана')
+            return publicationTasksApi.confirmPublication(activeTaskId, {
                 publishedLink,
                 note: publicationNote || undefined,
                 outcome: publicationOutcome
@@ -388,8 +395,8 @@ export default function PublicationTasks() {
 
     const publishTaskNow = useMutation({
         mutationFn: () => {
-            if (!selectedTaskId) throw new Error('Задача не выбрана')
-            return publicationTasksApi.publishNow(selectedTaskId)
+            if (!activeTaskId) throw new Error('Задача не выбрана')
+            return publicationTasksApi.publishNow(activeTaskId)
         },
         onSuccess: (result: any) => {
             const outcome = result?.result
@@ -404,11 +411,11 @@ export default function PublicationTasks() {
 
     const runCriticCheck = useMutation({
         mutationFn: () => {
-            if (!selectedTaskId) throw new Error('Задача не выбрана')
+            if (!activeTaskId) throw new Error('Задача не выбрана')
             const reviewText = (selectedTask?.quality_report?.handoff_bundle as JsonRecord | undefined)?.publication?.body
                 || selectedTask?.workspace_context?.source_content
                 || ''
-            return publicationTasksApi.criticCheck(selectedTaskId, { text: reviewText })
+            return publicationTasksApi.criticCheck(activeTaskId, { text: reviewText })
         },
         onSuccess: (result: CriticReview) => {
             setCriticReport(result)
@@ -419,8 +426,8 @@ export default function PublicationTasks() {
 
     const generateTaskImage = useMutation({
         mutationFn: (provider: 'gpt-image' | 'nano' = 'gpt-image') => {
-            if (!selectedTaskId) throw new Error('Задача не выбрана')
-            return publicationTasksApi.generateImage(selectedTaskId, { provider })
+            if (!activeTaskId) throw new Error('Задача не выбрана')
+            return publicationTasksApi.generateImage(activeTaskId, { provider })
         },
         onSuccess: () => {
             setTaskMessage('Изображение для публикации сгенерировано.')
@@ -430,8 +437,8 @@ export default function PublicationTasks() {
 
     const collectMetrics = useMutation({
         mutationFn: () => {
-            if (!selectedTaskId) throw new Error('Задача не выбрана')
-            return publicationTasksApi.collectMetrics(selectedTaskId)
+            if (!activeTaskId) throw new Error('Задача не выбрана')
+            return publicationTasksApi.collectMetrics(activeTaskId)
         },
         onSuccess: (result: any) => {
             setTaskMessage(result?.updated
@@ -443,8 +450,8 @@ export default function PublicationTasks() {
 
     const recordMetrics = useMutation({
         mutationFn: () => {
-            if (!selectedTaskId) throw new Error('Задача не выбрана')
-            return publicationTasksApi.recordMetrics(selectedTaskId, JSON.parse(metricsJson))
+            if (!activeTaskId) throw new Error('Задача не выбрана')
+            return publicationTasksApi.recordMetrics(activeTaskId, JSON.parse(metricsJson))
         },
         onSuccess: () => {
             setTaskMessage('Снимок метрик сохранён вручную.')
@@ -454,8 +461,8 @@ export default function PublicationTasks() {
 
     const sendCommentAlert = useMutation({
         mutationFn: () => {
-            if (!selectedTaskId) throw new Error('Задача не выбрана')
-            return publicationTasksApi.externalCommentAlert(selectedTaskId, {
+            if (!activeTaskId) throw new Error('Задача не выбрана')
+            return publicationTasksApi.externalCommentAlert(activeTaskId, {
                 author: commentAuthor || undefined,
                 commentUrl: commentUrl || undefined,
                 text: commentText || undefined
@@ -470,7 +477,6 @@ export default function PublicationTasks() {
         }
     })
 
-    const activeTask = selectedTask || selectedFromList
     const handoffBundle = activeTask?.quality_report?.handoff_bundle as JsonRecord | undefined
     const sourceFiles = mergeSourceFiles(activeTask)
     const primarySourceContent = resolvePrimarySourceContent(activeTask, sourceFiles)
