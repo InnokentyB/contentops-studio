@@ -81,6 +81,112 @@ function logToFile(level, message, data) {
         console.log(message, data || '');
 }
 class PublisherService {
+    normalizeTelegramHandle(value) {
+        if (typeof value !== 'string')
+            return null;
+        const trimmed = value.trim();
+        if (!trimmed)
+            return null;
+        return trimmed.startsWith('@') ? trimmed : `@${trimmed}`;
+    }
+    extractTelegramAccountConfig(config) {
+        const topLevel = config && typeof config === 'object' ? config : {};
+        const raw = topLevel.raw_account && typeof topLevel.raw_account === 'object'
+            ? topLevel.raw_account
+            : {};
+        return {
+            ...topLevel,
+            ...raw,
+            telegram_channel_id: raw.telegram_channel_id ?? topLevel.telegram_channel_id ?? null,
+            channel_username: raw.channel_username ?? topLevel.channel_username ?? null,
+            handle: raw.handle ?? topLevel.handle ?? null,
+            account_ref: raw.account_ref ?? topLevel.account_ref ?? null
+        };
+    }
+    async resolveTelegramDeliveryConfig(task, channelConfig) {
+        const baseConfig = this.extractTelegramAccountConfig(channelConfig);
+        const taskAccountRef = task.metrics?.account_ref || task.assets?.account_ref || task.channel?.name || null;
+        const candidates = await prisma.socialChannel.findMany({
+            where: {
+                project_id: task.project_id,
+                type: 'telegram',
+                is_active: true
+            },
+            select: {
+                id: true,
+                name: true,
+                config: true
+            }
+        });
+        const matchingSibling = candidates
+            .filter((candidate) => {
+            const candidateConfig = this.extractTelegramAccountConfig(candidate.config);
+            const candidateAccountRef = candidateConfig.account_ref || candidate.name || null;
+            return (candidate.id === task.channel?.id
+                || candidate.name === task.channel?.name
+                || (taskAccountRef && candidate.name === taskAccountRef)
+                || (taskAccountRef && candidateAccountRef === taskAccountRef));
+        })
+            .map((candidate) => ({
+            id: candidate.id,
+            name: candidate.name,
+            config: this.extractTelegramAccountConfig(candidate.config)
+        }))
+            .sort((left, right) => {
+            const leftScore = Number(Boolean(left.config.telegram_channel_id)) * 10
+                + Number(Boolean(this.normalizeTelegramHandle(left.config.handle || left.config.channel_username)));
+            const rightScore = Number(Boolean(right.config.telegram_channel_id)) * 10
+                + Number(Boolean(this.normalizeTelegramHandle(right.config.handle || right.config.channel_username)));
+            return rightScore - leftScore;
+        })[0];
+        const mergedConfig = {
+            ...matchingSibling?.config,
+            ...baseConfig,
+            telegram_channel_id: baseConfig.telegram_channel_id || matchingSibling?.config?.telegram_channel_id || null,
+            handle: baseConfig.handle || matchingSibling?.config?.handle || null,
+            channel_username: baseConfig.channel_username || matchingSibling?.config?.channel_username || null,
+            account_ref: baseConfig.account_ref || matchingSibling?.config?.account_ref || taskAccountRef || null
+        };
+        const rawChannelId = mergedConfig.telegram_channel_id?.toString?.() || null;
+        const normalizedHandle = this.normalizeTelegramHandle(mergedConfig.handle || mergedConfig.channel_username);
+        return {
+            config: mergedConfig,
+            rawChannelId,
+            normalizedHandle,
+            matchedChannelId: matchingSibling?.id || task.channel?.id || null
+        };
+    }
+    shouldRetryTelegramWithoutMarkdown(error) {
+        const messageParts = [
+            typeof error?.message === 'string' ? error.message : '',
+            typeof error?.response?.description === 'string' ? error.response.description : '',
+            typeof error?.description === 'string' ? error.description : ''
+        ]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase();
+        return messageParts.includes("can't parse entities")
+            || messageParts.includes('parse entities')
+            || messageParts.includes('bad request');
+    }
+    async sendTelegramMessageWithFallback(chatId, text, extraOptions = {}) {
+        try {
+            return await telegram_service_1.default.sendMessage(chatId, text, {
+                parse_mode: 'Markdown',
+                ...extraOptions
+            });
+        }
+        catch (error) {
+            if (!this.shouldRetryTelegramWithoutMarkdown(error)) {
+                throw error;
+            }
+            logToFile('WARN', '[Publisher] Telegram rejected Markdown payload, retrying as plain text.', {
+                chatId,
+                description: error?.response?.description || error?.message || null
+            });
+            return await telegram_service_1.default.sendMessage(chatId, text, { ...extraOptions });
+        }
+    }
     async findDependencyItems(projectId, dependencyTaskIds) {
         if (dependencyTaskIds.length === 0)
             return [];
@@ -1240,16 +1346,9 @@ class PublisherService {
             };
         }
         if (channelType === 'telegram') {
-            const telegramConfig = channelConfig.raw_account || channelConfig;
-            const rawChannelId = telegramConfig.telegram_channel_id?.toString();
-            const rawHandle = typeof telegramConfig.handle === 'string' && telegramConfig.handle.trim()
-                ? telegramConfig.handle.trim()
-                : (typeof telegramConfig.channel_username === 'string' && telegramConfig.channel_username.trim()
-                    ? telegramConfig.channel_username.trim()
-                    : null);
-            const normalizedHandle = rawHandle
-                ? (rawHandle.startsWith('@') ? rawHandle : `@${rawHandle}`)
-                : null;
+            const resolvedTelegram = await this.resolveTelegramDeliveryConfig(task, channelConfig);
+            const rawChannelId = resolvedTelegram.rawChannelId;
+            const normalizedHandle = resolvedTelegram.normalizedHandle;
             const telegramTarget = rawChannelId || normalizedHandle;
             if (!telegramTarget) {
                 throw new Error('Telegram channel config is missing telegram_channel_id or public handle');
@@ -1934,10 +2033,7 @@ class PublisherService {
     async sendTextSplitting(chatId, text, extraOptions = {}) {
         const MAX_LENGTH = 4090; // Leave room for markdown safety
         if (text.length <= MAX_LENGTH) {
-            return await telegram_service_1.default.sendMessage(chatId, text, {
-                parse_mode: 'Markdown',
-                ...extraOptions
-            });
+            return await this.sendTelegramMessageWithFallback(chatId, text, extraOptions);
         }
         else {
             // Split logic
@@ -1956,10 +2052,7 @@ class PublisherService {
             let lastMessage;
             let isFirst = true;
             for (const chunk of chunks) {
-                lastMessage = await telegram_service_1.default.sendMessage(chatId, chunk, {
-                    parse_mode: 'Markdown',
-                    ...(isFirst ? extraOptions : {})
-                });
+                lastMessage = await this.sendTelegramMessageWithFallback(chatId, chunk, isFirst ? extraOptions : {});
                 isFirst = false;
             }
             return lastMessage;

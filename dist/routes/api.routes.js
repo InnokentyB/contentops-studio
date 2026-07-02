@@ -60,6 +60,22 @@ function safeJsonParse(value) {
 function formatJson(value) {
     return JSON.stringify(value, null, 2);
 }
+function extractRequestErrorMessage(error, fallback) {
+    const directMessage = typeof error?.message === 'string' ? error.message.trim() : '';
+    const providerDescription = typeof error?.response?.description === 'string'
+        ? error.response.description.trim()
+        : (typeof error?.description === 'string' ? error.description.trim() : '');
+    if (providerDescription) {
+        if (directMessage && directMessage !== 'Bad Request' && directMessage !== providerDescription) {
+            return `${directMessage}: ${providerDescription}`;
+        }
+        return providerDescription;
+    }
+    if (directMessage) {
+        return directMessage;
+    }
+    return fallback;
+}
 async function loadPublicationProjectContext(projectId) {
     const settings = await prisma.projectSettings.findMany({
         where: {
@@ -852,7 +868,7 @@ async function apiRoutes(fastify) {
             };
         }
         catch (error) {
-            return reply.code(400).send({ error: error.message || 'Failed to publish task now' });
+            return reply.code(400).send({ error: extractRequestErrorMessage(error, 'Failed to publish task now') });
         }
     });
     fastify.post('/api/publication-tasks/:id/confirm-publication', async (request, reply) => {
