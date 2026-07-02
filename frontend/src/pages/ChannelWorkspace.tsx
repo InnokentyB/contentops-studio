@@ -156,7 +156,12 @@ export default function ChannelWorkspace() {
     }, [publicationTasks, selectedChannel])
 
     const selectedTask = selectedChannelTasks[0] || null
-    const resourceFiles = mergeChannelResourceFiles(selectedTask)
+    const { data: selectedTaskDetail } = useQuery<PublicationTask>({
+        queryKey: ['channel_workspace_task_detail', selectedTask?.id],
+        queryFn: () => publicationTasksApi.get(selectedTask!.id),
+        enabled: !!selectedTask?.id
+    })
+    const resourceFiles = mergeChannelResourceFiles(selectedTaskDetail || selectedTask)
     const publishedTasks = selectedChannelTasks.filter((task) => task.status === 'published').length
     const overdueTasks = selectedChannelTasks.filter((task) => {
         if (!task.schedule_at) return false
