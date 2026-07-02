@@ -118,6 +118,78 @@ function buildPublicationTaskListItem(item: any) {
     };
 }
 
+function buildPublicationTaskDetailItem(item: any, options?: {
+    handoffBundle?: any | null;
+    projectContext?: {
+        glossaryYaml: string | null;
+        atomaFilesDescription: string | null;
+        atomaFilesPayload: any | null;
+    };
+}) {
+    const qualityReport = (item.quality_report as any) || {};
+    const metrics = (item.metrics as any) || {};
+    const assets = (item.assets as any) || {};
+    const handoffBundle = options?.handoffBundle || qualityReport.handoff_bundle || null;
+    const firstResourceWithUrl = (handoffBundle?.resource_files || []).find((entry: any) => entry?.url);
+    const firstSourceContent = (handoffBundle?.resource_files || []).find((entry: any) => typeof entry?.content === 'string' && entry.content.trim());
+
+    return {
+        id: item.id,
+        type: item.type,
+        layer: item.layer,
+        title: item.title,
+        brief: item.brief,
+        key_points: item.key_points || null,
+        status: item.status,
+        schedule_at: resolveTaskScheduleAt(item),
+        published_link: item.published_link,
+        draft_text: item.draft_text || null,
+        channel: item.channel ? {
+            id: item.channel.id,
+            name: item.channel.name,
+            type: item.channel.type,
+            config: item.channel.config || null
+        } : null,
+        assets: {
+            action: assets.action || null,
+            resolved_assets: assets.resolved_assets || [],
+            generated_visuals: assets.generated_visuals || []
+        },
+        metrics: {
+            monitoring: metrics.monitoring || null,
+            collected_metrics: metrics.collected_metrics || null,
+            publication_outcome: metrics.publication_outcome || null,
+            account_ref: metrics.account_ref || null,
+            task_id: metrics.task_id || null,
+            metrics_updated_at: metrics.metrics_updated_at || null
+        },
+        quality_report: {
+            execution_mode: qualityReport.execution_mode || null,
+            publication_outcome: qualityReport.publication_outcome || null,
+            manual_publication_note: qualityReport.manual_publication_note || null,
+            critic_review: qualityReport.critic_review || null,
+            generated_image: qualityReport.generated_image || null,
+            content_edit_history: Array.isArray(qualityReport.content_edit_history) ? qualityReport.content_edit_history : [],
+            verification: qualityReport.verification || null,
+            post_actions: qualityReport.post_actions || null,
+            handoff_bundle: handoffBundle
+        },
+        project_context: {
+            glossary_available: Boolean(options?.projectContext?.glossaryYaml),
+            glossary_yaml: options?.projectContext?.glossaryYaml || null,
+            atoma_files_description: options?.projectContext?.atomaFilesDescription || null,
+            atoma_files_payload: options?.projectContext?.atomaFilesPayload || null
+        },
+        workspace_context: {
+            plan_item_ref: assets.action?.id || metrics.task_id || null,
+            target_resource_url: handoffBundle?.publication?.link_url || firstResourceWithUrl?.url || null,
+            target_resource_label: handoffBundle?.publication?.link_url ? 'publication.link_url' : firstResourceWithUrl?.file_name || firstResourceWithUrl?.ref || null,
+            source_content: firstSourceContent?.content || handoffBundle?.publication?.body || item.draft_text || '',
+            source_file_name: firstSourceContent?.file_name || null
+        }
+    };
+}
+
 export default async function apiRoutes(fastify: FastifyInstance) {
     // Auth and Project context middleware
     fastify.addHook('preHandler', async (request, reply) => {
@@ -735,43 +807,15 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         const projectContext = await loadPublicationProjectContext(projectId);
         const action = (item.assets as any)?.action;
         if (!plan || !action) {
-            return {
-                ...item,
-                schedule_at: resolveTaskScheduleAt(item),
-                project_context: {
-                    glossary_available: Boolean(projectContext.glossaryYaml),
-                    glossary_yaml: projectContext.glossaryYaml,
-                    atoma_files_description: projectContext.atomaFilesDescription,
-                    atoma_files_payload: projectContext.atomaFilesPayload
-                }
-            };
+            return buildPublicationTaskDetailItem(item, { projectContext });
         }
 
         const bundle = publicationPlanService.buildHandoffBundle({ ...plan, actions: [action] } as any, item);
-        const firstResourceWithUrl = (bundle.resource_files || []).find((entry: any) => entry?.url);
-        const firstSourceContent = (bundle.resource_files || []).find((entry: any) => typeof entry?.content === 'string' && entry.content.trim());
 
-        return {
-            ...item,
-            schedule_at: resolveTaskScheduleAt(item),
-            quality_report: {
-                ...((item.quality_report as any) || {}),
-                handoff_bundle: bundle
-            },
-            project_context: {
-                glossary_available: Boolean(projectContext.glossaryYaml),
-                glossary_yaml: projectContext.glossaryYaml,
-                atoma_files_description: projectContext.atomaFilesDescription,
-                atoma_files_payload: projectContext.atomaFilesPayload
-            },
-            workspace_context: {
-                plan_item_ref: action.id || (item.metrics as any)?.task_id || null,
-                target_resource_url: bundle.publication?.link_url || firstResourceWithUrl?.url || null,
-                target_resource_label: bundle.publication?.link_url ? 'publication.link_url' : firstResourceWithUrl?.file_name || firstResourceWithUrl?.ref || null,
-                source_content: firstSourceContent?.content || bundle.publication?.body || item.draft_text || '',
-                source_file_name: firstSourceContent?.file_name || null
-            }
-        };
+        return buildPublicationTaskDetailItem(item, {
+            handoffBundle: bundle,
+            projectContext
+        });
     });
 
     fastify.put('/api/publication-tasks/:id/content', async (request, reply) => {
