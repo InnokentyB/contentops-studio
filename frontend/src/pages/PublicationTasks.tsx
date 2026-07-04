@@ -477,6 +477,18 @@ export default function PublicationTasks() {
         }
     })
 
+    useEffect(() => {
+        prepareHandoff.reset()
+        saveTaskContent.reset()
+        confirmPublication.reset()
+        publishTaskNow.reset()
+        runCriticCheck.reset()
+        generateTaskImage.reset()
+        collectMetrics.reset()
+        recordMetrics.reset()
+        sendCommentAlert.reset()
+    }, [activeTaskId, currentProject?.id])
+
     const handoffBundle = activeTask?.quality_report?.handoff_bundle as JsonRecord | undefined
     const sourceFiles = mergeSourceFiles(activeTask)
     const primarySourceContent = resolvePrimarySourceContent(activeTask, sourceFiles)
