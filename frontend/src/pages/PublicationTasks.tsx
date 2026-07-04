@@ -516,9 +516,9 @@ export default function PublicationTasks() {
     const contentEditHistory = (((activeTask?.quality_report as JsonRecord | undefined)?.content_edit_history as ContentEditHistoryEntry[] | undefined) || [])
 
     return (
-        <div className="flex-1 w-full p-8 lg:p-10 space-y-8 overflow-y-auto">
+        <div className="flex-1 w-full p-4 sm:p-6 lg:p-10 space-y-8 overflow-y-auto">
             <section className="grid grid-cols-1 lg:grid-cols-[380px_minmax(0,1fr)] gap-6 items-start">
-                    <div className="bg-white rounded-[2rem] border border-outline-variant/10 shadow-sm overflow-hidden sticky top-6">
+                    <div className="bg-white rounded-[2rem] border border-outline-variant/10 shadow-sm overflow-hidden lg:sticky lg:top-6">
                         <div className="p-6 border-b border-outline-variant/10 space-y-4">
                             <div className="flex items-center justify-between gap-3">
                                 <div>
@@ -542,7 +542,7 @@ export default function PublicationTasks() {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <select
                                     value={statusFilter}
                                     onChange={(event) => setStatusFilter(event.target.value)}
@@ -653,7 +653,7 @@ export default function PublicationTasks() {
 
                     <div className="bg-white rounded-[2rem] border border-outline-variant/10 shadow-sm overflow-hidden">
                         {!activeTask && (
-                            <div className="min-h-[560px] flex items-center justify-center p-10 text-center">
+                                <div className="min-h-[560px] flex items-center justify-center p-6 sm:p-10 text-center">
                                 <div className="max-w-md space-y-4">
                                     <div className="w-16 h-16 mx-auto rounded-3xl bg-surface-container-high flex items-center justify-center text-primary">
                                         <span className="material-symbols-outlined text-3xl">task_alt</span>
@@ -668,13 +668,13 @@ export default function PublicationTasks() {
 
                         {activeTask && (
                             <div>
-                                <div className="p-7 border-b border-outline-variant/10">
+                                <div className="p-5 sm:p-7 border-b border-outline-variant/10">
                                     <div className="flex flex-wrap items-start justify-between gap-4">
                                         <div className="space-y-3">
                                             <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">
                                                 {taskChannel(activeTask)}
                                             </div>
-                                            <h2 className="text-2xl font-headline font-black tracking-tight text-on-surface">
+                                            <h2 className="text-xl sm:text-2xl font-headline font-black tracking-tight text-on-surface break-words">
                                                 {activeTask.title || activeTask.type}
                                             </h2>
                                             <div className="flex flex-wrap gap-2">
@@ -705,12 +705,12 @@ export default function PublicationTasks() {
                                             )}
                                         </div>
 
-                                        <div className="flex flex-wrap items-center gap-3">
+                                        <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 w-full sm:w-auto">
                                             {canPrepareHandoff && (
                                                 <button
                                                     onClick={() => prepareHandoff.mutate(activeTask.id)}
                                                     disabled={prepareHandoff.isPending || isLoadingTask || publishTaskNow.isPending}
-                                                    className="bg-primary text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
+                                                    className="w-full sm:w-auto bg-primary text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
                                                 >
                                                     {prepareHandoff.isPending ? 'Preparing...' : 'Prepare Handoff'}
                                                 </button>
@@ -719,7 +719,7 @@ export default function PublicationTasks() {
                                                 <button
                                                     onClick={() => publishTaskNow.mutate()}
                                                     disabled={publishTaskNow.isPending || prepareHandoff.isPending || isLoadingTask}
-                                                    className="ai-gradient text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 inline-flex items-center gap-2"
+                                                    className="w-full sm:w-auto ai-gradient text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 inline-flex items-center justify-center gap-2"
                                                     title={executionMode === 'manual'
                                                         ? 'Отправить текущий текст публикации прямо в подключённый канал'
                                                         : 'Запустить публикацию через подключённый адаптер'}
@@ -751,7 +751,7 @@ export default function PublicationTasks() {
                                     )}
                                 </div>
 
-                                <div className="p-7 space-y-7">
+                                <div className="p-5 sm:p-7 space-y-7">
                                     <section className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                                         <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-3">
                                             <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Task Context</div>
@@ -797,22 +797,22 @@ export default function PublicationTasks() {
                                                 rows={16}
                                                 className="w-full bg-white border-none rounded-2xl p-4 text-sm leading-6 focus:ring-2 focus:ring-primary/20 outline-none resize-y min-h-[22rem]"
                                             />
-                                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                            <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center justify-between gap-3">
                                                 <div className="text-xs text-on-surface-variant">
                                                     Правки сохраняются в задачу публикации и используются для handoff, критика и ручной публикации.
                                                 </div>
-                                                <div className="flex items-center gap-3">
+                                                <div className="flex w-full sm:w-auto items-center gap-3">
                                                     <button
                                                         onClick={() => setPublicationBody(currentPublicationBody)}
                                                         disabled={!isPublicationBodyDirty || saveTaskContent.isPending}
-                                                        className="rounded-2xl bg-surface-container-highest text-on-surface font-black text-xs px-4 py-3 hover:bg-primary/10 hover:text-primary transition-all disabled:opacity-50"
+                                                        className="flex-1 sm:flex-none rounded-2xl bg-surface-container-highest text-on-surface font-black text-xs px-4 py-3 hover:bg-primary/10 hover:text-primary transition-all disabled:opacity-50"
                                                     >
                                                         Сбросить
                                                     </button>
                                                     <button
                                                         onClick={() => saveTaskContent.mutate()}
                                                         disabled={!isPublicationBodyDirty || saveTaskContent.isPending}
-                                                        className="rounded-2xl bg-primary text-white font-black text-xs px-4 py-3 shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
+                                                        className="flex-1 sm:flex-none rounded-2xl bg-primary text-white font-black text-xs px-4 py-3 shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
                                                     >
                                                         {saveTaskContent.isPending ? 'Сохраняем текст...' : 'Сохранить текст'}
                                                     </button>

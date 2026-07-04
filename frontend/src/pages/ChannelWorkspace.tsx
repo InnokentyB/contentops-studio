@@ -211,7 +211,7 @@ export default function ChannelWorkspace() {
 
     if (!currentProject) {
         return (
-            <div className="flex-1 w-full p-8 lg:p-10">
+            <div className="flex-1 w-full p-4 sm:p-6 lg:p-10">
                 <div className="max-w-5xl mx-auto rounded-[2rem] bg-white border border-outline-variant/10 shadow-sm p-8 text-on-surface-variant">
                     Сначала выбери проект, чтобы открыть рабочую область канала.
                 </div>
@@ -220,9 +220,9 @@ export default function ChannelWorkspace() {
     }
 
     return (
-        <div className="flex-1 w-full p-8 lg:p-10 overflow-y-auto">
+        <div className="flex-1 w-full p-4 sm:p-6 lg:p-10 overflow-y-auto">
             <div className="max-w-[1600px] mx-auto space-y-8">
-                <section className="rounded-[2rem] bg-white border border-outline-variant/10 shadow-sm p-8 lg:p-10">
+                <section className="rounded-[2rem] bg-white border border-outline-variant/10 shadow-sm p-5 sm:p-7 lg:p-10">
                     <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-8">
                         <div className="max-w-4xl">
                             <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">Рабочая область канала</div>
@@ -231,7 +231,7 @@ export default function ChannelWorkspace() {
                                 <span className="text-on-surface-variant/50">/</span>
                                 <span className="text-on-surface-variant">{currentProject.name}</span>
                             </div>
-                            <h1 className="mt-4 text-4xl lg:text-5xl font-headline font-black tracking-tight text-on-surface">
+                            <h1 className="mt-4 text-3xl sm:text-4xl lg:text-5xl font-headline font-black tracking-tight text-on-surface break-words">
                                 {selectedChannel?.name || 'Загружаем канал'}
                             </h1>
                             <p className="mt-4 text-sm leading-7 text-on-surface-variant max-w-3xl">
@@ -257,7 +257,7 @@ export default function ChannelWorkspace() {
                             )}
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 min-w-[320px]">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full xl:w-auto xl:min-w-[320px]">
                             <Link
                                 to="/publication-tasks"
                                 className="rounded-2xl ai-gradient text-white px-5 py-4 text-sm font-black text-center shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all"
@@ -327,19 +327,19 @@ export default function ChannelWorkspace() {
                             </div>
                         ) : (
                             <div className="h-full overflow-y-auto">
-                                <div className="p-7 border-b border-outline-variant/10">
+                                <div className="p-5 sm:p-7 border-b border-outline-variant/10">
                                     <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-6">
                                         <div>
                                             <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">
                                                 {selectedChannel.type} channel
                                             </div>
-                                            <h2 className="mt-2 text-3xl font-headline font-black text-on-surface">{selectedChannel.name}</h2>
+                                            <h2 className="mt-2 text-2xl sm:text-3xl font-headline font-black text-on-surface break-words">{selectedChannel.name}</h2>
                                             <p className="mt-3 text-sm leading-7 text-on-surface-variant max-w-3xl">
                                                 Выбери, как контент попадает в этот канал, посмотри связанные плановые ресурсы и отправь готовый материал в публикации и аналитику.
                                             </p>
                                         </div>
 
-                                        <div className="grid grid-cols-2 gap-3">
+                                        <div className="grid grid-cols-2 gap-3 w-full sm:w-auto">
                                             {[
                                                 { id: 'plan', label: 'Файлы плана' },
                                                 { id: 'manual', label: 'Ручная загрузка' },
@@ -358,7 +358,7 @@ export default function ChannelWorkspace() {
                                     </div>
                                 </div>
 
-                                <div className="p-7 space-y-7">
+                                <div className="p-5 sm:p-7 space-y-7">
                                     <section className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                                         <div className="rounded-[1.5rem] bg-surface-container-low p-5">
                                             <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Сводка канала</div>

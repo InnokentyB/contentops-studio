@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -9,6 +9,11 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user, projects, currentProject, setCurrentProject, logout } = useAuth();
   const location = useLocation();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [location.pathname, currentProject?.id]);
 
   const isActive = (path: string) => {
     if (path === '/projects') {
@@ -29,10 +34,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { label: 'Настройки проекта', path: '/settings', icon: 'settings' },
   ];
 
-  return (
-    <div className="bg-surface font-body text-on-surface flex min-h-screen overflow-hidden">
-      {/* SideNavBar */}
-      <aside className="bg-surface-container-low w-64 h-full flex flex-col py-8 px-4 border-r-0 shrink-0 border-outline-variant/10">
+  const renderSidebar = (isMobile = false) => (
+      <aside
+        className={`bg-surface-container-low flex flex-col border-r-0 border-outline-variant/10 ${isMobile ? 'h-full w-full py-6 px-4' : 'w-64 h-full py-8 px-4'}`}
+      >
         <div className="mb-10 px-2 space-y-4">
           <Link to="/projects" className="block hover:opacity-80 transition-opacity">
             <div className="text-[10px] font-black uppercase tracking-[0.22em] text-primary/60">Workspace</div>
@@ -111,13 +116,52 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </div>
       </aside>
+  );
+
+  return (
+    <div className="bg-surface font-body text-on-surface flex min-h-screen overflow-hidden">
+      <div className={`fixed inset-0 z-50 lg:hidden transition-opacity ${mobileNavOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
+        <button
+          aria-label="Закрыть навигацию"
+          className="absolute inset-0 bg-black/35 backdrop-blur-sm"
+          onClick={() => setMobileNavOpen(false)}
+        />
+        <div className={`absolute inset-y-0 left-0 w-[min(22rem,calc(100vw-2rem))] transition-transform duration-300 ${mobileNavOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+          <div className="relative h-full shadow-2xl shadow-black/20">
+            <button
+              onClick={() => setMobileNavOpen(false)}
+              className="absolute right-4 top-4 z-10 w-10 h-10 rounded-2xl bg-white/90 text-on-surface flex items-center justify-center shadow-sm"
+              aria-label="Закрыть меню"
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
+            {renderSidebar(true)}
+          </div>
+        </div>
+      </div>
+
+      <div className="hidden lg:flex shrink-0">
+        {renderSidebar()}
+      </div>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 bg-surface relative overflow-y-auto">
+      <main className="flex-1 flex flex-col min-w-0 bg-surface relative overflow-y-auto overflow-x-hidden">
         {/* TopNavBar */}
-        <header className="flex justify-between items-center w-full px-8 h-20 sticky top-0 bg-surface/80 backdrop-blur-xl z-30 border-b border-outline-variant/5">
-          <div className="flex items-center gap-8">
-            <span className="text-xl font-bold text-primary font-headline">Когнитивный помощник</span>
+        <header className="flex justify-between items-center w-full px-4 lg:px-8 h-16 lg:h-20 sticky top-0 bg-surface/80 backdrop-blur-xl z-30 border-b border-outline-variant/5">
+          <div className="flex items-center gap-3 lg:gap-8 min-w-0">
+            <button
+              onClick={() => setMobileNavOpen(true)}
+              className="lg:hidden w-11 h-11 rounded-2xl bg-surface-container-low text-on-surface flex items-center justify-center shrink-0"
+              aria-label="Открыть навигацию"
+            >
+              <span className="material-symbols-outlined">menu</span>
+            </button>
+            <div className="min-w-0">
+              <span className="block text-lg lg:text-xl font-bold text-primary font-headline truncate">Когнитивный помощник</span>
+              {currentProject && (
+                <span className="block lg:hidden text-[11px] text-on-surface-variant truncate">{currentProject.name}</span>
+              )}
+            </div>
             <div className="relative hidden lg:block">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
               <input 
@@ -127,18 +171,21 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               />
             </div>
           </div>
-          <nav className="flex items-center gap-8 h-full">
-            <Link to="/projects" className="text-on-surface-variant hover:text-primary font-label text-sm transition-opacity">Обзор</Link>
-            <Link to="/publication-tasks" className="text-on-surface-variant hover:text-primary font-label text-sm transition-opacity">Публикации</Link>
-            <Link to="/analytics" className="text-on-surface-variant hover:text-primary font-label text-sm transition-opacity">Метрики</Link>
-            <Link to="/recipes" className="text-on-surface-variant hover:text-primary font-label text-sm transition-opacity">Шаблоны</Link>
-            <Link to="/calendar" className="text-on-surface-variant hover:text-primary font-label text-sm transition-opacity">Календарь</Link>
-            <div className="flex items-center gap-4 ml-4">
+          <nav className="flex items-center gap-3 lg:gap-8 h-full shrink-0">
+            <div className="hidden xl:flex items-center gap-8 h-full">
+              <Link to="/projects" className="text-on-surface-variant hover:text-primary font-label text-sm transition-opacity">Обзор</Link>
+              <Link to="/publication-tasks" className="text-on-surface-variant hover:text-primary font-label text-sm transition-opacity">Публикации</Link>
+              <Link to="/analytics" className="text-on-surface-variant hover:text-primary font-label text-sm transition-opacity">Метрики</Link>
+              <Link to="/recipes" className="text-on-surface-variant hover:text-primary font-label text-sm transition-opacity">Шаблоны</Link>
+              <Link to="/calendar" className="text-on-surface-variant hover:text-primary font-label text-sm transition-opacity">Календарь</Link>
+            </div>
+            <div className="flex items-center gap-2 lg:gap-4 lg:ml-4">
               <button className="p-2 text-on-surface-variant hover:opacity-80 transition-opacity">
                 <span className="material-symbols-outlined">notifications_active</span>
               </button>
-              <Link to="/projects" className="bg-primary text-white px-5 py-2 rounded-full font-bold text-sm shadow-sm hover:opacity-90 transition-opacity">
-                Открыть обзор
+              <Link to="/projects" className="bg-primary text-white px-4 lg:px-5 py-2 rounded-full font-bold text-xs lg:text-sm shadow-sm hover:opacity-90 transition-opacity whitespace-nowrap">
+                <span className="hidden sm:inline">Открыть обзор</span>
+                <span className="sm:hidden">Обзор</span>
               </Link>
             </div>
           </nav>

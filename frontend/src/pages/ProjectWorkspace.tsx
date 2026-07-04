@@ -174,7 +174,7 @@ export default function ProjectWorkspace() {
 
     if (!currentProject) {
         return (
-            <div className="flex-1 w-full p-8 lg:p-10">
+            <div className="flex-1 w-full p-4 sm:p-6 lg:p-10">
                 <div className="max-w-5xl mx-auto rounded-[2rem] bg-white border border-outline-variant/10 shadow-sm p-8 text-on-surface-variant">
                     Сначала выбери проект, чтобы открыть рабочую область.
                 </div>
@@ -183,13 +183,13 @@ export default function ProjectWorkspace() {
     }
 
     return (
-        <div className="flex-1 w-full p-8 lg:p-10 overflow-y-auto">
+        <div className="flex-1 w-full p-4 sm:p-6 lg:p-10 overflow-y-auto">
             <div className="max-w-[1600px] mx-auto space-y-8">
-                <section className="rounded-[2rem] bg-white border border-outline-variant/10 shadow-sm p-8 lg:p-10">
+                <section className="rounded-[2rem] bg-white border border-outline-variant/10 shadow-sm p-5 sm:p-7 lg:p-10">
                     <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-8">
                         <div className="max-w-4xl">
                             <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">Обзор проекта</div>
-                            <h1 className="mt-3 text-4xl lg:text-5xl font-headline font-black tracking-tight text-on-surface">
+                            <h1 className="mt-3 text-3xl sm:text-4xl lg:text-5xl font-headline font-black tracking-tight text-on-surface break-words">
                                 {currentProject.name}
                             </h1>
                             <p className="mt-4 text-sm leading-7 text-on-surface-variant max-w-3xl">
@@ -211,7 +211,7 @@ export default function ProjectWorkspace() {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 min-w-[420px]">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 w-full xl:w-auto xl:min-w-[420px]">
                             <button
                                 onClick={() => setShowPlanModal(true)}
                                 className="rounded-2xl ai-gradient text-white px-5 py-4 text-sm font-black shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all"
