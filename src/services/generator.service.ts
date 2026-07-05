@@ -164,20 +164,30 @@ CTA: ${item.cta || 'Нет'}
                 prompt: prompt,
                 n: 1,
                 size: "1024x1024",
-                quality: "standard",
-                response_format: "url",
             });
 
             if (!response.data || !response.data[0]) {
                 throw new Error('No image data returned from GPT-Image');
             }
 
-            const imageUrl = response.data[0].url || '';
-            if (!imageUrl) throw new Error('Empty image URL from GPT-Image');
+            const item = response.data[0];
+            let buffer: Buffer;
 
-            // Download and save locally
+            if (item.b64_json) {
+                buffer = Buffer.from(item.b64_json, 'base64');
+            } else if (item.url) {
+                const downloadRes = await fetch(item.url);
+                if (!downloadRes.ok) throw new Error(`Failed to download image from URL: ${downloadRes.statusText}`);
+                const arrayBuffer = await downloadRes.arrayBuffer();
+                buffer = Buffer.from(arrayBuffer);
+            } else {
+                throw new Error('No url or b64_json returned in GPT-Image response');
+            }
+
+            // Upload buffer directly to storage
             const filename = `img-${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
-            return await this.downloadAndSaveImage(imageUrl, filename);
+            const storageService = require('./storage.service').default;
+            return await storageService.uploadFileFromBuffer(buffer, 'image/png', `generated/${filename}`);
         } catch (e) {
             console.error('Failed to generate image (GPT-Image)', e);
             throw e;

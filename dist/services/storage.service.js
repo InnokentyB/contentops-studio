@@ -58,8 +58,22 @@ class StorageService {
             return publicData.publicUrl;
         }
         catch (error) {
-            console.error(`[Storage] Error uploading buffer:`, error);
-            throw error;
+            console.error(`[Storage] Error uploading buffer to Supabase, attempting local fallback:`, error);
+            try {
+                const uploadsDir = path_1.default.join(process.cwd(), 'uploads');
+                if (!fs_1.default.existsSync(uploadsDir)) {
+                    fs_1.default.mkdirSync(uploadsDir, { recursive: true });
+                }
+                const filename = destinationPath.split('/').pop() || `file-${Date.now()}.png`;
+                const localFilePath = path_1.default.join(uploadsDir, filename);
+                fs_1.default.writeFileSync(localFilePath, buffer);
+                console.log(`[Storage] Successfully saved file locally to fallback path: ${localFilePath}`);
+                return `/uploads/${filename}`;
+            }
+            catch (fallbackErr) {
+                console.error(`[Storage] Local fallback failed:`, fallbackErr);
+                throw error;
+            }
         }
     }
     /**

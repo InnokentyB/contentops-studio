@@ -36,6 +36,7 @@ export class StorageService {
    * @param destinationPath Path in the bucket
    * @returns Public URL of the uploaded file
    */
+
     async uploadFileFromBuffer(buffer: Buffer, mimeType: string, destinationPath: string): Promise<string> {
         try {
             const { data, error } = await supabase.storage
@@ -55,8 +56,22 @@ export class StorageService {
 
             return publicData.publicUrl;
         } catch (error) {
-            console.error(`[Storage] Error uploading buffer:`, error);
-            throw error;
+            console.error(`[Storage] Error uploading buffer to Supabase, attempting local fallback:`, error);
+            try {
+                const uploadsDir = path.join(process.cwd(), 'uploads');
+                if (!fs.existsSync(uploadsDir)) {
+                    fs.mkdirSync(uploadsDir, { recursive: true });
+                }
+                const filename = destinationPath.split('/').pop() || `file-${Date.now()}.png`;
+                const localFilePath = path.join(uploadsDir, filename);
+                fs.writeFileSync(localFilePath, buffer);
+                
+                console.log(`[Storage] Successfully saved file locally to fallback path: ${localFilePath}`);
+                return `/uploads/${filename}`;
+            } catch (fallbackErr: any) {
+                console.error(`[Storage] Local fallback failed:`, fallbackErr);
+                throw error;
+            }
         }
     }
 
