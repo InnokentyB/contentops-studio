@@ -271,11 +271,16 @@ export default function Settings() {
     const [nativeScheduling, setNativeScheduling] = useState(false)
 
     // Channel State
-    const [newChannelType, setNewChannelType] = useState<'telegram' | 'vk' | 'linkedin'>('telegram')
+    const [newChannelType, setNewChannelType] = useState<'telegram' | 'vk' | 'linkedin' | 'ok' | 'habr' | 'vc' | 'zen'>('telegram')
     const [newChannelName, setNewChannelName] = useState('')
     const [newChannelId, setNewChannelId] = useState('')
     const [newChannelUsername, setNewChannelUsername] = useState('')
     const [newChannelApiKey, setNewChannelApiKey] = useState('')
+    const [okAppKey, setOkAppKey] = useState('')
+    const [okAppSecret, setOkAppSecret] = useState('')
+    const [webhookUrl, setWebhookUrl] = useState('')
+    const [hubIds, setHubIds] = useState('')
+    const [sessionCookies, setSessionCookies] = useState('')
 
 
     // Key State
@@ -374,6 +379,9 @@ export default function Settings() {
             setNewChannelId('')
             setNewChannelUsername('')
             setNewChannelApiKey('')
+            setSessionCookies('')
+            setHubIds('')
+            setWebhookUrl('')
             queryClient.invalidateQueries({ queryKey: ['project'] })
             alert('Channel added')
         },
@@ -553,7 +561,8 @@ export default function Settings() {
 
 
     const handleAddChannel = () => {
-        if (!newChannelName || !newChannelId) return;
+        if (!newChannelName) return;
+        if (newChannelType !== 'habr' && !newChannelId) return;
 
         const config: any = {};
         if (newChannelType === 'telegram') {
@@ -563,6 +572,30 @@ export default function Settings() {
             if (!newChannelApiKey) return alert('VK requires an API key');
             config.vk_id = newChannelId;
             config.api_key = newChannelApiKey;
+        } else if (newChannelType === 'ok') {
+            if (!newChannelApiKey) return alert('Access Token is required');
+            if (!okAppKey) return alert('Application Key is required');
+            if (!okAppSecret) return alert('Application Secret Key is required');
+            config.group_id = newChannelId;
+            config.access_token = newChannelApiKey;
+            config.application_key = okAppKey;
+            config.application_secret_key = okAppSecret;
+        } else if (newChannelType === 'habr') {
+            config.hub_ids = hubIds ? hubIds.split(',').map((s: string) => s.trim()) : [];
+            if (newChannelApiKey) config.api_token = newChannelApiKey;
+            if (webhookUrl) config.webhook_url = webhookUrl;
+            if (sessionCookies) config.cookies = sessionCookies;
+            config.telegram_channel_id = newChannelId || 'habr-channel';
+        } else if (newChannelType === 'vc') {
+            config.subsite_id = newChannelId;
+            if (newChannelApiKey) config.access_token = newChannelApiKey;
+            if (webhookUrl) config.webhook_url = webhookUrl;
+            config.vk_id = newChannelId;
+        } else if (newChannelType === 'zen') {
+            config.channel_id = newChannelId;
+            if (webhookUrl) config.webhook_url = webhookUrl;
+            if (sessionCookies) config.cookies = sessionCookies;
+            config.vk_id = newChannelId;
         }
 
         addChannel.mutate({
@@ -774,6 +807,10 @@ export default function Settings() {
                                 <option value="telegram">Telegram</option>
                                 <option value="vk">VKontakte (VK)</option>
                                 <option value="linkedin">LinkedIn</option>
+                                <option value="ok">Odnoklassniki (OK)</option>
+                                <option value="habr">Habr</option>
+                                <option value="vc">VC.ru</option>
+                                <option value="zen">Zen (Dzen)</option>
                             </select>
                         </div>
 
@@ -827,6 +864,144 @@ export default function Settings() {
                                         />
                                     </div>
                                 </>
+                            ) : newChannelType === 'ok' ? (
+                                <>
+                                    <div>
+                                        <label>OK Group ID</label>
+                                        <input
+                                            placeholder="e.g. 523456789"
+                                            value={newChannelId}
+                                            onChange={e => setNewChannelId(e.target.value)}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label>Access Token</label>
+                                        <input
+                                            type="password"
+                                            placeholder="Token..."
+                                            value={newChannelApiKey}
+                                            onChange={e => setNewChannelApiKey(e.target.value)}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label>Application Key (App Key)</label>
+                                        <input
+                                            placeholder="CBAxxxx..."
+                                            value={okAppKey}
+                                            onChange={e => setOkAppKey(e.target.value)}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label>Application Secret Key</label>
+                                        <input
+                                            type="password"
+                                            placeholder="Secret..."
+                                            value={okAppSecret}
+                                            onChange={e => setOkAppSecret(e.target.value)}
+                                        />
+                                    </div>
+                                </>
+                            ) : newChannelType === 'habr' ? (
+                                <>
+                                    <div>
+                                        <label>Hub IDs (comma-separated, optional)</label>
+                                        <input
+                                            placeholder="e.g. dev, pm"
+                                            value={hubIds}
+                                            onChange={e => setHubIds(e.target.value)}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label>API Token / Key (Optional)</label>
+                                        <input
+                                            type="password"
+                                            placeholder="Habr API Token..."
+                                            value={newChannelApiKey}
+                                            onChange={e => setNewChannelApiKey(e.target.value)}
+                                        />
+                                    </div>
+                                    <div style={{ gridColumn: '1 / -1' }}>
+                                        <label>Webhook URL (Optional, for publishing automation)</label>
+                                        <input
+                                            placeholder="https://..."
+                                            value={webhookUrl}
+                                            onChange={e => setWebhookUrl(e.target.value)}
+                                        />
+                                    </div>
+                                    <div style={{ gridColumn: '1 / -1' }}>
+                                        <label>Session Cookies (for automated Puppeteer publishing)</label>
+                                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted, #8a8fa8)', margin: '0 0 6px' }}>
+                                            Войдите в Habr в браузере, откройте DevTools → Network → скопируйте значение заголовка <code>Cookie</code> из любого запроса к habr.com и вставьте сюда.
+                                        </p>
+                                        <textarea
+                                            rows={3}
+                                            placeholder="session_id=abc123; csrftoken=xyz..."
+                                            value={sessionCookies}
+                                            onChange={e => setSessionCookies(e.target.value)}
+                                            style={{ fontFamily: 'monospace', fontSize: '0.75rem', resize: 'vertical' }}
+                                        />
+                                    </div>
+                                </>
+                            ) : newChannelType === 'vc' ? (
+                                <>
+                                    <div>
+                                        <label>Subsite ID / User ID</label>
+                                        <input
+                                            placeholder="e.g. 12345 or 'personal'"
+                                            value={newChannelId}
+                                            onChange={e => setNewChannelId(e.target.value)}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label>Device Token (X-Device-Token, optional)</label>
+                                        <input
+                                            type="password"
+                                            placeholder="Token..."
+                                            value={newChannelApiKey}
+                                            onChange={e => setNewChannelApiKey(e.target.value)}
+                                        />
+                                    </div>
+                                    <div style={{ gridColumn: '1 / -1' }}>
+                                        <label>Webhook URL (Optional)</label>
+                                        <input
+                                            placeholder="https://..."
+                                            value={webhookUrl}
+                                            onChange={e => setWebhookUrl(e.target.value)}
+                                        />
+                                    </div>
+                                </>
+                            ) : newChannelType === 'zen' ? (
+                                <>
+                                    <div>
+                                        <label>Dzen Channel ID</label>
+                                        <input
+                                            placeholder="e.g. channel_id..."
+                                            value={newChannelId}
+                                            onChange={e => setNewChannelId(e.target.value)}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label>Webhook URL (Optional)</label>
+                                        <input
+                                            placeholder="https://..."
+                                            value={webhookUrl}
+                                            onChange={e => setWebhookUrl(e.target.value)}
+                                        />
+                                    </div>
+                                    <div style={{ gridColumn: '1 / -1' }}>
+                                        <label>Session Cookies (для автопубликации через Puppeteer)</label>
+                                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted, #8a8fa8)', margin: '0 0 6px' }}>
+                                            Войдите в Яндекс/Дзен в браузере, откройте DevTools → Network → скопируйте значение заголовка <code>Cookie</code> из запроса к dzen.ru и вставьте сюда.
+                                        </p>
+                                        <textarea
+                                            rows={3}
+                                            placeholder="Session_id=abc123; yandexuid=xyz..."
+                                            value={sessionCookies}
+                                            onChange={e => setSessionCookies(e.target.value)}
+                                            style={{ fontFamily: 'monospace', fontSize: '0.75rem', resize: 'vertical' }}
+                                        />
+                                    </div>
+                                </>
                             ) : (
                                 <div style={{ gridColumn: '1 / -1' }}>
                                     <label>Connect to LinkedIn</label>
@@ -852,7 +1027,13 @@ export default function Settings() {
                                     <button
                                         className="btn-primary"
                                         onClick={handleAddChannel}
-                                        disabled={!newChannelName || !newChannelId || (newChannelType === 'vk' && !newChannelApiKey) || addChannel.isPending}
+                                        disabled={
+                                            !newChannelName ||
+                                            (newChannelType !== 'habr' && !newChannelId) ||
+                                            (newChannelType === 'vk' && !newChannelApiKey) ||
+                                            (newChannelType === 'ok' && (!newChannelApiKey || !okAppKey || !okAppSecret)) ||
+                                            addChannel.isPending
+                                        }
                                         style={{ width: '100%' }}
                                     >
                                         {addChannel.isPending ? 'Adding...' : 'Add Channel'}
@@ -876,7 +1057,7 @@ export default function Settings() {
                                         )}
                                     </div>
                                     <div className="text-muted" style={{ fontSize: '0.8rem' }}>
-                                        ID: {channel.config?.telegram_channel_id || channel.config?.vk_id || channel.config?.linkedin_urn}
+                                        ID: {channel.config?.telegram_channel_id || channel.config?.vk_id || channel.config?.linkedin_urn || channel.config?.group_id || channel.config?.channel_id || channel.config?.subsite_id}
                                         {channel.config?.channel_username && ` • @${channel.config.channel_username}`}
                                     </div>
                                     {channel.type === 'linkedin' && (

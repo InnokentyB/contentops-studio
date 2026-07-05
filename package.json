@@ -55,6 +55,7 @@
     "jsonwebtoken": "^9.0.3",
     "openai": "^6.15.0",
     "pg": "^8.16.3",
+    "puppeteer": "^25.3.0",
     "telegraf": "^4.16.3",
     "telegram": "^2.26.22",
     "vk-io": "^4.10.1",
@@ -63,6 +64,7 @@
   "devDependencies": {
     "@types/node": "^25.0.3",
     "@types/pg": "^8.16.0",
+    "@types/puppeteer": "^5.4.7",
     "nodemon": "^3.1.11",
     "prisma": "^7.2.0",
     "ts-node": "^10.9.2",

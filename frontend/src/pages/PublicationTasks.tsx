@@ -168,7 +168,7 @@ function supportsAutoMetrics(task: PublicationTask | null | undefined) {
 function supportsDirectPlannerPublish(task: PublicationTask | null | undefined) {
     const type = task?.channel?.type
     if (!type) return false
-    return ['telegram', 'vk', 'linkedin', 'reddit', 'tilda'].includes(type)
+    return ['telegram', 'vk', 'linkedin', 'reddit', 'tilda', 'ok', 'odnoklassniki', 'habr', 'habr_article', 'vc', 'vc_article', 'zen', 'zen_article', 'dzen'].includes(type)
 }
 
 function formatUiError(error: unknown, fallback: string) {
@@ -831,6 +831,11 @@ export default function PublicationTasks() {
                                                     title={`publication-task-preview-${activeTask.id}`}
                                                     emptyMessage="Текст публикации пока пуст."
                                                     className="min-h-[22rem]"
+                                                    platform={activeTask.channel?.type || activeTask.type}
+                                                    postTitle={activeTask.title || undefined}
+                                                    postTags={Array.isArray(activeTask.key_points) ? (activeTask.key_points as unknown as string[]) : undefined}
+                                                    imageUrl={latestGeneratedImage?.url ? String(latestGeneratedImage.url) : undefined}
+                                                    authorName={activeTask.channel?.name || undefined}
                                                 />
                                             </div>
 

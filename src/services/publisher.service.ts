@@ -11,6 +11,10 @@ import redditService from './reddit.service';
 import gscService from './gsc.service';
 import tildaService from './tilda.service';
 import linkedinService from './linkedin.service';
+import okService from './ok.service';
+import habrService from './habr.service';
+import vcService from './vc.service';
+import dzenService from './dzen.service';
 import { parseRecurringTrigger } from './publication_runtime.helpers';
 import { config } from 'dotenv';
 import * as fs from 'fs';
@@ -1577,6 +1581,73 @@ class PublisherService {
                 metrics: {
                     tilda_publish_response: result.response || null
                 }
+            };
+        }
+
+        if (['ok', 'odnoklassniki'].includes(channelType)) {
+            const okConfig = channelConfig.raw_account || channelConfig;
+            const token = okConfig.access_token;
+            const appKey = okConfig.application_key;
+            const appSecret = okConfig.application_secret_key;
+            const gid = okConfig.group_id || okConfig.vk_id || channelConfig.telegram_channel_id || task.channel?.config?.telegram_channel_id;
+            if (!token || !appKey || !appSecret || !gid) {
+                throw new Error('Odnoklassniki channel config is missing access_token, application_key, application_secret_key, or group_id');
+            }
+
+            const publishedLink = await okService.publishPost({
+                access_token: token,
+                application_key: appKey,
+                application_secret_key: appSecret,
+                group_id: String(gid)
+            }, text, imageUrl || undefined);
+
+            return {
+                adapter: 'odnoklassniki',
+                publishedLink
+            };
+        }
+
+        if (['habr', 'habr_article'].includes(channelType)) {
+            const habrConfig = channelConfig.raw_account || channelConfig;
+            const title = bundle.publication?.html_bundle?.[0]?.asset?.title || task.title || 'Habr article';
+            const publishedLink = await habrService.publishPost({
+                api_token: habrConfig.api_token,
+                webhook_url: habrConfig.webhook_url,
+                hub_ids: habrConfig.hub_ids
+            }, text, imageUrl || undefined, title);
+
+            return {
+                adapter: 'habr',
+                publishedLink
+            };
+        }
+
+        if (['vc', 'vc_article'].includes(channelType)) {
+            const vcConfig = channelConfig.raw_account || channelConfig;
+            const title = bundle.publication?.html_bundle?.[0]?.asset?.title || task.title || 'VC article';
+            const publishedLink = await vcService.publishPost({
+                access_token: vcConfig.access_token || vcConfig.api_key,
+                subsite_id: vcConfig.subsite_id || vcConfig.vk_id,
+                webhook_url: vcConfig.webhook_url
+            }, text, imageUrl || undefined, title);
+
+            return {
+                adapter: 'vc',
+                publishedLink
+            };
+        }
+
+        if (['zen', 'zen_article', 'dzen'].includes(channelType)) {
+            const dzenConfig = channelConfig.raw_account || channelConfig;
+            const title = bundle.publication?.html_bundle?.[0]?.asset?.title || task.title || 'Zen article';
+            const publishedLink = await dzenService.publishPost({
+                channel_id: dzenConfig.channel_id || dzenConfig.vk_id,
+                webhook_url: dzenConfig.webhook_url
+            }, text, imageUrl || undefined, title);
+
+            return {
+                adapter: 'dzen',
+                publishedLink
             };
         }
 

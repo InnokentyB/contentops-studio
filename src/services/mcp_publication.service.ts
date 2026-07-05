@@ -4,6 +4,10 @@ import redditService from './reddit.service';
 import vkService from './vk.service';
 import linkedinService from './linkedin.service';
 import parserIntegrationService from './parser_integration.service';
+import okService from './ok.service';
+import habrService from './habr.service';
+import vcService from './vc.service';
+import dzenService from './dzen.service';
 import fs from 'fs';
 import path from 'path';
 import { normalizeProjectKind, slugifyProjectName } from '../utils/project.utils';
@@ -1023,6 +1027,39 @@ class McpPublicationService {
             }
 
             publishedLink = await linkedinService.publishPost(urn, token, params.text, params.imageUrl);
+        } else if (['ok', 'odnoklassniki'].includes(channel.type)) {
+            const token = config?.access_token;
+            const appKey = config?.application_key;
+            const appSecret = config?.application_secret_key;
+            const gid = config?.group_id || config?.vk_id || (channel.config as any)?.telegram_channel_id;
+            if (!token || !appKey || !appSecret || !gid) {
+                throw new Error(`Odnoklassniki channel ${channel.id} is missing access_token, application_key, application_secret_key, or group_id`);
+            }
+            publishedLink = await okService.publishPost({
+                access_token: token,
+                application_key: appKey,
+                application_secret_key: appSecret,
+                group_id: String(gid)
+            }, params.text, params.imageUrl);
+        } else if (['habr', 'habr_article'].includes(channel.type)) {
+            publishedLink = await habrService.publishPost({
+                api_token: config?.api_token,
+                webhook_url: config?.webhook_url,
+                hub_ids: config?.hub_ids,
+                cookies: config?.cookies
+            }, params.text, params.imageUrl, params.title);
+        } else if (['vc', 'vc_article'].includes(channel.type)) {
+            publishedLink = await vcService.publishPost({
+                access_token: config?.access_token || config?.api_key,
+                subsite_id: config?.subsite_id || config?.vk_id,
+                webhook_url: config?.webhook_url
+            }, params.text, params.imageUrl, params.title);
+        } else if (['zen', 'zen_article', 'dzen'].includes(channel.type)) {
+            publishedLink = await dzenService.publishPost({
+                channel_id: config?.channel_id || config?.vk_id,
+                webhook_url: config?.webhook_url,
+                cookies: config?.cookies
+            }, params.text, params.imageUrl, params.title);
         } else {
             throw new Error(`Direct MCP publication is not supported for channel type '${channel.type}'`);
         }

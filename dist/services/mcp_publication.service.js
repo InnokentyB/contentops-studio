@@ -42,6 +42,10 @@ const reddit_service_1 = __importDefault(require("./reddit.service"));
 const vk_service_1 = __importDefault(require("./vk.service"));
 const linkedin_service_1 = __importDefault(require("./linkedin.service"));
 const parser_integration_service_1 = __importDefault(require("./parser_integration.service"));
+const ok_service_1 = __importDefault(require("./ok.service"));
+const habr_service_1 = __importDefault(require("./habr.service"));
+const vc_service_1 = __importDefault(require("./vc.service"));
+const dzen_service_1 = __importDefault(require("./dzen.service"));
 const path_1 = __importDefault(require("path"));
 const project_utils_1 = require("../utils/project.utils");
 function resolveTaskScheduleAt(item) {
@@ -872,6 +876,43 @@ class McpPublicationService {
                 throw new Error(`LinkedIn channel ${channel.id} is missing linkedin_urn or access_token`);
             }
             publishedLink = await linkedin_service_1.default.publishPost(urn, token, params.text, params.imageUrl);
+        }
+        else if (['ok', 'odnoklassniki'].includes(channel.type)) {
+            const token = config?.access_token;
+            const appKey = config?.application_key;
+            const appSecret = config?.application_secret_key;
+            const gid = config?.group_id || config?.vk_id || channel.config?.telegram_channel_id;
+            if (!token || !appKey || !appSecret || !gid) {
+                throw new Error(`Odnoklassniki channel ${channel.id} is missing access_token, application_key, application_secret_key, or group_id`);
+            }
+            publishedLink = await ok_service_1.default.publishPost({
+                access_token: token,
+                application_key: appKey,
+                application_secret_key: appSecret,
+                group_id: String(gid)
+            }, params.text, params.imageUrl);
+        }
+        else if (['habr', 'habr_article'].includes(channel.type)) {
+            publishedLink = await habr_service_1.default.publishPost({
+                api_token: config?.api_token,
+                webhook_url: config?.webhook_url,
+                hub_ids: config?.hub_ids,
+                cookies: config?.cookies
+            }, params.text, params.imageUrl, params.title);
+        }
+        else if (['vc', 'vc_article'].includes(channel.type)) {
+            publishedLink = await vc_service_1.default.publishPost({
+                access_token: config?.access_token || config?.api_key,
+                subsite_id: config?.subsite_id || config?.vk_id,
+                webhook_url: config?.webhook_url
+            }, params.text, params.imageUrl, params.title);
+        }
+        else if (['zen', 'zen_article', 'dzen'].includes(channel.type)) {
+            publishedLink = await dzen_service_1.default.publishPost({
+                channel_id: config?.channel_id || config?.vk_id,
+                webhook_url: config?.webhook_url,
+                cookies: config?.cookies
+            }, params.text, params.imageUrl, params.title);
         }
         else {
             throw new Error(`Direct MCP publication is not supported for channel type '${channel.type}'`);

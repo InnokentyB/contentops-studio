@@ -48,6 +48,10 @@ const reddit_service_1 = __importDefault(require("./reddit.service"));
 const gsc_service_1 = __importDefault(require("./gsc.service"));
 const tilda_service_1 = __importDefault(require("./tilda.service"));
 const linkedin_service_1 = __importDefault(require("./linkedin.service"));
+const ok_service_1 = __importDefault(require("./ok.service"));
+const habr_service_1 = __importDefault(require("./habr.service"));
+const vc_service_1 = __importDefault(require("./vc.service"));
+const dzen_service_1 = __importDefault(require("./dzen.service"));
 const publication_runtime_helpers_1 = require("./publication_runtime.helpers");
 const dotenv_1 = require("dotenv");
 const fs = __importStar(require("fs"));
@@ -1451,6 +1455,64 @@ class PublisherService {
                 metrics: {
                     tilda_publish_response: result.response || null
                 }
+            };
+        }
+        if (['ok', 'odnoklassniki'].includes(channelType)) {
+            const okConfig = channelConfig.raw_account || channelConfig;
+            const token = okConfig.access_token;
+            const appKey = okConfig.application_key;
+            const appSecret = okConfig.application_secret_key;
+            const gid = okConfig.group_id || okConfig.vk_id || channelConfig.telegram_channel_id || task.channel?.config?.telegram_channel_id;
+            if (!token || !appKey || !appSecret || !gid) {
+                throw new Error('Odnoklassniki channel config is missing access_token, application_key, application_secret_key, or group_id');
+            }
+            const publishedLink = await ok_service_1.default.publishPost({
+                access_token: token,
+                application_key: appKey,
+                application_secret_key: appSecret,
+                group_id: String(gid)
+            }, text, imageUrl || undefined);
+            return {
+                adapter: 'odnoklassniki',
+                publishedLink
+            };
+        }
+        if (['habr', 'habr_article'].includes(channelType)) {
+            const habrConfig = channelConfig.raw_account || channelConfig;
+            const title = bundle.publication?.html_bundle?.[0]?.asset?.title || task.title || 'Habr article';
+            const publishedLink = await habr_service_1.default.publishPost({
+                api_token: habrConfig.api_token,
+                webhook_url: habrConfig.webhook_url,
+                hub_ids: habrConfig.hub_ids
+            }, text, imageUrl || undefined, title);
+            return {
+                adapter: 'habr',
+                publishedLink
+            };
+        }
+        if (['vc', 'vc_article'].includes(channelType)) {
+            const vcConfig = channelConfig.raw_account || channelConfig;
+            const title = bundle.publication?.html_bundle?.[0]?.asset?.title || task.title || 'VC article';
+            const publishedLink = await vc_service_1.default.publishPost({
+                access_token: vcConfig.access_token || vcConfig.api_key,
+                subsite_id: vcConfig.subsite_id || vcConfig.vk_id,
+                webhook_url: vcConfig.webhook_url
+            }, text, imageUrl || undefined, title);
+            return {
+                adapter: 'vc',
+                publishedLink
+            };
+        }
+        if (['zen', 'zen_article', 'dzen'].includes(channelType)) {
+            const dzenConfig = channelConfig.raw_account || channelConfig;
+            const title = bundle.publication?.html_bundle?.[0]?.asset?.title || task.title || 'Zen article';
+            const publishedLink = await dzen_service_1.default.publishPost({
+                channel_id: dzenConfig.channel_id || dzenConfig.vk_id,
+                webhook_url: dzenConfig.webhook_url
+            }, text, imageUrl || undefined, title);
+            return {
+                adapter: 'dzen',
+                publishedLink
             };
         }
         return {

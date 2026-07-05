@@ -6,9 +6,7 @@ const getHeaders = () => {
     const token = localStorage.getItem('token');
     const projectId = localStorage.getItem('projectId');
 
-    const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-    };
+    const headers: Record<string, string> = {};
 
     if (token) {
         headers['Authorization'] = `Bearer ${token}`;
@@ -24,15 +22,22 @@ const getHeaders = () => {
 export const api = {
     async request(endpoint: string, options: ApiOptions = {}) {
         const { body, ...customConfig } = options;
-        const config: RequestInit = {
-            ...customConfig,
-            headers: {
-                ...getHeaders(),
-                ...customConfig.headers,
-            },
+        
+        const headers: Record<string, string> = {
+            ...getHeaders(),
+            ...(customConfig.headers as Record<string, string>),
         };
 
-        if (body) {
+        if (body !== undefined && body !== null) {
+            headers['Content-Type'] = 'application/json';
+        }
+
+        const config: RequestInit = {
+            ...customConfig,
+            headers,
+        };
+
+        if (body !== undefined && body !== null) {
             config.body = JSON.stringify(body);
         }
 
