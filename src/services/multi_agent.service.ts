@@ -390,11 +390,70 @@ Output JSON Format (Strict):
         };
     }
 
+    async runPublicationCritic(projectId: number, context: any): Promise<any> {
+        const config = await this.getAgentConfig(projectId, 'post_critic');
+        const systemPrompt = `${config.prompt || this.DEFAULT_POST_CRITIC_PROMPT}
+
+You are reviewing a publication task for a real channel.
+Return STRICT JSON with:
+{
+  "score": 0-100,
+  "critique": "short summary in Russian",
+  "dimensions": {
+    "platform_fit": 0-100,
+    "voice_fit": 0-100,
+    "length_fit": 0-100,
+    "rule_fit": 0-100
+  },
+  "strengths": ["..."],
+  "issues": ["..."],
+  "rewrite_instructions": ["concrete edit instruction", "..."]
+}
+
+Use deterministic findings and policy matrix as hard constraints.`;
+
+        const parsed = await this.invokeStructuredAgent(config, systemPrompt, JSON.stringify(context), projectId, 'publication_critic');
+        return {
+            score: typeof parsed?.score === 'number' ? parsed.score : 0,
+            critique: parsed?.critique || 'No critique provided.',
+            dimensions: parsed?.dimensions || {},
+            strengths: Array.isArray(parsed?.strengths) ? parsed.strengths : [],
+            issues: Array.isArray(parsed?.issues) ? parsed.issues : [],
+            rewrite_instructions: Array.isArray(parsed?.rewrite_instructions) ? parsed.rewrite_instructions : []
+        };
+    }
+
     /**
      * Run Content Fixer
      */
     async runContentFixer(projectId: number, context: any): Promise<any> {
         return this.runJsonAgent(projectId, 'seq_fixer', this.KEY_SEQ_FIXER_PROMPT, this.DEFAULT_SEQ_FIXER_PROMPT, JSON.stringify(context));
+    }
+
+    async runPublicationFixer(projectId: number, context: any): Promise<any> {
+        const config = await this.getAgentConfig(projectId, 'post_fixer');
+        const systemPrompt = `${config.prompt || this.DEFAULT_POST_FIXER_PROMPT}
+
+You are fixing a publication task after a structured critic review.
+Return STRICT JSON with:
+{
+  "updated_text": "final edited post text in Russian",
+  "summary": "what changed and why",
+  "resolved_findings": ["..."]
+}
+
+Do not return markdown fences. Keep the original intent, but fully address platform, voice, glossary and policy issues.`;
+
+        const parsed = await this.invokeStructuredAgent(config, systemPrompt, JSON.stringify(context), projectId, 'publication_fixer');
+        return {
+            updated_text: typeof parsed?.updated_text === 'string' && parsed.updated_text.trim()
+                ? parsed.updated_text.trim()
+                : (typeof parsed?.text === 'string' ? parsed.text.trim() : ''),
+            summary: parsed?.summary || parsed?.what_changed || null,
+            resolved_findings: Array.isArray(parsed?.resolved_findings)
+                ? parsed.resolved_findings
+                : (Array.isArray(parsed?.rewrite_instructions) ? parsed.rewrite_instructions : [])
+        };
     }
 
     /**
@@ -429,6 +488,59 @@ Output JSON Format (Strict):
             console.error(`[MultiAgent] ${role} failed:`, error);
             await this.logRun(projectId, 'seq_gen', role, 'failed', input, systemPrompt, '', error.message);
             return null;
+        }
+    }
+
+    private async invokeStructuredAgent(config: any, systemPrompt: string, input: string, projectId: number, role: string): Promise<any> {
+        let responseText = '{}';
+
+        if (config.apiKey && config.apiKey.startsWith('sk-ant')) {
+            const anthropic = new Anthropic({ apiKey: config.apiKey });
+            const response = await anthropic.messages.create({
+                model: config.model,
+                max_tokens: 4000,
+                system: `${systemPrompt}\nIMPORTANT: return valid JSON only.`,
+                messages: [
+                    { role: 'user', content: input }
+                ]
+            });
+            // @ts-ignore
+            responseText = response.content[0].text || '{}';
+        } else if (config.apiKey && config.apiKey.startsWith('AIza')) {
+            const genAI = new GoogleGenerativeAI(config.apiKey);
+            const model = genAI.getGenerativeModel({
+                model: config.model,
+                systemInstruction: `${systemPrompt}\nIMPORTANT: return valid JSON only.`
+            });
+            const result = await model.generateContent(input);
+            responseText = result.response.text();
+        } else {
+            const client = new OpenAI({ apiKey: config.apiKey });
+            const response = await client.chat.completions.create({
+                model: config.model || 'gpt-4o',
+                messages: [
+                    { role: 'system', content: systemPrompt + '\n\nOutput must be valid JSON.' },
+                    { role: 'user', content: input }
+                ],
+                response_format: { type: 'json_object' },
+                temperature: 0.3
+            });
+            responseText = response.choices[0].message.content || '{}';
+        }
+
+        await this.logRun(projectId, 'publication_pipeline', role, 'success', input, systemPrompt, responseText, null);
+
+        try {
+            let cleaned = responseText.trim();
+            const firstBrace = cleaned.indexOf('{');
+            const lastBrace = cleaned.lastIndexOf('}');
+            if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+                cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+            }
+            return JSON.parse(cleaned);
+        } catch (error: any) {
+            await this.logRun(projectId, 'publication_pipeline', role, 'failed', input, systemPrompt, responseText, error?.message || 'JSON parse failed');
+            throw new Error(`Failed to parse ${role} response as JSON`);
         }
     }
 

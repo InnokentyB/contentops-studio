@@ -134,6 +134,11 @@ export const contentDictionaryApi = {
     validatePost: (postId: number, text: string) => api.post(`/api/posts/${postId}/validate-dictionary`, { text })
 };
 
+export const contentPolicyMatrixApi = {
+    get: () => api.get('/api/settings/content-policy-matrix'),
+    save: (yaml: string) => api.put('/api/settings/content-policy-matrix', { yaml })
+};
+
 export const atomaContextApi = {
     get: () => api.get('/api/settings/atoma-context'),
     save: (data: { description: string; payloadText: string }) => api.put('/api/settings/atoma-context', data)
@@ -149,7 +154,10 @@ export const modelsApi = {
 export const projectsApi = {
     create: (data: { name: string; slug?: string; description?: string }) => api.post('/api/projects', data),
     importConfig: (config: string) => api.post('/api/projects/import', { config }),
-    importPublicationPlan: (planJson: string) => api.post('/api/projects/import-publication-plan', { planJson }),
+    importPublicationPlan: (
+        planJson: string,
+        importMode: 'delta_safe' | 'full_sync' = 'delta_safe'
+    ) => api.post('/api/projects/import-publication-plan', { planJson, importMode }),
     saveManualChannelContent: (
         projectId: number,
         channelId: number,
@@ -184,6 +192,8 @@ export const publicationTasksApi = {
         api.post(`/api/publication-tasks/${id}/confirm-publication`, data),
     criticCheck: (id: number, data?: { text?: string }) =>
         api.post(`/api/publication-tasks/${id}/critic-check`, data || {}),
+    fixWithCritic: (id: number, data?: { text?: string }) =>
+        api.post(`/api/publication-tasks/${id}/fix-with-critic`, data || {}),
     generateImage: (id: number, data?: { provider?: 'gpt-image' | 'nano' }) =>
         api.post(`/api/publication-tasks/${id}/generate-image`, data || {}),
     collectMetrics: (id: number) => api.post(`/api/publication-tasks/${id}/collect-metrics`),

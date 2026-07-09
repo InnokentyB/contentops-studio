@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect, useRef } from 'react'
-import { api, presetsApi, keysApi, modelsApi, projectsApi, skillConnectionsApi, contentDictionaryApi, atomaContextApi } from '../api'
+import { api, presetsApi, keysApi, modelsApi, projectsApi, skillConnectionsApi, contentDictionaryApi, contentPolicyMatrixApi, atomaContextApi } from '../api'
 import { useAuth } from '../context/AuthContext'
 
 interface AgentConfig {
@@ -52,6 +52,12 @@ interface AtomaContextResponse {
     description: string
     payload: any
     payload_text: string
+    updated_at: string | null
+}
+
+interface ContentPolicyMatrixResponse {
+    yaml: string
+    parsed: any
     updated_at: string | null
 }
 
@@ -287,6 +293,7 @@ export default function Settings() {
     const [newKeyName, setNewKeyName] = useState('')
     const [newKeyValue, setNewKeyValue] = useState('')
     const [dictionaryYaml, setDictionaryYaml] = useState('')
+    const [contentPolicyMatrixYaml, setContentPolicyMatrixYaml] = useState('')
     const dictionaryFileInputRef = useRef<HTMLInputElement | null>(null)
     const [atomaDescription, setAtomaDescription] = useState('')
     const [atomaPayloadText, setAtomaPayloadText] = useState('')
@@ -341,6 +348,12 @@ export default function Settings() {
     const { data: contentDictionary } = useQuery<{ yaml: string; parsed: any; updated_at: string | null }>({
         queryKey: ['content-dictionary', currentProject?.id],
         queryFn: () => contentDictionaryApi.get(),
+        enabled: !!currentProject && activeTab === 'dictionary'
+    })
+
+    const { data: contentPolicyMatrix } = useQuery<ContentPolicyMatrixResponse>({
+        queryKey: ['content-policy-matrix', currentProject?.id],
+        queryFn: () => contentPolicyMatrixApi.get(),
         enabled: !!currentProject && activeTab === 'dictionary'
     })
 
@@ -429,6 +442,16 @@ export default function Settings() {
         onError: (err: any) => alert(err.message || 'Failed to save content dictionary')
     })
 
+    const saveContentPolicyMatrix = useMutation({
+        mutationFn: (yaml: string) => contentPolicyMatrixApi.save(yaml),
+        onSuccess: (result: any) => {
+            setContentPolicyMatrixYaml(result.yaml)
+            queryClient.invalidateQueries({ queryKey: ['content-policy-matrix'] })
+            alert('Content policy matrix saved')
+        },
+        onError: (err: any) => alert(err.message || 'Failed to save content policy matrix')
+    })
+
     const saveAtomaContext = useMutation({
         mutationFn: (data: { description: string; payloadText: string }) => atomaContextApi.save(data),
         onSuccess: (result: AtomaContextResponse) => {
@@ -507,6 +530,12 @@ export default function Settings() {
             setDictionaryYaml(contentDictionary.yaml || '')
         }
     }, [contentDictionary, activeTab])
+
+    useEffect(() => {
+        if (contentPolicyMatrix && activeTab === 'dictionary') {
+            setContentPolicyMatrixYaml(contentPolicyMatrix.yaml || '')
+        }
+    }, [contentPolicyMatrix, activeTab])
 
     useEffect(() => {
         if (atomaContext && activeTab === 'dictionary') {
@@ -1200,6 +1229,46 @@ export default function Settings() {
                                     </div>
                                 </div>
                             )}
+
+                            <div className="mt-4">
+                                <p className="text-muted mb-2">Define the platform × tone-of-voice matrix used by the publication critic and fixer.</p>
+
+                                <div className="mb-2">
+                                    <label>Content Policy Matrix YAML</label>
+                                    <textarea
+                                        value={contentPolicyMatrixYaml}
+                                        onChange={e => setContentPolicyMatrixYaml(e.target.value)}
+                                        rows={18}
+                                        spellCheck={false}
+                                        style={{ fontFamily: 'monospace' }}
+                                        placeholder={'voices:\n  founder:\n    preferred_traits:\n      - "позиция"\nplatforms:\n  telegram:\n    min_chars: 700\nmatrix:\n  telegram:\n    founder:\n      preferred_traits:\n        - "живой конфликт"'}
+                                    />
+                                </div>
+
+                                <div className="flex" style={{ gap: '0.5rem', marginBottom: '1rem' }}>
+                                    <button className="btn-primary" onClick={() => saveContentPolicyMatrix.mutate(contentPolicyMatrixYaml)} disabled={!contentPolicyMatrixYaml.trim() || saveContentPolicyMatrix.isPending}>
+                                        {saveContentPolicyMatrix.isPending ? 'Saving...' : 'Save Policy Matrix'}
+                                    </button>
+                                    {contentPolicyMatrix?.updated_at && (
+                                        <span className="text-muted" style={{ alignSelf: 'center', fontSize: '0.85rem' }}>
+                                            Updated: {new Date(contentPolicyMatrix.updated_at).toLocaleString()}
+                                        </span>
+                                    )}
+                                </div>
+
+                                {contentPolicyMatrix?.parsed && (
+                                    <div className="p-2" style={{ background: 'var(--bg-tertiary)', borderRadius: '8px' }}>
+                                        <strong>Quick Summary</strong>
+                                        <div className="text-muted" style={{ fontSize: '0.9rem', marginTop: '0.5rem' }}>
+                                            Voices: {Object.keys(contentPolicyMatrix.parsed.voices || {}).length}
+                                            {' • '}
+                                            Platforms: {Object.keys(contentPolicyMatrix.parsed.platforms || {}).length}
+                                            {' • '}
+                                            Matrix pairs: {Object.values(contentPolicyMatrix.parsed.matrix || {}).reduce((total: number, entry: any) => total + Object.keys(entry || {}).length, 0)}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         <div>

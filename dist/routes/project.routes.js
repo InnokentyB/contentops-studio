@@ -11,6 +11,7 @@ const adapter_pg_1 = require("@prisma/adapter-pg");
 const js_yaml_1 = __importDefault(require("js-yaml"));
 const multi_agent_service_1 = __importDefault(require("../services/multi_agent.service"));
 const content_dictionary_service_1 = __importDefault(require("../services/content_dictionary.service"));
+const content_policy_matrix_service_1 = __importDefault(require("../services/content_policy_matrix.service"));
 const publication_plan_service_1 = __importDefault(require("../services/publication_plan.service"));
 const parser_integration_service_1 = __importDefault(require("../services/parser_integration.service"));
 const project_utils_1 = require("../utils/project.utils");
@@ -151,6 +152,9 @@ async function buildImportedProjectData(rawConfig, userId) {
     const dictionaryYaml = parsed.content_dictionary !== undefined
         ? content_dictionary_service_1.default.normalizeToYaml(parsed.content_dictionary)
         : null;
+    const contentPolicyMatrixYaml = parsed.content_policy_matrix !== undefined
+        ? content_policy_matrix_service_1.default.normalizeToYaml(parsed.content_policy_matrix)
+        : null;
     const channels = (parsed.channels || []).map((channel, index) => {
         if (!channel?.type || !channel?.name) {
             throw new Error(`channels[${index}] must include both type and name`);
@@ -236,7 +240,8 @@ async function buildImportedProjectData(rawConfig, userId) {
     const uniqueSettings = Array.from(new Map([
         ...settings,
         ...agentSettings,
-        ...(dictionaryYaml ? [{ key: 'content_dictionary_yaml', value: dictionaryYaml }] : [])
+        ...(dictionaryYaml ? [{ key: 'content_dictionary_yaml', value: dictionaryYaml }] : []),
+        ...(contentPolicyMatrixYaml ? [{ key: 'content_policy_matrix_yaml', value: contentPolicyMatrixYaml }] : [])
     ].map((setting) => [setting.key, setting])).values());
     return {
         project: {
@@ -386,7 +391,7 @@ async function projectRoutes(fastify) {
     });
     fastify.post('/api/projects/import-publication-plan', async (request, reply) => {
         const user = request.user;
-        const { planJson, planPath, workspaceRoots } = request.body;
+        const { planJson, planPath, workspaceRoots, importMode } = request.body;
         if (!planJson && !planPath) {
             return reply.code(400).send({ error: 'planJson or planPath is required' });
         }
@@ -395,7 +400,8 @@ async function projectRoutes(fastify) {
                 rawPlan: planJson,
                 planPath,
                 userId: user.id,
-                workspaceRoots: Array.isArray(workspaceRoots) ? workspaceRoots : undefined
+                workspaceRoots: Array.isArray(workspaceRoots) ? workspaceRoots : undefined,
+                importMode: importMode || 'delta_safe'
             });
             return result;
         }

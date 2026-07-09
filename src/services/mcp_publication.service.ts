@@ -112,6 +112,14 @@ async function resolveTelegramPhotoSource(imageUrl: string): Promise<string | { 
 }
 
 class McpPublicationService {
+    private assertPublicationTaskMutableForMcp(item: any, operation: string) {
+        const isPublished = String(item?.status || '') === 'published' || Boolean(item?.published_link);
+        if (isPublished) {
+            const taskLabel = item?.id ? `Publication task ${item.id}` : 'Publication task';
+            throw new Error(`${taskLabel} is already published and is read-only via MCP. ${operation} is not allowed.`);
+        }
+    }
+
     private summarizeUser(user: any) {
         return {
             id: user.id,
@@ -282,13 +290,19 @@ class McpPublicationService {
         }, { userId, minRole: 'editor' });
     }
 
-    async importPublicationPlanJson(planJson: string, userId: number, workspaceRoots?: string[]) {
+    async importPublicationPlanJson(
+        planJson: string,
+        userId: number,
+        workspaceRoots?: string[],
+        importMode: 'delta_safe' | 'full_sync' = 'delta_safe'
+    ) {
         const user = await this.requireUser(userId);
 
         const result = await publicationPlanService.importPlan({
             rawPlan: planJson,
             userId,
-            workspaceRoots
+            workspaceRoots,
+            importMode
         });
 
         return {
@@ -303,14 +317,20 @@ class McpPublicationService {
         };
     }
 
-    async importPublicationPlanFile(planPath: string, userId: number, workspaceRoots?: string[]) {
+    async importPublicationPlanFile(
+        planPath: string,
+        userId: number,
+        workspaceRoots?: string[],
+        importMode: 'delta_safe' | 'full_sync' = 'delta_safe'
+    ) {
         const user = await this.requireUser(userId);
         const resolvedPlanPath = path.resolve(planPath);
 
         const result = await publicationPlanService.importPlan({
             planPath: resolvedPlanPath,
             userId,
-            workspaceRoots
+            workspaceRoots,
+            importMode
         });
 
         return {
@@ -842,6 +862,8 @@ class McpPublicationService {
             throw new Error(`Publication task ${taskId} not found for project ${projectId}`);
         }
 
+        this.assertPublicationTaskMutableForMcp(item, 'prepare_publication_task');
+
         const plan = await this.loadPublicationPlanContext(projectId);
         if (!plan) {
             return {
@@ -886,6 +908,8 @@ class McpPublicationService {
         if (!item) {
             throw new Error(`Publication task ${taskId} not found for project ${projectId}`);
         }
+
+        this.assertPublicationTaskMutableForMcp(item, 'confirm_publication');
 
         const monitoring = (item.metrics as any)?.monitoring || {};
         return prisma.contentItem.update({

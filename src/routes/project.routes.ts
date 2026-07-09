@@ -6,6 +6,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import yaml from 'js-yaml';
 import multiAgentService from '../services/multi_agent.service';
 import contentDictionaryService from '../services/content_dictionary.service';
+import contentPolicyMatrixService from '../services/content_policy_matrix.service';
 import publicationPlanService from '../services/publication_plan.service';
 import parserIntegrationService from '../services/parser_integration.service';
 import { normalizeProjectKind, slugifyProjectName } from '../utils/project.utils';
@@ -77,6 +78,7 @@ type ImportedProjectConfig = {
     };
     settings?: Record<string, unknown>;
     content_dictionary?: unknown;
+    content_policy_matrix?: unknown;
     provider_keys?: Array<{
         name?: string;
         key?: string;
@@ -199,6 +201,9 @@ async function buildImportedProjectData(rawConfig: string, userId: number) {
     const dictionaryYaml = parsed.content_dictionary !== undefined
         ? contentDictionaryService.normalizeToYaml(parsed.content_dictionary)
         : null;
+    const contentPolicyMatrixYaml = parsed.content_policy_matrix !== undefined
+        ? contentPolicyMatrixService.normalizeToYaml(parsed.content_policy_matrix)
+        : null;
 
     const channels = (parsed.channels || []).map((channel, index) => {
         if (!channel?.type || !channel?.name) {
@@ -297,7 +302,8 @@ async function buildImportedProjectData(rawConfig: string, userId: number) {
             [
                 ...settings,
                 ...agentSettings,
-                ...(dictionaryYaml ? [{ key: 'content_dictionary_yaml', value: dictionaryYaml }] : [])
+                ...(dictionaryYaml ? [{ key: 'content_dictionary_yaml', value: dictionaryYaml }] : []),
+                ...(contentPolicyMatrixYaml ? [{ key: 'content_policy_matrix_yaml', value: contentPolicyMatrixYaml }] : [])
             ].map((setting) => [setting.key, setting])
         ).values()
     );
@@ -469,7 +475,12 @@ export default async function projectRoutes(fastify: FastifyInstance) {
 
     fastify.post('/api/projects/import-publication-plan', async (request, reply) => {
         const user = (request as any).user;
-        const { planJson, planPath, workspaceRoots } = request.body as { planJson?: string; planPath?: string; workspaceRoots?: string[] };
+        const { planJson, planPath, workspaceRoots, importMode } = request.body as {
+            planJson?: string;
+            planPath?: string;
+            workspaceRoots?: string[];
+            importMode?: 'delta_safe' | 'full_sync';
+        };
 
         if (!planJson && !planPath) {
             return reply.code(400).send({ error: 'planJson or planPath is required' });
@@ -480,7 +491,8 @@ export default async function projectRoutes(fastify: FastifyInstance) {
                 rawPlan: planJson,
                 planPath,
                 userId: user.id,
-                workspaceRoots: Array.isArray(workspaceRoots) ? workspaceRoots : undefined
+                workspaceRoots: Array.isArray(workspaceRoots) ? workspaceRoots : undefined,
+                importMode: importMode || 'delta_safe'
             });
 
             return result;

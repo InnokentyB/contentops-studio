@@ -18,6 +18,7 @@ import authService from '../services/auth.service';
 import commentService from '../services/comment.service';
 import storageService from '../services/storage.service';
 import contentDictionaryService from '../services/content_dictionary.service';
+import contentPolicyMatrixService from '../services/content_policy_matrix.service';
 import publicationPlanService from '../services/publication_plan.service';
 import metricsService from '../services/metrics.service';
 
@@ -86,15 +87,26 @@ async function loadPublicationProjectContext(projectId: number) {
     const settings = await prisma.projectSettings.findMany({
         where: {
             project_id: projectId,
-            key: { in: ['content_dictionary_yaml', 'atoma_files_description', 'atoma_files_payload'] }
+            key: { in: ['content_dictionary_yaml', 'content_policy_matrix_yaml', 'atoma_files_description', 'atoma_files_payload'] }
         }
     });
 
     return {
         glossaryYaml: settings.find((setting) => setting.key === 'content_dictionary_yaml')?.value || null,
+        contentPolicyMatrixYaml: settings.find((setting) => setting.key === 'content_policy_matrix_yaml')?.value || null,
         atomaFilesDescription: settings.find((setting) => setting.key === 'atoma_files_description')?.value || null,
         atomaFilesPayload: safeJsonParse(settings.find((setting) => setting.key === 'atoma_files_payload')?.value || null)
     };
+}
+
+function derivePublicationVoice(item: any) {
+    return (
+        (item?.assets as any)?.action?.voice_profile
+        || (item?.assets as any)?.action?.parameters?.voice_profile
+        || (item?.channel?.config as any)?.voice_profile
+        || (item?.metrics as any)?.voice_profile
+        || null
+    );
 }
 
 function resolveTaskScheduleAt(item: any) {
@@ -142,6 +154,7 @@ function buildPublicationTaskDetailItem(item: any, options?: {
     handoffBundle?: any | null;
     projectContext?: {
         glossaryYaml: string | null;
+        contentPolicyMatrixYaml: string | null;
         atomaFilesDescription: string | null;
         atomaFilesPayload: any | null;
     };
@@ -152,6 +165,7 @@ function buildPublicationTaskDetailItem(item: any, options?: {
     const handoffBundle = options?.handoffBundle || qualityReport.handoff_bundle || null;
     const firstResourceWithUrl = (handoffBundle?.resource_files || []).find((entry: any) => entry?.url);
     const firstSourceContent = (handoffBundle?.resource_files || []).find((entry: any) => typeof entry?.content === 'string' && entry.content.trim());
+    const derivedVoice = derivePublicationVoice(item);
 
     return {
         id: item.id,
@@ -197,6 +211,7 @@ function buildPublicationTaskDetailItem(item: any, options?: {
         project_context: {
             glossary_available: Boolean(options?.projectContext?.glossaryYaml),
             glossary_yaml: options?.projectContext?.glossaryYaml || null,
+            content_policy_matrix_yaml: options?.projectContext?.contentPolicyMatrixYaml || null,
             atoma_files_description: options?.projectContext?.atomaFilesDescription || null,
             atoma_files_payload: options?.projectContext?.atomaFilesPayload || null
         },
@@ -205,8 +220,111 @@ function buildPublicationTaskDetailItem(item: any, options?: {
             target_resource_url: handoffBundle?.publication?.link_url || firstResourceWithUrl?.url || null,
             target_resource_label: handoffBundle?.publication?.link_url ? 'publication.link_url' : firstResourceWithUrl?.file_name || firstResourceWithUrl?.ref || null,
             source_content: firstSourceContent?.content || handoffBundle?.publication?.body || item.draft_text || '',
-            source_file_name: firstSourceContent?.file_name || null
+            source_file_name: firstSourceContent?.file_name || null,
+            voice_profile: derivedVoice,
+            platform_type: item.channel?.type || item.layer || null
         }
+    };
+}
+
+async function runPublicationCriticReview(projectId: number, item: any, overrideText?: string) {
+    const plan = await loadPublicationPlanContext(projectId);
+    const projectContext = await loadPublicationProjectContext(projectId);
+    const action = (item.assets as any)?.action;
+    const bundle = plan && action
+        ? publicationPlanService.buildHandoffBundle({ ...plan, actions: [action] } as any, item)
+        : ((item.quality_report as any)?.handoff_bundle || null);
+
+    const publicationBody = (overrideText || bundle?.publication?.body || item.draft_text || '').trim();
+    const sourceContent = ((bundle?.resource_files || []) as any[]).find((entry) => typeof entry?.content === 'string' && entry.content.trim())?.content || '';
+    if (!publicationBody) {
+        throw new Error('No publication body is available for critic review.');
+    }
+
+    const platform = item.channel?.type || item.layer || item.type;
+    const voice = derivePublicationVoice(item);
+    const dictionaryReport = contentDictionaryService.validateText(publicationBody, projectContext.glossaryYaml);
+    const policyReport = contentPolicyMatrixService.validateText(publicationBody, projectContext.contentPolicyMatrixYaml, {
+        platform,
+        voice
+    });
+
+    let llmCritic: any = null;
+    let llmError: string | null = null;
+
+    try {
+        llmCritic = await multiAgentService.runPublicationCritic(projectId, {
+            task_id: (action as any)?.id || (item.metrics as any)?.task_id || item.id,
+            title: item.title,
+            channel: item.channel?.name || item.layer || item.type,
+            platform,
+            voice_profile: voice,
+            target_resource_url: bundle?.publication?.link_url || null,
+            publication_body: publicationBody,
+            source_content: sourceContent,
+            glossary_yaml: projectContext.glossaryYaml,
+            content_policy_matrix_yaml: projectContext.contentPolicyMatrixYaml,
+            applied_policy: policyReport.derived_policy,
+            deterministic_findings: {
+                dictionary: dictionaryReport.findings,
+                policy: policyReport.findings,
+                dictionary_score: dictionaryReport.score,
+                policy_score: policyReport.score,
+                policy_dimensions: policyReport.dimensions
+            },
+            atoma_files_description: projectContext.atomaFilesDescription,
+            atoma_files_payload: projectContext.atomaFilesPayload
+        });
+    } catch (error: any) {
+        llmError = error?.message || 'Critic agent failed';
+    }
+
+    const llmDimensions = llmCritic?.dimensions && typeof llmCritic.dimensions === 'object'
+        ? llmCritic.dimensions
+        : {};
+    const mergedDimensions = {
+        platform_fit: Math.round(((policyReport.dimensions.platform_fit || 0) + (Number(llmDimensions.platform_fit) || policyReport.dimensions.platform_fit || 0)) / 2),
+        voice_fit: Math.round(((policyReport.dimensions.voice_fit || 0) + (Number(llmDimensions.voice_fit) || policyReport.dimensions.voice_fit || 0)) / 2),
+        length_fit: Math.round(((policyReport.dimensions.length_fit || 0) + (Number(llmDimensions.length_fit) || policyReport.dimensions.length_fit || 0)) / 2),
+        rule_fit: Math.round(((policyReport.dimensions.rule_fit || 0) + (Number(llmDimensions.rule_fit) || policyReport.dimensions.rule_fit || 0)) / 2),
+        dictionary_fit: dictionaryReport.score,
+        llm_quality: llmCritic?.score ?? null
+    };
+
+    const overallScore = llmCritic
+        ? Math.round((dictionaryReport.score + policyReport.score + llmCritic.score) / 3)
+        : Math.round((dictionaryReport.score + policyReport.score) / 2);
+
+    const criticReview = {
+        checked_at: new Date().toISOString(),
+        overall_score: overallScore,
+        dictionary: dictionaryReport,
+        policy_matrix: {
+            score: policyReport.score,
+            findings: policyReport.findings,
+            dimensions: policyReport.dimensions,
+            derived_policy: policyReport.derived_policy
+        },
+        scoring_dimensions: mergedDimensions,
+        llm_critic: llmCritic,
+        llm_error: llmError,
+        glossary_available: Boolean(projectContext.glossaryYaml),
+        content_policy_matrix_available: Boolean(projectContext.contentPolicyMatrixYaml),
+        content_policy_matrix_yaml: projectContext.contentPolicyMatrixYaml,
+        atoma_files_description: projectContext.atomaFilesDescription,
+        atoma_files_payload: projectContext.atomaFilesPayload,
+        workspace_context: {
+            platform,
+            voice_profile: voice,
+            target_resource_url: bundle?.publication?.link_url || null
+        }
+    };
+
+    return {
+        criticReview,
+        publicationBody,
+        bundle,
+        projectContext
     };
 }
 
@@ -1144,55 +1262,12 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             return reply.code(404).send({ error: 'Publication task not found' });
         }
 
-        const plan = await loadPublicationPlanContext(projectId);
-        const projectContext = await loadPublicationProjectContext(projectId);
-        const action = (item.assets as any)?.action;
-        const bundle = plan && action
-            ? publicationPlanService.buildHandoffBundle({ ...plan, actions: [action] } as any, item)
-            : ((item.quality_report as any)?.handoff_bundle || null);
-
-        const publicationBody = (text || bundle?.publication?.body || item.draft_text || '').trim();
-        const sourceContent = ((bundle?.resource_files || []) as any[]).find((entry) => typeof entry?.content === 'string' && entry.content.trim())?.content || '';
-
-        if (!publicationBody) {
-            return reply.code(400).send({ error: 'No publication body is available for critic review.' });
-        }
-
-        const dictionaryReport = contentDictionaryService.validateText(publicationBody, projectContext.glossaryYaml);
-
-        let llmCritic: { score: number; critique: string } | null = null;
-        let llmError: string | null = null;
-
+        let criticReview: any;
         try {
-            llmCritic = await multiAgentService.runContentCritic(projectId, {
-                task_id: (action as any)?.id || (item.metrics as any)?.task_id || item.id,
-                title: item.title,
-                channel: item.channel?.name || item.layer || item.type,
-                target_resource_url: bundle?.publication?.link_url || null,
-                publication_body: publicationBody,
-                source_content: sourceContent,
-                glossary_yaml: projectContext.glossaryYaml,
-                atoma_files_description: projectContext.atomaFilesDescription,
-                atoma_files_payload: projectContext.atomaFilesPayload
-            });
+            criticReview = (await runPublicationCriticReview(projectId, item, text)).criticReview;
         } catch (error: any) {
-            llmError = error?.message || 'Critic agent failed'
+            return reply.code(400).send({ error: error?.message || 'No publication body is available for critic review.' });
         }
-
-        const overallScore = llmCritic
-            ? Math.round((dictionaryReport.score + llmCritic.score) / 2)
-            : dictionaryReport.score;
-
-        const criticReview = {
-            checked_at: new Date().toISOString(),
-            overall_score: overallScore,
-            dictionary: dictionaryReport,
-            llm_critic: llmCritic,
-            llm_error: llmError,
-            glossary_available: Boolean(projectContext.glossaryYaml),
-            atoma_files_description: projectContext.atomaFilesDescription,
-            atoma_files_payload: projectContext.atomaFilesPayload
-        };
 
         await prisma.contentItem.update({
             where: { id: item.id },
@@ -1205,6 +1280,113 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         });
 
         return criticReview;
+    });
+
+    fastify.post('/api/publication-tasks/:id/fix-with-critic', async (request, reply) => {
+        const projectId = (request as any).projectId;
+        if (!projectId) return reply.code(400).send({ error: 'Project ID required' });
+
+        const { id } = request.params as { id: string };
+        const { text } = request.body as { text?: string };
+
+        const item = await prisma.contentItem.findFirst({
+            where: { id: parseInt(id), project_id: projectId },
+            include: { channel: true }
+        });
+
+        if (!item) {
+            return reply.code(404).send({ error: 'Publication task not found' });
+        }
+
+        const initial = await runPublicationCriticReview(projectId, item, text);
+        const currentText = initial.publicationBody;
+
+        const fixed = await multiAgentService.runPublicationFixer(projectId, {
+            task_id: ((item.metrics as any)?.task_id || item.id),
+            title: item.title,
+            channel: item.channel?.name || item.layer || item.type,
+            platform: item.channel?.type || item.layer || item.type,
+            voice_profile: derivePublicationVoice(item),
+            original_text: currentText,
+            critic_review: initial.criticReview,
+            source_content: ((initial.bundle?.resource_files || []) as any[]).find((entry) => typeof entry?.content === 'string' && entry.content.trim())?.content || '',
+            glossary_yaml: initial.projectContext.glossaryYaml,
+            content_policy_matrix_yaml: initial.projectContext.contentPolicyMatrixYaml,
+            atoma_files_description: initial.projectContext.atomaFilesDescription,
+            atoma_files_payload: initial.projectContext.atomaFilesPayload
+        });
+
+        const nextQualityReport = {
+            ...((item.quality_report as any) || {})
+        } as any;
+        const history = Array.isArray(nextQualityReport.content_edit_history)
+            ? nextQualityReport.content_edit_history
+            : [];
+
+        if (fixed.updated_text && fixed.updated_text !== currentText) {
+            nextQualityReport.content_edit_history = [
+                {
+                    edited_at: new Date().toISOString(),
+                    previous_body: currentText,
+                    next_body: fixed.updated_text,
+                    source: 'critic_fixer'
+                },
+                ...history
+            ].slice(0, 20);
+        }
+
+        if (nextQualityReport.handoff_bundle?.publication && fixed.updated_text) {
+            nextQualityReport.handoff_bundle = {
+                ...nextQualityReport.handoff_bundle,
+                publication: {
+                    ...nextQualityReport.handoff_bundle.publication,
+                    body: fixed.updated_text
+                }
+            };
+        }
+
+        nextQualityReport.last_fixer_run = {
+            fixed_at: new Date().toISOString(),
+            summary: fixed.summary || null,
+            resolved_findings: fixed.resolved_findings || [],
+            raw: fixed
+        };
+
+        const updated = await prisma.contentItem.update({
+            where: { id: item.id },
+            data: {
+                draft_text: fixed.updated_text || currentText,
+                quality_report: nextQualityReport
+            }
+        });
+
+        const reloaded = await prisma.contentItem.findFirst({
+            where: { id: updated.id, project_id: projectId },
+            include: { channel: true }
+        });
+
+        const finalCritic = reloaded
+            ? await runPublicationCriticReview(projectId, reloaded, updated.draft_text || currentText)
+            : null;
+
+        if (reloaded && finalCritic) {
+            await prisma.contentItem.update({
+                where: { id: reloaded.id },
+                data: {
+                    quality_report: {
+                        ...(((reloaded.quality_report as any) || {})),
+                        critic_review: finalCritic.criticReview,
+                        last_fixer_run: nextQualityReport.last_fixer_run
+                    } as any
+                }
+            });
+        }
+
+        return {
+            updated_text: updated.draft_text || currentText,
+            fixer: fixed,
+            critic_review: finalCritic?.criticReview || initial.criticReview
+        };
     });
 
     fastify.post('/api/publication-tasks/:id/generate-image', async (request, reply) => {
@@ -1643,6 +1825,57 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             };
         } catch (error: any) {
             return reply.code(400).send({ error: error.message || 'Invalid dictionary YAML' });
+        }
+    });
+
+    fastify.get('/api/settings/content-policy-matrix', async (request, reply) => {
+        const projectId = (request as any).projectId;
+        if (!projectId) return reply.code(400).send({ error: 'Project ID required' });
+
+        const setting = await prisma.projectSettings.findUnique({
+            where: { project_id_key: { project_id: projectId, key: 'content_policy_matrix_yaml' } }
+        });
+
+        const yamlValue = setting?.value || contentPolicyMatrixService.getDefaultYaml();
+        const parsed = contentPolicyMatrixService.parseYaml(yamlValue);
+
+        return {
+            yaml: yamlValue,
+            parsed,
+            updated_at: setting?.updated_at || null
+        };
+    });
+
+    fastify.put('/api/settings/content-policy-matrix', async (request, reply) => {
+        const projectId = (request as any).projectId;
+        if (!projectId) return reply.code(400).send({ error: 'Project ID required' });
+
+        const { yaml: yamlText } = request.body as { yaml?: string };
+        if (typeof yamlText !== 'string' || !yamlText.trim()) {
+            return reply.code(400).send({ error: 'yaml is required' });
+        }
+
+        try {
+            const normalizedYaml = contentPolicyMatrixService.normalizeToYaml(yamlText);
+            const parsed = contentPolicyMatrixService.parseYaml(normalizedYaml);
+
+            const saved = await prisma.projectSettings.upsert({
+                where: { project_id_key: { project_id: projectId, key: 'content_policy_matrix_yaml' } },
+                update: { value: normalizedYaml },
+                create: {
+                    project_id: projectId,
+                    key: 'content_policy_matrix_yaml',
+                    value: normalizedYaml
+                }
+            });
+
+            return {
+                yaml: saved.value,
+                parsed,
+                updated_at: saved.updated_at
+            };
+        } catch (error: any) {
+            return reply.code(400).send({ error: error.message || 'Invalid content policy matrix YAML' });
         }
     });
 

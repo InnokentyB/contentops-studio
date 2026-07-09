@@ -321,26 +321,52 @@ export function registerPlannerTools(server: McpServer) {
     });
 
     server.registerTool('ba_import_publication_plan_json', {
-        description: 'Import a publication plan JSON payload into the planner and create or update the corresponding project.',
+        description: 'Import a publication plan JSON payload into the planner. Default mode is delta_safe: add/update only the incoming delta and preserve existing runtime content. Use full_sync only when you explicitly want missing imported tasks to be removed.',
         inputSchema: {
             userId: z.number().int().positive().describe('Owner user ID used for project membership when a new project is created.'),
             planJson: z.string().min(2).describe('Full publication plan JSON string with meta.plan_id, accounts, assets, and actions[].'),
+            workspaceRoots: z.array(z.string()).optional().describe('Optional local workspace roots where referenced content files can be resolved during import.'),
+            importMode: z.enum(['delta_safe', 'full_sync']).optional().describe('delta_safe preserves existing tasks/assets and only applies the incoming delta. full_sync also deletes missing imported tasks.')
+        }
+    }, async ({ userId, planJson, workspaceRoots, importMode }) => {
+        const result = await mcpPublicationService.importPublicationPlanJson(planJson, userId, workspaceRoots, importMode || 'delta_safe');
+        return asToolResult(result);
+    });
+
+    server.registerTool('ba_import_publication_plan_delta_json', {
+        description: 'Safely import only the incoming publication-plan delta from a JSON payload. Existing tasks stay in place, missing tasks are not removed, and published/completed runtime content is preserved.',
+        inputSchema: {
+            userId: z.number().int().positive().describe('Owner user ID used for project membership when a new project is created.'),
+            planJson: z.string().min(2).describe('Partial or full publication plan JSON string with meta.plan_id, accounts, assets, and actions[].'),
             workspaceRoots: z.array(z.string()).optional().describe('Optional local workspace roots where referenced content files can be resolved during import.')
         }
     }, async ({ userId, planJson, workspaceRoots }) => {
-        const result = await mcpPublicationService.importPublicationPlanJson(planJson, userId, workspaceRoots);
+        const result = await mcpPublicationService.importPublicationPlanJson(planJson, userId, workspaceRoots, 'delta_safe');
         return asToolResult(result);
     });
 
     server.registerTool('ba_import_publication_plan_file', {
-        description: 'Import a publication plan from a local JSON file path and create or update the corresponding project.',
+        description: 'Import a publication plan from a local JSON file path. Default mode is delta_safe: add/update only the incoming delta and preserve existing runtime content. Use full_sync only when you explicitly want missing imported tasks to be removed.',
+        inputSchema: {
+            userId: z.number().int().positive().describe('Owner user ID used for project membership when a new project is created.'),
+            planPath: z.string().min(1).describe('Absolute or local filesystem path to a publication plan JSON file.'),
+            workspaceRoots: z.array(z.string()).optional().describe('Optional local workspace roots where referenced content files can be resolved during import.'),
+            importMode: z.enum(['delta_safe', 'full_sync']).optional().describe('delta_safe preserves existing tasks/assets and only applies the incoming delta. full_sync also deletes missing imported tasks.')
+        }
+    }, async ({ userId, planPath, workspaceRoots, importMode }) => {
+        const result = await mcpPublicationService.importPublicationPlanFile(planPath, userId, workspaceRoots, importMode || 'delta_safe');
+        return asToolResult(result);
+    });
+
+    server.registerTool('ba_import_publication_plan_delta_file', {
+        description: 'Safely import only the incoming publication-plan delta from a local JSON file. Existing tasks stay in place, missing tasks are not removed, and published/completed runtime content is preserved.',
         inputSchema: {
             userId: z.number().int().positive().describe('Owner user ID used for project membership when a new project is created.'),
             planPath: z.string().min(1).describe('Absolute or local filesystem path to a publication plan JSON file.'),
             workspaceRoots: z.array(z.string()).optional().describe('Optional local workspace roots where referenced content files can be resolved during import.')
         }
     }, async ({ userId, planPath, workspaceRoots }) => {
-        const result = await mcpPublicationService.importPublicationPlanFile(planPath, userId, workspaceRoots);
+        const result = await mcpPublicationService.importPublicationPlanFile(planPath, userId, workspaceRoots, 'delta_safe');
         return asToolResult(result);
     });
 
@@ -459,7 +485,7 @@ export function registerPlannerTools(server: McpServer) {
     });
 
     server.registerTool('ba_prepare_publication_task', {
-        description: 'Prepare or reuse a handoff bundle for a publication task before manual publication.',
+        description: 'Prepare or reuse a handoff bundle for a publication task before manual publication. Already published tasks are read-only and cannot be modified via MCP.',
         inputSchema: {
             projectId: z.number().int().positive(),
             taskId: z.number().int().positive()
@@ -470,7 +496,7 @@ export function registerPlannerTools(server: McpServer) {
     });
 
     server.registerTool('ba_confirm_publication', {
-        description: 'Mark a publication task as published after a manual handoff or an external publish step.',
+        description: 'Mark a publication task as published after a manual handoff or an external publish step. Already published tasks are read-only and cannot be modified via MCP.',
         inputSchema: {
             projectId: z.number().int().positive(),
             taskId: z.number().int().positive(),

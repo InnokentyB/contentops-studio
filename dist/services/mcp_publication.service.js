@@ -118,6 +118,13 @@ async function resolveTelegramPhotoSource(imageUrl) {
     throw new Error(`Unsupported image format: ${imageUrl}`);
 }
 class McpPublicationService {
+    assertPublicationTaskMutableForMcp(item, operation) {
+        const isPublished = String(item?.status || '') === 'published' || Boolean(item?.published_link);
+        if (isPublished) {
+            const taskLabel = item?.id ? `Publication task ${item.id}` : 'Publication task';
+            throw new Error(`${taskLabel} is already published and is read-only via MCP. ${operation} is not allowed.`);
+        }
+    }
     summarizeUser(user) {
         return {
             id: user.id,
@@ -237,12 +244,13 @@ class McpPublicationService {
             idempotencyKey
         }, { userId, minRole: 'editor' });
     }
-    async importPublicationPlanJson(planJson, userId, workspaceRoots) {
+    async importPublicationPlanJson(planJson, userId, workspaceRoots, importMode = 'delta_safe') {
         const user = await this.requireUser(userId);
         const result = await publication_plan_service_1.default.importPlan({
             rawPlan: planJson,
             userId,
-            workspaceRoots
+            workspaceRoots,
+            importMode
         });
         return {
             imported_by: user,
@@ -255,13 +263,14 @@ class McpPublicationService {
             imported: result.imported
         };
     }
-    async importPublicationPlanFile(planPath, userId, workspaceRoots) {
+    async importPublicationPlanFile(planPath, userId, workspaceRoots, importMode = 'delta_safe') {
         const user = await this.requireUser(userId);
         const resolvedPlanPath = path_1.default.resolve(planPath);
         const result = await publication_plan_service_1.default.importPlan({
             planPath: resolvedPlanPath,
             userId,
-            workspaceRoots
+            workspaceRoots,
+            importMode
         });
         return {
             imported_by: user,
@@ -706,6 +715,7 @@ class McpPublicationService {
         if (!item) {
             throw new Error(`Publication task ${taskId} not found for project ${projectId}`);
         }
+        this.assertPublicationTaskMutableForMcp(item, 'prepare_publication_task');
         const plan = await this.loadPublicationPlanContext(projectId);
         if (!plan) {
             return {
@@ -745,6 +755,7 @@ class McpPublicationService {
         if (!item) {
             throw new Error(`Publication task ${taskId} not found for project ${projectId}`);
         }
+        this.assertPublicationTaskMutableForMcp(item, 'confirm_publication');
         const monitoring = item.metrics?.monitoring || {};
         return db_1.default.contentItem.update({
             where: { id: item.id },

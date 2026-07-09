@@ -5,6 +5,7 @@ import prisma from '../db';
 import publicationAdapterService from './publication_adapter.service';
 import { mapActionStatus, resolveActionTitle } from './publication_runtime.helpers';
 import contentDictionaryService from './content_dictionary.service';
+import contentPolicyMatrixService from './content_policy_matrix.service';
 
 type PublicationPlan = {
     meta: {
@@ -27,9 +28,12 @@ type PublicationPlan = {
     asset_snapshots?: Record<string, any>;
     content_file_snapshots?: Record<string, any>;
     content_dictionary?: unknown;
+    content_policy_matrix?: unknown;
     atoma_files?: unknown;
     atoma_files_description?: unknown;
 };
+
+type PublicationPlanImportMode = 'delta_safe' | 'full_sync';
 
 type AssetSnapshot = {
     ref: string;
@@ -211,6 +215,11 @@ function shouldPreserveRuntimeTask(item: any) {
     return RUNTIME_LOCKED_TASK_STATUSES.has(String(item?.status || ''));
 }
 
+function shouldFreezeImportedTaskContent(item: any) {
+    const status = String(item?.status || '');
+    return status === 'published' || Boolean(item?.published_link);
+}
+
 function mergeImportedItemData(existingItem: any, nextItemData: any, preserveRuntimeState: boolean) {
     const existingAssets = ((existingItem?.assets as any) || {}) as Record<string, any>;
     const nextAssets = (nextItemData?.assets || {}) as Record<string, any>;
@@ -218,25 +227,108 @@ function mergeImportedItemData(existingItem: any, nextItemData: any, preserveRun
     const nextQualityReport = (nextItemData?.quality_report || {}) as Record<string, any>;
     const existingMetrics = ((existingItem?.metrics as any) || {}) as Record<string, any>;
     const nextMetrics = (nextItemData?.metrics || {}) as Record<string, any>;
+    const freezeContent = shouldFreezeImportedTaskContent(existingItem);
+
+    const mergedAssets = freezeContent
+        ? {
+            ...nextAssets,
+            ...existingAssets,
+            action: mergePlanAction(nextAssets.action, existingAssets.action),
+            resolved_assets: Array.isArray(existingAssets.resolved_assets) && existingAssets.resolved_assets.length > 0
+                ? existingAssets.resolved_assets
+                : nextAssets.resolved_assets
+        }
+        : {
+            ...existingAssets,
+            ...nextAssets
+        };
+
+    const mergedQualityReport = freezeContent
+        ? {
+            ...nextQualityReport,
+            ...existingQualityReport
+        }
+        : {
+            ...existingQualityReport,
+            ...nextQualityReport
+        };
+
+    const mergedMetrics = freezeContent
+        ? {
+            ...nextMetrics,
+            ...existingMetrics
+        }
+        : {
+            ...existingMetrics,
+            ...nextMetrics
+        };
 
     return {
         ...nextItemData,
         status: preserveRuntimeState ? existingItem.status : nextItemData.status,
+        channel_id: freezeContent ? (existingItem.channel_id ?? nextItemData.channel_id) : nextItemData.channel_id,
+        type: freezeContent ? (existingItem.type || nextItemData.type) : nextItemData.type,
+        layer: freezeContent ? (existingItem.layer || nextItemData.layer) : nextItemData.layer,
+        title: freezeContent ? (existingItem.title || nextItemData.title) : nextItemData.title,
+        brief: freezeContent ? (existingItem.brief || nextItemData.brief) : nextItemData.brief,
+        key_points: freezeContent ? (existingItem.key_points || nextItemData.key_points) : nextItemData.key_points,
+        cta: freezeContent ? (existingItem.cta || nextItemData.cta) : nextItemData.cta,
+        schedule_at: freezeContent ? (existingItem.schedule_at || nextItemData.schedule_at) : nextItemData.schedule_at,
         published_link: preserveRuntimeState
             ? (existingItem.published_link || nextItemData.published_link)
             : (existingItem.published_link || nextItemData.published_link),
-        assets: {
-            ...existingAssets,
-            ...nextAssets
-        } as any,
-        quality_report: {
-            ...existingQualityReport,
-            ...nextQualityReport
-        } as any,
-        metrics: {
-            ...existingMetrics,
-            ...nextMetrics
-        } as any
+        assets: mergedAssets as any,
+        quality_report: mergedQualityReport as any,
+        metrics: mergedMetrics as any
+    };
+}
+
+function mergePlanAsset(existingAsset: any, incomingAsset: any) {
+    if (!existingAsset) return incomingAsset;
+    if (!incomingAsset) return existingAsset;
+
+    const existingContent = typeof existingAsset?.content === 'string' ? existingAsset.content : null;
+    const incomingContent = typeof incomingAsset?.content === 'string' ? incomingAsset.content : null;
+    const preferredContent = existingContent && incomingContent
+        ? (existingContent.length >= incomingContent.length ? existingContent : incomingContent)
+        : (existingContent || incomingContent);
+
+    return {
+        ...existingAsset,
+        ...incomingAsset,
+        content: preferredContent ?? incomingAsset?.content ?? existingAsset?.content ?? null,
+        path: incomingAsset?.path || existingAsset?.path || null,
+        section_marker: incomingAsset?.section_marker || existingAsset?.section_marker || null
+    };
+}
+
+function mergePlanAction(existingAction: any, incomingAction: any) {
+    if (!existingAction) return incomingAction;
+    if (!incomingAction) return existingAction;
+
+    return {
+        ...existingAction,
+        ...incomingAction,
+        notes: incomingAction?.notes || existingAction?.notes || null,
+        human_review_reason: incomingAction?.human_review_reason || existingAction?.human_review_reason || null,
+        asset_refs: Array.isArray(incomingAction?.asset_refs) && incomingAction.asset_refs.length > 0
+            ? incomingAction.asset_refs
+            : (existingAction?.asset_refs || []),
+        content_files: Array.isArray(incomingAction?.content_files) && incomingAction.content_files.length > 0
+            ? incomingAction.content_files
+            : (existingAction?.content_files || []),
+        verification: Array.isArray(incomingAction?.verification)
+            ? incomingAction.verification
+            : (existingAction?.verification || []),
+        post_actions: Array.isArray(incomingAction?.post_actions)
+            ? incomingAction.post_actions
+            : (existingAction?.post_actions || []),
+        dependencies: Array.isArray(incomingAction?.dependencies)
+            ? incomingAction.dependencies
+            : (existingAction?.dependencies || []),
+        blocking_conditions: Array.isArray(incomingAction?.blocking_conditions)
+            ? incomingAction.blocking_conditions
+            : (existingAction?.blocking_conditions || [])
     };
 }
 
@@ -245,6 +337,100 @@ function contentFileSnapshotKey(relativePath: string, sectionMarker?: string | n
 }
 
 class PublicationPlanService {
+    private async loadStoredPlan(projectId: number): Promise<PublicationPlan | null> {
+        const settings = await prisma.projectSettings.findMany({
+            where: {
+                project_id: projectId,
+                key: {
+                    in: [
+                        'publication_plan_meta',
+                        'publication_plan_assets',
+                        'publication_plan_accounts',
+                        'publication_plan_asset_snapshots',
+                        'publication_plan_content_file_snapshots',
+                        'publication_plan_ongoing_rules',
+                        'publication_plan_measurement'
+                    ]
+                }
+            }
+        });
+
+        const meta = settings.find((setting) => setting.key === 'publication_plan_meta')?.value;
+        const assets = settings.find((setting) => setting.key === 'publication_plan_assets')?.value;
+        const accounts = settings.find((setting) => setting.key === 'publication_plan_accounts')?.value;
+
+        if (!meta || !assets || !accounts) {
+            return null;
+        }
+
+        try {
+            return {
+                meta: JSON.parse(meta),
+                assets: JSON.parse(assets),
+                accounts: JSON.parse(accounts),
+                asset_snapshots: JSON.parse(settings.find((setting) => setting.key === 'publication_plan_asset_snapshots')?.value || '{}'),
+                content_file_snapshots: JSON.parse(settings.find((setting) => setting.key === 'publication_plan_content_file_snapshots')?.value || '{}'),
+                ongoing_rules: JSON.parse(settings.find((setting) => setting.key === 'publication_plan_ongoing_rules')?.value || '[]'),
+                measurement: JSON.parse(settings.find((setting) => setting.key === 'publication_plan_measurement')?.value || '{}'),
+                actions: []
+            };
+        } catch {
+            return null;
+        }
+    }
+
+    private mergePlansForDelta(existingPlan: PublicationPlan, incomingPlan: PublicationPlan): PublicationPlan {
+        const mergedAssets = {
+            ...(existingPlan.assets || {})
+        } as Record<string, any>;
+
+        for (const [assetRef, incomingAsset] of Object.entries(incomingPlan.assets || {})) {
+            mergedAssets[assetRef] = mergePlanAsset(mergedAssets[assetRef], incomingAsset);
+        }
+
+        const mergedAccounts = {
+            ...(existingPlan.accounts || {}),
+            ...(incomingPlan.accounts || {})
+        };
+
+        const actionMap = new Map<string, any>();
+        for (const action of existingPlan.actions || []) {
+            if (action?.id) actionMap.set(String(action.id), action);
+        }
+        for (const action of incomingPlan.actions || []) {
+            if (!action?.id) continue;
+            const key = String(action.id);
+            actionMap.set(key, mergePlanAction(actionMap.get(key), action));
+        }
+
+        return {
+            ...existingPlan,
+            ...incomingPlan,
+            meta: {
+                ...(existingPlan.meta || {}),
+                ...(incomingPlan.meta || {})
+            },
+            accounts: mergedAccounts,
+            assets: mergedAssets,
+            actions: Array.from(actionMap.values()),
+            asset_snapshots: {
+                ...(existingPlan.asset_snapshots || {}),
+                ...(incomingPlan.asset_snapshots || {})
+            },
+            content_file_snapshots: {
+                ...(existingPlan.content_file_snapshots || {}),
+                ...(incomingPlan.content_file_snapshots || {})
+            },
+            ongoing_rules: Array.isArray(incomingPlan.ongoing_rules) && incomingPlan.ongoing_rules.length > 0
+                ? incomingPlan.ongoing_rules
+                : (existingPlan.ongoing_rules || []),
+            measurement: {
+                ...(existingPlan.measurement || {}),
+                ...(incomingPlan.measurement || {})
+            }
+        };
+    }
+
     private resolveAssetRefFromUrlRef(plan: PublicationPlan, urlRef?: string | null) {
         if (!urlRef || typeof urlRef !== 'string') return null;
         if (plan.assets?.[urlRef]) return urlRef;
@@ -287,7 +473,7 @@ class PublicationPlanService {
             summary: 'Preferred planner publication-plan format for MCP and chat-generated plans.',
             top_level: {
                 required: ['meta', 'accounts', 'assets', 'actions'],
-                optional: ['ongoing_rules', 'measurement', 'dependencies_matrix_visualized', 'content_dictionary', 'atoma_files', 'atoma_files_description']
+                optional: ['ongoing_rules', 'measurement', 'dependencies_matrix_visualized', 'content_dictionary', 'content_policy_matrix', 'atoma_files', 'atoma_files_description']
             },
             meta: {
                 required: ['plan_id'],
@@ -437,6 +623,7 @@ class PublicationPlanService {
                 'Use unique section_marker values that match stable headings in the source file.',
                 'If a post depends on a full markdown section, make that dependency explicit in content_files.',
                 'Attach content_dictionary to import glossary/style rules together with the publication plan.',
+                'Attach content_policy_matrix to define platform + tone-of-voice rules for critic/fixer checks.',
                 'Attach atoma_files and atoma_files_description when the critic should validate against atomized source context.'
             ]
         };
@@ -528,6 +715,26 @@ class PublicationPlanService {
                     required_phrases: [],
                     forbidden_phrases: [],
                     preferred_tone: 'direct, practical, non-generic'
+                }
+            },
+            content_policy_matrix: {
+                voices: {
+                    founder: {
+                        preferred_traits: ['позиция', 'личный опыт']
+                    }
+                },
+                platforms: {
+                    telegram: {
+                        min_chars: 700,
+                        max_chars: 4000
+                    }
+                },
+                matrix: {
+                    telegram: {
+                        founder: {
+                            preferred_traits: ['авторская позиция', 'живой конфликт']
+                        }
+                    }
                 }
             },
             atoma_files_description: 'Описание atomized source files и правил их использования для редактора/критика.',
@@ -775,15 +982,17 @@ class PublicationPlanService {
         return snapshots;
     }
 
-    async importPlan(params: { rawPlan?: string; planPath?: string; userId: number; workspaceRoots?: string[] }) {
-        const plan = params.rawPlan
+    async importPlan(params: {
+        rawPlan?: string;
+        planPath?: string;
+        userId: number;
+        workspaceRoots?: string[];
+        importMode?: PublicationPlanImportMode;
+    }) {
+        const importMode = params.importMode || 'delta_safe';
+        let plan = params.rawPlan
             ? this.parsePlan(params.rawPlan)
             : this.loadPlanFromPath(params.planPath || '');
-
-        const resolvedPipelineRoot = this.resolveImportPipelineRoot(plan, params.workspaceRoots || [], params.planPath);
-        if (resolvedPipelineRoot) {
-            plan.meta.pipeline_root = resolvedPipelineRoot;
-        }
 
         const existingPlanMarker = await prisma.projectSettings.findFirst({
             where: {
@@ -795,6 +1004,25 @@ class PublicationPlanService {
         const existingProject = existingPlanMarker
             ? await prisma.project.findUnique({ where: { id: existingPlanMarker.project_id } })
             : null;
+
+        if (existingProject && importMode === 'delta_safe') {
+            const storedPlan = await this.loadStoredPlan(existingProject.id);
+            if (storedPlan) {
+                storedPlan.actions = (await prisma.contentItem.findMany({
+                    where: { project_id: existingProject.id }
+                }))
+                    .filter(isExternalPublicationPlanItem)
+                    .map((item) => (item.assets as any)?.action)
+                    .filter(Boolean);
+
+                plan = this.mergePlansForDelta(storedPlan, plan);
+            }
+        }
+
+        const resolvedPipelineRoot = this.resolveImportPipelineRoot(plan, params.workspaceRoots || [], params.planPath);
+        if (resolvedPipelineRoot) {
+            plan.meta.pipeline_root = resolvedPipelineRoot;
+        }
 
         let slug = existingProject?.slug || '';
         if (!existingProject) {
@@ -817,6 +1045,9 @@ class PublicationPlanService {
         const contentFileSnapshots = this.buildContentFileSnapshots(plan, existingContentFileSnapshots);
         const dictionaryYaml = plan.content_dictionary !== undefined
             ? contentDictionaryService.normalizeToYaml(plan.content_dictionary)
+            : null;
+        const contentPolicyMatrixYaml = plan.content_policy_matrix !== undefined
+            ? contentPolicyMatrixService.normalizeToYaml(plan.content_policy_matrix)
             : null;
         const atomaFilesDescription = plan.atoma_files_description === undefined
             ? null
@@ -913,6 +1144,11 @@ class PublicationPlanService {
                     project_id: project.id,
                     key: 'content_dictionary_yaml',
                     value: dictionaryYaml
+                }] : []),
+                ...(contentPolicyMatrixYaml ? [{
+                    project_id: project.id,
+                    key: 'content_policy_matrix_yaml',
+                    value: contentPolicyMatrixYaml
                 }] : []),
                 ...(atomaFilesDescription ? [{
                     project_id: project.id,
@@ -1140,33 +1376,38 @@ class PublicationPlanService {
                 }
             }
 
-            const staleImportedIds = existingImportedItems
-                .filter((item) => {
-                    const taskId = getImportedTaskId(item);
-                    if (!taskId || importedTaskIds.has(taskId)) {
-                        return false;
-                    }
-                    return !shouldPreserveRuntimeTask(item);
-                })
-                .map((item) => item.id);
+            let staleImportedIds: number[] = [];
+            if (importMode === 'full_sync') {
+                staleImportedIds = existingImportedItems
+                    .filter((item) => {
+                        const taskId = getImportedTaskId(item);
+                        if (!taskId || importedTaskIds.has(taskId)) {
+                            return false;
+                        }
+                        return !shouldPreserveRuntimeTask(item);
+                    })
+                    .map((item) => item.id);
 
-            if (staleImportedIds.length > 0) {
-                await tx.contentItem.deleteMany({
-                    where: {
-                        id: { in: staleImportedIds }
-                    }
-                });
+                if (staleImportedIds.length > 0) {
+                    await tx.contentItem.deleteMany({
+                        where: {
+                            id: { in: staleImportedIds }
+                        }
+                    });
+                }
             }
 
             return {
                 project,
                 imported: {
+                    importMode,
                     accounts: channels.length,
                     actions: plan.actions.length,
                     assets: Object.keys(plan.assets).length,
                     assetSnapshots: Object.keys(assetSnapshots).length,
                     contentFileSnapshots: Object.keys(contentFileSnapshots).length,
                     ongoingRules: (plan.ongoing_rules || []).length,
+                    deletedStaleTasks: staleImportedIds.length,
                     updatedExistingProject: Boolean(existingProject)
                 }
             };

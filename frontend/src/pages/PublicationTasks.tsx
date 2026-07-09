@@ -30,6 +30,7 @@ interface PublicationTask {
     project_context?: {
         glossary_available?: boolean
         glossary_yaml?: string | null
+        content_policy_matrix_yaml?: string | null
         atoma_files_description?: string | null
         atoma_files_payload?: JsonRecord | JsonRecord[] | null
     } | null
@@ -39,6 +40,8 @@ interface PublicationTask {
         target_resource_label?: string | null
         source_content?: string | null
         source_file_name?: string | null
+        voice_profile?: string | null
+        platform_type?: string | null
     } | null
 }
 
@@ -66,9 +69,29 @@ type CriticReview = {
     llm_critic?: {
         score?: number
         critique?: string
+        dimensions?: Record<string, number>
+        strengths?: string[]
+        issues?: string[]
+        rewrite_instructions?: string[]
     } | null
+    policy_matrix?: {
+        score?: number
+        dimensions?: Record<string, number>
+        findings?: Array<{
+            severity?: 'error' | 'warning' | 'info'
+            message?: string
+            matched?: string
+            suggestion?: string
+            source?: string
+            dimension?: string
+        }>
+        derived_policy?: JsonRecord
+    } | null
+    scoring_dimensions?: Record<string, number> | null
     llm_error?: string | null
     glossary_available?: boolean
+    content_policy_matrix_available?: boolean
+    content_policy_matrix_yaml?: string | null
     atoma_files_description?: string | null
     atoma_files_payload?: JsonRecord | JsonRecord[] | null
 }
@@ -424,6 +447,24 @@ export default function PublicationTasks() {
         }
     })
 
+    const runCriticFixer = useMutation({
+        mutationFn: () => {
+            if (!activeTaskId) throw new Error('Задача не выбрана')
+            const reviewText = publicationBody || selectedTask?.workspace_context?.source_content || ''
+            return publicationTasksApi.fixWithCritic(activeTaskId, { text: reviewText })
+        },
+        onSuccess: (result: any) => {
+            if (typeof result?.updated_text === 'string') {
+                setPublicationBody(result.updated_text)
+            }
+            if (result?.critic_review) {
+                setCriticReport(result.critic_review)
+            }
+            setTaskMessage('Фиксер применил замечания критика и обновил текст публикации.')
+            refreshTasks()
+        }
+    })
+
     const generateTaskImage = useMutation({
         mutationFn: (provider: 'gpt-image' | 'nano' = 'gpt-image') => {
             if (!activeTaskId) throw new Error('Задача не выбрана')
@@ -668,9 +709,9 @@ export default function PublicationTasks() {
 
                         {activeTask && (
                             <div>
-                                <div className="p-5 sm:p-7 border-b border-outline-variant/10">
-                                    <div className="flex flex-wrap items-start justify-between gap-4">
-                                        <div className="space-y-3">
+                                <div className="p-4 sm:p-6 border-b border-outline-variant/10">
+                                    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_auto] gap-5 items-start">
+                                        <div className="space-y-4 min-w-0">
                                             <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">
                                                 {taskChannel(activeTask)}
                                             </div>
@@ -703,14 +744,59 @@ export default function PublicationTasks() {
                                                     {activeTask.brief}
                                                 </p>
                                             )}
+
+                                            <div className="rounded-[1.35rem] bg-surface-container-low px-4 py-4">
+                                                <div className="flex flex-wrap items-center gap-2 mb-3">
+                                                    <span className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">
+                                                        Контекст задачи
+                                                    </span>
+                                                    {activeTask.published_link && (
+                                                        <a
+                                                            href={activeTask.published_link}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 text-[11px] font-black text-primary shadow-sm hover:underline"
+                                                        >
+                                                            <span className="material-symbols-outlined text-sm">open_in_new</span>
+                                                            Открыть пост
+                                                        </a>
+                                                    )}
+                                                </div>
+                                                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+                                                    <div className="rounded-2xl bg-white px-3 py-3">
+                                                        <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Тип</div>
+                                                        <div className="mt-1 text-sm font-bold text-on-surface break-words">{activeTask.type}</div>
+                                                    </div>
+                                                    <div className="rounded-2xl bg-white px-3 py-3">
+                                                        <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Адаптер</div>
+                                                        <div className="mt-1 text-sm font-bold text-on-surface break-words">{activeTask.channel?.type || activeTask.layer || 'n/a'}</div>
+                                                    </div>
+                                                    <div className="rounded-2xl bg-white px-3 py-3">
+                                                        <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Канал</div>
+                                                        <div className="mt-1 text-sm font-bold text-on-surface break-words">{activeTask.channel?.name || activeTask.metrics?.account_ref || 'n/a'}</div>
+                                                    </div>
+                                                    <div className="rounded-2xl bg-white px-3 py-3">
+                                                        <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Статус поста</div>
+                                                        <div className="mt-1 text-sm font-bold text-on-surface">{activeTask.published_link ? 'Опубликован' : 'Не опубликован'}</div>
+                                                    </div>
+                                                    <div className="rounded-2xl bg-white px-3 py-3">
+                                                        <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Режим</div>
+                                                        <div className="mt-1 text-sm font-bold text-on-surface">{executionMode}</div>
+                                                    </div>
+                                                    <div className="rounded-2xl bg-white px-3 py-3">
+                                                        <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Исход</div>
+                                                        <div className="mt-1 text-sm font-bold text-on-surface">{activeTask.published_link ? activeOutcome : 'в работе'}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
 
-                                        <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 w-full sm:w-auto">
+                                        <div className="flex flex-col sm:flex-row xl:flex-col xl:items-stretch sm:flex-wrap items-stretch sm:items-center gap-3 w-full xl:w-[16rem] sm:w-auto">
                                             {canPrepareHandoff && (
                                                 <button
                                                     onClick={() => prepareHandoff.mutate(activeTask.id)}
                                                     disabled={prepareHandoff.isPending || isLoadingTask || publishTaskNow.isPending}
-                                                    className="w-full sm:w-auto bg-primary text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
+                                                    className="w-full bg-primary text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
                                                 >
                                                     {prepareHandoff.isPending ? 'Preparing...' : 'Prepare Handoff'}
                                                 </button>
@@ -719,7 +805,7 @@ export default function PublicationTasks() {
                                                 <button
                                                     onClick={() => publishTaskNow.mutate()}
                                                     disabled={publishTaskNow.isPending || prepareHandoff.isPending || isLoadingTask}
-                                                    className="w-full sm:w-auto ai-gradient text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 inline-flex items-center justify-center gap-2"
+                                                    className="w-full ai-gradient text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 inline-flex items-center justify-center gap-2"
                                                     title={executionMode === 'manual'
                                                         ? 'Отправить текущий текст публикации прямо в подключённый канал'
                                                         : 'Запустить публикацию через подключённый адаптер'}
@@ -752,75 +838,42 @@ export default function PublicationTasks() {
                                 </div>
 
                                 <div className="p-5 sm:p-7 space-y-7">
-                                    <section className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                                        <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-3">
-                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Task Context</div>
-                                            <div className="text-sm text-on-surface-variant space-y-2">
-                                                <div><span className="font-bold text-on-surface">Type:</span> {activeTask.type}</div>
-                                                <div><span className="font-bold text-on-surface">Adapter:</span> {activeTask.channel?.type || activeTask.layer || 'n/a'}</div>
-                                                <div><span className="font-bold text-on-surface">Account:</span> {activeTask.channel?.name || activeTask.metrics?.account_ref || 'n/a'}</div>
-                                                <div><span className="font-bold text-on-surface">Published:</span> {activeTask.published_link ? 'yes' : 'no'}</div>
-                                                {activeTask.published_link && (
-                                                    <div><span className="font-bold text-on-surface">Outcome:</span> {activeOutcome}</div>
-                                                )}
-                                            </div>
-                                            {activeTask.published_link && (
-                                                <a
-                                                    href={activeTask.published_link}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    className="inline-flex items-center gap-2 text-sm font-bold text-primary hover:underline"
-                                                >
-                                                    <span className="material-symbols-outlined text-base">open_in_new</span>
-                                                    Open published post
-                                                </a>
-                                            )}
-                                        </div>
-
-                                        <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-3">
-                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Monitoring</div>
-                                            <pre className="text-xs font-mono whitespace-pre-wrap break-words text-on-surface-variant leading-6">
-                                                {prettyJson(activeTask.metrics?.monitoring || {})}
-                                            </pre>
-                                        </div>
-                                    </section>
-
                                     <section className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.18fr)_minmax(360px,0.82fr)] gap-6 items-start">
-                                        <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
-                                            <div className="flex items-center justify-between gap-3">
-                                                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Текст публикации</div>
-                                                <span className="text-xs text-on-surface-variant">{publicationBody.length} chars</span>
-                                            </div>
-                                            <textarea
-                                                value={publicationBody}
-                                                onChange={(event) => setPublicationBody(event.target.value)}
-                                                rows={16}
-                                                className="w-full bg-white border-none rounded-2xl p-4 text-sm leading-6 focus:ring-2 focus:ring-primary/20 outline-none resize-y min-h-[22rem]"
-                                            />
-                                            <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center justify-between gap-3">
-                                                <div className="text-xs text-on-surface-variant">
-                                                    Правки сохраняются в задачу публикации и используются для handoff, критика и ручной публикации.
-                                                </div>
-                                                <div className="flex w-full sm:w-auto items-center gap-3">
-                                                    <button
-                                                        onClick={() => setPublicationBody(currentPublicationBody)}
-                                                        disabled={!isPublicationBodyDirty || saveTaskContent.isPending}
-                                                        className="flex-1 sm:flex-none rounded-2xl bg-surface-container-highest text-on-surface font-black text-xs px-4 py-3 hover:bg-primary/10 hover:text-primary transition-all disabled:opacity-50"
-                                                    >
-                                                        Сбросить
-                                                    </button>
-                                                    <button
-                                                        onClick={() => saveTaskContent.mutate()}
-                                                        disabled={!isPublicationBodyDirty || saveTaskContent.isPending}
-                                                        className="flex-1 sm:flex-none rounded-2xl bg-primary text-white font-black text-xs px-4 py-3 shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
-                                                    >
-                                                        {saveTaskContent.isPending ? 'Сохраняем текст...' : 'Сохранить текст'}
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-
                                         <div className="space-y-6">
+                                            <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Текст публикации</div>
+                                                    <span className="text-xs text-on-surface-variant">{publicationBody.length} chars</span>
+                                                </div>
+                                                <textarea
+                                                    value={publicationBody}
+                                                    onChange={(event) => setPublicationBody(event.target.value)}
+                                                    rows={16}
+                                                    className="w-full bg-white border-none rounded-2xl p-4 text-sm leading-6 focus:ring-2 focus:ring-primary/20 outline-none resize-y min-h-[22rem]"
+                                                />
+                                                <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center justify-between gap-3">
+                                                    <div className="text-xs text-on-surface-variant">
+                                                        Правки сохраняются в задачу публикации и используются для handoff, критика и ручной публикации.
+                                                    </div>
+                                                    <div className="flex w-full sm:w-auto items-center gap-3">
+                                                        <button
+                                                            onClick={() => setPublicationBody(currentPublicationBody)}
+                                                            disabled={!isPublicationBodyDirty || saveTaskContent.isPending}
+                                                            className="flex-1 sm:flex-none rounded-2xl bg-surface-container-highest text-on-surface font-black text-xs px-4 py-3 hover:bg-primary/10 hover:text-primary transition-all disabled:opacity-50"
+                                                        >
+                                                            Сбросить
+                                                        </button>
+                                                        <button
+                                                            onClick={() => saveTaskContent.mutate()}
+                                                            disabled={!isPublicationBodyDirty || saveTaskContent.isPending}
+                                                            className="flex-1 sm:flex-none rounded-2xl bg-primary text-white font-black text-xs px-4 py-3 shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
+                                                        >
+                                                            {saveTaskContent.isPending ? 'Сохраняем текст...' : 'Сохранить текст'}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+
                                             <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
                                                 <div className="flex items-center justify-between gap-3">
                                                     <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Предпросмотр публикации</div>
@@ -838,9 +891,21 @@ export default function PublicationTasks() {
                                                     authorName={activeTask.channel?.name || undefined}
                                                 />
                                             </div>
+                                        </div>
 
-                                            <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
-                                                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Контекст публикации</div>
+                                        <aside className="space-y-5 xl:sticky xl:top-6">
+                                            <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4 border border-outline-variant/10">
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div>
+                                                        <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Контекст публикации</div>
+                                                        <div className="mt-1 text-xs text-on-surface-variant leading-5">
+                                                            Здесь всё, что нужно для ручной публикации и привязки результата к плану.
+                                                        </div>
+                                                    </div>
+                                                    <div className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant shadow-sm">
+                                                        {activeTask.channel?.type || activeTask.layer || 'channel'}
+                                                    </div>
+                                                </div>
                                                 <div className="space-y-4">
                                                     <div>
                                                         <div className="text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Ресурс для редактирования / публикации</div>
@@ -861,14 +926,14 @@ export default function PublicationTasks() {
 
                                                     <div>
                                                         <div className="text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Ссылка на пункт плана</div>
-                                                        <div className="mt-2 rounded-2xl bg-white px-4 py-3 text-sm font-bold text-on-surface">
+                                                        <div className="mt-2 rounded-2xl bg-white px-4 py-3 text-sm font-bold text-on-surface shadow-sm">
                                                             {planItemRef || 'Не привязано'}
                                                         </div>
                                                     </div>
 
                                                     <div>
                                                         <div className="text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Исходный ресурс</div>
-                                                        <div className="mt-2 rounded-2xl bg-white px-4 py-3 text-sm text-on-surface">
+                                                        <div className="mt-2 rounded-2xl bg-white px-4 py-3 text-sm text-on-surface shadow-sm">
                                                             {activeTask?.workspace_context?.source_file_name || sourceFiles[0]?.file_name || sourceFiles[0]?.relative_path || 'Не найден'}
                                                         </div>
                                                     </div>
@@ -880,21 +945,29 @@ export default function PublicationTasks() {
                                                             value={publishedLink}
                                                             onChange={(event) => setPublishedLink(event.target.value)}
                                                             placeholder="https://..."
-                                                            className="mt-2 w-full bg-white border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                                            className="mt-2 w-full bg-white border-none rounded-2xl px-4 py-3 text-sm shadow-sm focus:ring-2 focus:ring-primary/20 outline-none"
                                                         />
                                                     </div>
                                                 </div>
                                             </div>
 
-                                            <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
-                                                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Подтверждение публикации</div>
-                                                <div className="rounded-2xl bg-white px-4 py-3 text-xs leading-6 text-on-surface-variant">
+                                            <div className="rounded-[1.5rem] bg-white p-5 space-y-4 border border-primary/10 shadow-sm">
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div>
+                                                        <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Подтверждение публикации</div>
+                                                        <div className="mt-1 text-xs text-on-surface-variant leading-5">
+                                                            Сохрани итоговый permalink и зафиксируй реальный исход публикации.
+                                                        </div>
+                                                    </div>
+                                                    <span className="material-symbols-outlined text-primary">task_alt</span>
+                                                </div>
+                                                <div className="rounded-2xl bg-surface-container-low px-4 py-3 text-xs leading-6 text-on-surface-variant">
                                                     Сохраняй permalink даже если платформа позже заблокирует, удалит или ограничит пост. Для Reddit это оставляет задачу подтверждённой и позволяет отслеживать те метрики, которые ещё доступны.
                                                 </div>
                                                 <select
                                                     value={publicationOutcome}
                                                     onChange={(event) => setPublicationOutcome(event.target.value as PublicationOutcome)}
-                                                    className="w-full bg-white border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                                    className="w-full bg-surface-container-low border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
                                                 >
                                                     <option value="published">Опубликовано нормально</option>
                                                     <option value="blocked">Заблокировано, но URL есть</option>
@@ -905,7 +978,7 @@ export default function PublicationTasks() {
                                                     value={publicationNote}
                                                     onChange={(event) => setPublicationNote(event.target.value)}
                                                     rows={3}
-                                                    className="w-full bg-white border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                                    className="w-full bg-surface-container-low border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
                                                     placeholder="Необязательная заметка о публикации"
                                                 />
                                                 <button
@@ -917,8 +990,16 @@ export default function PublicationTasks() {
                                                 </button>
                                             </div>
 
-                                            <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
-                                                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Изображение к посту</div>
+                                            <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4 border border-outline-variant/10">
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div>
+                                                        <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Изображение к посту</div>
+                                                        <div className="mt-1 text-xs text-on-surface-variant leading-5">
+                                                            Сгенерируй визуал прямо из текущего текста, если посту нужна карточка или иллюстрация.
+                                                        </div>
+                                                    </div>
+                                                    <span className="material-symbols-outlined text-on-surface-variant">imagesmode</span>
+                                                </div>
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                     <button
                                                         onClick={() => generateTaskImage.mutate('gpt-image')}
@@ -950,12 +1031,47 @@ export default function PublicationTasks() {
                                                         </div>
                                                     </div>
                                                 ) : (
-                                                    <div className="rounded-2xl bg-white px-4 py-3 text-sm text-on-surface-variant">
+                                                    <div className="rounded-2xl bg-white px-4 py-3 text-sm text-on-surface-variant shadow-sm">
                                                         Сгенерированное изображение пока не добавлено.
                                                     </div>
                                                 )}
                                             </div>
-                                        </div>
+                                        </aside>
+                                    </section>
+
+                                    <section className="rounded-[1.5rem] bg-surface-container-low p-5">
+                                        <details className="group">
+                                            <summary className="list-none cursor-pointer flex items-center justify-between gap-3">
+                                                <div>
+                                                    <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Технические детали</div>
+                                                    <div className="mt-1 text-sm text-on-surface-variant">
+                                                        Мониторинг и служебные поля спрятаны сюда, чтобы не занимать первый экран.
+                                                    </div>
+                                                </div>
+                                                <span className="material-symbols-outlined text-on-surface-variant transition-transform group-open:rotate-180">expand_more</span>
+                                            </summary>
+                                            <div className="mt-4 grid grid-cols-1 xl:grid-cols-2 gap-4">
+                                                <div className="rounded-2xl bg-white p-4 space-y-2">
+                                                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Task Context</div>
+                                                    <div className="text-sm text-on-surface-variant space-y-2">
+                                                        <div><span className="font-bold text-on-surface">Type:</span> {activeTask.type}</div>
+                                                        <div><span className="font-bold text-on-surface">Adapter:</span> {activeTask.channel?.type || activeTask.layer || 'n/a'}</div>
+                                                        <div><span className="font-bold text-on-surface">Account:</span> {activeTask.channel?.name || activeTask.metrics?.account_ref || 'n/a'}</div>
+                                                        <div><span className="font-bold text-on-surface">Published:</span> {activeTask.published_link ? 'yes' : 'no'}</div>
+                                                        {activeTask.published_link && (
+                                                            <div><span className="font-bold text-on-surface">Outcome:</span> {activeOutcome}</div>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                <div className="rounded-2xl bg-white p-4 space-y-2">
+                                                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Monitoring</div>
+                                                    <pre className="text-xs font-mono whitespace-pre-wrap break-words text-on-surface-variant leading-6">
+                                                        {prettyJson(activeTask.metrics?.monitoring || {})}
+                                                    </pre>
+                                                </div>
+                                            </div>
+                                        </details>
                                     </section>
 
                                     <section className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
@@ -1080,19 +1196,32 @@ export default function PublicationTasks() {
                                         <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
                                             <div className="flex items-center justify-between gap-3">
                                                 <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Критик и правила</div>
-                                                <button
-                                                    onClick={() => runCriticCheck.mutate()}
-                                                    disabled={runCriticCheck.isPending}
-                                                    className="bg-primary text-white font-black text-xs px-4 py-2 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
-                                                >
-                                                    {runCriticCheck.isPending ? 'Проверяем...' : 'Проверить критиком'}
-                                                </button>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        onClick={() => runCriticCheck.mutate()}
+                                                        disabled={runCriticCheck.isPending}
+                                                        className="bg-primary text-white font-black text-xs px-4 py-2 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
+                                                    >
+                                                        {runCriticCheck.isPending ? 'Проверяем...' : 'Проверить критиком'}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => runCriticFixer.mutate()}
+                                                        disabled={runCriticFixer.isPending || !publicationBody.trim()}
+                                                        className="bg-white text-primary font-black text-xs px-4 py-2 rounded-2xl border border-primary/15 shadow-sm hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
+                                                    >
+                                                        {runCriticFixer.isPending ? 'Исправляем...' : 'Исправить по отчёту'}
+                                                    </button>
+                                                </div>
                                             </div>
 
-                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                                                 <div className="rounded-2xl bg-white px-4 py-3">
                                                     <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Глоссарий</div>
                                                     <div className="mt-2 text-sm font-bold text-on-surface">{glossaryAvailable ? 'Подключён' : 'Не загружен'}</div>
+                                                </div>
+                                                <div className="rounded-2xl bg-white px-4 py-3">
+                                                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Policy Matrix</div>
+                                                    <div className="mt-2 text-sm font-bold text-on-surface">{criticReport?.content_policy_matrix_available ? 'Подключена' : 'Не загружена'}</div>
                                                 </div>
                                                 <div className="rounded-2xl bg-white px-4 py-3">
                                                     <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Atoma</div>
@@ -1108,6 +1237,9 @@ export default function PublicationTasks() {
                                                 <div className="space-y-4">
                                                     <div className="rounded-2xl bg-white px-4 py-3 text-sm text-on-surface-variant">
                                                         <div><span className="font-bold text-on-surface">Dictionary score:</span> {criticReport.dictionary?.score ?? '—'}</div>
+                                                        {criticReport.policy_matrix?.score !== undefined && (
+                                                            <div className="mt-1"><span className="font-bold text-on-surface">Policy matrix score:</span> {criticReport.policy_matrix.score}</div>
+                                                        )}
                                                         {criticReport.llm_critic?.score !== undefined && (
                                                             <div className="mt-1"><span className="font-bold text-on-surface">LLM critic score:</span> {criticReport.llm_critic.score}</div>
                                                         )}
@@ -1116,9 +1248,31 @@ export default function PublicationTasks() {
                                                         )}
                                                     </div>
 
+                                                    {criticReport.scoring_dimensions && (
+                                                        <div className="grid grid-cols-2 gap-2">
+                                                            {Object.entries(criticReport.scoring_dimensions).map(([key, value]) => (
+                                                                <div key={key} className="rounded-2xl bg-white px-4 py-3 text-sm">
+                                                                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">{key}</div>
+                                                                    <div className="mt-2 font-bold text-on-surface">{String(value)}</div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+
                                                     {criticReport.llm_critic?.critique && (
                                                         <div className="rounded-2xl bg-white px-4 py-3 text-sm leading-6 text-on-surface whitespace-pre-wrap">
                                                             {criticReport.llm_critic.critique}
+                                                        </div>
+                                                    )}
+
+                                                    {Array.isArray(criticReport.llm_critic?.rewrite_instructions) && criticReport.llm_critic?.rewrite_instructions?.length > 0 && (
+                                                        <div className="rounded-2xl bg-white px-4 py-3 text-sm text-on-surface">
+                                                            <div className="font-bold">Инструкции для фикса</div>
+                                                            <div className="mt-2 space-y-2">
+                                                                {criticReport.llm_critic.rewrite_instructions.map((instruction, index) => (
+                                                                    <div key={`${instruction}-${index}`} className="text-on-surface-variant">{index + 1}. {instruction}</div>
+                                                                ))}
+                                                            </div>
                                                         </div>
                                                     )}
 
@@ -1129,18 +1283,19 @@ export default function PublicationTasks() {
                                                     )}
 
                                                     <div className="space-y-2">
-                                                        {(criticReport.dictionary?.findings || []).length === 0 ? (
+                                                        {[...(criticReport.dictionary?.findings || []), ...(criticReport.policy_matrix?.findings || [])].length === 0 ? (
                                                             <div className="rounded-2xl bg-white px-4 py-3 text-sm text-on-surface-variant">
-                                                                По словарю и обязательным правилам замечаний нет.
+                                                                По словарю, policy matrix и обязательным правилам замечаний нет.
                                                             </div>
                                                         ) : (
-                                                            (criticReport.dictionary?.findings || []).map((finding, index) => (
+                                                            [...(criticReport.dictionary?.findings || []), ...(criticReport.policy_matrix?.findings || [])].map((finding, index) => (
                                                                 <div key={`${finding.message}-${index}`} className="rounded-2xl bg-white px-4 py-3 text-sm">
                                                                     <div className="font-bold text-on-surface">{finding.message}</div>
                                                                     {(finding.matched || finding.suggestion) && (
                                                                         <div className="mt-2 text-xs text-on-surface-variant">
                                                                             {finding.matched && <div>Найдено: {finding.matched}</div>}
                                                                             {finding.suggestion && <div>Предлагается: {finding.suggestion}</div>}
+                                                                            {('source' in finding && (finding as any).source) && <div>Источник правила: {(finding as any).source}</div>}
                                                                         </div>
                                                                     )}
                                                                 </div>
