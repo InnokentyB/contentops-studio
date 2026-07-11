@@ -14,6 +14,7 @@ const content_dictionary_service_1 = __importDefault(require("../services/conten
 const content_policy_matrix_service_1 = __importDefault(require("../services/content_policy_matrix.service"));
 const publication_plan_service_1 = __importDefault(require("../services/publication_plan.service"));
 const parser_integration_service_1 = __importDefault(require("../services/parser_integration.service"));
+const storage_service_1 = __importDefault(require("../services/storage.service"));
 const project_utils_1 = require("../utils/project.utils");
 const connectionString = process.env.DATABASE_URL;
 const pool = new pg_1.Pool({ connectionString });
@@ -94,6 +95,32 @@ function inferManualContentType(channelType, fileType) {
     if (fileType === 'html')
         return `${channelType}:manual_html`;
     return `${channelType}:manual_markdown`;
+}
+function inferManualResourceKind(fileName, mimeType) {
+    const lowerName = fileName.toLowerCase();
+    const lowerMime = (mimeType || '').toLowerCase();
+    if (lowerMime.startsWith('image/') || /\.(png|jpg|jpeg|gif|webp|svg)$/.test(lowerName)) {
+        return 'image';
+    }
+    if (lowerMime.includes('html') || /\.(html|htm)$/.test(lowerName)) {
+        return 'html';
+    }
+    if (lowerMime.includes('markdown') || /\.(md|markdown)$/.test(lowerName)) {
+        return 'markdown';
+    }
+    if (lowerMime.startsWith('text/') || /\.(txt|json|ya?ml)$/.test(lowerName)) {
+        return 'text';
+    }
+    return 'file';
+}
+function readMultipartField(field) {
+    if (field == null)
+        return '';
+    if (typeof field === 'string')
+        return field;
+    if (typeof field?.value === 'string')
+        return field.value;
+    return '';
 }
 function createConnectionId(name) {
     const base = (0, project_utils_1.slugifyProjectName)(name) || 'skill-connection';
@@ -740,6 +767,134 @@ async function projectRoutes(fastify) {
                     channel_ref: channel.name,
                     uploaded_at: new Date().toISOString(),
                     publication_outcome: shouldMarkPublished ? publicationOutcome : null,
+                    manual_confirmation_at: shouldMarkPublished ? new Date().toISOString() : null
+                },
+                published_link: normalizedPublishedLink
+            },
+            include: {
+                channel: true
+            }
+        });
+        return item;
+    });
+    fastify.post('/api/projects/:id/channels/:channelId/manual-content-upload', async (request, reply) => {
+        const user = request.user;
+        const { id, channelId } = request.params;
+        const data = await request.file();
+        const projectId = parseInt(id);
+        const parsedChannelId = parseInt(channelId);
+        const hasAccess = await auth_service_1.default.hasProjectAccess(user.id, projectId, 'editor');
+        if (!hasAccess) {
+            reply.code(403).send({ error: 'No access' });
+            return;
+        }
+        if (!data) {
+            return reply.code(400).send({ error: 'No file uploaded' });
+        }
+        const channel = await prisma.socialChannel.findFirst({
+            where: {
+                id: parsedChannelId,
+                project_id: projectId
+            }
+        });
+        if (!channel) {
+            return reply.code(404).send({ error: 'Channel not found' });
+        }
+        const note = readMultipartField(data.fields?.note).trim();
+        const publishedLink = readMultipartField(data.fields?.publishedLink).trim() || null;
+        const publishNow = readMultipartField(data.fields?.publishNow) === 'true';
+        const outcome = (readMultipartField(data.fields?.outcome) || 'published');
+        const buffer = await data.toBuffer();
+        const safeFileName = (data.filename || 'manual-upload').trim();
+        const resourceKind = inferManualResourceKind(safeFileName, data.mimetype);
+        const normalizedPublishedLink = publishedLink;
+        const shouldMarkPublished = publishNow === true && Boolean(normalizedPublishedLink);
+        const title = safeFileName.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim() || safeFileName;
+        let content = null;
+        let fileUrl = null;
+        let previewUrl = null;
+        if (resourceKind === 'markdown' || resourceKind === 'html' || resourceKind === 'text') {
+            content = buffer.toString('utf8');
+        }
+        else {
+            const ext = safeFileName.split('.').pop() || 'png';
+            const filename = `manual-${projectId}-${parsedChannelId}-${Date.now()}.${ext}`;
+            fileUrl = await storage_service_1.default.uploadFileFromBuffer(buffer, data.mimetype || 'application/octet-stream', `uploads/${filename}`);
+            previewUrl = resourceKind === 'image' ? fileUrl : null;
+        }
+        const item = await prisma.contentItem.create({
+            data: {
+                project_id: projectId,
+                channel_id: channel.id,
+                type: inferManualContentType(channel.type, resourceKind === 'html' ? 'html' : resourceKind === 'markdown' ? 'markdown' : null),
+                layer: channel.type,
+                title,
+                brief: note || `Manual ${resourceKind} upload for ${channel.name}`,
+                draft_text: content,
+                status: shouldMarkPublished ? 'published' : 'drafted',
+                assets: {
+                    source: 'manual_upload',
+                    manual_upload: {
+                        file_name: safeFileName,
+                        file_type: resourceKind,
+                        mime_type: data.mimetype || null,
+                        note: note || null,
+                        published_link: normalizedPublishedLink,
+                        file_url: fileUrl,
+                        preview_url: previewUrl
+                    }
+                },
+                quality_report: {
+                    execution_mode: 'manual',
+                    content_origin: 'manual_upload',
+                    manual_publication_note: note || null,
+                    publication_outcome: shouldMarkPublished ? outcome : null,
+                    handoff_bundle: {
+                        mode: 'manual',
+                        account: {
+                            ref: channel.name,
+                            details: channel.config || null
+                        },
+                        task: {
+                            id: `manual-${Date.now()}`,
+                            display_name: title,
+                            channel: channel.type,
+                            action_type: 'manual_upload'
+                        },
+                        publication: {
+                            body: content || '',
+                            html_bundle: resourceKind === 'html' ? [{ file_name: safeFileName }] : [],
+                            link_url: normalizedPublishedLink,
+                            visuals: previewUrl ? [{ url: previewUrl, provider: 'manual_upload' }] : []
+                        },
+                        resource_files: [
+                            {
+                                role: 'manual_upload',
+                                purpose: 'User-provided channel content',
+                                file_name: safeFileName,
+                                relative_path: null,
+                                full_path: null,
+                                section_marker: null,
+                                exists: true,
+                                url: fileUrl,
+                                preview_url: previewUrl,
+                                content,
+                                content_type: data.mimetype || null,
+                                mime_type: data.mimetype || null
+                            }
+                        ],
+                        manual_checklist: ['Review the uploaded content and continue the channel workflow.'],
+                        verification: [],
+                        post_actions: [],
+                        dependencies: []
+                    }
+                },
+                metrics: {
+                    content_origin: 'manual_upload',
+                    channel_ref: channel.name,
+                    uploaded_at: new Date().toISOString(),
+                    resource_kind: resourceKind,
+                    publication_outcome: shouldMarkPublished ? outcome : null,
                     manual_confirmation_at: shouldMarkPublished ? new Date().toISOString() : null
                 },
                 published_link: normalizedPublishedLink

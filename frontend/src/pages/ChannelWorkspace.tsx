@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, projectsApi, publicationTasksApi } from '../api'
 import { useAuth } from '../context/AuthContext'
-import ContentMarkupRenderer from '../components/ContentMarkupRenderer'
+import ResourcePreviewCard from '../components/ResourcePreviewCard'
 
 type JsonRecord = Record<string, any>
 
@@ -119,6 +119,9 @@ export default function ChannelWorkspace() {
     const [manualFileName, setManualFileName] = useState('')
     const [manualFileContent, setManualFileContent] = useState('')
     const [manualFileType, setManualFileType] = useState<'markdown' | 'html' | 'unknown'>('unknown')
+    const [manualFileMime, setManualFileMime] = useState('')
+    const [manualPreviewUrl, setManualPreviewUrl] = useState('')
+    const [manualUploadFile, setManualUploadFile] = useState<File | null>(null)
     const [manualNote, setManualNote] = useState('')
     const [manualPublishedLink, setManualPublishedLink] = useState('')
     const [manualPublishNow, setManualPublishNow] = useState(false)
@@ -150,6 +153,14 @@ export default function ChannelWorkspace() {
         }
     }, [channelId, channelIdNumber, currentProject, navigate, projectData?.channels, selectedChannel])
 
+    useEffect(() => {
+        return () => {
+            if (manualPreviewUrl) {
+                URL.revokeObjectURL(manualPreviewUrl)
+            }
+        }
+    }, [manualPreviewUrl])
+
     const selectedChannelTasks = useMemo(() => {
         if (!selectedChannel || !publicationTasks) return []
         return publicationTasks.filter((task) => task.channel?.id === selectedChannel.id)
@@ -174,8 +185,16 @@ export default function ChannelWorkspace() {
             if (!currentProject?.id || !selectedChannel?.id) {
                 throw new Error('Сначала выбери канал проекта')
             }
-            if (!manualFileContent.trim()) {
+            if (!manualUploadFile && !manualFileContent.trim()) {
                 throw new Error('Сначала загрузи файл')
+            }
+            if (manualUploadFile && !manualFileContent.trim()) {
+                return projectsApi.uploadManualChannelContent(currentProject.id, selectedChannel.id, manualUploadFile, {
+                    note: manualNote || undefined,
+                    publishedLink: manualPublishedLink || undefined,
+                    publishNow: manualPublishNow,
+                    outcome: manualOutcome
+                })
             }
             return projectsApi.saveManualChannelContent(currentProject.id, selectedChannel.id, {
                 fileName: manualFileName || 'manual-content',
@@ -197,12 +216,27 @@ export default function ChannelWorkspace() {
     })
 
     const handleManualFile = (file: File) => {
+        setManualFileName(file.name)
+        setManualFileMime(file.type || '')
+        setManualUploadFile(file)
+        setManualMessage(null)
+
+        if (manualPreviewUrl) {
+            URL.revokeObjectURL(manualPreviewUrl)
+        }
+
+        if (file.type.startsWith('image/')) {
+            setManualFileType('unknown')
+            setManualFileContent('')
+            setManualPreviewUrl(URL.createObjectURL(file))
+            return
+        }
+
         const reader = new FileReader()
         reader.onload = () => {
-            setManualFileName(file.name)
             setManualFileContent(String(reader.result || ''))
-            setManualMessage(null)
-            if (file.name.endsWith('.md')) setManualFileType('markdown')
+            setManualPreviewUrl('')
+            if (file.name.endsWith('.md') || file.name.endsWith('.markdown')) setManualFileType('markdown')
             else if (file.name.endsWith('.html') || file.name.endsWith('.htm')) setManualFileType('html')
             else setManualFileType('unknown')
         }
@@ -444,10 +478,9 @@ export default function ChannelWorkspace() {
                                                                 <div className={`text-xs font-bold ${isMissing ? 'text-error' : 'text-success'}`}>
                                                                     {isMissing ? 'Недоступно в текущем runtime-пути' : 'Доступно'}
                                                                 </div>
-                                                                {inlineContent && (
-                                                                    <ContentMarkupRenderer
-                                                                        content={inlineContent}
-                                                                        contentType="auto"
+                                                                {(inlineContent || file.url) && (
+                                                                    <ResourcePreviewCard
+                                                                        entry={file as JsonRecord}
                                                                         title={file.file_name || file.ref || `resource-${index}`}
                                                                         className="mt-3"
                                                                     />
@@ -481,7 +514,7 @@ export default function ChannelWorkspace() {
                                                 <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Ручная загрузка</div>
                                                 <h3 className="mt-3 text-xl font-headline font-black text-on-surface">Перетащи `.md` или `.html`</h3>
                                                 <p className="mt-3 text-sm leading-7 text-on-surface-variant">
-                                                    Используй этот режим, когда контент канала не приходит из плана публикаций. Файл загружается в рабочую область, где его можно просмотреть, сохранить и при желании привязать к уже опубликованному URL.
+                                                    Используй этот режим, когда контент канала не приходит из плана публикаций. Можно загрузить markdown, HTML или изображение, а затем показать его в интерфейсе и сохранить в рабочую область канала.
                                                 </p>
                                                 <button
                                                     onClick={() => document.getElementById('manual-content-file')?.click()}
@@ -492,7 +525,7 @@ export default function ChannelWorkspace() {
                                                 <input
                                                     id="manual-content-file"
                                                     type="file"
-                                                    accept=".md,.markdown,.html,.htm,text/markdown,text/html"
+                                                    accept=".md,.markdown,.html,.htm,image/*,text/markdown,text/html"
                                                     className="hidden"
                                                     onChange={(event) => {
                                                         const file = event.target.files?.[0]
@@ -502,7 +535,7 @@ export default function ChannelWorkspace() {
                                                 {manualFileName && (
                                                     <div className="mt-6 rounded-2xl bg-white px-4 py-4 text-sm text-on-surface-variant">
                                                         <div className="font-bold text-on-surface">{manualFileName}</div>
-                                                        <div className="mt-2 text-xs uppercase tracking-widest">{manualFileType}</div>
+                                                        <div className="mt-2 text-xs uppercase tracking-widest">{manualFileMime || manualFileType}</div>
                                                     </div>
                                                 )}
                                                 <textarea
@@ -544,7 +577,7 @@ export default function ChannelWorkspace() {
                                                 )}
                                                 <button
                                                     onClick={() => saveManualContent.mutate()}
-                                                    disabled={saveManualContent.isPending || !manualFileContent.trim() || (manualPublishNow && !manualPublishedLink.trim())}
+                                                    disabled={saveManualContent.isPending || (!manualUploadFile && !manualFileContent.trim()) || (manualPublishNow && !manualPublishedLink.trim())}
                                                     className="mt-4 w-full rounded-2xl bg-primary text-white px-5 py-4 text-sm font-black shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
                                                 >
                                                     {saveManualContent.isPending ? 'Сохраняем в канал...' : 'Сохранить в канал'}
@@ -568,11 +601,15 @@ export default function ChannelWorkspace() {
                                                         <span className="text-xs text-on-surface-variant">{manualFileName}</span>
                                                     )}
                                                 </div>
-                                                <ContentMarkupRenderer
-                                                    content={manualFileContent}
-                                                    contentType={manualFileType === 'unknown' ? 'auto' : manualFileType}
-                                                    title={manualFileName || 'manual-upload-preview'}
-                                                    emptyMessage="Загрузи markdown или HTML-файл, чтобы увидеть здесь предпросмотр контента канала."
+                                                <ResourcePreviewCard
+                                                    entry={{
+                                                        file_name: manualFileName || 'manual-upload-preview',
+                                                        content: manualFileContent,
+                                                        content_type: manualFileMime || (manualFileType === 'unknown' ? 'application/octet-stream' : manualFileType === 'html' ? 'text/html' : 'text/markdown'),
+                                                        preview_url: manualPreviewUrl || null,
+                                                        url: manualPreviewUrl || null
+                                                    }}
+                                                    emptyMessage="Загрузи markdown, HTML или изображение, чтобы увидеть здесь предпросмотр контента канала."
                                                 />
                                             </div>
                                         </section>

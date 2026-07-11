@@ -666,11 +666,13 @@ class McpPublicationService {
             truncated: runtime.truncated === true,
             snapshot_available: runtime.snapshot_available === true,
             content_source: runtime.content_source || null,
+            url: runtime.url || null,
+            content_type: runtime.content_type || null,
             content: runtime.content || null
         };
     }
 
-    async refreshPublicationPlanAssetSnapshots(projectId: number, assetContents: Record<string, { content: string; contentType?: string }> = {}) {
+    async refreshPublicationPlanAssetSnapshots(projectId: number, assetContents: Record<string, { content?: string; contentType?: string; url?: string }> = {}) {
         const plan = await this.loadPublicationPlanContext(projectId);
         if (!plan) {
             throw new Error(`No imported publication plan found for project ${projectId}`);
@@ -680,8 +682,9 @@ class McpPublicationService {
             Object.entries(assetContents).map(([ref, value]) => [
                 ref,
                 {
-                    content: value.content,
-                    content_type: value.contentType || null
+                    content: typeof value.content === 'string' ? value.content : null,
+                    content_type: value.contentType || null,
+                    url: value.url || null
                 }
             ])
         );

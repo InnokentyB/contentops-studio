@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { projectsApi, publicationTasksApi } from '../api'
 import { useAuth } from '../context/AuthContext'
 import ContentMarkupRenderer from '../components/ContentMarkupRenderer'
+import ResourcePreviewCard from '../components/ResourcePreviewCard'
 
 type JsonRecord = Record<string, any>
 
@@ -261,6 +262,27 @@ function resolvePrimarySourceContent(task: PublicationTask | null | undefined, s
     }
 
     return ''
+}
+
+function resolvePrimarySourceEntry(task: PublicationTask | null | undefined, sourceFiles: JsonRecord[]) {
+    if (!task) return null
+
+    const preferred = sourceFiles.find((entry) => {
+        const content = assetInlineContent(entry)
+        const url = entry?.preview_url || entry?.url || entry?.asset?.url || entry?.asset?.target_url
+        return Boolean(content || url)
+    })
+
+    if (preferred) return preferred
+
+    const content = resolvePrimarySourceContent(task, sourceFiles)
+    if (!content) return null
+
+    return {
+        file_name: task.workspace_context?.source_file_name || 'source-content',
+        content,
+        content_type: 'text/markdown'
+    }
 }
 
 export default function PublicationTasks() {
@@ -532,7 +554,7 @@ export default function PublicationTasks() {
 
     const handoffBundle = activeTask?.quality_report?.handoff_bundle as JsonRecord | undefined
     const sourceFiles = mergeSourceFiles(activeTask)
-    const primarySourceContent = resolvePrimarySourceContent(activeTask, sourceFiles)
+    const primarySourceEntry = resolvePrimarySourceEntry(activeTask, sourceFiles)
     const executionMode = handoffBundle?.mode || activeTask?.quality_report?.execution_mode || 'manual'
     const activeOutcome = (activeTask?.quality_report?.publication_outcome || activeTask?.metrics?.publication_outcome || 'published') as PublicationOutcome
     const isTaskOverdue = !!activeTask?.schedule_at
@@ -1160,8 +1182,15 @@ export default function PublicationTasks() {
                                                             {purpose && (
                                                                 <div className="text-xs text-on-surface-variant">{purpose}</div>
                                                             )}
-                                                            {exists === false && !inlineContent && (
+                                                            {exists === false && !inlineContent && !url && (
                                                                 <div className="text-xs font-bold text-error">File not found from pipeline root.</div>
+                                                            )}
+                                                            {(inlineContent || url) && (
+                                                                <ResourcePreviewCard
+                                                                    entry={entry}
+                                                                    title={fileName}
+                                                                    className="mt-3"
+                                                                />
                                                             )}
                                                         </div>
                                                     )
@@ -1176,18 +1205,16 @@ export default function PublicationTasks() {
                                         <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4 xl:col-start-2 xl:row-span-2">
                                             <div className="flex items-center justify-between gap-3">
                                                 <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Source Content</div>
-                                                {!handoffBundle && (
+                                                {!primarySourceEntry && !handoffBundle && (
                                                     <span className="text-xs text-on-surface-variant">Prepare handoff to load file content</span>
                                                 )}
                                             </div>
-                                            <textarea
-                                                readOnly
-                                                value={primarySourceContent}
-                                                rows={14}
-                                                className="w-full bg-white border-none rounded-2xl p-4 text-sm leading-6 focus:outline-none resize-none"
-                                                placeholder={handoffBundle
-                                                    ? 'No readable source text was found in the linked resource files.'
-                                                    : 'Prepare handoff to pull text from the linked resource file or section marker.'}
+                                            <ResourcePreviewCard
+                                                entry={primarySourceEntry}
+                                                title={activeTask?.workspace_context?.source_file_name || 'source-content'}
+                                                emptyMessage={handoffBundle
+                                                    ? 'No readable source text or previewable asset was found in the linked resource files.'
+                                                    : 'Prepare handoff to pull text or a previewable asset from the linked resource file.'}
                                             />
                                         </div>
                                     </section>

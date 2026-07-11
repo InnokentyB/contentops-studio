@@ -73,9 +73,12 @@ export const api = {
         return this.request(endpoint, { ...options, method: 'DELETE' });
     },
 
-    upload: (endpoint: string, file: File, options?: ApiOptions) => {
+    upload: (endpoint: string, file: File, options?: ApiOptions & { fields?: Record<string, string> }) => {
         const formData = new FormData();
         formData.append('file', file);
+        Object.entries(options?.fields || {}).forEach(([key, value]) => {
+            formData.append(key, value);
+        })
 
         // Custom config for file upload (don't set Content-Type header manually for FormData)
         const headers = getHeaders();
@@ -171,6 +174,28 @@ export const projectsApi = {
             outcome?: 'published' | 'blocked' | 'removed' | 'restricted';
         }
     ) => api.post(`/api/projects/${projectId}/channels/${channelId}/manual-content`, data),
+    uploadManualChannelContent: (
+        projectId: number,
+        channelId: number,
+        file: File,
+        data?: {
+            note?: string;
+            publishedLink?: string;
+            publishNow?: boolean;
+            outcome?: 'published' | 'blocked' | 'removed' | 'restricted';
+        }
+    ) => api.upload(
+        `/api/projects/${projectId}/channels/${channelId}/manual-content-upload`,
+        file,
+        {
+            fields: {
+                note: data?.note || '',
+                publishedLink: data?.publishedLink || '',
+                publishNow: data?.publishNow ? 'true' : 'false',
+                outcome: data?.outcome || 'published'
+            }
+        }
+    ),
     update: (id: number, data: { name: string; description: string }) => api.put(`/api/projects/${id}`, data),
     addMember: (id: number, email: string, role: string) => api.post(`/api/projects/${id}/members`, { email, role }),
     removeMember: (id: number, userId: number) => api.delete(`/api/projects/${id}/members/${userId}`)

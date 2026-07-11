@@ -135,7 +135,41 @@ function inferContentType(relativePath) {
         return 'application/json';
     if (normalized.endsWith('.yaml') || normalized.endsWith('.yml'))
         return 'application/yaml';
+    if (normalized.endsWith('.png'))
+        return 'image/png';
+    if (normalized.endsWith('.jpg') || normalized.endsWith('.jpeg'))
+        return 'image/jpeg';
+    if (normalized.endsWith('.gif'))
+        return 'image/gif';
+    if (normalized.endsWith('.webp'))
+        return 'image/webp';
+    if (normalized.endsWith('.svg'))
+        return 'image/svg+xml';
+    if (normalized.endsWith('.pdf'))
+        return 'application/pdf';
     return 'text/plain';
+}
+function inferContentTypeFromUrl(url) {
+    if (!url)
+        return null;
+    const lower = url.toLowerCase();
+    if (/\.(png)(\?|$)/.test(lower))
+        return 'image/png';
+    if (/\.(jpg|jpeg)(\?|$)/.test(lower))
+        return 'image/jpeg';
+    if (/\.(gif)(\?|$)/.test(lower))
+        return 'image/gif';
+    if (/\.(webp)(\?|$)/.test(lower))
+        return 'image/webp';
+    if (/\.(svg)(\?|$)/.test(lower))
+        return 'image/svg+xml';
+    if (/\.(html|htm)(\?|$)/.test(lower))
+        return 'text/html';
+    if (/\.(md|markdown)(\?|$)/.test(lower))
+        return 'text/markdown';
+    if (/\.(pdf)(\?|$)/.test(lower))
+        return 'application/pdf';
+    return null;
 }
 function checksumContent(content) {
     if (typeof content !== 'string')
@@ -1311,6 +1345,7 @@ class PublicationPlanService {
                     file_name: relativePath ? path.basename(relativePath) : null,
                     section_marker: sectionMarker,
                     content: override.content,
+                    url: override.url || null,
                     content_type: override.content_type || inferContentType(relativePath),
                     content_length: override.content.length,
                     checksum: checksumContent(override.content),
@@ -1320,7 +1355,27 @@ class PublicationPlanService {
                 };
                 continue;
             }
+            if (override && typeof override.url === 'string' && override.url.trim()) {
+                snapshots[ref] = {
+                    ref,
+                    relative_path: relativePath,
+                    file_name: relativePath ? path.basename(relativePath) : ref,
+                    section_marker: sectionMarker,
+                    content: null,
+                    url: override.url.trim(),
+                    content_type: override.content_type || inferContentType(relativePath) || inferContentTypeFromUrl(override.url) || null,
+                    content_length: 0,
+                    checksum: null,
+                    source: 'mcp',
+                    source_available: true,
+                    captured_at: new Date().toISOString()
+                };
+                continue;
+            }
             const inlineContent = typeof asset?.content === 'string' ? asset.content : null;
+            const assetUrl = typeof asset?.url === 'string'
+                ? asset.url
+                : (typeof asset?.target_url === 'string' ? asset.target_url : null);
             if (inlineContent) {
                 snapshots[ref] = {
                     ref,
@@ -1328,9 +1383,27 @@ class PublicationPlanService {
                     file_name: relativePath ? path.basename(relativePath) : ref,
                     section_marker: sectionMarker,
                     content: inlineContent,
+                    url: assetUrl,
                     content_type: inferContentType(relativePath),
                     content_length: inlineContent.length,
                     checksum: checksumContent(inlineContent),
+                    source: 'inline',
+                    source_available: true,
+                    captured_at: new Date().toISOString()
+                };
+                continue;
+            }
+            if (!relativePath && assetUrl) {
+                snapshots[ref] = {
+                    ref,
+                    relative_path: null,
+                    file_name: ref,
+                    section_marker: sectionMarker,
+                    content: null,
+                    url: assetUrl,
+                    content_type: inferContentTypeFromUrl(assetUrl) || null,
+                    content_length: 0,
+                    checksum: null,
                     source: 'inline',
                     source_available: true,
                     captured_at: new Date().toISOString()
@@ -1348,6 +1421,7 @@ class PublicationPlanService {
                     file_name: path.basename(relativePath),
                     section_marker: sectionMarker,
                     content: resolved.content,
+                    url: assetUrl,
                     content_type: inferContentType(relativePath),
                     content_length: resolved.content.length,
                     checksum: checksumContent(resolved.content),
@@ -1358,6 +1432,17 @@ class PublicationPlanService {
                 continue;
             }
             if (previous?.content) {
+                snapshots[ref] = {
+                    ...previous,
+                    ref,
+                    relative_path: relativePath,
+                    file_name: path.basename(relativePath),
+                    section_marker: sectionMarker,
+                    source: previous.source === 'mcp' ? 'mcp' : 'preserved',
+                    source_available: false
+                };
+            }
+            else if (previous?.url) {
                 snapshots[ref] = {
                     ...previous,
                     ref,
@@ -1384,6 +1469,10 @@ class PublicationPlanService {
         const runtimeRead = relativePath ? this.readAssetContent(plan, asset, relativePath) : null;
         const inlineContent = typeof asset.content === 'string' ? asset.content : null;
         const snapshotContent = typeof snapshot?.content === 'string' ? snapshot.content : null;
+        const assetUrl = typeof asset?.url === 'string'
+            ? asset.url
+            : (typeof asset?.target_url === 'string' ? asset.target_url : null);
+        const previewUrl = assetUrl || snapshot?.url || null;
         const content = runtimeRead?.content ?? inlineContent ?? snapshotContent;
         const truncated = typeof maxChars === 'number' && typeof content === 'string' && content.length > maxChars;
         return {
@@ -1393,13 +1482,15 @@ class PublicationPlanService {
             file_name: relativePath ? path.basename(relativePath) : (inlineContent ? assetRef : null),
             relative_path: relativePath,
             section_marker: asset.section_marker || null,
-            exists: Boolean(content),
+            exists: Boolean(content || previewUrl),
+            url: previewUrl,
             content: typeof content === 'string'
                 ? (truncated ? `${content.slice(0, maxChars)}\n...[truncated]` : content)
                 : null,
             truncated: Boolean(truncated),
             snapshot_available: Boolean(snapshotContent),
-            content_source: runtimeRead?.content ? 'filesystem' : (inlineContent ? 'inline' : (snapshotContent ? (snapshot?.source || 'snapshot') : null)),
+            content_type: snapshot?.content_type || inferContentType(relativePath) || inferContentTypeFromUrl(previewUrl),
+            content_source: runtimeRead?.content ? 'filesystem' : (inlineContent ? 'inline' : (snapshotContent ? (snapshot?.source || 'snapshot') : (previewUrl ? 'url' : null))),
             snapshot
         };
     }
@@ -1571,8 +1662,10 @@ class PublicationPlanService {
                 full_path: fullPath,
                 section_marker: file.section_marker || assetRuntime?.section_marker || null,
                 exists: exists || Boolean(snapshot?.content) || assetRuntime?.exists === true,
-                url: resolvedUrl,
+                url: resolvedUrl || assetRuntime?.url || null,
+                preview_url: assetRuntime?.url || resolvedUrl || null,
                 content,
+                content_type: assetRuntime?.content_type || inferContentType(relativePath) || inferContentTypeFromUrl(resolvedUrl),
                 snapshot_available: Boolean(snapshot?.content) || Boolean(assetRuntime?.snapshot_available),
                 content_source: contentSource
             };
@@ -1591,8 +1684,10 @@ class PublicationPlanService {
                 full_path: entry.full_path || null,
                 section_marker: entry.section_marker || null,
                 exists: entry.exists === true,
-                url: null,
-                content: entry.content || null
+                url: entry.url || null,
+                preview_url: entry.url || null,
+                content: entry.content || null,
+                content_type: entry.content_type || null
             }))
         ]);
         return {

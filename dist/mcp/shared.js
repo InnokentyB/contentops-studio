@@ -412,13 +412,14 @@ function registerPlannerTools(server) {
         return asToolResult(result);
     });
     server.registerTool('ba_refresh_publication_plan_asset_snapshots', {
-        description: 'Refresh stored publication-plan asset snapshots from the runtime filesystem and optional inline content overrides.',
+        description: 'Refresh stored publication-plan asset snapshots from the runtime filesystem and optional inline content or URL overrides. Use url for large binary/image assets that should be shown in the UI without embedding the full file body.',
         inputSchema: {
             projectId: zod_1.z.number().int().positive(),
             assetContents: zod_1.z.record(zod_1.z.string(), zod_1.z.object({
-                content: zod_1.z.string(),
-                contentType: zod_1.z.string().optional()
-            })).optional().describe('Optional assetRef -> content map used when files are not available in the current runtime.')
+                content: zod_1.z.string().optional(),
+                contentType: zod_1.z.string().optional(),
+                url: zod_1.z.string().optional()
+            })).optional().describe('Optional assetRef -> { content?, contentType?, url? } map used when files are not available in the current runtime. For big images/files prefer url + contentType.')
         }
     }, async ({ projectId, assetContents }) => {
         const result = await mcp_publication_service_1.default.refreshPublicationPlanAssetSnapshots(projectId, assetContents || {});

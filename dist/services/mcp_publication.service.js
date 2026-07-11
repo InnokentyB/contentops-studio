@@ -547,6 +547,8 @@ class McpPublicationService {
             truncated: runtime.truncated === true,
             snapshot_available: runtime.snapshot_available === true,
             content_source: runtime.content_source || null,
+            url: runtime.url || null,
+            content_type: runtime.content_type || null,
             content: runtime.content || null
         };
     }
@@ -558,8 +560,9 @@ class McpPublicationService {
         const overrides = Object.fromEntries(Object.entries(assetContents).map(([ref, value]) => [
             ref,
             {
-                content: value.content,
-                content_type: value.contentType || null
+                content: typeof value.content === 'string' ? value.content : null,
+                content_type: value.contentType || null,
+                url: value.url || null
             }
         ]));
         const snapshots = await publication_plan_service_1.default.refreshAssetSnapshots(projectId, plan, overrides);

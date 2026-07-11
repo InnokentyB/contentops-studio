@@ -41,6 +41,7 @@ type AssetSnapshot = {
     file_name: string | null;
     section_marker: string | null;
     content: string | null;
+    url?: string | null;
     content_type: string | null;
     content_length: number;
     checksum: string | null;
@@ -160,7 +161,27 @@ function inferContentType(relativePath?: string | null) {
     if (normalized.endsWith('.html') || normalized.endsWith('.htm')) return 'text/html';
     if (normalized.endsWith('.json')) return 'application/json';
     if (normalized.endsWith('.yaml') || normalized.endsWith('.yml')) return 'application/yaml';
+    if (normalized.endsWith('.png')) return 'image/png';
+    if (normalized.endsWith('.jpg') || normalized.endsWith('.jpeg')) return 'image/jpeg';
+    if (normalized.endsWith('.gif')) return 'image/gif';
+    if (normalized.endsWith('.webp')) return 'image/webp';
+    if (normalized.endsWith('.svg')) return 'image/svg+xml';
+    if (normalized.endsWith('.pdf')) return 'application/pdf';
     return 'text/plain';
+}
+
+function inferContentTypeFromUrl(url?: string | null) {
+    if (!url) return null;
+    const lower = url.toLowerCase();
+    if (/\.(png)(\?|$)/.test(lower)) return 'image/png';
+    if (/\.(jpg|jpeg)(\?|$)/.test(lower)) return 'image/jpeg';
+    if (/\.(gif)(\?|$)/.test(lower)) return 'image/gif';
+    if (/\.(webp)(\?|$)/.test(lower)) return 'image/webp';
+    if (/\.(svg)(\?|$)/.test(lower)) return 'image/svg+xml';
+    if (/\.(html|htm)(\?|$)/.test(lower)) return 'text/html';
+    if (/\.(md|markdown)(\?|$)/.test(lower)) return 'text/markdown';
+    if (/\.(pdf)(\?|$)/.test(lower)) return 'application/pdf';
+    return null;
 }
 
 function checksumContent(content: string | null) {
@@ -1438,7 +1459,7 @@ class PublicationPlanService {
         };
     }
 
-    buildAssetSnapshots(plan: PublicationPlan, existingSnapshots: Record<string, AssetSnapshot> = {}, overrides: Record<string, Partial<AssetSnapshot> & { content?: string | null }> = {}) {
+    buildAssetSnapshots(plan: PublicationPlan, existingSnapshots: Record<string, AssetSnapshot> = {}, overrides: Record<string, Partial<AssetSnapshot> & { content?: string | null; url?: string | null }> = {}) {
         const snapshots: Record<string, AssetSnapshot> = {};
 
         for (const [ref, asset] of Object.entries(plan.assets || {})) {
@@ -1454,6 +1475,7 @@ class PublicationPlanService {
                     file_name: relativePath ? path.basename(relativePath) : null,
                     section_marker: sectionMarker,
                     content: override.content,
+                    url: override.url || null,
                     content_type: override.content_type || inferContentType(relativePath),
                     content_length: override.content.length,
                     checksum: checksumContent(override.content),
@@ -1464,7 +1486,28 @@ class PublicationPlanService {
                 continue;
             }
 
+            if (override && typeof override.url === 'string' && override.url.trim()) {
+                snapshots[ref] = {
+                    ref,
+                    relative_path: relativePath,
+                    file_name: relativePath ? path.basename(relativePath) : ref,
+                    section_marker: sectionMarker,
+                    content: null,
+                    url: override.url.trim(),
+                    content_type: override.content_type || inferContentType(relativePath) || inferContentTypeFromUrl(override.url) || null,
+                    content_length: 0,
+                    checksum: null,
+                    source: 'mcp',
+                    source_available: true,
+                    captured_at: new Date().toISOString()
+                };
+                continue;
+            }
+
             const inlineContent = typeof (asset as any)?.content === 'string' ? (asset as any).content : null;
+            const assetUrl = typeof (asset as any)?.url === 'string'
+                ? (asset as any).url
+                : (typeof (asset as any)?.target_url === 'string' ? (asset as any).target_url : null);
             if (inlineContent) {
                 snapshots[ref] = {
                     ref,
@@ -1472,9 +1515,28 @@ class PublicationPlanService {
                     file_name: relativePath ? path.basename(relativePath) : ref,
                     section_marker: sectionMarker,
                     content: inlineContent,
+                    url: assetUrl,
                     content_type: inferContentType(relativePath),
                     content_length: inlineContent.length,
                     checksum: checksumContent(inlineContent),
+                    source: 'inline',
+                    source_available: true,
+                    captured_at: new Date().toISOString()
+                };
+                continue;
+            }
+
+            if (!relativePath && assetUrl) {
+                snapshots[ref] = {
+                    ref,
+                    relative_path: null,
+                    file_name: ref,
+                    section_marker: sectionMarker,
+                    content: null,
+                    url: assetUrl,
+                    content_type: inferContentTypeFromUrl(assetUrl) || null,
+                    content_length: 0,
+                    checksum: null,
                     source: 'inline',
                     source_available: true,
                     captured_at: new Date().toISOString()
@@ -1494,6 +1556,7 @@ class PublicationPlanService {
                     file_name: path.basename(relativePath),
                     section_marker: sectionMarker,
                     content: resolved.content,
+                    url: assetUrl,
                     content_type: inferContentType(relativePath),
                     content_length: resolved.content.length,
                     checksum: checksumContent(resolved.content),
@@ -1505,6 +1568,16 @@ class PublicationPlanService {
             }
 
             if (previous?.content) {
+                snapshots[ref] = {
+                    ...previous,
+                    ref,
+                    relative_path: relativePath,
+                    file_name: path.basename(relativePath),
+                    section_marker: sectionMarker,
+                    source: previous.source === 'mcp' ? 'mcp' : 'preserved',
+                    source_available: false
+                };
+            } else if (previous?.url) {
                 snapshots[ref] = {
                     ...previous,
                     ref,
@@ -1534,6 +1607,10 @@ class PublicationPlanService {
         const runtimeRead = relativePath ? this.readAssetContent(plan, asset, relativePath) : null;
         const inlineContent = typeof asset.content === 'string' ? asset.content : null;
         const snapshotContent = typeof snapshot?.content === 'string' ? snapshot.content : null;
+        const assetUrl = typeof asset?.url === 'string'
+            ? asset.url
+            : (typeof asset?.target_url === 'string' ? asset.target_url : null);
+        const previewUrl = assetUrl || snapshot?.url || null;
         const content = runtimeRead?.content ?? inlineContent ?? snapshotContent;
         const truncated = typeof maxChars === 'number' && typeof content === 'string' && content.length > maxChars;
 
@@ -1544,13 +1621,15 @@ class PublicationPlanService {
             file_name: relativePath ? path.basename(relativePath) : (inlineContent ? assetRef : null),
             relative_path: relativePath,
             section_marker: asset.section_marker || null,
-            exists: Boolean(content),
+            exists: Boolean(content || previewUrl),
+            url: previewUrl,
             content: typeof content === 'string'
                 ? (truncated ? `${content.slice(0, maxChars)}\n...[truncated]` : content)
                 : null,
             truncated: Boolean(truncated),
             snapshot_available: Boolean(snapshotContent),
-            content_source: runtimeRead?.content ? 'filesystem' : (inlineContent ? 'inline' : (snapshotContent ? (snapshot?.source || 'snapshot') : null)),
+            content_type: snapshot?.content_type || inferContentType(relativePath) || inferContentTypeFromUrl(previewUrl),
+            content_source: runtimeRead?.content ? 'filesystem' : (inlineContent ? 'inline' : (snapshotContent ? (snapshot?.source || 'snapshot') : (previewUrl ? 'url' : null))),
             snapshot
         };
     }
@@ -1614,7 +1693,7 @@ class PublicationPlanService {
         return snapshots;
     }
 
-    async refreshAssetSnapshots(projectId: number, plan: PublicationPlan, overrides: Record<string, Partial<AssetSnapshot> & { content?: string | null }> = {}) {
+    async refreshAssetSnapshots(projectId: number, plan: PublicationPlan, overrides: Record<string, Partial<AssetSnapshot> & { content?: string | null; url?: string | null }> = {}) {
         const existing = await this.loadAssetSnapshots(projectId);
         const snapshots = this.buildAssetSnapshots(plan, existing, overrides);
         await this.saveAssetSnapshots(projectId, snapshots);
@@ -1737,8 +1816,10 @@ class PublicationPlanService {
                 full_path: fullPath,
                 section_marker: file.section_marker || assetRuntime?.section_marker || null,
                 exists: exists || Boolean(snapshot?.content) || assetRuntime?.exists === true,
-                url: resolvedUrl,
+                url: resolvedUrl || assetRuntime?.url || null,
+                preview_url: assetRuntime?.url || resolvedUrl || null,
                 content,
+                content_type: assetRuntime?.content_type || inferContentType(relativePath) || inferContentTypeFromUrl(resolvedUrl),
                 snapshot_available: Boolean(snapshot?.content) || Boolean(assetRuntime?.snapshot_available),
                 content_source: contentSource
             };
@@ -1759,8 +1840,10 @@ class PublicationPlanService {
                 full_path: entry.full_path || null,
                 section_marker: entry.section_marker || null,
                 exists: entry.exists === true,
-                url: null,
-                content: entry.content || null
+                url: entry.url || null,
+                preview_url: entry.url || null,
+                content: entry.content || null,
+                content_type: entry.content_type || null
             }))
         ]);
 
