@@ -18,6 +18,10 @@ type PublicationPlan = {
         timezone_default?: string;
         owner?: string;
         pipeline_root?: string;
+        week_theme?: string;
+        theme_hint?: string;
+        project_name?: string;
+        description?: string;
     };
     accounts: Record<string, any>;
     assets: Record<string, any>;
@@ -209,6 +213,15 @@ function computeSchedule(action: any, fallbackTimezone?: string) {
         scheduled_at: new Date(`${action.scheduled_date}T${start}:00`),
         timezone
     };
+}
+
+function resolveImportedWeekTheme(plan: PublicationPlan) {
+    const candidate = plan.meta.week_theme
+        || plan.meta.theme_hint
+        || plan.meta.source_article_id
+        || plan.meta.description
+        || `Publication cycle ${plan.meta.plan_id}`;
+    return String(candidate || '').trim() || `Publication cycle ${plan.meta.plan_id}`;
 }
 
 function derivePublicationOutcome(action: any): string | null {
@@ -507,6 +520,8 @@ class PublicationPlanService {
                     'timezone_default',
                     'owner',
                     'pipeline_root',
+                    'week_theme',
+                    'theme_hint',
                     'project_name',
                     'description'
                 ]
@@ -672,6 +687,7 @@ class PublicationPlanService {
                 cycle_end: '2026-06-30',
                 timezone_default: timezone,
                 owner: input.owner || 'workspace_owner',
+                week_theme: 'Тема недели, которую дальше использует автоматическая генерация',
                 project_name: input.projectName || 'Новый проект',
                 description: 'План публикаций, подготовленный через MCP/чат.'
             },
@@ -1243,7 +1259,7 @@ class PublicationPlanService {
                 project_id: project.id,
                 week_start: cycleStart,
                 week_end: cycleEnd,
-                week_theme: `Publication cycle ${plan.meta.plan_id}`,
+                week_theme: resolveImportedWeekTheme(plan),
                 core_thesis: plan.meta.source_article_id || null,
                 audience_focus: 'external_strategy',
                 intent_tag: 'distribution_execution',

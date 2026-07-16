@@ -196,6 +196,10 @@ export const projectsApi = {
             }
         }
     ),
+    getAutoCanvasStatus: (projectId: number, channelId: number) =>
+        api.get(`/api/projects/${projectId}/channels/${channelId}/auto-canvas-status`),
+    runAutoCanvasGeneration: (projectId: number, channelId: number, limit = 10) =>
+        api.post(`/api/projects/${projectId}/channels/${channelId}/auto-canvas-generate`, { limit }),
     update: (id: number, data: { name: string; description: string }) => api.put(`/api/projects/${id}`, data),
     addMember: (id: number, email: string, role: string) => api.post(`/api/projects/${id}/members`, { email, role }),
     removeMember: (id: number, userId: number) => api.delete(`/api/projects/${id}/members/${userId}`)

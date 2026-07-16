@@ -24,6 +24,40 @@ type ProjectDetails = {
     _count?: { weeks: number }
 }
 
+type AutoCanvasStatus = {
+    channel: {
+        id: number
+        name: string
+        type: string
+        workflow_mode?: string | null
+        auto_canvas_enabled?: boolean
+    }
+    week_package: {
+        id: number
+        week_theme?: string | null
+        core_thesis?: string | null
+        approval_status?: string | null
+        week_start?: string | null
+        week_end?: string | null
+    } | null
+    stats: {
+        total: number
+        planned: number
+        drafted: number
+        published: number
+        failed: number
+    }
+    items: Array<{
+        id: number
+        title?: string | null
+        brief?: string | null
+        status: string
+        schedule_at?: string | null
+        draft_text?: string | null
+        published_link?: string | null
+    }>
+}
+
 type PublicationTask = {
     id: number
     type: string
@@ -126,6 +160,7 @@ export default function ChannelWorkspace() {
     const [manualPublishedLink, setManualPublishedLink] = useState('')
     const [manualPublishNow, setManualPublishNow] = useState(false)
     const [manualOutcome, setManualOutcome] = useState<PublicationOutcome>('published')
+    const [autoCanvasMessage, setAutoCanvasMessage] = useState<string | null>(null)
 
     const channelIdNumber = Number(channelId)
 
@@ -146,12 +181,32 @@ export default function ChannelWorkspace() {
         return projectData.channels.find((channel) => channel.id === channelIdNumber) || null
     }, [projectData?.channels, channelIdNumber])
 
+    const isAutoCanvasChannel = Boolean(
+        selectedChannel?.config?.workflow_mode === 'auto_canvas'
+        || selectedChannel?.config?.capability_flags?.auto_canvas_generation === true
+        || selectedChannel?.config?.raw_account?.planner_generation_mode === 'auto_canvas'
+        || String(selectedChannel?.name || '').toLowerCase().includes('analysts_thinking')
+        || String(selectedChannel?.name || '').toLowerCase().includes('аналитик который думал')
+    )
+
+    const { data: autoCanvasStatus } = useQuery<AutoCanvasStatus>({
+        queryKey: ['channel_auto_canvas_status', currentProject?.id, selectedChannel?.id],
+        queryFn: () => projectsApi.getAutoCanvasStatus(currentProject!.id, selectedChannel!.id),
+        enabled: !!currentProject?.id && !!selectedChannel?.id && isAutoCanvasChannel
+    })
+
     useEffect(() => {
         if (!currentProject || !projectData?.channels?.length) return
         if (!channelId || Number.isNaN(channelIdNumber) || !selectedChannel) {
             navigate(`/channels/${projectData.channels[0].id}`, { replace: true })
         }
     }, [channelId, channelIdNumber, currentProject, navigate, projectData?.channels, selectedChannel])
+
+    useEffect(() => {
+        if (isAutoCanvasChannel) {
+            setSourceMode('generate')
+        }
+    }, [isAutoCanvasChannel, selectedChannel?.id])
 
     useEffect(() => {
         return () => {
@@ -212,6 +267,22 @@ export default function ChannelWorkspace() {
                 : `Сохранено в канал ${selectedChannel?.name}.`)
             queryClient.invalidateQueries({ queryKey: ['channel_workspace_tasks'] })
             queryClient.invalidateQueries({ queryKey: ['publication_tasks'] })
+        }
+    })
+
+    const runAutoCanvasGeneration = useMutation({
+        mutationFn: () => {
+            if (!currentProject?.id || !selectedChannel?.id) {
+                throw new Error('Сначала выбери канал проекта')
+            }
+            return projectsApi.runAutoCanvasGeneration(currentProject.id, selectedChannel.id, 20)
+        },
+        onSuccess: (result: any) => {
+            setAutoCanvasMessage(`Автогенерация завершена: обработано ${result?.processed || 0} элементов.`)
+            queryClient.invalidateQueries({ queryKey: ['channel_workspace_tasks'] })
+            queryClient.invalidateQueries({ queryKey: ['channel_workspace_task_detail'] })
+            queryClient.invalidateQueries({ queryKey: ['publication_tasks'] })
+            queryClient.invalidateQueries({ queryKey: ['channel_auto_canvas_status'] })
         }
     })
 
@@ -377,9 +448,9 @@ export default function ChannelWorkspace() {
                                             {[
                                                 { id: 'plan', label: 'Файлы плана' },
                                                 { id: 'manual', label: 'Ручная загрузка' },
-                                                { id: 'generate', label: 'Генерация' },
+                                                { id: 'generate', label: isAutoCanvasChannel ? 'Автоканва' : 'Генерация' },
                                                 { id: 'mcp', label: 'Парсер / MCP' }
-                                            ].map((mode) => (
+                                            ].filter((mode) => !(isAutoCanvasChannel && mode.id === 'manual')).map((mode) => (
                                                 <button
                                                     key={mode.id}
                                                     onClick={() => setSourceMode(mode.id as typeof sourceMode)}
@@ -616,33 +687,134 @@ export default function ChannelWorkspace() {
                                     )}
 
                                     {sourceMode === 'generate' && (
-                                        <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                            {[
-                                                {
-                                                    title: 'Сгенерировать новый пост',
-                                                    body: 'Используй существующие сценарии генерации постов, циклы критики и генерацию изображений прямо внутри проекта.',
-                                                    href: '/'
-                                                },
-                                                {
-                                                    title: 'Очередь публикаций',
-                                                    body: 'Переходи в очередь исполнения после подготовки контента и не теряй связь канала с планом.',
-                                                    href: '/publication-tasks'
-                                                },
-                                                {
-                                                    title: 'Настройки агентов',
-                                                    body: 'Настраивай промпты, модели, skill connections и словарь под поведение генерации в этом проекте.',
-                                                    href: '/settings'
-                                                }
-                                            ].map((card) => (
-                                                <Link key={card.title} to={card.href} className="rounded-[1.5rem] bg-surface-container-low p-6 border border-outline-variant/10 hover:bg-primary/5 transition-all">
-                                                    <div className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/20">
-                                                        <span className="material-symbols-outlined">auto_awesome</span>
+                                        isAutoCanvasChannel ? (
+                                            <section className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.1fr)_380px] gap-6">
+                                                <div className="rounded-[1.5rem] bg-surface-container-low p-6 border border-outline-variant/10">
+                                                    <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Автоматическая канва канала</div>
+                                                    <h3 className="mt-3 text-2xl font-headline font-black text-on-surface">
+                                                        {autoCanvasStatus?.week_package?.week_theme || 'Тема недели пока не пришла из плана'}
+                                                    </h3>
+                                                    <p className="mt-4 text-sm leading-7 text-on-surface-variant max-w-3xl">
+                                                        Для этого канала из плана приходит только канва: тема недели и темы постов. Дальше планер сам генерирует черновики, не требуя ручной загрузки исходного текста.
+                                                    </p>
+                                                    {autoCanvasStatus?.week_package?.core_thesis && (
+                                                        <div className="mt-4 rounded-2xl bg-white px-4 py-4 text-sm leading-7 text-on-surface-variant">
+                                                            <span className="font-bold text-on-surface">Опорный тезис:</span> {autoCanvasStatus.week_package.core_thesis}
+                                                        </div>
+                                                    )}
+
+                                                    <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3">
+                                                        <div className="rounded-2xl bg-white px-4 py-4">
+                                                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Всего тем</div>
+                                                            <div className="mt-2 text-2xl font-black text-on-surface">{autoCanvasStatus?.stats.total || 0}</div>
+                                                        </div>
+                                                        <div className="rounded-2xl bg-white px-4 py-4">
+                                                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">В очереди</div>
+                                                            <div className="mt-2 text-2xl font-black text-on-surface">{autoCanvasStatus?.stats.planned || 0}</div>
+                                                        </div>
+                                                        <div className="rounded-2xl bg-white px-4 py-4">
+                                                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Черновики</div>
+                                                            <div className="mt-2 text-2xl font-black text-on-surface">{autoCanvasStatus?.stats.drafted || 0}</div>
+                                                        </div>
+                                                        <div className="rounded-2xl bg-white px-4 py-4">
+                                                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Ошибки</div>
+                                                            <div className="mt-2 text-2xl font-black text-on-surface">{autoCanvasStatus?.stats.failed || 0}</div>
+                                                        </div>
                                                     </div>
-                                                    <h3 className="mt-5 text-xl font-headline font-black text-on-surface">{card.title}</h3>
-                                                    <p className="mt-3 text-sm leading-7 text-on-surface-variant">{card.body}</p>
-                                                </Link>
-                                            ))}
-                                        </section>
+
+                                                    {autoCanvasMessage && (
+                                                        <div className="mt-5 rounded-2xl bg-success/10 text-success px-4 py-3 text-sm font-medium">
+                                                            {autoCanvasMessage}
+                                                        </div>
+                                                    )}
+
+                                                    {runAutoCanvasGeneration.error instanceof Error && (
+                                                        <div className="mt-5 rounded-2xl bg-error-container/30 text-error px-4 py-3 text-sm font-medium">
+                                                            {runAutoCanvasGeneration.error.message}
+                                                        </div>
+                                                    )}
+
+                                                    <div className="mt-6 space-y-3">
+                                                        {(autoCanvasStatus?.items || []).map((item) => (
+                                                            <div key={item.id} className="rounded-2xl bg-white px-4 py-4 space-y-2">
+                                                                <div className="flex items-start justify-between gap-3">
+                                                                    <div>
+                                                                        <div className="font-bold text-sm text-on-surface">{item.title || `Тема ${item.id}`}</div>
+                                                                        {item.brief && (
+                                                                            <div className="mt-2 text-xs leading-6 text-on-surface-variant">{item.brief}</div>
+                                                                        )}
+                                                                    </div>
+                                                                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${statusTone(item.status)}`}>
+                                                                        {item.status}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-4">
+                                                    <div className="rounded-[1.5rem] ai-gradient text-white p-6 shadow-lg shadow-primary/20">
+                                                        <div className="text-[10px] font-black uppercase tracking-[0.25em] text-white/70">Автогенерация</div>
+                                                        <h3 className="mt-3 text-2xl font-headline font-black">Прогнать всю очередь тем</h3>
+                                                        <p className="mt-4 text-sm leading-7 text-white/80">
+                                                            Планер возьмёт темы постов из канвы и сам соберёт черновики для этого канала, используя недельную тему и настройки агентов проекта.
+                                                        </p>
+                                                        <button
+                                                            onClick={() => runAutoCanvasGeneration.mutate()}
+                                                            disabled={runAutoCanvasGeneration.isPending || (autoCanvasStatus?.stats.planned || 0) === 0}
+                                                            className="mt-6 w-full rounded-2xl bg-white text-primary px-5 py-4 text-sm font-black shadow-lg hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
+                                                        >
+                                                            {runAutoCanvasGeneration.isPending ? 'Генерируем черновики...' : 'Сгенерировать все темы'}
+                                                        </button>
+                                                    </div>
+
+                                                    <Link to="/publication-tasks" className="block rounded-[1.5rem] bg-surface-container-low p-6 border border-outline-variant/10 hover:bg-primary/5 transition-all">
+                                                        <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Очередь исполнения</div>
+                                                        <h3 className="mt-3 text-xl font-headline font-black text-on-surface">Открыть публикации</h3>
+                                                        <p className="mt-3 text-sm leading-7 text-on-surface-variant">
+                                                            После генерации переходи в публикации, чтобы проверить черновики, визуалы и исполнение по каналам.
+                                                        </p>
+                                                    </Link>
+
+                                                    <Link to="/settings" className="block rounded-[1.5rem] bg-surface-container-low p-6 border border-outline-variant/10 hover:bg-primary/5 transition-all">
+                                                        <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Настройки агентов</div>
+                                                        <h3 className="mt-3 text-xl font-headline font-black text-on-surface">Промпты и модели</h3>
+                                                        <p className="mt-3 text-sm leading-7 text-on-surface-variant">
+                                                            Подкрути автора, критика и фиксер, если хочешь изменить стиль автогенерации для этого канала.
+                                                        </p>
+                                                    </Link>
+                                                </div>
+                                            </section>
+                                        ) : (
+                                            <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                                {[
+                                                    {
+                                                        title: 'Сгенерировать новый пост',
+                                                        body: 'Используй существующие сценарии генерации постов, циклы критики и генерацию изображений прямо внутри проекта.',
+                                                        href: '/'
+                                                    },
+                                                    {
+                                                        title: 'Очередь публикаций',
+                                                        body: 'Переходи в очередь исполнения после подготовки контента и не теряй связь канала с планом.',
+                                                        href: '/publication-tasks'
+                                                    },
+                                                    {
+                                                        title: 'Настройки агентов',
+                                                        body: 'Настраивай промпты, модели, skill connections и словарь под поведение генерации в этом проекте.',
+                                                        href: '/settings'
+                                                    }
+                                                ].map((card) => (
+                                                    <Link key={card.title} to={card.href} className="rounded-[1.5rem] bg-surface-container-low p-6 border border-outline-variant/10 hover:bg-primary/5 transition-all">
+                                                        <div className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/20">
+                                                            <span className="material-symbols-outlined">auto_awesome</span>
+                                                        </div>
+                                                        <h3 className="mt-5 text-xl font-headline font-black text-on-surface">{card.title}</h3>
+                                                        <p className="mt-3 text-sm leading-7 text-on-surface-variant">{card.body}</p>
+                                                    </Link>
+                                                ))}
+                                            </section>
+                                        )
                                     )}
 
                                     {sourceMode === 'mcp' && (

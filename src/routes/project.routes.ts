@@ -10,6 +10,7 @@ import contentPolicyMatrixService from '../services/content_policy_matrix.servic
 import publicationPlanService from '../services/publication_plan.service';
 import parserIntegrationService from '../services/parser_integration.service';
 import storageService from '../services/storage.service';
+import generatorService from '../services/generator.service';
 import { normalizeProjectKind, slugifyProjectName } from '../utils/project.utils';
 
 const connectionString = process.env.DATABASE_URL;
@@ -158,6 +159,16 @@ function readMultipartField(field: any) {
     if (typeof field === 'string') return field;
     if (typeof field?.value === 'string') return field.value;
     return '';
+}
+
+function isAutoCanvasChannel(channel: any) {
+    const workflowMode = channel?.config?.workflow_mode || channel?.config?.raw_account?.planner_generation_mode || null;
+    if (workflowMode === 'auto_canvas') return true;
+
+    const normalizedName = String(channel?.name || '').toLowerCase();
+    return normalizedName.includes('analysts_thinking')
+        || normalizedName.includes('analyst_thinking')
+        || normalizedName.includes('аналитик который думал');
 }
 
 function createConnectionId(name: string) {
@@ -1061,6 +1072,150 @@ export default async function projectRoutes(fastify: FastifyInstance) {
         });
 
         return item;
+    });
+
+    fastify.get('/api/projects/:id/channels/:channelId/auto-canvas-status', async (request, reply) => {
+        const user = (request as any).user;
+        const { id, channelId } = request.params as { id: string; channelId: string };
+        const projectId = parseInt(id);
+        const parsedChannelId = parseInt(channelId);
+
+        const hasAccess = await authService.hasProjectAccess(user.id, projectId, 'editor');
+        if (!hasAccess) {
+            reply.code(403).send({ error: 'No access' });
+            return;
+        }
+
+        const channel = await prisma.socialChannel.findFirst({
+            where: {
+                id: parsedChannelId,
+                project_id: projectId
+            }
+        });
+
+        if (!channel) {
+            return reply.code(404).send({ error: 'Channel not found' });
+        }
+
+        const items = await prisma.contentItem.findMany({
+            where: {
+                project_id: projectId,
+                channel_id: parsedChannelId
+            },
+            include: {
+                week_package: true
+            },
+            orderBy: [
+                { schedule_at: 'asc' },
+                { id: 'asc' }
+            ]
+        });
+
+        const latestWeekPackage = items
+            .map((item) => item.week_package)
+            .filter(Boolean)
+            .sort((left: any, right: any) => {
+                const leftTime = new Date(left.week_start).getTime();
+                const rightTime = new Date(right.week_start).getTime();
+                return rightTime - leftTime;
+            })[0] || null;
+
+        return {
+            channel: {
+                id: channel.id,
+                name: channel.name,
+                type: channel.type,
+                workflow_mode: (channel.config as any)?.workflow_mode || (channel.config as any)?.raw_account?.planner_generation_mode || null,
+                auto_canvas_enabled: isAutoCanvasChannel(channel)
+            },
+            week_package: latestWeekPackage ? {
+                id: latestWeekPackage.id,
+                week_theme: latestWeekPackage.week_theme,
+                core_thesis: latestWeekPackage.core_thesis,
+                approval_status: latestWeekPackage.approval_status,
+                week_start: latestWeekPackage.week_start,
+                week_end: latestWeekPackage.week_end
+            } : null,
+            stats: {
+                total: items.length,
+                planned: items.filter((item) => item.status === 'planned').length,
+                drafted: items.filter((item) => item.status === 'drafted').length,
+                published: items.filter((item) => item.status === 'published').length,
+                failed: items.filter((item) => item.status === 'failed').length
+            },
+            items: items.map((item) => ({
+                id: item.id,
+                title: item.title,
+                brief: item.brief,
+                status: item.status,
+                schedule_at: item.schedule_at,
+                draft_text: item.draft_text,
+                published_link: item.published_link
+            }))
+        };
+    });
+
+    fastify.post('/api/projects/:id/channels/:channelId/auto-canvas-generate', async (request, reply) => {
+        const user = (request as any).user;
+        const { id, channelId } = request.params as { id: string; channelId: string };
+        const { limit } = request.body as { limit?: number };
+        const projectId = parseInt(id);
+        const parsedChannelId = parseInt(channelId);
+
+        const hasAccess = await authService.hasProjectAccess(user.id, projectId, 'editor');
+        if (!hasAccess) {
+            reply.code(403).send({ error: 'No access' });
+            return;
+        }
+
+        const channel = await prisma.socialChannel.findFirst({
+            where: {
+                id: parsedChannelId,
+                project_id: projectId
+            }
+        });
+
+        if (!channel) {
+            return reply.code(404).send({ error: 'Channel not found' });
+        }
+
+        if (!isAutoCanvasChannel(channel)) {
+            return reply.code(400).send({ error: 'This channel is not configured for automatic canvas generation.' });
+        }
+
+        const itemsToProcess = await prisma.contentItem.findMany({
+            where: {
+                project_id: projectId,
+                channel_id: parsedChannelId,
+                status: { in: ['planned', 'failed'] },
+                week_package: { approval_status: 'approved' }
+            },
+            orderBy: [
+                { schedule_at: 'asc' },
+                { id: 'asc' }
+            ],
+            take: Math.max(1, Math.min(limit || 10, 50))
+        });
+
+        const results: Array<{ id: number; status: string; error?: string | null }> = [];
+        for (const item of itemsToProcess) {
+            try {
+                await generatorService.generateContentItemText(item.id);
+                results.push({ id: item.id, status: 'drafted' });
+            } catch (error: any) {
+                await prisma.contentItem.update({
+                    where: { id: item.id },
+                    data: { status: 'failed' }
+                });
+                results.push({ id: item.id, status: 'failed', error: error?.message || 'Generation failed' });
+            }
+        }
+
+        return {
+            channel_id: parsedChannelId,
+            processed: results.length,
+            results
+        };
     });
 
     fastify.put('/api/projects/:id', async (request, reply) => {
