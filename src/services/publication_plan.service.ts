@@ -966,10 +966,14 @@ class PublicationPlanService {
         return this.parsePlan(raw);
     }
 
-    private buildContentFileSnapshots(plan: PublicationPlan, existingSnapshots: Record<string, ContentFileSnapshot> = {}) {
+    private buildContentFileSnapshots(
+        plan: PublicationPlan,
+        existingSnapshots: Record<string, ContentFileSnapshot> = {},
+        targetActions?: Array<any>
+    ) {
         const snapshots: Record<string, ContentFileSnapshot> = {};
 
-        for (const action of plan.actions || []) {
+        for (const action of targetActions || plan.actions || []) {
             const contentFiles = Array.isArray(action.content_files) ? action.content_files : [];
             for (const file of contentFiles) {
                 const descriptor = this.resolveContentFileDescriptor(plan, file);
@@ -1027,9 +1031,15 @@ class PublicationPlanService {
         importMode?: PublicationPlanImportMode;
     }) {
         const importMode = params.importMode || 'delta_safe';
-        let plan = params.rawPlan
-            ? this.parsePlan(params.rawPlan)
-            : this.loadPlanFromPath(params.planPath || '');
+        const rawPlan = params.rawPlan
+            ? params.rawPlan
+            : fs.readFileSync(params.planPath || '', 'utf8');
+        const incomingPlan = this.parsePlan(rawPlan);
+        let plan = incomingPlan;
+
+        const incomingAssetRefs = Object.keys(incomingPlan.assets || {});
+        const incomingActions = Array.isArray(incomingPlan.actions) ? incomingPlan.actions : [];
+        const incomingHasContentFiles = incomingActions.some((action) => Array.isArray(action?.content_files) && action.content_files.length > 0);
 
         const existingPlanMarker = await prisma.projectSettings.findFirst({
             where: {
@@ -1041,6 +1051,8 @@ class PublicationPlanService {
         const existingProject = existingPlanMarker
             ? await prisma.project.findUnique({ where: { id: existingPlanMarker.project_id } })
             : null;
+        const shouldUpdateAssetPayload = !existingProject || importMode === 'full_sync' || incomingAssetRefs.length > 0;
+        const shouldUpdateContentFileSnapshots = !existingProject || importMode === 'full_sync' || incomingHasContentFiles;
 
         if (existingProject && importMode === 'delta_safe') {
             const storedPlan = await this.loadStoredPlan(existingProject.id);
@@ -1075,11 +1087,35 @@ class PublicationPlanService {
         const existingSnapshots = existingProject
             ? await this.loadAssetSnapshots(existingProject.id)
             : {};
-        const assetSnapshots = this.buildAssetSnapshots(plan, existingSnapshots);
         const existingContentFileSnapshots = existingProject
             ? await this.loadContentFileSnapshots(existingProject.id)
             : {};
-        const contentFileSnapshots = this.buildContentFileSnapshots(plan, existingContentFileSnapshots);
+        const assetSnapshotRefreshMode = !existingProject || importMode === 'full_sync'
+            ? 'full'
+            : incomingAssetRefs.length > 0
+                ? 'partial'
+                : 'skipped';
+        const contentFileSnapshotRefreshMode = !existingProject || importMode === 'full_sync'
+            ? 'full'
+            : incomingHasContentFiles
+                ? 'partial'
+                : 'skipped';
+        const assetSnapshots = !existingProject || importMode === 'full_sync'
+            ? this.buildAssetSnapshots(plan, existingSnapshots)
+            : incomingAssetRefs.length > 0
+                ? {
+                    ...existingSnapshots,
+                    ...this.buildAssetSnapshots(plan, existingSnapshots, {}, incomingAssetRefs)
+                }
+                : existingSnapshots;
+        const contentFileSnapshots = !existingProject || importMode === 'full_sync'
+            ? this.buildContentFileSnapshots(plan, existingContentFileSnapshots)
+            : incomingHasContentFiles
+                ? {
+                    ...existingContentFileSnapshots,
+                    ...this.buildContentFileSnapshots(plan, existingContentFileSnapshots, incomingActions)
+                }
+                : existingContentFileSnapshots;
         const dictionaryYaml = plan.content_dictionary !== undefined
             ? contentDictionaryService.normalizeToYaml(plan.content_dictionary)
             : null;
@@ -1142,26 +1178,26 @@ class PublicationPlanService {
                     key: 'publication_plan_meta',
                     value: JSON.stringify(plan.meta)
                 },
-                {
+                ...(shouldUpdateAssetPayload ? [{
                     project_id: project.id,
                     key: 'publication_plan_assets',
                     value: JSON.stringify(plan.assets)
-                },
+                }] : []),
                 {
                     project_id: project.id,
                     key: 'publication_plan_accounts',
                     value: JSON.stringify(plan.accounts)
                 },
-                {
+                ...((!existingProject || importMode === 'full_sync' || incomingAssetRefs.length > 0) ? [{
                     project_id: project.id,
                     key: 'publication_plan_asset_snapshots',
                     value: JSON.stringify(assetSnapshots)
-                },
-                {
+                }] : []),
+                ...(shouldUpdateContentFileSnapshots ? [{
                     project_id: project.id,
                     key: 'publication_plan_content_file_snapshots',
                     value: JSON.stringify(contentFileSnapshots)
-                },
+                }] : []),
                 {
                     project_id: project.id,
                     key: 'publication_plan_ongoing_rules',
@@ -1441,8 +1477,11 @@ class PublicationPlanService {
                     accounts: channels.length,
                     actions: plan.actions.length,
                     assets: Object.keys(plan.assets).length,
+                    incomingAssets: incomingAssetRefs.length,
                     assetSnapshots: Object.keys(assetSnapshots).length,
+                    assetSnapshotRefreshMode,
                     contentFileSnapshots: Object.keys(contentFileSnapshots).length,
+                    contentFileSnapshotRefreshMode,
                     ongoingRules: (plan.ongoing_rules || []).length,
                     deletedStaleTasks: staleImportedIds.length,
                     updatedExistingProject: Boolean(existingProject)
@@ -1475,10 +1514,20 @@ class PublicationPlanService {
         };
     }
 
-    buildAssetSnapshots(plan: PublicationPlan, existingSnapshots: Record<string, AssetSnapshot> = {}, overrides: Record<string, Partial<AssetSnapshot> & { content?: string | null; url?: string | null }> = {}) {
+    buildAssetSnapshots(
+        plan: PublicationPlan,
+        existingSnapshots: Record<string, AssetSnapshot> = {},
+        overrides: Record<string, Partial<AssetSnapshot> & { content?: string | null; url?: string | null }> = {},
+        targetAssetRefs?: string[]
+    ) {
         const snapshots: Record<string, AssetSnapshot> = {};
+        const refsToProcess = Array.isArray(targetAssetRefs) && targetAssetRefs.length > 0
+            ? targetAssetRefs
+            : Object.keys(plan.assets || {});
 
-        for (const [ref, asset] of Object.entries(plan.assets || {})) {
+        for (const ref of refsToProcess) {
+            const asset = (plan.assets || {})[ref];
+            if (!asset) continue;
             const relativePath = typeof (asset as any)?.path === 'string' ? (asset as any).path : null;
             const sectionMarker = (asset as any)?.section_marker || null;
             const previous = existingSnapshots[ref];
