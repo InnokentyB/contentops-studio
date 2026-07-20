@@ -195,6 +195,21 @@ function supportsDirectPlannerPublish(task: PublicationTask | null | undefined) 
     return ['telegram', 'vk', 'linkedin', 'reddit', 'tilda', 'ok', 'odnoklassniki', 'habr', 'habr_article', 'vc', 'vc_article', 'zen', 'zen_article', 'dzen'].includes(type)
 }
 
+function isOperationalWorkflowTask(task: PublicationTask | null | undefined) {
+    if (!task) return false
+
+    const type = String(task.type || '').toLowerCase()
+    const layer = String(task.layer || '').toLowerCase()
+    const channelType = String(task.channel?.type || '').toLowerCase()
+    const channelName = String(task.channel?.name || '').toLowerCase()
+
+    return type.includes('manual_handoff')
+        || type.includes('weekly_metrics')
+        || layer.includes('growth')
+        || channelType.includes('growth')
+        || channelName.includes('growth')
+}
+
 function formatUiError(error: unknown, fallback: string) {
     if (!(error instanceof Error)) return fallback
 
@@ -577,6 +592,14 @@ export default function PublicationTasks() {
     const currentPublicationBody = (handoffBundle?.publication?.body || '') as string
     const isPublicationBodyDirty = publicationBody !== currentPublicationBody
     const contentEditHistory = (((activeTask?.quality_report as JsonRecord | undefined)?.content_edit_history as ContentEditHistoryEntry[] | undefined) || [])
+    const isOperationalTask = isOperationalWorkflowTask(activeTask)
+    const primaryBodyTitle = isOperationalTask ? 'Рабочий материал задачи' : 'Текст публикации'
+    const previewTitle = isOperationalTask ? 'Предпросмотр результата' : 'Предпросмотр публикации'
+    const sourceContextTitle = isOperationalTask ? 'Контекст выполнения' : 'Контекст публикации'
+    const sourceLinkLabel = isOperationalTask ? 'Ссылка на результат задачи' : 'Ссылка на сам пост'
+    const sourceLinkPlaceholder = isOperationalTask ? 'https://... ссылка на документ, таблицу, пост или другой итоговый артефакт' : 'https://...'
+    const statusEntityLabel = isOperationalTask ? 'Статус результата' : 'Статус поста'
+    const prepareButtonLabel = isOperationalTask ? 'Собрать пакет задачи' : 'Prepare Handoff'
 
     return (
         <div className="flex-1 w-full p-4 sm:p-6 lg:p-10 space-y-8 overflow-y-auto">
@@ -798,8 +821,12 @@ export default function PublicationTasks() {
                                                         <div className="mt-1 text-sm font-bold text-on-surface break-words">{activeTask.channel?.name || activeTask.metrics?.account_ref || 'n/a'}</div>
                                                     </div>
                                                     <div className="rounded-2xl bg-white px-3 py-3">
-                                                        <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Статус поста</div>
-                                                        <div className="mt-1 text-sm font-bold text-on-surface">{activeTask.published_link ? 'Опубликован' : 'Не опубликован'}</div>
+                                                        <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">{statusEntityLabel}</div>
+                                                        <div className="mt-1 text-sm font-bold text-on-surface">
+                                                            {activeTask.published_link
+                                                                ? (isOperationalTask ? 'Зафиксирован' : 'Опубликован')
+                                                                : (isOperationalTask ? 'Не зафиксирован' : 'Не опубликован')}
+                                                        </div>
                                                     </div>
                                                     <div className="rounded-2xl bg-white px-3 py-3">
                                                         <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Режим</div>
@@ -820,7 +847,7 @@ export default function PublicationTasks() {
                                                     disabled={prepareHandoff.isPending || isLoadingTask || publishTaskNow.isPending}
                                                     className="w-full bg-primary text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
                                                 >
-                                                    {prepareHandoff.isPending ? 'Preparing...' : 'Prepare Handoff'}
+                                                    {prepareHandoff.isPending ? 'Собираем...' : prepareButtonLabel}
                                                 </button>
                                             )}
                                             {canPublishNow && (
@@ -860,206 +887,407 @@ export default function PublicationTasks() {
                                 </div>
 
                                 <div className="p-5 sm:p-7 space-y-7">
-                                    <section className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.18fr)_minmax(360px,0.82fr)] gap-6 items-start">
-                                        <div className="space-y-6">
-                                            <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
-                                                <div className="flex items-center justify-between gap-3">
-                                                    <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Текст публикации</div>
-                                                    <span className="text-xs text-on-surface-variant">{publicationBody.length} chars</span>
-                                                </div>
-                                                <textarea
-                                                    value={publicationBody}
-                                                    onChange={(event) => setPublicationBody(event.target.value)}
-                                                    rows={16}
-                                                    className="w-full bg-white border-none rounded-2xl p-4 text-sm leading-6 focus:ring-2 focus:ring-primary/20 outline-none resize-y min-h-[22rem]"
-                                                />
-                                                <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center justify-between gap-3">
-                                                    <div className="text-xs text-on-surface-variant">
-                                                        Правки сохраняются в задачу публикации и используются для handoff, критика и ручной публикации.
-                                                    </div>
-                                                    <div className="flex w-full sm:w-auto items-center gap-3">
-                                                        <button
-                                                            onClick={() => setPublicationBody(currentPublicationBody)}
-                                                            disabled={!isPublicationBodyDirty || saveTaskContent.isPending}
-                                                            className="flex-1 sm:flex-none rounded-2xl bg-surface-container-highest text-on-surface font-black text-xs px-4 py-3 hover:bg-primary/10 hover:text-primary transition-all disabled:opacity-50"
-                                                        >
-                                                            Сбросить
-                                                        </button>
-                                                        <button
-                                                            onClick={() => saveTaskContent.mutate()}
-                                                            disabled={!isPublicationBodyDirty || saveTaskContent.isPending}
-                                                            className="flex-1 sm:flex-none rounded-2xl bg-primary text-white font-black text-xs px-4 py-3 shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
-                                                        >
-                                                            {saveTaskContent.isPending ? 'Сохраняем текст...' : 'Сохранить текст'}
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
-                                                <div className="flex items-center justify-between gap-3">
-                                                    <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Предпросмотр публикации</div>
-                                                    <span className="text-xs text-on-surface-variant">Markdown / HTML</span>
-                                                </div>
-                                                <ContentMarkupRenderer
-                                                    content={publicationBody}
-                                                    title={`publication-task-preview-${activeTask.id}`}
-                                                    emptyMessage="Текст публикации пока пуст."
-                                                    className="min-h-[22rem]"
-                                                    platform={activeTask.channel?.type || activeTask.type}
-                                                    postTitle={activeTask.title || undefined}
-                                                    postTags={Array.isArray(activeTask.key_points) ? (activeTask.key_points as unknown as string[]) : undefined}
-                                                    imageUrl={latestGeneratedImage?.url ? String(latestGeneratedImage.url) : undefined}
-                                                    authorName={activeTask.channel?.name || undefined}
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <aside className="space-y-5 xl:sticky xl:top-6">
-                                            <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4 border border-outline-variant/10">
-                                                <div className="flex items-start justify-between gap-3">
-                                                    <div>
-                                                        <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Контекст публикации</div>
-                                                        <div className="mt-1 text-xs text-on-surface-variant leading-5">
-                                                            Здесь всё, что нужно для ручной публикации и привязки результата к плану.
+                                    {isOperationalTask ? (
+                                        <section className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.1fr)_420px] gap-6 items-start">
+                                            <div className="space-y-6">
+                                                <div className="rounded-[1.5rem] bg-surface-container-low p-5 border border-outline-variant/10">
+                                                    <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Операционная задача</div>
+                                                    <h3 className="mt-3 text-2xl font-headline font-black text-on-surface">Не публикация, а рабочий контур выполнения</h3>
+                                                    <p className="mt-3 text-sm leading-7 text-on-surface-variant max-w-3xl">
+                                                        Для таких задач важнее чеклист, рабочий материал, ссылка на итоговый артефакт и заметки по результату. Поэтому экран собран как операционная рабочая зона, а не как форма публикации поста.
+                                                    </p>
+                                                    <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-3">
+                                                        <div className="rounded-2xl bg-white px-4 py-4">
+                                                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Плановый пункт</div>
+                                                            <div className="mt-2 text-sm font-bold text-on-surface break-words">{planItemRef || 'Не привязано'}</div>
+                                                        </div>
+                                                        <div className="rounded-2xl bg-white px-4 py-4">
+                                                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Исходный ресурс</div>
+                                                            <div className="mt-2 text-sm font-bold text-on-surface break-words">{activeTask?.workspace_context?.source_file_name || sourceFiles[0]?.file_name || sourceFiles[0]?.relative_path || 'Не найден'}</div>
+                                                        </div>
+                                                        <div className="rounded-2xl bg-white px-4 py-4">
+                                                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Формат результата</div>
+                                                            <div className="mt-2 text-sm font-bold text-on-surface">{activeTask.published_link ? 'Результат зафиксирован' : 'Нужен итоговый артефакт'}</div>
                                                         </div>
                                                     </div>
-                                                    <div className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant shadow-sm">
-                                                        {activeTask.channel?.type || activeTask.layer || 'channel'}
-                                                    </div>
                                                 </div>
-                                                <div className="space-y-4">
-                                                    <div>
-                                                        <div className="text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Ресурс для редактирования / публикации</div>
-                                                        {targetResourceUrl ? (
-                                                            <a
-                                                                href={targetResourceUrl}
-                                                                target="_blank"
-                                                                rel="noreferrer"
-                                                                className="mt-2 inline-flex items-center gap-2 text-sm font-bold text-primary break-all hover:underline"
+
+                                                <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
+                                                    <div className="flex items-center justify-between gap-3">
+                                                        <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{primaryBodyTitle}</div>
+                                                        <span className="text-xs text-on-surface-variant">{publicationBody.length} chars</span>
+                                                    </div>
+                                                    <textarea
+                                                        value={publicationBody}
+                                                        onChange={(event) => setPublicationBody(event.target.value)}
+                                                        rows={18}
+                                                        className="w-full bg-white border-none rounded-2xl p-4 text-sm leading-6 focus:ring-2 focus:ring-primary/20 outline-none resize-y min-h-[24rem]"
+                                                    />
+                                                    <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center justify-between gap-3">
+                                                        <div className="text-xs text-on-surface-variant">
+                                                            Здесь можно вести чеклист, заметки, гипотезы и промежуточные выводы. Этот текст сохраняется в задачу и остаётся частью handoff и проверки.
+                                                        </div>
+                                                        <div className="flex w-full sm:w-auto items-center gap-3">
+                                                            <button
+                                                                onClick={() => setPublicationBody(currentPublicationBody)}
+                                                                disabled={!isPublicationBodyDirty || saveTaskContent.isPending}
+                                                                className="flex-1 sm:flex-none rounded-2xl bg-surface-container-highest text-on-surface font-black text-xs px-4 py-3 hover:bg-primary/10 hover:text-primary transition-all disabled:opacity-50"
                                                             >
-                                                                <span className="material-symbols-outlined text-base">open_in_new</span>
-                                                                {targetResourceUrl}
-                                                            </a>
-                                                        ) : (
-                                                            <div className="mt-2 text-sm text-on-surface-variant">Не указан в плане.</div>
-                                                        )}
+                                                                Сбросить
+                                                            </button>
+                                                            <button
+                                                                onClick={() => saveTaskContent.mutate()}
+                                                                disabled={!isPublicationBodyDirty || saveTaskContent.isPending}
+                                                                className="flex-1 sm:flex-none rounded-2xl bg-primary text-white font-black text-xs px-4 py-3 shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
+                                                            >
+                                                                {saveTaskContent.isPending ? 'Сохраняем...' : 'Сохранить материал'}
+                                                            </button>
+                                                        </div>
                                                     </div>
+                                                </div>
 
-                                                    <div>
-                                                        <div className="text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Ссылка на пункт плана</div>
-                                                        <div className="mt-2 rounded-2xl bg-white px-4 py-3 text-sm font-bold text-on-surface shadow-sm">
-                                                            {planItemRef || 'Не привязано'}
+                                                <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
+                                                    <div className="flex items-center justify-between gap-3">
+                                                        <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{previewTitle}</div>
+                                                        <span className="text-xs text-on-surface-variant">Markdown / HTML</span>
+                                                    </div>
+                                                    <ContentMarkupRenderer
+                                                        content={publicationBody}
+                                                        title={`publication-task-preview-${activeTask.id}`}
+                                                        emptyMessage="Рабочий материал пока пуст."
+                                                        className="min-h-[18rem]"
+                                                        platform={activeTask.channel?.type || activeTask.type}
+                                                        postTitle={activeTask.title || undefined}
+                                                        postTags={Array.isArray(activeTask.key_points) ? (activeTask.key_points as unknown as string[]) : undefined}
+                                                        authorName={activeTask.channel?.name || undefined}
+                                                    />
+                                                </div>
+
+                                                <section className="grid grid-cols-1 xl:grid-cols-[minmax(320px,0.78fr)_minmax(0,1.22fr)] gap-6 items-start">
+                                                    <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
+                                                        <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Чеклист выполнения</div>
+                                                        <div className="space-y-3">
+                                                            {(handoffBundle?.manual_checklist || ['Собери пакет задачи, чтобы увидеть чеклист по этому workflow.']).map((item: string, index: number) => (
+                                                                <div key={`${item}-${index}`} className="flex items-start gap-3 text-sm text-on-surface-variant">
+                                                                    <span className="w-6 h-6 rounded-full bg-white text-primary flex items-center justify-center font-black text-xs shrink-0">{index + 1}</span>
+                                                                    <span className="leading-6">{item}</span>
+                                                                </div>
+                                                            ))}
                                                         </div>
                                                     </div>
 
-                                                    <div>
-                                                        <div className="text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Исходный ресурс</div>
-                                                        <div className="mt-2 rounded-2xl bg-white px-4 py-3 text-sm text-on-surface shadow-sm">
-                                                            {activeTask?.workspace_context?.source_file_name || sourceFiles[0]?.file_name || sourceFiles[0]?.relative_path || 'Не найден'}
+                                                    <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
+                                                        <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Исходные файлы и контекст</div>
+                                                        <ResourcePreviewCard
+                                                            entry={primarySourceEntry}
+                                                            title={activeTask?.workspace_context?.source_file_name || 'source-content'}
+                                                            emptyMessage={handoffBundle
+                                                                ? 'Не нашли читаемый текст или предпросматриваемый ресурс в связанных файлах.'
+                                                                : 'Собери пакет задачи, чтобы подтянуть связанный текст, файл или превью артефакта.'}
+                                                        />
+                                                    </div>
+                                                </section>
+                                            </div>
+
+                                            <aside className="space-y-5 xl:sticky xl:top-6">
+                                                <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4 border border-outline-variant/10">
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div>
+                                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{sourceContextTitle}</div>
+                                                            <div className="mt-1 text-xs text-on-surface-variant leading-5">
+                                                                Здесь зафиксированы рабочая ссылка, целевой ресурс и то, куда должен лечь финальный результат этой задачи.
+                                                            </div>
+                                                        </div>
+                                                        <div className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant shadow-sm">
+                                                            {activeTask.channel?.type || activeTask.layer || 'channel'}
                                                         </div>
                                                     </div>
+                                                    <div className="space-y-4">
+                                                        <div>
+                                                            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Ресурс для выполнения</div>
+                                                            {targetResourceUrl ? (
+                                                                <a
+                                                                    href={targetResourceUrl}
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    className="mt-2 inline-flex items-center gap-2 text-sm font-bold text-primary break-all hover:underline"
+                                                                >
+                                                                    <span className="material-symbols-outlined text-base">open_in_new</span>
+                                                                    {targetResourceUrl}
+                                                                </a>
+                                                            ) : (
+                                                                <div className="mt-2 text-sm text-on-surface-variant">Не указан в плане.</div>
+                                                            )}
+                                                        </div>
 
+                                                        <div>
+                                                            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Ссылка на пункт плана</div>
+                                                            <div className="mt-2 rounded-2xl bg-white px-4 py-3 text-sm font-bold text-on-surface shadow-sm">
+                                                                {planItemRef || 'Не привязано'}
+                                                            </div>
+                                                        </div>
+
+                                                        <div>
+                                                            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Исходный ресурс</div>
+                                                            <div className="mt-2 rounded-2xl bg-white px-4 py-3 text-sm text-on-surface shadow-sm">
+                                                                {activeTask?.workspace_context?.source_file_name || sourceFiles[0]?.file_name || sourceFiles[0]?.relative_path || 'Не найден'}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="rounded-[1.5rem] bg-white p-5 space-y-4 border border-primary/10 shadow-sm">
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div>
+                                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Фиксация результата</div>
+                                                            <div className="mt-1 text-xs text-on-surface-variant leading-5">
+                                                                Сохрани ссылку на итоговый артефакт и коротко опиши, чем закончилась задача.
+                                                            </div>
+                                                        </div>
+                                                        <span className="material-symbols-outlined text-primary">task_alt</span>
+                                                    </div>
+                                                    <div className="rounded-2xl bg-surface-container-low px-4 py-3 text-xs leading-6 text-on-surface-variant">
+                                                        Это может быть пост, страница, таблица, документ, отчёт или любой другой результат. Главное — оставить рабочий permalink, чтобы потом было легко вернуться к итогу.
+                                                    </div>
                                                     <div>
-                                                        <div className="text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Ссылка на сам пост</div>
+                                                        <div className="text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant">{sourceLinkLabel}</div>
                                                         <input
                                                             type="url"
                                                             value={publishedLink}
                                                             onChange={(event) => setPublishedLink(event.target.value)}
-                                                            placeholder="https://..."
-                                                            className="mt-2 w-full bg-white border-none rounded-2xl px-4 py-3 text-sm shadow-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                                            placeholder={sourceLinkPlaceholder}
+                                                            className="mt-2 w-full bg-surface-container-low border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
                                                         />
                                                     </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="rounded-[1.5rem] bg-white p-5 space-y-4 border border-primary/10 shadow-sm">
-                                                <div className="flex items-start justify-between gap-3">
-                                                    <div>
-                                                        <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Подтверждение публикации</div>
-                                                        <div className="mt-1 text-xs text-on-surface-variant leading-5">
-                                                            Сохрани итоговый permalink и зафиксируй реальный исход публикации.
-                                                        </div>
-                                                    </div>
-                                                    <span className="material-symbols-outlined text-primary">task_alt</span>
-                                                </div>
-                                                <div className="rounded-2xl bg-surface-container-low px-4 py-3 text-xs leading-6 text-on-surface-variant">
-                                                    Сохраняй permalink даже если платформа позже заблокирует, удалит или ограничит пост. Для Reddit это оставляет задачу подтверждённой и позволяет отслеживать те метрики, которые ещё доступны.
-                                                </div>
-                                                <select
-                                                    value={publicationOutcome}
-                                                    onChange={(event) => setPublicationOutcome(event.target.value as PublicationOutcome)}
-                                                    className="w-full bg-surface-container-low border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
-                                                >
-                                                    <option value="published">Опубликовано нормально</option>
-                                                    <option value="blocked">Заблокировано, но URL есть</option>
-                                                    <option value="removed">Удалено, но URL есть</option>
-                                                    <option value="restricted">Ограниченная видимость</option>
-                                                </select>
-                                                <textarea
-                                                    value={publicationNote}
-                                                    onChange={(event) => setPublicationNote(event.target.value)}
-                                                    rows={3}
-                                                    className="w-full bg-surface-container-low border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
-                                                    placeholder="Необязательная заметка о публикации"
-                                                />
-                                                <button
-                                                    onClick={() => confirmPublication.mutate()}
-                                                    disabled={!publishedLink.trim() || confirmPublication.isPending}
-                                                    className="w-full bg-primary text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
-                                                >
-                                                    {confirmPublication.isPending ? 'Сохраняем...' : 'Подтвердить live URL'}
-                                                </button>
-                                            </div>
-
-                                            <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4 border border-outline-variant/10">
-                                                <div className="flex items-start justify-between gap-3">
-                                                    <div>
-                                                        <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Изображение к посту</div>
-                                                        <div className="mt-1 text-xs text-on-surface-variant leading-5">
-                                                            Сгенерируй визуал прямо из текущего текста, если посту нужна карточка или иллюстрация.
-                                                        </div>
-                                                    </div>
-                                                    <span className="material-symbols-outlined text-on-surface-variant">imagesmode</span>
-                                                </div>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    <select
+                                                        value={publicationOutcome}
+                                                        onChange={(event) => setPublicationOutcome(event.target.value as PublicationOutcome)}
+                                                        className="w-full bg-surface-container-low border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                                    >
+                                                        <option value="published">Выполнено нормально</option>
+                                                        <option value="blocked">Заблокировано / упёрлось в ограничение</option>
+                                                        <option value="removed">Отменено / убрано после выполнения</option>
+                                                        <option value="restricted">Ограниченный результат</option>
+                                                    </select>
+                                                    <textarea
+                                                        value={publicationNote}
+                                                        onChange={(event) => setPublicationNote(event.target.value)}
+                                                        rows={4}
+                                                        className="w-full bg-surface-container-low border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                                        placeholder="Короткая заметка: что проверили, что изменили, что решили оставить на следующую неделю"
+                                                    />
                                                     <button
-                                                        onClick={() => generateTaskImage.mutate('gpt-image')}
-                                                        disabled={generateTaskImage.isPending}
+                                                        onClick={() => confirmPublication.mutate()}
+                                                        disabled={!publishedLink.trim() || confirmPublication.isPending}
                                                         className="w-full bg-primary text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
                                                     >
-                                                        {generateTaskImage.isPending ? 'Генерируем...' : 'Сгенерировать через GPT-Image'}
-                                                    </button>
-                                                    <button
-                                                        onClick={() => generateTaskImage.mutate('nano')}
-                                                        disabled={generateTaskImage.isPending}
-                                                        className="w-full bg-surface-container-highest text-on-surface font-black text-sm px-5 py-3 rounded-2xl hover:bg-primary/10 hover:text-primary transition-all disabled:opacity-50"
-                                                    >
-                                                        {generateTaskImage.isPending ? 'Подготовка...' : 'Сгенерировать через Nano'}
+                                                        {confirmPublication.isPending ? 'Сохраняем...' : 'Зафиксировать результат задачи'}
                                                     </button>
                                                 </div>
-                                                {latestGeneratedImage?.url ? (
-                                                    <div className="space-y-3">
-                                                        <img
-                                                            src={String(latestGeneratedImage.url)}
-                                                            alt="Generated post visual"
-                                                            className="w-full rounded-2xl border border-outline-variant/10 bg-white object-cover"
-                                                        />
-                                                        <div className="rounded-2xl bg-white px-4 py-3 text-xs leading-6 text-on-surface-variant">
-                                                            <div><span className="font-bold text-on-surface">Provider:</span> {String(latestGeneratedImage.provider || 'n/a')}</div>
-                                                            {latestGeneratedImage.prompt && (
-                                                                <div className="mt-2 whitespace-pre-wrap break-words">{String(latestGeneratedImage.prompt)}</div>
-                                                            )}
+                                            </aside>
+                                        </section>
+                                    ) : (
+                                        <section className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.18fr)_minmax(360px,0.82fr)] gap-6 items-start">
+                                            <div className="space-y-6">
+                                                <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
+                                                    <div className="flex items-center justify-between gap-3">
+                                                        <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{primaryBodyTitle}</div>
+                                                        <span className="text-xs text-on-surface-variant">{publicationBody.length} chars</span>
+                                                    </div>
+                                                    <textarea
+                                                        value={publicationBody}
+                                                        onChange={(event) => setPublicationBody(event.target.value)}
+                                                        rows={16}
+                                                        className="w-full bg-white border-none rounded-2xl p-4 text-sm leading-6 focus:ring-2 focus:ring-primary/20 outline-none resize-y min-h-[22rem]"
+                                                    />
+                                                    <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center justify-between gap-3">
+                                                        <div className="text-xs text-on-surface-variant">
+                                                            Правки сохраняются в задачу публикации и используются для handoff, критика и ручной публикации.
+                                                        </div>
+                                                        <div className="flex w-full sm:w-auto items-center gap-3">
+                                                            <button
+                                                                onClick={() => setPublicationBody(currentPublicationBody)}
+                                                                disabled={!isPublicationBodyDirty || saveTaskContent.isPending}
+                                                                className="flex-1 sm:flex-none rounded-2xl bg-surface-container-highest text-on-surface font-black text-xs px-4 py-3 hover:bg-primary/10 hover:text-primary transition-all disabled:opacity-50"
+                                                            >
+                                                                Сбросить
+                                                            </button>
+                                                            <button
+                                                                onClick={() => saveTaskContent.mutate()}
+                                                                disabled={!isPublicationBodyDirty || saveTaskContent.isPending}
+                                                                className="flex-1 sm:flex-none rounded-2xl bg-primary text-white font-black text-xs px-4 py-3 shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
+                                                            >
+                                                                {saveTaskContent.isPending ? 'Сохраняем текст...' : 'Сохранить текст'}
+                                                            </button>
                                                         </div>
                                                     </div>
-                                                ) : (
-                                                    <div className="rounded-2xl bg-white px-4 py-3 text-sm text-on-surface-variant shadow-sm">
-                                                        Сгенерированное изображение пока не добавлено.
+                                                </div>
+
+                                                <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
+                                                    <div className="flex items-center justify-between gap-3">
+                                                        <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{previewTitle}</div>
+                                                        <span className="text-xs text-on-surface-variant">Markdown / HTML</span>
                                                     </div>
-                                                )}
+                                                    <ContentMarkupRenderer
+                                                        content={publicationBody}
+                                                        title={`publication-task-preview-${activeTask.id}`}
+                                                        emptyMessage="Текст публикации пока пуст."
+                                                        className="min-h-[22rem]"
+                                                        platform={activeTask.channel?.type || activeTask.type}
+                                                        postTitle={activeTask.title || undefined}
+                                                        postTags={Array.isArray(activeTask.key_points) ? (activeTask.key_points as unknown as string[]) : undefined}
+                                                        imageUrl={latestGeneratedImage?.url ? String(latestGeneratedImage.url) : undefined}
+                                                        authorName={activeTask.channel?.name || undefined}
+                                                    />
+                                                </div>
                                             </div>
-                                        </aside>
-                                    </section>
+
+                                            <aside className="space-y-5 xl:sticky xl:top-6">
+                                                <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4 border border-outline-variant/10">
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div>
+                                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{sourceContextTitle}</div>
+                                                            <div className="mt-1 text-xs text-on-surface-variant leading-5">
+                                                                Здесь всё, что нужно для ручной публикации и привязки результата к плану.
+                                                            </div>
+                                                        </div>
+                                                        <div className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant shadow-sm">
+                                                            {activeTask.channel?.type || activeTask.layer || 'channel'}
+                                                        </div>
+                                                    </div>
+                                                    <div className="space-y-4">
+                                                        <div>
+                                                            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Ресурс для редактирования / публикации</div>
+                                                            {targetResourceUrl ? (
+                                                                <a
+                                                                    href={targetResourceUrl}
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    className="mt-2 inline-flex items-center gap-2 text-sm font-bold text-primary break-all hover:underline"
+                                                                >
+                                                                    <span className="material-symbols-outlined text-base">open_in_new</span>
+                                                                    {targetResourceUrl}
+                                                                </a>
+                                                            ) : (
+                                                                <div className="mt-2 text-sm text-on-surface-variant">Не указан в плане.</div>
+                                                            )}
+                                                        </div>
+
+                                                        <div>
+                                                            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Ссылка на пункт плана</div>
+                                                            <div className="mt-2 rounded-2xl bg-white px-4 py-3 text-sm font-bold text-on-surface shadow-sm">
+                                                                {planItemRef || 'Не привязано'}
+                                                            </div>
+                                                        </div>
+
+                                                        <div>
+                                                            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Исходный ресурс</div>
+                                                            <div className="mt-2 rounded-2xl bg-white px-4 py-3 text-sm text-on-surface shadow-sm">
+                                                                {activeTask?.workspace_context?.source_file_name || sourceFiles[0]?.file_name || sourceFiles[0]?.relative_path || 'Не найден'}
+                                                            </div>
+                                                        </div>
+
+                                                        <div>
+                                                            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant">{sourceLinkLabel}</div>
+                                                            <input
+                                                                type="url"
+                                                                value={publishedLink}
+                                                                onChange={(event) => setPublishedLink(event.target.value)}
+                                                                placeholder={sourceLinkPlaceholder}
+                                                                className="mt-2 w-full bg-white border-none rounded-2xl px-4 py-3 text-sm shadow-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="rounded-[1.5rem] bg-white p-5 space-y-4 border border-primary/10 shadow-sm">
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div>
+                                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Подтверждение публикации</div>
+                                                            <div className="mt-1 text-xs text-on-surface-variant leading-5">
+                                                                Сохрани итоговый permalink и зафиксируй реальный исход публикации.
+                                                            </div>
+                                                        </div>
+                                                        <span className="material-symbols-outlined text-primary">task_alt</span>
+                                                    </div>
+                                                    <div className="rounded-2xl bg-surface-container-low px-4 py-3 text-xs leading-6 text-on-surface-variant">
+                                                        Сохраняй permalink даже если платформа позже заблокирует, удалит или ограничит пост. Для Reddit это оставляет задачу подтверждённой и позволяет отслеживать те метрики, которые ещё доступны.
+                                                    </div>
+                                                    <select
+                                                        value={publicationOutcome}
+                                                        onChange={(event) => setPublicationOutcome(event.target.value as PublicationOutcome)}
+                                                        className="w-full bg-surface-container-low border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                                    >
+                                                        <option value="published">Опубликовано нормально</option>
+                                                        <option value="blocked">Заблокировано, но URL есть</option>
+                                                        <option value="removed">Удалено, но URL есть</option>
+                                                        <option value="restricted">Ограниченная видимость</option>
+                                                    </select>
+                                                    <textarea
+                                                        value={publicationNote}
+                                                        onChange={(event) => setPublicationNote(event.target.value)}
+                                                        rows={3}
+                                                        className="w-full bg-surface-container-low border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                                        placeholder="Необязательная заметка о публикации"
+                                                    />
+                                                    <button
+                                                        onClick={() => confirmPublication.mutate()}
+                                                        disabled={!publishedLink.trim() || confirmPublication.isPending}
+                                                        className="w-full bg-primary text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
+                                                    >
+                                                        {confirmPublication.isPending ? 'Сохраняем...' : 'Подтвердить live URL'}
+                                                    </button>
+                                                </div>
+
+                                                <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4 border border-outline-variant/10">
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div>
+                                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Изображение к посту</div>
+                                                            <div className="mt-1 text-xs text-on-surface-variant leading-5">
+                                                                Сгенерируй визуал прямо из текущего текста, если посту нужна карточка или иллюстрация.
+                                                            </div>
+                                                        </div>
+                                                        <span className="material-symbols-outlined text-on-surface-variant">imagesmode</span>
+                                                    </div>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                        <button
+                                                            onClick={() => generateTaskImage.mutate('gpt-image')}
+                                                            disabled={generateTaskImage.isPending}
+                                                            className="w-full bg-primary text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
+                                                        >
+                                                            {generateTaskImage.isPending ? 'Генерируем...' : 'Сгенерировать через GPT-Image'}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => generateTaskImage.mutate('nano')}
+                                                            disabled={generateTaskImage.isPending}
+                                                            className="w-full bg-surface-container-highest text-on-surface font-black text-sm px-5 py-3 rounded-2xl hover:bg-primary/10 hover:text-primary transition-all disabled:opacity-50"
+                                                        >
+                                                            {generateTaskImage.isPending ? 'Подготовка...' : 'Сгенерировать через Nano'}
+                                                        </button>
+                                                    </div>
+                                                    {latestGeneratedImage?.url ? (
+                                                        <div className="space-y-3">
+                                                            <img
+                                                                src={String(latestGeneratedImage.url)}
+                                                                alt="Generated post visual"
+                                                                className="w-full rounded-2xl border border-outline-variant/10 bg-white object-cover"
+                                                            />
+                                                            <div className="rounded-2xl bg-white px-4 py-3 text-xs leading-6 text-on-surface-variant">
+                                                                <div><span className="font-bold text-on-surface">Provider:</span> {String(latestGeneratedImage.provider || 'n/a')}</div>
+                                                                {latestGeneratedImage.prompt && (
+                                                                    <div className="mt-2 whitespace-pre-wrap break-words">{String(latestGeneratedImage.prompt)}</div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="rounded-2xl bg-white px-4 py-3 text-sm text-on-surface-variant shadow-sm">
+                                                            Сгенерированное изображение пока не добавлено.
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </aside>
+                                        </section>
+                                    )}
 
                                     <section className="rounded-[1.5rem] bg-surface-container-low p-5">
                                         <details className="group">
@@ -1138,6 +1366,7 @@ export default function PublicationTasks() {
                                         )}
                                     </section>
 
+                                    {!isOperationalTask && (
                                     <section className="grid grid-cols-1 xl:grid-cols-[minmax(320px,0.72fr)_minmax(0,1.28fr)] gap-6 items-start">
                                         <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
                                             <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Manual Checklist</div>
@@ -1218,6 +1447,7 @@ export default function PublicationTasks() {
                                             />
                                         </div>
                                     </section>
+                                    )}
 
                                     <section className="grid grid-cols-1 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] gap-6 items-start">
                                         <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">

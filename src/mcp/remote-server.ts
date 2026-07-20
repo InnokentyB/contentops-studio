@@ -71,12 +71,6 @@ async function main() {
 
         sessions.delete(sessionId);
         try {
-            await entry.transport.close();
-        } catch (_error) {
-            // Ignore transport close errors during cleanup.
-        }
-
-        try {
             await entry.server.close();
         } catch (_error) {
             // Ignore server close errors during cleanup.
@@ -127,7 +121,6 @@ async function main() {
             if (currentSessionId && sessions.has(currentSessionId)) {
                 sessions.delete(currentSessionId);
             }
-            server.close().catch(() => {});
         };
 
         transport.onerror = (error) => {
