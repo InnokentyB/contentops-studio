@@ -1068,6 +1068,17 @@ class PublicationPlanService {
             }
         }
 
+        const mergedActionMap = new Map<string, any>(
+            (plan.actions || [])
+                .filter((action) => action?.id)
+                .map((action) => [String(action.id), action] as const)
+        );
+        const actionsToImport = importMode === 'delta_safe' && existingProject
+            ? incomingActions
+                .filter((action) => action?.id)
+                .map((action) => mergedActionMap.get(String(action.id)) || action)
+            : (plan.actions || []);
+
         const resolvedPipelineRoot = this.resolveImportPipelineRoot(plan, params.workspaceRoots || [], params.planPath);
         if (resolvedPipelineRoot) {
             plan.meta.pipeline_root = resolvedPipelineRoot;
@@ -1315,7 +1326,7 @@ class PublicationPlanService {
 
             const importedTaskIds = new Set<string>();
 
-            for (const action of plan.actions) {
+            for (const action of actionsToImport) {
                 const schedule = computeSchedule(action, plan.meta.timezone_default);
                 const resolvedAssets = (action.asset_refs || []).map((ref: string) => ({
                     ref,
@@ -1476,6 +1487,8 @@ class PublicationPlanService {
                     importMode,
                     accounts: channels.length,
                     actions: plan.actions.length,
+                    incomingActions: incomingActions.length,
+                    processedActions: actionsToImport.length,
                     assets: Object.keys(plan.assets).length,
                     incomingAssets: incomingAssetRefs.length,
                     assetSnapshots: Object.keys(assetSnapshots).length,
