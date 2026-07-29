@@ -481,9 +481,6 @@ class PublicationPlanService {
         const resolvedAsset = typeof file?.url_ref === 'string' && plan.assets?.[file.url_ref]
             ? plan.assets[file.url_ref]
             : (resolvedAssetRef ? plan.assets[resolvedAssetRef] : null);
-        const directInlineContent = typeof resolvedAsset?.content === 'string'
-            ? resolvedAsset.content
-            : null;
         const assetCandidate = resolvedAsset && typeof resolvedAsset === 'object'
             ? resolvedAsset
             : (resolvedRef && typeof resolvedRef === 'object' ? resolvedRef : null);
@@ -491,6 +488,9 @@ class PublicationPlanService {
             ? file.path.trim()
             : (typeof assetCandidate?.path === 'string' && assetCandidate.path.trim() ? assetCandidate.path.trim() : null);
         const resolvedUrl = assetCandidate?.target_url || (typeof resolvedRef === 'string' ? resolvedRef : file?.url || null);
+        const directInlineContent = typeof resolvedAsset?.content === 'string'
+            ? resolvedAsset.content
+            : (resolvedUrl ? ((plan as any)._fetched_url_contents?.[resolvedUrl] || null) : null);
 
         return {
             relativePath,
@@ -1023,6 +1023,73 @@ class PublicationPlanService {
         return snapshots;
     }
 
+    private async preloadPlanUrlContents(plan: PublicationPlan): Promise<void> {
+        const fetched: Record<string, string> = {};
+        const urlsToFetch = new Set<string>();
+
+        // 1. Gather URLs from assets
+        if (plan.assets) {
+            for (const ref of Object.keys(plan.assets)) {
+                const asset = plan.assets[ref];
+                if (asset) {
+                    const assetUrl = typeof (asset as any)?.url === 'string'
+                        ? (asset as any).url
+                        : (typeof (asset as any)?.target_url === 'string' ? (asset as any).target_url : null);
+                    if (assetUrl && assetUrl.startsWith('http')) {
+                        urlsToFetch.add(assetUrl);
+                    }
+                }
+            }
+        }
+
+        // 2. Gather URLs from content_files in actions
+        if (plan.actions) {
+            for (const action of plan.actions) {
+                const contentFiles = Array.isArray(action?.content_files) ? action.content_files : [];
+                for (const file of contentFiles) {
+                    const fileUrl = typeof file?.url === 'string' ? file.url : null;
+                    if (fileUrl && fileUrl.startsWith('http')) {
+                        urlsToFetch.add(fileUrl);
+                    }
+                    if (file?.url_ref && typeof file.url_ref === 'string' && file.url_ref.startsWith('http')) {
+                        urlsToFetch.add(file.url_ref);
+                    }
+                }
+            }
+        }
+
+        if (urlsToFetch.size === 0) {
+            return;
+        }
+
+        console.log(`[Plan Preloader] Fetching ${urlsToFetch.size} remote URLs in plan...`);
+
+        // Fetch in parallel with a timeout
+        await Promise.all(
+            Array.from(urlsToFetch).map(async (url) => {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+                    
+                    const response = await fetch(url, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+
+                    if (response.ok) {
+                        const text = await response.text();
+                        fetched[url] = text;
+                        console.log(`[Plan Preloader] Successfully fetched ${url} (${text.length} bytes)`);
+                    } else {
+                        console.warn(`[Plan Preloader] Failed to fetch ${url}: ${response.statusText}`);
+                    }
+                } catch (err: any) {
+                    console.error(`[Plan Preloader] Error fetching ${url}:`, err.message);
+                }
+            })
+        );
+
+        (plan as any)._fetched_url_contents = fetched;
+    }
+
     async importPlan(params: {
         rawPlan?: string;
         planPath?: string;
@@ -1035,6 +1102,7 @@ class PublicationPlanService {
             ? params.rawPlan
             : fs.readFileSync(params.planPath || '', 'utf8');
         const incomingPlan = this.parsePlan(rawPlan);
+        await this.preloadPlanUrlContents(incomingPlan);
         let plan = incomingPlan;
 
         const incomingAssetRefs = Object.keys(incomingPlan.assets || {});
@@ -1065,6 +1133,7 @@ class PublicationPlanService {
                     .filter(Boolean);
 
                 plan = this.mergePlansForDelta(storedPlan, plan);
+                (plan as any)._fetched_url_contents = (incomingPlan as any)._fetched_url_contents;
             }
         }
 
@@ -1582,10 +1651,12 @@ class PublicationPlanService {
                 continue;
             }
 
-            const inlineContent = typeof (asset as any)?.content === 'string' ? (asset as any).content : null;
             const assetUrl = typeof (asset as any)?.url === 'string'
                 ? (asset as any).url
                 : (typeof (asset as any)?.target_url === 'string' ? (asset as any).target_url : null);
+            const inlineContent = typeof (asset as any)?.content === 'string'
+                ? (asset as any).content
+                : (assetUrl ? ((plan as any)._fetched_url_contents?.[assetUrl] || null) : null);
             if (inlineContent) {
                 snapshots[ref] = {
                     ref,
@@ -1868,6 +1939,12 @@ class PublicationPlanService {
                     content = resolved.content;
                     contentSource = 'filesystem';
                 }
+            }
+
+            if (!content && resolvedUrl && (plan as any)._fetched_url_contents?.[resolvedUrl]) {
+                content = (plan as any)._fetched_url_contents[resolvedUrl];
+                exists = true;
+                contentSource = 'url_fetch';
             }
 
             if (!content && snapshot?.content) {
