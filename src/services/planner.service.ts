@@ -9,7 +9,7 @@ config();
 const connectionString = process.env.DATABASE_URL;
 const pool = new Pool({ connectionString });
 const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
+export const prisma = new PrismaClient({ adapter });
 
 class PlannerService {
     async getCurrentWeekRange() {
@@ -153,6 +153,48 @@ class PlannerService {
             where: { id: postId },
             data
         });
+    }
+
+    async convertWeekPackageToV1(projectId: number, weekPackageId: number) {
+        const weekPackage = await prisma.weekPackage.findUnique({
+            where: { id: weekPackageId, project_id: projectId }
+        });
+
+        if (!weekPackage) {
+            throw new Error('V2 WeekPackage not found');
+        }
+
+        // Check if a V1 week already exists for the same dates and project
+        let week = await prisma.week.findFirst({
+            where: {
+                project_id: projectId,
+                week_start: weekPackage.week_start,
+                week_end: weekPackage.week_end
+            }
+        });
+
+        if (week) {
+            return {
+                weekId: week.id,
+                reused: true
+            };
+        }
+
+        // Create V1 week
+        week = await this.createWeek(
+            projectId,
+            weekPackage.week_theme || 'Импортированная тема',
+            weekPackage.week_start,
+            weekPackage.week_end
+        );
+
+        // Generate default 14 slots for this week
+        await this.generateSlots(week.id, projectId, weekPackage.week_start, 14, 0);
+
+        return {
+            weekId: week.id,
+            reused: false
+        };
     }
 }
 

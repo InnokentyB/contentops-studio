@@ -54,6 +54,14 @@ export default function V2WeekDetail() {
         onError: (err: any) => alert(`Architecture failed: ${err.message}`)
     })
 
+    const convertToV1 = useMutation({
+        mutationFn: () => api.post(`/api/v2/weeks/${id}/convert-to-v1`, {}),
+        onSuccess: (data: { weekId: number }) => {
+            navigate(`/weeks/${data.weekId}`)
+        },
+        onError: (err: any) => alert(`Failed to convert: ${err.message}`)
+    })
+
     if (isLoading) return (
         <div className="flex-1 flex items-center justify-center bg-surface">
             <div className="flex flex-col items-center gap-4">
@@ -104,6 +112,15 @@ export default function V2WeekDetail() {
                 </div>
                 
                 <div className="flex gap-4">
+                    <button
+                        onClick={() => convertToV1.mutate()}
+                        disabled={convertToV1.isPending}
+                        className="bg-primary/10 text-primary hover:bg-primary hover:text-white px-8 py-4 rounded-2xl font-black text-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2"
+                    >
+                        <span className="material-symbols-outlined">auto_awesome</span>
+                        {convertToV1.isPending ? 'СОЗДАЕМ V1...' : 'АВТОГЕНЕРАЦИЯ (V1)'}
+                    </button>
+
                     {week.content_items?.length === 0 && (
                         <button
                             onClick={() => architectWeek.mutate()}
@@ -269,7 +286,7 @@ export default function V2WeekDetail() {
                             </div>
 
                             <button
-                                onClick={() => navigate(`/posts/${item.id}`)}
+                                onClick={() => navigate(`/publication-tasks?taskId=${item.id}`)}
                                 className="mt-8 flex items-center justify-center gap-2 w-full py-4 bg-surface-container-low hover:bg-primary hover:text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all"
                             >
                                 {item.status === 'generated' ? 'Audit content' : 'Sync node'}

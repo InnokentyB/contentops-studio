@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { projectsApi, publicationTasksApi } from '../api'
 import { useAuth } from '../context/AuthContext'
 import ContentMarkupRenderer from '../components/ContentMarkupRenderer'
@@ -343,6 +343,8 @@ export default function PublicationTasks() {
     const queryClient = useQueryClient()
     const { currentProject, projects, createProject, setCurrentProject } = useAuth()
     const navigate = useNavigate()
+    const [searchParams] = useSearchParams()
+    const urlTaskId = searchParams.get('taskId')
 
     const [statusFilter, setStatusFilter] = useState('active')
     const [manualOnly, setManualOnly] = useState(true)
@@ -391,20 +393,36 @@ export default function PublicationTasks() {
     })
 
     useEffect(() => {
-        setSelectedTaskId(null)
-    }, [currentProject?.id])
+        if (urlTaskId) {
+            const idNum = parseInt(urlTaskId)
+            if (!isNaN(idNum)) {
+                setSelectedTaskId(idNum)
+            }
+        } else {
+            setSelectedTaskId(null)
+        }
+    }, [urlTaskId, currentProject?.id])
 
     useEffect(() => {
         if (!filteredTasks.length) {
-            setSelectedTaskId(null)
+            if (!isLoading && !urlTaskId) {
+                setSelectedTaskId(null)
+            }
             return
         }
 
         const exists = filteredTasks.some((task) => task.id === selectedTaskId)
         if (!exists) {
-            setSelectedTaskId(filteredTasks[0].id)
+            const urlIdNum = urlTaskId ? parseInt(urlTaskId) : null
+            const hasUrlTaskInFiltered = urlIdNum ? filteredTasks.some((task) => task.id === urlIdNum) : false
+
+            if (urlIdNum && hasUrlTaskInFiltered) {
+                setSelectedTaskId(urlIdNum)
+            } else if (!urlIdNum || (!isLoading && !hasUrlTaskInFiltered)) {
+                setSelectedTaskId(filteredTasks[0].id)
+            }
         }
-    }, [filteredTasks, selectedTaskId])
+    }, [filteredTasks, selectedTaskId, urlTaskId, isLoading])
 
     useEffect(() => {
         const nextBody = ((selectedTask?.quality_report?.handoff_bundle as JsonRecord | undefined)?.publication?.body

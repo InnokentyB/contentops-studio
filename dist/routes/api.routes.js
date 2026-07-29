@@ -1984,6 +1984,32 @@ async function apiRoutes(fastify) {
             return reply.code(404).send({ error: 'V2 WeekPackage not found' });
         return week;
     });
+    fastify.post('/api/v2/weeks/:id/convert-to-v1', async (request, reply) => {
+        const projectId = request.projectId;
+        if (!projectId)
+            return reply.code(400).send({ error: 'Project ID required' });
+        const { id } = request.params;
+        try {
+            const result = await planner_service_1.default.convertWeekPackageToV1(projectId, parseInt(id));
+            (0, egress_diagnostics_1.logEgressDiagnostic)('weeks.convert_to_v1', {
+                projectId,
+                weekPackageId: parseInt(id),
+                weekId: result.weekId,
+                reused: result.reused
+            });
+            return {
+                success: true,
+                message: result.reused ? 'V1 Week already exists for these dates.' : 'V1 Week created successfully.',
+                weekId: result.weekId
+            };
+        }
+        catch (error) {
+            if (error.message === 'V2 WeekPackage not found') {
+                return reply.code(404).send({ error: error.message });
+            }
+            return reply.code(400).send({ error: error.message });
+        }
+    });
     fastify.post('/api/v2/plan-week', async (request, reply) => {
         const projectId = request.projectId;
         if (!projectId)

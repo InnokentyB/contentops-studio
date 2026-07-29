@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.prisma = void 0;
 const client_1 = require("@prisma/client");
 const pg_1 = require("pg");
 const adapter_pg_1 = require("@prisma/adapter-pg");
@@ -9,7 +10,7 @@ const dotenv_1 = require("dotenv");
 const connectionString = process.env.DATABASE_URL;
 const pool = new pg_1.Pool({ connectionString });
 const adapter = new adapter_pg_1.PrismaPg(pool);
-const prisma = new client_1.PrismaClient({ adapter });
+exports.prisma = new client_1.PrismaClient({ adapter });
 class PlannerService {
     async getCurrentWeekRange() {
         const today = new Date();
@@ -29,7 +30,7 @@ class PlannerService {
         return { start, end };
     }
     async createWeek(projectId, theme, start, end) {
-        return prisma.week.create({
+        return exports.prisma.week.create({
             data: {
                 project_id: projectId,
                 theme,
@@ -42,7 +43,7 @@ class PlannerService {
     async generateSlots(weekId, projectId, start, count = 14, startIndex = 0) {
         const slots = [];
         // Fetch default channel (Telegram)
-        const channel = await prisma.socialChannel.findFirst({
+        const channel = await exports.prisma.socialChannel.findFirst({
             where: { project_id: projectId, type: 'telegram' }
         });
         const channelId = channel ? channel.id : null;
@@ -70,13 +71,13 @@ class PlannerService {
         }
         // Bulk insert
         if (slots.length > 0) {
-            await prisma.post.createMany({
+            await exports.prisma.post.createMany({
                 data: slots
             });
         }
     }
     async findWeekByDate(projectId, date) {
-        return prisma.week.findFirst({
+        return exports.prisma.week.findFirst({
             where: {
                 project_id: projectId,
                 week_start: { lte: date },
@@ -86,13 +87,13 @@ class PlannerService {
         });
     }
     async updateWeekStatus(weekId, status) {
-        return prisma.week.update({
+        return exports.prisma.week.update({
             where: { id: weekId },
             data: { status }
         });
     }
     async saveTopics(weekId, topics, startIndex = 0) {
-        const posts = await prisma.post.findMany({
+        const posts = await exports.prisma.post.findMany({
             where: { week_id: weekId },
             orderBy: { topic_index: 'asc' }
         });
@@ -102,7 +103,7 @@ class PlannerService {
         const updates = targetPosts.map((post, i) => {
             // i here is index in targetPosts, which matches index in topics
             if (topics[i]) {
-                return prisma.post.update({
+                return exports.prisma.post.update({
                     where: { id: post.id },
                     data: {
                         topic: topics[i].topic,
@@ -118,22 +119,52 @@ class PlannerService {
         await this.updateWeekStatus(weekId, 'topics_generated');
     }
     async getWeekPosts(weekId) {
-        return prisma.post.findMany({
+        return exports.prisma.post.findMany({
             where: { week_id: weekId },
             orderBy: { topic_index: 'asc' }
         });
     }
     async getPostById(postId) {
-        return prisma.post.findUnique({
+        return exports.prisma.post.findUnique({
             where: { id: postId },
             include: { week: true }
         });
     }
     async updatePost(postId, data) {
-        return prisma.post.update({
+        return exports.prisma.post.update({
             where: { id: postId },
             data
         });
+    }
+    async convertWeekPackageToV1(projectId, weekPackageId) {
+        const weekPackage = await exports.prisma.weekPackage.findUnique({
+            where: { id: weekPackageId, project_id: projectId }
+        });
+        if (!weekPackage) {
+            throw new Error('V2 WeekPackage not found');
+        }
+        // Check if a V1 week already exists for the same dates and project
+        let week = await exports.prisma.week.findFirst({
+            where: {
+                project_id: projectId,
+                week_start: weekPackage.week_start,
+                week_end: weekPackage.week_end
+            }
+        });
+        if (week) {
+            return {
+                weekId: week.id,
+                reused: true
+            };
+        }
+        // Create V1 week
+        week = await this.createWeek(projectId, weekPackage.week_theme || 'Импортированная тема', weekPackage.week_start, weekPackage.week_end);
+        // Generate default 14 slots for this week
+        await this.generateSlots(week.id, projectId, weekPackage.week_start, 14, 0);
+        return {
+            weekId: week.id,
+            reused: false
+        };
     }
 }
 exports.default = new PlannerService();
