@@ -658,18 +658,34 @@ Do not return markdown fences. Keep the original intent, but fully address platf
         const config = await this.getAgentConfig(projectId, 'image_critic');
         const systemPrompt = config.prompt || this.DEFAULT_IMAGE_CRITIC_PROMPT;
 
-        if (!this.openai) throw new Error("OpenAI not initialized");
+        const client = config.apiKey ? new OpenAI({ apiKey: config.apiKey }) : this.openai;
+        if (!client) throw new Error("OpenAI not initialized");
+
+        let finalImageUrl = imageUrl;
+        if (imageUrl.startsWith('/uploads/')) {
+            const fs = require('fs');
+            const path = require('path');
+            const filename = imageUrl.replace('/uploads/', '');
+            const localFilePath = path.join(process.cwd(), 'uploads', filename);
+            if (fs.existsSync(localFilePath)) {
+                const buffer = fs.readFileSync(localFilePath);
+                const base64Data = buffer.toString('base64');
+                finalImageUrl = `data:image/png;base64,${base64Data}`;
+            } else {
+                console.warn(`[MultiAgent] Local file not found: ${localFilePath}`);
+            }
+        }
 
         try {
-            const response = await this.openai.chat.completions.create({
-                model: 'gpt-4o', // Must use a vision-capable model
+            const response = await client.chat.completions.create({
+                model: config.model || 'gpt-4o', // Must use a vision-capable model
                 messages: [
                     { role: 'system', content: systemPrompt },
                     {
                         role: 'user',
                         content: [
                             { type: 'text', text: `Original Post Text Context:\n${postText.substring(0, 800)}...` },
-                            { type: 'image_url', image_url: { url: imageUrl } }
+                            { type: 'image_url', image_url: { url: finalImageUrl } }
                         ]
                     }
                 ],
