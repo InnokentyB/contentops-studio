@@ -183,14 +183,20 @@ const start = async () => {
         }, 30000); // 30 seconds after boot
 
         // Initialize Background Workers (BullMQ)
-        console.log('[Queue] Initializing background workers...');
-        // const { createTopicWorker } = require('./queue/workers/topicWorker');
-        // const { createPostWorker } = require('./queue/workers/postWorker');
-        // const { createImageWorker } = require('./queue/workers/imageWorker');
-        
-        // const topicWorker = createTopicWorker();
-        // const postWorker = createPostWorker();
-        // const imageWorker = createImageWorker();
+        let topicWorker: any = null;
+        let postWorker: any = null;
+        let imageWorker: any = null;
+
+        if (process.env.QUEUE_WORKERS_ENABLED !== 'false') {
+            console.log('[Queue] Initializing background workers...');
+            const { createTopicWorker } = require('./queue/workers/topicWorker');
+            const { createPostWorker } = require('./queue/workers/postWorker');
+            const { createImageWorker } = require('./queue/workers/imageWorker');
+            
+            topicWorker = createTopicWorker();
+            postWorker = createPostWorker();
+            imageWorker = createImageWorker();
+        }
 
         // Graceful Shutdown block for Railway deployments
         const gracefulShutdown = async (signal: string) => {
@@ -202,11 +208,11 @@ const start = async () => {
             
             // 2. Shut down workers (Wait for active jobs to finish)
             console.log('[Queue] Gracefully shutting down workers (Waiting for active jobs)...');
-            // await Promise.allSettled([
-            //     topicWorker.close(),
-            //     postWorker.close(),
-            //     imageWorker.close()
-            // ]);
+            const workersToClose = [];
+            if (topicWorker) workersToClose.push(topicWorker.close());
+            if (postWorker) workersToClose.push(postWorker.close());
+            if (imageWorker) workersToClose.push(imageWorker.close());
+            await Promise.allSettled(workersToClose);
             console.log('[Queue] Workers successfully shut down.');
             
             // 3. Close generic Redis
