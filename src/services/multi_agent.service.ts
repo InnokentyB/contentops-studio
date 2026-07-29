@@ -784,8 +784,14 @@ Do not return markdown fences. Keep the original intent, but fully address platf
         }
 
         let apiKey = await this.getPrompt(projectId, apiKeyKey, '');
-        const model = await this.getPrompt(projectId, modelKey, 'gpt-4o');
+        let model = await this.getPrompt(projectId, modelKey, 'gpt-4o');
         const prompt = await this.getPrompt(projectId, promptKey, defaultPrompt);
+
+        // Normalize invalid models (like gpt-5.4-pro or other test/invalid model strings)
+        if (model && (model.toLowerCase().includes('gpt-5') || (!model.startsWith('gpt-') && !model.startsWith('o1-') && !model.startsWith('o3-') && !model.startsWith('claude-') && !model.startsWith('gemini-')))) {
+            console.warn(`[MultiAgent] Invalid model name "${model}" resolved. Defaulting to "gpt-4o".`);
+            model = 'gpt-4o';
+        }
 
         // Resolve Provider Key if it starts with pk_
         if (apiKey && apiKey.startsWith('pk_')) {

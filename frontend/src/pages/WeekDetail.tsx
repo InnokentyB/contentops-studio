@@ -125,6 +125,15 @@ export default function WeekDetail() {
         }
     });
 
+    const updatePostTime = useMutation({
+        mutationFn: ({ postId, publishAt }: { postId: number, publishAt: string }) => 
+            api.put(`/api/posts/${postId}`, { publish_at: new Date(publishAt).toISOString() }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['week', id] })
+        },
+        onError: (err: any) => alert('Не удалось изменить время публикации: ' + (err.response?.data?.error || err.message))
+    });
+
     const isImageFailure = (p: Post) => p.status === 'failed' && Boolean(p.image_prompt?.includes('[Image Gen Failed]'));
     const isTextFailure = (p: Post) => p.status === 'failed' && !isImageFailure(p);
 
@@ -250,9 +259,12 @@ export default function WeekDetail() {
                         {unapprovedPosts.map(post => (
                             <div key={post.id} className="bg-white p-6 rounded-[2rem] border border-outline-variant/10 shadow-sm hover:shadow-lg transition-all group">
                                 <div className="flex justify-between items-start mb-4">
-                                    <span className="text-[9px] font-black uppercase tracking-tight text-primary/40 leading-none">
-                                        {format(new Date(post.publish_at), 'EEE, HH:mm')}
-                                    </span>
+                                    <input
+                                        type="datetime-local"
+                                        value={format(new Date(post.publish_at), "yyyy-MM-dd'T'HH:mm")}
+                                        onChange={(e) => updatePostTime.mutate({ postId: post.id, publishAt: e.target.value })}
+                                        className="bg-transparent border-none text-[9px] font-black uppercase tracking-tight text-primary/60 cursor-pointer focus:ring-0 p-0 select-none outline-none max-w-[125px]"
+                                    />
                                     <span className="material-symbols-outlined text-sm opacity-0 group-hover:opacity-100 transition-opacity">drag_indicator</span>
                                 </div>
                                 <h4 className="text-sm font-black text-on-surface leading-tight mb-6">{post.topic}</h4>
@@ -286,9 +298,12 @@ export default function WeekDetail() {
                                 post.status === 'failed' ? 'bg-error/5 border-error/20' : 'bg-white border-success/20'
                             }`}>
                                 <div className="flex justify-between items-start mb-4">
-                                    <span className="text-[9px] font-black uppercase tracking-tight text-success/60 leading-none">
-                                         {format(new Date(post.publish_at), 'EEE, HH:mm')}
-                                    </span>
+                                    <input
+                                        type="datetime-local"
+                                        value={format(new Date(post.publish_at), "yyyy-MM-dd'T'HH:mm")}
+                                        onChange={(e) => updatePostTime.mutate({ postId: post.id, publishAt: e.target.value })}
+                                        className="bg-transparent border-none text-[9px] font-black uppercase tracking-tight text-success/60 cursor-pointer focus:ring-0 p-0 select-none outline-none max-w-[125px]"
+                                    />
                                     {post.category && <span className="px-2 py-0.5 bg-surface-container-high rounded-md text-[8px] font-black uppercase tracking-widest leading-none">{post.category}</span>}
                                 </div>
                                 <h4 className="text-sm font-black text-on-surface leading-tight mb-6">{post.topic}</h4>
