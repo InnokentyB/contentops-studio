@@ -20,6 +20,12 @@ interface VCOsnovaResponse {
 class VCService {
     /**
      * Publishes a post/article to VC.ru via the Osnova API or custom webhook.
+     * @param config The VC.ru configuration options (access token, subsite ID, webhook URL)
+     * @param text The post content/body text
+     * @param imageUrl Optional URL of the image to associate
+     * @param title Optional title of the post (defaults to 'Без названия')
+     * @returns A promise resolving to the published post URL (or mock URL if direct credentials are not provided)
+     * @throws Error if the direct Osnova API request fails when credentials (access token and subsite ID) are provided
      */
     async publishPost(
         config: VCConfig,
@@ -75,7 +81,8 @@ class VCService {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
-                        'X-Device-Token': config.access_token
+                        'X-Device-Token': config.access_token,
+                        'User-Agent': 'ba-post-planner-app/1.0.0 (Desktop; macOS/15.0; ru; 1920x1080)'
                     },
                     body: new URLSearchParams({
                         title: postTitle,
@@ -90,13 +97,16 @@ class VCService {
                         return data.result.url;
                     }
                     if (data.error?.message) {
-                        console.warn(`[VCService] Osnova API returned error: ${data.error.message}`);
+                        throw new Error(`Osnova API returned error: ${data.error.message}`);
                     }
+                    throw new Error('Osnova API response format is invalid (no result URL)');
                 } else {
-                    console.warn(`[VCService] Osnova API request failed: ${await response.text()}`);
+                    const errText = await response.text();
+                    throw new Error(`Osnova API request failed with status ${response.status}: ${errText}`);
                 }
             } catch (apiErr: unknown) {
                 console.error('[VCService] Failed direct Osnova API post:', apiErr);
+                throw apiErr;
             }
         }
 

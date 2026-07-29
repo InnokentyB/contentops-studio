@@ -35,8 +35,11 @@ class PublicationAdapterService {
                 api_publish: account.cms_api_enabled === true
                     || ['telegram', 'vk', 'linkedin', 'reddit', 'google_search_console', 'tilda', 'ok', 'odnoklassniki', 'habr', 'habr_article', 'vc', 'vc_article', 'zen', 'zen_article', 'dzen'].includes(account.platform),
                 manual_handoff: account.platform === 'linkedin' || account.platform === 'medium' || account.platform === 'indiehackers' || account.platform === 'reddit',
-                analytics_supported: account.platform === 'linkedin' || account.platform === 'reddit' || account.platform === 'google_search_console'
+                analytics_supported: account.platform === 'linkedin' || account.platform === 'reddit' || account.platform === 'google_search_console',
+                auto_canvas_generation: account.planner_generation_mode === 'auto_canvas'
             },
+            workflow_mode: account.planner_generation_mode || 'standard',
+            week_theme_source: account.week_theme_source || null,
             raw_account: account
         };
     }

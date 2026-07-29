@@ -24,6 +24,7 @@ const content_dictionary_service_1 = __importDefault(require("../services/conten
 const content_policy_matrix_service_1 = __importDefault(require("../services/content_policy_matrix.service"));
 const publication_plan_service_1 = __importDefault(require("../services/publication_plan.service"));
 const metrics_service_1 = __importDefault(require("../services/metrics.service"));
+const egress_diagnostics_1 = require("../utils/egress_diagnostics");
 async function loadPublicationPlanContext(projectId) {
     const settings = await prisma.projectSettings.findMany({
         where: {
@@ -202,6 +203,12 @@ function buildPublicationTaskDetailItem(item, options) {
             platform_type: item.channel?.type || item.layer || null
         }
     };
+}
+function countBundleResourceFiles(bundle) {
+    return Array.isArray(bundle?.resource_files) ? bundle.resource_files.length : 0;
+}
+function countResolvedAssets(item) {
+    return Array.isArray(item?.assets?.resolved_assets) ? item.assets.resolved_assets.length : 0;
 }
 async function runPublicationCriticReview(projectId, item, overrideText) {
     const plan = await loadPublicationPlanContext(projectId);
@@ -817,7 +824,15 @@ async function apiRoutes(fastify) {
         const filtered = manualOnly === 'true'
             ? items.filter((item) => item.quality_report?.execution_mode === 'manual')
             : items;
-        return filtered.map(buildPublicationTaskListItem);
+        const response = filtered.map(buildPublicationTaskListItem);
+        (0, egress_diagnostics_1.logEgressDiagnostic)('publication_tasks.list', {
+            projectId,
+            status: status || 'active',
+            manualOnly: manualOnly === 'true',
+            itemCount: response.length,
+            responseBytes: (0, egress_diagnostics_1.jsonBytes)(response)
+        });
+        return response;
     });
     fastify.get('/api/publication-tasks/:id', async (request, reply) => {
         const projectId = request.projectId;
@@ -835,13 +850,33 @@ async function apiRoutes(fastify) {
         const projectContext = await loadPublicationProjectContext(projectId);
         const action = item.assets?.action;
         if (!plan || !action) {
-            return buildPublicationTaskDetailItem(item, { projectContext });
+            const response = buildPublicationTaskDetailItem(item, { projectContext });
+            (0, egress_diagnostics_1.logEgressDiagnostic)('publication_tasks.detail', {
+                projectId,
+                taskId: item.id,
+                hasPlan: false,
+                resolvedAssets: countResolvedAssets(item),
+                sourceContentBytes: (0, egress_diagnostics_1.textBytes)(response.workspace_context?.source_content),
+                responseBytes: (0, egress_diagnostics_1.jsonBytes)(response)
+            });
+            return response;
         }
         const bundle = publication_plan_service_1.default.buildHandoffBundle({ ...plan, actions: [action] }, item);
-        return buildPublicationTaskDetailItem(item, {
+        const response = buildPublicationTaskDetailItem(item, {
             handoffBundle: bundle,
             projectContext
         });
+        (0, egress_diagnostics_1.logEgressDiagnostic)('publication_tasks.detail', {
+            projectId,
+            taskId: item.id,
+            hasPlan: true,
+            resolvedAssets: countResolvedAssets(item),
+            bundleResourceFiles: countBundleResourceFiles(bundle),
+            publicationBodyBytes: (0, egress_diagnostics_1.textBytes)(bundle?.publication?.body),
+            sourceContentBytes: (0, egress_diagnostics_1.textBytes)(response.workspace_context?.source_content),
+            responseBytes: (0, egress_diagnostics_1.jsonBytes)(response)
+        });
+        return response;
     });
     fastify.put('/api/publication-tasks/:id/content', async (request, reply) => {
         const projectId = request.projectId;
@@ -893,11 +928,18 @@ async function apiRoutes(fastify) {
                 quality_report: nextQualityReport
             }
         });
-        return {
+        const response = {
             id: updated.id,
             draft_text: updated.draft_text,
             quality_report: updated.quality_report
         };
+        (0, egress_diagnostics_1.logEgressDiagnostic)('publication_tasks.save_content', {
+            projectId,
+            taskId: updated.id,
+            requestBodyBytes: (0, egress_diagnostics_1.textBytes)(body),
+            responseBytes: (0, egress_diagnostics_1.jsonBytes)(response)
+        });
+        return response;
     });
     fastify.post('/api/publication-tasks/:id/prepare-handoff', async (request, reply) => {
         const projectId = request.projectId;
@@ -913,7 +955,7 @@ async function apiRoutes(fastify) {
         }
         const plan = await loadPublicationPlanContext(projectId);
         if (!plan) {
-            return reply.code(200).send({
+            const response = {
                 item: {
                     ...item,
                     schedule_at: resolveTaskScheduleAt(item)
@@ -921,7 +963,14 @@ async function apiRoutes(fastify) {
                 bundle: null,
                 reused: false,
                 warning: 'No imported publication plan context is available for this task.'
+            };
+            (0, egress_diagnostics_1.logEgressDiagnostic)('publication_tasks.prepare_handoff', {
+                projectId,
+                taskId: item.id,
+                hasPlan: false,
+                responseBytes: (0, egress_diagnostics_1.jsonBytes)(response)
             });
+            return reply.code(200).send(response);
         }
         const action = item.assets?.action;
         plan.actions = action ? [action] : [];
@@ -937,13 +986,22 @@ async function apiRoutes(fastify) {
                 }
             }
         });
-        return {
+        const response = {
             item: {
                 ...updated,
                 schedule_at: resolveTaskScheduleAt(updated)
             },
             bundle
         };
+        (0, egress_diagnostics_1.logEgressDiagnostic)('publication_tasks.prepare_handoff', {
+            projectId,
+            taskId: item.id,
+            hasPlan: true,
+            bundleResourceFiles: countBundleResourceFiles(bundle),
+            publicationBodyBytes: (0, egress_diagnostics_1.textBytes)(bundle?.publication?.body),
+            responseBytes: (0, egress_diagnostics_1.jsonBytes)(response)
+        });
+        return response;
     });
     fastify.post('/api/publication-tasks/:id/publish-now', async (request, reply) => {
         const projectId = request.projectId;
@@ -964,7 +1022,7 @@ async function apiRoutes(fastify) {
                 where: { id: taskId, project_id: projectId },
                 include: { channel: true }
             });
-            return {
+            const response = {
                 success: true,
                 result,
                 item: refreshed ? {
@@ -972,6 +1030,12 @@ async function apiRoutes(fastify) {
                     schedule_at: resolveTaskScheduleAt(refreshed)
                 } : null
             };
+            (0, egress_diagnostics_1.logEgressDiagnostic)('publication_tasks.publish_now', {
+                projectId,
+                taskId,
+                responseBytes: (0, egress_diagnostics_1.jsonBytes)(response)
+            });
+            return response;
         }
         catch (error) {
             return reply.code(400).send({ error: extractRequestErrorMessage(error, 'Failed to publish task now') });
@@ -1016,6 +1080,13 @@ async function apiRoutes(fastify) {
                 }
             }
         });
+        (0, egress_diagnostics_1.logEgressDiagnostic)('publication_tasks.confirm_publication', {
+            projectId,
+            taskId: updated.id,
+            publishedLinkBytes: (0, egress_diagnostics_1.textBytes)(publishedLink),
+            noteBytes: (0, egress_diagnostics_1.textBytes)(note),
+            responseBytes: (0, egress_diagnostics_1.jsonBytes)(updated)
+        });
         return updated;
     });
     fastify.post('/api/publication-tasks/:id/record-metrics', async (request, reply) => {
@@ -1040,6 +1111,12 @@ async function apiRoutes(fastify) {
                 }
             }
         });
+        (0, egress_diagnostics_1.logEgressDiagnostic)('publication_tasks.record_metrics', {
+            projectId,
+            taskId: updated.id,
+            metricsBytes: (0, egress_diagnostics_1.jsonBytes)(metrics || {}),
+            responseBytes: (0, egress_diagnostics_1.jsonBytes)(updated)
+        });
         return updated;
     });
     fastify.post('/api/publication-tasks/:id/collect-metrics', async (request, reply) => {
@@ -1051,6 +1128,12 @@ async function apiRoutes(fastify) {
         if (!result.found) {
             return reply.code(404).send({ error: 'Publication task not found' });
         }
+        (0, egress_diagnostics_1.logEgressDiagnostic)('publication_tasks.collect_metrics', {
+            projectId,
+            taskId: parseInt(id),
+            found: result.found,
+            responseBytes: (0, egress_diagnostics_1.jsonBytes)(result)
+        });
         return result;
     });
     fastify.post('/api/publication-tasks/:id/external-comment-alert', async (request, reply) => {
@@ -1079,6 +1162,14 @@ async function apiRoutes(fastify) {
                     last_comment_alert_at: new Date().toISOString()
                 }
             }
+        });
+        (0, egress_diagnostics_1.logEgressDiagnostic)('publication_tasks.external_comment_alert', {
+            projectId,
+            taskId: item.id,
+            textBytes: (0, egress_diagnostics_1.textBytes)(text),
+            commentUrlBytes: (0, egress_diagnostics_1.textBytes)(commentUrl),
+            authorBytes: (0, egress_diagnostics_1.textBytes)(author),
+            responseBytes: (0, egress_diagnostics_1.jsonBytes)(comment)
         });
         return comment;
     });
@@ -1110,6 +1201,12 @@ async function apiRoutes(fastify) {
                     critic_review: criticReview
                 }
             }
+        });
+        (0, egress_diagnostics_1.logEgressDiagnostic)('publication_tasks.critic_check', {
+            projectId,
+            taskId: item.id,
+            inputTextBytes: (0, egress_diagnostics_1.textBytes)(text),
+            responseBytes: (0, egress_diagnostics_1.jsonBytes)(criticReview)
         });
         return criticReview;
     });
@@ -1200,11 +1297,19 @@ async function apiRoutes(fastify) {
                 }
             });
         }
-        return {
+        const response = {
             updated_text: updated.draft_text || currentText,
             fixer: fixed,
             critic_review: finalCritic?.criticReview || initial.criticReview
         };
+        (0, egress_diagnostics_1.logEgressDiagnostic)('publication_tasks.fix_with_critic', {
+            projectId,
+            taskId: item.id,
+            inputTextBytes: (0, egress_diagnostics_1.textBytes)(text || currentText),
+            outputTextBytes: (0, egress_diagnostics_1.textBytes)(updated.draft_text || currentText),
+            responseBytes: (0, egress_diagnostics_1.jsonBytes)(response)
+        });
+        return response;
     });
     fastify.post('/api/publication-tasks/:id/generate-image', async (request, reply) => {
         const projectId = request.projectId;
@@ -1260,6 +1365,14 @@ async function apiRoutes(fastify) {
                     generated_image: generatedImage
                 }
             }
+        });
+        (0, egress_diagnostics_1.logEgressDiagnostic)('publication_tasks.generate_image', {
+            projectId,
+            taskId: item.id,
+            provider: selectedProvider,
+            publicationBodyBytes: (0, egress_diagnostics_1.textBytes)(publicationBody),
+            promptBytes: (0, egress_diagnostics_1.textBytes)(prompt),
+            responseBytes: (0, egress_diagnostics_1.jsonBytes)(generatedImage)
         });
         return generatedImage;
     });

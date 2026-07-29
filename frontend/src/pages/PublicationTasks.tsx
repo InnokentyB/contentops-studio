@@ -175,6 +175,45 @@ function taskChannel(task: PublicationTask) {
     return task.channel?.name || task.layer || task.type
 }
 
+function taskPlanReference(task: PublicationTask | null | undefined) {
+    if (!task) return ''
+
+    return task.workspace_context?.plan_item_ref
+        || (task.assets as JsonRecord | undefined)?.action?.id
+        || (task.metrics as JsonRecord | undefined)?.task_id
+        || ''
+}
+
+function taskMatchesSearch(task: PublicationTask, query: string) {
+    const normalizedQuery = query.trim().toLowerCase()
+    if (!normalizedQuery) return true
+
+    const planRef = taskPlanReference(task)
+    const haystack = [
+        task.title || '',
+        task.type || '',
+        task.layer || '',
+        task.channel?.name || '',
+        task.channel?.type || '',
+        task.brief || '',
+        planRef
+    ].join(' ').toLowerCase()
+
+    if (haystack.includes(normalizedQuery)) {
+        return true
+    }
+
+    if (/^\d+$/.test(normalizedQuery)) {
+        const numericTokens = Array.from(
+            `${planRef} ${task.title || ''} ${task.type || ''}`.matchAll(/\d+/g)
+        ).map((match) => match[0])
+
+        return numericTokens.includes(normalizedQuery)
+    }
+
+    return false
+}
+
 function supportsAutoMetrics(task: PublicationTask | null | undefined) {
     if (!task) return false
 
@@ -308,6 +347,7 @@ export default function PublicationTasks() {
     const [statusFilter, setStatusFilter] = useState('active')
     const [manualOnly, setManualOnly] = useState(true)
     const [hidePublished, setHidePublished] = useState(true)
+    const [taskSearch, setTaskSearch] = useState('')
     const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null)
     const [planJson, setPlanJson] = useState(PUBLICATION_PLAN_TEMPLATE)
     const [planMessage, setPlanMessage] = useState<string | null>(null)
@@ -333,8 +373,10 @@ export default function PublicationTasks() {
     })
 
     const filteredTasks = useMemo(
-        () => (tasks || []).filter((task) => !hidePublished || task.status !== 'published'),
-        [tasks, hidePublished]
+        () => (tasks || [])
+            .filter((task) => !hidePublished || task.status !== 'published')
+            .filter((task) => taskMatchesSearch(task, taskSearch)),
+        [tasks, hidePublished, taskSearch]
     )
 
     const selectedFromList = useMemo(
@@ -657,6 +699,13 @@ export default function PublicationTasks() {
                             >
                                 {hidePublished ? 'Опубликованные скрыты' : 'Показывать опубликованные'}
                             </button>
+
+                            <input
+                                value={taskSearch}
+                                onChange={(event) => setTaskSearch(event.target.value)}
+                                placeholder="Поиск: a-vk-promo-497-useful или 497"
+                                className="w-full bg-surface-container-low border-none rounded-xl px-4 py-3 text-sm font-medium text-on-surface placeholder:text-on-surface-variant/70 focus:ring-2 focus:ring-primary/20 outline-none"
+                            />
                         </div>
 
                         <div className="max-h-[720px] overflow-y-auto">
@@ -687,6 +736,7 @@ export default function PublicationTasks() {
                             {filteredTasks.map((task) => {
                                 const isSelected = task.id === activeTask?.id
                                 const mode = task.quality_report?.execution_mode || 'manual'
+                                const planRef = taskPlanReference(task)
                                 const isOverdue = !!task.schedule_at
                                     && ['planned', 'ready_for_execution', 'awaiting_manual_publication'].includes(task.status)
                                     && new Date(task.schedule_at).getTime() < Date.now()
@@ -716,6 +766,11 @@ export default function PublicationTasks() {
                                                 <div className="text-xs text-on-surface-variant mt-2">
                                                     {formatDate(task.schedule_at)}
                                                 </div>
+                                                {planRef && (
+                                                    <div className="text-[11px] font-medium text-on-surface-variant/80 mt-2 break-all">
+                                                        {planRef}
+                                                    </div>
+                                                )}
                                                 {isOverdue && (
                                                     <div className="text-[10px] font-black uppercase tracking-[0.2em] text-error mt-2">
                                                         Overdue

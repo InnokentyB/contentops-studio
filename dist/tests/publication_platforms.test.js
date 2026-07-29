@@ -36,14 +36,56 @@ const publication_adapter_service_1 = __importDefault(require("../services/publi
     strict_1.default.ok(mockUrl);
     strict_1.default.ok(mockUrl.startsWith('https://habr.com/ru/post/mock-'));
 });
-(0, node_test_1.default)('VCService runs publish and returns mock post URL', async () => {
-    const config = {
-        access_token: 'vc_token',
-        subsite_id: '123'
-    };
+(0, node_test_1.default)('VCService returns mock URL when credentials are not provided', async () => {
+    const config = {};
     const mockUrl = await vc_service_1.default.publishPost(config, 'Тестовый текст VC', undefined, 'Тестовая статья VC');
     strict_1.default.ok(mockUrl);
     strict_1.default.ok(mockUrl.startsWith('https://vc.ru/mock-'));
+});
+(0, node_test_1.default)('VCService successfully publishes to Osnova API and validates User-Agent', async (t) => {
+    let capturedUrl = '';
+    let capturedHeaders = {};
+    let capturedBody = '';
+    t.mock.method(globalThis, 'fetch', async (url, init) => {
+        capturedUrl = url;
+        capturedHeaders = (init?.headers || {});
+        capturedBody = String(init?.body || '');
+        return {
+            ok: true,
+            json: async () => ({
+                result: {
+                    id: 99999,
+                    url: 'https://vc.ru/published-real-123'
+                }
+            })
+        };
+    });
+    const config = {
+        access_token: 'valid_vc_token',
+        subsite_id: 'sub_123'
+    };
+    const publishedUrl = await vc_service_1.default.publishPost(config, 'Тестовый текст VC', undefined, 'Тестовая статья VC');
+    strict_1.default.equal(publishedUrl, 'https://vc.ru/published-real-123');
+    strict_1.default.equal(capturedUrl, 'https://api.vc.ru/v1.9/entry/create');
+    strict_1.default.equal(capturedHeaders['X-Device-Token'], 'valid_vc_token');
+    strict_1.default.equal(capturedHeaders['User-Agent'], 'ba-post-planner-app/1.0.0 (Desktop; macOS/15.0; ru; 1920x1080)');
+    strict_1.default.ok(capturedBody.includes('title=%D0%A2%D0%B5%D1%81%D1%82%D0%BE%D0%B2%D0%B0%D1%8F+%D1%81%D1%82%D0%B0%D1%82%D1%8C%D1%8F+VC'));
+});
+(0, node_test_1.default)('VCService throws error when Osnova API request fails', async (t) => {
+    t.mock.method(globalThis, 'fetch', async () => {
+        return {
+            ok: false,
+            status: 400,
+            text: async () => 'Bad Request'
+        };
+    });
+    const config = {
+        access_token: 'invalid_vc_token',
+        subsite_id: 'sub_123'
+    };
+    await strict_1.default.rejects(async () => {
+        await vc_service_1.default.publishPost(config, 'Тестовый текст VC', undefined, 'Тестовая статья VC');
+    }, /Osnova API request failed with status 400: Bad Request/);
 });
 (0, node_test_1.default)('DzenService publishes and returns mock URL', async () => {
     const config = {

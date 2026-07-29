@@ -25,12 +25,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const navItems = [
     { label: 'Обзор', path: '/projects', icon: 'folder_open' },
+    { label: 'Автогенерация', path: '/calendar', icon: 'auto_awesome' },
     { label: 'Метрики', path: '/analytics', icon: 'monitoring' },
     { label: 'Исследования', path: '/parsers', icon: 'hub' },
     { label: 'Шаблоны', path: '/recipes', icon: 'book_2' },
     { label: 'План публикаций', path: '/publication-tasks', icon: 'publish' },
     { label: 'Справка', path: '/guide', icon: 'help_outline' },
-    { label: 'Календарь', path: '/calendar', icon: 'calendar_month' },
     { label: 'Настройки проекта', path: '/settings', icon: 'settings' },
   ];
 

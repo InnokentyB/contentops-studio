@@ -195,6 +195,14 @@ function computeSchedule(action, fallbackTimezone) {
         timezone
     };
 }
+function resolveImportedWeekTheme(plan) {
+    const candidate = plan.meta.week_theme
+        || plan.meta.theme_hint
+        || plan.meta.source_article_id
+        || plan.meta.description
+        || `Publication cycle ${plan.meta.plan_id}`;
+    return String(candidate || '').trim() || `Publication cycle ${plan.meta.plan_id}`;
+}
 function derivePublicationOutcome(action) {
     if (action?.status !== 'completed_with_negative_outcome') {
         return null;
@@ -474,6 +482,8 @@ class PublicationPlanService {
                     'timezone_default',
                     'owner',
                     'pipeline_root',
+                    'week_theme',
+                    'theme_hint',
                     'project_name',
                     'description'
                 ]
@@ -630,6 +640,7 @@ class PublicationPlanService {
                 cycle_end: '2026-06-30',
                 timezone_default: timezone,
                 owner: input.owner || 'workspace_owner',
+                week_theme: 'Тема недели, которую дальше использует автоматическая генерация',
                 project_name: input.projectName || 'Новый проект',
                 description: 'План публикаций, подготовленный через MCP/чат.'
             },
@@ -880,9 +891,9 @@ class PublicationPlanService {
         const raw = fs.readFileSync(planPath, 'utf8');
         return this.parsePlan(raw);
     }
-    buildContentFileSnapshots(plan, existingSnapshots = {}) {
+    buildContentFileSnapshots(plan, existingSnapshots = {}, targetActions) {
         const snapshots = {};
-        for (const action of plan.actions || []) {
+        for (const action of targetActions || plan.actions || []) {
             const contentFiles = Array.isArray(action.content_files) ? action.content_files : [];
             for (const file of contentFiles) {
                 const descriptor = this.resolveContentFileDescriptor(plan, file);
@@ -930,9 +941,14 @@ class PublicationPlanService {
     }
     async importPlan(params) {
         const importMode = params.importMode || 'delta_safe';
-        let plan = params.rawPlan
-            ? this.parsePlan(params.rawPlan)
-            : this.loadPlanFromPath(params.planPath || '');
+        const rawPlan = params.rawPlan
+            ? params.rawPlan
+            : fs.readFileSync(params.planPath || '', 'utf8');
+        const incomingPlan = this.parsePlan(rawPlan);
+        let plan = incomingPlan;
+        const incomingAssetRefs = Object.keys(incomingPlan.assets || {});
+        const incomingActions = Array.isArray(incomingPlan.actions) ? incomingPlan.actions : [];
+        const incomingHasContentFiles = incomingActions.some((action) => Array.isArray(action?.content_files) && action.content_files.length > 0);
         const existingPlanMarker = await db_1.default.projectSettings.findFirst({
             where: {
                 key: 'publication_plan_id',
@@ -942,6 +958,8 @@ class PublicationPlanService {
         const existingProject = existingPlanMarker
             ? await db_1.default.project.findUnique({ where: { id: existingPlanMarker.project_id } })
             : null;
+        const shouldUpdateAssetPayload = !existingProject || importMode === 'full_sync' || incomingAssetRefs.length > 0;
+        const shouldUpdateContentFileSnapshots = !existingProject || importMode === 'full_sync' || incomingHasContentFiles;
         if (existingProject && importMode === 'delta_safe') {
             const storedPlan = await this.loadStoredPlan(existingProject.id);
             if (storedPlan) {
@@ -954,6 +972,14 @@ class PublicationPlanService {
                 plan = this.mergePlansForDelta(storedPlan, plan);
             }
         }
+        const mergedActionMap = new Map((plan.actions || [])
+            .filter((action) => action?.id)
+            .map((action) => [String(action.id), action]));
+        const actionsToImport = importMode === 'delta_safe' && existingProject
+            ? incomingActions
+                .filter((action) => action?.id)
+                .map((action) => mergedActionMap.get(String(action.id)) || action)
+            : (plan.actions || []);
         const resolvedPipelineRoot = this.resolveImportPipelineRoot(plan, params.workspaceRoots || [], params.planPath);
         if (resolvedPipelineRoot) {
             plan.meta.pipeline_root = resolvedPipelineRoot;
@@ -971,11 +997,35 @@ class PublicationPlanService {
         const existingSnapshots = existingProject
             ? await this.loadAssetSnapshots(existingProject.id)
             : {};
-        const assetSnapshots = this.buildAssetSnapshots(plan, existingSnapshots);
         const existingContentFileSnapshots = existingProject
             ? await this.loadContentFileSnapshots(existingProject.id)
             : {};
-        const contentFileSnapshots = this.buildContentFileSnapshots(plan, existingContentFileSnapshots);
+        const assetSnapshotRefreshMode = !existingProject || importMode === 'full_sync'
+            ? 'full'
+            : incomingAssetRefs.length > 0
+                ? 'partial'
+                : 'skipped';
+        const contentFileSnapshotRefreshMode = !existingProject || importMode === 'full_sync'
+            ? 'full'
+            : incomingHasContentFiles
+                ? 'partial'
+                : 'skipped';
+        const assetSnapshots = !existingProject || importMode === 'full_sync'
+            ? this.buildAssetSnapshots(plan, existingSnapshots)
+            : incomingAssetRefs.length > 0
+                ? {
+                    ...existingSnapshots,
+                    ...this.buildAssetSnapshots(plan, existingSnapshots, {}, incomingAssetRefs)
+                }
+                : existingSnapshots;
+        const contentFileSnapshots = !existingProject || importMode === 'full_sync'
+            ? this.buildContentFileSnapshots(plan, existingContentFileSnapshots)
+            : incomingHasContentFiles
+                ? {
+                    ...existingContentFileSnapshots,
+                    ...this.buildContentFileSnapshots(plan, existingContentFileSnapshots, incomingActions)
+                }
+                : existingContentFileSnapshots;
         const dictionaryYaml = plan.content_dictionary !== undefined
             ? content_dictionary_service_1.default.normalizeToYaml(plan.content_dictionary)
             : null;
@@ -1031,26 +1081,26 @@ class PublicationPlanService {
                     key: 'publication_plan_meta',
                     value: JSON.stringify(plan.meta)
                 },
-                {
-                    project_id: project.id,
-                    key: 'publication_plan_assets',
-                    value: JSON.stringify(plan.assets)
-                },
+                ...(shouldUpdateAssetPayload ? [{
+                        project_id: project.id,
+                        key: 'publication_plan_assets',
+                        value: JSON.stringify(plan.assets)
+                    }] : []),
                 {
                     project_id: project.id,
                     key: 'publication_plan_accounts',
                     value: JSON.stringify(plan.accounts)
                 },
-                {
-                    project_id: project.id,
-                    key: 'publication_plan_asset_snapshots',
-                    value: JSON.stringify(assetSnapshots)
-                },
-                {
-                    project_id: project.id,
-                    key: 'publication_plan_content_file_snapshots',
-                    value: JSON.stringify(contentFileSnapshots)
-                },
+                ...((!existingProject || importMode === 'full_sync' || incomingAssetRefs.length > 0) ? [{
+                        project_id: project.id,
+                        key: 'publication_plan_asset_snapshots',
+                        value: JSON.stringify(assetSnapshots)
+                    }] : []),
+                ...(shouldUpdateContentFileSnapshots ? [{
+                        project_id: project.id,
+                        key: 'publication_plan_content_file_snapshots',
+                        value: JSON.stringify(contentFileSnapshots)
+                    }] : []),
                 {
                     project_id: project.id,
                     key: 'publication_plan_ongoing_rules',
@@ -1137,7 +1187,7 @@ class PublicationPlanService {
                 project_id: project.id,
                 week_start: cycleStart,
                 week_end: cycleEnd,
-                week_theme: `Publication cycle ${plan.meta.plan_id}`,
+                week_theme: resolveImportedWeekTheme(plan),
                 core_thesis: plan.meta.source_article_id || null,
                 audience_focus: 'external_strategy',
                 intent_tag: 'distribution_execution',
@@ -1154,7 +1204,7 @@ class PublicationPlanService {
                     data: weekPackageData
                 });
             const importedTaskIds = new Set();
-            for (const action of plan.actions) {
+            for (const action of actionsToImport) {
                 const schedule = computeSchedule(action, plan.meta.timezone_default);
                 const resolvedAssets = (action.asset_refs || []).map((ref) => ({
                     ref,
@@ -1301,9 +1351,14 @@ class PublicationPlanService {
                     importMode,
                     accounts: channels.length,
                     actions: plan.actions.length,
+                    incomingActions: incomingActions.length,
+                    processedActions: actionsToImport.length,
                     assets: Object.keys(plan.assets).length,
+                    incomingAssets: incomingAssetRefs.length,
                     assetSnapshots: Object.keys(assetSnapshots).length,
+                    assetSnapshotRefreshMode,
                     contentFileSnapshots: Object.keys(contentFileSnapshots).length,
+                    contentFileSnapshotRefreshMode,
                     ongoingRules: (plan.ongoing_rules || []).length,
                     deletedStaleTasks: staleImportedIds.length,
                     updatedExistingProject: Boolean(existingProject)
@@ -1331,9 +1386,15 @@ class PublicationPlanService {
             content: sectionContent && sectionContent.trim() ? sectionContent : rawContent
         };
     }
-    buildAssetSnapshots(plan, existingSnapshots = {}, overrides = {}) {
+    buildAssetSnapshots(plan, existingSnapshots = {}, overrides = {}, targetAssetRefs) {
         const snapshots = {};
-        for (const [ref, asset] of Object.entries(plan.assets || {})) {
+        const refsToProcess = Array.isArray(targetAssetRefs) && targetAssetRefs.length > 0
+            ? targetAssetRefs
+            : Object.keys(plan.assets || {});
+        for (const ref of refsToProcess) {
+            const asset = (plan.assets || {})[ref];
+            if (!asset)
+                continue;
             const relativePath = typeof asset?.path === 'string' ? asset.path : null;
             const sectionMarker = asset?.section_marker || null;
             const previous = existingSnapshots[ref];

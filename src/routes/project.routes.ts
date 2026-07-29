@@ -8,6 +8,7 @@ import multiAgentService from '../services/multi_agent.service';
 import contentDictionaryService from '../services/content_dictionary.service';
 import contentPolicyMatrixService from '../services/content_policy_matrix.service';
 import publicationPlanService from '../services/publication_plan.service';
+import { jsonBytes, logEgressDiagnostic, textBytes } from '../utils/egress_diagnostics';
 import parserIntegrationService from '../services/parser_integration.service';
 import storageService from '../services/storage.service';
 import generatorService from '../services/generator.service';
@@ -531,6 +532,21 @@ export default async function projectRoutes(fastify: FastifyInstance) {
                 userId: user.id,
                 workspaceRoots: Array.isArray(workspaceRoots) ? workspaceRoots : undefined,
                 importMode: importMode || 'delta_safe'
+            });
+
+            logEgressDiagnostic('projects.import_publication_plan', {
+                userId: user.id,
+                importMode: importMode || 'delta_safe',
+                planJsonBytes: textBytes(planJson),
+                planPathBytes: textBytes(planPath),
+                workspaceRootCount: Array.isArray(workspaceRoots) ? workspaceRoots.length : 0,
+                responseBytes: jsonBytes(result),
+                importedAccounts: result?.imported?.accounts,
+                importedActions: result?.imported?.actions,
+                processedActions: result?.imported?.processedActions,
+                importedAssets: result?.imported?.assets,
+                assetSnapshots: result?.imported?.assetSnapshots,
+                contentFileSnapshots: result?.imported?.contentFileSnapshots
             });
 
             return result;

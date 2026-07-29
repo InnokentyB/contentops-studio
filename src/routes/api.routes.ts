@@ -21,6 +21,7 @@ import contentDictionaryService from '../services/content_dictionary.service';
 import contentPolicyMatrixService from '../services/content_policy_matrix.service';
 import publicationPlanService from '../services/publication_plan.service';
 import metricsService from '../services/metrics.service';
+import { jsonBytes, logEgressDiagnostic, textBytes } from '../utils/egress_diagnostics';
 
 async function loadPublicationPlanContext(projectId: number) {
     const settings = await prisma.projectSettings.findMany({
@@ -225,6 +226,14 @@ function buildPublicationTaskDetailItem(item: any, options?: {
             platform_type: item.channel?.type || item.layer || null
         }
     };
+}
+
+function countBundleResourceFiles(bundle: any) {
+    return Array.isArray(bundle?.resource_files) ? bundle.resource_files.length : 0;
+}
+
+function countResolvedAssets(item: any) {
+    return Array.isArray((item?.assets as any)?.resolved_assets) ? (item.assets as any).resolved_assets.length : 0;
 }
 
 async function runPublicationCriticReview(projectId: number, item: any, overrideText?: string) {
@@ -924,7 +933,16 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             ? items.filter((item) => (item.quality_report as any)?.execution_mode === 'manual')
             : items;
 
-        return filtered.map(buildPublicationTaskListItem);
+        const response = filtered.map(buildPublicationTaskListItem);
+        logEgressDiagnostic('publication_tasks.list', {
+            projectId,
+            status: status || 'active',
+            manualOnly: manualOnly === 'true',
+            itemCount: response.length,
+            responseBytes: jsonBytes(response)
+        });
+
+        return response;
     });
 
     fastify.get('/api/publication-tasks/:id', async (request, reply) => {
@@ -945,15 +963,35 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         const projectContext = await loadPublicationProjectContext(projectId);
         const action = (item.assets as any)?.action;
         if (!plan || !action) {
-            return buildPublicationTaskDetailItem(item, { projectContext });
+            const response = buildPublicationTaskDetailItem(item, { projectContext });
+            logEgressDiagnostic('publication_tasks.detail', {
+                projectId,
+                taskId: item.id,
+                hasPlan: false,
+                resolvedAssets: countResolvedAssets(item),
+                sourceContentBytes: textBytes(response.workspace_context?.source_content),
+                responseBytes: jsonBytes(response)
+            });
+            return response;
         }
 
         const bundle = publicationPlanService.buildHandoffBundle({ ...plan, actions: [action] } as any, item);
-
-        return buildPublicationTaskDetailItem(item, {
+        const response = buildPublicationTaskDetailItem(item, {
             handoffBundle: bundle,
             projectContext
         });
+        logEgressDiagnostic('publication_tasks.detail', {
+            projectId,
+            taskId: item.id,
+            hasPlan: true,
+            resolvedAssets: countResolvedAssets(item),
+            bundleResourceFiles: countBundleResourceFiles(bundle),
+            publicationBodyBytes: textBytes(bundle?.publication?.body),
+            sourceContentBytes: textBytes(response.workspace_context?.source_content),
+            responseBytes: jsonBytes(response)
+        });
+
+        return response;
     });
 
     fastify.put('/api/publication-tasks/:id/content', async (request, reply) => {
@@ -1018,11 +1056,19 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             }
         });
 
-        return {
+        const response = {
             id: updated.id,
             draft_text: updated.draft_text,
             quality_report: updated.quality_report
         };
+        logEgressDiagnostic('publication_tasks.save_content', {
+            projectId,
+            taskId: updated.id,
+            requestBodyBytes: textBytes(body),
+            responseBytes: jsonBytes(response)
+        });
+
+        return response;
     });
 
     fastify.post('/api/publication-tasks/:id/prepare-handoff', async (request, reply) => {
@@ -1041,7 +1087,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
 
         const plan = await loadPublicationPlanContext(projectId);
         if (!plan) {
-            return reply.code(200).send({
+            const response = {
                 item: {
                     ...item,
                     schedule_at: resolveTaskScheduleAt(item)
@@ -1049,7 +1095,14 @@ export default async function apiRoutes(fastify: FastifyInstance) {
                 bundle: null,
                 reused: false,
                 warning: 'No imported publication plan context is available for this task.'
+            };
+            logEgressDiagnostic('publication_tasks.prepare_handoff', {
+                projectId,
+                taskId: item.id,
+                hasPlan: false,
+                responseBytes: jsonBytes(response)
             });
+            return reply.code(200).send(response);
         }
 
         const action = (item.assets as any)?.action;
@@ -1068,13 +1121,23 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             }
         });
 
-        return {
+        const response = {
             item: {
                 ...updated,
                 schedule_at: resolveTaskScheduleAt(updated)
             },
             bundle
         };
+        logEgressDiagnostic('publication_tasks.prepare_handoff', {
+            projectId,
+            taskId: item.id,
+            hasPlan: true,
+            bundleResourceFiles: countBundleResourceFiles(bundle),
+            publicationBodyBytes: textBytes(bundle?.publication?.body),
+            responseBytes: jsonBytes(response)
+        });
+
+        return response;
     });
 
     fastify.post('/api/publication-tasks/:id/publish-now', async (request, reply) => {
@@ -1099,7 +1162,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
                 include: { channel: true }
             });
 
-            return {
+            const response = {
                 success: true,
                 result,
                 item: refreshed ? {
@@ -1107,6 +1170,12 @@ export default async function apiRoutes(fastify: FastifyInstance) {
                     schedule_at: resolveTaskScheduleAt(refreshed)
                 } : null
             };
+            logEgressDiagnostic('publication_tasks.publish_now', {
+                projectId,
+                taskId,
+                responseBytes: jsonBytes(response)
+            });
+            return response;
         } catch (error: any) {
             return reply.code(400).send({ error: extractRequestErrorMessage(error, 'Failed to publish task now') });
         }
@@ -1164,6 +1233,14 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             }
         });
 
+        logEgressDiagnostic('publication_tasks.confirm_publication', {
+            projectId,
+            taskId: updated.id,
+            publishedLinkBytes: textBytes(publishedLink),
+            noteBytes: textBytes(note),
+            responseBytes: jsonBytes(updated)
+        });
+
         return updated;
     });
 
@@ -1193,6 +1270,13 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             }
         });
 
+        logEgressDiagnostic('publication_tasks.record_metrics', {
+            projectId,
+            taskId: updated.id,
+            metricsBytes: jsonBytes(metrics || {}),
+            responseBytes: jsonBytes(updated)
+        });
+
         return updated;
     });
 
@@ -1206,6 +1290,13 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         if (!result.found) {
             return reply.code(404).send({ error: 'Publication task not found' });
         }
+
+        logEgressDiagnostic('publication_tasks.collect_metrics', {
+            projectId,
+            taskId: parseInt(id),
+            found: result.found,
+            responseBytes: jsonBytes(result)
+        });
 
         return result;
     });
@@ -1243,6 +1334,15 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             }
         });
 
+        logEgressDiagnostic('publication_tasks.external_comment_alert', {
+            projectId,
+            taskId: item.id,
+            textBytes: textBytes(text),
+            commentUrlBytes: textBytes(commentUrl),
+            authorBytes: textBytes(author),
+            responseBytes: jsonBytes(comment)
+        });
+
         return comment;
     });
 
@@ -1277,6 +1377,13 @@ export default async function apiRoutes(fastify: FastifyInstance) {
                     critic_review: criticReview
                 } as any
             }
+        });
+
+        logEgressDiagnostic('publication_tasks.critic_check', {
+            projectId,
+            taskId: item.id,
+            inputTextBytes: textBytes(text),
+            responseBytes: jsonBytes(criticReview)
         });
 
         return criticReview;
@@ -1382,11 +1489,20 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             });
         }
 
-        return {
+        const response = {
             updated_text: updated.draft_text || currentText,
             fixer: fixed,
             critic_review: finalCritic?.criticReview || initial.criticReview
         };
+        logEgressDiagnostic('publication_tasks.fix_with_critic', {
+            projectId,
+            taskId: item.id,
+            inputTextBytes: textBytes(text || currentText),
+            outputTextBytes: textBytes(updated.draft_text || currentText),
+            responseBytes: jsonBytes(response)
+        });
+
+        return response;
     });
 
     fastify.post('/api/publication-tasks/:id/generate-image', async (request, reply) => {
@@ -1452,6 +1568,15 @@ export default async function apiRoutes(fastify: FastifyInstance) {
                     generated_image: generatedImage
                 } as any
             }
+        });
+
+        logEgressDiagnostic('publication_tasks.generate_image', {
+            projectId,
+            taskId: item.id,
+            provider: selectedProvider,
+            publicationBodyBytes: textBytes(publicationBody),
+            promptBytes: textBytes(prompt),
+            responseBytes: jsonBytes(generatedImage)
         });
 
         return generatedImage;
