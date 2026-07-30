@@ -119,6 +119,14 @@ export default function PostEditor() {
         }
     })
 
+    const publishNow = useMutation({
+        mutationFn: () => api.post(`/api/posts/${id}/publish-now`, {}),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['post', id] })
+        },
+        onError: (err: any) => alert('Не удалось опубликовать: ' + (err.response?.data?.error || err.message))
+    })
+
     const regenerate = useMutation({
         mutationFn: () => {
             const body: any = {}
@@ -238,6 +246,15 @@ export default function PostEditor() {
                             {validateDictionary.isPending ? 'CHECKING...' : 'CHECK DICTIONARY'}
                         </button>
                         <button onClick={handleSave} className="text-xs font-black text-primary hover:opacity-80">SAVE DRAFT</button>
+                        {['generated', 'scheduled', 'failed'].includes(post.status) && (
+                            <button 
+                                onClick={() => { if(confirm('Fire deployment now?')) publishNow.mutate(); }}
+                                disabled={publishNow.isPending || post.status === 'publishing'}
+                                className="bg-success text-white px-4 py-2 rounded-lg text-xs font-black shadow-lg shadow-success/20 hover:scale-[1.02] active:scale-95 transition-all ml-2"
+                            >
+                                {publishNow.isPending ? 'PUBLISHING...' : 'DEPLOY NOW'}
+                            </button>
+                        )}
                         <button 
                             onClick={handleApprove}
                             disabled={post.status === 'scheduled' || post.status === 'published'}
