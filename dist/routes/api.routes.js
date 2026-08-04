@@ -664,13 +664,30 @@ async function apiRoutes(fastify) {
     fastify.get('/api/posts/:id', async (request, reply) => {
         const { id } = request.params;
         const post = await prisma.post.findUnique({
-            where: { id: parseInt(id) }
+            where: { id: parseInt(id) },
+            include: { week: true }
         });
         if (!post) {
             reply.code(404).send({ error: 'Post not found' });
             return;
         }
-        return post;
+        // Find associated WeekPackage by matching dates and project_id
+        let weekPackageId = null;
+        if (post.week) {
+            const weekPackage = await prisma.weekPackage.findFirst({
+                where: {
+                    project_id: post.project_id,
+                    week_start: post.week.week_start,
+                    week_end: post.week.week_end
+                }
+            });
+            weekPackageId = weekPackage?.id || null;
+        }
+        const { week, ...rest } = post;
+        return {
+            ...rest,
+            week_package_id: weekPackageId
+        };
     });
     fastify.put('/api/posts/:id', async (request, reply) => {
         const { id } = request.params;

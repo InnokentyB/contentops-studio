@@ -179,6 +179,59 @@ class PublisherService {
         const descStr = String(desc).toUpperCase();
         return descStr.includes('MEDIA_CAPTION_TOO_LONG') || descStr.includes('CAPTION IS TOO LONG');
     }
+    markdownToTelegramHtml(text) {
+        if (!text)
+            return '';
+        let html = text;
+        // Escape HTML special characters first
+        html = html
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        // Headers: # Title -> <b>Title</b>
+        html = html.replace(/^#+\s+(.+)$/gm, '<b>$1</b>');
+        // Bold: **text** or __text__ -> <b>text</b>
+        html = html.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+        html = html.replace(/__(.*?)__/g, '<u>$1</u>'); // double underscores as underline
+        // Italic: *text* or _text_ -> <i>text</i>
+        html = html.replace(/\*(.*?)\*/g, '<i>$1</i>');
+        // Avoid replacing underscores inside links or words
+        html = html.replace(/(?<!\w)_(.*?)_(?!\w)/g, '<i>$1</i>');
+        // Inline code: `code` -> <code>code</code>
+        html = html.replace(/`(.*?)`/g, '<code>$1</code>');
+        // Code blocks: ```code``` -> <pre>$1</pre>
+        html = html.replace(/```([\s\S]*?)```/g, '<pre>$1</pre>');
+        // Links: [text](url) -> <a href="url">text</a>
+        html = html.replace(/\[(.*?)\]\((.*?)\)/g, (match, linkText, url) => {
+            const cleanUrl = url.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+            return `<a href="${cleanUrl}">${linkText}</a>`;
+        });
+        return html;
+    }
+    getTelegramPhotoSource(imageUrl) {
+        if (!imageUrl)
+            return null;
+        if (imageUrl.startsWith('data:')) {
+            const base64Data = imageUrl.split(',')[1];
+            return { source: Buffer.from(base64Data, 'base64') };
+        }
+        if (imageUrl.startsWith('/uploads/')) {
+            const baseHost = process.env.RAILWAY_PUBLIC_DOMAIN || process.env.PUBLIC_URL || process.env.APP_URL;
+            if (baseHost) {
+                const domain = baseHost.startsWith('http') ? baseHost : `https://${baseHost}`;
+                return `${domain}${imageUrl}`;
+            }
+            const fs = require('fs');
+            const path = require('path');
+            const filename = imageUrl.split('/').pop();
+            const localPath = path.join(__dirname, '../../uploads', filename);
+            if (fs.existsSync(localPath)) {
+                return { source: fs.createReadStream(localPath) };
+            }
+            return null;
+        }
+        return imageUrl;
+    }
     extractTelegramErrorDescription(error) {
         const responseDescription = typeof error?.response?.description === 'string'
             ? error.response.description.trim()
@@ -194,19 +247,18 @@ class PublisherService {
     async sendTelegramMessageWithFallback(chatId, text, extraOptions = {}) {
         try {
             return await telegram_service_1.default.sendMessage(chatId, text, {
-                parse_mode: 'Markdown',
+                parse_mode: 'HTML',
                 ...extraOptions
             });
         }
         catch (error) {
-            if (!this.shouldRetryTelegramWithoutMarkdown(error)) {
-                throw error;
-            }
-            logToFile('WARN', '[Publisher] Telegram rejected Markdown payload, retrying as plain text.', {
+            logToFile('WARN', '[Publisher] Telegram HTML message failed, retrying as plain text.', {
                 chatId,
                 description: error?.response?.description || error?.message || null
             });
-            return await telegram_service_1.default.sendMessage(chatId, text, { ...extraOptions });
+            // Strip HTML tags for plain text fallback
+            const plainText = text.replace(/<[^>]*>/g, '');
+            return await telegram_service_1.default.sendMessage(chatId, plainText, { ...extraOptions });
         }
     }
     async findDependencyItems(projectId, dependencyTaskIds) {
@@ -1697,103 +1749,70 @@ class PublisherService {
                     if (!isPublishedViaClient) {
                         // Fallback to Bot API Logic
                         console.log(`[Publisher] Falling back to Bot API for post ${post.id}`);
+                        const telegramText = this.markdownToTelegramHtml(post.final_text || post.generated_text || '');
+                        const photoSource = this.getTelegramPhotoSource(post.image_url);
                         let sentMessage;
-                        // ... (Existing Bot API Logic) ...
-                        if (post.image_url) {
-                            let photoSource = post.image_url;
-                            if (post.image_url.startsWith('data:')) {
-                                const base64Data = post.image_url.split(',')[1];
-                                photoSource = { source: Buffer.from(base64Data, 'base64') };
-                            }
-                            else if (post.image_url.startsWith('/uploads/')) {
-                                const fs = require('fs');
-                                const path = require('path');
-                                const filename = post.image_url.split('/').pop();
-                                const localPath = path.join(__dirname, '../../uploads', filename);
-                                if (fs.existsSync(localPath)) {
-                                    photoSource = { source: fs.createReadStream(localPath) };
-                                }
-                                else {
-                                    console.error(`Local image file not found: ${localPath}`);
-                                    photoSource = null;
-                                }
-                            }
-                            else {
-                                // Assume it's a remote URL (Supabase or other)
-                                photoSource = post.image_url;
-                            }
-                            if (photoSource) {
-                                const CAPTION_LIMIT = 1024;
-                                if (text.length > CAPTION_LIMIT) {
-                                    if (typeof photoSource === 'string' && photoSource.startsWith('http')) {
-                                        // HTTP URL: send as text with large media preview (no split, 1 message)
-                                        sentMessage = await this.sendTextSplitting(targetChannelId, text, {
-                                            link_preview_options: {
-                                                url: photoSource,
-                                                prefer_large_media: true,
-                                                show_above_text: true,
-                                                is_disabled: false
-                                            }
-                                        });
-                                    }
-                                    else {
-                                        // Local file / Buffer: For Bot API, if it exceeds 1024, the only way to send
-                                        // it as ONE message is to send the text with a hidden link preview to the image (if it's hosted).
-                                        // Since it's a local file/buffer, we HAVE to send a photo. If it exceeds 1024, the Bot API WILL fail.
-                                        // However, Telegram Premium bots can have 4096. We should just try sending it as a single caption first.
-                                        // If it fails with "MEDIA_CAPTION_TOO_LONG", that's when we should split.
-                                        // But to prevent the user from seeing "two messages", we should log it.
-                                        // Actually, let's just attempt to send it as a single photo message first.
-                                        try {
-                                            sentMessage = await telegram_service_1.default.sendPhoto(targetChannelId, photoSource, {
-                                                caption: text,
-                                                parse_mode: 'Markdown'
-                                            });
+                        if (photoSource) {
+                            const CAPTION_LIMIT = 1024;
+                            if (telegramText.length > CAPTION_LIMIT) {
+                                if (typeof photoSource === 'string' && photoSource.startsWith('http')) {
+                                    // HTTP URL: send as text with large media preview (no split, 1 message)
+                                    sentMessage = await this.sendTextSplitting(targetChannelId, telegramText, {
+                                        link_preview_options: {
+                                            url: photoSource,
+                                            prefer_large_media: true,
+                                            show_above_text: true,
+                                            is_disabled: false
                                         }
-                                        catch (sendErr) {
-                                            if (this.isCaptionTooLongError(sendErr)) {
-                                                console.warn(`[Publisher] Caption too long for Bot API (${text.length} chars). Splitting into photo + reply.`);
-                                                let splitIndex = text.lastIndexOf('\n', CAPTION_LIMIT);
-                                                if (splitIndex === -1 || splitIndex < CAPTION_LIMIT * 0.5) {
-                                                    splitIndex = text.lastIndexOf(' ', CAPTION_LIMIT);
-                                                }
-                                                if (splitIndex === -1)
-                                                    splitIndex = CAPTION_LIMIT;
-                                                const caption = text.substring(0, splitIndex);
-                                                const remainder = text.substring(splitIndex).trim();
-                                                const photoMsg = await telegram_service_1.default.sendPhoto(targetChannelId, photoSource, {
-                                                    caption: caption,
-                                                    parse_mode: 'Markdown'
-                                                });
-                                                if (remainder.length > 0) {
-                                                    sentMessage = await telegram_service_1.default.sendMessage(targetChannelId, remainder, {
-                                                        parse_mode: 'Markdown',
-                                                        reply_to_message_id: photoMsg?.message_id
-                                                    });
-                                                }
-                                                else {
-                                                    sentMessage = photoMsg;
-                                                }
-                                            }
-                                            else {
-                                                throw sendErr;
-                                            }
-                                        }
-                                    }
-                                }
-                                else {
-                                    sentMessage = await telegram_service_1.default.sendPhoto(targetChannelId, photoSource, {
-                                        caption: text,
-                                        parse_mode: 'Markdown'
                                     });
                                 }
+                                else {
+                                    try {
+                                        sentMessage = await telegram_service_1.default.sendPhoto(targetChannelId, photoSource, {
+                                            caption: telegramText,
+                                            parse_mode: 'HTML'
+                                        });
+                                    }
+                                    catch (sendErr) {
+                                        if (this.isCaptionTooLongError(sendErr)) {
+                                            console.warn(`[Publisher] Caption too long for Bot API (${telegramText.length} chars). Splitting into photo + reply.`);
+                                            let splitIndex = telegramText.lastIndexOf('\n', CAPTION_LIMIT);
+                                            if (splitIndex === -1 || splitIndex < CAPTION_LIMIT * 0.5) {
+                                                splitIndex = telegramText.lastIndexOf(' ', CAPTION_LIMIT);
+                                            }
+                                            if (splitIndex === -1)
+                                                splitIndex = CAPTION_LIMIT;
+                                            const caption = telegramText.substring(0, splitIndex);
+                                            const remainder = telegramText.substring(splitIndex).trim();
+                                            const photoMsg = await telegram_service_1.default.sendPhoto(targetChannelId, photoSource, {
+                                                caption: caption,
+                                                parse_mode: 'HTML'
+                                            });
+                                            if (remainder.length > 0) {
+                                                sentMessage = await telegram_service_1.default.sendMessage(targetChannelId, remainder, {
+                                                    parse_mode: 'HTML',
+                                                    reply_to_message_id: photoMsg?.message_id
+                                                });
+                                            }
+                                            else {
+                                                sentMessage = photoMsg;
+                                            }
+                                        }
+                                        else {
+                                            throw sendErr;
+                                        }
+                                    }
+                                }
                             }
                             else {
-                                sentMessage = await this.sendTextSplitting(targetChannelId, text);
+                                sentMessage = await telegram_service_1.default.sendPhoto(targetChannelId, photoSource, {
+                                    caption: telegramText,
+                                    parse_mode: 'HTML'
+                                });
                             }
                         }
                         else {
-                            sentMessage = await this.sendTextSplitting(targetChannelId, text);
+                            sentMessage = await this.sendTextSplitting(targetChannelId, telegramText);
                         }
                         sentMessageId = sentMessage?.message_id;
                     }
@@ -1980,98 +1999,73 @@ class PublisherService {
                 }
                 if (!isPublishedViaClient) {
                     // Fallback to Bot API Logic
+                    const telegramText = this.markdownToTelegramHtml(post.final_text || post.generated_text || '');
+                    const photoSource = this.getTelegramPhotoSource(post.image_url);
                     let sentMessage;
-                    if (post.image_url) {
-                        let photoSource = post.image_url;
-                        if (post.image_url.startsWith('data:')) {
-                            const base64Data = post.image_url.split(',')[1];
-                            photoSource = { source: Buffer.from(base64Data, 'base64') };
-                        }
-                        else if (post.image_url.startsWith('/uploads/')) {
-                            const fs = require('fs');
-                            const path = require('path');
-                            const filename = post.image_url.split('/').pop();
-                            const localPath = path.join(__dirname, '../../uploads', filename);
-                            if (fs.existsSync(localPath)) {
-                                photoSource = { source: fs.createReadStream(localPath) };
-                            }
-                            else {
-                                console.error(`Local image file not found: ${localPath}`);
-                                photoSource = null;
-                            }
-                        }
-                        else {
-                            // Remote URL
-                            photoSource = post.image_url;
-                        }
-                        if (photoSource) {
-                            const CAPTION_LIMIT = 1024;
-                            if (text.length > CAPTION_LIMIT) {
-                                if (typeof photoSource === 'string' && photoSource.startsWith('http')) {
-                                    // Send as single text with large media preview instead of splitting
-                                    sentMessage = await this.sendTextSplitting(targetChannelId, text, {
-                                        link_preview_options: {
-                                            url: photoSource,
-                                            prefer_large_media: true,
-                                            show_above_text: true,
-                                            is_disabled: false
-                                        }
-                                    });
-                                }
-                                else {
-                                    // Local file / Buffer: try sending as single photo (Premium users/bots have 4096 limit)
-                                    try {
-                                        sentMessage = await telegram_service_1.default.sendPhoto(targetChannelId, photoSource, {
-                                            caption: text,
-                                            parse_mode: 'Markdown'
-                                        });
+                    if (photoSource) {
+                        const CAPTION_LIMIT = 1024;
+                        if (telegramText.length > CAPTION_LIMIT) {
+                            if (typeof photoSource === 'string' && photoSource.startsWith('http')) {
+                                // Send as single text with large media preview instead of splitting
+                                sentMessage = await this.sendTextSplitting(targetChannelId, telegramText, {
+                                    link_preview_options: {
+                                        url: photoSource,
+                                        prefer_large_media: true,
+                                        show_above_text: true,
+                                        is_disabled: false
                                     }
-                                    catch (sendErr) {
-                                        if (this.isCaptionTooLongError(sendErr)) {
-                                            console.warn(`[Publisher] Caption too long for Bot API (${text.length} chars). Splitting into photo + reply.`);
-                                            let splitIndex = text.lastIndexOf('\n', CAPTION_LIMIT);
-                                            if (splitIndex === -1 || splitIndex < CAPTION_LIMIT * 0.5) {
-                                                splitIndex = text.lastIndexOf(' ', CAPTION_LIMIT);
-                                            }
-                                            if (splitIndex === -1) {
-                                                splitIndex = CAPTION_LIMIT;
-                                            }
-                                            const caption = text.substring(0, splitIndex);
-                                            const remainder = text.substring(splitIndex).trim();
-                                            const photoMsg = await telegram_service_1.default.sendPhoto(targetChannelId, photoSource, {
-                                                caption: caption,
-                                                parse_mode: 'Markdown'
-                                            });
-                                            if (remainder.length > 0) {
-                                                // Send overflow as reply to the photo — keeps visual unit intact
-                                                sentMessage = await telegram_service_1.default.sendMessage(targetChannelId, remainder, {
-                                                    parse_mode: 'Markdown',
-                                                    reply_to_message_id: photoMsg?.message_id
-                                                });
-                                            }
-                                            else {
-                                                sentMessage = photoMsg;
-                                            }
-                                        }
-                                        else {
-                                            throw sendErr;
-                                        }
-                                    }
-                                }
-                            }
-                            else {
-                                sentMessage = await telegram_service_1.default.sendPhoto(targetChannelId, photoSource, {
-                                    caption: text,
-                                    parse_mode: 'Markdown'
                                 });
                             }
+                            else {
+                                // Local file / Buffer: try sending as single photo (Premium users/bots have 4096 limit)
+                                try {
+                                    sentMessage = await telegram_service_1.default.sendPhoto(targetChannelId, photoSource, {
+                                        caption: telegramText,
+                                        parse_mode: 'HTML'
+                                    });
+                                }
+                                catch (sendErr) {
+                                    if (this.isCaptionTooLongError(sendErr)) {
+                                        console.warn(`[Publisher] Caption too long for Bot API (${telegramText.length} chars). Splitting into photo + reply.`);
+                                        let splitIndex = telegramText.lastIndexOf('\n', CAPTION_LIMIT);
+                                        if (splitIndex === -1 || splitIndex < CAPTION_LIMIT * 0.5) {
+                                            splitIndex = telegramText.lastIndexOf(' ', CAPTION_LIMIT);
+                                        }
+                                        if (splitIndex === -1) {
+                                            splitIndex = CAPTION_LIMIT;
+                                        }
+                                        const caption = telegramText.substring(0, splitIndex);
+                                        const remainder = telegramText.substring(splitIndex).trim();
+                                        const photoMsg = await telegram_service_1.default.sendPhoto(targetChannelId, photoSource, {
+                                            caption: caption,
+                                            parse_mode: 'HTML'
+                                        });
+                                        if (remainder.length > 0) {
+                                            // Send overflow as reply to the photo — keeps visual unit intact
+                                            sentMessage = await telegram_service_1.default.sendMessage(targetChannelId, remainder, {
+                                                parse_mode: 'HTML',
+                                                reply_to_message_id: photoMsg?.message_id
+                                            });
+                                        }
+                                        else {
+                                            sentMessage = photoMsg;
+                                        }
+                                    }
+                                    else {
+                                        throw sendErr;
+                                    }
+                                }
+                            }
                         }
                         else {
-                            sentMessage = await this.sendTextSplitting(targetChannelId, text);
+                            sentMessage = await telegram_service_1.default.sendPhoto(targetChannelId, photoSource, {
+                                caption: telegramText,
+                                parse_mode: 'HTML'
+                            });
                         }
                     }
                     else {
-                        sentMessage = await this.sendTextSplitting(targetChannelId, text);
+                        sentMessage = await this.sendTextSplitting(targetChannelId, telegramText);
                     }
                     sentMessageId = sentMessage?.message_id;
                 }

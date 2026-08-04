@@ -16,6 +16,7 @@ interface Post {
     generated_text: string | null
     final_text: string | null
     week_id: number
+    week_package_id?: number | null
     image_url?: string | null
     image_prompt?: string | null
     channel_id?: number | null
@@ -225,7 +226,13 @@ export default function PostEditor() {
                 <div className="h-16 px-6 flex items-center justify-between bg-white border-b border-outline-variant/5">
                     <div className="flex items-center gap-4">
                         <button 
-                            onClick={() => navigate(`/v2/weeks/${post.week_id}`)}
+                            onClick={() => {
+                                if (post.week_package_id) {
+                                    navigate(`/v2/weeks/${post.week_package_id}`);
+                                } else {
+                                    navigate('/v2/dashboard');
+                                }
+                            }}
                             className="text-on-surface-variant hover:text-primary"
                         >
                             <span className="material-symbols-outlined text-xl">arrow_back</span>
