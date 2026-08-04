@@ -278,6 +278,8 @@ export default function Settings() {
 
     // Channel State
     const [editingChannelId, setEditingChannelId] = useState<number | null>(null)
+    const [editingChannelName, setEditingChannelName] = useState('')
+    const [editingChannelConfig, setEditingChannelConfig] = useState<any>({})
     const [newChannelType, setNewChannelType] = useState<'telegram' | 'vk' | 'linkedin' | 'ok' | 'habr' | 'vc' | 'zen' | 'threads'>('telegram')
     const [newChannelName, setNewChannelName] = useState('')
     const [newChannelId, setNewChannelId] = useState('')
@@ -390,6 +392,8 @@ export default function Settings() {
 
     const resetChannelForm = () => {
         setEditingChannelId(null)
+        setEditingChannelName('')
+        setEditingChannelConfig({})
         setNewChannelName('')
         setNewChannelId('')
         setNewChannelUsername('')
@@ -618,44 +622,7 @@ export default function Settings() {
     }
 
 
-    const handleStartEditChannel = (channel: any) => {
-        setEditingChannelId(channel.id);
-        setNewChannelType(channel.type);
-        setNewChannelName(channel.name);
-        
-        const conf = channel.config || {};
-        if (channel.type === 'telegram') {
-            setNewChannelId(conf.telegram_channel_id || '');
-            setNewChannelUsername(conf.channel_username || '');
-        } else if (channel.type === 'vk') {
-            setNewChannelId(conf.vk_id || '');
-            setNewChannelApiKey(conf.api_key || '');
-        } else if (channel.type === 'ok') {
-            setNewChannelId(conf.group_id || '');
-            setNewChannelApiKey(conf.access_token || '');
-            setOkAppKey(conf.application_key || '');
-            setOkAppSecret(conf.application_secret_key || '');
-        } else if (channel.type === 'habr') {
-            setNewChannelId(conf.telegram_channel_id === 'habr-channel' ? '' : (conf.telegram_channel_id || ''));
-            setNewChannelApiKey(conf.api_token || '');
-            setWebhookUrl(conf.webhook_url || '');
-            setSessionCookies(conf.cookies || '');
-            setHubIds(Array.isArray(conf.hub_ids) ? conf.hub_ids.join(', ') : '');
-        } else if (channel.type === 'vc') {
-            setNewChannelId(conf.subsite_id || '');
-            setNewChannelApiKey(conf.access_token || '');
-            setWebhookUrl(conf.webhook_url || '');
-        } else if (channel.type === 'zen') {
-            setNewChannelId(conf.channel_id || '');
-            setWebhookUrl(conf.webhook_url || '');
-            setSessionCookies(conf.cookies || '');
-        } else if (channel.type === 'threads') {
-            setNewChannelId(conf.threads_user_id || '');
-            setNewChannelApiKey(conf.access_token || '');
-        }
-    }
-
-    const handleSaveChannel = () => {
+    const handleAddChannel = () => {
         if (!newChannelName) return;
         if (newChannelType !== 'habr' && !newChannelId) return;
 
@@ -697,19 +664,17 @@ export default function Settings() {
             config.access_token = newChannelApiKey;
         }
 
-        if (editingChannelId !== null) {
-            editChannel.mutate({
-                id: editingChannelId,
-                name: newChannelName,
-                config
-            });
-        } else {
-            addChannel.mutate({
-                type: newChannelType,
-                name: newChannelName,
-                config
-            });
-        }
+        addChannel.mutate({
+            type: newChannelType,
+            name: newChannelName,
+            config
+        });
+    }
+
+    const handleStartEditChannel = (channel: any) => {
+        setEditingChannelId(channel.id);
+        setEditingChannelName(channel.name);
+        setEditingChannelConfig(channel.config ? JSON.parse(JSON.stringify(channel.config)) : {});
     }
 
     const resetSkillConnectionForm = () => {
@@ -909,8 +874,8 @@ export default function Settings() {
 
                     <div className="mb-3 p-2" style={{ border: '1px solid var(--border)', borderRadius: '8px' }}>
                         <div className="flex-between mb-3">
-                            <h3 style={{ margin: 0 }}>{editingChannelId !== null ? 'Edit Channel' : 'Add Channel'}</h3>
-                            <select value={newChannelType} onChange={(e: any) => setNewChannelType(e.target.value)} disabled={editingChannelId !== null}>
+                            <h3 style={{ margin: 0 }}>Add Channel</h3>
+                            <select value={newChannelType} onChange={(e: any) => setNewChannelType(e.target.value)}>
                                 <option value="telegram">Telegram</option>
                                 <option value="vk">VKontakte (VK)</option>
                                 <option value="linkedin">LinkedIn</option>
@@ -1152,99 +1117,385 @@ export default function Settings() {
                             )}
                             {newChannelType !== 'linkedin' && (
                                 <div style={{ display: 'flex', alignItems: 'flex-end', gridColumn: '1 / -1' }}>
-                                    <div className="flex" style={{ width: '100%', gap: '0.5rem' }}>
-                                        <button
-                                            className="btn-primary"
-                                            onClick={handleSaveChannel}
-                                            disabled={
-                                                !newChannelName ||
-                                                (newChannelType !== 'habr' && !newChannelId) ||
-                                                (newChannelType === 'vk' && !newChannelApiKey) ||
-                                                (newChannelType === 'ok' && (!newChannelApiKey || !okAppKey || !okAppSecret)) ||
-                                                addChannel.isPending ||
-                                                editChannel.isPending
-                                            }
-                                            style={{ flex: 1 }}
-                                        >
-                                            {editingChannelId !== null ? (editChannel.isPending ? 'Saving...' : 'Save Channel') : (addChannel.isPending ? 'Adding...' : 'Add Channel')}
-                                        </button>
-                                        {editingChannelId !== null && (
-                                            <button
-                                                className="btn-secondary"
-                                                onClick={resetChannelForm}
-                                                style={{ flex: 1 }}
-                                            >
-                                                Cancel
-                                            </button>
-                                        )}
-                                    </div>
+                                    <button
+                                        className="btn-primary"
+                                        onClick={handleAddChannel}
+                                        disabled={
+                                            !newChannelName ||
+                                            (newChannelType !== 'habr' && !newChannelId) ||
+                                            (newChannelType === 'vk' && !newChannelApiKey) ||
+                                            (newChannelType === 'ok' && (!newChannelApiKey || !okAppKey || !okAppSecret)) ||
+                                            addChannel.isPending
+                                        }
+                                        style={{ width: '100%' }}
+                                    >
+                                        {addChannel.isPending ? 'Adding...' : 'Add Channel'}
+                                    </button>
                                 </div>
                             )}
                         </div>
                     </div>
 
                     <div className="grid">
-                        {(projectData as any)?.channels?.map((channel: SocialChannel) => (
-                            <div key={channel.id} className="flex-between p-2" style={{ background: 'var(--bg-tertiary)', borderRadius: '6px', marginBottom: '0.5rem' }}>
-                                <div>
-                                    <div className="flex-center">
-                                        <strong>{channel.name}</strong>
-                                        <span className="badge" style={{ fontSize: '0.7rem', textTransform: 'uppercase' }}>{channel.type}</span>
-                                        {channel.type === 'linkedin' && (
-                                            <span className="badge ml-1" style={{ fontSize: '0.7rem', textTransform: 'uppercase' }}>
-                                                {channel.config?.analytics_scope_enabled ? 'analytics ready' : 'reconnect for analytics'}
+                        {(projectData as any)?.channels?.map((channel: SocialChannel) => {
+                            if (editingChannelId === channel.id) {
+                                return (
+                                    <div key={channel.id} className="mb-3 p-3 border rounded-xl bg-surface-container-low" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', gridColumn: '1 / -1' }}>
+                                        <div className="flex-between">
+                                            <span className="badge" style={{ textTransform: 'uppercase', background: 'var(--primary-container)', color: 'var(--on-primary-container)', fontWeight: 'bold' }}>
+                                                Editing {channel.type}
                                             </span>
+                                            <div className="flex" style={{ gap: '0.5rem' }}>
+                                                <button
+                                                    className="btn-primary"
+                                                    style={{ fontSize: '0.8rem', padding: '0.25rem 0.75rem', height: 'auto' }}
+                                                    onClick={() => {
+                                                        if (!editingChannelName) return alert('Channel Name is required');
+                                                        editChannel.mutate({
+                                                            id: channel.id,
+                                                            name: editingChannelName,
+                                                            config: editingChannelConfig
+                                                        });
+                                                    }}
+                                                    disabled={editChannel.isPending}
+                                                >
+                                                    {editChannel.isPending ? 'Saving...' : 'Save'}
+                                                </button>
+                                                <button
+                                                    className="btn-secondary"
+                                                    style={{ fontSize: '0.8rem', padding: '0.25rem 0.75rem', height: 'auto' }}
+                                                    onClick={() => setEditingChannelId(null)}
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="grid-2" style={{ gap: '0.75rem' }}>
+                                            <div>
+                                                <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Channel Name (Internal)</label>
+                                                <input
+                                                    className="w-full"
+                                                    value={editingChannelName}
+                                                    onChange={e => setEditingChannelName(e.target.value)}
+                                                    placeholder="Channel Name"
+                                                    style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
+                                                />
+                                            </div>
+
+                                            {channel.type === 'telegram' && (
+                                                <>
+                                                    <div>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Telegram Channel ID</label>
+                                                        <input
+                                                            className="w-full"
+                                                            value={editingChannelConfig.telegram_channel_id || ''}
+                                                            onChange={e => setEditingChannelConfig({ ...editingChannelConfig, telegram_channel_id: e.target.value })}
+                                                            placeholder="-100xxxxxxxxx"
+                                                            style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
+                                                        />
+                                                    </div>
+                                                    <div style={{ gridColumn: '1 / -1' }}>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Channel Username/Handle (Optional)</label>
+                                                        <input
+                                                            className="w-full"
+                                                            value={editingChannelConfig.channel_username || ''}
+                                                            onChange={e => setEditingChannelConfig({ ...editingChannelConfig, channel_username: e.target.value })}
+                                                            placeholder="@channelname"
+                                                            style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
+                                                        />
+                                                    </div>
+                                                </>
+                                            )}
+
+                                            {channel.type === 'vk' && (
+                                                <>
+                                                    <div>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>VK Group/Community ID</label>
+                                                        <input
+                                                            className="w-full"
+                                                            value={editingChannelConfig.vk_id || ''}
+                                                            onChange={e => setEditingChannelConfig({ ...editingChannelConfig, vk_id: e.target.value })}
+                                                            placeholder="VK ID"
+                                                            style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Access Token / API Key</label>
+                                                        <input
+                                                            className="w-full"
+                                                            value={editingChannelConfig.api_key || ''}
+                                                            onChange={e => setEditingChannelConfig({ ...editingChannelConfig, api_key: e.target.value })}
+                                                            placeholder="Access Token"
+                                                            style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
+                                                        />
+                                                    </div>
+                                                </>
+                                            )}
+
+                                            {channel.type === 'ok' && (
+                                                <>
+                                                    <div>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>OK Group ID</label>
+                                                        <input
+                                                            className="w-full"
+                                                            value={editingChannelConfig.group_id || ''}
+                                                            onChange={e => setEditingChannelConfig({ ...editingChannelConfig, group_id: e.target.value })}
+                                                            placeholder="OK Group ID"
+                                                            style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Access Token</label>
+                                                        <input
+                                                            className="w-full"
+                                                            value={editingChannelConfig.access_token || ''}
+                                                            onChange={e => setEditingChannelConfig({ ...editingChannelConfig, access_token: e.target.value })}
+                                                            placeholder="Access Token"
+                                                            style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Application Key</label>
+                                                        <input
+                                                            className="w-full"
+                                                            value={editingChannelConfig.application_key || ''}
+                                                            onChange={e => setEditingChannelConfig({ ...editingChannelConfig, application_key: e.target.value })}
+                                                            placeholder="App Key"
+                                                            style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Application Secret Key</label>
+                                                        <input
+                                                            className="w-full"
+                                                            value={editingChannelConfig.application_secret_key || ''}
+                                                            onChange={e => setEditingChannelConfig({ ...editingChannelConfig, application_secret_key: e.target.value })}
+                                                            placeholder="App Secret Key"
+                                                            style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
+                                                        />
+                                                    </div>
+                                                </>
+                                            )}
+
+                                            {channel.type === 'habr' && (
+                                                <>
+                                                    <div>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>API Token</label>
+                                                        <input
+                                                            className="w-full"
+                                                            value={editingChannelConfig.api_token || ''}
+                                                            onChange={e => setEditingChannelConfig({ ...editingChannelConfig, api_token: e.target.value })}
+                                                            placeholder="API Token"
+                                                            style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Channel ID (Optional)</label>
+                                                        <input
+                                                            className="w-full"
+                                                            value={editingChannelConfig.telegram_channel_id || ''}
+                                                            onChange={e => setEditingChannelConfig({ ...editingChannelConfig, telegram_channel_id: e.target.value })}
+                                                            placeholder="Channel ID"
+                                                            style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Hub IDs (comma-separated)</label>
+                                                        <input
+                                                            className="w-full"
+                                                            value={Array.isArray(editingChannelConfig.hub_ids) ? editingChannelConfig.hub_ids.join(', ') : (editingChannelConfig.hub_ids || '')}
+                                                            onChange={e => setEditingChannelConfig({ ...editingChannelConfig, hub_ids: e.target.value.split(',').map((s: string) => s.trim()) })}
+                                                            placeholder="e.g. dev, design"
+                                                            style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Webhook URL</label>
+                                                        <input
+                                                            className="w-full"
+                                                            value={editingChannelConfig.webhook_url || ''}
+                                                            onChange={e => setEditingChannelConfig({ ...editingChannelConfig, webhook_url: e.target.value })}
+                                                            placeholder="Webhook URL"
+                                                            style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
+                                                        />
+                                                    </div>
+                                                    <div style={{ gridColumn: '1 / -1' }}>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Cookies (Raw JSON/String)</label>
+                                                        <textarea
+                                                            className="w-full"
+                                                            value={editingChannelConfig.cookies || ''}
+                                                            onChange={e => setEditingChannelConfig({ ...editingChannelConfig, cookies: e.target.value })}
+                                                            placeholder="Cookies for parser"
+                                                            rows={2}
+                                                            style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
+                                                        />
+                                                    </div>
+                                                </>
+                                            )}
+
+                                            {channel.type === 'vc' && (
+                                                <>
+                                                    <div>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Subsite ID / User ID</label>
+                                                        <input
+                                                            className="w-full"
+                                                            value={editingChannelConfig.subsite_id || ''}
+                                                            onChange={e => setEditingChannelConfig({ ...editingChannelConfig, subsite_id: e.target.value })}
+                                                            placeholder="Subsite ID"
+                                                            style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Access Token (API Key)</label>
+                                                        <input
+                                                            className="w-full"
+                                                            value={editingChannelConfig.access_token || ''}
+                                                            onChange={e => setEditingChannelConfig({ ...editingChannelConfig, access_token: e.target.value })}
+                                                            placeholder="Access Token"
+                                                            style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
+                                                        />
+                                                    </div>
+                                                    <div style={{ gridColumn: '1 / -1' }}>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Webhook URL</label>
+                                                        <input
+                                                            className="w-full"
+                                                            value={editingChannelConfig.webhook_url || ''}
+                                                            onChange={e => setEditingChannelConfig({ ...editingChannelConfig, webhook_url: e.target.value })}
+                                                            placeholder="Webhook URL"
+                                                            style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
+                                                        />
+                                                    </div>
+                                                </>
+                                            )}
+
+                                            {channel.type === 'zen' && (
+                                                <>
+                                                    <div>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Zen Channel ID</label>
+                                                        <input
+                                                            className="w-full"
+                                                            value={editingChannelConfig.channel_id || ''}
+                                                            onChange={e => setEditingChannelConfig({ ...editingChannelConfig, channel_id: e.target.value })}
+                                                            placeholder="Channel ID"
+                                                            style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Webhook URL</label>
+                                                        <input
+                                                            className="w-full"
+                                                            value={editingChannelConfig.webhook_url || ''}
+                                                            onChange={e => setEditingChannelConfig({ ...editingChannelConfig, webhook_url: e.target.value })}
+                                                            placeholder="Webhook URL"
+                                                            style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
+                                                        />
+                                                    </div>
+                                                    <div style={{ gridColumn: '1 / -1' }}>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Cookies (Raw JSON/String)</label>
+                                                        <textarea
+                                                            className="w-full"
+                                                            value={editingChannelConfig.cookies || ''}
+                                                            onChange={e => setEditingChannelConfig({ ...editingChannelConfig, cookies: e.target.value })}
+                                                            placeholder="Cookies"
+                                                            rows={2}
+                                                            style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
+                                                        />
+                                                    </div>
+                                                </>
+                                            )}
+
+                                            {channel.type === 'threads' && (
+                                                <>
+                                                    <div>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Threads User ID</label>
+                                                        <input
+                                                            className="w-full"
+                                                            value={editingChannelConfig.threads_user_id || ''}
+                                                            onChange={e => setEditingChannelConfig({ ...editingChannelConfig, threads_user_id: e.target.value })}
+                                                            placeholder="Threads User ID"
+                                                            style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Access Token</label>
+                                                        <input
+                                                            className="w-full"
+                                                            value={editingChannelConfig.access_token || ''}
+                                                            onChange={e => setEditingChannelConfig({ ...editingChannelConfig, access_token: e.target.value })}
+                                                            placeholder="Access Token"
+                                                            style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
+                                                        />
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <div key={channel.id} className="flex-between p-2" style={{ background: 'var(--bg-tertiary)', borderRadius: '6px', marginBottom: '0.5rem' }}>
+                                    <div>
+                                        <div className="flex-center">
+                                            <strong>{channel.name}</strong>
+                                            <span className="badge" style={{ fontSize: '0.7rem', textTransform: 'uppercase' }}>{channel.type}</span>
+                                            {channel.type === 'linkedin' && (
+                                                <span className="badge ml-1" style={{ fontSize: '0.7rem', textTransform: 'uppercase' }}>
+                                                    {channel.config?.analytics_scope_enabled ? 'analytics ready' : 'reconnect for analytics'}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="text-muted" style={{ fontSize: '0.8rem' }}>
+                                            ID: {channel.config?.telegram_channel_id || channel.config?.vk_id || channel.config?.linkedin_urn || channel.config?.group_id || channel.config?.channel_id || channel.config?.subsite_id}
+                                            {channel.config?.channel_username && ` • @${channel.config.channel_username}`}
+                                        </div>
+                                        {channel.type === 'linkedin' && (
+                                            <div className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                                                {channel.config?.analytics_scope_enabled
+                                                    ? 'This channel token is ready for member post analytics.'
+                                                    : 'Reconnect this channel after approval to enable LinkedIn post analytics.'}
+                                            </div>
                                         )}
                                     </div>
-                                    <div className="text-muted" style={{ fontSize: '0.8rem' }}>
-                                        ID: {channel.config?.telegram_channel_id || channel.config?.vk_id || channel.config?.linkedin_urn || channel.config?.group_id || channel.config?.channel_id || channel.config?.subsite_id}
-                                        {channel.config?.channel_username && ` • @${channel.config.channel_username}`}
-                                    </div>
-                                    {channel.type === 'linkedin' && (
-                                        <div className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
-                                            {channel.config?.analytics_scope_enabled
-                                                ? 'This channel token is ready for member post analytics.'
-                                                : 'Reconnect this channel after approval to enable LinkedIn post analytics.'}
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="flex-center" style={{ gap: '0.5rem' }}>
-                                    {defaultChannelId === String(channel.id) ? (
-                                        <span className="badge" style={{ background: '#027a48', color: '#ffffff', fontSize: '0.75rem', fontWeight: 'bold' }}>Default</span>
-                                    ) : (
+                                    <div className="flex-center" style={{ gap: '0.5rem' }}>
+                                        {defaultChannelId === String(channel.id) ? (
+                                            <span className="badge" style={{ background: '#027a48', color: '#ffffff', fontSize: '0.75rem', fontWeight: 'bold' }}>Default</span>
+                                        ) : (
+                                            <button
+                                                className="btn-secondary"
+                                                style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', height: 'auto' }}
+                                                onClick={() => {
+                                                    if (confirm(`Set ${channel.name} as the default channel? This will also update all existing unpublished posts to this channel.`)) {
+                                                        updateSetting.mutate({ key: 'default_channel_id', value: String(channel.id) });
+                                                    }
+                                                }}
+                                            >
+                                                Set as Default
+                                            </button>
+                                        )}
                                         <button
                                             className="btn-secondary"
-                                            style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', height: 'auto' }}
+                                            style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', height: 'auto', background: 'var(--bg-secondary-container, #e1e0ff)' }}
+                                            onClick={() => handleStartEditChannel(channel)}
+                                        >
+                                            Edit
+                                        </button>
+                                        <button
+                                            className="btn-danger"
+                                            style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', height: 'auto', background: 'var(--error, #ba1a1a)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
                                             onClick={() => {
-                                                if (confirm(`Set ${channel.name} as the default channel? This will also update all existing unpublished posts to this channel.`)) {
-                                                    updateSetting.mutate({ key: 'default_channel_id', value: String(channel.id) });
+                                                if (confirm(`Are you sure you want to delete ${channel.name}?`)) {
+                                                    deleteChannel.mutate(channel.id);
                                                 }
                                             }}
                                         >
-                                            Set as Default
+                                            Delete
                                         </button>
-                                    )}
-                                    <button
-                                        className="btn-secondary"
-                                        style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', height: 'auto', background: 'var(--bg-secondary-container, #e1e0ff)' }}
-                                        onClick={() => handleStartEditChannel(channel)}
-                                    >
-                                        Edit
-                                    </button>
-                                    <button
-                                        className="btn-danger"
-                                        style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', height: 'auto', background: 'var(--error, #ba1a1a)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                                        onClick={() => {
-                                            if (confirm(`Are you sure you want to delete ${channel.name}?`)) {
-                                                deleteChannel.mutate(channel.id);
-                                            }
-                                        }}
-                                    >
-                                        Delete
-                                    </button>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                         {(!projectData || !(projectData as any).channels?.length) && (
                             <p className="text-muted">No channels connected.</p>
                         )}
