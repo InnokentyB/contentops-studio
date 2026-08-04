@@ -15,6 +15,7 @@ import okService from './ok.service';
 import habrService from './habr.service';
 import vcService from './vc.service';
 import dzenService from './dzen.service';
+import threadsService from './threads.service';
 import { parseRecurringTrigger } from './publication_runtime.helpers';
 import { config } from 'dotenv';
 import * as fs from 'fs';
@@ -1448,6 +1449,21 @@ class PublisherService {
             };
         }
 
+        if (channelType === 'threads') {
+            const threadsConfig = channelConfig.raw_account || channelConfig;
+            const threadsUserId = threadsConfig.threads_user_id;
+            const accessToken = threadsConfig.access_token;
+            if (!threadsUserId || !accessToken) {
+                throw new Error('Threads channel config is missing threads_user_id or access_token');
+            }
+
+            const publishedLink = await threadsService.publishPost(threadsUserId, accessToken, text, imageUrl || undefined);
+            return {
+                adapter: 'threads',
+                publishedLink
+            };
+        }
+
         if (channelType === 'vk') {
             const vkConfig = channelConfig.raw_account || channelConfig;
             const vkId = vkConfig.vk_id;
@@ -1716,7 +1732,30 @@ class PublisherService {
                 let publishedLink: string | null = null;
                 let isPublishedViaClient = false;
 
-                if (channel.type === 'vk') {
+                if (channel.type === 'threads') {
+                    logToFile('INFO', `[Publisher] Publishing to Threads for post ${post.id}`);
+                    const threadsConfig = channel.config as any;
+                    const threadsUserId = threadsConfig.threads_user_id;
+                    const accessToken = threadsConfig.access_token;
+
+                    if (!threadsUserId || !accessToken) {
+                        logToFile('ERROR', `Threads config missing user_id/token for post ${post.id}`);
+                        continue;
+                    }
+
+                    try {
+                        publishedLink = await threadsService.publishPost(
+                            threadsUserId,
+                            accessToken,
+                            text,
+                            post.image_url || undefined
+                        );
+                        logToFile('INFO', `[Publisher] Successfully published post ${post.id} to Threads: ${publishedLink}`);
+                    } catch (threadsErr) {
+                        logToFile('ERROR', `[Publisher] Failed to publish post ${post.id} to Threads:`, threadsErr);
+                        continue;
+                    }
+                } else if (channel.type === 'vk') {
                     // VK Publishing Logic
                     logToFile('INFO', `[Publisher] Publishing to VK for post ${post.id}`);
                     const vkConfig = channel.config as any;
@@ -2025,7 +2064,15 @@ class PublisherService {
         let isPublishedViaClient = false;
         let publishWarning: string | undefined;
 
-        if (channel.type === 'vk') {
+        if (channel.type === 'threads') {
+            const threadsConfig = channel.config as any;
+            const threadsUserId = threadsConfig.threads_user_id;
+            const accessToken = threadsConfig.access_token;
+            if (!threadsUserId || !accessToken) {
+                throw new Error(`Threads config missing user_id/token for post ${postId}`);
+            }
+            publishedLink = await threadsService.publishPost(threadsUserId, accessToken, text, post.image_url || undefined);
+        } else if (channel.type === 'vk') {
             const vkConfig = channel.config as any;
             const vkId = vkConfig.vk_id;
             const apiKey = vkConfig.api_key;

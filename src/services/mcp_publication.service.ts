@@ -8,6 +8,7 @@ import okService from './ok.service';
 import habrService from './habr.service';
 import vcService from './vc.service';
 import dzenService from './dzen.service';
+import threadsService from './threads.service';
 import fs from 'fs';
 import path from 'path';
 import { normalizeProjectKind, slugifyProjectName } from '../utils/project.utils';
@@ -1038,6 +1039,14 @@ class McpPublicationService {
             } else if (String(targetChannelId).startsWith('-100') && externalId) {
                 publishedLink = `https://t.me/c/${String(targetChannelId).slice(4)}/${externalId}`;
             }
+        } else if (channel.type === 'threads') {
+            const threadsUserId = config?.threads_user_id;
+            const accessToken = config?.access_token;
+            if (!threadsUserId || !accessToken) {
+                throw new Error(`Threads channel ${channel.id} is missing threads_user_id or access_token`);
+            }
+
+            publishedLink = await threadsService.publishPost(threadsUserId, accessToken, params.text, params.imageUrl);
         } else if (channel.type === 'vk') {
             const vkId = config?.vk_id;
             const apiKey = config?.api_key;

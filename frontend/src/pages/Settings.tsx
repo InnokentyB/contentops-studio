@@ -277,7 +277,7 @@ export default function Settings() {
     const [nativeScheduling, setNativeScheduling] = useState(false)
 
     // Channel State
-    const [newChannelType, setNewChannelType] = useState<'telegram' | 'vk' | 'linkedin' | 'ok' | 'habr' | 'vc' | 'zen'>('telegram')
+    const [newChannelType, setNewChannelType] = useState<'telegram' | 'vk' | 'linkedin' | 'ok' | 'habr' | 'vc' | 'zen' | 'threads'>('telegram')
     const [newChannelName, setNewChannelName] = useState('')
     const [newChannelId, setNewChannelId] = useState('')
     const [newChannelUsername, setNewChannelUsername] = useState('')
@@ -625,6 +625,10 @@ export default function Settings() {
             if (webhookUrl) config.webhook_url = webhookUrl;
             if (sessionCookies) config.cookies = sessionCookies;
             config.vk_id = newChannelId;
+        } else if (newChannelType === 'threads') {
+            if (!newChannelApiKey) return alert('Access Token is required');
+            config.threads_user_id = newChannelId;
+            config.access_token = newChannelApiKey;
         }
 
         addChannel.mutate({
@@ -840,6 +844,7 @@ export default function Settings() {
                                 <option value="habr">Habr</option>
                                 <option value="vc">VC.ru</option>
                                 <option value="zen">Zen (Dzen)</option>
+                                <option value="threads">Threads</option>
                             </select>
                         </div>
 
@@ -1028,6 +1033,26 @@ export default function Settings() {
                                             value={sessionCookies}
                                             onChange={e => setSessionCookies(e.target.value)}
                                             style={{ fontFamily: 'monospace', fontSize: '0.75rem', resize: 'vertical' }}
+                                        />
+                                    </div>
+                                </>
+                            ) : newChannelType === 'threads' ? (
+                                <>
+                                    <div>
+                                        <label>Threads User ID</label>
+                                        <input
+                                            placeholder="e.g. 123456789012345"
+                                            value={newChannelId}
+                                            onChange={e => setNewChannelId(e.target.value)}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label>Access Token (Long-Lived)</label>
+                                        <input
+                                            type="password"
+                                            placeholder="Token..."
+                                            value={newChannelApiKey}
+                                            onChange={e => setNewChannelApiKey(e.target.value)}
                                         />
                                     </div>
                                 </>
