@@ -486,6 +486,20 @@ async function projectRoutes(fastify) {
                 value
             }
         });
+        if (key === 'default_channel_id') {
+            const channelId = parseInt(value);
+            if (!isNaN(channelId)) {
+                await prisma.post.updateMany({
+                    where: {
+                        project_id: projectId,
+                        status: { notIn: ['published', 'publishing'] }
+                    },
+                    data: {
+                        channel_id: channelId
+                    }
+                });
+            }
+        }
         return setting;
     });
     // Get project details

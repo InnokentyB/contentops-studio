@@ -158,6 +158,9 @@ const start = async () => {
             }
         }, 60000);
 
+        // Reset stuck publishing posts
+        await publisherService.resetStuckPublishingPosts().catch(e => console.error('[Startup] Reset stuck posts failed:', e));
+
         // Run once immediately on startup
         publisherService.publishDuePosts().catch(e => console.error('[Scheduler] Initial check failed:', e));
         publisherService.processPublicationOngoingRules().catch(e => console.error('[Scheduler] Initial ongoing-rules check failed:', e));

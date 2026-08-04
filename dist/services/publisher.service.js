@@ -52,6 +52,7 @@ const ok_service_1 = __importDefault(require("./ok.service"));
 const habr_service_1 = __importDefault(require("./habr.service"));
 const vc_service_1 = __importDefault(require("./vc.service"));
 const dzen_service_1 = __importDefault(require("./dzen.service"));
+const threads_service_1 = __importDefault(require("./threads.service"));
 const publication_runtime_helpers_1 = require("./publication_runtime.helpers");
 const dotenv_1 = require("dotenv");
 const fs = __importStar(require("fs"));
@@ -1335,6 +1336,19 @@ class PublisherService {
                 }
             };
         }
+        if (channelType === 'threads') {
+            const threadsConfig = channelConfig.raw_account || channelConfig;
+            const threadsUserId = threadsConfig.threads_user_id;
+            const accessToken = threadsConfig.access_token;
+            if (!threadsUserId || !accessToken) {
+                throw new Error('Threads channel config is missing threads_user_id or access_token');
+            }
+            const publishedLink = await threads_service_1.default.publishPost(threadsUserId, accessToken, text, imageUrl || undefined);
+            return {
+                adapter: 'threads',
+                publishedLink
+            };
+        }
         if (channelType === 'vk') {
             const vkConfig = channelConfig.raw_account || channelConfig;
             const vkId = vkConfig.vk_id;
@@ -1570,7 +1584,25 @@ class PublisherService {
                 let sentMessageId;
                 let publishedLink = null;
                 let isPublishedViaClient = false;
-                if (channel.type === 'vk') {
+                if (channel.type === 'threads') {
+                    logToFile('INFO', `[Publisher] Publishing to Threads for post ${post.id}`);
+                    const threadsConfig = channel.config;
+                    const threadsUserId = threadsConfig.threads_user_id;
+                    const accessToken = threadsConfig.access_token;
+                    if (!threadsUserId || !accessToken) {
+                        logToFile('ERROR', `Threads config missing user_id/token for post ${post.id}`);
+                        continue;
+                    }
+                    try {
+                        publishedLink = await threads_service_1.default.publishPost(threadsUserId, accessToken, text, post.image_url || undefined);
+                        logToFile('INFO', `[Publisher] Successfully published post ${post.id} to Threads: ${publishedLink}`);
+                    }
+                    catch (threadsErr) {
+                        logToFile('ERROR', `[Publisher] Failed to publish post ${post.id} to Threads:`, threadsErr);
+                        continue;
+                    }
+                }
+                else if (channel.type === 'vk') {
                     // VK Publishing Logic
                     logToFile('INFO', `[Publisher] Publishing to VK for post ${post.id}`);
                     const vkConfig = channel.config;
@@ -1803,6 +1835,22 @@ class PublisherService {
         }
         return duePosts.length;
     }
+    async resetStuckPublishingPosts() {
+        try {
+            const result = await prisma.post.updateMany({
+                where: { status: 'publishing' },
+                data: { status: 'scheduled' }
+            });
+            if (result.count > 0) {
+                logToFile('INFO', `[Publisher] Reset ${result.count} stuck 'publishing' posts back to 'scheduled'.`);
+            }
+            return result.count;
+        }
+        catch (e) {
+            logToFile('ERROR', '[Publisher] Failed to reset stuck publishing posts:', e);
+            return 0;
+        }
+    }
     /**
      * Checks whether the MTProto (GramJS) client can connect for a given project.
      * Returns true if the session is active and the connection was successful.
@@ -1857,7 +1905,16 @@ class PublisherService {
             let publishedLink = null;
             let isPublishedViaClient = false;
             let publishWarning;
-            if (channel.type === 'vk') {
+            if (channel.type === 'threads') {
+                const threadsConfig = channel.config;
+                const threadsUserId = threadsConfig.threads_user_id;
+                const accessToken = threadsConfig.access_token;
+                if (!threadsUserId || !accessToken) {
+                    throw new Error(`Threads config missing user_id/token for post ${postId}`);
+                }
+                publishedLink = await threads_service_1.default.publishPost(threadsUserId, accessToken, text, post.image_url || undefined);
+            }
+            else if (channel.type === 'vk') {
                 const vkConfig = channel.config;
                 const vkId = vkConfig.vk_id;
                 const apiKey = vkConfig.api_key;

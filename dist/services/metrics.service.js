@@ -157,7 +157,18 @@ class MetricsService {
                     continue;
                 let newMetrics = null;
                 try {
-                    if (channel.type === 'vk') {
+                    if (channel.type === 'threads') {
+                        const config = channel.config;
+                        if (config.access_token && post.published_link) {
+                            // Extract post ID from published link e.g. https://www.threads.net/post/123456
+                            const match = post.published_link.match(/post\/([^\/]+)/);
+                            if (match) {
+                                const threadsService = require('./threads.service').default;
+                                newMetrics = await threadsService.getMetrics(match[1], config.access_token);
+                            }
+                        }
+                    }
+                    else if (channel.type === 'vk') {
                         const config = channel.config;
                         if (config.vk_id && config.api_key && post.published_link) {
                             // Extract post ID from published link e.g. https://vk.com/wall-1234_567 

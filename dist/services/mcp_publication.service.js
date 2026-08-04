@@ -46,6 +46,7 @@ const ok_service_1 = __importDefault(require("./ok.service"));
 const habr_service_1 = __importDefault(require("./habr.service"));
 const vc_service_1 = __importDefault(require("./vc.service"));
 const dzen_service_1 = __importDefault(require("./dzen.service"));
+const threads_service_1 = __importDefault(require("./threads.service"));
 const path_1 = __importDefault(require("path"));
 const project_utils_1 = require("../utils/project.utils");
 function resolveTaskScheduleAt(item) {
@@ -874,6 +875,14 @@ class McpPublicationService {
             else if (String(targetChannelId).startsWith('-100') && externalId) {
                 publishedLink = `https://t.me/c/${String(targetChannelId).slice(4)}/${externalId}`;
             }
+        }
+        else if (channel.type === 'threads') {
+            const threadsUserId = config?.threads_user_id;
+            const accessToken = config?.access_token;
+            if (!threadsUserId || !accessToken) {
+                throw new Error(`Threads channel ${channel.id} is missing threads_user_id or access_token`);
+            }
+            publishedLink = await threads_service_1.default.publishPost(threadsUserId, accessToken, params.text, params.imageUrl);
         }
         else if (channel.type === 'vk') {
             const vkId = config?.vk_id;

@@ -445,9 +445,6 @@ class PublicationPlanService {
         const resolvedAsset = typeof file?.url_ref === 'string' && plan.assets?.[file.url_ref]
             ? plan.assets[file.url_ref]
             : (resolvedAssetRef ? plan.assets[resolvedAssetRef] : null);
-        const directInlineContent = typeof resolvedAsset?.content === 'string'
-            ? resolvedAsset.content
-            : null;
         const assetCandidate = resolvedAsset && typeof resolvedAsset === 'object'
             ? resolvedAsset
             : (resolvedRef && typeof resolvedRef === 'object' ? resolvedRef : null);
@@ -455,6 +452,9 @@ class PublicationPlanService {
             ? file.path.trim()
             : (typeof assetCandidate?.path === 'string' && assetCandidate.path.trim() ? assetCandidate.path.trim() : null);
         const resolvedUrl = assetCandidate?.target_url || (typeof resolvedRef === 'string' ? resolvedRef : file?.url || null);
+        const directInlineContent = typeof resolvedAsset?.content === 'string'
+            ? resolvedAsset.content
+            : (resolvedUrl ? (plan._fetched_url_contents?.[resolvedUrl] || null) : null);
         return {
             relativePath,
             resolvedUrl,
@@ -939,12 +939,71 @@ class PublicationPlanService {
         }
         return snapshots;
     }
+    async preloadPlanUrlContents(plan) {
+        const fetched = {};
+        const urlsToFetch = new Set();
+        // 1. Gather URLs from assets
+        if (plan.assets) {
+            for (const ref of Object.keys(plan.assets)) {
+                const asset = plan.assets[ref];
+                if (asset) {
+                    const assetUrl = typeof asset?.url === 'string'
+                        ? asset.url
+                        : (typeof asset?.target_url === 'string' ? asset.target_url : null);
+                    if (assetUrl && assetUrl.startsWith('http')) {
+                        urlsToFetch.add(assetUrl);
+                    }
+                }
+            }
+        }
+        // 2. Gather URLs from content_files in actions
+        if (plan.actions) {
+            for (const action of plan.actions) {
+                const contentFiles = Array.isArray(action?.content_files) ? action.content_files : [];
+                for (const file of contentFiles) {
+                    const fileUrl = typeof file?.url === 'string' ? file.url : null;
+                    if (fileUrl && fileUrl.startsWith('http')) {
+                        urlsToFetch.add(fileUrl);
+                    }
+                    if (file?.url_ref && typeof file.url_ref === 'string' && file.url_ref.startsWith('http')) {
+                        urlsToFetch.add(file.url_ref);
+                    }
+                }
+            }
+        }
+        if (urlsToFetch.size === 0) {
+            return;
+        }
+        console.log(`[Plan Preloader] Fetching ${urlsToFetch.size} remote URLs in plan...`);
+        // Fetch in parallel with a timeout
+        await Promise.all(Array.from(urlsToFetch).map(async (url) => {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+                const response = await fetch(url, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (response.ok) {
+                    const text = await response.text();
+                    fetched[url] = text;
+                    console.log(`[Plan Preloader] Successfully fetched ${url} (${text.length} bytes)`);
+                }
+                else {
+                    console.warn(`[Plan Preloader] Failed to fetch ${url}: ${response.statusText}`);
+                }
+            }
+            catch (err) {
+                console.error(`[Plan Preloader] Error fetching ${url}:`, err.message);
+            }
+        }));
+        plan._fetched_url_contents = fetched;
+    }
     async importPlan(params) {
         const importMode = params.importMode || 'delta_safe';
         const rawPlan = params.rawPlan
             ? params.rawPlan
             : fs.readFileSync(params.planPath || '', 'utf8');
         const incomingPlan = this.parsePlan(rawPlan);
+        await this.preloadPlanUrlContents(incomingPlan);
         let plan = incomingPlan;
         const incomingAssetRefs = Object.keys(incomingPlan.assets || {});
         const incomingActions = Array.isArray(incomingPlan.actions) ? incomingPlan.actions : [];
@@ -970,6 +1029,7 @@ class PublicationPlanService {
                     .map((item) => item.assets?.action)
                     .filter(Boolean);
                 plan = this.mergePlansForDelta(storedPlan, plan);
+                plan._fetched_url_contents = incomingPlan._fetched_url_contents;
             }
         }
         const mergedActionMap = new Map((plan.actions || [])
@@ -1433,10 +1493,12 @@ class PublicationPlanService {
                 };
                 continue;
             }
-            const inlineContent = typeof asset?.content === 'string' ? asset.content : null;
             const assetUrl = typeof asset?.url === 'string'
                 ? asset.url
                 : (typeof asset?.target_url === 'string' ? asset.target_url : null);
+            const inlineContent = typeof asset?.content === 'string'
+                ? asset.content
+                : (assetUrl ? (plan._fetched_url_contents?.[assetUrl] || null) : null);
             if (inlineContent) {
                 snapshots[ref] = {
                     ref,
@@ -1700,6 +1762,11 @@ class PublicationPlanService {
                     content = resolved.content;
                     contentSource = 'filesystem';
                 }
+            }
+            if (!content && resolvedUrl && plan._fetched_url_contents?.[resolvedUrl]) {
+                content = plan._fetched_url_contents[resolvedUrl];
+                exists = true;
+                contentSource = 'url_fetch';
             }
             if (!content && snapshot?.content) {
                 content = snapshot.content;

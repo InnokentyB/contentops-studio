@@ -595,18 +595,34 @@ Output JSON Format (Strict):
         console.log(`[MultiAgent] Running Image Critic for project ${projectId}`);
         const config = await this.getAgentConfig(projectId, 'image_critic');
         const systemPrompt = config.prompt || this.DEFAULT_IMAGE_CRITIC_PROMPT;
-        if (!this.openai)
+        const client = config.apiKey ? new openai_1.default({ apiKey: config.apiKey }) : this.openai;
+        if (!client)
             throw new Error("OpenAI not initialized");
+        let finalImageUrl = imageUrl;
+        if (imageUrl.startsWith('/uploads/')) {
+            const fs = require('fs');
+            const path = require('path');
+            const filename = imageUrl.replace('/uploads/', '');
+            const localFilePath = path.join(process.cwd(), 'uploads', filename);
+            if (fs.existsSync(localFilePath)) {
+                const buffer = fs.readFileSync(localFilePath);
+                const base64Data = buffer.toString('base64');
+                finalImageUrl = `data:image/png;base64,${base64Data}`;
+            }
+            else {
+                console.warn(`[MultiAgent] Local file not found: ${localFilePath}`);
+            }
+        }
         try {
-            const response = await this.openai.chat.completions.create({
-                model: 'gpt-4o', // Must use a vision-capable model
+            const response = await client.chat.completions.create({
+                model: config.model || 'gpt-4o', // Must use a vision-capable model
                 messages: [
                     { role: 'system', content: systemPrompt },
                     {
                         role: 'user',
                         content: [
                             { type: 'text', text: `Original Post Text Context:\n${postText.substring(0, 800)}...` },
-                            { type: 'image_url', image_url: { url: imageUrl } }
+                            { type: 'image_url', image_url: { url: finalImageUrl } }
                         ]
                     }
                 ],
@@ -729,8 +745,13 @@ Output JSON Format (Strict):
             defaultPrompt = this.DEFAULT_SEQ_FIXER_PROMPT;
         }
         let apiKey = await this.getPrompt(projectId, apiKeyKey, '');
-        const model = await this.getPrompt(projectId, modelKey, 'gpt-4o');
+        let model = await this.getPrompt(projectId, modelKey, 'gpt-4o');
         const prompt = await this.getPrompt(projectId, promptKey, defaultPrompt);
+        // Normalize invalid models (like gpt-5.4-pro or other test/invalid model strings)
+        if (model && (model.toLowerCase().includes('gpt-5') || (!model.startsWith('gpt-') && !model.startsWith('o1-') && !model.startsWith('o3-') && !model.startsWith('claude-') && !model.startsWith('gemini-')))) {
+            console.warn(`[MultiAgent] Invalid model name "${model}" resolved. Defaulting to "gpt-4o".`);
+            model = 'gpt-4o';
+        }
         // Resolve Provider Key if it starts with pk_
         if (apiKey && apiKey.startsWith('pk_')) {
             const keyId = parseInt(apiKey.substring(3));

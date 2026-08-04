@@ -327,6 +327,8 @@ export default function Settings() {
         enabled: !!currentProject && (activeTab === 'general' || activeTab === 'team' || activeTab === 'channels')
     })
 
+    const defaultChannelId = (projectData as any)?.settings?.find((s: any) => s.key === 'default_channel_id')?.value;
+
     const { data: agents } = useQuery<AgentConfig[]>({
         queryKey: ['agents', currentProject?.id],
         queryFn: () => api.get('/api/settings/agents'),
@@ -1122,7 +1124,23 @@ export default function Settings() {
                                         </div>
                                     )}
                                 </div>
-                                {/* <button className="btn-danger">Disconnect</button> */ /* Delete endpoint not yet implemented */}
+                                <div className="flex-center" style={{ gap: '0.5rem' }}>
+                                    {defaultChannelId === String(channel.id) ? (
+                                        <span className="badge" style={{ background: '#027a48', color: '#ffffff', fontSize: '0.75rem', fontWeight: 'bold' }}>Default</span>
+                                    ) : (
+                                        <button
+                                            className="btn-secondary"
+                                            style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', height: 'auto' }}
+                                            onClick={() => {
+                                                if (confirm(`Set ${channel.name} as the default channel? This will also update all existing unpublished posts to this channel.`)) {
+                                                    updateSetting.mutate({ key: 'default_channel_id', value: String(channel.id) });
+                                                }
+                                            }}
+                                        >
+                                            Set as Default
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         ))}
                         {(!projectData || !(projectData as any).channels?.length) && (

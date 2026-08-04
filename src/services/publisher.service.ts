@@ -2002,6 +2002,22 @@ class PublisherService {
         return duePosts.length;
     }
 
+    async resetStuckPublishingPosts() {
+        try {
+            const result = await prisma.post.updateMany({
+                where: { status: 'publishing' },
+                data: { status: 'scheduled' }
+            });
+            if (result.count > 0) {
+                logToFile('INFO', `[Publisher] Reset ${result.count} stuck 'publishing' posts back to 'scheduled'.`);
+            }
+            return result.count;
+        } catch (e) {
+            logToFile('ERROR', '[Publisher] Failed to reset stuck publishing posts:', e);
+            return 0;
+        }
+    }
+
     /**
      * Checks whether the MTProto (GramJS) client can connect for a given project.
      * Returns true if the session is active and the connection was successful.

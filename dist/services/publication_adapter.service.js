@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 class PublicationAdapterService {
     supportsDirectExecution(account) {
-        return ['telegram', 'vk', 'linkedin', 'reddit', 'tilda', 'ok', 'odnoklassniki', 'habr', 'habr_article', 'vc', 'vc_article', 'zen', 'zen_article', 'dzen'].includes(account.platform);
+        return ['telegram', 'vk', 'linkedin', 'reddit', 'tilda', 'ok', 'odnoklassniki', 'habr', 'habr_article', 'vc', 'vc_article', 'zen', 'zen_article', 'dzen', 'threads'].includes(account.platform);
     }
     inferExecutionMode(account, action) {
         if (action.human_review) {
@@ -14,7 +14,7 @@ class PublicationAdapterService {
         if (account.platform === 'google_search_console') {
             return 'automated';
         }
-        if (['reddit', 'telegram', 'vk', 'linkedin', 'ok', 'odnoklassniki', 'habr', 'habr_article', 'vc', 'vc_article', 'zen', 'zen_article', 'dzen'].includes(account.platform)) {
+        if (['reddit', 'telegram', 'vk', 'linkedin', 'ok', 'odnoklassniki', 'habr', 'habr_article', 'vc', 'vc_article', 'zen', 'zen_article', 'dzen', 'threads'].includes(account.platform)) {
             return action.human_review ? 'manual' : 'automated';
         }
         return 'manual';
@@ -33,9 +33,9 @@ class PublicationAdapterService {
             usage_rule: account.usage_rule || null,
             capability_flags: {
                 api_publish: account.cms_api_enabled === true
-                    || ['telegram', 'vk', 'linkedin', 'reddit', 'google_search_console', 'tilda', 'ok', 'odnoklassniki', 'habr', 'habr_article', 'vc', 'vc_article', 'zen', 'zen_article', 'dzen'].includes(account.platform),
-                manual_handoff: account.platform === 'linkedin' || account.platform === 'medium' || account.platform === 'indiehackers' || account.platform === 'reddit',
-                analytics_supported: account.platform === 'linkedin' || account.platform === 'reddit' || account.platform === 'google_search_console',
+                    || ['telegram', 'vk', 'linkedin', 'reddit', 'google_search_console', 'tilda', 'ok', 'odnoklassniki', 'habr', 'habr_article', 'vc', 'vc_article', 'zen', 'zen_article', 'dzen', 'threads'].includes(account.platform),
+                manual_handoff: account.platform === 'linkedin' || account.platform === 'medium' || account.platform === 'indiehackers' || account.platform === 'reddit' || account.platform === 'threads',
+                analytics_supported: account.platform === 'linkedin' || account.platform === 'reddit' || account.platform === 'google_search_console' || account.platform === 'threads',
                 auto_canvas_generation: account.planner_generation_mode === 'auto_canvas'
             },
             workflow_mode: account.planner_generation_mode || 'standard',

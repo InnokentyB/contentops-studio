@@ -47,11 +47,31 @@ class PlannerService {
     async generateSlots(weekId: number, projectId: number, start: Date, count: number = 14, startIndex: number = 0) {
         const slots = [];
 
-        // Fetch default channel (Telegram)
-        const channel = await prisma.socialChannel.findFirst({
-            where: { project_id: projectId, type: 'telegram' }
+        // Fetch default channel setting
+        const defaultChannelSetting = await prisma.projectSettings.findFirst({
+            where: { project_id: projectId, key: 'default_channel_id' }
         });
-        const channelId = channel ? channel.id : null;
+
+        let channelId = null;
+        if (defaultChannelSetting?.value) {
+            const configuredChannelId = parseInt(defaultChannelSetting.value);
+            if (!isNaN(configuredChannelId)) {
+                const exists = await prisma.socialChannel.findUnique({
+                    where: { id: configuredChannelId, project_id: projectId }
+                });
+                if (exists) {
+                    channelId = configuredChannelId;
+                }
+            }
+        }
+
+        if (!channelId) {
+            // Fallback to default channel (Telegram)
+            const channel = await prisma.socialChannel.findFirst({
+                where: { project_id: projectId, type: 'telegram' }
+            });
+            channelId = channel ? channel.id : null;
+        }
 
         for (let i = 0; i < count; i++) {
             // Distribute 2 slots per day for 7 days (Total 14)

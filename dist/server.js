@@ -146,6 +146,8 @@ const start = async () => {
                 console.error('[Scheduler] Error publishing due posts:', e);
             }
         }, 60000);
+        // Reset stuck publishing posts
+        await publisher_service_1.default.resetStuckPublishingPosts().catch(e => console.error('[Startup] Reset stuck posts failed:', e));
         // Run once immediately on startup
         publisher_service_1.default.publishDuePosts().catch(e => console.error('[Scheduler] Initial check failed:', e));
         publisher_service_1.default.processPublicationOngoingRules().catch(e => console.error('[Scheduler] Initial ongoing-rules check failed:', e));
@@ -167,13 +169,18 @@ const start = async () => {
             metricsService.collectAllMetrics().catch((e) => console.error('Initial metrics check failed:', e));
         }, 30000); // 30 seconds after boot
         // Initialize Background Workers (BullMQ)
-        console.log('[Queue] Initializing background workers...');
-        // const { createTopicWorker } = require('./queue/workers/topicWorker');
-        // const { createPostWorker } = require('./queue/workers/postWorker');
-        // const { createImageWorker } = require('./queue/workers/imageWorker');
-        // const topicWorker = createTopicWorker();
-        // const postWorker = createPostWorker();
-        // const imageWorker = createImageWorker();
+        let topicWorker = null;
+        let postWorker = null;
+        let imageWorker = null;
+        if (process.env.QUEUE_WORKERS_ENABLED !== 'false') {
+            console.log('[Queue] Initializing background workers...');
+            const { createTopicWorker } = require('./queue/workers/topicWorker');
+            const { createPostWorker } = require('./queue/workers/postWorker');
+            const { createImageWorker } = require('./queue/workers/imageWorker');
+            topicWorker = createTopicWorker();
+            postWorker = createPostWorker();
+            imageWorker = createImageWorker();
+        }
         // Graceful Shutdown block for Railway deployments
         const gracefulShutdown = async (signal) => {
             console.log(`\n[Server] Received ${signal}. Starting graceful shutdown...`);
@@ -182,11 +189,14 @@ const start = async () => {
             console.log('[Server] Fastify closed.');
             // 2. Shut down workers (Wait for active jobs to finish)
             console.log('[Queue] Gracefully shutting down workers (Waiting for active jobs)...');
-            // await Promise.allSettled([
-            //     topicWorker.close(),
-            //     postWorker.close(),
-            //     imageWorker.close()
-            // ]);
+            const workersToClose = [];
+            if (topicWorker)
+                workersToClose.push(topicWorker.close());
+            if (postWorker)
+                workersToClose.push(postWorker.close());
+            if (imageWorker)
+                workersToClose.push(imageWorker.close());
+            await Promise.allSettled(workersToClose);
             console.log('[Queue] Workers successfully shut down.');
             // 3. Close generic Redis
             const { connection } = require('./queue/index');

@@ -58,3 +58,19 @@
 .card { @apply bg-surface-container-lowest p-6 rounded-xl shadow-sm border border-outline-variant/10; }
 .badge { @apply inline-block px-2 py-0.5 rounded-full text-[10px] font-bold; }
 
+/* Custom Success State Utilities */
+.bg-success {
+  background-color: #027a48 !important;
+}
+.bg-success\/10 {
+  background-color: rgba(2, 122, 72, 0.1) !important;
+}
+.text-success {
+  color: #027a48 !important;
+}
+.shadow-success\/20 {
+  --tw-shadow-color: rgba(2, 122, 72, 0.2) !important;
+  --tw-shadow: 0 10px 15px -3px var(--tw-shadow-color), 0 4px 6px -4px var(--tw-shadow-color) !important;
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow) !important;
+}
+
