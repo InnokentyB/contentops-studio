@@ -836,6 +836,60 @@ export default async function projectRoutes(fastify: FastifyInstance) {
         return channel;
     });
 
+    // Edit channel
+    fastify.put('/api/projects/:id/channels/:channelId', async (request, reply) => {
+        const user = (request as any).user;
+        const { id, channelId } = request.params as any;
+        const { name, config } = request.body as any;
+        const projectId = parseInt(id);
+        const parsedChannelId = parseInt(channelId);
+
+        const hasAccess = await authService.hasProjectAccess(user.id, projectId, 'editor');
+        if (!hasAccess) {
+            reply.code(403).send({ error: 'No access' });
+            return;
+        }
+
+        const channel = await prisma.socialChannel.update({
+            where: { id: parsedChannelId, project_id: projectId },
+            data: {
+                name,
+                config
+            }
+        });
+
+        return channel;
+    });
+
+    // Delete channel
+    fastify.delete('/api/projects/:id/channels/:channelId', async (request, reply) => {
+        const user = (request as any).user;
+        const { id, channelId } = request.params as any;
+        const projectId = parseInt(id);
+        const parsedChannelId = parseInt(channelId);
+
+        const hasAccess = await authService.hasProjectAccess(user.id, projectId, 'editor');
+        if (!hasAccess) {
+            reply.code(403).send({ error: 'No access' });
+            return;
+        }
+
+        const defaultChannelSetting = await prisma.projectSettings.findFirst({
+            where: { project_id: projectId, key: 'default_channel_id', value: String(parsedChannelId) }
+        });
+        if (defaultChannelSetting) {
+            await prisma.projectSettings.delete({
+                where: { id: defaultChannelSetting.id }
+            });
+        }
+
+        await prisma.socialChannel.delete({
+            where: { id: parsedChannelId, project_id: projectId }
+        });
+
+        return { success: true };
+    });
+
     fastify.post('/api/projects/:id/channels/:channelId/manual-content', async (request, reply) => {
         const user = (request as any).user;
         const { id, channelId } = request.params as any;

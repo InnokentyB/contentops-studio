@@ -277,6 +277,7 @@ export default function Settings() {
     const [nativeScheduling, setNativeScheduling] = useState(false)
 
     // Channel State
+    const [editingChannelId, setEditingChannelId] = useState<number | null>(null)
     const [newChannelType, setNewChannelType] = useState<'telegram' | 'vk' | 'linkedin' | 'ok' | 'habr' | 'vc' | 'zen' | 'threads'>('telegram')
     const [newChannelName, setNewChannelName] = useState('')
     const [newChannelId, setNewChannelId] = useState('')
@@ -387,20 +388,46 @@ export default function Settings() {
         }
     })
 
+    const resetChannelForm = () => {
+        setEditingChannelId(null)
+        setNewChannelName('')
+        setNewChannelId('')
+        setNewChannelUsername('')
+        setNewChannelApiKey('')
+        setSessionCookies('')
+        setHubIds('')
+        setWebhookUrl('')
+        setOkAppKey('')
+        setOkAppSecret('')
+    }
+
     const addChannel = useMutation({
         mutationFn: (data: { type: string, name: string, config: any }) => api.post(`/api/projects/${currentProject!.id}/channels`, data),
         onSuccess: () => {
-            setNewChannelName('')
-            setNewChannelId('')
-            setNewChannelUsername('')
-            setNewChannelApiKey('')
-            setSessionCookies('')
-            setHubIds('')
-            setWebhookUrl('')
+            resetChannelForm()
             queryClient.invalidateQueries({ queryKey: ['project'] })
             alert('Channel added')
         },
         onError: (err: any) => alert(err.message || 'Failed to add channel')
+    })
+
+    const editChannel = useMutation({
+        mutationFn: (data: { id: number, name: string, config: any }) => api.put(`/api/projects/${currentProject!.id}/channels/${data.id}`, { name: data.name, config: data.config }),
+        onSuccess: () => {
+            resetChannelForm()
+            queryClient.invalidateQueries({ queryKey: ['project'] })
+            alert('Channel updated')
+        },
+        onError: (err: any) => alert(err.message || 'Failed to update channel')
+    })
+
+    const deleteChannel = useMutation({
+        mutationFn: (channelId: number) => api.delete(`/api/projects/${currentProject!.id}/channels/${channelId}`),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['project'] })
+            alert('Channel deleted')
+        },
+        onError: (err: any) => alert(err.message || 'Failed to delete channel')
     })
 
     // Note: Delete channel endpoint might need to be added or we just hide it?
@@ -591,7 +618,44 @@ export default function Settings() {
     }
 
 
-    const handleAddChannel = () => {
+    const handleStartEditChannel = (channel: any) => {
+        setEditingChannelId(channel.id);
+        setNewChannelType(channel.type);
+        setNewChannelName(channel.name);
+        
+        const conf = channel.config || {};
+        if (channel.type === 'telegram') {
+            setNewChannelId(conf.telegram_channel_id || '');
+            setNewChannelUsername(conf.channel_username || '');
+        } else if (channel.type === 'vk') {
+            setNewChannelId(conf.vk_id || '');
+            setNewChannelApiKey(conf.api_key || '');
+        } else if (channel.type === 'ok') {
+            setNewChannelId(conf.group_id || '');
+            setNewChannelApiKey(conf.access_token || '');
+            setOkAppKey(conf.application_key || '');
+            setOkAppSecret(conf.application_secret_key || '');
+        } else if (channel.type === 'habr') {
+            setNewChannelId(conf.telegram_channel_id === 'habr-channel' ? '' : (conf.telegram_channel_id || ''));
+            setNewChannelApiKey(conf.api_token || '');
+            setWebhookUrl(conf.webhook_url || '');
+            setSessionCookies(conf.cookies || '');
+            setHubIds(Array.isArray(conf.hub_ids) ? conf.hub_ids.join(', ') : '');
+        } else if (channel.type === 'vc') {
+            setNewChannelId(conf.subsite_id || '');
+            setNewChannelApiKey(conf.access_token || '');
+            setWebhookUrl(conf.webhook_url || '');
+        } else if (channel.type === 'zen') {
+            setNewChannelId(conf.channel_id || '');
+            setWebhookUrl(conf.webhook_url || '');
+            setSessionCookies(conf.cookies || '');
+        } else if (channel.type === 'threads') {
+            setNewChannelId(conf.threads_user_id || '');
+            setNewChannelApiKey(conf.access_token || '');
+        }
+    }
+
+    const handleSaveChannel = () => {
         if (!newChannelName) return;
         if (newChannelType !== 'habr' && !newChannelId) return;
 
@@ -633,11 +697,19 @@ export default function Settings() {
             config.access_token = newChannelApiKey;
         }
 
-        addChannel.mutate({
-            type: newChannelType,
-            name: newChannelName,
-            config
-        });
+        if (editingChannelId !== null) {
+            editChannel.mutate({
+                id: editingChannelId,
+                name: newChannelName,
+                config
+            });
+        } else {
+            addChannel.mutate({
+                type: newChannelType,
+                name: newChannelName,
+                config
+            });
+        }
     }
 
     const resetSkillConnectionForm = () => {
@@ -837,8 +909,8 @@ export default function Settings() {
 
                     <div className="mb-3 p-2" style={{ border: '1px solid var(--border)', borderRadius: '8px' }}>
                         <div className="flex-between mb-3">
-                            <h3 style={{ margin: 0 }}>Add Channel</h3>
-                            <select value={newChannelType} onChange={(e: any) => setNewChannelType(e.target.value)}>
+                            <h3 style={{ margin: 0 }}>{editingChannelId !== null ? 'Edit Channel' : 'Add Channel'}</h3>
+                            <select value={newChannelType} onChange={(e: any) => setNewChannelType(e.target.value)} disabled={editingChannelId !== null}>
                                 <option value="telegram">Telegram</option>
                                 <option value="vk">VKontakte (VK)</option>
                                 <option value="linkedin">LinkedIn</option>
@@ -1080,20 +1152,32 @@ export default function Settings() {
                             )}
                             {newChannelType !== 'linkedin' && (
                                 <div style={{ display: 'flex', alignItems: 'flex-end', gridColumn: '1 / -1' }}>
-                                    <button
-                                        className="btn-primary"
-                                        onClick={handleAddChannel}
-                                        disabled={
-                                            !newChannelName ||
-                                            (newChannelType !== 'habr' && !newChannelId) ||
-                                            (newChannelType === 'vk' && !newChannelApiKey) ||
-                                            (newChannelType === 'ok' && (!newChannelApiKey || !okAppKey || !okAppSecret)) ||
-                                            addChannel.isPending
-                                        }
-                                        style={{ width: '100%' }}
-                                    >
-                                        {addChannel.isPending ? 'Adding...' : 'Add Channel'}
-                                    </button>
+                                    <div className="flex" style={{ width: '100%', gap: '0.5rem' }}>
+                                        <button
+                                            className="btn-primary"
+                                            onClick={handleSaveChannel}
+                                            disabled={
+                                                !newChannelName ||
+                                                (newChannelType !== 'habr' && !newChannelId) ||
+                                                (newChannelType === 'vk' && !newChannelApiKey) ||
+                                                (newChannelType === 'ok' && (!newChannelApiKey || !okAppKey || !okAppSecret)) ||
+                                                addChannel.isPending ||
+                                                editChannel.isPending
+                                            }
+                                            style={{ flex: 1 }}
+                                        >
+                                            {editingChannelId !== null ? (editChannel.isPending ? 'Saving...' : 'Save Channel') : (addChannel.isPending ? 'Adding...' : 'Add Channel')}
+                                        </button>
+                                        {editingChannelId !== null && (
+                                            <button
+                                                className="btn-secondary"
+                                                onClick={resetChannelForm}
+                                                style={{ flex: 1 }}
+                                            >
+                                                Cancel
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -1140,6 +1224,24 @@ export default function Settings() {
                                             Set as Default
                                         </button>
                                     )}
+                                    <button
+                                        className="btn-secondary"
+                                        style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', height: 'auto', background: 'var(--bg-secondary-container, #e1e0ff)' }}
+                                        onClick={() => handleStartEditChannel(channel)}
+                                    >
+                                        Edit
+                                    </button>
+                                    <button
+                                        className="btn-danger"
+                                        style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', height: 'auto', background: 'var(--error, #ba1a1a)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                                        onClick={() => {
+                                            if (confirm(`Are you sure you want to delete ${channel.name}?`)) {
+                                                deleteChannel.mutate(channel.id);
+                                            }
+                                        }}
+                                    >
+                                        Delete
+                                    </button>
                                 </div>
                             </div>
                         ))}

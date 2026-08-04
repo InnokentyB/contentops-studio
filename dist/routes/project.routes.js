@@ -712,6 +712,51 @@ async function projectRoutes(fastify) {
         });
         return channel;
     });
+    // Edit channel
+    fastify.put('/api/projects/:id/channels/:channelId', async (request, reply) => {
+        const user = request.user;
+        const { id, channelId } = request.params;
+        const { name, config } = request.body;
+        const projectId = parseInt(id);
+        const parsedChannelId = parseInt(channelId);
+        const hasAccess = await auth_service_1.default.hasProjectAccess(user.id, projectId, 'editor');
+        if (!hasAccess) {
+            reply.code(403).send({ error: 'No access' });
+            return;
+        }
+        const channel = await prisma.socialChannel.update({
+            where: { id: parsedChannelId, project_id: projectId },
+            data: {
+                name,
+                config
+            }
+        });
+        return channel;
+    });
+    // Delete channel
+    fastify.delete('/api/projects/:id/channels/:channelId', async (request, reply) => {
+        const user = request.user;
+        const { id, channelId } = request.params;
+        const projectId = parseInt(id);
+        const parsedChannelId = parseInt(channelId);
+        const hasAccess = await auth_service_1.default.hasProjectAccess(user.id, projectId, 'editor');
+        if (!hasAccess) {
+            reply.code(403).send({ error: 'No access' });
+            return;
+        }
+        const defaultChannelSetting = await prisma.projectSettings.findFirst({
+            where: { project_id: projectId, key: 'default_channel_id', value: String(parsedChannelId) }
+        });
+        if (defaultChannelSetting) {
+            await prisma.projectSettings.delete({
+                where: { id: defaultChannelSetting.id }
+            });
+        }
+        await prisma.socialChannel.delete({
+            where: { id: parsedChannelId, project_id: projectId }
+        });
+        return { success: true };
+    });
     fastify.post('/api/projects/:id/channels/:channelId/manual-content', async (request, reply) => {
         const user = request.user;
         const { id, channelId } = request.params;
