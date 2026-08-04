@@ -174,6 +174,11 @@ class PublisherService {
             || messageParts.includes('parse entities')
             || messageParts.includes('bad request');
     }
+    isCaptionTooLongError(error) {
+        const desc = error?.response?.body?.description || error?.response?.description || error?.description || error?.message || '';
+        const descStr = String(desc).toUpperCase();
+        return descStr.includes('MEDIA_CAPTION_TOO_LONG') || descStr.includes('CAPTION IS TOO LONG');
+    }
     extractTelegramErrorDescription(error) {
         const responseDescription = typeof error?.response?.description === 'string'
             ? error.response.description.trim()
@@ -1746,7 +1751,7 @@ class PublisherService {
                                             });
                                         }
                                         catch (sendErr) {
-                                            if (sendErr.response?.body?.description?.includes('MEDIA_CAPTION_TOO_LONG')) {
+                                            if (this.isCaptionTooLongError(sendErr)) {
                                                 console.warn(`[Publisher] Caption too long for Bot API (${text.length} chars). Splitting into photo + reply.`);
                                                 let splitIndex = text.lastIndexOf('\n', CAPTION_LIMIT);
                                                 if (splitIndex === -1 || splitIndex < CAPTION_LIMIT * 0.5) {
@@ -2022,7 +2027,7 @@ class PublisherService {
                                         });
                                     }
                                     catch (sendErr) {
-                                        if (sendErr.response?.body?.description?.includes('MEDIA_CAPTION_TOO_LONG')) {
+                                        if (this.isCaptionTooLongError(sendErr)) {
                                             console.warn(`[Publisher] Caption too long for Bot API (${text.length} chars). Splitting into photo + reply.`);
                                             let splitIndex = text.lastIndexOf('\n', CAPTION_LIMIT);
                                             if (splitIndex === -1 || splitIndex < CAPTION_LIMIT * 0.5) {
