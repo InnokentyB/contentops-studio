@@ -1934,17 +1934,18 @@ class PublisherService {
                 publishedLink = await importedLinkedin.publishPost(urn, token, text, post.image_url || undefined);
             }
             else if (channel.type === 'telegram') {
-                const rawChannelId = channel.config.telegram_channel_id?.toString();
-                if (!rawChannelId) {
-                    throw new Error(`Telegram channel config missing ID for post ${postId}`);
+                const resolvedTelegram = await this.resolveTelegramDeliveryConfig(post, channel.config);
+                const rawChannelId = resolvedTelegram.rawChannelId;
+                const normalizedHandle = resolvedTelegram.normalizedHandle;
+                let targetChannelId = rawChannelId || normalizedHandle;
+                if (!targetChannelId) {
+                    throw new Error(`Telegram channel config missing ID or handle for post ${postId}`);
                 }
                 // ⚠️ LOCAL DEV OVERRIDE: redirect all messages to the test channel
                 const localTestChannel = process.env.LOCAL_TEST_CHANNEL;
-                const targetChannelId = (process.env.NODE_ENV !== 'production' && localTestChannel)
-                    ? localTestChannel
-                    : rawChannelId;
-                if (targetChannelId !== rawChannelId) {
-                    logToFile('WARN', `[Publisher] 🚧 LOCAL DEV: redirecting post ${postId} from ${rawChannelId} → ${targetChannelId}`);
+                if (process.env.NODE_ENV !== 'production' && localTestChannel) {
+                    logToFile('WARN', `[Publisher] 🚧 LOCAL DEV: redirecting post ${postId} from ${targetChannelId} → ${localTestChannel}`);
+                    targetChannelId = localTestChannel;
                 }
                 // --- Step 1: Check MTProto availability first ---
                 const mtprotoCheck = await this.checkMTProto(post.project_id);
@@ -2100,12 +2101,12 @@ class PublisherService {
             };
         }
         catch (error) {
-            // Rollback if we locked it at 'publishing'
-            if (initialStatus === 'scheduled') {
-                logToFile('WARN', `[Publisher] publishPostNow failed, rolling back status to ${initialStatus} for post ${postId}`);
+            // Rollback if we locked it at 'publishing' or if it failed mid-publish
+            if (initialStatus === 'scheduled' || initialStatus === 'publishing') {
+                logToFile('WARN', `[Publisher] publishPostNow failed, rolling back status to scheduled for post ${postId}`);
                 await prisma.post.update({
                     where: { id: postId },
-                    data: { status: initialStatus }
+                    data: { status: 'scheduled' }
                 }).catch(e => logToFile('ERROR', 'Failed to rollback post status', e));
             }
             throw error;
