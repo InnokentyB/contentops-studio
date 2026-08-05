@@ -671,14 +671,16 @@ async function apiRoutes(fastify) {
             reply.code(404).send({ error: 'Post not found' });
             return;
         }
-        // Find associated WeekPackage by matching dates and project_id
+        // Find associated WeekPackage by matching dates and project_id (with range overlap support)
         let weekPackageId = null;
         if (post.week) {
             const weekPackage = await prisma.weekPackage.findFirst({
                 where: {
                     project_id: post.project_id,
-                    week_start: post.week.week_start,
-                    week_end: post.week.week_end
+                    week_start: {
+                        gte: post.week.week_start,
+                        lte: post.week.week_end
+                    }
                 }
             });
             weekPackageId = weekPackage?.id || null;
