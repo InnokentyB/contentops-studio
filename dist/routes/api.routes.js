@@ -2040,7 +2040,7 @@ async function apiRoutes(fastify) {
         if (!projectId)
             return reply.code(400).send({ error: 'Project ID required' });
         const { id } = request.params;
-        const week = await prisma.weekPackage.findUnique({
+        let week = await prisma.weekPackage.findUnique({
             where: { id: parseInt(id), project_id: projectId },
             include: {
                 content_items: {
@@ -2048,6 +2048,32 @@ async function apiRoutes(fastify) {
                 }
             }
         });
+        if (!week) {
+            // Check if it is a V1 week ID
+            const v1Week = await prisma.week.findFirst({
+                where: { id: parseInt(id), project_id: projectId }
+            });
+            if (v1Week) {
+                // Find matching V2 week package using range overlap
+                const matchingWeekPackage = await prisma.weekPackage.findFirst({
+                    where: {
+                        project_id: projectId,
+                        week_start: {
+                            gte: v1Week.week_start,
+                            lte: v1Week.week_end
+                        }
+                    },
+                    include: {
+                        content_items: {
+                            orderBy: { schedule_at: 'asc' }
+                        }
+                    }
+                });
+                if (matchingWeekPackage) {
+                    week = matchingWeekPackage;
+                }
+            }
+        }
         if (!week)
             return reply.code(404).send({ error: 'V2 WeekPackage not found' });
         return week;

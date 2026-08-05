@@ -1,4 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom'
+import { useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { api } from '../api'
@@ -37,6 +38,12 @@ export default function V2WeekDetail() {
         queryKey: ['v2_week', id],
         queryFn: () => api.get(`/api/v2/weeks/${id}`)
     })
+
+    useEffect(() => {
+        if (week && String(week.id) !== id) {
+            navigate(`/v2/weeks/${week.id}`, { replace: true });
+        }
+    }, [week, id, navigate]);
 
     const approveWeek = useMutation({
         mutationFn: () => api.post(`/api/v2/approve-week/${id}`, {}),
