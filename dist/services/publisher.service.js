@@ -232,6 +232,19 @@ class PublisherService {
         }
         return imageUrl;
     }
+    getPublicImageUrl(postId, imageUrl) {
+        if (!imageUrl)
+            return null;
+        if (imageUrl.startsWith('http')) {
+            return imageUrl;
+        }
+        const baseHost = process.env.RAILWAY_PUBLIC_DOMAIN || process.env.PUBLIC_URL || process.env.APP_URL;
+        if (baseHost) {
+            const domain = baseHost.startsWith('http') ? baseHost : `https://${baseHost}`;
+            return `${domain}/public/posts/${postId}/image`;
+        }
+        return null;
+    }
     extractTelegramErrorDescription(error) {
         const responseDescription = typeof error?.response?.description === 'string'
             ? error.response.description.trim()
@@ -1755,11 +1768,12 @@ class PublisherService {
                         if (photoSource) {
                             const CAPTION_LIMIT = 1024;
                             if (telegramText.length > CAPTION_LIMIT) {
-                                if (typeof photoSource === 'string' && photoSource.startsWith('http')) {
-                                    // HTTP URL: send as text with large media preview (no split, 1 message)
+                                const publicImageUrl = this.getPublicImageUrl(post.id, post.image_url);
+                                if (publicImageUrl) {
+                                    // Send as text with large media preview (no split, 1 message)
                                     sentMessage = await this.sendTextSplitting(targetChannelId, telegramText, {
                                         link_preview_options: {
-                                            url: photoSource,
+                                            url: publicImageUrl,
                                             prefer_large_media: true,
                                             show_above_text: true,
                                             is_disabled: false
@@ -2005,11 +2019,12 @@ class PublisherService {
                     if (photoSource) {
                         const CAPTION_LIMIT = 1024;
                         if (telegramText.length > CAPTION_LIMIT) {
-                            if (typeof photoSource === 'string' && photoSource.startsWith('http')) {
+                            const publicImageUrl = this.getPublicImageUrl(post.id, post.image_url);
+                            if (publicImageUrl) {
                                 // Send as single text with large media preview instead of splitting
                                 sentMessage = await this.sendTextSplitting(targetChannelId, telegramText, {
                                     link_preview_options: {
-                                        url: photoSource,
+                                        url: publicImageUrl,
                                         prefer_large_media: true,
                                         show_above_text: true,
                                         is_disabled: false

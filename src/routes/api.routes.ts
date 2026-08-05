@@ -340,6 +340,11 @@ async function runPublicationCriticReview(projectId: number, item: any, override
 export default async function apiRoutes(fastify: FastifyInstance) {
     // Auth and Project context middleware
     fastify.addHook('preHandler', async (request, reply) => {
+        // Skip auth for public endpoints (like public image serving)
+        if (request.url.startsWith('/public/')) {
+            return;
+        }
+
         // Skip auth for static files if needed, but here we cover /api/
         const token = request.headers.authorization?.split(' ')[1];
         if (!token) {
@@ -363,6 +368,51 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             }
         } catch (e) {
             reply.code(401).send({ error: 'Invalid or expired token' });
+        }
+    });
+
+    // Public endpoint to serve images for Telegram link preview
+    fastify.get('/public/posts/:id/image', async (request, reply) => {
+        const { id } = request.params as { id: string };
+        const post = await prisma.post.findUnique({
+            where: { id: parseInt(id) },
+            select: { image_url: true }
+        });
+
+        if (!post || !post.image_url) {
+            return reply.code(404).send({ error: 'Image not found' });
+        }
+
+        if (post.image_url.startsWith('data:image/')) {
+            const matches = post.image_url.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
+            if (!matches || matches.length !== 3) {
+                return reply.code(400).send({ error: 'Invalid image format' });
+            }
+            const mimeType = matches[1];
+            const base64Data = matches[2];
+            const buffer = Buffer.from(base64Data, 'base64');
+            reply.header('Content-Type', mimeType);
+            reply.header('Cache-Control', 'public, max-age=86400');
+            return reply.send(buffer);
+        } else if (post.image_url.startsWith('/uploads/')) {
+            // Local upload: serve file
+            const fs = require('fs');
+            const path = require('path');
+            const filename = post.image_url.split('/').pop() || '';
+            const localPath = path.join(__dirname, '../../uploads', filename);
+            if (fs.existsSync(localPath)) {
+                const ext = filename.split('.').pop()?.toLowerCase();
+                const mimeType = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : 'image/jpeg';
+                const buffer = fs.readFileSync(localPath);
+                reply.header('Content-Type', mimeType);
+                reply.header('Cache-Control', 'public, max-age=86400');
+                return reply.send(buffer);
+            }
+            return reply.code(404).send({ error: 'Local image file not found' });
+        } else if (post.image_url.startsWith('http')) {
+            return reply.redirect(post.image_url);
+        } else {
+            return reply.code(400).send({ error: 'Unrecognized image url format' });
         }
     });
 

@@ -31,7 +31,7 @@ const createPostWorker = () => {
             const result = await generator_service_1.default.generatePostText(projectId, theme, topic, postId, promptOverride, withImage);
             let fullText = result.text;
             if (result.tags && result.tags.length > 0) {
-                fullText += '\n\n' + result.tags.map(t => `#${t.replace(/\s+/g, '')}`).join(' ');
+                fullText += '\n\n' + result.tags.map(t => `#${t.replace(/\s+/g, '').replace(/^#+/, '')}`).join(' ');
             }
             else if (post.category) {
                 fullText += `\n\n#${post.category.replace(/\s+/g, '')}`;
