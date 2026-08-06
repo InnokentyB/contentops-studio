@@ -126,7 +126,15 @@ class PublisherService {
         };
 
         const rawChannelId = mergedConfig.telegram_channel_id?.toString?.() || null;
-        const normalizedHandle = this.normalizeTelegramHandle(mergedConfig.handle || mergedConfig.channel_username);
+        let normalizedHandle = this.normalizeTelegramHandle(mergedConfig.handle || mergedConfig.channel_username);
+
+        if (!rawChannelId && !normalizedHandle) {
+            const fallbackCandidate = mergedConfig.account_ref || task.channel?.name || null;
+            if (fallbackCandidate) {
+                normalizedHandle = this.normalizeTelegramHandle(fallbackCandidate);
+                logToFile('INFO', `[Publisher] Fallback resolved Telegram handle from name/ref: ${normalizedHandle}`);
+            }
+        }
 
         return {
             config: mergedConfig,
