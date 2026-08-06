@@ -5,9 +5,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = projectRoutes;
 const auth_service_1 = __importDefault(require("../services/auth.service"));
-const client_1 = require("@prisma/client");
-const pg_1 = require("pg");
-const adapter_pg_1 = require("@prisma/adapter-pg");
 const js_yaml_1 = __importDefault(require("js-yaml"));
 const multi_agent_service_1 = __importDefault(require("../services/multi_agent.service"));
 const content_dictionary_service_1 = __importDefault(require("../services/content_dictionary.service"));
@@ -19,10 +16,7 @@ const storage_service_1 = __importDefault(require("../services/storage.service")
 const generator_service_1 = __importDefault(require("../services/generator.service"));
 const project_utils_1 = require("../utils/project.utils");
 const channel_utils_1 = require("../utils/channel.utils");
-const connectionString = process.env.DATABASE_URL;
-const pool = new pg_1.Pool({ connectionString });
-const adapter = new adapter_pg_1.PrismaPg(pool);
-const prisma = new client_1.PrismaClient({ adapter });
+const planner_service_1 = require("../services/planner.service");
 const agentSettingKeyMap = {
     post_creator: {
         prompt: multi_agent_service_1.default.KEY_POST_CREATOR_PROMPT,
@@ -150,7 +144,7 @@ async function makeUniqueProjectSlug(baseSlug, fallbackName, excludeProjectId) {
     const normalized = (0, project_utils_1.slugifyProjectName)(source) || `project-${Date.now()}`;
     let candidate = normalized;
     let suffix = 1;
-    while (await prisma.project.findFirst({
+    while (await planner_service_1.prisma.project.findFirst({
         where: {
             slug: candidate,
             ...(excludeProjectId ? { id: { not: excludeProjectId } } : {})
@@ -328,7 +322,7 @@ async function projectRoutes(fastify) {
         const user = request.user;
         const { name, slug, description, kind } = request.body;
         const finalSlug = await makeUniqueProjectSlug(slug, name);
-        const project = await prisma.project.create({
+        const project = await planner_service_1.prisma.project.create({
             data: {
                 name,
                 slug: finalSlug,
@@ -352,7 +346,7 @@ async function projectRoutes(fastify) {
         }
         try {
             const imported = await buildImportedProjectData(config, user.id);
-            const project = await prisma.$transaction(async (tx) => {
+            const project = await planner_service_1.prisma.$transaction(async (tx) => {
                 const createdProject = await tx.project.create({
                     data: imported.project
                 });
@@ -473,7 +467,7 @@ async function projectRoutes(fastify) {
             reply.code(403).send({ error: 'No access' });
             return;
         }
-        const setting = await prisma.projectSettings.upsert({
+        const setting = await planner_service_1.prisma.projectSettings.upsert({
             where: {
                 project_id_key: {
                     project_id: projectId,
@@ -490,7 +484,7 @@ async function projectRoutes(fastify) {
         if (key === 'default_channel_id') {
             const channelId = parseInt(value);
             if (!isNaN(channelId)) {
-                await prisma.post.updateMany({
+                await planner_service_1.prisma.post.updateMany({
                     where: {
                         project_id: projectId,
                         status: { notIn: ['published', 'publishing'] }
@@ -513,7 +507,7 @@ async function projectRoutes(fastify) {
             reply.code(403).send({ error: 'No access' });
             return;
         }
-        const project = await prisma.project.findUnique({
+        const project = await planner_service_1.prisma.project.findUnique({
             where: { id: projectId },
             include: {
                 channels: true,
@@ -709,7 +703,7 @@ async function projectRoutes(fastify) {
             reply.code(403).send({ error: 'No access' });
             return;
         }
-        const channel = await prisma.socialChannel.create({
+        const channel = await planner_service_1.prisma.socialChannel.create({
             data: {
                 project_id: projectId,
                 type,
@@ -734,11 +728,11 @@ async function projectRoutes(fastify) {
             reply.code(403).send({ error: 'No access' });
             return;
         }
-        const existingChannel = await prisma.socialChannel.findUnique({
+        const existingChannel = await planner_service_1.prisma.socialChannel.findUnique({
             where: { id: parsedChannelId, project_id: projectId }
         });
         const mergedConfig = (0, channel_utils_1.mergeChannelConfig)(config, existingChannel?.config || {});
-        const channel = await prisma.socialChannel.update({
+        const channel = await planner_service_1.prisma.socialChannel.update({
             where: { id: parsedChannelId, project_id: projectId },
             data: {
                 name,
@@ -761,15 +755,15 @@ async function projectRoutes(fastify) {
             reply.code(403).send({ error: 'No access' });
             return;
         }
-        const defaultChannelSetting = await prisma.projectSettings.findFirst({
+        const defaultChannelSetting = await planner_service_1.prisma.projectSettings.findFirst({
             where: { project_id: projectId, key: 'default_channel_id', value: String(parsedChannelId) }
         });
         if (defaultChannelSetting) {
-            await prisma.projectSettings.delete({
+            await planner_service_1.prisma.projectSettings.delete({
                 where: { id: defaultChannelSetting.id }
             });
         }
-        await prisma.socialChannel.delete({
+        await planner_service_1.prisma.socialChannel.delete({
             where: { id: parsedChannelId, project_id: projectId }
         });
         return { success: true };
@@ -788,7 +782,7 @@ async function projectRoutes(fastify) {
         if (!content?.trim()) {
             return reply.code(400).send({ error: 'content is required' });
         }
-        const channel = await prisma.socialChannel.findFirst({
+        const channel = await planner_service_1.prisma.socialChannel.findFirst({
             where: {
                 id: parsedChannelId,
                 project_id: projectId
@@ -802,7 +796,7 @@ async function projectRoutes(fastify) {
         const normalizedPublishedLink = publishedLink?.trim() || null;
         const publicationOutcome = outcome || 'published';
         const shouldMarkPublished = publishNow === true && Boolean(normalizedPublishedLink);
-        const item = await prisma.contentItem.create({
+        const item = await planner_service_1.prisma.contentItem.create({
             data: {
                 project_id: projectId,
                 channel_id: channel.id,
@@ -892,7 +886,7 @@ async function projectRoutes(fastify) {
         if (!data) {
             return reply.code(400).send({ error: 'No file uploaded' });
         }
-        const channel = await prisma.socialChannel.findFirst({
+        const channel = await planner_service_1.prisma.socialChannel.findFirst({
             where: {
                 id: parsedChannelId,
                 project_id: projectId
@@ -923,7 +917,7 @@ async function projectRoutes(fastify) {
             fileUrl = await storage_service_1.default.uploadFileFromBuffer(buffer, data.mimetype || 'application/octet-stream', `uploads/${filename}`);
             previewUrl = resourceKind === 'image' ? fileUrl : null;
         }
-        const item = await prisma.contentItem.create({
+        const item = await planner_service_1.prisma.contentItem.create({
             data: {
                 project_id: projectId,
                 channel_id: channel.id,
@@ -1016,7 +1010,7 @@ async function projectRoutes(fastify) {
             reply.code(403).send({ error: 'No access' });
             return;
         }
-        const channel = await prisma.socialChannel.findFirst({
+        const channel = await planner_service_1.prisma.socialChannel.findFirst({
             where: {
                 id: parsedChannelId,
                 project_id: projectId
@@ -1025,7 +1019,7 @@ async function projectRoutes(fastify) {
         if (!channel) {
             return reply.code(404).send({ error: 'Channel not found' });
         }
-        const items = await prisma.contentItem.findMany({
+        const items = await planner_service_1.prisma.contentItem.findMany({
             where: {
                 project_id: projectId,
                 channel_id: parsedChannelId
@@ -1091,7 +1085,7 @@ async function projectRoutes(fastify) {
             reply.code(403).send({ error: 'No access' });
             return;
         }
-        const channel = await prisma.socialChannel.findFirst({
+        const channel = await planner_service_1.prisma.socialChannel.findFirst({
             where: {
                 id: parsedChannelId,
                 project_id: projectId
@@ -1103,7 +1097,7 @@ async function projectRoutes(fastify) {
         if (!isAutoCanvasChannel(channel)) {
             return reply.code(400).send({ error: 'This channel is not configured for automatic canvas generation.' });
         }
-        const itemsToProcess = await prisma.contentItem.findMany({
+        const itemsToProcess = await planner_service_1.prisma.contentItem.findMany({
             where: {
                 project_id: projectId,
                 channel_id: parsedChannelId,
@@ -1123,7 +1117,7 @@ async function projectRoutes(fastify) {
                 results.push({ id: item.id, status: 'drafted' });
             }
             catch (error) {
-                await prisma.contentItem.update({
+                await planner_service_1.prisma.contentItem.update({
                     where: { id: item.id },
                     data: { status: 'failed' }
                 });
@@ -1146,7 +1140,7 @@ async function projectRoutes(fastify) {
             reply.code(403).send({ error: 'Only owners can edit project details' });
             return;
         }
-        const existing = await prisma.project.findUnique({
+        const existing = await planner_service_1.prisma.project.findUnique({
             where: { id: projectId }
         });
         if (!existing) {
@@ -1156,7 +1150,7 @@ async function projectRoutes(fastify) {
         const finalSlug = typeof slug === 'string' && slug.trim()
             ? await makeUniqueProjectSlug(slug, existing.name, existing.id)
             : undefined;
-        const project = await prisma.project.update({
+        const project = await planner_service_1.prisma.project.update({
             where: { id: projectId },
             data: {
                 ...(typeof name === 'string' ? { name } : {}),
@@ -1178,7 +1172,7 @@ async function projectRoutes(fastify) {
             return;
         }
         const nextArchived = archived !== false;
-        const project = await prisma.project.update({
+        const project = await planner_service_1.prisma.project.update({
             where: { id: projectId },
             data: {
                 is_archived: nextArchived,
@@ -1199,11 +1193,11 @@ async function projectRoutes(fastify) {
             return;
         }
         // Find user by email
-        const targetUser = await prisma.user.findUnique({ where: { email } });
+        const targetUser = await planner_service_1.prisma.user.findUnique({ where: { email } });
         // If user not found, create invitation
         if (!targetUser) {
             // Check existing invitation
-            const existingInvite = await prisma.projectInvitation.findFirst({
+            const existingInvite = await planner_service_1.prisma.projectInvitation.findFirst({
                 where: { project_id: projectId, email }
             });
             if (existingInvite) {
@@ -1218,7 +1212,7 @@ async function projectRoutes(fastify) {
             const token = require('crypto').randomBytes(32).toString('hex');
             const expiresAt = new Date();
             expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
-            const invitation = await prisma.projectInvitation.create({
+            const invitation = await planner_service_1.prisma.projectInvitation.create({
                 data: {
                     project_id: projectId,
                     email,
@@ -1235,13 +1229,13 @@ async function projectRoutes(fastify) {
             };
         }
         // Check if already member
-        const existing = await prisma.projectMember.findUnique({
+        const existing = await planner_service_1.prisma.projectMember.findUnique({
             where: { project_id_user_id: { project_id: projectId, user_id: targetUser.id } }
         });
         if (existing) {
             return reply.code(400).send({ error: 'User already in project' });
         }
-        const member = await prisma.projectMember.create({
+        const member = await planner_service_1.prisma.projectMember.create({
             data: {
                 project_id: projectId,
                 user_id: targetUser.id,
@@ -1255,7 +1249,7 @@ async function projectRoutes(fastify) {
     // Get invitation details
     fastify.get('/api/invitations/:token', async (request, reply) => {
         const { token } = request.params;
-        const invitation = await prisma.projectInvitation.findUnique({
+        const invitation = await planner_service_1.prisma.projectInvitation.findUnique({
             where: { token },
             include: {
                 project: { select: { name: true, description: true } },
@@ -1289,7 +1283,7 @@ async function projectRoutes(fastify) {
             return reply.code(401).send({ error: 'Invalid token' });
         }
         const { token } = request.params;
-        const invitation = await prisma.projectInvitation.findUnique({
+        const invitation = await planner_service_1.prisma.projectInvitation.findUnique({
             where: { token }
         });
         if (!invitation) {
@@ -1303,7 +1297,7 @@ async function projectRoutes(fastify) {
         // For now, allow accepting with any email as long as they have the link (flexible)
         // Add to project
         try {
-            await prisma.projectMember.create({
+            await planner_service_1.prisma.projectMember.create({
                 data: {
                     project_id: invitation.project_id,
                     user_id: user.id,
@@ -1315,7 +1309,7 @@ async function projectRoutes(fastify) {
             // Ignore if already member
         }
         // Delete invitation
-        await prisma.projectInvitation.delete({ where: { token } });
+        await planner_service_1.prisma.projectInvitation.delete({ where: { token } });
         return { success: true, projectId: invitation.project_id };
     });
     // DELETE member
@@ -1332,7 +1326,7 @@ async function projectRoutes(fastify) {
         if (user.id === targetUserId) {
             return reply.code(400).send({ error: 'Cannot remove yourself' });
         }
-        await prisma.projectMember.delete({
+        await planner_service_1.prisma.projectMember.delete({
             where: { project_id_user_id: { project_id: projectId, user_id: targetUserId } }
         });
         return { success: true };

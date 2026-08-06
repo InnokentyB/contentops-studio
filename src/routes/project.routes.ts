@@ -15,10 +15,7 @@ import generatorService from '../services/generator.service';
 import { normalizeProjectKind, slugifyProjectName } from '../utils/project.utils';
 import { sanitizeChannelConfig, mergeChannelConfig } from '../utils/channel.utils';
 
-const connectionString = process.env.DATABASE_URL;
-const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
+import { prisma } from '../services/planner.service';
 
 const agentSettingKeyMap: Record<string, { prompt: string; key: string; model: string }> = {
     post_creator: {
