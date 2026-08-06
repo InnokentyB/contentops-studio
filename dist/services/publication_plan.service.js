@@ -1217,11 +1217,30 @@ class PublicationPlanService {
                 const channelConfig = publication_adapter_service_1.default.buildAdapterConfig(accountRef, account, accountActions[accountRef]);
                 const existingChannel = existingChannels.find((channel) => channel.name === accountRef);
                 if (existingChannel) {
+                    const existingConf = existingChannel.config && typeof existingChannel.config === 'object'
+                        ? existingChannel.config
+                        : {};
+                    const chanConf = channelConfig;
+                    const mergedConfig = {
+                        ...existingConf,
+                        ...chanConf,
+                        telegram_channel_id: existingConf.telegram_channel_id || chanConf?.telegram_channel_id || null,
+                        channel_username: existingConf.channel_username || chanConf?.channel_username || null,
+                        handle: existingConf.handle || chanConf?.handle || null,
+                        api_key: existingConf.api_key || chanConf?.api_key || null,
+                        access_token: existingConf.access_token || chanConf?.access_token || null,
+                        application_key: existingConf.application_key || chanConf?.application_key || null,
+                        application_secret_key: existingConf.application_secret_key || chanConf?.application_secret_key || null,
+                        vk_id: existingConf.vk_id || chanConf?.vk_id || null,
+                        group_id: existingConf.group_id || chanConf?.group_id || null,
+                        cookies: existingConf.cookies || chanConf?.cookies || null,
+                        webhook_url: existingConf.webhook_url || chanConf?.webhook_url || null
+                    };
                     return tx.socialChannel.update({
                         where: { id: existingChannel.id },
                         data: {
                             type: account.platform,
-                            config: channelConfig,
+                            config: mergedConfig,
                             is_active: true
                         }
                     });
