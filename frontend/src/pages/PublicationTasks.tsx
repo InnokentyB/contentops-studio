@@ -651,6 +651,7 @@ export default function PublicationTasks() {
         || ((activeTask?.quality_report as JsonRecord | undefined)?.generated_image as JsonRecord | undefined)
     const currentPublicationBody = (handoffBundle?.publication?.body || '') as string
     const isPublicationBodyDirty = publicationBody !== currentPublicationBody
+    const hasPublicationText = publicationBody.trim().length > 0
     const contentEditHistory = (((activeTask?.quality_report as JsonRecord | undefined)?.content_edit_history as ContentEditHistoryEntry[] | undefined) || [])
     const isOperationalTask = isOperationalWorkflowTask(activeTask)
     const primaryBodyTitle = isOperationalTask ? 'Рабочий материал задачи' : 'Текст публикации'
@@ -659,7 +660,11 @@ export default function PublicationTasks() {
     const sourceLinkLabel = isOperationalTask ? 'Ссылка на результат задачи' : 'Ссылка на сам пост'
     const sourceLinkPlaceholder = isOperationalTask ? 'https://... ссылка на документ, таблицу, пост или другой итоговый артефакт' : 'https://...'
     const statusEntityLabel = isOperationalTask ? 'Статус результата' : 'Статус поста'
-    const prepareButtonLabel = isOperationalTask ? 'Собрать пакет задачи' : 'Prepare Handoff'
+    const prepareButtonLabel = isOperationalTask ? 'Собрать пакет задачи' : 'Подготовить черновик'
+    const publishButtonDisabled = publishTaskNow.isPending || prepareHandoff.isPending || isLoadingTask || (!isOperationalTask && !hasPublicationText)
+    const publicationActionTitle = !hasPublicationText
+        ? 'Сначала подготовьте текст публикации: нажмите «Подготовить черновик» или напишите текст вручную.'
+        : 'Опубликуйте текст в подключённый канал, затем вставьте ссылку на пост справа.'
 
     return (
         <div className="flex-1 w-full p-4 sm:p-6 lg:p-10 space-y-8 overflow-y-auto">
@@ -926,10 +931,10 @@ export default function PublicationTasks() {
                                             {canPublishNow && (
                                                 <button
                                                     onClick={() => publishTaskNow.mutate()}
-                                                    disabled={publishTaskNow.isPending || prepareHandoff.isPending || isLoadingTask}
+                                                    disabled={publishButtonDisabled}
                                                     className="w-full ai-gradient text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 inline-flex items-center justify-center gap-2"
                                                     title={executionMode === 'manual'
-                                                        ? 'Отправить текущий текст публикации прямо в подключённый канал'
+                                                        ? publicationActionTitle
                                                         : 'Запустить публикацию через подключённый адаптер'}
                                                 >
                                                     <span className="material-symbols-outlined text-base">send</span>
@@ -1162,6 +1167,28 @@ export default function PublicationTasks() {
                                     ) : (
                                         <section className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.18fr)_minmax(360px,0.82fr)] gap-6 items-start">
                                             <div className="space-y-6">
+                                                <div className="rounded-[1.5rem] bg-white p-5 border border-primary/10 shadow-sm">
+                                                    <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Что сделать сейчас</div>
+                                                    <h3 className="mt-3 text-xl font-headline font-black text-on-surface">
+                                                        {hasPublicationText
+                                                            ? 'Проверьте текст, опубликуйте пост и сохраните ссылку.'
+                                                            : 'Сначала подготовьте текст публикации.'}
+                                                    </h3>
+                                                    <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+                                                        {[
+                                                            hasPublicationText ? 'Текст уже есть' : 'Нажмите «Подготовить черновик» или напишите текст вручную',
+                                                            'Проверьте, что в конце есть нужная ссылка',
+                                                            'Опубликуйте пост в канале',
+                                                            'Вставьте ссылку на опубликованный пост справа'
+                                                        ].map((step, index) => (
+                                                            <div key={step} className="rounded-2xl bg-surface-container-low px-4 py-3 text-sm leading-6 text-on-surface-variant">
+                                                                <span className="block text-[10px] font-black uppercase tracking-[0.18em] text-primary/70">{String(index + 1).padStart(2, '0')}</span>
+                                                                <span className="mt-1 block">{step}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
                                                 <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
                                                     <div className="flex items-center justify-between gap-3">
                                                         <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{primaryBodyTitle}</div>
@@ -1171,11 +1198,12 @@ export default function PublicationTasks() {
                                                         value={publicationBody}
                                                         onChange={(event) => setPublicationBody(event.target.value)}
                                                         rows={16}
+                                                        placeholder="Соберите черновик из контекста задачи или напишите пост вручную."
                                                         className="w-full bg-white border-none rounded-2xl p-4 text-sm leading-6 focus:ring-2 focus:ring-primary/20 outline-none resize-y min-h-[22rem]"
                                                     />
                                                     <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center justify-between gap-3">
                                                         <div className="text-xs text-on-surface-variant">
-                                                            Правки сохраняются в задачу публикации и используются для handoff, критика и ручной публикации.
+                                                            Сначала подготовьте текст публикации. Правки сохраняются в задачу и используются для проверки и ручной публикации.
                                                         </div>
                                                         <div className="flex w-full sm:w-auto items-center gap-3">
                                                             <button
@@ -1242,7 +1270,9 @@ export default function PublicationTasks() {
                                                                     {targetResourceUrl}
                                                                 </a>
                                                             ) : (
-                                                                <div className="mt-2 text-sm text-on-surface-variant">Не указан в плане.</div>
+                                                                <div className="mt-2 text-sm text-on-surface-variant">
+                                                                    Не указан в плане. Если исходного ресурса нет, используйте тезис и контекст задачи сверху.
+                                                                </div>
                                                             )}
                                                         </div>
 
@@ -1278,13 +1308,13 @@ export default function PublicationTasks() {
                                                         <div>
                                                             <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Подтверждение публикации</div>
                                                             <div className="mt-1 text-xs text-on-surface-variant leading-5">
-                                                                Сохрани итоговый permalink и зафиксируй реальный исход публикации.
+                                                                После публикации вставьте ссылку на пост и зафиксируйте результат.
                                                             </div>
                                                         </div>
                                                         <span className="material-symbols-outlined text-primary">task_alt</span>
                                                     </div>
                                                     <div className="rounded-2xl bg-surface-container-low px-4 py-3 text-xs leading-6 text-on-surface-variant">
-                                                        Сохраняй permalink даже если платформа позже заблокирует, удалит или ограничит пост. Для Reddit это оставляет задачу подтверждённой и позволяет отслеживать те метрики, которые ещё доступны.
+                                                        Ссылка нужна, чтобы задача считалась завершённой и позже можно было вернуться к опубликованному материалу.
                                                     </div>
                                                     <select
                                                         value={publicationOutcome}
@@ -1308,7 +1338,7 @@ export default function PublicationTasks() {
                                                         disabled={!publishedLink.trim() || confirmPublication.isPending}
                                                         className="w-full bg-primary text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
                                                     >
-                                                        {confirmPublication.isPending ? 'Сохраняем...' : 'Подтвердить live URL'}
+                                                        {confirmPublication.isPending ? 'Сохраняем...' : 'Подтвердить ссылку на опубликованный пост'}
                                                     </button>
                                                 </div>
 
@@ -1442,9 +1472,9 @@ export default function PublicationTasks() {
                                     {!isOperationalTask && (
                                     <section className="grid grid-cols-1 xl:grid-cols-[minmax(320px,0.72fr)_minmax(0,1.28fr)] gap-6 items-start">
                                         <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
-                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Manual Checklist</div>
+                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Чеклист публикации</div>
                                             <div className="space-y-3">
-                                                {(handoffBundle?.manual_checklist || ['Prepare the handoff bundle to see channel-specific checklist.']).map((item: string, index: number) => (
+                                                {(handoffBundle?.manual_checklist || ['Подготовьте черновик, чтобы увидеть чеклист для этого канала.']).map((item: string, index: number) => (
                                                     <div key={`${item}-${index}`} className="flex items-start gap-3 text-sm text-on-surface-variant">
                                                         <span className="w-6 h-6 rounded-full bg-white text-primary flex items-center justify-center font-black text-xs shrink-0">{index + 1}</span>
                                                         <span className="leading-6">{item}</span>
@@ -1454,7 +1484,7 @@ export default function PublicationTasks() {
                                         </div>
 
                                         <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
-                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Source Files</div>
+                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Исходные файлы</div>
                                             <div className="space-y-3">
                                                 {sourceFiles.length > 0 ? sourceFiles.map((entry, index) => {
                                                     const fileName = entry.file_name || entry.asset?.path?.split('/').pop() || entry.ref || `asset-${index + 1}`
@@ -1498,7 +1528,7 @@ export default function PublicationTasks() {
                                                     )
                                                 }) : (
                                                     <div className="rounded-2xl bg-white px-4 py-3 text-sm text-on-surface-variant">
-                                                        No resource files were attached to this task.
+                                                        К этой задаче не прикреплены исходные файлы.
                                                     </div>
                                                 )}
                                             </div>
@@ -1506,17 +1536,17 @@ export default function PublicationTasks() {
 
                                         <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4 xl:col-start-2 xl:row-span-2">
                                             <div className="flex items-center justify-between gap-3">
-                                                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Source Content</div>
+                                                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Исходный контент</div>
                                                 {!primarySourceEntry && !handoffBundle && (
-                                                    <span className="text-xs text-on-surface-variant">Prepare handoff to load file content</span>
+                                                    <span className="text-xs text-on-surface-variant">Подготовьте черновик, чтобы загрузить контент</span>
                                                 )}
                                             </div>
                                             <ResourcePreviewCard
                                                 entry={primarySourceEntry}
                                                 title={activeTask?.workspace_context?.source_file_name || 'source-content'}
                                                 emptyMessage={handoffBundle
-                                                    ? 'No readable source text or previewable asset was found in the linked resource files.'
-                                                    : 'Prepare handoff to pull text or a previewable asset from the linked resource file.'}
+                                                    ? 'В связанных файлах не найден читаемый текст или ресурс для предпросмотра.'
+                                                    : 'Подготовьте черновик, чтобы подтянуть текст или предпросмотр связанного ресурса.'}
                                             />
                                         </div>
                                     </section>
