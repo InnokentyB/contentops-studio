@@ -1914,7 +1914,7 @@ class PublisherService {
                         if (post.image_url) imagePathOrUrl = post.image_url;
 
                         console.log(`[Publisher] Calling MTProto publishPost for post ${post.id}`);
-                        const result = await importedClient.publishPost(post.project_id, targetChannelId, text, imagePathOrUrl);
+                        const result = await importedClient.publishPost(post.project_id, targetChannelId, text, imagePathOrUrl, undefined, post.id);
                         console.log(`[Publisher] MTProto publishPost result for post ${post.id}:`, result ? `Success (ID: ${result.id})` : 'Falsy Result');
 
                         if (result) {
@@ -2189,7 +2189,7 @@ class PublisherService {
                     if (post.image_url) imagePathOrUrl = post.image_url;
 
                     logToFile('INFO', `[Publisher] publishPostNow: calling MTProto for post ${post.id}`);
-                    const result = await importedClient.publishPost(post.project_id, targetChannelId, text, imagePathOrUrl);
+                    const result = await importedClient.publishPost(post.project_id, targetChannelId, text, imagePathOrUrl, undefined, post.id);
                     if (result) {
                         sentMessageId = result.id;
                         isPublishedViaClient = true;
@@ -2382,7 +2382,7 @@ class PublisherService {
                 // Current signature: publishPost(projectId: number, target: string | number, text: string, imageUrl?: string | null)
 
                 // I will assume I update TelegramClientService to accept a 5th arg 'scheduleDate'.
-                const result = await importedClient.publishPost(post.project_id, targetChannelId, text, imagePathOrUrl, post.publish_at);
+                const result = await importedClient.publishPost(post.project_id, targetChannelId, text, imagePathOrUrl, post.publish_at, post.id);
 
                 if (result) {
                     logToFile('INFO', `[Publisher] Scheduled natively via MTProto: Message ID ${result.id}`);

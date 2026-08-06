@@ -98,7 +98,7 @@ class TelegramClientService {
      * Publish a post to a channel/chat
      * @param target which could be a username, phone number, or chat ID
      */
-    async publishPost(projectId, target, text, imageUrl, scheduleDate) {
+    async publishPost(projectId, target, text, imageUrl, scheduleDate, postId) {
         const client = await this.getClient(projectId);
         if (!client) {
             throw new Error("Telegram Client not initialized or no account found.");
@@ -139,6 +139,15 @@ class TelegramClientService {
         catch (e) {
             console.error(`[TelegramClient] Failed to resolve entity ${target}:`, e);
             throw new Error(`Could not access channel: ${target}`);
+        }
+        // Construct public URL for image preview if needed
+        let publicImageUrl = imageUrl;
+        if (imageUrl && !imageUrl.startsWith('http') && postId) {
+            const baseHost = process.env.RAILWAY_PUBLIC_DOMAIN || process.env.PUBLIC_URL || process.env.APP_URL;
+            if (baseHost) {
+                const domain = baseHost.startsWith('http') ? baseHost : `https://${baseHost}`;
+                publicImageUrl = `${domain}/public/posts/${postId}/image`;
+            }
         }
         let tempFilePath;
         try {
@@ -185,8 +194,8 @@ class TelegramClientService {
                     console.log(`[TelegramClient] Text length: ${text.length}, CAPTION_LIMIT: ${CAPTION_LIMIT}, hasImageUrl: ${!!imageUrl}`);
                     if (text.length > CAPTION_LIMIT) {
                         console.log(`[TelegramClient] Text exceeds CAPTION_LIMIT (${text.length} > ${CAPTION_LIMIT}). Splitting logic triggered.`);
-                        if (imageUrl.startsWith('http')) {
-                            console.log(`[TelegramClient] imageUrl is HTTP URL. Attempting invisible char trick for web preview instead of file upload.`);
+                        if (publicImageUrl && publicImageUrl.startsWith('http')) {
+                            console.log(`[TelegramClient] imageUrl is HTTP URL (resolved: ${publicImageUrl}). Attempting invisible char trick for web preview instead of file upload.`);
                             // Use invisible markdown link trick to generate web preview for large images.
                             // GramJS's markdown parser doesn't detect [text](url) properly, so we parse manually
                             // and inject the URL entity at offset 0.
@@ -195,7 +204,7 @@ class TelegramClientService {
                             entities.unshift(new tl_1.Api.MessageEntityTextUrl({
                                 offset: 0,
                                 length: 1,
-                                url: imageUrl
+                                url: publicImageUrl
                             }));
                             result = await client.sendMessage(entity, {
                                 message: parsedText,
