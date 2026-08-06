@@ -102,7 +102,7 @@ const ToastCard: React.FC<{
 
     return (
         <div
-            className={`pointer-events-auto flex flex-col p-4 rounded-xl border backdrop-blur-md shadow-lg transition-all duration-300 transform translate-x-0 animate-slide-in-right ${typeStyles}`}
+            className={`toast-card pointer-events-auto flex flex-col p-4 rounded-xl border backdrop-blur-md shadow-lg transition-all duration-300 transform translate-x-0 animate-slide-in-right ${typeStyles}`}
             style={{
                 animation: 'slideInRight 0.3s ease-out forwards',
             }}
