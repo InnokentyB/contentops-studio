@@ -18,6 +18,7 @@ const parser_integration_service_1 = __importDefault(require("../services/parser
 const storage_service_1 = __importDefault(require("../services/storage.service"));
 const generator_service_1 = __importDefault(require("../services/generator.service"));
 const project_utils_1 = require("../utils/project.utils");
+const channel_utils_1 = require("../utils/channel.utils");
 const connectionString = process.env.DATABASE_URL;
 const pool = new pg_1.Pool({ connectionString });
 const adapter = new adapter_pg_1.PrismaPg(pool);
@@ -523,6 +524,12 @@ async function projectRoutes(fastify) {
                 }
             }
         });
+        if (project && project.channels) {
+            project.channels = project.channels.map(channel => ({
+                ...channel,
+                config: (0, channel_utils_1.sanitizeChannelConfig)(channel.type, channel.config)
+            }));
+        }
         return project;
     });
     fastify.get('/api/projects/:id/parser/health', async (request, reply) => {
@@ -710,7 +717,10 @@ async function projectRoutes(fastify) {
                 config
             }
         });
-        return channel;
+        return {
+            ...channel,
+            config: (0, channel_utils_1.sanitizeChannelConfig)(channel.type, channel.config)
+        };
     });
     // Edit channel
     fastify.put('/api/projects/:id/channels/:channelId', async (request, reply) => {
@@ -724,14 +734,21 @@ async function projectRoutes(fastify) {
             reply.code(403).send({ error: 'No access' });
             return;
         }
+        const existingChannel = await prisma.socialChannel.findUnique({
+            where: { id: parsedChannelId, project_id: projectId }
+        });
+        const mergedConfig = (0, channel_utils_1.mergeChannelConfig)(config, existingChannel?.config || {});
         const channel = await prisma.socialChannel.update({
             where: { id: parsedChannelId, project_id: projectId },
             data: {
                 name,
-                config
+                config: mergedConfig
             }
         });
-        return channel;
+        return {
+            ...channel,
+            config: (0, channel_utils_1.sanitizeChannelConfig)(channel.type, channel.config)
+        };
     });
     // Delete channel
     fastify.delete('/api/projects/:id/channels/:channelId', async (request, reply) => {

@@ -13,6 +13,7 @@ import parserIntegrationService from '../services/parser_integration.service';
 import storageService from '../services/storage.service';
 import generatorService from '../services/generator.service';
 import { normalizeProjectKind, slugifyProjectName } from '../utils/project.utils';
+import { sanitizeChannelConfig, mergeChannelConfig } from '../utils/channel.utils';
 
 const connectionString = process.env.DATABASE_URL;
 const pool = new Pool({ connectionString });
@@ -627,6 +628,13 @@ export default async function projectRoutes(fastify: FastifyInstance) {
             }
         });
 
+        if (project && project.channels) {
+            project.channels = project.channels.map(channel => ({
+                ...channel,
+                config: sanitizeChannelConfig(channel.type, channel.config)
+            }));
+        }
+
         return project;
     });
 
@@ -833,7 +841,10 @@ export default async function projectRoutes(fastify: FastifyInstance) {
             }
         });
 
-        return channel;
+        return {
+            ...channel,
+            config: sanitizeChannelConfig(channel.type, channel.config)
+        };
     });
 
     // Edit channel
@@ -850,15 +861,24 @@ export default async function projectRoutes(fastify: FastifyInstance) {
             return;
         }
 
+        const existingChannel = await prisma.socialChannel.findUnique({
+            where: { id: parsedChannelId, project_id: projectId }
+        });
+
+        const mergedConfig = mergeChannelConfig(config, existingChannel?.config || {});
+
         const channel = await prisma.socialChannel.update({
             where: { id: parsedChannelId, project_id: projectId },
             data: {
                 name,
-                config
+                config: mergedConfig
             }
         });
 
-        return channel;
+        return {
+            ...channel,
+            config: sanitizeChannelConfig(channel.type, channel.config)
+        };
     });
 
     // Delete channel

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect, useRef } from 'react'
 import { api, presetsApi, keysApi, modelsApi, projectsApi, skillConnectionsApi, contentDictionaryApi, contentPolicyMatrixApi, atomaContextApi } from '../api'
 import { useAuth } from '../context/AuthContext'
+import { useToast } from '../components/ToastContainer'
 
 interface AgentConfig {
     role: string
@@ -115,6 +116,7 @@ function AgentSettingsRow({
     isUpdating: boolean,
     loadModels: (apiKey: string) => Promise<string[]>
 }) {
+    const { showToast } = useToast()
     const [isExpanded, setIsExpanded] = useState(false)
     const [prompt, setPrompt] = useState(config?.prompt || '')
     const [apiKey, setApiKey] = useState(config?.apiKey || '')
@@ -137,7 +139,7 @@ function AgentSettingsRow({
             const models = await loadModels(apiKey)
             setAvailableModels(models)
         } catch (e: any) {
-            alert('Failed to load models: ' + e.message)
+            showToast('Failed to load models', 'error', e.message)
         } finally {
             setIsLoadingModels(false)
         }
@@ -262,6 +264,7 @@ const SETTINGS_TABS: SettingsTab[] = ['general', 'keys', 'dictionary', 'skills',
 
 export default function Settings() {
     const queryClient = useQueryClient()
+    const { showToast } = useToast()
     const { currentProject } = useAuth()
     const queryParams = new URLSearchParams(window.location.search)
     const linkedinError = queryParams.get('error')
@@ -379,7 +382,7 @@ export default function Settings() {
         mutationFn: (data: { name: string; description: string }) => projectsApi.update(currentProject!.id, data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['project'] })
-            alert('Project updated')
+            showToast('Project updated successfully', 'success')
         }
     })
 
@@ -410,9 +413,9 @@ export default function Settings() {
         onSuccess: () => {
             resetChannelForm()
             queryClient.invalidateQueries({ queryKey: ['project'] })
-            alert('Channel added')
+            showToast('Channel added successfully', 'success')
         },
-        onError: (err: any) => alert(err.message || 'Failed to add channel')
+        onError: (err: any) => showToast('Failed to add channel', 'error', err.message)
     })
 
     const editChannel = useMutation({
@@ -420,18 +423,18 @@ export default function Settings() {
         onSuccess: () => {
             resetChannelForm()
             queryClient.invalidateQueries({ queryKey: ['project'] })
-            alert('Channel updated')
+            showToast('Channel updated successfully', 'success')
         },
-        onError: (err: any) => alert(err.message || 'Failed to update channel')
+        onError: (err: any) => showToast('Failed to update channel', 'error', err.message)
     })
 
     const deleteChannel = useMutation({
         mutationFn: (channelId: number) => api.delete(`/api/projects/${currentProject!.id}/channels/${channelId}`),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['project'] })
-            alert('Channel deleted')
+            showToast('Channel deleted successfully', 'success')
         },
-        onError: (err: any) => alert(err.message || 'Failed to delete channel')
+        onError: (err: any) => showToast('Failed to delete channel', 'error', err.message)
     })
 
     // Note: Delete channel endpoint might need to be added or we just hide it?
@@ -460,9 +463,9 @@ export default function Settings() {
         mutationFn: (connections: SkillConnection[]) => skillConnectionsApi.saveAll(connections),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['skill-connections'] })
-            alert('Skill connections saved')
+            showToast('Skill connections saved successfully', 'success')
         },
-        onError: (err: any) => alert(err.message || 'Failed to save skill connections')
+        onError: (err: any) => showToast('Failed to save skill connections', 'error', err.message)
     })
 
     const saveContentDictionary = useMutation({
@@ -470,9 +473,9 @@ export default function Settings() {
         onSuccess: (result: any) => {
             setDictionaryYaml(result.yaml)
             queryClient.invalidateQueries({ queryKey: ['content-dictionary'] })
-            alert('Content dictionary saved')
+            showToast('Content dictionary saved successfully', 'success')
         },
-        onError: (err: any) => alert(err.message || 'Failed to save content dictionary')
+        onError: (err: any) => showToast('Failed to save content dictionary', 'error', err.message)
     })
 
     const saveContentPolicyMatrix = useMutation({
@@ -480,9 +483,9 @@ export default function Settings() {
         onSuccess: (result: any) => {
             setContentPolicyMatrixYaml(result.yaml)
             queryClient.invalidateQueries({ queryKey: ['content-policy-matrix'] })
-            alert('Content policy matrix saved')
+            showToast('Content policy matrix saved successfully', 'success')
         },
-        onError: (err: any) => alert(err.message || 'Failed to save content policy matrix')
+        onError: (err: any) => showToast('Failed to save content policy matrix', 'error', err.message)
     })
 
     const saveAtomaContext = useMutation({
@@ -491,9 +494,9 @@ export default function Settings() {
             setAtomaDescription(result.description || '')
             setAtomaPayloadText(result.payload_text || '')
             queryClient.invalidateQueries({ queryKey: ['atoma-context'] })
-            alert('ATOMA context saved')
+            showToast('ATOMA context saved successfully', 'success')
         },
-        onError: (err: any) => alert(err.message || 'Failed to save ATOMA context')
+        onError: (err: any) => showToast('Failed to save ATOMA context', 'error', err.message)
     })
 
     const updateAgent = useMutation({
@@ -501,7 +504,7 @@ export default function Settings() {
             api.put(`/api/settings/agents/${data.role}`, data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['agents'] })
-            alert('Agent configuration saved')
+            showToast('Agent configuration saved successfully', 'success')
         }
     })
 
@@ -510,15 +513,16 @@ export default function Settings() {
         onSuccess: () => {
             setInviteEmail('')
             queryClient.invalidateQueries({ queryKey: ['project'] })
-            alert('Member added')
+            showToast('Member added successfully', 'success')
         },
-        onError: (err: any) => alert(err.message)
+        onError: (err: any) => showToast('Failed to add member', 'error', err.message)
     })
 
     const removeMember = useMutation({
         mutationFn: (userId: number) => projectsApi.removeMember(currentProject!.id, userId),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['project'] })
+            showToast('Member removed successfully', 'success')
         }
     })
 
@@ -606,7 +610,7 @@ export default function Settings() {
 
         const normalizedName = file.name.toLowerCase()
         if (!normalizedName.endsWith('.yaml') && !normalizedName.endsWith('.yml')) {
-            alert('Choose a .yaml or .yml glossary file')
+            showToast('Choose a .yaml or .yml glossary file', 'warning')
             return
         }
 
@@ -616,28 +620,32 @@ export default function Settings() {
             setDictionaryYaml(text)
         }
         reader.onerror = () => {
-            alert('Failed to read glossary file')
+            showToast('Failed to read glossary file', 'error')
         }
         reader.readAsText(file)
     }
 
 
     const handleAddChannel = () => {
-        if (!newChannelName) return;
-        if (newChannelType !== 'habr' && !newChannelId) return;
+        if (!newChannelName) return showToast('Channel Name is required', 'warning');
+        if (newChannelType !== 'habr' && !newChannelId) return showToast('Channel ID is required', 'warning');
 
         const config: any = {};
         if (newChannelType === 'telegram') {
             config.telegram_channel_id = newChannelId;
-            if (newChannelUsername) config.channel_username = newChannelUsername;
+            if (newChannelUsername) {
+                config.channel_username = newChannelUsername.startsWith('@')
+                    ? newChannelUsername
+                    : `@${newChannelUsername}`;
+            }
         } else if (newChannelType === 'vk') {
-            if (!newChannelApiKey) return alert('VK requires an API key');
+            if (!newChannelApiKey) return showToast('VK requires an API key', 'warning');
             config.vk_id = newChannelId;
             config.api_key = newChannelApiKey;
         } else if (newChannelType === 'ok') {
-            if (!newChannelApiKey) return alert('Access Token is required');
-            if (!okAppKey) return alert('Application Key is required');
-            if (!okAppSecret) return alert('Application Secret Key is required');
+            if (!newChannelApiKey) return showToast('Access Token is required', 'warning');
+            if (!okAppKey) return showToast('Application Key is required', 'warning');
+            if (!okAppSecret) return showToast('Application Secret Key is required', 'warning');
             config.group_id = newChannelId;
             config.access_token = newChannelApiKey;
             config.application_key = okAppKey;
@@ -659,7 +667,7 @@ export default function Settings() {
             if (sessionCookies) config.cookies = sessionCookies;
             config.vk_id = newChannelId;
         } else if (newChannelType === 'threads') {
-            if (!newChannelApiKey) return alert('Access Token is required');
+            if (!newChannelApiKey) return showToast('Access Token is required', 'warning');
             config.threads_user_id = newChannelId;
             config.access_token = newChannelApiKey;
         }
@@ -906,6 +914,11 @@ export default function Settings() {
                                             value={newChannelId}
                                             onChange={e => setNewChannelId(e.target.value)}
                                         />
+                                        {newChannelId && !newChannelId.startsWith('-100') && (
+                                            <div className="text-xs text-rose-500 mt-1 font-semibold">
+                                                ⚠️ Telegram channel IDs usually start with -100
+                                            </div>
+                                        )}
                                     </div>
                                     <div>
                                         <label>Username (Optional, for links)</label>
@@ -914,6 +927,11 @@ export default function Settings() {
                                             value={newChannelUsername}
                                             onChange={e => setNewChannelUsername(e.target.value)}
                                         />
+                                        {newChannelUsername && !newChannelUsername.startsWith('@') && (
+                                            <div className="text-xs text-amber-500 mt-1 font-semibold">
+                                                💡 Will be auto-normalized to include @ prefix
+                                            </div>
+                                        )}
                                     </div>
                                 </>
                             ) : newChannelType === 'vk' ? (
@@ -926,6 +944,11 @@ export default function Settings() {
                                             onChange={e => setNewChannelId(e.target.value)}
                                             title="Use negative number for communities. Find it in group URL or settings."
                                         />
+                                        {newChannelId && !newChannelId.startsWith('-') && (
+                                            <div className="text-xs text-rose-500 mt-1 font-semibold">
+                                                ⚠️ VK Group IDs must be negative (start with -)
+                                            </div>
+                                        )}
                                     </div>
                                     <div>
                                         <label>Community Access Token</label>
@@ -1150,11 +1173,17 @@ export default function Settings() {
                                                     className="btn-primary"
                                                     style={{ fontSize: '0.8rem', padding: '0.25rem 0.75rem', height: 'auto' }}
                                                     onClick={() => {
-                                                        if (!editingChannelName) return alert('Channel Name is required');
+                                                        if (!editingChannelName) return showToast('Channel Name is required', 'warning');
+                                                        const finalConfig = { ...editingChannelConfig };
+                                                        if (channel.type === 'telegram' && finalConfig.channel_username) {
+                                                            finalConfig.channel_username = finalConfig.channel_username.startsWith('@')
+                                                                ? finalConfig.channel_username
+                                                                : `@${finalConfig.channel_username}`;
+                                                        }
                                                         editChannel.mutate({
                                                             id: channel.id,
                                                             name: editingChannelName,
-                                                            config: editingChannelConfig
+                                                            config: finalConfig
                                                         });
                                                     }}
                                                     disabled={editChannel.isPending}
@@ -1194,6 +1223,11 @@ export default function Settings() {
                                                             placeholder="-100xxxxxxxxx"
                                                             style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
                                                         />
+                                                        {editingChannelConfig.telegram_channel_id && !editingChannelConfig.telegram_channel_id.startsWith('-100') && (
+                                                            <div className="text-xs text-rose-500 mt-1 font-semibold">
+                                                                ⚠️ Telegram channel IDs usually start with -100
+                                                            </div>
+                                                        )}
                                                     </div>
                                                     <div style={{ gridColumn: '1 / -1' }}>
                                                         <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Channel Username/Handle (Optional)</label>
@@ -1204,6 +1238,11 @@ export default function Settings() {
                                                             placeholder="@channelname"
                                                             style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
                                                         />
+                                                        {editingChannelConfig.channel_username && !editingChannelConfig.channel_username.startsWith('@') && (
+                                                            <div className="text-xs text-amber-500 mt-1 font-semibold">
+                                                                💡 Will be auto-normalized to include @ prefix
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </>
                                             )}
@@ -1219,6 +1258,11 @@ export default function Settings() {
                                                             placeholder="VK ID"
                                                             style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
                                                         />
+                                                        {editingChannelConfig.vk_id && !editingChannelConfig.vk_id.startsWith('-') && (
+                                                            <div className="text-xs text-rose-500 mt-1 font-semibold">
+                                                                ⚠️ VK Group IDs must be negative (start with -)
+                                                            </div>
+                                                        )}
                                                     </div>
                                                     <div>
                                                         <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Access Token / API Key</label>

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
 import { useState } from 'react'
 import { api, presetsApi } from '../api' // Mock/real api
+import { useToast } from '../components/ToastContainer'
 import CommentSection from '../components/CommentSection'
 import { useAuth } from '../context/AuthContext'
 
@@ -39,6 +40,7 @@ export default function WeekDetail() {
     const { id } = useParams()
     const navigate = useNavigate()
     const queryClient = useQueryClient()
+    const { showToast } = useToast()
     const { currentProject } = useAuth()
 
     // State
@@ -100,14 +102,14 @@ export default function WeekDetail() {
         onSuccess: (response) => {
             const data = response.data;
             if (data?.warning) {
-                alert(`⚠️ Пост опубликован, но есть предупреждение:\n\n${data.warning}\n\nЧтобы вернуть MTProto, проверьте Telegram Account в настройках.`);
+                showToast('Post published with warning', 'warning', data.warning);
             } else {
                 const method = data?.publishMethod === 'mtproto' ? '✅ MTProto' : '🤖 Bot API';
-                alert(`Пост опубликован через ${method}`);
+                showToast(`Post published successfully via ${method}`, 'success');
             }
             queryClient.invalidateQueries({ queryKey: ['week', id] })
         },
-        onError: (err: any) => alert('Не удалось опубликовать: ' + (err.response?.data?.error || err.message))
+        onError: (err: any) => showToast('Failed to publish', 'error', err.response?.data?.error || err.message)
     })
 
     const generateImage = useMutation({
@@ -118,9 +120,10 @@ export default function WeekDetail() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['week', id] });
             setGeneratingPostId(null);
+            showToast('Image generated successfully!', 'success');
         },
         onError: (err: any) => {
-            alert('Failed to generate image: ' + (err.response?.data?.error || err.message));
+            showToast('Failed to generate image', 'error', err.response?.data?.error || err.message);
             setGeneratingPostId(null);
         }
     });
@@ -130,8 +133,9 @@ export default function WeekDetail() {
             api.put(`/api/posts/${postId}`, { publish_at: new Date(publishAt).toISOString() }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['week', id] })
+            showToast('Schedule updated successfully', 'success')
         },
-        onError: (err: any) => alert('Не удалось изменить время публикации: ' + (err.response?.data?.error || err.message))
+        onError: (err: any) => showToast('Failed to update schedule', 'error', err.response?.data?.error || err.message)
     });
 
     const isImageFailure = (p: Post) => p.status === 'failed' && Boolean(p.image_prompt?.includes('[Image Gen Failed]'));

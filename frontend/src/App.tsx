@@ -64,12 +64,16 @@ function AppContent() {
   )
 }
 
+import { ToastProvider } from './components/ToastContainer'
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
-          <AppContent />
+          <ToastProvider>
+            <AppContent />
+          </ToastProvider>
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>

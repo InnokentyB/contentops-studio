@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import { format } from 'date-fns'
 import { api, presetsApi, contentDictionaryApi } from '../api'
+import { useToast } from '../components/ToastContainer'
 import CommentSection from '../components/CommentSection'
 import ContentMarkupRenderer from '../components/ContentMarkupRenderer'
 
@@ -53,6 +54,7 @@ export default function PostEditor() {
     const { id } = useParams()
     const navigate = useNavigate()
     const queryClient = useQueryClient()
+    const { showToast } = useToast()
     const { currentProject } = useAuth()
     
     const [topic, setTopic] = useState('')
@@ -124,8 +126,9 @@ export default function PostEditor() {
         mutationFn: () => api.post(`/api/posts/${id}/publish-now`, {}),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['post', id] })
+            showToast('Post published successfully!', 'success')
         },
-        onError: (err: any) => alert('Не удалось опубликовать: ' + (err.response?.data?.error || err.message))
+        onError: (err: any) => showToast('Failed to publish', 'error', err.response?.data?.error || err.message)
     })
 
     const regenerate = useMutation({
@@ -136,7 +139,9 @@ export default function PostEditor() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['post', id] })
-        }
+            showToast('Post content regenerated successfully', 'success')
+        },
+        onError: (err: any) => showToast('Failed to regenerate content', 'error', err.message)
     })
 
     const generateImage = useMutation({
@@ -144,8 +149,9 @@ export default function PostEditor() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['post', id] })
             setImageTimestamp(Date.now())
+            showToast('Image generated successfully!', 'success')
         },
-        onError: (err: any) => alert('Failed to generate image: ' + (err.response?.data?.error || err.message))
+        onError: (err: any) => showToast('Failed to generate image', 'error', err.response?.data?.error || err.message)
     })
 
     const uploadImage = useMutation({
@@ -153,16 +159,22 @@ export default function PostEditor() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['post', id] })
             setImageTimestamp(Date.now())
+            showToast('Image uploaded successfully!', 'success')
         },
-        onError: (err: any) => alert('Failed to upload image: ' + err.message)
+        onError: (err: any) => showToast('Failed to upload image', 'error', err.message)
     })
 
     const validateDictionary = useMutation({
         mutationFn: (content: string) => contentDictionaryApi.validatePost(Number(id), content),
         onSuccess: (result: DictionaryValidationReport) => {
             setDictionaryReport(result)
+            if (result.valid) {
+                showToast('Dictionary validation passed successfully', 'success')
+            } else {
+                showToast('Dictionary validation found issues', 'warning')
+            }
         },
-        onError: (err: any) => alert('Failed to validate content: ' + err.message)
+        onError: (err: any) => showToast('Failed to validate content', 'error', err.message)
     })
 
     useEffect(() => {

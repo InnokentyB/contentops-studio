@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { api } from '../api'
+import { useToast } from '../components/ToastContainer'
 
 interface ContentItem {
     id: number
@@ -33,6 +34,7 @@ export default function V2WeekDetail() {
     const { id } = useParams<{ id: string }>()
     const navigate = useNavigate()
     const queryClient = useQueryClient()
+    const { showToast } = useToast()
 
     const { data: week, isLoading, error } = useQuery<WeekPackageDetail>({
         queryKey: ['v2_week', id],
@@ -50,23 +52,27 @@ export default function V2WeekDetail() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['v2_week', id] })
             queryClient.invalidateQueries({ queryKey: ['v2_weeks'] })
-        }
+            showToast('Week package approved successfully!', 'success')
+        },
+        onError: (err: any) => showToast('Failed to approve week package', 'error', err.message)
     })
 
     const architectWeek = useMutation({
         mutationFn: () => api.post(`/api/v2/architect-week/${id}`, {}),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['v2_week', id] })
+            showToast('Week architecture generated successfully', 'success')
         },
-        onError: (err: any) => alert(`Architecture failed: ${err.message}`)
+        onError: (err: any) => showToast('Architecture failed', 'error', err.message)
     })
 
     const convertToV1 = useMutation({
         mutationFn: () => api.post(`/api/v2/weeks/${id}/convert-to-v1`, {}),
         onSuccess: (data: { weekId: number }) => {
+            showToast('Converted to V1 successfully', 'success')
             navigate(`/weeks/${data.weekId}`)
         },
-        onError: (err: any) => alert(`Failed to convert: ${err.message}`)
+        onError: (err: any) => showToast('Failed to convert', 'error', err.message)
     })
 
     if (isLoading) return (

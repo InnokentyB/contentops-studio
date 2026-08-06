@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { format } from 'date-fns'
 import { api } from '../api'
 import { useAuth } from '../context/AuthContext'
+import { useToast } from '../components/ToastContainer'
 
 interface WeekPackage {
     id: number
@@ -228,6 +229,7 @@ function StrategyChat() {
 
 export default function V2Dashboard() {
     const queryClient = useQueryClient()
+    const { showToast } = useToast()
     const { currentProject } = useAuth()
     const [activeTab, setActiveTab] = useState<'weeks' | 'quarters'>('quarters')
     const [showCreate, setShowCreate] = useState(false)
@@ -268,8 +270,9 @@ export default function V2Dashboard() {
             setShowCreate(false)
             setThemeHint('')
             setStartDate('')
+            showToast('Week planned successfully', 'success')
         },
-        onError: (err: any) => alert(`Planning failed: ${err.message}`)
+        onError: (err: any) => showToast('Planning failed', 'error', err.message)
     })
 
     const createQuarter = useMutation({
@@ -281,14 +284,15 @@ export default function V2Dashboard() {
             setQGoalHint('')
             setQStartDate('')
             setSelectedChannels({})
+            showToast('Quarter planned successfully', 'success')
         },
-        onError: (err: any) => alert(`Quarter Planning failed: ${err.message}`)
+        onError: (err: any) => showToast('Quarter Planning failed', 'error', err.message)
     })
 
     const runSweep = useMutation({
         mutationFn: () => api.post('/api/v2/factory-sweep', {}),
-        onSuccess: (data: any) => alert(`Sweep completed! Processed: ${data.processed} items.`),
-        onError: (err: any) => alert(`Sweep failed: ${err.message}`)
+        onSuccess: (data: any) => showToast('Sweep completed successfully', 'success', `Processed: ${data.processed} items.`),
+        onError: (err: any) => showToast('Sweep failed', 'error', err.message)
     })
 
     if (!currentProject) {
