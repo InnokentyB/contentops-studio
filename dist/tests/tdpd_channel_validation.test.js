@@ -191,3 +191,24 @@ const planner_service_1 = require("../services/planner.service");
         });
     }
 });
+(0, node_test_1.default)('cleanAndFormatHashtags removes duplicate and double hashtags', () => {
+    const text = 'Hello world ##tech #programming. This is an awesome post!';
+    const tags = ['tech', 'programming', 'typescript'];
+    const category = 'Development';
+    const result = (0, channel_utils_1.cleanAndFormatHashtags)(text, tags, category);
+    // It should strip existing double hashes in body: ##tech -> #tech
+    strict_1.default.match(result, /#tech/);
+    strict_1.default.ok(!result.includes('##tech'));
+    // It should append 'typescript' but NOT append 'tech' and 'programming' again since they are in body
+    strict_1.default.match(result, /#typescript/);
+    // Check total occurrence counts:
+    const appendedPart = result.split('!').pop() || '';
+    strict_1.default.ok(!appendedPart.includes('#tech'), 'Appended tags should not contain duplicates of body tech');
+    strict_1.default.ok(!appendedPart.includes('#programming'), 'Appended tags should not contain duplicates of body programming');
+    strict_1.default.ok(appendedPart.includes('#typescript'), 'New tags should be appended');
+});
+(0, node_test_1.default)('cleanAndFormatHashtags handles category fallback tag', () => {
+    const text = 'Some content';
+    const result = (0, channel_utils_1.cleanAndFormatHashtags)(text, [], 'Soft Skills');
+    strict_1.default.equal(result, 'Some content\n\n#SoftSkills');
+});

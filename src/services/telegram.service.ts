@@ -8,6 +8,7 @@ import plannerService from './planner.service';
 import generatorService from './generator.service';
 import publisherService from './publisher.service';
 import multiAgentService from './multi_agent.service';
+import { cleanAndFormatHashtags } from '../utils/channel.utils';
 
 config();
 
@@ -506,14 +507,8 @@ class TelegramService {
 
                 const result = await generatorService.generatePostText(projectId, existingWeek.theme, post.topic, post.id);
 
-                // Construct full text with hashtags
-                // Strip any leading # from AI-returned tags to avoid ## double-prefix
-                let fullText = result.text;
-                if (result.tags && result.tags.length > 0) {
-                    fullText += '\n\n' + result.tags.map(t => `#${t.replace(/\s+/g, '').replace(/^#+/, '')}`).join(' ');
-                } else if (result.category) {
-                    fullText += `\n\n#${result.category.replace(/\s+/g, '').replace(/^#+/, '')}`;
-                }
+                // Construct full text with normalized hashtags
+                const fullText = cleanAndFormatHashtags(result.text, result.tags || [], result.category || undefined);
 
                 await plannerService.updatePost(post.id, {
                     generated_text: fullText,
@@ -775,14 +770,8 @@ class TelegramService {
 
         const result = await generatorService.generatePostText(projectId, post.week.theme, post.topic || '', post.id);
 
-        // Construct full text with hashtags
-        // Strip any leading # from AI-returned tags to avoid ## double-prefix
-        let fullText = result.text;
-        if (result.tags && result.tags.length > 0) {
-            fullText += '\n\n' + result.tags.map(t => `#${t.replace(/\s+/g, '').replace(/^#+/, '')}`).join(' ');
-        } else if (result.category) {
-            fullText += `\n\n#${result.category.replace(/\s+/g, '').replace(/^#+/, '')}`;
-        }
+        // Construct full text with normalized hashtags
+        const fullText = cleanAndFormatHashtags(result.text, result.tags || [], result.category || undefined);
 
         await plannerService.updatePost(postId, {
             generated_text: fullText,

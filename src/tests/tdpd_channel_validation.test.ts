@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import Fastify from 'fastify';
 
 // Import our utility functions
-import { sanitizeChannelConfig, mergeChannelConfig } from '../utils/channel.utils';
+import { sanitizeChannelConfig, mergeChannelConfig, cleanAndFormatHashtags } from '../utils/channel.utils';
 import projectRoutes from '../routes/project.routes';
 import authService from '../services/auth.service';
 import { prisma } from '../services/planner.service';
@@ -208,4 +208,32 @@ test('PUT /api/projects/:id/channels/:channelId merges configs', async () => {
             writable: true
         });
     }
+});
+
+test('cleanAndFormatHashtags removes duplicate and double hashtags', () => {
+    const text = 'Hello world ##tech #programming. This is an awesome post!';
+    const tags = ['tech', 'programming', 'typescript'];
+    const category = 'Development';
+
+    const result = cleanAndFormatHashtags(text, tags, category);
+
+    // It should strip existing double hashes in body: ##tech -> #tech
+    assert.match(result, /#tech/);
+    assert.ok(!result.includes('##tech'));
+
+    // It should append 'typescript' but NOT append 'tech' and 'programming' again since they are in body
+    assert.match(result, /#typescript/);
+    
+    // Check total occurrence counts:
+    const appendedPart = result.split('!').pop() || '';
+    assert.ok(!appendedPart.includes('#tech'), 'Appended tags should not contain duplicates of body tech');
+    assert.ok(!appendedPart.includes('#programming'), 'Appended tags should not contain duplicates of body programming');
+    assert.ok(appendedPart.includes('#typescript'), 'New tags should be appended');
+});
+
+test('cleanAndFormatHashtags handles category fallback tag', () => {
+    const text = 'Some content';
+    const result = cleanAndFormatHashtags(text, [], 'Soft Skills');
+    
+    assert.equal(result, 'Some content\n\n#SoftSkills');
 });

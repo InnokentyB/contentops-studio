@@ -46,6 +46,7 @@ const planner_service_1 = __importDefault(require("./planner.service"));
 const generator_service_1 = __importDefault(require("./generator.service"));
 const publisher_service_1 = __importDefault(require("./publisher.service"));
 const multi_agent_service_1 = __importDefault(require("./multi_agent.service"));
+const channel_utils_1 = require("../utils/channel.utils");
 (0, dotenv_1.config)();
 const connectionString = process.env.DATABASE_URL;
 const pool = new pg_1.Pool({ connectionString });
@@ -462,15 +463,8 @@ class TelegramService {
                 count++;
                 console.log(`Generating post ${count}/2: ${post.topic}`);
                 const result = await generator_service_1.default.generatePostText(projectId, existingWeek.theme, post.topic, post.id);
-                // Construct full text with hashtags
-                // Strip any leading # from AI-returned tags to avoid ## double-prefix
-                let fullText = result.text;
-                if (result.tags && result.tags.length > 0) {
-                    fullText += '\n\n' + result.tags.map(t => `#${t.replace(/\s+/g, '').replace(/^#+/, '')}`).join(' ');
-                }
-                else if (result.category) {
-                    fullText += `\n\n#${result.category.replace(/\s+/g, '').replace(/^#+/, '')}`;
-                }
+                // Construct full text with normalized hashtags
+                const fullText = (0, channel_utils_1.cleanAndFormatHashtags)(result.text, result.tags || [], result.category || undefined);
                 await planner_service_1.default.updatePost(post.id, {
                     generated_text: fullText,
                     final_text: fullText,
@@ -712,15 +706,8 @@ class TelegramService {
         if (!post || !post.week)
             return;
         const result = await generator_service_1.default.generatePostText(projectId, post.week.theme, post.topic || '', post.id);
-        // Construct full text with hashtags
-        // Strip any leading # from AI-returned tags to avoid ## double-prefix
-        let fullText = result.text;
-        if (result.tags && result.tags.length > 0) {
-            fullText += '\n\n' + result.tags.map(t => `#${t.replace(/\s+/g, '').replace(/^#+/, '')}`).join(' ');
-        }
-        else if (result.category) {
-            fullText += `\n\n#${result.category.replace(/\s+/g, '').replace(/^#+/, '')}`;
-        }
+        // Construct full text with normalized hashtags
+        const fullText = (0, channel_utils_1.cleanAndFormatHashtags)(result.text, result.tags || [], result.category || undefined);
         await planner_service_1.default.updatePost(postId, {
             generated_text: fullText,
             final_text: fullText,

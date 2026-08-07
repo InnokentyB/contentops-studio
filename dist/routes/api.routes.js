@@ -379,6 +379,58 @@ async function apiRoutes(fastify) {
             return reply.code(400).send({ error: 'Unrecognized image url format' });
         }
     });
+    // Public endpoint to serve images for V2 ContentItem link preview
+    fastify.get('/public/content-items/:id/image', async (request, reply) => {
+        const { id } = request.params;
+        const item = await prisma.contentItem.findUnique({
+            where: { id: parseInt(id) },
+            select: { assets: true }
+        });
+        if (!item || !item.assets) {
+            return reply.code(404).send({ error: 'ContentItem or assets not found' });
+        }
+        const assets = item.assets;
+        const generatedVisual = Array.isArray(assets?.generated_visuals)
+            ? assets.generated_visuals[0]
+            : null;
+        const imageUrl = generatedVisual?.url || generatedVisual?.image_url || generatedVisual?.src || null;
+        if (!imageUrl) {
+            return reply.code(404).send({ error: 'Image not found in assets' });
+        }
+        if (imageUrl.startsWith('data:image/')) {
+            const matches = imageUrl.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
+            if (!matches || matches.length !== 3) {
+                return reply.code(400).send({ error: 'Invalid image format' });
+            }
+            const mimeType = matches[1];
+            const base64Data = matches[2];
+            const buffer = Buffer.from(base64Data, 'base64');
+            reply.header('Content-Type', mimeType);
+            reply.header('Cache-Control', 'public, max-age=86400');
+            return reply.send(buffer);
+        }
+        else if (imageUrl.startsWith('/uploads/')) {
+            const fs = require('fs');
+            const path = require('path');
+            const filename = imageUrl.split('/').pop() || '';
+            const localPath = path.join(__dirname, '../../uploads', filename);
+            if (fs.existsSync(localPath)) {
+                const ext = filename.split('.').pop()?.toLowerCase();
+                const mimeType = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : 'image/jpeg';
+                const buffer = fs.readFileSync(localPath);
+                reply.header('Content-Type', mimeType);
+                reply.header('Cache-Control', 'public, max-age=86400');
+                return reply.send(buffer);
+            }
+            return reply.code(404).send({ error: 'Local image file not found' });
+        }
+        else if (imageUrl.startsWith('http')) {
+            return reply.redirect(imageUrl);
+        }
+        else {
+            return reply.code(400).send({ error: 'Unrecognized image url format' });
+        }
+    });
     // Weeks
     fastify.get('/api/weeks', async (request, reply) => {
         const projectId = request.projectId;
@@ -772,7 +824,8 @@ async function apiRoutes(fastify) {
     fastify.post('/api/posts/:id/publish-now', async (request, reply) => {
         const { id } = request.params;
         try {
-            const result = await publisher_service_1.default.publishPostNow(parseInt(id));
+            const host = request.headers.host || undefined;
+            const result = await publisher_service_1.default.publishPostNow(parseInt(id), host);
             return {
                 success: true,
                 publishMethod: result.publishMethod,
@@ -1085,7 +1138,8 @@ async function apiRoutes(fastify) {
             return reply.code(404).send({ error: 'Publication task not found' });
         }
         try {
-            const result = await publisher_service_1.default.processPublicationTaskNow(taskId);
+            const host = request.headers.host || undefined;
+            const result = await publisher_service_1.default.processPublicationTaskNow(taskId, host);
             const refreshed = await prisma.contentItem.findFirst({
                 where: { id: taskId, project_id: projectId },
                 include: { channel: true }

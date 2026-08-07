@@ -75,7 +75,7 @@ export class TelegramClientService {
      * Publish a post to a channel/chat
      * @param target which could be a username, phone number, or chat ID
      */
-    async publishPost(projectId: number, target: string | number, text: string, imageUrl?: string | null, scheduleDate?: Date, postId?: number) {
+    async publishPost(projectId: number, target: string | number, text: string, imageUrl?: string | null, scheduleDate?: Date, postId?: number, requestHost?: string) {
         const client = await this.getClient(projectId);
         if (!client) {
             throw new Error("Telegram Client not initialized or no account found.");
@@ -118,7 +118,7 @@ export class TelegramClientService {
         // Construct public URL for image preview if needed
         let publicImageUrl = imageUrl;
         if (imageUrl && !imageUrl.startsWith('http') && postId) {
-            const baseHost = process.env.RAILWAY_PUBLIC_DOMAIN || process.env.PUBLIC_URL || process.env.APP_URL;
+            const baseHost = requestHost || process.env.RAILWAY_PUBLIC_DOMAIN || process.env.PUBLIC_URL || process.env.APP_URL;
             if (baseHost) {
                 const domain = baseHost.startsWith('http') ? baseHost : `https://${baseHost}`;
                 publicImageUrl = `${domain}/public/posts/${postId}/image`;

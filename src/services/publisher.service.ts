@@ -231,15 +231,28 @@ class PublisherService {
         return imageUrl;
     }
 
-    private getPublicImageUrl(postId: number, imageUrl: string | null): string | null {
+    private getPublicImageUrl(postId: number, imageUrl: string | null, requestHost?: string): string | null {
         if (!imageUrl) return null;
         if (imageUrl.startsWith('http')) {
             return imageUrl;
         }
-        const baseHost = process.env.RAILWAY_PUBLIC_DOMAIN || process.env.PUBLIC_URL || process.env.APP_URL;
+        const baseHost = requestHost || process.env.RAILWAY_PUBLIC_DOMAIN || process.env.PUBLIC_URL || process.env.APP_URL;
         if (baseHost) {
             const domain = baseHost.startsWith('http') ? baseHost : `https://${baseHost}`;
             return `${domain}/public/posts/${postId}/image`;
+        }
+        return null;
+    }
+
+    private getPublicContentItemImageUrl(itemId: number, imageUrl: string | null, requestHost?: string): string | null {
+        if (!imageUrl) return null;
+        if (imageUrl.startsWith('http')) {
+            return imageUrl;
+        }
+        const baseHost = requestHost || process.env.RAILWAY_PUBLIC_DOMAIN || process.env.PUBLIC_URL || process.env.APP_URL;
+        if (baseHost) {
+            const domain = baseHost.startsWith('http') ? baseHost : `https://${baseHost}`;
+            return `${domain}/public/content-items/${itemId}/image`;
         }
         return null;
     }
@@ -1271,7 +1284,7 @@ class PublisherService {
         return dueTasks.length;
     }
 
-    async processPublicationTaskNow(taskId: number) {
+    async processPublicationTaskNow(taskId: number, requestHost?: string) {
         const task = await prisma.contentItem.findUnique({
             where: { id: taskId },
             include: { channel: true }
@@ -1289,10 +1302,10 @@ class PublisherService {
             throw new Error(`This publication task cannot be executed from status '${task.status}'`);
         }
 
-        return this.processPublicationTaskItem(task, { manualTrigger: true });
+        return this.processPublicationTaskItem(task, { manualTrigger: true, requestHost });
     }
 
-    private async processPublicationTaskItem(task: any, options: { manualTrigger?: boolean } = {}) {
+    private async processPublicationTaskItem(task: any, options: { manualTrigger?: boolean, requestHost?: string } = {}) {
         const dependencyState = await this.areTaskDependenciesSatisfied(task);
         if (!dependencyState.ready) {
             if (options.manualTrigger) {
@@ -1358,7 +1371,7 @@ class PublisherService {
             };
         }
 
-        const automatedResult = await this.executeAutomatedPublicationTask(task, bundle, channelConfig, plan as any);
+        const automatedResult = await this.executeAutomatedPublicationTask(task, bundle, channelConfig, plan as any, options.requestHost);
         const nextStatus = automatedResult.manualFallback ? 'awaiting_manual_publication' : 'published';
 
         await prisma.contentItem.update({
@@ -1490,7 +1503,7 @@ class PublisherService {
         return { ready: true };
     }
 
-    private async executeAutomatedPublicationTask(task: any, bundle: any, channelConfig: any, plan: any) {
+    private async executeAutomatedPublicationTask(task: any, bundle: any, channelConfig: any, plan: any, requestHost?: string) {
         const channelType = task.channel?.type;
         const action = (task.assets as any)?.action || {};
         const text = bundle.publication?.body || '';
@@ -1630,7 +1643,7 @@ class PublisherService {
             if (mtprotoCheck.available) {
                 try {
                     const importedClient = require('./telegram_client.service').default;
-                    const result = await importedClient.publishPost(task.project_id, targetChannelId, text, imageUrl || undefined);
+                    const result = await importedClient.publishPost(task.project_id, targetChannelId, text, imageUrl || undefined, undefined, undefined, requestHost);
                     if (result?.id) {
                         sentMessageId = result.id;
                     }
@@ -1642,8 +1655,58 @@ class PublisherService {
 
             if (!sentMessageId) {
                 try {
-                    const sentMessage = await this.sendTextSplitting(targetChannelId, text);
-                    sentMessageId = sentMessage?.message_id;
+                    const telegramText = this.markdownToTelegramHtml(text);
+                    const photoSource = this.getTelegramPhotoSource(imageUrl);
+                    if (photoSource) {
+                        const CAPTION_LIMIT = 1024;
+                        if (telegramText.length > CAPTION_LIMIT) {
+                            const publicImageUrl = this.getPublicContentItemImageUrl(task.id, imageUrl, requestHost);
+                            if (publicImageUrl) {
+                                const sentMessage = await this.sendTextSplitting(targetChannelId, telegramText, {
+                                    link_preview_options: {
+                                        url: publicImageUrl,
+                                        prefer_large_media: true,
+                                        show_above_text: true,
+                                        is_disabled: false
+                                    }
+                                });
+                                sentMessageId = sentMessage?.message_id;
+                            } else {
+                                let splitIndex = telegramText.lastIndexOf('\n', CAPTION_LIMIT);
+                                if (splitIndex === -1 || splitIndex < CAPTION_LIMIT * 0.5) {
+                                    splitIndex = telegramText.lastIndexOf(' ', CAPTION_LIMIT);
+                                }
+                                if (splitIndex === -1) splitIndex = CAPTION_LIMIT;
+
+                                const caption = telegramText.substring(0, splitIndex);
+                                const remainder = telegramText.substring(splitIndex).trim();
+
+                                const photoMsg = await telegramService.sendPhoto(targetChannelId, photoSource, {
+                                    caption: caption,
+                                    parse_mode: 'HTML'
+                                });
+
+                                if (remainder.length > 0) {
+                                    const sentMsg = await telegramService.sendMessage(targetChannelId, remainder, {
+                                        parse_mode: 'HTML',
+                                        reply_to_message_id: photoMsg?.message_id
+                                    });
+                                    sentMessageId = sentMsg?.message_id;
+                                } else {
+                                    sentMessageId = photoMsg?.message_id;
+                                }
+                            }
+                        } else {
+                            const photoMsg = await telegramService.sendPhoto(targetChannelId, photoSource, {
+                                caption: telegramText,
+                                parse_mode: 'HTML'
+                            });
+                            sentMessageId = photoMsg?.message_id;
+                        }
+                    } else {
+                        const sentMessage = await this.sendTextSplitting(targetChannelId, telegramText);
+                        sentMessageId = sentMessage?.message_id;
+                    }
                 } catch (error: any) {
                     throw new Error(
                         `Telegram publish failed for ${normalizedHandle || rawChannelId || task.channel?.name || 'channel'}: ${this.extractTelegramErrorDescription(error)}`
@@ -2095,7 +2158,7 @@ class PublisherService {
         }
     }
 
-    async publishPostNow(postId: number): Promise<{ success: boolean; publishMethod: 'mtproto' | 'bot_api' | 'vk' | 'linkedin'; warning?: string }> {
+    async publishPostNow(postId: number, requestHost?: string): Promise<{ success: boolean; publishMethod: 'mtproto' | 'bot_api' | 'vk' | 'linkedin'; warning?: string }> {
         // 1. Fetch Post with Channel info
         const post = await prisma.post.findUnique({
             where: { id: postId },
@@ -2197,7 +2260,7 @@ class PublisherService {
                     if (post.image_url) imagePathOrUrl = post.image_url;
 
                     logToFile('INFO', `[Publisher] publishPostNow: calling MTProto for post ${post.id}`);
-                    const result = await importedClient.publishPost(post.project_id, targetChannelId, text, imagePathOrUrl, undefined, post.id);
+                    const result = await importedClient.publishPost(post.project_id, targetChannelId, text, imagePathOrUrl, undefined, post.id, requestHost);
                     if (result) {
                         sentMessageId = result.id;
                         isPublishedViaClient = true;
@@ -2218,7 +2281,7 @@ class PublisherService {
                 if (photoSource) {
                     const CAPTION_LIMIT = 1024;
                     if (telegramText.length > CAPTION_LIMIT) {
-                        const publicImageUrl = this.getPublicImageUrl(post.id, post.image_url);
+                        const publicImageUrl = this.getPublicImageUrl(post.id, post.image_url, requestHost);
                         if (publicImageUrl) {
                             // Send as single text with large media preview instead of splitting
                             sentMessage = await this.sendTextSplitting(targetChannelId, telegramText, {
