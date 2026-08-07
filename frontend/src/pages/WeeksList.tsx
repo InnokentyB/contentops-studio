@@ -15,12 +15,20 @@ interface Week {
 
 import { useAuth } from '../context/AuthContext'
 
+interface SocialChannel {
+    id: number
+    type: string
+    name: string
+    config: any
+}
+
 export default function WeeksList() {
     const queryClient = useQueryClient()
     const { currentProject } = useAuth()
     const [showCreate, setShowCreate] = useState(false)
     const [theme, setTheme] = useState('')
     const [startDate, setStartDate] = useState('')
+    const [channelId, setChannelId] = useState<number | ''>('')
 
     const { data: weeks, isLoading, error } = useQuery<Week[]>({
         queryKey: ['weeks', currentProject?.id],
@@ -28,14 +36,21 @@ export default function WeeksList() {
         enabled: !!currentProject
     })
 
+    const { data: projectData } = useQuery<any>({
+        queryKey: ['project', currentProject?.id],
+        queryFn: () => api.get(`/api/projects/${currentProject?.id}`),
+        enabled: !!currentProject
+    })
+
     const createWeek = useMutation({
-        mutationFn: (data: { theme: string; startDate?: string }) =>
+        mutationFn: (data: { theme: string; startDate?: string; channelId?: number }) =>
             api.post('/api/weeks', data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['weeks'] })
             setShowCreate(false)
             setTheme('')
             setStartDate('')
+            setChannelId('')
         }
     })
 
@@ -164,7 +179,7 @@ export default function WeeksList() {
                         </div>
                         <h2 className="text-xl font-headline font-black">Design New Deployment</h2>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="space-y-2">
                             <label className="text-[10px] font-black uppercase tracking-widest text-primary/60 ml-2 text-on-surface">Strategic Theme</label>
                             <input
@@ -183,10 +198,23 @@ export default function WeeksList() {
                                 className="w-full bg-surface-container-low border-none rounded-2xl py-4 px-6 text-sm font-bold focus:ring-4 focus:ring-primary/10 transition-all"
                             />
                         </div>
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-primary/60 ml-2">Publication Source</label>
+                            <select
+                                value={channelId}
+                                onChange={(e) => setChannelId(e.target.value ? Number(e.target.value) : '')}
+                                className="w-full bg-surface-container-low border-none rounded-2xl py-4 px-6 text-sm font-bold focus:ring-4 focus:ring-primary/10 transition-all"
+                            >
+                                <option value="">Default Node Setting</option>
+                                {(projectData as any)?.channels?.map((c: SocialChannel) => (
+                                    <option key={c.id} value={c.id}>{c.name} ({c.type})</option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
                     <div className="flex justify-end pt-4">
                         <button
-                            onClick={() => createWeek.mutate({ theme, startDate: startDate || undefined })}
+                            onClick={() => createWeek.mutate({ theme, startDate: startDate || undefined, channelId: channelId || undefined })}
                             disabled={!theme || createWeek.isPending}
                             className="btn-primary px-10 py-4 shadow-lg"
                         >

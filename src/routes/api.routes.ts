@@ -487,7 +487,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         const projectId = (request as any).projectId;
         if (!projectId) return reply.code(400).send({ error: 'Project ID required' });
 
-        const { theme, startDate } = request.body as { theme: string; startDate?: string };
+        const { theme, startDate, channelId } = request.body as { theme: string; startDate?: string; channelId?: number };
 
         let start, end;
         if (startDate) {
@@ -504,7 +504,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         try {
             const week = await plannerService.createWeek(projectId, theme, start, end);
             // Default: All 7 days (14 slots)
-            await plannerService.generateSlots(week.id, projectId, start, 14, 0);
+            await plannerService.generateSlots(week.id, projectId, start, 14, 0, channelId);
             return week;
         } catch (e: any) {
             // P2002 is Prisma Unique Constraint Violation

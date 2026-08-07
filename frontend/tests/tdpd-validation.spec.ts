@@ -99,4 +99,23 @@ test.describe('TDPD UI validations & Toast system E2E tests', () => {
         await expect(toast).toBeVisible();
         await expect(toast).toContainText('Project updated successfully');
     });
+
+    test('should allow selecting a publication source when initiating a new week', async ({ page }) => {
+        await page.goto('/calendar');
+
+        // Click on INITIATE WEEK button to show the creation panel
+        const initiateBtn = page.getByRole('button', { name: /INITIATE WEEK|ABORT/i });
+        await initiateBtn.click();
+
+        // Check if Strategic Theme input, Node Activation Date, and Publication Source dropdown are visible
+        const themeInput = page.locator('label:has-text("Strategic Theme") ~ input');
+        const selectSource = page.locator('label:has-text("Publication Source") ~ select');
+        
+        await expect(themeInput).toBeVisible();
+        await expect(selectSource).toBeVisible();
+
+        // The select should contain 'Default Node Setting' option
+        const defaultOption = selectSource.locator('option[value=""]');
+        await expect(defaultOption).toContainText('Default Node Setting');
+    });
 });

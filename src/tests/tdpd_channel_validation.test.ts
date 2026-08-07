@@ -7,6 +7,7 @@ import { sanitizeChannelConfig, mergeChannelConfig, cleanAndFormatHashtags } fro
 import projectRoutes from '../routes/project.routes';
 import authService from '../services/auth.service';
 import { prisma } from '../services/planner.service';
+import plannerService from '../services/planner.service';
 
 test('sanitizeChannelConfig masks sensitive fields', () => {
     const config = {
@@ -236,4 +237,49 @@ test('cleanAndFormatHashtags handles category fallback tag', () => {
     const result = cleanAndFormatHashtags(text, [], 'Soft Skills');
     
     assert.equal(result, 'Some content\n\n#SoftSkills');
+});
+
+test('generateSlots uses explicit channelId when provided', async () => {
+    const originalCreateMany = prisma.post.createMany;
+    const originalFindUniqueChannel = prisma.socialChannel.findUnique;
+    
+    let createdPosts: any[] = [];
+    Object.defineProperty(prisma.post, 'createMany', {
+        value: async (args: any) => {
+            createdPosts = args.data;
+            return { count: args.data.length };
+        },
+        configurable: true,
+        writable: true
+    });
+
+    Object.defineProperty(prisma.socialChannel, 'findUnique', {
+        value: async () => ({
+            id: 42,
+            type: 'vk',
+            name: 'VK Target'
+        }),
+        configurable: true,
+        writable: true
+    });
+
+    try {
+        await plannerService.generateSlots(1, 1, new Date(), 14, 0, 42);
+        
+        assert.equal(createdPosts.length, 14);
+        for (const post of createdPosts) {
+            assert.equal(post.channel_id, 42);
+        }
+    } finally {
+        Object.defineProperty(prisma.post, 'createMany', {
+            value: originalCreateMany,
+            configurable: true,
+            writable: true
+        });
+        Object.defineProperty(prisma.socialChannel, 'findUnique', {
+            value: originalFindUniqueChannel,
+            configurable: true,
+            writable: true
+        });
+    }
 });

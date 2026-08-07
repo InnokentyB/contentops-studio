@@ -447,7 +447,7 @@ async function apiRoutes(fastify) {
         const projectId = request.projectId;
         if (!projectId)
             return reply.code(400).send({ error: 'Project ID required' });
-        const { theme, startDate } = request.body;
+        const { theme, startDate, channelId } = request.body;
         let start, end;
         if (startDate) {
             const date = new Date(startDate);
@@ -463,7 +463,7 @@ async function apiRoutes(fastify) {
         try {
             const week = await planner_service_1.default.createWeek(projectId, theme, start, end);
             // Default: All 7 days (14 slots)
-            await planner_service_1.default.generateSlots(week.id, projectId, start, 14, 0);
+            await planner_service_1.default.generateSlots(week.id, projectId, start, 14, 0, channelId);
             return week;
         }
         catch (e) {

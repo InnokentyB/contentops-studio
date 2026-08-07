@@ -11,6 +11,7 @@ const channel_utils_1 = require("../utils/channel.utils");
 const project_routes_1 = __importDefault(require("../routes/project.routes"));
 const auth_service_1 = __importDefault(require("../services/auth.service"));
 const planner_service_1 = require("../services/planner.service");
+const planner_service_2 = __importDefault(require("../services/planner.service"));
 (0, node_test_1.default)('sanitizeChannelConfig masks sensitive fields', () => {
     const config = {
         telegram_channel_id: '-100123456',
@@ -211,4 +212,45 @@ const planner_service_1 = require("../services/planner.service");
     const text = 'Some content';
     const result = (0, channel_utils_1.cleanAndFormatHashtags)(text, [], 'Soft Skills');
     strict_1.default.equal(result, 'Some content\n\n#SoftSkills');
+});
+(0, node_test_1.default)('generateSlots uses explicit channelId when provided', async () => {
+    const originalCreateMany = planner_service_1.prisma.post.createMany;
+    const originalFindUniqueChannel = planner_service_1.prisma.socialChannel.findUnique;
+    let createdPosts = [];
+    Object.defineProperty(planner_service_1.prisma.post, 'createMany', {
+        value: async (args) => {
+            createdPosts = args.data;
+            return { count: args.data.length };
+        },
+        configurable: true,
+        writable: true
+    });
+    Object.defineProperty(planner_service_1.prisma.socialChannel, 'findUnique', {
+        value: async () => ({
+            id: 42,
+            type: 'vk',
+            name: 'VK Target'
+        }),
+        configurable: true,
+        writable: true
+    });
+    try {
+        await planner_service_2.default.generateSlots(1, 1, new Date(), 14, 0, 42);
+        strict_1.default.equal(createdPosts.length, 14);
+        for (const post of createdPosts) {
+            strict_1.default.equal(post.channel_id, 42);
+        }
+    }
+    finally {
+        Object.defineProperty(planner_service_1.prisma.post, 'createMany', {
+            value: originalCreateMany,
+            configurable: true,
+            writable: true
+        });
+        Object.defineProperty(planner_service_1.prisma.socialChannel, 'findUnique', {
+            value: originalFindUniqueChannel,
+            configurable: true,
+            writable: true
+        });
+    }
 });

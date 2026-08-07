@@ -44,23 +44,26 @@ class PlannerService {
         });
     }
 
-    async generateSlots(weekId: number, projectId: number, start: Date, count: number = 14, startIndex: number = 0) {
+    async generateSlots(weekId: number, projectId: number, start: Date, count: number = 14, startIndex: number = 0, explicitChannelId?: number | null) {
         const slots = [];
 
-        // Fetch default channel setting
-        const defaultChannelSetting = await prisma.projectSettings.findFirst({
-            where: { project_id: projectId, key: 'default_channel_id' }
-        });
+        let channelId = explicitChannelId || null;
 
-        let channelId = null;
-        if (defaultChannelSetting?.value) {
-            const configuredChannelId = parseInt(defaultChannelSetting.value);
-            if (!isNaN(configuredChannelId)) {
-                const exists = await prisma.socialChannel.findUnique({
-                    where: { id: configuredChannelId, project_id: projectId }
-                });
-                if (exists) {
-                    channelId = configuredChannelId;
+        if (!channelId) {
+            // Fetch default channel setting
+            const defaultChannelSetting = await prisma.projectSettings.findFirst({
+                where: { project_id: projectId, key: 'default_channel_id' }
+            });
+
+            if (defaultChannelSetting?.value) {
+                const configuredChannelId = parseInt(defaultChannelSetting.value);
+                if (!isNaN(configuredChannelId)) {
+                    const exists = await prisma.socialChannel.findUnique({
+                        where: { id: configuredChannelId, project_id: projectId }
+                    });
+                    if (exists) {
+                        channelId = configuredChannelId;
+                    }
                 }
             }
         }
