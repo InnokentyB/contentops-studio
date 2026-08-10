@@ -18,6 +18,7 @@ interface RegisteredServiceIdentity {
     actorId: string;
     name: string;
     scopes: WorkQueueScope[];
+    allowedProjectIds?: number[];
 }
 
 /**
@@ -62,6 +63,15 @@ const REGISTERED_SERVICE_IDENTITIES: Record<string, RegisteredServiceIdentity> =
 };
 
 export class WorkQueueService {
+    /**
+     * Register or bind a service identity to specific project IDs dynamically.
+     */
+    registerServiceBinding(actorId: string, allowedProjectIds: number[]) {
+        if (REGISTERED_SERVICE_IDENTITIES[actorId]) {
+            REGISTERED_SERVICE_IDENTITIES[actorId].allowedProjectIds = allowedProjectIds;
+        }
+    }
+
     /**
      * Verifies that the given actor is registered, has required scope, and has access to the project.
      * Throws an error if authorization fails.
@@ -112,6 +122,12 @@ export class WorkQueueService {
 
         if (requiredScope && !registeredIdentity.scopes.includes(requiredScope)) {
             throw new Error(`[Security] Access denied: Actor "${actorId}" lacks required scope "${requiredScope}"`);
+        }
+
+        if (registeredIdentity.allowedProjectIds && registeredIdentity.allowedProjectIds.length > 0) {
+            if (!registeredIdentity.allowedProjectIds.includes(projectId)) {
+                throw new Error(`[Security] Access denied: Service identity "${actorId}" is not authorized for project ${projectId}`);
+            }
         }
 
         // Verify project has valid active members
@@ -237,7 +253,6 @@ export class WorkQueueService {
                     }
                 });
 
-                // Mark plan_review work item as completed if present
                 await tx.workItem.updateMany({
                     where: {
                         week_package_id: params.weekPackageId,
@@ -246,7 +261,6 @@ export class WorkQueueService {
                     data: { state: 'completed' }
                 });
 
-                // For each ContentItem, create or unlock its content_write WorkItem
                 for (const item of weekPackage.content_items) {
                     const existingWrite = await tx.workItem.findFirst({
                         where: {
@@ -528,7 +542,7 @@ export class WorkQueueService {
     }
 
     /**
-     * Claims a work item with an atomic lease reservation.
+     * Claims a work item with an atomic conditional lease reservation.
      */
     async claimWorkItem(params: {
         projectId: number;
@@ -610,7 +624,7 @@ export class WorkQueueService {
 
     /**
      * Completes a work item execution and unlocks the next stage.
-     * Strictly validates project, active claim state, lease token, and lease actor ownership.
+     * Uses atomic conditional UPDATE by (id, project_id, state='claimed', lease_token, lease_actor_id, lease_expires_at >= now).
      */
     async completeWorkItem(params: {
         projectId: number;
@@ -632,33 +646,31 @@ export class WorkQueueService {
             if (cached) return cached as Record<string, unknown>;
 
             const now = new Date();
-            const item = await tx.workItem.findFirst({
-                where: {
-                    id: params.workItemId,
-                    project_id: params.projectId
-                }
+
+            // First get the current result_version to compute increment safely
+            const currentItem = await tx.workItem.findFirst({
+                where: { id: params.workItemId, project_id: params.projectId }
             });
 
-            if (!item) {
+            if (!currentItem) {
                 throw new Error(`WorkItem ${params.workItemId} not found in project ${params.projectId}`);
             }
 
-            if (item.state !== 'claimed' || !item.lease_token || item.lease_token !== params.leaseToken) {
-                throw new Error(`[INVALID_LEASE_TOKEN] Valid active lease token is required to complete work item ${params.workItemId}`);
-            }
+            const newResultVersion = currentItem.result_version + 1;
 
-            if (item.lease_actor_id !== params.actorId) {
-                throw new Error(`[UNAUTHORIZED_LEASE_OWNER] Actor ${params.actorId} does not own active lease on work item ${params.workItemId}`);
-            }
-
-            if (item.lease_expires_at && now.getTime() > item.lease_expires_at.getTime()) {
-                throw new Error(`[LEASE_EXPIRED] Lease token for work item ${params.workItemId} has expired`);
-            }
-
-            const newResultVersion = item.result_version + 1;
-
-            const updated = await tx.workItem.update({
-                where: { id: params.workItemId },
+            // Atomic conditional UPDATE preventing race conditions
+            const updateResult = await tx.workItem.updateMany({
+                where: {
+                    id: params.workItemId,
+                    project_id: params.projectId,
+                    state: 'claimed',
+                    lease_token: params.leaseToken,
+                    lease_actor_id: params.actorId,
+                    OR: [
+                        { lease_expires_at: null },
+                        { lease_expires_at: { gte: now } }
+                    ]
+                },
                 data: {
                     state: 'completed',
                     result_version: newResultVersion,
@@ -669,9 +681,30 @@ export class WorkQueueService {
                 }
             });
 
-            if (item.content_item_id) {
+            if (updateResult.count === 0) {
+                // Fetch item to generate precise error diagnostic
+                const item = await tx.workItem.findFirst({
+                    where: { id: params.workItemId, project_id: params.projectId }
+                });
+
+                if (!item) {
+                    throw new Error(`WorkItem ${params.workItemId} not found in project ${params.projectId}`);
+                }
+                if (item.state !== 'claimed' || !item.lease_token || item.lease_token !== params.leaseToken) {
+                    throw new Error(`[INVALID_LEASE_TOKEN] Valid active lease token is required to complete work item ${params.workItemId}`);
+                }
+                if (item.lease_actor_id !== params.actorId) {
+                    throw new Error(`[UNAUTHORIZED_LEASE_OWNER] Actor ${params.actorId} does not own active lease on work item ${params.workItemId}`);
+                }
+                if (item.lease_expires_at && now.getTime() > item.lease_expires_at.getTime()) {
+                    throw new Error(`[LEASE_EXPIRED] Lease token for work item ${params.workItemId} has expired`);
+                }
+                throw new Error(`[CONCURRENCY_CONFLICT] Work item ${params.workItemId} lease or state was concurrently modified`);
+            }
+
+            if (currentItem.content_item_id) {
                 await tx.contentItem.update({
-                    where: { id: item.content_item_id },
+                    where: { id: currentItem.content_item_id },
                     data: {
                         draft_text: params.result.body || params.result.text || '',
                         status: 'drafted'
@@ -680,7 +713,7 @@ export class WorkQueueService {
 
                 const existingReview = await tx.workItem.findFirst({
                     where: {
-                        content_item_id: item.content_item_id,
+                        content_item_id: currentItem.content_item_id,
                         kind: 'content_review'
                     }
                 });
@@ -689,14 +722,14 @@ export class WorkQueueService {
                     await tx.workItem.create({
                         data: {
                             project_id: params.projectId,
-                            week_package_id: item.week_package_id,
-                            content_item_id: item.content_item_id,
-                            item_key: item.item_key,
+                            week_package_id: currentItem.week_package_id,
+                            content_item_id: currentItem.content_item_id,
+                            item_key: currentItem.item_key,
                             kind: 'content_review',
                             state: 'available',
                             assignee_role: 'content_reviewer',
                             result_version: newResultVersion,
-                            due_at: item.due_at
+                            due_at: currentItem.due_at
                         }
                     });
                 } else {
@@ -712,8 +745,8 @@ export class WorkQueueService {
 
             const afterState = {
                 work_item: {
-                    id: updated.id,
-                    state: updated.state
+                    id: currentItem.id,
+                    state: 'completed'
                 },
                 result_version: newResultVersion
             };
@@ -723,7 +756,7 @@ export class WorkQueueService {
                 workItemId: params.workItemId,
                 actorId: params.actorId,
                 command: 'ba_complete_work_item',
-                beforeState: { state: item.state },
+                beforeState: { state: currentItem.state },
                 afterState,
                 idempotencyKey: params.idempotencyKey
             });
@@ -961,7 +994,7 @@ export class WorkQueueService {
     }
 
     /**
-     * Blocks a work item manually. Strictly verifies project membership, claimed state, active lease token, and lease actor ownership.
+     * Blocks a work item manually using atomic conditional UPDATE.
      */
     async blockWorkItem(params: {
         projectId: number;
@@ -983,32 +1016,20 @@ export class WorkQueueService {
             });
             if (cached) return cached as Record<string, unknown>;
 
-            const item = await tx.workItem.findFirst({
+            const now = new Date();
+
+            const updateResult = await tx.workItem.updateMany({
                 where: {
                     id: params.workItemId,
-                    project_id: params.projectId
-                }
-            });
-
-            if (!item) {
-                throw new Error(`WorkItem ${params.workItemId} not found in project ${params.projectId}`);
-            }
-
-            const now = new Date();
-            if (item.state !== 'claimed' || !item.lease_token || item.lease_token !== params.leaseToken) {
-                throw new Error(`[INVALID_LEASE_TOKEN] Valid active lease token is required to block work item ${params.workItemId}`);
-            }
-
-            if (item.lease_actor_id !== params.actorId) {
-                throw new Error(`[UNAUTHORIZED_LEASE_OWNER] Actor ${params.actorId} does not own active lease on work item ${params.workItemId}`);
-            }
-
-            if (item.lease_expires_at && now.getTime() > item.lease_expires_at.getTime()) {
-                throw new Error(`[LEASE_EXPIRED] Lease token for work item ${params.workItemId} has expired`);
-            }
-
-            const updated = await tx.workItem.update({
-                where: { id: params.workItemId },
+                    project_id: params.projectId,
+                    state: 'claimed',
+                    lease_token: params.leaseToken,
+                    lease_actor_id: params.actorId,
+                    OR: [
+                        { lease_expires_at: null },
+                        { lease_expires_at: { gte: now } }
+                    ]
+                },
                 data: {
                     state: 'blocked',
                     reason_code: params.reasonCode,
@@ -1019,7 +1040,27 @@ export class WorkQueueService {
                 }
             });
 
-            const afterState = { work_item: { id: updated.id, state: updated.state } };
+            if (updateResult.count === 0) {
+                const item = await tx.workItem.findFirst({
+                    where: { id: params.workItemId, project_id: params.projectId }
+                });
+
+                if (!item) {
+                    throw new Error(`WorkItem ${params.workItemId} not found in project ${params.projectId}`);
+                }
+                if (item.state !== 'claimed' || !item.lease_token || item.lease_token !== params.leaseToken) {
+                    throw new Error(`[INVALID_LEASE_TOKEN] Valid active lease token is required to block work item ${params.workItemId}`);
+                }
+                if (item.lease_actor_id !== params.actorId) {
+                    throw new Error(`[UNAUTHORIZED_LEASE_OWNER] Actor ${params.actorId} does not own active lease on work item ${params.workItemId}`);
+                }
+                if (item.lease_expires_at && now.getTime() > item.lease_expires_at.getTime()) {
+                    throw new Error(`[LEASE_EXPIRED] Lease token for work item ${params.workItemId} has expired`);
+                }
+                throw new Error(`[CONCURRENCY_CONFLICT] Work item ${params.workItemId} lease or state was concurrently modified`);
+            }
+
+            const afterState = { work_item: { id: params.workItemId, state: 'blocked' } };
             await this.recordWorkflowEvent(tx, {
                 projectId: params.projectId,
                 workItemId: params.workItemId,
@@ -1034,8 +1075,7 @@ export class WorkQueueService {
     }
 
     /**
-     * Releases a claimed work item lease back to the available queue.
-     * Strictly verifies project membership, claimed state, active lease token, and lease actor ownership.
+     * Releases a claimed work item lease back to the available queue using atomic conditional UPDATE.
      */
     async releaseWorkItem(params: {
         projectId: number;
@@ -1055,32 +1095,20 @@ export class WorkQueueService {
             });
             if (cached) return cached as Record<string, unknown>;
 
-            const item = await tx.workItem.findFirst({
+            const now = new Date();
+
+            const updateResult = await tx.workItem.updateMany({
                 where: {
                     id: params.workItemId,
-                    project_id: params.projectId
-                }
-            });
-
-            if (!item) {
-                throw new Error(`WorkItem ${params.workItemId} not found in project ${params.projectId}`);
-            }
-
-            const now = new Date();
-            if (item.state !== 'claimed' || !item.lease_token || item.lease_token !== params.leaseToken) {
-                throw new Error(`[INVALID_LEASE_TOKEN] Valid active lease token is required to release work item ${params.workItemId}`);
-            }
-
-            if (item.lease_actor_id !== params.actorId) {
-                throw new Error(`[UNAUTHORIZED_LEASE_OWNER] Actor ${params.actorId} does not own active lease on work item ${params.workItemId}`);
-            }
-
-            if (item.lease_expires_at && now.getTime() > item.lease_expires_at.getTime()) {
-                throw new Error(`[LEASE_EXPIRED] Lease token for work item ${params.workItemId} has expired`);
-            }
-
-            const updated = await tx.workItem.update({
-                where: { id: params.workItemId },
+                    project_id: params.projectId,
+                    state: 'claimed',
+                    lease_token: params.leaseToken,
+                    lease_actor_id: params.actorId,
+                    OR: [
+                        { lease_expires_at: null },
+                        { lease_expires_at: { gte: now } }
+                    ]
+                },
                 data: {
                     state: 'available',
                     lease_token: null,
@@ -1089,7 +1117,27 @@ export class WorkQueueService {
                 }
             });
 
-            const afterState = { work_item: { id: updated.id, state: updated.state } };
+            if (updateResult.count === 0) {
+                const item = await tx.workItem.findFirst({
+                    where: { id: params.workItemId, project_id: params.projectId }
+                });
+
+                if (!item) {
+                    throw new Error(`WorkItem ${params.workItemId} not found in project ${params.projectId}`);
+                }
+                if (item.state !== 'claimed' || !item.lease_token || item.lease_token !== params.leaseToken) {
+                    throw new Error(`[INVALID_LEASE_TOKEN] Valid active lease token is required to release work item ${params.workItemId}`);
+                }
+                if (item.lease_actor_id !== params.actorId) {
+                    throw new Error(`[UNAUTHORIZED_LEASE_OWNER] Actor ${params.actorId} does not own active lease on work item ${params.workItemId}`);
+                }
+                if (item.lease_expires_at && now.getTime() > item.lease_expires_at.getTime()) {
+                    throw new Error(`[LEASE_EXPIRED] Lease token for work item ${params.workItemId} has expired`);
+                }
+                throw new Error(`[CONCURRENCY_CONFLICT] Work item ${params.workItemId} lease or state was concurrently modified`);
+            }
+
+            const afterState = { work_item: { id: params.workItemId, state: 'available' } };
             await this.recordWorkflowEvent(tx, {
                 projectId: params.projectId,
                 workItemId: params.workItemId,
@@ -1104,8 +1152,7 @@ export class WorkQueueService {
     }
 
     /**
-     * Reschedules a work item due date with audit reason.
-     * Strictly verifies project membership and work item lease ownership.
+     * Reschedules a work item due date using atomic conditional UPDATE.
      */
     async rescheduleWorkItem(params: {
         projectId: number;
@@ -1126,27 +1173,39 @@ export class WorkQueueService {
             });
             if (cached) return cached as Record<string, unknown>;
 
-            const item = await tx.workItem.findFirst({
-                where: {
-                    id: params.workItemId,
-                    project_id: params.projectId
-                }
+            const currentItem = await tx.workItem.findFirst({
+                where: { id: params.workItemId, project_id: params.projectId }
             });
 
-            if (!item) {
+            if (!currentItem) {
                 throw new Error(`WorkItem ${params.workItemId} not found in project ${params.projectId}`);
             }
 
-            if (item.state === 'claimed' && item.lease_actor_id && item.lease_actor_id !== params.actorId) {
-                throw new Error(`[UNAUTHORIZED_LEASE_OWNER] Actor ${params.actorId} cannot reschedule work item ${params.workItemId} claimed by ${item.lease_actor_id}`);
+            if (currentItem.state === 'claimed' && currentItem.lease_actor_id && currentItem.lease_actor_id !== params.actorId) {
+                throw new Error(`[UNAUTHORIZED_LEASE_OWNER] Actor ${params.actorId} cannot reschedule work item ${params.workItemId} claimed by ${currentItem.lease_actor_id}`);
             }
 
-            const updated = await tx.workItem.update({
-                where: { id: params.workItemId },
+            const updateResult = await tx.workItem.updateMany({
+                where: {
+                    id: params.workItemId,
+                    project_id: params.projectId,
+                    OR: [
+                        { state: { not: 'claimed' } },
+                        { lease_actor_id: params.actorId }
+                    ]
+                },
                 data: {
                     due_at: new Date(params.dueAt),
                     note: params.reason
                 }
+            });
+
+            if (updateResult.count === 0) {
+                throw new Error(`[CONCURRENCY_CONFLICT] Failed to reschedule work item ${params.workItemId}`);
+            }
+
+            const updated = await tx.workItem.findUniqueOrThrow({
+                where: { id: params.workItemId }
             });
 
             const afterState = { work_item: { id: updated.id, due_at: updated.due_at?.toISOString() } };
@@ -1155,7 +1214,7 @@ export class WorkQueueService {
                 workItemId: params.workItemId,
                 actorId: params.actorId,
                 command: 'ba_reschedule_work_item',
-                beforeState: { due_at: item.due_at?.toISOString() },
+                beforeState: { due_at: currentItem.due_at?.toISOString() },
                 afterState,
                 idempotencyKey: params.idempotencyKey
             });
