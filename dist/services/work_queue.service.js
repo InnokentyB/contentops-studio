@@ -12,28 +12,39 @@ class WorkQueueService {
      * Throws an error if authorization fails.
      */
     async requireProjectAccess(projectId, actorId) {
-        if (!actorId) {
-            throw new Error(`[Security] Actor ID is required`);
+        if (!actorId || typeof actorId !== 'string' || !actorId.trim()) {
+            throw new Error(`[Security] Access denied: Actor ID is required`);
         }
-        let userId = null;
+        const project = await db_1.default.project.findUnique({
+            where: { id: projectId }
+        });
+        if (!project) {
+            throw new Error(`[Security] Access denied: Project ${projectId} does not exist`);
+        }
         if (actorId.startsWith('user:')) {
-            const parsed = Number(actorId.split(':')[1]);
-            if (Number.isInteger(parsed) && parsed > 0) {
-                userId = parsed;
+            const parsedUserId = Number(actorId.split(':')[1]);
+            if (!Number.isInteger(parsedUserId) || parsedUserId <= 0) {
+                throw new Error(`[Security] Access denied: Invalid user actor ID format "${actorId}"`);
             }
-        }
-        if (userId !== null) {
             const member = await db_1.default.projectMember.findUnique({
                 where: {
                     project_id_user_id: {
                         project_id: projectId,
-                        user_id: userId
+                        user_id: parsedUserId
                     }
                 }
             });
             if (!member) {
                 throw new Error(`[Security] Access denied: actor ${actorId} does not have access to project ${projectId}`);
             }
+            return;
+        }
+        // Non-user actor (e.g. system agent actor) - verify project has valid active members
+        const members = await db_1.default.projectMember.findMany({
+            where: { project_id: projectId }
+        });
+        if (members.length === 0) {
+            throw new Error(`[Security] Access denied: Project ${projectId} has no members for actor ${actorId}`);
         }
     }
     /**
