@@ -314,6 +314,7 @@ class McpPublicationService {
                 slug: result.project.slug,
                 description: result.project.description
             },
+            week_package: result.week_package ? { id: result.week_package.id } : undefined,
             imported: result.imported
         };
     }
@@ -345,6 +346,7 @@ class McpPublicationService {
                 slug: result.project.slug,
                 description: result.project.description
             },
+            week_package: result.week_package ? { id: result.week_package.id } : undefined,
             imported: result.imported
         };
     }

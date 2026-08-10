@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -351,6 +351,7 @@ export default function PublicationTasks() {
     const [hidePublished, setHidePublished] = useState(true)
     const [taskSearch, setTaskSearch] = useState('')
     const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null)
+    const [mobileTaskOpen, setMobileTaskOpen] = useState(false)
     const [planJson, setPlanJson] = useState(PUBLICATION_PLAN_TEMPLATE)
     const [planMessage, setPlanMessage] = useState<string | null>(null)
     const [taskMessage, setTaskMessage] = useState<string | null>(null)
@@ -365,6 +366,7 @@ export default function PublicationTasks() {
     const [commentUrl, setCommentUrl] = useState('')
     const [commentText, setCommentText] = useState('')
     const [criticReport, setCriticReport] = useState<CriticReview | null>(null)
+    const workspaceRef = useRef<HTMLElement | null>(null)
 
     const resolvedStatusFilter = statusFilter
 
@@ -397,11 +399,28 @@ export default function PublicationTasks() {
             const idNum = parseInt(urlTaskId)
             if (!isNaN(idNum)) {
                 setSelectedTaskId(idNum)
+                setMobileTaskOpen(true)
             }
         } else {
             setSelectedTaskId(null)
+            setMobileTaskOpen(false)
         }
     }, [urlTaskId, currentProject?.id])
+
+    const openTask = (taskId: number) => {
+        setSelectedTaskId(taskId)
+        setMobileTaskOpen(true)
+        window.requestAnimationFrame(() => {
+            workspaceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        })
+    }
+
+    const closeMobileTask = () => {
+        setMobileTaskOpen(false)
+        window.requestAnimationFrame(() => {
+            workspaceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        })
+    }
 
     useEffect(() => {
         if (!filteredTasks.length) {
@@ -668,8 +687,8 @@ export default function PublicationTasks() {
 
     return (
         <div className="flex-1 w-full p-4 sm:p-6 lg:p-10 space-y-8 overflow-y-auto">
-            <section className="grid grid-cols-1 lg:grid-cols-[380px_minmax(0,1fr)] gap-6 items-start">
-                    <div className="bg-white rounded-[2rem] border border-outline-variant/10 shadow-sm overflow-hidden lg:sticky lg:top-6">
+            <section ref={workspaceRef} className="grid grid-cols-1 lg:grid-cols-[380px_minmax(0,1fr)] gap-6 items-start scroll-mt-4">
+                    <div className={`${mobileTaskOpen ? 'hidden lg:block' : 'block'} bg-white rounded-[2rem] border border-outline-variant/10 shadow-sm overflow-hidden lg:sticky lg:top-6`}>
                         <div className="p-6 border-b border-outline-variant/10 space-y-4">
                             <div className="flex items-center justify-between gap-3">
                                 <div>
@@ -767,8 +786,10 @@ export default function PublicationTasks() {
                                 return (
                                     <button
                                         key={task.id}
-                                        onClick={() => setSelectedTaskId(task.id)}
-                                        className={`w-full text-left px-5 py-4 border-b transition-all ${
+                                        type="button"
+                                        onClick={() => openTask(task.id)}
+                                        aria-label={`Открыть задачу: ${task.title || task.type}`}
+                                        className={`w-full min-h-24 touch-manipulation text-left px-5 py-4 border-b transition-all active:scale-[0.99] ${
                                             isOverdue
                                                 ? isSelected
                                                     ? 'bg-error-container/35 border-error/20'
@@ -815,7 +836,19 @@ export default function PublicationTasks() {
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-[2rem] border border-outline-variant/10 shadow-sm overflow-hidden">
+                    <div className={`${mobileTaskOpen ? 'block' : 'hidden lg:block'} bg-white rounded-[2rem] border border-outline-variant/10 shadow-sm overflow-hidden`}>
+                        {mobileTaskOpen && (
+                            <div className="lg:hidden p-3 border-b border-outline-variant/10 bg-white sticky top-0 z-20">
+                                <button
+                                    type="button"
+                                    onClick={closeMobileTask}
+                                    className="min-h-11 inline-flex items-center gap-2 rounded-xl px-3 text-sm font-black text-primary active:bg-primary/10 touch-manipulation"
+                                >
+                                    <span className="material-symbols-outlined text-xl" aria-hidden="true">arrow_back</span>
+                                    Ко всем задачам
+                                </button>
+                            </div>
+                        )}
                         {!activeTask && (
                                 <div className="min-h-[560px] flex items-center justify-center p-6 sm:p-10 text-center">
                                 <div className="max-w-md space-y-4">

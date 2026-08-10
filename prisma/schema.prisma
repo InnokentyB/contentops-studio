@@ -55,6 +55,8 @@ model Project {
   week_packages WeekPackage[]
   content_items ContentItem[]
   feedbacks     FeedbackPackage[]
+  work_items      WorkItem[]
+  workflow_events WorkflowEvent[]
 
   prompt_presets    PromptPreset[]
   comments          Comment[]
@@ -421,13 +423,18 @@ model WeekPackage {
   cross_links      Json? // cross link planning
   risks            Json? // oversimplify, too_deep, repetition
   channel_mix      Json? // Channel quota selected by MTA (e.g. { tg_post: 3, habr: 1 })
+  plan_id          String?
+  plan_version     String?
+  timezone         String?  @default("UTC")
   approval_status  String   @default("draft") // draft/needs_review/approved/rejected
   created_at       DateTime @default(now())
   updated_at       DateTime @updatedAt
 
-  project       Project       @relation(fields: [project_id], references: [id], onDelete: Cascade)
-  month_arc     MonthArc?     @relation(fields: [month_arc_id], references: [id], onDelete: SetNull)
+  project       Project         @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  month_arc     MonthArc?       @relation(fields: [month_arc_id], references: [id], onDelete: SetNull)
   content_items ContentItem[]
+  work_items    WorkItem[]
+  workflow_events WorkflowEvent[]
 
   @@schema("planner")
   @@map("week_packages")
@@ -453,12 +460,20 @@ model ContentItem {
   metrics             Json?
   telegram_message_id Int? // Fallback UI tracking
   published_link      String?
+  item_key            String?
+  content_due_at      DateTime? @db.Timestamptz(6)
+  publish_at          DateTime? @db.Timestamptz(6)
+  review_policy       String?
+  publication_mode    String?   @default("manual_handoff")
+  source_refs         Json?
   created_at          DateTime  @default(now())
   updated_at          DateTime  @updatedAt
 
-  project      Project        @relation(fields: [project_id], references: [id], onDelete: Cascade)
-  week_package WeekPackage?   @relation(fields: [week_package_id], references: [id], onDelete: SetNull)
-  channel      SocialChannel? @relation(fields: [channel_id], references: [id], onDelete: SetNull)
+  project         Project         @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  week_package    WeekPackage?    @relation(fields: [week_package_id], references: [id], onDelete: SetNull)
+  channel         SocialChannel?  @relation(fields: [channel_id], references: [id], onDelete: SetNull)
+  work_items      WorkItem[]
+  workflow_events WorkflowEvent[]
 
   @@index([project_id])
   @@index([week_package_id])
@@ -484,4 +499,85 @@ model FeedbackPackage {
 
   @@schema("planner")
   @@map("feedback_packages")
+}
+
+model WorkItem {
+  id                    Int       @id @default(autoincrement())
+  project_id            Int
+  week_package_id       Int?
+  content_item_id       Int?
+  item_key              String
+  kind                  String    // plan_review, content_write, content_review
+  state                 String    // pending, available, claimed, waiting_approval, blocked, completed, cancelled
+  assignee_role         String    // plan_reviewer, content_writer, content_reviewer
+  depends_on_item_id    Int?
+  due_at                DateTime? @db.Timestamptz(6)
+  lease_token           String?
+  lease_expires_at      DateTime? @db.Timestamptz(6)
+  lease_actor_id        String?
+  input_context_version Int       @default(1)
+  result_version        Int       @default(0)
+  result_payload        Json?
+  reason_code           String?
+  note                  String?
+  missing_resource_refs Json?
+  created_at            DateTime  @default(now())
+  updated_at            DateTime  @updatedAt
+
+  project            Project            @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  week_package       WeekPackage?       @relation(fields: [week_package_id], references: [id], onDelete: SetNull)
+  content_item       ContentItem?       @relation(fields: [content_item_id], references: [id], onDelete: SetNull)
+  approval_decisions ApprovalDecision[]
+  workflow_events    WorkflowEvent[]
+
+  @@index([project_id])
+  @@index([week_package_id])
+  @@index([content_item_id])
+  @@index([state])
+  @@index([kind])
+  @@index([due_at])
+  @@schema("planner")
+  @@map("work_items")
+}
+
+model ApprovalDecision {
+  id              Int      @id @default(autoincrement())
+  work_item_id    Int
+  result_version  Int
+  decision        String   // approved, rejected
+  actor_id        String
+  comment         String?
+  idempotency_key String?  @unique
+  created_at      DateTime @default(now())
+
+  work_item WorkItem @relation(fields: [work_item_id], references: [id], onDelete: Cascade)
+
+  @@unique([work_item_id, result_version])
+  @@index([work_item_id])
+  @@schema("planner")
+  @@map("approval_decisions")
+}
+
+model WorkflowEvent {
+  id              Int      @id @default(autoincrement())
+  project_id      Int
+  work_item_id    Int?
+  week_package_id Int?
+  content_item_id Int?
+  actor_id        String
+  command         String
+  before_state    Json?
+  after_state     Json?
+  idempotency_key String?  @unique
+  created_at      DateTime @default(now())
+
+  project      Project      @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  work_item    WorkItem?    @relation(fields: [work_item_id], references: [id], onDelete: SetNull)
+  week_package WeekPackage? @relation(fields: [week_package_id], references: [id], onDelete: SetNull)
+  content_item ContentItem? @relation(fields: [content_item_id], references: [id], onDelete: SetNull)
+
+  @@index([project_id])
+  @@index([work_item_id])
+  @@schema("planner")
+  @@map("workflow_events")
 }

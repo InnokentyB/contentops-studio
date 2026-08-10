@@ -44,6 +44,7 @@ const mcp_js_1 = require("@modelcontextprotocol/sdk/server/mcp.js");
 const zod_1 = require("zod");
 const db_1 = __importStar(require("../db"));
 const mcp_publication_service_1 = __importDefault(require("../services/mcp_publication.service"));
+const work_queue_service_1 = __importDefault(require("../services/work_queue.service"));
 function asToolResult(payload) {
     return {
         content: [
@@ -538,6 +539,174 @@ function registerPlannerTools(server) {
             imageUrl,
             dryRun
         });
+        return asToolResult(result);
+    });
+    // ============================================
+    // TDPD-001 Work Queue MCP Tools
+    // ============================================
+    server.registerTool('ba_decide_week_plan', {
+        description: 'Approve or reject a weekly publication plan package. Unlocks content_write work items upon approval.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            weekPackageId: zod_1.z.number().int().positive(),
+            planVersion: zod_1.z.string(),
+            decision: zod_1.z.enum(['approved', 'rejected']),
+            comment: zod_1.z.string().optional(),
+            idempotencyKey: zod_1.z.string()
+        }
+    }, async (args) => {
+        const result = await work_queue_service_1.default.decideWeekPlan(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_get_week_execution_summary', {
+        description: 'Get material stats and work item stage counts for a weekly publication plan.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            weekPackageId: zod_1.z.number().int().positive(),
+            asOf: zod_1.z.string().optional()
+        }
+    }, async (args) => {
+        const result = await work_queue_service_1.default.getWeekExecutionSummary(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_list_work_items', {
+        description: 'List pending or available work items for a project sorted by schedule urgency.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            asOf: zod_1.z.string().optional(),
+            filter: zod_1.z.object({
+                state: zod_1.z.string().optional(),
+                kind: zod_1.z.string().optional()
+            }).optional()
+        }
+    }, async (args) => {
+        const result = await work_queue_service_1.default.listWorkItems(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_get_work_item', {
+        description: 'Get details of a specific work item including latest approval decision.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            workItemId: zod_1.z.number().int().positive()
+        }
+    }, async (args) => {
+        const result = await work_queue_service_1.default.getWorkItem(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_get_work_item_context', {
+        description: 'Get full execution context for a work item including week frame, thesis, and resolved source resources.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            workItemId: zod_1.z.number().int().positive(),
+            maxChars: zod_1.z.number().int().positive().optional()
+        }
+    }, async (args) => {
+        const result = await work_queue_service_1.default.getWorkItemContext(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_claim_work_item', {
+        description: 'Atomically claim a work item for execution with a timed lease token.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            workItemId: zod_1.z.number().int().positive(),
+            leaseSeconds: zod_1.z.number().int().positive().optional(),
+            idempotencyKey: zod_1.z.string()
+        }
+    }, async (args) => {
+        const result = await work_queue_service_1.default.claimWorkItem(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_complete_work_item', {
+        description: 'Complete execution of a work item and submit the result payload, unlocking content review.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            workItemId: zod_1.z.number().int().positive(),
+            leaseToken: zod_1.z.string(),
+            result: zod_1.z.object({
+                body: zod_1.z.string().optional(),
+                text: zod_1.z.string().optional(),
+                format: zod_1.z.string().optional()
+            }).passthrough(),
+            idempotencyKey: zod_1.z.string()
+        }
+    }, async (args) => {
+        const result = await work_queue_service_1.default.completeWorkItem(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_decide_approval', {
+        description: 'Approve or reject a content review work item result version.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            workItemId: zod_1.z.number().int().positive(),
+            resultVersion: zod_1.z.number().int(),
+            decision: zod_1.z.enum(['approved', 'rejected']),
+            comment: zod_1.z.string().optional(),
+            idempotencyKey: zod_1.z.string()
+        }
+    }, async (args) => {
+        const result = await work_queue_service_1.default.decideApproval(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_list_schedule_exceptions', {
+        description: 'List schedule exceptions (overdue content, missed publication slots, unavailable sources).',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            asOf: zod_1.z.string().optional(),
+            includeBlocked: zod_1.z.boolean().optional()
+        }
+    }, async (args) => {
+        const result = await work_queue_service_1.default.listScheduleExceptions(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_block_work_item', {
+        description: 'Manually block a work item with an explicit reason code.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            workItemId: zod_1.z.number().int().positive(),
+            leaseToken: zod_1.z.string(),
+            reasonCode: zod_1.z.string(),
+            note: zod_1.z.string().optional(),
+            idempotencyKey: zod_1.z.string()
+        }
+    }, async (args) => {
+        const result = await work_queue_service_1.default.blockWorkItem(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_release_work_item', {
+        description: 'Release a claimed work item lease back to the available queue.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            workItemId: zod_1.z.number().int().positive(),
+            leaseToken: zod_1.z.string(),
+            idempotencyKey: zod_1.z.string()
+        }
+    }, async (args) => {
+        const result = await work_queue_service_1.default.releaseWorkItem(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_reschedule_work_item', {
+        description: 'Reschedule a work item due date with an explicit audit reason.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            workItemId: zod_1.z.number().int().positive(),
+            dueAt: zod_1.z.string(),
+            reason: zod_1.z.string(),
+            idempotencyKey: zod_1.z.string()
+        }
+    }, async (args) => {
+        const result = await work_queue_service_1.default.rescheduleWorkItem(args);
         return asToolResult(result);
     });
 }

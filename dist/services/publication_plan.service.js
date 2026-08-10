@@ -1295,17 +1295,30 @@ class PublicationPlanService {
                 const publicationOutcome = derivePublicationOutcome(action);
                 const taskId = String(action.id);
                 importedTaskIds.add(taskId);
+                let rawChannel = String(action.channel || 'general');
+                let rawActionType = String(action.action_type || 'post');
+                const accountConfig = plan.accounts[action.account_ref] || plan.accounts[rawChannel];
+                if (accountConfig?.platform && plan.accounts[rawChannel]) {
+                    rawChannel = accountConfig.platform;
+                }
+                if (rawActionType.startsWith(`${rawChannel}:`)) {
+                    rawActionType = rawActionType.slice(rawChannel.length + 1);
+                }
                 const itemData = {
                     project_id: project.id,
                     week_package_id: weekPackage.id,
                     channel_id: channelMap.get(action.account_ref) || null,
-                    type: `${action.channel}:${action.action_type}`,
+                    type: `${rawChannel}:${rawActionType}`,
                     layer: action.channel,
                     title: (0, publication_runtime_helpers_1.resolveActionTitle)(action),
                     brief: action.notes || action.human_review_reason || null,
                     key_points: resolvedAssets,
                     cta: action.parameters?.link_url_ref || null,
                     cross_link_to: action.dependencies || [],
+                    item_key: action.item_key || String(action.id),
+                    content_due_at: action.content_due_at ? new Date(action.content_due_at) : null,
+                    publish_at: action.scheduled_at ? new Date(action.scheduled_at) : null,
+                    source_refs: action.content_files || null,
                     assets: {
                         source: 'external_publication_plan',
                         action,
@@ -1426,6 +1439,7 @@ class PublicationPlanService {
             }
             return {
                 project,
+                week_package: weekPackage,
                 imported: {
                     importMode,
                     accounts: channels.length,
