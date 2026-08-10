@@ -39,7 +39,14 @@ class WorkQueueService {
             }
             return;
         }
-        // Non-user actor (e.g. system agent actor) - verify project has valid active members
+        // System or agent actor validation:
+        // System actors must match known valid prefixes: 'system:', 'agent:', or 'tdpd-red-agent'
+        const ALLOWED_SYSTEM_ACTOR_PREFIXES = ['system:', 'agent:', 'tdpd-red-agent'];
+        const isKnownSystemActor = ALLOWED_SYSTEM_ACTOR_PREFIXES.some(prefix => actorId === prefix || actorId.startsWith(prefix));
+        if (!isKnownSystemActor) {
+            throw new Error(`[Security] Access denied: Unauthorized non-user actor "${actorId}"`);
+        }
+        // Verify project has valid active members
         const members = await db_1.default.projectMember.findMany({
             where: { project_id: projectId }
         });
@@ -48,16 +55,24 @@ class WorkQueueService {
         }
     }
     /**
-     * Checks if a workflow event with the idempotency key exists.
+     * Checks if a workflow event with the idempotency key exists and matches scope.
+     * Enforces project + actor + command scoping as specified in TDPD-001 Section 10.
      */
-    async checkIdempotency(idempotencyKey) {
-        if (!idempotencyKey)
+    async checkIdempotency(params) {
+        if (!params.idempotencyKey)
             return null;
         const existing = await db_1.default.workflowEvent.findFirst({
-            where: { idempotency_key: idempotencyKey }
+            where: { idempotency_key: params.idempotencyKey }
         });
-        if (existing && existing.after_state) {
-            return existing.after_state;
+        if (existing) {
+            if (existing.project_id !== params.projectId ||
+                existing.actor_id !== params.actorId ||
+                existing.command !== params.command) {
+                throw new Error(`[IDEMPOTENCY_CONFLICT] Idempotency key "${params.idempotencyKey}" was previously used with different command or scope`);
+            }
+            if (existing.after_state) {
+                return existing.after_state;
+            }
         }
         return null;
     }
@@ -85,7 +100,12 @@ class WorkQueueService {
      */
     async decideWeekPlan(params) {
         await this.requireProjectAccess(params.projectId, params.actorId);
-        const cached = await this.checkIdempotency(params.idempotencyKey);
+        const cached = await this.checkIdempotency({
+            projectId: params.projectId,
+            actorId: params.actorId,
+            command: 'ba_decide_week_plan',
+            idempotencyKey: params.idempotencyKey
+        });
         if (cached)
             return cached;
         const weekPackage = await db_1.default.weekPackage.findFirst({
@@ -364,7 +384,12 @@ class WorkQueueService {
      */
     async claimWorkItem(params) {
         await this.requireProjectAccess(params.projectId, params.actorId);
-        const cached = await this.checkIdempotency(params.idempotencyKey);
+        const cached = await this.checkIdempotency({
+            projectId: params.projectId,
+            actorId: params.actorId,
+            command: 'ba_claim_work_item',
+            idempotencyKey: params.idempotencyKey
+        });
         if (cached)
             return cached;
         const now = new Date();
@@ -422,12 +447,19 @@ class WorkQueueService {
     }
     /**
      * Completes a work item execution and unlocks the next stage.
+     * Strictly validates project, active claim state, and lease token.
      */
     async completeWorkItem(params) {
         await this.requireProjectAccess(params.projectId, params.actorId);
-        const cached = await this.checkIdempotency(params.idempotencyKey);
+        const cached = await this.checkIdempotency({
+            projectId: params.projectId,
+            actorId: params.actorId,
+            command: 'ba_complete_work_item',
+            idempotencyKey: params.idempotencyKey
+        });
         if (cached)
             return cached;
+        const now = new Date();
         const item = await db_1.default.workItem.findFirst({
             where: {
                 id: params.workItemId,
@@ -437,8 +469,12 @@ class WorkQueueService {
         if (!item) {
             throw new Error(`WorkItem ${params.workItemId} not found in project ${params.projectId}`);
         }
-        if (item.lease_token && item.lease_token !== params.leaseToken) {
-            throw new Error(`[INVALID_LEASE_TOKEN] Lease token mismatch for work item ${params.workItemId}`);
+        // Strict lease validation: work item MUST be in 'claimed' state with matching lease token
+        if (item.state !== 'claimed' || !item.lease_token || item.lease_token !== params.leaseToken) {
+            throw new Error(`[INVALID_LEASE_TOKEN] Valid active lease token is required to complete work item ${params.workItemId}`);
+        }
+        if (item.lease_expires_at && now.getTime() > item.lease_expires_at.getTime()) {
+            throw new Error(`[LEASE_EXPIRED] Lease token for work item ${params.workItemId} has expired`);
         }
         const newResultVersion = item.result_version + 1;
         const updated = await db_1.default.workItem.update({
@@ -448,7 +484,8 @@ class WorkQueueService {
                 result_version: newResultVersion,
                 result_payload: params.result,
                 lease_token: null,
-                lease_expires_at: null
+                lease_expires_at: null,
+                lease_actor_id: null
             }
         });
         if (item.content_item_id) {
@@ -514,7 +551,12 @@ class WorkQueueService {
      */
     async decideApproval(params) {
         await this.requireProjectAccess(params.projectId, params.actorId);
-        const cached = await this.checkIdempotency(params.idempotencyKey);
+        const cached = await this.checkIdempotency({
+            projectId: params.projectId,
+            actorId: params.actorId,
+            command: 'ba_decide_approval',
+            idempotencyKey: params.idempotencyKey
+        });
         if (cached)
             return cached;
         const item = await db_1.default.workItem.findFirst({
@@ -692,13 +734,34 @@ class WorkQueueService {
         };
     }
     /**
-     * Blocks a work item manually.
+     * Blocks a work item manually. Strictly verifies project membership, claimed state, and active lease token.
      */
     async blockWorkItem(params) {
         await this.requireProjectAccess(params.projectId, params.actorId);
-        const cached = await this.checkIdempotency(params.idempotencyKey);
+        const cached = await this.checkIdempotency({
+            projectId: params.projectId,
+            actorId: params.actorId,
+            command: 'ba_block_work_item',
+            idempotencyKey: params.idempotencyKey
+        });
         if (cached)
             return cached;
+        const item = await db_1.default.workItem.findFirst({
+            where: {
+                id: params.workItemId,
+                project_id: params.projectId
+            }
+        });
+        if (!item) {
+            throw new Error(`WorkItem ${params.workItemId} not found in project ${params.projectId}`);
+        }
+        const now = new Date();
+        if (item.state !== 'claimed' || !item.lease_token || item.lease_token !== params.leaseToken) {
+            throw new Error(`[INVALID_LEASE_TOKEN] Valid active lease token is required to block work item ${params.workItemId}`);
+        }
+        if (item.lease_expires_at && now.getTime() > item.lease_expires_at.getTime()) {
+            throw new Error(`[LEASE_EXPIRED] Lease token for work item ${params.workItemId} has expired`);
+        }
         const updated = await db_1.default.workItem.update({
             where: { id: params.workItemId },
             data: {
@@ -706,7 +769,8 @@ class WorkQueueService {
                 reason_code: params.reasonCode,
                 note: params.note || undefined,
                 lease_token: null,
-                lease_expires_at: null
+                lease_expires_at: null,
+                lease_actor_id: null
             }
         });
         const afterState = { work_item: { id: updated.id, state: updated.state } };
@@ -721,13 +785,35 @@ class WorkQueueService {
         return afterState;
     }
     /**
-     * Releases a lease on a claimed work item without completing it.
+     * Releases a claimed work item lease back to the available queue.
+     * Strictly verifies project membership, claimed state, and active lease token.
      */
     async releaseWorkItem(params) {
         await this.requireProjectAccess(params.projectId, params.actorId);
-        const cached = await this.checkIdempotency(params.idempotencyKey);
+        const cached = await this.checkIdempotency({
+            projectId: params.projectId,
+            actorId: params.actorId,
+            command: 'ba_release_work_item',
+            idempotencyKey: params.idempotencyKey
+        });
         if (cached)
             return cached;
+        const item = await db_1.default.workItem.findFirst({
+            where: {
+                id: params.workItemId,
+                project_id: params.projectId
+            }
+        });
+        if (!item) {
+            throw new Error(`WorkItem ${params.workItemId} not found in project ${params.projectId}`);
+        }
+        const now = new Date();
+        if (item.state !== 'claimed' || !item.lease_token || item.lease_token !== params.leaseToken) {
+            throw new Error(`[INVALID_LEASE_TOKEN] Valid active lease token is required to release work item ${params.workItemId}`);
+        }
+        if (item.lease_expires_at && now.getTime() > item.lease_expires_at.getTime()) {
+            throw new Error(`[LEASE_EXPIRED] Lease token for work item ${params.workItemId} has expired`);
+        }
         const updated = await db_1.default.workItem.update({
             where: { id: params.workItemId },
             data: {
@@ -750,17 +836,26 @@ class WorkQueueService {
     }
     /**
      * Reschedules a work item due date with audit reason.
+     * Strictly verifies project membership and work item ownership.
      */
     async rescheduleWorkItem(params) {
         await this.requireProjectAccess(params.projectId, params.actorId);
-        const cached = await this.checkIdempotency(params.idempotencyKey);
+        const cached = await this.checkIdempotency({
+            projectId: params.projectId,
+            actorId: params.actorId,
+            command: 'ba_reschedule_work_item',
+            idempotencyKey: params.idempotencyKey
+        });
         if (cached)
             return cached;
         const item = await db_1.default.workItem.findFirst({
-            where: { id: params.workItemId }
+            where: {
+                id: params.workItemId,
+                project_id: params.projectId
+            }
         });
         if (!item) {
-            throw new Error(`WorkItem ${params.workItemId} not found`);
+            throw new Error(`WorkItem ${params.workItemId} not found in project ${params.projectId}`);
         }
         const updated = await db_1.default.workItem.update({
             where: { id: params.workItemId },
