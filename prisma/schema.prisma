@@ -547,13 +547,15 @@ model ApprovalDecision {
   decision        String   // approved, rejected
   actor_id        String
   comment         String?
-  idempotency_key String?  @unique
+  idempotency_key String?
   created_at      DateTime @default(now())
 
   work_item WorkItem @relation(fields: [work_item_id], references: [id], onDelete: Cascade)
 
   @@unique([work_item_id, result_version])
+  @@unique([work_item_id, actor_id, idempotency_key])
   @@index([work_item_id])
+  @@index([idempotency_key])
   @@schema("planner")
   @@map("approval_decisions")
 }
@@ -568,7 +570,7 @@ model WorkflowEvent {
   command         String
   before_state    Json?
   after_state     Json?
-  idempotency_key String?  @unique
+  idempotency_key String?
   created_at      DateTime @default(now())
 
   project      Project      @relation(fields: [project_id], references: [id], onDelete: Cascade)
@@ -576,8 +578,10 @@ model WorkflowEvent {
   week_package WeekPackage? @relation(fields: [week_package_id], references: [id], onDelete: SetNull)
   content_item ContentItem? @relation(fields: [content_item_id], references: [id], onDelete: SetNull)
 
+  @@unique([project_id, actor_id, command, idempotency_key])
   @@index([project_id])
   @@index([work_item_id])
+  @@index([idempotency_key])
   @@schema("planner")
   @@map("workflow_events")
 }

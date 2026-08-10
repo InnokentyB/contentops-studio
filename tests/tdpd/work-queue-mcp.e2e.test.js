@@ -122,9 +122,42 @@ function buildWeekPlan(planId) {
   };
 }
 
+const { PrismaClient } = require('@prisma/client');
+const { Pool } = require('pg');
+const { PrismaPg } = require('@prisma/adapter-pg');
+
+const pool = TEST_DATABASE_URL ? new Pool({ connectionString: TEST_DATABASE_URL }) : null;
+const adapter = pool ? new PrismaPg(pool) : null;
+const prisma = adapter ? new PrismaClient({ adapter }) : null;
+
 async function ensureFixture() {
   if (!fixturePromise) {
     fixturePromise = (async () => {
+      if (prisma && TEST_USER_ID) {
+        await prisma.user.upsert({
+          where: { id: TEST_USER_ID },
+          update: {},
+          create: {
+            id: TEST_USER_ID,
+            email: `testuser${TEST_USER_ID}@example.com`,
+            password_hash: 'hash',
+            name: 'Test User 1',
+          },
+        });
+        if (OTHER_USER_ID) {
+          await prisma.user.upsert({
+            where: { id: OTHER_USER_ID },
+            update: {},
+            create: {
+              id: OTHER_USER_ID,
+              email: `testuser${OTHER_USER_ID}@example.com`,
+              password_hash: 'hash',
+              name: 'Test User 2',
+            },
+          });
+        }
+      }
+
       const planId = `tdpd-work-queue-${randomUUID()}`;
       const imported = await callTool('ba_import_publication_plan_json', {
         userId: TEST_USER_ID,
@@ -405,4 +438,155 @@ test('E2E-014 / SC-014: an actor from another project cannot read or claim prote
     assert.doesNotMatch(text, /Агентное производство|следующее действие|overdue-post/);
   }
 });
+
+test('E2E-015 / SC-015: unregistered service identity is rejected', async (t) => {
+  requireTools('ba_list_work_items');
+  if (!requireDatabase(t)) return;
+
+  const fixture = await ensureFixture();
+  const result = await client.callTool({
+    name: 'ba_list_work_items',
+    arguments: {
+      projectId: fixture.projectId,
+      actorId: 'agent:unregistered_hacker',
+    },
+  });
+
+  assert.equal(result.isError, true, 'Unregistered service identity must be rejected');
+  const text = (result.content || []).map((item) => item.text || '').join('\n');
+  assert.match(text, /is not a registered service identity/);
+});
+
+test('E2E-016 / SC-016: foreign actor cannot complete or release lease owned by another actor', async (t) => {
+  requireTools('ba_claim_work_item', 'ba_complete_work_item', 'ba_release_work_item');
+  if (!requireDatabase(t)) return;
+
+  const fixture = await ensureFixture();
+  const upcomingWrite = await findWorkItem(
+    fixture.projectId,
+    (item) => item.item_key === 'upcoming-post' && item.kind === 'content_write',
+    { state: 'available' },
+  );
+
+  const writerActor = 'agent:content_writer';
+  const reviewerActor = 'agent:plan_reviewer';
+
+  // Writer claims item
+  const claimRes = await callTool('ba_claim_work_item', {
+    projectId: fixture.projectId,
+    actorId: writerActor,
+    workItemId: upcomingWrite.id,
+    idempotencyKey: idempotencyKey('owner-claim'),
+  });
+
+  assert.ok(claimRes.lease_token);
+
+  // Foreign actor attempts complete using writer's lease token
+  const completeRes = await client.callTool({
+    name: 'ba_complete_work_item',
+    arguments: {
+      projectId: fixture.projectId,
+      actorId: reviewerActor,
+      workItemId: upcomingWrite.id,
+      leaseToken: claimRes.lease_token,
+      result: { body: 'Unauthorized text' },
+      idempotencyKey: idempotencyKey('foreign-complete'),
+    },
+  });
+
+  assert.equal(completeRes.isError, true, 'Foreign actor must not complete another actor lease');
+  const text = (completeRes.content || []).map((item) => item.text || '').join('\n');
+  assert.match(text, /does not own active lease/);
+
+  // Clean up: owner releases item
+  await callTool('ba_release_work_item', {
+    projectId: fixture.projectId,
+    actorId: writerActor,
+    workItemId: upcomingWrite.id,
+    leaseToken: claimRes.lease_token,
+    idempotencyKey: idempotencyKey('cleanup-release-016'),
+  });
+});
+
+test('E2E-017 / SC-017: scoped idempotency key can be reused in different commands/scopes without conflict', async (t) => {
+  requireTools('ba_claim_work_item', 'ba_release_work_item');
+  if (!requireDatabase(t)) return;
+
+  const fixture = await ensureFixture();
+  const upcomingWrite = await findWorkItem(
+    fixture.projectId,
+    (item) => item.item_key === 'upcoming-post' && item.kind === 'content_write',
+    { state: 'available' },
+  );
+
+  const actorA = 'agent:content_writer';
+  const sharedKey = idempotencyKey('shared-scoped-key');
+
+  const claimRes = await callTool('ba_claim_work_item', {
+    projectId: fixture.projectId,
+    actorId: actorA,
+    workItemId: upcomingWrite.id,
+    idempotencyKey: sharedKey,
+  });
+  assert.ok(claimRes.lease_token);
+
+  // Same key used for different command (release)
+  const releaseRes = await callTool('ba_release_work_item', {
+    projectId: fixture.projectId,
+    actorId: actorA,
+    workItemId: upcomingWrite.id,
+    leaseToken: claimRes.lease_token,
+    idempotencyKey: sharedKey,
+  });
+  assert.equal(releaseRes.work_item.state, 'available');
+});
+
+test('E2E-018 / SC-018: reschedule verifies lease ownership on claimed items', async (t) => {
+  requireTools('ba_claim_work_item', 'ba_reschedule_work_item', 'ba_release_work_item');
+  if (!requireDatabase(t)) return;
+
+  const fixture = await ensureFixture();
+  const upcomingWrite = await findWorkItem(
+    fixture.projectId,
+    (item) => item.item_key === 'upcoming-post' && item.kind === 'content_write',
+    { state: 'available' },
+  );
+
+  const actorA = 'agent:content_writer';
+  const actorB = 'system:planner';
+
+  const claimRes = await callTool('ba_claim_work_item', {
+    projectId: fixture.projectId,
+    actorId: actorA,
+    workItemId: upcomingWrite.id,
+    idempotencyKey: idempotencyKey('reschedule-claim'),
+  });
+  assert.ok(claimRes.lease_token);
+
+  const res = await client.callTool({
+    name: 'ba_reschedule_work_item',
+    arguments: {
+      projectId: fixture.projectId,
+      actorId: actorB,
+      workItemId: upcomingWrite.id,
+      dueAt: '2026-08-15T12:00:00.000Z',
+      reason: 'Attempt reschedule foreign claim',
+      idempotencyKey: idempotencyKey('foreign-reschedule'),
+    },
+  });
+
+  assert.equal(res.isError, true, 'Reschedule by non-owner must be rejected on claimed items');
+  const text = (res.content || []).map((item) => item.text || '').join('\n');
+  assert.match(text, /cannot reschedule work item/);
+
+  // Clean up: release item
+  await callTool('ba_release_work_item', {
+    projectId: fixture.projectId,
+    actorId: actorA,
+    workItemId: upcomingWrite.id,
+    leaseToken: claimRes.lease_token,
+    idempotencyKey: idempotencyKey('cleanup-release-018'),
+  });
+});
+
 

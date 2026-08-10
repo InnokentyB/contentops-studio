@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "plane": {
+      "command": "/Users/innokentyb/.codex/bin/plane-mcp-local",
+      "args": []
+    }
+  }
+}
