@@ -54,6 +54,28 @@ type ContentEditHistoryEntry = {
 
 type PublicationOutcome = 'published' | 'blocked' | 'removed' | 'restricted'
 
+type VkMetricSnapshot = {
+    id: number
+    logical_date: string
+    captured_at: string
+    wall_status: string
+    reach_status: string
+    views: number | null
+    likes: number | null
+    comments: number | null
+    reposts: number | null
+    reach_total: number | null
+    reach_subscribers: number | null
+    reach_viral: number | null
+    reach_ads: number | null
+    link_clicks: number | null
+    group_clicks: number | null
+    group_joins: number | null
+    hides: number | null
+    reports: number | null
+    unsubscribes: number | null
+}
+
 type CriticReview = {
     checked_at?: string
     overall_score?: number
@@ -128,6 +150,30 @@ function prettyJson(value: unknown) {
     if (value == null) return ''
     return JSON.stringify(value, null, 2)
 }
+
+function formatMetricValue(value: number | null | undefined) {
+    return typeof value === 'number' ? new Intl.NumberFormat('ru-RU').format(value) : 'Нет доступа'
+}
+
+const VK_PUBLIC_METRICS: Array<[keyof VkMetricSnapshot, string]> = [
+    ['views', 'Просмотры'],
+    ['likes', 'Лайки'],
+    ['comments', 'Комментарии'],
+    ['reposts', 'Репосты']
+]
+
+const VK_REACH_METRICS: Array<[keyof VkMetricSnapshot, string]> = [
+    ['reach_total', 'Общий охват'],
+    ['reach_subscribers', 'Охват подписчиков'],
+    ['reach_viral', 'Вирусный охват'],
+    ['reach_ads', 'Рекламный охват'],
+    ['link_clicks', 'Переходы по ссылкам'],
+    ['group_clicks', 'Переходы в сообщество'],
+    ['group_joins', 'Вступления'],
+    ['hides', 'Скрытия'],
+    ['reports', 'Жалобы'],
+    ['unsubscribes', 'Отписки']
+]
 
 function summarizeAtomaContext(description?: string | null, payload?: unknown) {
     const summary: string[] = [
@@ -501,6 +547,12 @@ export default function PublicationTasks() {
 
     const activeTask = selectedTask || selectedFromList
     const activeTaskId = activeTask?.id ?? selectedTaskId
+    const isVkTask = activeTask?.channel?.type === 'vk'
+    const { data: vkMetricsHistory, isFetching: isLoadingVkMetrics } = useQuery<{ snapshots: VkMetricSnapshot[] }>({
+        queryKey: ['vk_metrics_history', currentProject?.id, activeTaskId],
+        queryFn: () => publicationTasksApi.getMetricsHistory(activeTaskId as number),
+        enabled: !!activeTaskId && !!currentProject && isVkTask && activeTask?.status === 'published'
+    })
 
     const saveTaskContent = useMutation({
         mutationFn: () => {
@@ -545,6 +597,7 @@ export default function PublicationTasks() {
                 setTaskMessage(`Публикация запущена через адаптер${outcome?.adapter ? `: ${outcome.adapter}` : ''}.`)
             }
             refreshTasks()
+            queryClient.invalidateQueries({ queryKey: ['vk_metrics_history', currentProject?.id, activeTaskId] })
         }
     })
 
@@ -602,6 +655,7 @@ export default function PublicationTasks() {
                 ? `Метрики получены из канала${result?.reason ? `. ${result.reason}` : '.'}`
                 : (result?.reason || 'Метрики не были обновлены.'))
             refreshTasks()
+            queryClient.invalidateQueries({ queryKey: ['vk_metrics_history', currentProject?.id, activeTaskId] })
         }
     })
 
@@ -659,6 +713,8 @@ export default function PublicationTasks() {
         && supportsDirectPlannerPublish(activeTask)
         && ['planned', 'ready_for_execution', 'awaiting_manual_publication', 'failed'].includes(activeTask.status)
     const canFetchMetrics = !!activeTask?.published_link && supportsAutoMetrics(activeTask)
+    const vkSnapshots = vkMetricsHistory?.snapshots || []
+    const latestVkSnapshot = vkSnapshots[vkSnapshots.length - 1]
     const targetResourceUrl = activeTask?.workspace_context?.target_resource_url || handoffBundle?.publication?.link_url || ''
     const planItemRef = activeTask?.workspace_context?.plan_item_ref || (activeTask?.assets as JsonRecord | undefined)?.action?.id || (activeTask?.metrics as JsonRecord | undefined)?.task_id || ''
     const glossaryAvailable = activeTask?.project_context?.glossary_available === true
@@ -1810,6 +1866,58 @@ export default function PublicationTasks() {
                                                         ? 'Tilda не отдаёт постовую аналитику напрямую через этот интерфейс. Автоматический сбор сработает только если у проекта также привязана Google Search Console property для опубликованного URL.'
                                                     : 'Используй сбор из канала, если адаптер поддерживает аналитику, или сохраняй ручной снимок, если площадка работает только вручную.'}
                                             </div>
+                                            {isVkTask && (
+                                                <div className="space-y-4">
+                                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                                                        <div className="flex flex-wrap gap-2 text-[11px] font-bold">
+                                                            <span className={`rounded-full px-3 py-1.5 ${latestVkSnapshot?.wall_status === 'collected' ? 'bg-success/15 text-success' : 'bg-surface-container-high text-on-surface-variant'}`}>
+                                                                Публичные метрики: {latestVkSnapshot?.wall_status === 'collected' ? 'получены' : 'нет снимка'}
+                                                            </span>
+                                                            <span className={`rounded-full px-3 py-1.5 ${latestVkSnapshot?.reach_status === 'collected' ? 'bg-success/15 text-success' : 'bg-yellow-100 text-yellow-900'}`}>
+                                                                Расширенная статистика: {latestVkSnapshot?.reach_status === 'collected' ? 'получена' : 'нет доступа'}
+                                                            </span>
+                                                        </div>
+                                                        <span className="text-xs text-on-surface-variant">
+                                                            {isLoadingVkMetrics
+                                                                ? 'Обновляем историю...'
+                                                                : latestVkSnapshot
+                                                                    ? `Снимок: ${formatDate(latestVkSnapshot.captured_at)}`
+                                                                    : 'Снимков пока нет'}
+                                                        </span>
+                                                    </div>
+
+                                                    {latestVkSnapshot && (
+                                                        <>
+                                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                                                {VK_PUBLIC_METRICS.map(([field, label]) => (
+                                                                    <div key={field} className="rounded-2xl bg-white p-4">
+                                                                        <div className="text-[10px] font-black uppercase tracking-[0.14em] text-on-surface-variant">{label}</div>
+                                                                        <div className="mt-2 text-xl font-black text-on-surface">{formatMetricValue(latestVkSnapshot[field] as number | null)}</div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
+                                                                {VK_REACH_METRICS.map(([field, label]) => (
+                                                                    <div key={field} className="rounded-2xl bg-white p-3">
+                                                                        <div className="text-[10px] font-bold text-on-surface-variant">{label}</div>
+                                                                        <div className="mt-1 text-base font-black text-on-surface">{formatMetricValue(latestVkSnapshot[field] as number | null)}</div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                            <div className="rounded-2xl bg-white p-4">
+                                                                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Последние замеры</div>
+                                                                <div className="mt-3 flex flex-wrap gap-2">
+                                                                    {vkSnapshots.slice(-7).reverse().map((snapshot) => (
+                                                                        <span key={snapshot.id} className="rounded-xl bg-surface-container-low px-3 py-2 text-xs text-on-surface-variant">
+                                                                            {formatDate(snapshot.logical_date)} · {formatMetricValue(snapshot.views)} просмотров · {formatMetricValue(snapshot.reach_total)} охват
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            )}
                                             <textarea
                                                 value={metricsJson}
                                                 onChange={(event) => setMetricsJson(event.target.value)}

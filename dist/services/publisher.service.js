@@ -1442,7 +1442,7 @@ class PublisherService {
         if (channelType === 'vk') {
             const vkConfig = channelConfig.raw_account || channelConfig;
             const vkId = vkConfig.vk_id;
-            const apiKey = vkConfig.api_key;
+            const apiKey = vkConfig.publish_access_token || vkConfig.api_key;
             if (!vkId || !apiKey) {
                 throw new Error('VK channel config is missing vk_id or api_key');
             }
@@ -1749,7 +1749,7 @@ class PublisherService {
                     logToFile('INFO', `[Publisher] Publishing to VK for post ${post.id}`);
                     const vkConfig = channel.config;
                     const vkId = vkConfig.vk_id;
-                    const apiKey = vkConfig.api_key;
+                    const apiKey = vkConfig.publish_access_token || vkConfig.api_key;
                     if (!vkId || !apiKey) {
                         logToFile('ERROR', `VK config missing id/key for post ${post.id}`);
                         continue;
@@ -2027,7 +2027,7 @@ class PublisherService {
             else if (channel.type === 'vk') {
                 const vkConfig = channel.config;
                 const vkId = vkConfig.vk_id;
-                const apiKey = vkConfig.api_key;
+                const apiKey = vkConfig.publish_access_token || vkConfig.api_key;
                 if (!vkId || !apiKey) {
                     throw new Error(`VK config missing id/key for post ${postId}`);
                 }

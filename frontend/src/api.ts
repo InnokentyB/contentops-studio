@@ -226,6 +226,15 @@ export const publicationTasksApi = {
     generateImage: (id: number, data?: { provider?: 'gpt-image' | 'nano' }) =>
         api.post(`/api/publication-tasks/${id}/generate-image`, data || {}),
     collectMetrics: (id: number) => api.post(`/api/publication-tasks/${id}/collect-metrics`),
+    getMetricsHistory: (id: number, params?: { from?: string; to?: string }) => {
+        const query = new URLSearchParams();
+        if (params?.from) query.set('from', params.from);
+        if (params?.to) query.set('to', params.to);
+        const suffix = query.toString() ? `?${query.toString()}` : '';
+        return api.get(`/api/publication-tasks/${id}/metrics-history${suffix}`);
+    },
+    getWeeklyMetrics: (id: number, from: string, to: string) =>
+        api.get(`/api/publication-tasks/${id}/metrics-weekly?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
     recordMetrics: (id: number, metrics: Record<string, any>) =>
         api.post(`/api/publication-tasks/${id}/record-metrics`, { metrics }),
     externalCommentAlert: (id: number, data: { text?: string; commentUrl?: string; author?: string }) =>

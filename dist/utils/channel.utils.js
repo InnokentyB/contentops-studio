@@ -13,6 +13,10 @@ function sanitizeChannelConfig(type, config) {
     // Mask sensitive fields
     if (sanitized.api_key)
         sanitized.api_key = '******';
+    if (sanitized.publish_access_token)
+        sanitized.publish_access_token = '******';
+    if (sanitized.stats_access_token)
+        sanitized.stats_access_token = '******';
     if (sanitized.access_token)
         sanitized.access_token = '******';
     if (sanitized.cookies)
@@ -28,7 +32,7 @@ function mergeChannelConfig(incomingConfig, existingConfig) {
     if (!existingConfig || typeof existingConfig !== 'object')
         return incomingConfig;
     const merged = { ...incomingConfig };
-    const secretKeys = ['api_key', 'access_token', 'cookies', 'application_secret_key'];
+    const secretKeys = ['api_key', 'publish_access_token', 'stats_access_token', 'access_token', 'cookies', 'application_secret_key'];
     for (const key of secretKeys) {
         if (merged[key] === '******' && existingConfig[key]) {
             merged[key] = existingConfig[key];

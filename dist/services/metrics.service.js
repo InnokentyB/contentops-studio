@@ -12,6 +12,7 @@ const linkedin_service_1 = __importDefault(require("./linkedin.service"));
 const telegram_client_service_1 = __importDefault(require("./telegram_client.service"));
 const reddit_service_1 = __importDefault(require("./reddit.service"));
 const gsc_service_1 = __importDefault(require("./gsc.service"));
+const vk_metrics_service_1 = __importDefault(require("./vk_metrics.service"));
 const connectionString = process.env.DATABASE_URL;
 const pool = new pg_1.Pool({ connectionString });
 const adapter = new adapter_pg_1.PrismaPg(pool);
@@ -102,6 +103,9 @@ class MetricsService {
         if (!item) {
             return { found: false, updated: false, reason: 'Publication task not found.' };
         }
+        if (item.channel?.type === 'vk') {
+            return vk_metrics_service_1.default.collectForContentItem(item.id, item.project_id, 'manual');
+        }
         const result = await this.fetchPublicationTaskMetrics(item);
         if (!result.metrics) {
             return {
@@ -135,6 +139,11 @@ class MetricsService {
         let updateCount = 0;
         try {
             console.log('[MetricsService] Starting metrics collection...');
+            const vkCollection = await vk_metrics_service_1.default.collectDaily();
+            updateCount += vkCollection.updated;
+            if (vkCollection.attempted > 0) {
+                console.log(`[MetricsService] Saved ${vkCollection.updated}/${vkCollection.attempted} VK publication snapshots.`);
+            }
             const thirtyDaysAgo = new Date();
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
             // Find all published posts within the last 30 days that have an associated channel
@@ -170,11 +179,12 @@ class MetricsService {
                     }
                     else if (channel.type === 'vk') {
                         const config = channel.config;
-                        if (config.vk_id && config.api_key && post.published_link) {
+                        const publishAccessToken = config.publish_access_token || config.api_key;
+                        if (config.vk_id && publishAccessToken && post.published_link) {
                             // Extract post ID from published link e.g. https://vk.com/wall-1234_567 
                             const match = post.published_link.match(/wall-?\d+_(\d+)/);
                             if (match) {
-                                newMetrics = await vk_service_1.default.getMetrics(config.vk_id, config.api_key, match[1]);
+                                newMetrics = await vk_service_1.default.getMetrics(config.vk_id, publishAccessToken, match[1]);
                             }
                         }
                     }
@@ -227,6 +237,8 @@ class MetricsService {
             });
             console.log(`[MetricsService] Found ${contentItems.length} publication tasks to fetch metrics for.`);
             for (const item of contentItems) {
+                if (item.channel?.type === 'vk')
+                    continue;
                 try {
                     const result = await this.fetchPublicationTaskMetrics(item);
                     const newMetrics = result.metrics;

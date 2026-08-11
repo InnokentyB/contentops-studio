@@ -888,7 +888,7 @@ class McpPublicationService {
         }
         else if (channel.type === 'vk') {
             const vkId = config?.vk_id;
-            const apiKey = config?.api_key;
+            const apiKey = config?.publish_access_token || config?.api_key;
             if (!vkId || !apiKey) {
                 throw new Error(`VK channel ${channel.id} is missing vk_id or api_key`);
             }

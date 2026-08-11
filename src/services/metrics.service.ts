@@ -7,6 +7,7 @@ import linkedinService from './linkedin.service';
 import telegramClientService from './telegram_client.service';
 import redditService from './reddit.service';
 import gscService from './gsc.service';
+import vkMetricsService from './vk_metrics.service';
 
 const connectionString = process.env.DATABASE_URL;
 const pool = new Pool({ connectionString });
@@ -112,6 +113,10 @@ export class MetricsService {
             return { found: false, updated: false, reason: 'Publication task not found.' };
         }
 
+        if (item.channel?.type === 'vk') {
+            return vkMetricsService.collectForContentItem(item.id, item.project_id, 'manual');
+        }
+
         const result = await this.fetchPublicationTaskMetrics(item);
         if (!result.metrics) {
             return {
@@ -149,6 +154,12 @@ export class MetricsService {
         let updateCount = 0;
         try {
             console.log('[MetricsService] Starting metrics collection...');
+
+            const vkCollection = await vkMetricsService.collectDaily();
+            updateCount += vkCollection.updated;
+            if (vkCollection.attempted > 0) {
+                console.log(`[MetricsService] Saved ${vkCollection.updated}/${vkCollection.attempted} VK publication snapshots.`);
+            }
 
             const thirtyDaysAgo = new Date();
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -188,11 +199,12 @@ export class MetricsService {
                         }
                     } else if (channel.type === 'vk') {
                         const config: any = channel.config;
-                        if (config.vk_id && config.api_key && post.published_link) {
+                        const publishAccessToken = config.publish_access_token || config.api_key;
+                        if (config.vk_id && publishAccessToken && post.published_link) {
                             // Extract post ID from published link e.g. https://vk.com/wall-1234_567 
                             const match = post.published_link.match(/wall-?\d+_(\d+)/);
                             if (match) {
-                                newMetrics = await vkService.getMetrics(config.vk_id, config.api_key, match[1]);
+                                newMetrics = await vkService.getMetrics(config.vk_id, publishAccessToken, match[1]);
                             }
                         }
                     } else if (channel.type === 'linkedin') {
@@ -247,6 +259,7 @@ export class MetricsService {
             console.log(`[MetricsService] Found ${contentItems.length} publication tasks to fetch metrics for.`);
 
             for (const item of contentItems) {
+                if (item.channel?.type === 'vk') continue;
                 try {
                     const result = await this.fetchPublicationTaskMetrics(item);
                     const newMetrics = result.metrics;

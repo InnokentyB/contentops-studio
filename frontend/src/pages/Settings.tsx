@@ -288,6 +288,7 @@ export default function Settings() {
     const [newChannelId, setNewChannelId] = useState('')
     const [newChannelUsername, setNewChannelUsername] = useState('')
     const [newChannelApiKey, setNewChannelApiKey] = useState('')
+    const [newVkStatsToken, setNewVkStatsToken] = useState('')
     const [okAppKey, setOkAppKey] = useState('')
     const [okAppSecret, setOkAppSecret] = useState('')
     const [webhookUrl, setWebhookUrl] = useState('')
@@ -401,6 +402,7 @@ export default function Settings() {
         setNewChannelId('')
         setNewChannelUsername('')
         setNewChannelApiKey('')
+        setNewVkStatsToken('')
         setSessionCookies('')
         setHubIds('')
         setWebhookUrl('')
@@ -639,9 +641,12 @@ export default function Settings() {
                     : `@${newChannelUsername}`;
             }
         } else if (newChannelType === 'vk') {
-            if (!newChannelApiKey) return showToast('VK requires an API key', 'warning');
+            if (!newChannelApiKey) return showToast('VK requires a publication access token', 'warning');
             config.vk_id = newChannelId;
-            config.api_key = newChannelApiKey;
+            config.publish_access_token = newChannelApiKey;
+            if (newVkStatsToken) config.stats_access_token = newVkStatsToken;
+            config.analytics_enabled = Boolean(newVkStatsToken);
+            config.api_version = '5.199';
         } else if (newChannelType === 'ok') {
             if (!newChannelApiKey) return showToast('Access Token is required', 'warning');
             if (!okAppKey) return showToast('Application Key is required', 'warning');
@@ -951,13 +956,28 @@ export default function Settings() {
                                         )}
                                     </div>
                                     <div>
-                                        <label>Community Access Token</label>
+                                        <label>Community publication token</label>
                                         <input
                                             type="password"
                                             placeholder="vk1.a.xxxx..."
                                             value={newChannelApiKey}
                                             onChange={e => setNewChannelApiKey(e.target.value)}
                                         />
+                                        <div className="text-xs text-on-surface-variant mt-1">
+                                            Используется для публикации и чтения публичных счётчиков записи.
+                                        </div>
+                                    </div>
+                                    <div style={{ gridColumn: '1 / -1' }}>
+                                        <label>User statistics token (Optional)</label>
+                                        <input
+                                            type="password"
+                                            placeholder="Токен пользователя с доступом к статистике сообщества"
+                                            value={newVkStatsToken}
+                                            onChange={e => setNewVkStatsToken(e.target.value)}
+                                        />
+                                        <div className="text-xs text-on-surface-variant mt-1">
+                                            Нужен для охватов, переходов, вступлений, скрытий, жалоб и отписок через stats.getPostReach.
+                                        </div>
                                     </div>
                                 </>
                             ) : newChannelType === 'ok' ? (
@@ -1265,14 +1285,34 @@ export default function Settings() {
                                                         )}
                                                     </div>
                                                     <div>
-                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Access Token / API Key</label>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Community publication token</label>
                                                         <input
+                                                            type="password"
                                                             className="w-full"
-                                                            value={editingChannelConfig.api_key || ''}
-                                                            onChange={e => setEditingChannelConfig({ ...editingChannelConfig, api_key: e.target.value })}
-                                                            placeholder="Access Token"
+                                                            value={editingChannelConfig.publish_access_token || editingChannelConfig.api_key || ''}
+                                                            onChange={e => setEditingChannelConfig({ ...editingChannelConfig, publish_access_token: e.target.value })}
+                                                            placeholder="Publication access token"
                                                             style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
                                                         />
+                                                    </div>
+                                                    <div style={{ gridColumn: '1 / -1' }}>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>User statistics token (Optional)</label>
+                                                        <input
+                                                            type="password"
+                                                            className="w-full"
+                                                            value={editingChannelConfig.stats_access_token || ''}
+                                                            onChange={e => setEditingChannelConfig({
+                                                                ...editingChannelConfig,
+                                                                stats_access_token: e.target.value,
+                                                                analytics_enabled: Boolean(e.target.value && e.target.value !== '******'),
+                                                                api_version: '5.199'
+                                                            })}
+                                                            placeholder="Statistics access token"
+                                                            style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
+                                                        />
+                                                        <div className="text-xs text-on-surface-variant mt-1">
+                                                            Отдельный пользовательский токен для stats.getPostReach. Существующее значение остаётся сохранённым, пока поле замаскировано.
+                                                        </div>
                                                     </div>
                                                 </>
                                             )}

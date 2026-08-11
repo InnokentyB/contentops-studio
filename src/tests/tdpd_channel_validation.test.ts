@@ -14,6 +14,8 @@ test('sanitizeChannelConfig masks sensitive fields', () => {
         telegram_channel_id: '-100123456',
         channel_username: '@mychannel',
         api_key: 'super-secret-vk-key',
+        publish_access_token: 'vk-publish-token',
+        stats_access_token: 'vk-stats-token',
         access_token: 'threads-token',
         cookies: 'session=abc',
         application_secret_key: 'ok-app-secret'
@@ -24,6 +26,8 @@ test('sanitizeChannelConfig masks sensitive fields', () => {
     assert.equal(sanitized.telegram_channel_id, '-100123456');
     assert.equal(sanitized.channel_username, '@mychannel');
     assert.equal(sanitized.api_key, '******');
+    assert.equal(sanitized.publish_access_token, '******');
+    assert.equal(sanitized.stats_access_token, '******');
     assert.equal(sanitized.access_token, '******');
     assert.equal(sanitized.cookies, '******');
     assert.equal(sanitized.application_secret_key, '******');
@@ -32,6 +36,8 @@ test('sanitizeChannelConfig masks sensitive fields', () => {
 test('mergeChannelConfig preserves existing secrets when incoming is masked', () => {
     const existingConfig = {
         api_key: 'original-vk-key',
+        publish_access_token: 'original-vk-publish-token',
+        stats_access_token: 'original-vk-stats-token',
         access_token: 'original-threads-token',
         cookies: 'original-session',
         application_secret_key: 'original-ok-secret'
@@ -40,6 +46,8 @@ test('mergeChannelConfig preserves existing secrets when incoming is masked', ()
     const incomingConfig = {
         telegram_channel_id: '-100999888',
         api_key: '******',
+        publish_access_token: '******',
+        stats_access_token: '******',
         access_token: '******',
         cookies: '******',
         application_secret_key: '******'
@@ -49,6 +57,8 @@ test('mergeChannelConfig preserves existing secrets when incoming is masked', ()
 
     assert.equal(merged.telegram_channel_id, '-100999888');
     assert.equal(merged.api_key, 'original-vk-key');
+    assert.equal(merged.publish_access_token, 'original-vk-publish-token');
+    assert.equal(merged.stats_access_token, 'original-vk-stats-token');
     assert.equal(merged.access_token, 'original-threads-token');
     assert.equal(merged.cookies, 'original-session');
     assert.equal(merged.application_secret_key, 'original-ok-secret');

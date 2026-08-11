@@ -17,6 +17,8 @@ const planner_service_2 = __importDefault(require("../services/planner.service")
         telegram_channel_id: '-100123456',
         channel_username: '@mychannel',
         api_key: 'super-secret-vk-key',
+        publish_access_token: 'vk-publish-token',
+        stats_access_token: 'vk-stats-token',
         access_token: 'threads-token',
         cookies: 'session=abc',
         application_secret_key: 'ok-app-secret'
@@ -25,6 +27,8 @@ const planner_service_2 = __importDefault(require("../services/planner.service")
     strict_1.default.equal(sanitized.telegram_channel_id, '-100123456');
     strict_1.default.equal(sanitized.channel_username, '@mychannel');
     strict_1.default.equal(sanitized.api_key, '******');
+    strict_1.default.equal(sanitized.publish_access_token, '******');
+    strict_1.default.equal(sanitized.stats_access_token, '******');
     strict_1.default.equal(sanitized.access_token, '******');
     strict_1.default.equal(sanitized.cookies, '******');
     strict_1.default.equal(sanitized.application_secret_key, '******');
@@ -32,6 +36,8 @@ const planner_service_2 = __importDefault(require("../services/planner.service")
 (0, node_test_1.default)('mergeChannelConfig preserves existing secrets when incoming is masked', () => {
     const existingConfig = {
         api_key: 'original-vk-key',
+        publish_access_token: 'original-vk-publish-token',
+        stats_access_token: 'original-vk-stats-token',
         access_token: 'original-threads-token',
         cookies: 'original-session',
         application_secret_key: 'original-ok-secret'
@@ -39,6 +45,8 @@ const planner_service_2 = __importDefault(require("../services/planner.service")
     const incomingConfig = {
         telegram_channel_id: '-100999888',
         api_key: '******',
+        publish_access_token: '******',
+        stats_access_token: '******',
         access_token: '******',
         cookies: '******',
         application_secret_key: '******'
@@ -46,6 +54,8 @@ const planner_service_2 = __importDefault(require("../services/planner.service")
     const merged = (0, channel_utils_1.mergeChannelConfig)(incomingConfig, existingConfig);
     strict_1.default.equal(merged.telegram_channel_id, '-100999888');
     strict_1.default.equal(merged.api_key, 'original-vk-key');
+    strict_1.default.equal(merged.publish_access_token, 'original-vk-publish-token');
+    strict_1.default.equal(merged.stats_access_token, 'original-vk-stats-token');
     strict_1.default.equal(merged.access_token, 'original-threads-token');
     strict_1.default.equal(merged.cookies, 'original-session');
     strict_1.default.equal(merged.application_secret_key, 'original-ok-secret');

@@ -24,6 +24,7 @@ const content_dictionary_service_1 = __importDefault(require("../services/conten
 const content_policy_matrix_service_1 = __importDefault(require("../services/content_policy_matrix.service"));
 const publication_plan_service_1 = __importDefault(require("../services/publication_plan.service"));
 const metrics_service_1 = __importDefault(require("../services/metrics.service"));
+const vk_metrics_service_1 = __importDefault(require("../services/vk_metrics.service"));
 const egress_diagnostics_1 = require("../utils/egress_diagnostics");
 async function loadPublicationPlanContext(projectId) {
     const settings = await prisma.projectSettings.findMany({
@@ -61,6 +62,21 @@ function safeJsonParse(value) {
 }
 function formatJson(value) {
     return JSON.stringify(value, null, 2);
+}
+function parseMetricsDate(value, field = 'date') {
+    if (!value)
+        return undefined;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+        throw new Error(`${field} must be a valid ISO date`);
+    }
+    return parsed;
+}
+function csvCell(value) {
+    if (value === null || value === undefined)
+        return '';
+    const serialized = value instanceof Date ? value.toISOString() : String(value);
+    return `"${serialized.replace(/"/g, '""')}"`;
 }
 function extractRequestErrorMessage(error, fallback) {
     const directMessage = typeof error?.message === 'string' ? error.message.trim() : '';
@@ -1257,6 +1273,70 @@ async function apiRoutes(fastify) {
             responseBytes: (0, egress_diagnostics_1.jsonBytes)(result)
         });
         return result;
+    });
+    fastify.get('/api/publication-tasks/:id/metrics-history', async (request, reply) => {
+        const projectId = request.projectId;
+        if (!projectId)
+            return reply.code(400).send({ error: 'Project ID required' });
+        const { id } = request.params;
+        const { from, to } = request.query;
+        try {
+            const history = await vk_metrics_service_1.default.getHistory(parseInt(id), projectId, parseMetricsDate(from, 'from'), parseMetricsDate(to, 'to'));
+            if (!history)
+                return reply.code(404).send({ error: 'Publication task not found' });
+            return { snapshots: history };
+        }
+        catch (error) {
+            return reply.code(400).send({ error: error.message || 'Invalid metrics history request' });
+        }
+    });
+    fastify.get('/api/publication-tasks/:id/metrics-weekly', async (request, reply) => {
+        const projectId = request.projectId;
+        if (!projectId)
+            return reply.code(400).send({ error: 'Project ID required' });
+        const { id } = request.params;
+        const { from, to } = request.query;
+        if (!from || !to)
+            return reply.code(400).send({ error: 'from and to are required' });
+        try {
+            const report = await vk_metrics_service_1.default.getWeeklyDelta(parseInt(id), projectId, parseMetricsDate(from, 'from'), parseMetricsDate(to, 'to'));
+            if (!report)
+                return reply.code(404).send({ error: 'Publication task not found' });
+            return report;
+        }
+        catch (error) {
+            return reply.code(400).send({ error: error.message || 'Invalid weekly metrics request' });
+        }
+    });
+    fastify.get('/api/vk-metrics/export', async (request, reply) => {
+        const projectId = request.projectId;
+        if (!projectId)
+            return reply.code(400).send({ error: 'Project ID required' });
+        const { from, to, format = 'json' } = request.query;
+        if (!['json', 'csv'].includes(format)) {
+            return reply.code(400).send({ error: 'format must be json or csv' });
+        }
+        try {
+            const snapshots = await vk_metrics_service_1.default.exportProject(projectId, parseMetricsDate(from, 'from'), parseMetricsDate(to, 'to'));
+            if (format === 'json')
+                return { snapshots };
+            const columns = [
+                'content_item_id', 'channel_id', 'owner_id', 'post_id', 'logical_date', 'captured_at',
+                'wall_status', 'reach_status', 'views', 'likes', 'comments', 'reposts', 'reach_total',
+                'reach_subscribers', 'reach_viral', 'reach_ads', 'link_clicks', 'group_clicks', 'group_joins',
+                'hides', 'reports', 'unsubscribes', 'provider_error_code'
+            ];
+            const rows = [
+                columns.join(','),
+                ...snapshots.map((snapshot) => columns.map((column) => csvCell(snapshot[column])).join(','))
+            ];
+            reply.header('content-type', 'text/csv; charset=utf-8');
+            reply.header('content-disposition', `attachment; filename="vk-metrics-${projectId}.csv"`);
+            return rows.join('\n');
+        }
+        catch (error) {
+            return reply.code(400).send({ error: error.message || 'Invalid metrics export request' });
+        }
     });
     fastify.post('/api/publication-tasks/:id/external-comment-alert', async (request, reply) => {
         const projectId = request.projectId;

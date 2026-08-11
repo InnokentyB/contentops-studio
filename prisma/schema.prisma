@@ -59,6 +59,7 @@ model Project {
   workflow_events         WorkflowEvent[]
   initiatives             Initiative[]
   initiative_dependencies InitiativeDependency[]
+  vk_metric_snapshots     VkMetricSnapshot[]
 
 
   prompt_presets    PromptPreset[]
@@ -137,6 +138,7 @@ model SocialChannel {
   project       Project       @relation(fields: [project_id], references: [id], onDelete: Cascade)
   posts         Post[]
   content_items ContentItem[]
+  vk_metric_snapshots VkMetricSnapshot[]
 
   @@schema("planner")
   @@map("social_channels")
@@ -479,12 +481,56 @@ model ContentItem {
   channel         SocialChannel?  @relation(fields: [channel_id], references: [id], onDelete: SetNull)
   work_items      WorkItem[]
   workflow_events WorkflowEvent[]
+  vk_metric_snapshots VkMetricSnapshot[]
 
   @@index([project_id])
   @@index([week_package_id])
   @@index([status])
   @@schema("planner")
   @@map("content_items")
+}
+
+model VkMetricSnapshot {
+  id                     Int      @id @default(autoincrement())
+  project_id             Int
+  channel_id             Int
+  content_item_id        Int
+  owner_id               String
+  post_id                String
+  logical_date           DateTime @db.Date
+  collection_mode        String   @default("automatic")
+  captured_at            DateTime @default(now()) @db.Timestamptz(6)
+  wall_status            String
+  reach_status           String
+  views                  Int?
+  likes                  Int?
+  comments               Int?
+  reposts                Int?
+  reach_total            Int?
+  reach_subscribers      Int?
+  reach_viral            Int?
+  reach_ads              Int?
+  link_clicks            Int?
+  group_clicks           Int?
+  group_joins            Int?
+  hides                  Int?
+  reports                Int?
+  unsubscribes           Int?
+  provider_error_code    String?
+  provider_error_message String?
+  raw_payload            Json?
+  created_at             DateTime @default(now())
+
+  project      Project       @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  channel      SocialChannel @relation(fields: [channel_id], references: [id], onDelete: Cascade)
+  content_item ContentItem   @relation(fields: [content_item_id], references: [id], onDelete: Cascade)
+
+  @@unique([content_item_id, logical_date, collection_mode])
+  @@index([project_id, logical_date])
+  @@index([channel_id, logical_date])
+  @@index([owner_id, post_id])
+  @@schema("planner")
+  @@map("vk_metric_snapshots")
 }
 
 model FeedbackPackage {
