@@ -20,6 +20,7 @@ const prisma = adapter ? new PrismaClient({ adapter }) : null;
 let client;
 let transport;
 let toolNames = new Set();
+let fixturePromise;
 
 function idempotencyKey(label) {
   return `tdpd-t-${label}-${randomUUID()}`;
@@ -57,6 +58,49 @@ async function callTool(name, args) {
   return resultPayload(await client.callTool({ name, arguments: args }));
 }
 
+async function ensureFixture() {
+  if (!fixturePromise) {
+    fixturePromise = (async () => {
+      if (prisma && TEST_USER_ID) {
+        await prisma.user.upsert({
+          where: { id: TEST_USER_ID },
+          update: {},
+          create: {
+            id: TEST_USER_ID,
+            email: `testuser${TEST_USER_ID}@example.com`,
+            password_hash: 'hash',
+            name: 'Test User 1',
+          },
+        });
+
+        const proj = await prisma.project.create({
+          data: {
+            name: `Suite T Project ${randomUUID()}`,
+            slug: `suite-t-${randomUUID()}`,
+            members: {
+              create: { user_id: TEST_USER_ID, role: 'owner' },
+            },
+          },
+        });
+
+        const workItem = await prisma.workItem.create({
+          data: {
+            project_id: proj.id,
+            item_key: `T-WORK-${randomUUID()}`,
+            kind: 'content_write',
+            state: 'available',
+            assignee_role: 'content_writer',
+          },
+        });
+
+        return { projectId: proj.id, workItemId: workItem.id };
+      }
+      return { projectId: 1, workItemId: 1 };
+    })();
+  }
+  return fixturePromise;
+}
+
 test.before(async () => {
   transport = new StdioClientTransport({
     command: 'node',
@@ -79,17 +123,18 @@ test('E2E-T01 / SC-T01: one projection maps to exactly one external task card wi
   requireTools('ba_sync_task_tracker');
   if (!requireDatabase(t)) return;
 
+  const fixture = await ensureFixture();
   const sync1 = await callTool('ba_sync_task_tracker', {
-    projectId: 1,
+    projectId: fixture.projectId,
     actorId: ACTOR_ID,
-    workItemId: 1,
+    workItemId: fixture.workItemId,
     idempotencyKey: idempotencyKey('sync-t01-1'),
   });
 
   const sync2 = await callTool('ba_sync_task_tracker', {
-    projectId: 1,
+    projectId: fixture.projectId,
     actorId: ACTOR_ID,
-    workItemId: 1,
+    workItemId: fixture.workItemId,
     idempotencyKey: idempotencyKey('sync-t01-2'),
   });
 
@@ -101,18 +146,19 @@ test('E2E-T02 / SC-T02: command retry with identical idempotency key does not cr
   requireTools('ba_sync_task_tracker', 'ba_process_outbox');
   if (!requireDatabase(t)) return;
 
+  const fixture = await ensureFixture();
   const sharedKey = idempotencyKey('retry-t02');
   const res1 = await callTool('ba_sync_task_tracker', {
-    projectId: 1,
+    projectId: fixture.projectId,
     actorId: ACTOR_ID,
-    workItemId: 1,
+    workItemId: fixture.workItemId,
     idempotencyKey: sharedKey,
   });
 
   const res2 = await callTool('ba_sync_task_tracker', {
-    projectId: 1,
+    projectId: fixture.projectId,
     actorId: ACTOR_ID,
-    workItemId: 1,
+    workItemId: fixture.workItemId,
     idempotencyKey: sharedKey,
   });
 
@@ -123,9 +169,9 @@ test('E2E-T03 / SC-T03: Plane API unavailability preserves domain transaction an
   requireTools('ba_process_outbox');
   if (!requireDatabase(t)) return;
 
-  // Domain operation must succeed even if Plane mock returns error/unreachable
+  const fixture = await ensureFixture();
   const outboxRes = await callTool('ba_process_outbox', {
-    projectId: 1,
+    projectId: fixture.projectId,
     actorId: ACTOR_ID,
     simulateUnreachable: true,
   });
@@ -138,6 +184,7 @@ test('E2E-T04 / SC-T04: incoming webhook payload is validated and deduplicated i
   requireTools('ba_receive_webhook');
   if (!requireDatabase(t)) return;
 
+  const fixture = await ensureFixture();
   const eventId = `wh-evt-${randomUUID()}`;
   const payload = {
     event_id: eventId,
@@ -147,13 +194,13 @@ test('E2E-T04 / SC-T04: incoming webhook payload is validated and deduplicated i
   };
 
   const rec1 = await callTool('ba_receive_webhook', {
-    projectId: 1,
+    projectId: fixture.projectId,
     actorId: ACTOR_ID,
     payload,
   });
 
   const rec2 = await callTool('ba_receive_webhook', {
-    projectId: 1,
+    projectId: fixture.projectId,
     actorId: ACTOR_ID,
     payload,
   });
@@ -166,8 +213,9 @@ test('E2E-T05 / SC-T05: reconciliation job detects and repairs state drift betwe
   requireTools('ba_reconcile_task_tracker');
   if (!requireDatabase(t)) return;
 
+  const fixture = await ensureFixture();
   const recon = await callTool('ba_reconcile_task_tracker', {
-    projectId: 1,
+    projectId: fixture.projectId,
     actorId: ACTOR_ID,
     autoRepair: true,
   });
@@ -180,13 +228,14 @@ test('E2E-T06 / SC-T06: stale outbox payload with lower sync_version than last_s
   requireTools('ba_process_outbox');
   if (!requireDatabase(t)) return;
 
+  const fixture = await ensureFixture();
   const res = await client.callTool({
     name: 'ba_process_outbox',
     arguments: {
-      projectId: 1,
+      projectId: fixture.projectId,
       actorId: ACTOR_ID,
       staleOutboxItem: {
-        workItemId: 1,
+        workItemId: fixture.workItemId,
         syncVersion: 1,
         lastSyncedVersion: 2,
       },

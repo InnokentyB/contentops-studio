@@ -4,6 +4,8 @@ import prisma, { pool } from '../db';
 import mcpPublicationService from '../services/mcp_publication.service';
 import workQueueService from '../services/work_queue.service';
 import initiativeService from '../services/initiative.service';
+import taskTrackerService from '../services/task_tracker.service';
+
 
 
 export function asToolResult<T extends Record<string, unknown>>(payload: T) {
@@ -880,6 +882,66 @@ export function registerPlannerTools(server: McpServer) {
         const result = await initiativeService.getOperationalCalendar(args);
         return asToolResult(result);
     });
+
+    server.registerTool('ba_sync_task_tracker', {
+        description: 'Synchronize a WorkItem projection with external task tracker (Plane).',
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string(),
+            workItemId: z.number().int().positive(),
+            idempotencyKey: z.string().optional()
+        }
+    }, async (args) => {
+        const result = await taskTrackerService.syncTaskTracker(args);
+        return asToolResult(result);
+    });
+
+    server.registerTool('ba_process_outbox', {
+        description: 'Process outbox events for task tracker sync and retry delivery.',
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string(),
+            simulateUnreachable: z.boolean().optional(),
+            staleOutboxItem: z.object({
+                workItemId: z.number().int().positive(),
+                syncVersion: z.number().int(),
+                lastSyncedVersion: z.number().int()
+            }).optional()
+        }
+    }, async (args) => {
+        const result = await taskTrackerService.processOutbox(args);
+        return asToolResult(result);
+    });
+
+    server.registerTool('ba_receive_webhook', {
+        description: 'Process and deduplicate incoming webhook payloads from external task tracker.',
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string(),
+            payload: z.object({
+                event_id: z.string(),
+                action: z.string().optional(),
+                issue_id: z.string().optional(),
+                state: z.string().optional()
+            }).passthrough()
+        }
+    }, async (args) => {
+        const result = await taskTrackerService.receiveWebhook(args);
+        return asToolResult(result);
+    });
+
+    server.registerTool('ba_reconcile_task_tracker', {
+        description: 'Reconcile Planner WorkItem states with external task tracker states.',
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string(),
+            autoRepair: z.boolean().optional()
+        }
+    }, async (args) => {
+        const result = await taskTrackerService.reconcileTaskTracker(args);
+        return asToolResult(result);
+    });
+
 
 }
 

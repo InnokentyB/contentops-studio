@@ -22,8 +22,8 @@ model User {
   memberships      ProjectMember[]
   sent_invitations ProjectInvitation[]
 
-  @@schema("planner")
   @@map("users")
+  @@schema("planner")
 }
 
 // ============================================
@@ -31,15 +31,15 @@ model User {
 // ============================================
 
 model Project {
-  id          Int      @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
   name        String
-  slug        String   @unique
+  slug        String    @unique
   description String?
-  kind        String   @default("content_network")
-  is_archived Boolean  @default(false)
+  kind        String    @default("content_network")
+  is_archived Boolean   @default(false)
   archived_at DateTime?
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
 
   members     ProjectMember[]
   channels    SocialChannel[]
@@ -50,16 +50,18 @@ model Project {
   runs        AgentRun[]
 
   // v2 Media Orchestrator Relations
-  quarter_plans QuarterPlan[]
-  month_arcs    MonthArc[]
-  week_packages WeekPackage[]
-  content_items ContentItem[]
-  feedbacks     FeedbackPackage[]
+  quarter_plans           QuarterPlan[]
+  month_arcs              MonthArc[]
+  week_packages           WeekPackage[]
+  content_items           ContentItem[]
+  feedbacks               FeedbackPackage[]
   work_items              WorkItem[]
   workflow_events         WorkflowEvent[]
   initiatives             Initiative[]
   initiative_dependencies InitiativeDependency[]
   vk_metric_snapshots     VkMetricSnapshot[]
+  outbox_events           OutboxEvent[]
+  webhook_inbox           WebhookInbox[]
 
 
   prompt_presets    PromptPreset[]
@@ -69,8 +71,8 @@ model Project {
 
   @@index([is_archived])
   @@index([kind])
-  @@schema("planner")
   @@map("projects")
+  @@schema("planner")
 }
 
 model ProjectMember {
@@ -84,8 +86,8 @@ model ProjectMember {
   user    User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@unique([project_id, user_id])
-  @@schema("planner")
   @@map("project_members")
+  @@schema("planner")
 }
 
 model ProjectInvitation {
@@ -103,8 +105,8 @@ model ProjectInvitation {
 
   @@index([email])
   @@index([token])
-  @@schema("planner")
   @@map("project_invitations")
+  @@schema("planner")
 }
 
 model ProjectSettings {
@@ -117,8 +119,8 @@ model ProjectSettings {
   project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
 
   @@unique([project_id, key])
-  @@schema("planner")
   @@map("project_settings")
+  @@schema("planner")
 }
 
 // ============================================
@@ -135,13 +137,13 @@ model SocialChannel {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  project       Project       @relation(fields: [project_id], references: [id], onDelete: Cascade)
-  posts         Post[]
-  content_items ContentItem[]
+  project             Project            @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  posts               Post[]
+  content_items       ContentItem[]
   vk_metric_snapshots VkMetricSnapshot[]
 
-  @@schema("planner")
   @@map("social_channels")
+  @@schema("planner")
 }
 
 // ============================================
@@ -164,8 +166,8 @@ model Week {
   week_memory WeekMemory?
 
   @@unique([project_id, week_start, week_end])
-  @@schema("planner")
   @@map("weeks")
+  @@schema("planner")
 }
 
 model Post {
@@ -209,8 +211,8 @@ model Post {
   @@index([week_id])
   @@index([publish_at])
   @@index([status])
-  @@schema("planner")
   @@map("posts")
+  @@schema("planner")
 }
 
 model WeekMemory {
@@ -223,8 +225,8 @@ model WeekMemory {
   banned_takeaways  Json // Array of strings
   updated_at        DateTime @updatedAt
 
-  @@schema("planner")
   @@map("week_memories")
+  @@schema("planner")
 }
 
 // ============================================
@@ -239,8 +241,8 @@ model Event {
   event_type  String
   payload     Json?
 
-  @@schema("planner")
   @@map("events")
+  @@schema("planner")
 }
 
 model AgentRun {
@@ -265,8 +267,8 @@ model AgentRun {
 
   @@index([project_id])
   @@index([type])
-  @@schema("planner")
   @@map("agent_runs")
+  @@schema("planner")
 }
 
 // Keeping AgentIteration for now but might be unused if we log everything in AgentRun or separate table
@@ -284,8 +286,8 @@ model AgentIteration {
   run AgentRun @relation(fields: [run_id], references: [id], onDelete: Cascade)
 
   @@index([run_id])
-  @@schema("planner")
   @@map("agent_iterations")
+  @@schema("planner")
 }
 
 // ============================================
@@ -299,8 +301,8 @@ model PromptSettings {
   value      String
   updated_at DateTime @updatedAt
 
-  @@schema("planner")
   @@map("prompt_settings")
+  @@schema("planner")
 }
 
 // ============================================
@@ -318,8 +320,8 @@ model PromptPreset {
 
   project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
 
-  @@schema("planner")
   @@map("prompt_presets")
+  @@schema("planner")
 }
 
 model Comment {
@@ -334,8 +336,8 @@ model Comment {
   project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
 
   @@index([project_id, entity_type, entity_id])
-  @@schema("planner")
   @@map("comments")
+  @@schema("planner")
 }
 
 model ProviderKey {
@@ -348,8 +350,8 @@ model ProviderKey {
 
   project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
 
-  @@schema("planner")
   @@map("provider_keys")
+  @@schema("planner")
 }
 
 model TelegramAccount {
@@ -365,8 +367,8 @@ model TelegramAccount {
   updated_at     DateTime @updatedAt
 
   @@unique([project_id, phone_number])
-  @@schema("planner")
   @@map("telegram_accounts")
+  @@schema("planner")
 }
 
 // ============================================
@@ -388,8 +390,8 @@ model QuarterPlan {
   project    Project    @relation(fields: [project_id], references: [id], onDelete: Cascade)
   month_arcs MonthArc[]
 
-  @@schema("planner")
   @@map("quarter_plans")
+  @@schema("planner")
 }
 
 model MonthArc {
@@ -409,8 +411,8 @@ model MonthArc {
   quarter_plan  QuarterPlan?  @relation(fields: [quarter_plan_id], references: [id], onDelete: SetNull)
   week_packages WeekPackage[]
 
-  @@schema("planner")
   @@map("month_arcs")
+  @@schema("planner")
 }
 
 model WeekPackage {
@@ -435,16 +437,15 @@ model WeekPackage {
   created_at       DateTime @default(now())
   updated_at       DateTime @updatedAt
 
-  project       Project         @relation(fields: [project_id], references: [id], onDelete: Cascade)
-  month_arc     MonthArc?       @relation(fields: [month_arc_id], references: [id], onDelete: SetNull)
+  project         Project         @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  month_arc       MonthArc?       @relation(fields: [month_arc_id], references: [id], onDelete: SetNull)
   content_items   ContentItem[]
   work_items      WorkItem[]
   workflow_events WorkflowEvent[]
   initiatives     Initiative[]
 
-
-  @@schema("planner")
   @@map("week_packages")
+  @@schema("planner")
 }
 
 model ContentItem {
@@ -476,18 +477,18 @@ model ContentItem {
   created_at          DateTime  @default(now())
   updated_at          DateTime  @updatedAt
 
-  project         Project         @relation(fields: [project_id], references: [id], onDelete: Cascade)
-  week_package    WeekPackage?    @relation(fields: [week_package_id], references: [id], onDelete: SetNull)
-  channel         SocialChannel?  @relation(fields: [channel_id], references: [id], onDelete: SetNull)
-  work_items      WorkItem[]
-  workflow_events WorkflowEvent[]
+  project             Project            @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  week_package        WeekPackage?       @relation(fields: [week_package_id], references: [id], onDelete: SetNull)
+  channel             SocialChannel?     @relation(fields: [channel_id], references: [id], onDelete: SetNull)
+  work_items          WorkItem[]
+  workflow_events     WorkflowEvent[]
   vk_metric_snapshots VkMetricSnapshot[]
 
   @@index([project_id])
   @@index([week_package_id])
   @@index([status])
-  @@schema("planner")
   @@map("content_items")
+  @@schema("planner")
 }
 
 model VkMetricSnapshot {
@@ -529,8 +530,8 @@ model VkMetricSnapshot {
   @@index([project_id, logical_date])
   @@index([channel_id, logical_date])
   @@index([owner_id, post_id])
-  @@schema("planner")
   @@map("vk_metric_snapshots")
+  @@schema("planner")
 }
 
 model FeedbackPackage {
@@ -548,8 +549,8 @@ model FeedbackPackage {
 
   project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
 
-  @@schema("planner")
   @@map("feedback_packages")
+  @@schema("planner")
 }
 
 model WorkItem {
@@ -558,9 +559,9 @@ model WorkItem {
   week_package_id       Int?
   content_item_id       Int?
   item_key              String
-  kind                  String    // plan_review, content_write, content_review
-  state                 String    // pending, available, claimed, waiting_approval, blocked, completed, cancelled
-  assignee_role         String    // plan_reviewer, content_writer, content_reviewer
+  kind                  String // plan_review, content_write, content_review
+  state                 String // pending, available, claimed, waiting_approval, blocked, completed, cancelled
+  assignee_role         String // plan_reviewer, content_writer, content_reviewer
   depends_on_item_id    Int?
   due_at                DateTime? @db.Timestamptz(6)
   lease_token           String?
@@ -572,8 +573,17 @@ model WorkItem {
   reason_code           String?
   note                  String?
   missing_resource_refs Json?
+  tracker_provider      String?
+  tracker_project_id    String?
+  tracker_item_id       String?
+  tracker_url           String?
+  sync_version          Int       @default(1)
+  last_synced_at        DateTime? @db.Timestamptz(6)
+  sync_status           String?
+  sync_error            String?
   created_at            DateTime  @default(now())
   updated_at            DateTime  @updatedAt
+
 
   project            Project            @relation(fields: [project_id], references: [id], onDelete: Cascade)
   week_package       WeekPackage?       @relation(fields: [week_package_id], references: [id], onDelete: SetNull)
@@ -582,6 +592,8 @@ model WorkItem {
   initiative_id      Int?
   approval_decisions ApprovalDecision[]
   workflow_events    WorkflowEvent[]
+  outbox_events      OutboxEvent[]
+
 
   @@index([project_id])
   @@index([week_package_id])
@@ -590,8 +602,8 @@ model WorkItem {
   @@index([state])
   @@index([kind])
   @@index([due_at])
-  @@schema("planner")
   @@map("work_items")
+  @@schema("planner")
 }
 
 model Initiative {
@@ -600,8 +612,8 @@ model Initiative {
   campaign_id         Int?
   week_package_id     Int?
   external_key        String
-  kind                String    // publication, event, campaign, infrastructure
-  subtype             String?   // post, email_sequence, robots_change, seeding_wave, lesson, cfp, decision_gate
+  kind                String // publication, event, campaign, infrastructure
+  subtype             String? // post, email_sequence, robots_change, seeding_wave, lesson, cfp, decision_gate
   title               String
   description         String?
   status              String    @default("planned") // planned, in_progress, completed, blocked, cancelled
@@ -626,8 +638,8 @@ model Initiative {
   @@index([project_id])
   @@index([kind])
   @@index([status])
-  @@schema("planner")
   @@map("initiatives")
+  @@schema("planner")
 }
 
 model InitiativeDependency {
@@ -649,15 +661,15 @@ model InitiativeDependency {
   @@index([project_id])
   @@index([from_initiative_id])
   @@index([to_initiative_id])
-  @@schema("planner")
   @@map("initiative_dependencies")
+  @@schema("planner")
 }
 
 model ApprovalDecision {
   id              Int      @id @default(autoincrement())
   work_item_id    Int
   result_version  Int
-  decision        String   // approved, rejected
+  decision        String // approved, rejected
   actor_id        String
   comment         String?
   idempotency_key String?
@@ -669,8 +681,8 @@ model ApprovalDecision {
   @@unique([work_item_id, actor_id, idempotency_key])
   @@index([work_item_id])
   @@index([idempotency_key])
-  @@schema("planner")
   @@map("approval_decisions")
+  @@schema("planner")
 }
 
 model WorkflowEvent {
@@ -695,7 +707,48 @@ model WorkflowEvent {
   @@index([project_id])
   @@index([work_item_id])
   @@index([idempotency_key])
-  @@schema("planner")
   @@map("workflow_events")
+  @@schema("planner")
+}
+
+model OutboxEvent {
+  id              Int      @id @default(autoincrement())
+  project_id      Int
+  work_item_id    Int?
+  event_type      String
+  payload         Json
+  sync_version    Int      @default(1)
+  idempotency_key String?
+  status          String   @default("pending") // pending, delivered, failed
+  retry_count     Int      @default(0)
+  last_error      String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  project   Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  work_item WorkItem? @relation(fields: [work_item_id], references: [id], onDelete: SetNull)
+
+  @@index([project_id])
+  @@index([status])
+  @@index([idempotency_key])
+  @@map("outbox_events")
+  @@schema("planner")
+}
+
+model WebhookInbox {
+  id         Int      @id @default(autoincrement())
+  project_id Int
+  event_id   String   @unique
+  event_type String
+  payload    Json
+  status     String   @default("processed") // processed, duplicate, ignored
+  created_at DateTime @default(now())
+
+  project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@index([project_id])
+  @@index([event_id])
+  @@map("webhook_inbox")
+  @@schema("planner")
 }
 

@@ -46,6 +46,7 @@ const db_1 = __importStar(require("../db"));
 const mcp_publication_service_1 = __importDefault(require("../services/mcp_publication.service"));
 const work_queue_service_1 = __importDefault(require("../services/work_queue.service"));
 const initiative_service_1 = __importDefault(require("../services/initiative.service"));
+const task_tracker_service_1 = __importDefault(require("../services/task_tracker.service"));
 function asToolResult(payload) {
     return {
         content: [
@@ -860,6 +861,61 @@ function registerPlannerTools(server) {
         }
     }, async (args) => {
         const result = await initiative_service_1.default.getOperationalCalendar(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_sync_task_tracker', {
+        description: 'Synchronize a WorkItem projection with external task tracker (Plane).',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            workItemId: zod_1.z.number().int().positive(),
+            idempotencyKey: zod_1.z.string().optional()
+        }
+    }, async (args) => {
+        const result = await task_tracker_service_1.default.syncTaskTracker(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_process_outbox', {
+        description: 'Process outbox events for task tracker sync and retry delivery.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            simulateUnreachable: zod_1.z.boolean().optional(),
+            staleOutboxItem: zod_1.z.object({
+                workItemId: zod_1.z.number().int().positive(),
+                syncVersion: zod_1.z.number().int(),
+                lastSyncedVersion: zod_1.z.number().int()
+            }).optional()
+        }
+    }, async (args) => {
+        const result = await task_tracker_service_1.default.processOutbox(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_receive_webhook', {
+        description: 'Process and deduplicate incoming webhook payloads from external task tracker.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            payload: zod_1.z.object({
+                event_id: zod_1.z.string(),
+                action: zod_1.z.string().optional(),
+                issue_id: zod_1.z.string().optional(),
+                state: zod_1.z.string().optional()
+            }).passthrough()
+        }
+    }, async (args) => {
+        const result = await task_tracker_service_1.default.receiveWebhook(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_reconcile_task_tracker', {
+        description: 'Reconcile Planner WorkItem states with external task tracker states.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            autoRepair: zod_1.z.boolean().optional()
+        }
+    }, async (args) => {
+        const result = await task_tracker_service_1.default.reconcileTaskTracker(args);
         return asToolResult(result);
     });
 }
