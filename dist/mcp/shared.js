@@ -48,6 +48,7 @@ const work_queue_service_1 = __importDefault(require("../services/work_queue.ser
 const initiative_service_1 = __importDefault(require("../services/initiative.service"));
 const task_tracker_service_1 = __importDefault(require("../services/task_tracker.service"));
 const delivery_service_1 = __importDefault(require("../services/delivery.service"));
+const image_asset_service_1 = __importDefault(require("../services/image_asset.service"));
 function asToolResult(payload) {
     return {
         content: [
@@ -945,6 +946,49 @@ function registerPlannerTools(server) {
         }
     }, async (args) => {
         const result = await delivery_service_1.default.recoverDelivery(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_generate_image_asset', {
+        description: 'Generate an image asset candidate for a content item.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            contentItemId: zod_1.z.number().int().positive(),
+            prompt: zod_1.z.string(),
+            provider: zod_1.z.string().optional(),
+            model: zod_1.z.string().optional(),
+            seed: zod_1.z.number().int().optional(),
+            promptVersion: zod_1.z.number().int().optional(),
+            altText: zod_1.z.string().optional(),
+            aspectRatio: zod_1.z.string().optional()
+        }
+    }, async (args) => {
+        const result = await image_asset_service_1.default.generateImageAsset(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_review_image_asset', {
+        description: 'Review an image asset candidate (approve or reject).',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            assetId: zod_1.z.number().int().positive(),
+            decision: zod_1.z.enum(['approved', 'rejected']),
+            reason: zod_1.z.string().optional()
+        }
+    }, async (args) => {
+        const result = await image_asset_service_1.default.reviewImageAsset(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_list_image_assets', {
+        description: 'List all generated image asset versions for a content item.',
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            contentItemId: zod_1.z.number().int().positive()
+        }
+    }, async (args) => {
+        const result = await image_asset_service_1.default.listImageAssets(args);
         return asToolResult(result);
     });
 }

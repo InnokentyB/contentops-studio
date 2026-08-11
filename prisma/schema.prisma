@@ -63,6 +63,8 @@ model Project {
   outbox_events           OutboxEvent[]
   webhook_inbox           WebhookInbox[]
   delivery_attempts       DeliveryAttempt[]
+  image_assets            ImageAsset[]
+
 
 
 
@@ -779,5 +781,30 @@ model DeliveryAttempt {
   @@map("delivery_attempts")
   @@schema("planner")
 }
+
+model ImageAsset {
+  id              Int      @id @default(autoincrement())
+  project_id      Int
+  content_item_id Int
+  asset_version   Int      @default(1)
+  prompt          String
+  prompt_version  Int      @default(1)
+  provider        String   @default("gemini-imagen-3")
+  model           String?
+  seed            Int?
+  alt_text        String?
+  aspect_ratio    String?
+  status          String   @default("candidate") // candidate, approved, rejected
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@index([project_id])
+  @@index([content_item_id])
+  @@map("image_assets")
+  @@schema("planner")
+}
+
 
 

@@ -6,6 +6,8 @@ import workQueueService from '../services/work_queue.service';
 import initiativeService from '../services/initiative.service';
 import taskTrackerService from '../services/task_tracker.service';
 import deliveryService from '../services/delivery.service';
+import imageAssetService from '../services/image_asset.service';
+
 
 
 
@@ -973,6 +975,53 @@ export function registerPlannerTools(server: McpServer) {
         const result = await deliveryService.recoverDelivery(args);
         return asToolResult(result);
     });
+
+    server.registerTool('ba_generate_image_asset', {
+        description: 'Generate an image asset candidate for a content item.',
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string(),
+            contentItemId: z.number().int().positive(),
+            prompt: z.string(),
+            provider: z.string().optional(),
+            model: z.string().optional(),
+            seed: z.number().int().optional(),
+            promptVersion: z.number().int().optional(),
+            altText: z.string().optional(),
+            aspectRatio: z.string().optional()
+        }
+    }, async (args) => {
+        const result = await imageAssetService.generateImageAsset(args);
+        return asToolResult(result);
+    });
+
+    server.registerTool('ba_review_image_asset', {
+        description: 'Review an image asset candidate (approve or reject).',
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string(),
+            assetId: z.number().int().positive(),
+            decision: z.enum(['approved', 'rejected']),
+            reason: z.string().optional()
+        }
+    }, async (args) => {
+        const result = await imageAssetService.reviewImageAsset(args);
+        return asToolResult(result);
+    });
+
+    server.registerTool('ba_list_image_assets', {
+        description: 'List all generated image asset versions for a content item.',
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string(),
+            contentItemId: z.number().int().positive()
+        }
+    }, async (args) => {
+        const result = await imageAssetService.listImageAssets(args);
+        return asToolResult(result);
+    });
+
 
 
 
