@@ -82,6 +82,60 @@ function buildExternalOperationalPlan() {
   };
 }
 
+async function ensureFixture() {
+  if (!fixturePromise) {
+    fixturePromise = (async () => {
+      if (prisma && TEST_USER_ID) {
+        await prisma.user.upsert({
+          where: { id: TEST_USER_ID },
+          update: {},
+          create: {
+            id: TEST_USER_ID,
+            email: `testuser${TEST_USER_ID}@example.com`,
+            password_hash: 'hash',
+            name: 'Test User 1',
+          },
+        });
+      }
+
+      // Create initial project with only LM03 and LM04
+      const proj = await prisma.project.create({
+        data: {
+          name: `Suite X Project ${randomUUID()}`,
+          slug: `suite-x-${randomUUID()}`,
+          members: {
+            create: { user_id: TEST_USER_ID, role: 'owner' }
+          }
+        }
+      });
+
+      // Upsert LM03 and LM04 into database
+      await callTool('ba_upsert_initiative', {
+        projectId: proj.id,
+        actorId: ACTOR_ID,
+        externalKey: 'LM03',
+        kind: 'publication',
+        subtype: 'post',
+        title: 'Publication Thursday',
+        dueAt: '2026-08-13T10:00:00Z'
+      });
+
+      await callTool('ba_upsert_initiative', {
+        projectId: proj.id,
+        actorId: ACTOR_ID,
+        externalKey: 'LM04',
+        kind: 'publication',
+        subtype: 'post',
+        title: 'Publication Friday',
+        dueAt: '2026-08-14T10:00:00Z'
+      });
+
+      return { projectId: proj.id };
+    })();
+  }
+  return fixturePromise;
+}
+
 test.before(async () => {
   transport = new StdioClientTransport({
     command: 'node',
@@ -101,11 +155,12 @@ test.after(async () => {
 });
 
 test('E2E-X01 / SC-X01: coverage audit detects incomplete plan coverage (2/8 covered, 6 missing)', async (t) => {
-  requireTools('ba_audit_plan_coverage', 'ba_import_operational_plan');
+  requireTools('ba_audit_plan_coverage');
   if (!requireDatabase(t)) return;
 
+  const fixture = await ensureFixture();
   const result = await callTool('ba_audit_plan_coverage', {
-    projectId: 1,
+    projectId: fixture.projectId,
     actorId: ACTOR_ID,
     externalPlan: buildExternalOperationalPlan(),
   });
@@ -120,11 +175,19 @@ test('E2E-X01 / SC-X01: coverage audit detects incomplete plan coverage (2/8 cov
 });
 
 test('E2E-X02 / SC-X02: blocked campaign readiness reflects infrastructure blockers I01 and I02', async (t) => {
-  requireTools('ba_get_release_readiness', 'ba_link_initiatives');
+  requireTools('ba_get_release_readiness', 'ba_import_operational_plan');
   if (!requireDatabase(t)) return;
 
+  const fixture = await ensureFixture();
+  await callTool('ba_import_operational_plan', {
+    projectId: fixture.projectId,
+    actorId: ACTOR_ID,
+    externalPlan: buildExternalOperationalPlan(),
+    idempotencyKey: idempotencyKey('import-x02'),
+  });
+
   const readiness = await callTool('ba_get_release_readiness', {
-    projectId: 1,
+    projectId: fixture.projectId,
     actorId: ACTOR_ID,
     initiativeKey: 'C05',
   });
@@ -138,11 +201,19 @@ test('E2E-X02 / SC-X02: blocked campaign readiness reflects infrastructure block
 });
 
 test('E2E-X03 / SC-X03: overdue initiative shows downstream impact on C05 and email publication', async (t) => {
-  requireTools('ba_list_release_blockers');
+  requireTools('ba_list_release_blockers', 'ba_import_operational_plan');
   if (!requireDatabase(t)) return;
 
+  const fixture = await ensureFixture();
+  await callTool('ba_import_operational_plan', {
+    projectId: fixture.projectId,
+    actorId: ACTOR_ID,
+    externalPlan: buildExternalOperationalPlan(),
+    idempotencyKey: idempotencyKey('import-x03'),
+  });
+
   const blockers = await callTool('ba_list_release_blockers', {
-    projectId: 1,
+    projectId: fixture.projectId,
     actorId: ACTOR_ID,
     asOf: '2026-08-11T00:00:00Z',
   });
@@ -157,11 +228,19 @@ test('E2E-X03 / SC-X03: overdue initiative shows downstream impact on C05 and em
 });
 
 test('E2E-X04 / SC-X04: operational calendar preserves semantics of different date types', async (t) => {
-  requireTools('ba_get_operational_calendar');
+  requireTools('ba_get_operational_calendar', 'ba_import_operational_plan');
   if (!requireDatabase(t)) return;
 
+  const fixture = await ensureFixture();
+  await callTool('ba_import_operational_plan', {
+    projectId: fixture.projectId,
+    actorId: ACTOR_ID,
+    externalPlan: buildExternalOperationalPlan(),
+    idempotencyKey: idempotencyKey('import-x04'),
+  });
+
   const calendar = await callTool('ba_get_operational_calendar', {
-    projectId: 1,
+    projectId: fixture.projectId,
     actorId: ACTOR_ID,
     fromDate: '2026-08-10',
     toDate: '2026-08-12',
@@ -180,11 +259,19 @@ test('E2E-X04 / SC-X04: operational calendar preserves semantics of different da
 });
 
 test('E2E-X05 / SC-X05: unconfirmed dependencies are marked unknown and not hallucinated', async (t) => {
-  requireTools('ba_get_initiative');
+  requireTools('ba_get_initiative', 'ba_import_operational_plan');
   if (!requireDatabase(t)) return;
 
+  const fixture = await ensureFixture();
+  await callTool('ba_import_operational_plan', {
+    projectId: fixture.projectId,
+    actorId: ACTOR_ID,
+    externalPlan: buildExternalOperationalPlan(),
+    idempotencyKey: idempotencyKey('import-x05'),
+  });
+
   const initiative = await callTool('ba_get_initiative', {
-    projectId: 1,
+    projectId: fixture.projectId,
     actorId: ACTOR_ID,
     externalKey: 'E01',
   });
@@ -194,19 +281,20 @@ test('E2E-X05 / SC-X05: unconfirmed dependencies are marked unknown and not hall
 });
 
 test('E2E-X06 / SC-X01: repeated import of operational plan is idempotent by external_key', async (t) => {
-  requireTools('ba_import_operational_plan', 'ba_list_initiatives');
+  requireTools('ba_import_operational_plan');
   if (!requireDatabase(t)) return;
 
-  const key = idempotencyKey('import-op-plan');
+  const fixture = await ensureFixture();
+  const key = idempotencyKey('import-op-plan-idempotent');
   const import1 = await callTool('ba_import_operational_plan', {
-    projectId: 1,
+    projectId: fixture.projectId,
     actorId: ACTOR_ID,
     externalPlan: buildExternalOperationalPlan(),
     idempotencyKey: key,
   });
 
   const import2 = await callTool('ba_import_operational_plan', {
-    projectId: 1,
+    projectId: fixture.projectId,
     actorId: ACTOR_ID,
     externalPlan: buildExternalOperationalPlan(),
     idempotencyKey: key,
@@ -216,16 +304,24 @@ test('E2E-X06 / SC-X01: repeated import of operational plan is idempotent by ext
 });
 
 test('E2E-X07 / SC-X02: circular blocking dependency link is rejected', async (t) => {
-  requireTools('ba_link_initiatives');
+  requireTools('ba_link_initiatives', 'ba_import_operational_plan');
   if (!requireDatabase(t)) return;
+
+  const fixture = await ensureFixture();
+  await callTool('ba_import_operational_plan', {
+    projectId: fixture.projectId,
+    actorId: ACTOR_ID,
+    externalPlan: buildExternalOperationalPlan(),
+    idempotencyKey: idempotencyKey('import-x07'),
+  });
 
   const res = await client.callTool({
     name: 'ba_link_initiatives',
     arguments: {
-      projectId: 1,
+      projectId: fixture.projectId,
       actorId: ACTOR_ID,
       fromKey: 'C05',
-      toKey: 'I01', // I01 already blocks C05 -> creating cycle
+      toKey: 'I01', // I01 already blocks C05 -> creating cycle C05 -> I01 -> C05
       type: 'blocks',
     },
   });
@@ -236,25 +332,37 @@ test('E2E-X07 / SC-X02: circular blocking dependency link is rejected', async (t
 });
 
 test('E2E-X08 / SC-X03: clearing a blocker recalculates downstream readiness', async (t) => {
-  requireTools('ba_upsert_initiative', 'ba_get_release_readiness');
+  requireTools('ba_upsert_initiative', 'ba_get_release_readiness', 'ba_import_operational_plan');
   if (!requireDatabase(t)) return;
+
+  const fixture = await ensureFixture();
+  await callTool('ba_import_operational_plan', {
+    projectId: fixture.projectId,
+    actorId: ACTOR_ID,
+    externalPlan: buildExternalOperationalPlan(),
+    idempotencyKey: idempotencyKey('import-x08'),
+  });
 
   // Complete I01 and I02
   await callTool('ba_upsert_initiative', {
-    projectId: 1,
+    projectId: fixture.projectId,
     actorId: ACTOR_ID,
     externalKey: 'I01',
+    kind: 'infrastructure',
+    title: 'Welcome Chain',
     status: 'completed',
   });
   await callTool('ba_upsert_initiative', {
-    projectId: 1,
+    projectId: fixture.projectId,
     actorId: ACTOR_ID,
     externalKey: 'I02',
+    kind: 'infrastructure',
+    title: 'User-Agent * in robots.txt',
     status: 'completed',
   });
 
   const readiness = await callTool('ba_get_release_readiness', {
-    projectId: 1,
+    projectId: fixture.projectId,
     actorId: ACTOR_ID,
     initiativeKey: 'C05',
   });

@@ -45,6 +45,7 @@ const zod_1 = require("zod");
 const db_1 = __importStar(require("../db"));
 const mcp_publication_service_1 = __importDefault(require("../services/mcp_publication.service"));
 const work_queue_service_1 = __importDefault(require("../services/work_queue.service"));
+const initiative_service_1 = __importDefault(require("../services/initiative.service"));
 function asToolResult(payload) {
     return {
         content: [
@@ -707,6 +708,158 @@ function registerPlannerTools(server) {
         }
     }, async (args) => {
         const result = await work_queue_service_1.default.rescheduleWorkItem(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_upsert_initiative', {
+        description: 'Upsert an initiative by project_id and external_key.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            externalKey: zod_1.z.string(),
+            kind: zod_1.z.string(),
+            subtype: zod_1.z.string().optional(),
+            title: zod_1.z.string(),
+            description: zod_1.z.string().optional(),
+            status: zod_1.z.string().optional(),
+            ownerRole: zod_1.z.string().optional(),
+            dueAt: zod_1.z.string().nullable().optional(),
+            startAt: zod_1.z.string().nullable().optional(),
+            endAt: zod_1.z.string().nullable().optional(),
+            decisionAt: zod_1.z.string().nullable().optional(),
+            eventAt: zod_1.z.string().nullable().optional(),
+            measurementAt: zod_1.z.string().nullable().optional()
+        }
+    }, async (args) => {
+        const result = await initiative_service_1.default.upsertInitiative(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_link_initiatives', {
+        description: 'Link two initiatives with a dependency relationship and cycle detection.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            fromKey: zod_1.z.string(),
+            toKey: zod_1.z.string(),
+            type: zod_1.z.string().optional(),
+            condition: zod_1.z.string().optional(),
+            source: zod_1.z.string().optional()
+        }
+    }, async (args) => {
+        const result = await initiative_service_1.default.linkInitiatives(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_import_operational_plan', {
+        description: 'Import an operational plan containing initiatives and dependency linkages.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            externalPlan: zod_1.z.object({
+                initiatives: zod_1.z.array(zod_1.z.object({
+                    external_key: zod_1.z.string(),
+                    kind: zod_1.z.string(),
+                    subtype: zod_1.z.string().optional(),
+                    title: zod_1.z.string(),
+                    description: zod_1.z.string().optional(),
+                    status: zod_1.z.string().optional(),
+                    due_at: zod_1.z.string().optional(),
+                    start_at: zod_1.z.string().optional(),
+                    end_at: zod_1.z.string().optional(),
+                    decision_at: zod_1.z.string().optional(),
+                    event_at: zod_1.z.string().optional(),
+                    measurement_at: zod_1.z.string().optional()
+                })).optional(),
+                dependencies: zod_1.z.array(zod_1.z.object({
+                    from: zod_1.z.string(),
+                    to: zod_1.z.string(),
+                    type: zod_1.z.string().optional(),
+                    condition: zod_1.z.string().optional()
+                })).optional()
+            }),
+            idempotencyKey: zod_1.z.string().optional()
+        }
+    }, async (args) => {
+        const result = await initiative_service_1.default.importOperationalPlan(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_get_initiative', {
+        description: 'Retrieve an initiative by project_id and external_key.',
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            externalKey: zod_1.z.string()
+        }
+    }, async (args) => {
+        const result = await initiative_service_1.default.getInitiative(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_list_initiatives', {
+        description: 'List initiatives for a project with optional filtering.',
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            filter: zod_1.z.object({
+                kind: zod_1.z.string().optional(),
+                status: zod_1.z.string().optional()
+            }).optional()
+        }
+    }, async (args) => {
+        const result = await initiative_service_1.default.listInitiatives(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_audit_plan_coverage', {
+        description: 'Audit external plan coverage against current database initiatives.',
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            externalPlan: zod_1.z.object({
+                initiatives: zod_1.z.array(zod_1.z.object({
+                    external_key: zod_1.z.string(),
+                    kind: zod_1.z.string()
+                })).optional()
+            })
+        }
+    }, async (args) => {
+        const result = await initiative_service_1.default.auditPlanCoverage(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_get_release_readiness', {
+        description: 'Evaluate release readiness for a target initiative based on incoming blocker states.',
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            initiativeKey: zod_1.z.string()
+        }
+    }, async (args) => {
+        const result = await initiative_service_1.default.getReleaseReadiness(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_list_release_blockers', {
+        description: 'List release blockers and downstream impact for overdue initiatives.',
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            asOf: zod_1.z.string().optional()
+        }
+    }, async (args) => {
+        const result = await initiative_service_1.default.listReleaseBlockers(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_get_operational_calendar', {
+        description: 'Returns operational calendar items with explicit date_type preserved.',
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            fromDate: zod_1.z.string(),
+            toDate: zod_1.z.string()
+        }
+    }, async (args) => {
+        const result = await initiative_service_1.default.getOperationalCalendar(args);
         return asToolResult(result);
     });
 }
