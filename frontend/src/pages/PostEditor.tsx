@@ -239,13 +239,18 @@ export default function PostEditor() {
                     <div className="flex items-center gap-4">
                         <button 
                             onClick={() => {
-                                if (post.week_package_id) {
+                                if (window.history.state && window.history.state.idx > 0) {
+                                    navigate(-1);
+                                } else if (post?.week_id) {
+                                    navigate(`/weeks/${post.week_id}`);
+                                } else if (post?.week_package_id) {
                                     navigate(`/v2/weeks/${post.week_package_id}`);
                                 } else {
-                                    navigate('/v2/dashboard');
+                                    navigate('/calendar');
                                 }
                             }}
                             className="text-on-surface-variant hover:text-primary"
+                            aria-label="Назад"
                         >
                             <span className="material-symbols-outlined text-xl">arrow_back</span>
                         </button>
