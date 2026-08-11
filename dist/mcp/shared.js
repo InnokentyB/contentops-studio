@@ -47,6 +47,7 @@ const mcp_publication_service_1 = __importDefault(require("../services/mcp_publi
 const work_queue_service_1 = __importDefault(require("../services/work_queue.service"));
 const initiative_service_1 = __importDefault(require("../services/initiative.service"));
 const task_tracker_service_1 = __importDefault(require("../services/task_tracker.service"));
+const delivery_service_1 = __importDefault(require("../services/delivery.service"));
 function asToolResult(payload) {
     return {
         content: [
@@ -916,6 +917,34 @@ function registerPlannerTools(server) {
         }
     }, async (args) => {
         const result = await task_tracker_service_1.default.reconcileTaskTracker(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_execute_delivery', {
+        description: 'Execute publication delivery attempt to a target channel.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            contentItemId: zod_1.z.number().int().positive(),
+            channelId: zod_1.z.number().int().positive(),
+            forceAutomatic: zod_1.z.boolean().optional(),
+            unapproved: zod_1.z.boolean().optional(),
+            simulateFailure: zod_1.z.boolean().optional(),
+            idempotencyKey: zod_1.z.string().optional(),
+            scheduledAt: zod_1.z.string().optional()
+        }
+    }, async (args) => {
+        const result = await delivery_service_1.default.executeDelivery(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_recover_delivery', {
+        description: 'Recover a failed delivery attempt manually or via retry worker.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            deliveryAttemptId: zod_1.z.number().int().positive()
+        }
+    }, async (args) => {
+        const result = await delivery_service_1.default.recoverDelivery(args);
         return asToolResult(result);
     });
 }

@@ -5,6 +5,8 @@ import mcpPublicationService from '../services/mcp_publication.service';
 import workQueueService from '../services/work_queue.service';
 import initiativeService from '../services/initiative.service';
 import taskTrackerService from '../services/task_tracker.service';
+import deliveryService from '../services/delivery.service';
+
 
 
 
@@ -941,6 +943,37 @@ export function registerPlannerTools(server: McpServer) {
         const result = await taskTrackerService.reconcileTaskTracker(args);
         return asToolResult(result);
     });
+
+    server.registerTool('ba_execute_delivery', {
+        description: 'Execute publication delivery attempt to a target channel.',
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string(),
+            contentItemId: z.number().int().positive(),
+            channelId: z.number().int().positive(),
+            forceAutomatic: z.boolean().optional(),
+            unapproved: z.boolean().optional(),
+            simulateFailure: z.boolean().optional(),
+            idempotencyKey: z.string().optional(),
+            scheduledAt: z.string().optional()
+        }
+    }, async (args) => {
+        const result = await deliveryService.executeDelivery(args);
+        return asToolResult(result);
+    });
+
+    server.registerTool('ba_recover_delivery', {
+        description: 'Recover a failed delivery attempt manually or via retry worker.',
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string(),
+            deliveryAttemptId: z.number().int().positive()
+        }
+    }, async (args) => {
+        const result = await deliveryService.recoverDelivery(args);
+        return asToolResult(result);
+    });
+
 
 
 }
