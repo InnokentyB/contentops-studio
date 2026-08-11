@@ -64,6 +64,8 @@ model Project {
   webhook_inbox           WebhookInbox[]
   delivery_attempts       DeliveryAttempt[]
   image_assets            ImageAsset[]
+  metric_snapshots        MetricSnapshot[]
+
 
 
 
@@ -805,6 +807,27 @@ model ImageAsset {
   @@map("image_assets")
   @@schema("planner")
 }
+
+model MetricSnapshot {
+  id              Int      @id @default(autoincrement())
+  project_id      Int
+  content_item_id Int
+  channel_id      Int
+  checkpoint      String
+  metrics         Json
+  idempotency_key String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@unique([project_id, content_item_id, channel_id, checkpoint])
+  @@index([project_id])
+  @@index([content_item_id])
+  @@map("metric_snapshots")
+  @@schema("planner")
+}
+
 
 
 

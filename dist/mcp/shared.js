@@ -49,6 +49,7 @@ const initiative_service_1 = __importDefault(require("../services/initiative.ser
 const task_tracker_service_1 = __importDefault(require("../services/task_tracker.service"));
 const delivery_service_1 = __importDefault(require("../services/delivery.service"));
 const image_asset_service_1 = __importDefault(require("../services/image_asset.service"));
+const metrics_service_1 = __importDefault(require("../services/metrics.service"));
 function asToolResult(payload) {
     return {
         content: [
@@ -989,6 +990,45 @@ function registerPlannerTools(server) {
         }
     }, async (args) => {
         const result = await image_asset_service_1.default.listImageAssets(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_record_metric_snapshot', {
+        description: 'Record a metric snapshot at checkpoint (T+1, T+24, T+72) idempotently.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            contentItemId: zod_1.z.number().int().positive(),
+            channelId: zod_1.z.number().int().positive(),
+            checkpoint: zod_1.z.string(),
+            metrics: zod_1.z.record(zod_1.z.string(), zod_1.z.unknown()),
+            idempotencyKey: zod_1.z.string().optional()
+        }
+    }, async (args) => {
+        const result = await metrics_service_1.default.recordMetricSnapshot(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_get_content_metrics', {
+        description: 'Get all recorded metric snapshots and consolidated metrics for a content item.',
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            contentItemId: zod_1.z.number().int().positive()
+        }
+    }, async (args) => {
+        const result = await metrics_service_1.default.getContentMetrics(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_rollup_campaign_metrics', {
+        description: 'Aggregate and rollup campaign metrics across channels and content items.',
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            initiativeKey: zod_1.z.string()
+        }
+    }, async (args) => {
+        const result = await metrics_service_1.default.rollupCampaignMetrics(args);
         return asToolResult(result);
     });
 }

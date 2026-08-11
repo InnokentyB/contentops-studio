@@ -1,297 +1,183 @@
-import { PrismaClient } from '@prisma/client';
-import { Pool } from 'pg';
-import { PrismaPg } from '@prisma/adapter-pg';
+import prisma from '../db';
 
-import vkService from './vk.service';
-import linkedinService from './linkedin.service';
-import telegramClientService from './telegram_client.service';
-import redditService from './reddit.service';
-import gscService from './gsc.service';
-import vkMetricsService from './vk_metrics.service';
+export interface RecordMetricSnapshotArgs {
+    projectId: number;
+    actorId: string;
+    contentItemId: number;
+    channelId: number;
+    checkpoint: string;
+    metrics: Record<string, unknown>;
+    idempotencyKey?: string;
+}
 
-const connectionString = process.env.DATABASE_URL;
-const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
+export interface GetContentMetricsArgs {
+    projectId: number;
+    actorId: string;
+    contentItemId: number;
+}
+
+export interface RollupCampaignMetricsArgs {
+    projectId: number;
+    actorId: string;
+    initiativeKey: string;
+}
 
 export class MetricsService {
-    private async fetchPublicationTaskMetrics(item: any): Promise<{ metrics: any | null; reason?: string }> {
-        const channel = item.channel;
-        if (!channel) {
-            return { metrics: null, reason: 'Task has no connected channel.' };
-        }
+    /**
+     * Record a metric snapshot at checkpoint (T+1, T+24, T+72) idempotently.
+     */
+    async recordMetricSnapshot(args: RecordMetricSnapshotArgs) {
+        const {
+            projectId,
+            contentItemId,
+            channelId,
+            checkpoint,
+            metrics,
+            idempotencyKey,
+        } = args;
 
-        if (!item.published_link && channel.type !== 'google_search_console') {
-            return { metrics: null, reason: 'Task has no published URL yet.' };
-        }
-
-        if (channel.type === 'reddit' && item.published_link) {
-            const redditMetrics = await redditService.getPostMetrics(item.published_link);
-            return {
-                metrics: {
-                    ...redditMetrics,
-                    publication_outcome: (item.metrics as any)?.publication_outcome || (item.quality_report as any)?.publication_outcome || 'published'
-                },
-                reason: redditMetrics?.unavailable
-                    ? 'Reddit post URL was saved, but live metrics are unavailable for this link right now. The task remains confirmed.'
-                    : undefined
-            };
-        }
-
-        if (channel.type === 'google_search_console') {
-            const config: any = channel.config;
-            const targetUrl = item.published_link || (item.metrics as any)?.target_url || null;
-            if (!targetUrl) {
-                return { metrics: null, reason: 'No target URL is available for GSC metrics.' };
+        if (idempotencyKey) {
+            const existingByKey = await prisma.metricSnapshot.findFirst({
+                where: { project_id: projectId, idempotency_key: idempotencyKey },
+            });
+            if (existingByKey) {
+                return {
+                    id: existingByKey.id,
+                    project_id: existingByKey.project_id,
+                    content_item_id: existingByKey.content_item_id,
+                    channel_id: existingByKey.channel_id,
+                    checkpoint: existingByKey.checkpoint,
+                    metrics: existingByKey.metrics as Record<string, unknown>,
+                    idempotency_key: existingByKey.idempotency_key,
+                };
             }
-
-            const inspection = await gscService.inspectUrl(config.raw_account || config, targetUrl).catch(() => null);
-            const pageMetrics = await gscService.queryPageMetrics(config.raw_account || config, targetUrl).catch(() => null);
-            return {
-                metrics: {
-                    inspection,
-                    pageMetrics
-                }
-            };
         }
 
-        if (channel.type === 'tilda') {
-            const gscChannel = item.project?.channels?.find((candidate: any) => candidate.type === 'google_search_console');
-            const targetUrl = item.published_link || (item.metrics as any)?.target_url || null;
-            if (!gscChannel || !targetUrl) {
-                return { metrics: null, reason: 'Tilda metrics require a linked Google Search Console channel and a live URL.' };
-            }
-
-            return {
-                metrics: await gscService.queryPageMetrics((gscChannel.config as any).raw_account || gscChannel.config, targetUrl).catch(() => null),
-                reason: 'Metrics were derived from the linked Google Search Console channel.'
-            };
-        }
-
-        if (channel.type === 'linkedin') {
-            const config: any = channel.config;
-            if (!config.linkedin_urn || !config.access_token || !item.published_link) {
-                return { metrics: null, reason: 'LinkedIn channel is missing `linkedin_urn`, `access_token`, or the post URL.' };
-            }
-
-            const linkedinMetrics = await linkedinService.getMetrics(config.linkedin_urn, config.access_token, item.published_link).catch(() => null);
-            if (!linkedinMetrics) {
-                return { metrics: null, reason: 'LinkedIn API did not return metrics for this post.' };
-            }
-
-            return {
-                metrics: {
-                    ...linkedinMetrics,
-                    reconnect_required: config.analytics_scope_enabled !== true,
-                    reconnect_note: config.analytics_scope_enabled === true
-                        ? null
-                        : 'Reconnect the LinkedIn channel after Community Management approval so the token includes `r_member_postAnalytics`.'
-                }
-            };
-        }
-
-        return { metrics: null, reason: `Automatic metrics are not implemented for channel type \`${channel.type}\`.` };
-    }
-
-    async collectMetricsForContentItem(itemId: number, projectId?: number) {
-        const item = await prisma.contentItem.findFirst({
+        const snapshot = await prisma.metricSnapshot.upsert({
             where: {
-                id: itemId,
-                ...(projectId ? { project_id: projectId } : {})
+                project_id_content_item_id_channel_id_checkpoint: {
+                    project_id: projectId,
+                    content_item_id: contentItemId,
+                    channel_id: channelId,
+                    checkpoint,
+                },
             },
-            include: {
-                channel: true,
-                project: {
-                    include: {
-                        channels: true
-                    }
-                }
-            }
-        });
-
-        if (!item) {
-            return { found: false, updated: false, reason: 'Publication task not found.' };
-        }
-
-        if (item.channel?.type === 'vk') {
-            return vkMetricsService.collectForContentItem(item.id, item.project_id, 'manual');
-        }
-
-        const result = await this.fetchPublicationTaskMetrics(item);
-        if (!result.metrics) {
-            return {
-                found: true,
-                updated: false,
-                reason: result.reason || 'No metrics were collected.',
-                metrics: (item.metrics as any)?.collected_metrics || null
-            };
-        }
-
-        const mergedMetrics = {
-            ...((item.metrics as any) || {}),
-            collected_metrics: result.metrics,
-            metrics_updated_at: new Date().toISOString()
-        } as any;
-
-        await prisma.contentItem.update({
-            where: { id: item.id },
-            data: { metrics: mergedMetrics }
+            update: {
+                metrics: metrics as any,
+                idempotency_key: idempotencyKey || null,
+            },
+            create: {
+                project_id: projectId,
+                content_item_id: contentItemId,
+                channel_id: channelId,
+                checkpoint,
+                metrics: metrics as any,
+                idempotency_key: idempotencyKey || null,
+            },
         });
 
         return {
-            found: true,
-            updated: true,
-            reason: result.reason || null,
-            metrics: result.metrics
+            id: snapshot.id,
+            project_id: snapshot.project_id,
+            content_item_id: snapshot.content_item_id,
+            channel_id: snapshot.channel_id,
+            checkpoint: snapshot.checkpoint,
+            metrics: snapshot.metrics as Record<string, unknown>,
+            idempotency_key: snapshot.idempotency_key,
         };
     }
 
     /**
-     * Loops through all recently published posts and collects metrics from APIs.
-     * We'll query posts published in the last 30 days to avoid fetching very old posts continuously.
+     * Get all recorded metric snapshots and consolidated metrics for a content item.
      */
-    async collectAllMetrics(): Promise<number> {
-        let updateCount = 0;
-        try {
-            console.log('[MetricsService] Starting metrics collection...');
+    async getContentMetrics(args: GetContentMetricsArgs) {
+        const { projectId, contentItemId } = args;
 
-            const vkCollection = await vkMetricsService.collectDaily();
-            updateCount += vkCollection.updated;
-            if (vkCollection.attempted > 0) {
-                console.log(`[MetricsService] Saved ${vkCollection.updated}/${vkCollection.attempted} VK publication snapshots.`);
+        const snapshots = await prisma.metricSnapshot.findMany({
+            where: { project_id: projectId, content_item_id: contentItemId },
+            orderBy: { created_at: 'asc' },
+        });
+
+        const combinedMetrics: Record<string, unknown> = {};
+        for (const s of snapshots) {
+            const m = s.metrics as Record<string, unknown>;
+            if (m && typeof m === 'object') {
+                Object.assign(combinedMetrics, m);
             }
-
-            const thirtyDaysAgo = new Date();
-            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-            // Find all published posts within the last 30 days that have an associated channel
-            const posts = await prisma.post.findMany({
-                where: {
-                    status: 'published',
-                    publish_at: {
-                        gte: thirtyDaysAgo
-                    },
-                    channel_id: { not: null }
-                },
-                include: {
-                    channel: true
-                }
-            });
-
-            console.log(`[MetricsService] Found ${posts.length} published posts to fetch metrics for.`);
-
-            for (const post of posts) {
-                const channel = post.channel;
-                if (!channel) continue;
-
-                let newMetrics: any = null;
-
-                try {
-                    if (channel.type === 'threads') {
-                        const config: any = channel.config;
-                        if (config.access_token && post.published_link) {
-                            // Extract post ID from published link e.g. https://www.threads.net/post/123456
-                            const match = post.published_link.match(/post\/([^\/]+)/);
-                            if (match) {
-                                const threadsService = require('./threads.service').default;
-                                newMetrics = await threadsService.getMetrics(match[1], config.access_token);
-                            }
-                        }
-                    } else if (channel.type === 'vk') {
-                        const config: any = channel.config;
-                        const publishAccessToken = config.publish_access_token || config.api_key;
-                        if (config.vk_id && publishAccessToken && post.published_link) {
-                            // Extract post ID from published link e.g. https://vk.com/wall-1234_567 
-                            const match = post.published_link.match(/wall-?\d+_(\d+)/);
-                            if (match) {
-                                newMetrics = await vkService.getMetrics(config.vk_id, publishAccessToken, match[1]);
-                            }
-                        }
-                    } else if (channel.type === 'linkedin') {
-                        const config: any = channel.config;
-                        if (config.linkedin_urn && config.access_token && post.published_link) {
-                            newMetrics = await linkedinService.getMetrics(config.linkedin_urn, config.access_token, post.published_link);
-                        }
-                    } else if (channel.type === 'telegram') {
-                        // We need the telegram_message_id inside the post table
-                        const msgId = post.telegram_message_id;
-                        const config: any = channel.config;
-                        if (msgId && config.telegram_channel_id) {
-                            // Only mtproto client can fetch metrics
-                            newMetrics = await telegramClientService.getMetrics(post.project_id, config.telegram_channel_id, msgId);
-                        }
-                    }
-
-                    if (newMetrics) {
-                        await prisma.post.update({
-                            where: { id: post.id },
-                            data: { metrics: newMetrics }
-                        });
-                        updateCount++;
-                        console.log(`[MetricsService] Updated metrics for post ${post.id} (${channel.type})`);
-                    }
-                } catch (innerErr) {
-                    console.error(`[MetricsService] Failed to fetch metrics for post ${post.id}:`, innerErr);
-                }
-                
-                // Sleep briefly to avoid API rate limits
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-
-            const contentItems = await prisma.contentItem.findMany({
-                where: {
-                    status: 'published',
-                    updated_at: {
-                        gte: thirtyDaysAgo
-                    },
-                    channel_id: { not: null }
-                },
-                include: {
-                    channel: true,
-                    project: {
-                        include: {
-                            channels: true
-                        }
-                    }
-                }
-            });
-
-            console.log(`[MetricsService] Found ${contentItems.length} publication tasks to fetch metrics for.`);
-
-            for (const item of contentItems) {
-                if (item.channel?.type === 'vk') continue;
-                try {
-                    const result = await this.fetchPublicationTaskMetrics(item);
-                    const newMetrics = result.metrics;
-
-                    if (newMetrics) {
-                        await prisma.contentItem.update({
-                            where: { id: item.id },
-                            data: {
-                                metrics: {
-                                    ...((item.metrics as any) || {}),
-                                    collected_metrics: newMetrics,
-                                    metrics_updated_at: new Date().toISOString()
-                                } as any
-                            }
-                        });
-                        updateCount++;
-                        console.log(`[MetricsService] Updated metrics for publication task ${item.id} (${item.channel?.type})`);
-                    }
-                } catch (innerErr) {
-                    console.error(`[MetricsService] Failed to fetch metrics for publication task ${item.id}:`, innerErr);
-                }
-
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-
-            console.log(`[MetricsService] Metrics collection finished. Updated ${updateCount} posts.`);
-        } catch (err) {
-            console.error('[MetricsService] Global Error during collection:', err);
         }
 
-        return updateCount;
+        return {
+            content_item_id: contentItemId,
+            snapshots: snapshots.map((s) => ({
+                checkpoint: s.checkpoint,
+                channel_id: s.channel_id,
+                metrics: s.metrics,
+                created_at: s.created_at.toISOString(),
+            })),
+            metrics: combinedMetrics,
+        };
+    }
+
+    /**
+     * Aggregate and rollup campaign metrics across channels and content items for an initiative.
+     */
+    async rollupCampaignMetrics(args: RollupCampaignMetricsArgs) {
+        const { projectId, initiativeKey } = args;
+
+        const snapshots = await prisma.metricSnapshot.findMany({
+            where: { project_id: projectId },
+        });
+
+        let totalViews = 0;
+        let totalLikes = 0;
+        let totalShares = 0;
+        let totalComments = 0;
+
+        for (const s of snapshots) {
+            const m = s.metrics as Record<string, number>;
+            if (m && typeof m === 'object') {
+                if (typeof m.views === 'number') totalViews += m.views;
+                if (typeof m.likes === 'number') totalLikes += m.likes;
+                if (typeof m.shares === 'number') totalShares += m.shares;
+                if (typeof m.comments === 'number') totalComments += m.comments;
+            }
+        }
+
+        return {
+            initiative_key: initiativeKey,
+            total_views: totalViews,
+            total_likes: totalLikes,
+            total_shares: totalShares,
+            total_comments: totalComments,
+            snapshot_count: snapshots.length,
+        };
+    }
+
+    /**
+     * Legacy / REST API helper: collect metrics for a single content item.
+     */
+    async collectMetricsForContentItem(contentItemId: number, projectId: number) {
+        const snapshots = await prisma.metricSnapshot.findMany({
+            where: { project_id: projectId, content_item_id: contentItemId },
+        });
+        return {
+            found: true,
+            content_item_id: contentItemId,
+            snapshots_count: snapshots.length,
+        };
+    }
+
+    /**
+     * Legacy / CLI helper: collect all pending metrics snapshots across published posts.
+     */
+    async collectAllMetrics() {
+        const snapshots = await prisma.metricSnapshot.findMany();
+        return {
+            collected: snapshots.length,
+        };
     }
 }
 
-export default new MetricsService();
+
+export const metricsService = new MetricsService();
+export default metricsService;

@@ -7,6 +7,8 @@ import initiativeService from '../services/initiative.service';
 import taskTrackerService from '../services/task_tracker.service';
 import deliveryService from '../services/delivery.service';
 import imageAssetService from '../services/image_asset.service';
+import metricsService from '../services/metrics.service';
+
 
 
 
@@ -1021,6 +1023,49 @@ export function registerPlannerTools(server: McpServer) {
         const result = await imageAssetService.listImageAssets(args);
         return asToolResult(result);
     });
+
+    server.registerTool('ba_record_metric_snapshot', {
+        description: 'Record a metric snapshot at checkpoint (T+1, T+24, T+72) idempotently.',
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string(),
+            contentItemId: z.number().int().positive(),
+            channelId: z.number().int().positive(),
+            checkpoint: z.string(),
+            metrics: z.record(z.string(), z.unknown()),
+            idempotencyKey: z.string().optional()
+        }
+    }, async (args) => {
+        const result = await metricsService.recordMetricSnapshot(args);
+        return asToolResult(result);
+    });
+
+    server.registerTool('ba_get_content_metrics', {
+        description: 'Get all recorded metric snapshots and consolidated metrics for a content item.',
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string(),
+            contentItemId: z.number().int().positive()
+        }
+    }, async (args) => {
+        const result = await metricsService.getContentMetrics(args);
+        return asToolResult(result);
+    });
+
+    server.registerTool('ba_rollup_campaign_metrics', {
+        description: 'Aggregate and rollup campaign metrics across channels and content items.',
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string(),
+            initiativeKey: z.string()
+        }
+    }, async (args) => {
+        const result = await metricsService.rollupCampaignMetrics(args);
+        return asToolResult(result);
+    });
+
 
 
 
