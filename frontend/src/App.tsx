@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider, useAuth } from './context/AuthContext'
@@ -21,6 +22,7 @@ import './index.css'
 import Layout from './components/Layout'
 
 const queryClient = new QueryClient()
+const OperationalCalendar = lazy(() => import('./pages/OperationalCalendar'))
 
 
 function AppContent() {
@@ -57,7 +59,8 @@ function AppContent() {
         <Route path="/settings" element={<Settings />} />
         <Route path="/publication-tasks" element={<PublicationTasks />} />
         <Route path="/guide" element={<Guide />} />
-        <Route path="/calendar" element={<WeeksList />} />
+        <Route path="/calendar" element={<Suspense fallback={<div role="status" className="p-6 text-on-surface-variant">Загрузка операционного плана…</div>}><OperationalCalendar /></Suspense>} />
+        <Route path="/weeks" element={<WeeksList />} />
         <Route path="*" element={<Navigate to="/projects" />} />
       </Routes>
     </Layout>

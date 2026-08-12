@@ -221,6 +221,70 @@ test('PUT /api/projects/:id/channels/:channelId merges configs', async () => {
     }
 });
 
+test('PUT /api/projects/:id/channels/:channelId requires project owner', async () => {
+    const originalVerifyToken = authService.verifyToken;
+    const originalHasAccess = authService.hasProjectAccess;
+    let requestedRole: string | undefined;
+    authService.verifyToken = () => ({ id: 2, email: 'editor@example.com', name: 'Editor' });
+    authService.hasProjectAccess = async (_userId, _projectId, role) => {
+        requestedRole = role;
+        return false;
+    };
+
+    const app = Fastify();
+    app.register(projectRoutes);
+
+    try {
+        const response = await app.inject({
+            method: 'PUT',
+            url: '/api/projects/1/channels/10',
+            headers: { authorization: 'Bearer mock-token' },
+            payload: { name: 'Blocked update', config: { workflow_mode: 'auto_publish' } }
+        });
+
+        assert.equal(requestedRole, 'owner');
+        assert.equal(response.statusCode, 403);
+    } finally {
+        authService.verifyToken = originalVerifyToken;
+        authService.hasProjectAccess = originalHasAccess;
+    }
+});
+
+test('mergeChannelConfig keeps channel workflow mode', () => {
+    const merged = mergeChannelConfig(
+        { workflow_mode: 'approval_required' },
+        { workflow_mode: 'prepare_only', api_key: 'secret' }
+    );
+
+    assert.equal(merged.workflow_mode, 'approval_required');
+});
+
+test('GET /api/projects/:id/mcp/status reports the configured MCP health', async () => {
+    const originalVerifyToken = authService.verifyToken;
+    const originalHasAccess = authService.hasProjectAccess;
+    const originalFetch = global.fetch;
+    authService.verifyToken = () => ({ id: 1, email: 'owner@example.com', name: 'Owner' });
+    authService.hasProjectAccess = async (_userId, _projectId, role) => role === 'owner';
+    global.fetch = async () => new Response(JSON.stringify({
+        status: 'ok', transport: 'streamable-http', auth: { bearer_required: false }, uptime_s: 12, active_sessions: 1
+    }), { status: 200, headers: { 'content-type': 'application/json' } });
+
+    const app = Fastify();
+    app.register(projectRoutes);
+    try {
+        const response = await app.inject({ method: 'GET', url: '/api/projects/1/mcp/status', headers: { authorization: 'Bearer mock-token' } });
+        assert.equal(response.statusCode, 200);
+        const body = JSON.parse(response.body);
+        assert.equal(body.status, 'online');
+        assert.equal(body.bearer_required, false);
+        assert.equal(body.transport, 'streamable-http');
+    } finally {
+        authService.verifyToken = originalVerifyToken;
+        authService.hasProjectAccess = originalHasAccess;
+        global.fetch = originalFetch;
+    }
+});
+
 test('cleanAndFormatHashtags removes duplicate and double hashtags', () => {
     const text = 'Hello world ##tech #programming. This is an awesome post!';
     const tags = ['tech', 'programming', 'typescript'];

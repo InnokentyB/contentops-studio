@@ -62,6 +62,17 @@ interface ContentPolicyMatrixResponse {
     updated_at: string | null
 }
 
+interface McpStatus {
+    status: 'online' | 'degraded' | 'offline'
+    endpoint: string
+    bearer_required: boolean | null
+    transport?: string | null
+    uptime_s?: number
+    active_sessions?: number
+    checked_at: string
+    message?: string
+}
+
 const AGENT_ROLES = [
     {
         group: 'Content Creation',
@@ -258,14 +269,35 @@ function AgentSettingsRow({
     )
 }
 
-type SettingsTab = 'general' | 'keys' | 'dictionary' | 'skills' | 'channels' | 'team' | 'agents' | 'presets' | 'history'
+type SettingsTab = 'general' | 'channels' | 'mcp' | 'keys' | 'agents' | 'skills' | 'dictionary' | 'presets' | 'team' | 'history'
 
-const SETTINGS_TABS: SettingsTab[] = ['general', 'keys', 'dictionary', 'skills', 'channels', 'team', 'agents', 'presets', 'history']
+const SETTINGS_TABS: SettingsTab[] = ['general', 'channels', 'mcp', 'keys', 'agents', 'skills', 'dictionary', 'presets', 'team', 'history']
+
+const SETTINGS_GROUPS: Array<{ label: string; tabs: Array<{ id: SettingsTab; label: string; hint: string; icon: string }> }> = [
+    { label: 'Рабочий контур', tabs: [
+        { id: 'general', label: 'Проект', hint: 'Название и поведение', icon: 'tune' },
+        { id: 'channels', label: 'Каналы', hint: 'Площадки и режимы', icon: 'campaign' },
+        { id: 'mcp', label: 'MCP', hint: 'Подключение агентов', icon: 'hub' }
+    ] },
+    { label: 'Интеллект', tabs: [
+        { id: 'keys', label: 'Ключи моделей', hint: 'Провайдеры AI', icon: 'key' },
+        { id: 'agents', label: 'Агенты', hint: 'Роли и модели', icon: 'smart_toy' },
+        { id: 'skills', label: 'Навыки', hint: 'Skill-подключения', icon: 'extension' }
+    ] },
+    { label: 'Контент', tabs: [
+        { id: 'dictionary', label: 'Правила', hint: 'Словарь и ATOMA', icon: 'menu_book' },
+        { id: 'presets', label: 'Пресеты', hint: 'Шаблоны промптов', icon: 'text_snippet' }
+    ] },
+    { label: 'Управление', tabs: [
+        { id: 'team', label: 'Команда', hint: 'Участники и роли', icon: 'group' },
+        { id: 'history', label: 'История', hint: 'Запуски и ошибки', icon: 'history' }
+    ] }
+]
 
 export default function Settings() {
     const queryClient = useQueryClient()
     const { showToast } = useToast()
-    const { currentProject } = useAuth()
+    const { currentProject, user } = useAuth()
     const queryParams = new URLSearchParams(window.location.search)
     const linkedinError = queryParams.get('error')
     const requestedTab = queryParams.get('tab')
@@ -288,6 +320,7 @@ export default function Settings() {
     const [newChannelId, setNewChannelId] = useState('')
     const [newChannelUsername, setNewChannelUsername] = useState('')
     const [newChannelApiKey, setNewChannelApiKey] = useState('')
+    const [newChannelWorkflowMode, setNewChannelWorkflowMode] = useState<'prepare_only' | 'approval_required' | 'auto_publish'>('approval_required')
     const [newVkStatsToken, setNewVkStatsToken] = useState('')
     const [okAppKey, setOkAppKey] = useState('')
     const [okAppSecret, setOkAppSecret] = useState('')
@@ -331,10 +364,12 @@ export default function Settings() {
     const { data: projectData } = useQuery({
         queryKey: ['project', currentProject?.id],
         queryFn: () => api.get(`/api/projects/${currentProject?.id}`),
-        enabled: !!currentProject && (activeTab === 'general' || activeTab === 'team' || activeTab === 'channels')
+        enabled: !!currentProject
     })
 
     const defaultChannelId = (projectData as any)?.settings?.find((s: any) => s.key === 'default_channel_id')?.value;
+    const currentMembership = (projectData as any)?.members?.find((member: any) => member.user_id === user?.id || member.user?.id === user?.id)
+    const isOwner = currentMembership?.role === 'owner'
 
     const { data: agents } = useQuery<AgentConfig[]>({
         queryKey: ['agents', currentProject?.id],
@@ -378,6 +413,13 @@ export default function Settings() {
         enabled: !!currentProject && activeTab === 'presets'
     })
 
+    const { data: mcpStatus, isFetching: isCheckingMcp, refetch: checkMcp } = useQuery<McpStatus>({
+        queryKey: ['mcp-status', currentProject?.id],
+        queryFn: () => api.get(`/api/projects/${currentProject!.id}/mcp/status`),
+        enabled: !!currentProject && activeTab === 'mcp',
+        refetchInterval: activeTab === 'mcp' ? 15000 : false
+    })
+
     // Mutations
     const updateProject = useMutation({
         mutationFn: (data: { name: string; description: string }) => projectsApi.update(currentProject!.id, data),
@@ -408,6 +450,7 @@ export default function Settings() {
         setWebhookUrl('')
         setOkAppKey('')
         setOkAppSecret('')
+        setNewChannelWorkflowMode('approval_required')
     }
 
     const addChannel = useMutation({
@@ -632,7 +675,7 @@ export default function Settings() {
         if (!newChannelName) return showToast('Channel Name is required', 'warning');
         if (newChannelType !== 'habr' && !newChannelId) return showToast('Channel ID is required', 'warning');
 
-        const config: any = {};
+        const config: any = { workflow_mode: newChannelWorkflowMode };
         if (newChannelType === 'telegram') {
             config.telegram_channel_id = newChannelId;
             if (newChannelUsername) {
@@ -824,40 +867,78 @@ export default function Settings() {
     }
 
     return (
-        <div className="container">
-            <h1 className="mb-3">Project Settings</h1>
-
-            <div className="flex mb-3" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem', overflowX: 'auto' }}>
-                {['general', 'keys', 'dictionary', 'skills', 'channels', 'team', 'agents', 'presets', 'history'].map(tab => (
-                    <button
-                        key={tab}
-                        className={activeTab === tab ? 'btn-primary' : 'btn-secondary'}
-                        onClick={() => setActiveTab(tab as any)}
-                        style={{ marginRight: '0.5rem', textTransform: 'capitalize', whiteSpace: 'nowrap' }}
-                    >
-                        {tab}
-                    </button>
-                ))}
+        <div className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8">
+            <div className="mb-7 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                    <h1 className="text-3xl font-headline font-black tracking-tight text-on-surface">Настройки проекта</h1>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-on-surface-variant">
+                        Управляйте рабочим контуром проекта «{currentProject.name}»: каналами, агентами и правилами публикации.
+                    </p>
+                </div>
+                <span className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-xs font-black ${isOwner ? 'bg-success/10 text-success' : 'bg-surface-container-high text-on-surface-variant'}`}>
+                    <span className="material-symbols-outlined text-base" aria-hidden="true">{isOwner ? 'verified_user' : 'visibility'}</span>
+                    {isOwner ? 'Владелец' : 'Только просмотр'}
+                </span>
             </div>
 
-            {activeTab === 'general' && (
-                <div className="card">
-                    <h2>General Information</h2>
-                    <div className="mb-2">
-                        <label>Project Name</label>
-                        <input value={projectName} onChange={e => setProjectName(e.target.value)} />
-                    </div>
-                    <div className="mb-2">
-                        <label>Description</label>
-                        <textarea value={projectDesc} onChange={e => setProjectDesc(e.target.value)} rows={3} />
-                    </div>
-                    <button className="btn-primary" onClick={() => updateProject.mutate({ name: projectName, description: projectDesc })}>
-                        Save Changes
-                    </button>
+            {!isOwner && projectData && (
+                <div className="mb-5 rounded-2xl bg-surface-container-low px-4 py-3 text-sm leading-6 text-on-surface-variant">
+                    Изменять настройки может только владелец проекта. Вы можете посмотреть текущую конфигурацию без секретных значений.
+                </div>
+            )}
 
-                    <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--border)' }}>
-                        <h3>Advanced Features</h3>
-                        <div className="flex-center">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:items-start">
+                <label className="block lg:hidden">
+                    <span className="mb-2 block text-sm font-bold text-on-surface">Раздел настроек</span>
+                    <select className="w-full" value={activeTab} onChange={(event) => setActiveTab(event.target.value as SettingsTab)}>
+                        {SETTINGS_GROUPS.flatMap((group) => group.tabs).map((tab) => <option key={tab.id} value={tab.id}>{tab.label} — {tab.hint}</option>)}
+                    </select>
+                </label>
+                <nav aria-label="Разделы настроек" className="hidden rounded-2xl bg-surface-container-low p-2 lg:sticky lg:top-6 lg:block">
+                    {SETTINGS_GROUPS.map((group) => (
+                        <div key={group.label} className="mb-3 last:mb-0">
+                            <div className="px-3 pb-1 pt-2 text-[11px] font-black uppercase tracking-[0.16em] text-on-surface-variant">{group.label}</div>
+                            {group.tabs.map((tab) => (
+                                <button
+                                    key={tab.id}
+                                    type="button"
+                                    onClick={() => setActiveTab(tab.id)}
+                                    aria-current={activeTab === tab.id ? 'page' : undefined}
+                                    className={`mb-1 flex min-h-12 w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${activeTab === tab.id ? 'bg-white text-primary shadow-sm' : 'text-on-surface hover:bg-white/70'}`}
+                                >
+                                    <span className="material-symbols-outlined text-xl" aria-hidden="true">{tab.icon}</span>
+                                    <span className="min-w-0"><span className="block text-sm font-black">{tab.label}</span><span className="block truncate text-xs font-normal text-on-surface-variant">{tab.hint}</span></span>
+                                </button>
+                            ))}
+                        </div>
+                    ))}
+                </nav>
+
+                <fieldset disabled={!isOwner} className="min-w-0 border-0 p-0 disabled:opacity-75">
+
+            {activeTab === 'general' && (
+                <div className="rounded-2xl bg-white p-5 shadow-sm sm:p-7">
+                    <div className="mb-6">
+                        <h2 className="text-2xl font-headline font-black text-on-surface">Проект</h2>
+                        <p className="mt-2 text-sm leading-6 text-on-surface-variant">Основные данные и поведение планировщика для этого проекта.</p>
+                    </div>
+                    <div className="max-w-2xl space-y-5">
+                        <label className="block">
+                            <span className="text-sm font-bold text-on-surface">Название проекта</span>
+                            <input className="mt-2 w-full" value={projectName} onChange={e => setProjectName(e.target.value)} />
+                        </label>
+                        <label className="block">
+                            <span className="text-sm font-bold text-on-surface">Описание</span>
+                            <textarea className="mt-2 w-full" value={projectDesc} onChange={e => setProjectDesc(e.target.value)} rows={4} placeholder="Что производит этот проект и для какой аудитории" />
+                        </label>
+                        <button className="btn-primary" onClick={() => updateProject.mutate({ name: projectName, description: projectDesc })} disabled={!projectName.trim() || updateProject.isPending}>
+                            {updateProject.isPending ? 'Сохраняем…' : 'Сохранить изменения'}
+                        </button>
+                    </div>
+
+                    <div className="mt-8 border-t border-outline-variant/10 pt-6">
+                        <h3 className="text-lg font-black text-on-surface">Планирование публикаций</h3>
+                        <label htmlFor="nativeScheduling" className="mt-4 flex max-w-2xl cursor-pointer items-start gap-3 rounded-2xl bg-surface-container-low p-4">
                             <input
                                 type="checkbox"
                                 id="nativeScheduling"
@@ -866,24 +947,69 @@ export default function Settings() {
                                     setNativeScheduling(e.target.checked)
                                     updateSetting.mutate({ key: 'telegram_native_scheduling', value: e.target.checked.toString() })
                                 }}
-                                style={{ marginRight: '0.5rem' }}
+                                className="mt-1 h-5 w-5 accent-primary"
                             />
-                            <label htmlFor="nativeScheduling">
-                                <strong>Enable Native Telegram Scheduling</strong>
-                                <p className="text-muted" style={{ fontSize: '0.9rem', margin: 0 }}>
-                                    If enabled, posts scheduled for the future will be sent safely to Telegram's "Scheduled Messages" list.
-                                    This allows you to turn off this planner app and still have posts published.
+                            <span>
+                                <strong className="block text-sm text-on-surface">Использовать отложенные сообщения Telegram</strong>
+                                <p className="mt-1 text-sm leading-6 text-on-surface-variant">
+                                    Будущие публикации попадут в очередь Telegram и выйдут, даже если планировщик временно выключен.
                                 </p>
-                            </label>
-                        </div>
+                            </span>
+                        </label>
                     </div>
                 </div>
             )}
 
+            {activeTab === 'mcp' && (() => {
+                const mcpUrl = mcpStatus?.endpoint || import.meta.env.VITE_MCP_URL || 'http://127.0.0.1:8080/mcp'
+                const mcpConfig = JSON.stringify({
+                    mcpServers: {
+                        'ba-post-planner': {
+                            url: mcpUrl,
+                            ...(mcpStatus?.bearer_required ? { headers: { Authorization: 'Bearer <MCP_AUTH_TOKEN>' } } : {})
+                        }
+                    }
+                }, null, 2)
+                const isMcpOnline = mcpStatus?.status === 'online'
+                return (
+                    <div className="rounded-2xl bg-white p-5 shadow-sm sm:p-7">
+                        <div className="flex flex-col gap-4 border-b border-outline-variant/10 pb-6 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <h2 className="text-2xl font-headline font-black text-on-surface">Подключение MCP</h2>
+                                <p className="mt-2 max-w-2xl text-sm leading-6 text-on-surface-variant">Дайте Codex, Claude или другому агенту доступ к плану, очереди работ и публикациям проекта.</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-xs font-black ${isMcpOnline ? 'bg-success/10 text-success' : 'bg-error-container/40 text-error'}`}><span className={`h-2 w-2 rounded-full ${isMcpOnline ? 'bg-success' : 'bg-error'}`} />{isMcpOnline ? 'MCP работает' : mcpStatus ? 'MCP недоступен' : 'Проверяем MCP'}</span>
+                                <button type="button" className="btn-secondary" onClick={() => checkMcp()} disabled={isCheckingMcp}>{isCheckingMcp ? 'Проверяем…' : 'Проверить'}</button>
+                            </div>
+                        </div>
+
+                        <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
+                            <div className="min-w-0">
+                                <div className="flex items-center justify-between gap-3">
+                                    <h3 className="text-lg font-black text-on-surface">Конфигурация агента</h3>
+                                    <button type="button" className="btn-secondary" onClick={() => navigator.clipboard.writeText(mcpConfig).then(() => showToast('Конфигурация скопирована', 'success'))}>Копировать</button>
+                                </div>
+                                <pre className="mt-3 overflow-x-auto rounded-2xl bg-[#17181a] p-4 text-sm leading-6 text-white"><code>{mcpConfig}</code></pre>
+                                <p className="mt-3 text-xs leading-5 text-on-surface-variant">{mcpStatus?.bearer_required ? <>Замените <code>&lt;MCP_AUTH_TOKEN&gt;</code> на токен сервера. Не храните его в репозитории.</> : 'Локальный endpoint доступен только на этом компьютере и не требует токена.'}</p>
+                            </div>
+                            <div className="space-y-4 rounded-2xl bg-surface-container-low p-4">
+                                <div><div className="text-xs text-on-surface-variant">Проект</div><div className="mt-1 font-black text-on-surface">{currentProject.name}</div></div>
+                                <div><div className="text-xs text-on-surface-variant">Project ID</div><div className="mt-1 font-black tabular-nums text-on-surface">{currentProject.id}</div></div>
+                                <div><div className="text-xs text-on-surface-variant">Actor ID владельца</div><div className="mt-1 font-black text-on-surface">user:{user?.id}</div></div>
+                                <div><div className="text-xs text-on-surface-variant">Endpoint</div><div className="mt-1 break-all text-sm font-bold text-on-surface">{mcpUrl}</div></div>
+                                {mcpStatus?.message && <div className="rounded-xl bg-error-container/30 p-3 text-xs leading-5 text-error">{mcpStatus.message}. Запустите локальный MCP-сервис и повторите проверку.</div>}
+                                <div className="border-t border-outline-variant/10 pt-4 text-xs leading-5 text-on-surface-variant">Передайте агенту Project ID и Actor ID вместе с задачей. Для сервисного агента сначала создайте отдельную привязку identity.</div>
+                            </div>
+                        </div>
+                    </div>
+                )
+            })()}
+
             {activeTab === 'channels' && (
-                <div className="card">
-                    <h2>Social Channels</h2>
-                    <p className="text-muted mb-2">Connect Telegram or VK channels to publish posts directly.</p>
+                <div className="rounded-2xl bg-white p-5 shadow-sm sm:p-7">
+                    <h2 className="text-2xl font-headline font-black text-on-surface">Каналы публикации</h2>
+                    <p className="mb-6 mt-2 text-sm leading-6 text-on-surface-variant">Подключайте площадки и выбирайте, сколько контроля оставлять владельцу перед публикацией.</p>
 
                     <div className="mb-3 p-2" style={{ border: '1px solid var(--border)', borderRadius: '8px' }}>
                         <div className="flex-between mb-3">
@@ -908,6 +1034,17 @@ export default function Settings() {
                                     value={newChannelName}
                                     onChange={e => setNewChannelName(e.target.value)}
                                 />
+                            </div>
+                            <div>
+                                <label>Режим работы</label>
+                                <select value={newChannelWorkflowMode} onChange={(e) => setNewChannelWorkflowMode(e.target.value as typeof newChannelWorkflowMode)}>
+                                    <option value="prepare_only">Только подготовка</option>
+                                    <option value="approval_required">Публикация после одобрения</option>
+                                    <option value="auto_publish">Автопубликация</option>
+                                </select>
+                                <p className="mt-1 text-xs leading-5 text-on-surface-variant">
+                                    {newChannelWorkflowMode === 'prepare_only' ? 'Агент готовит текст, публикация остаётся ручной.' : newChannelWorkflowMode === 'approval_required' ? 'Агент ждёт решения владельца перед отправкой.' : 'Одобренный план может публиковаться без ручного шага.'}
+                                </p>
                             </div>
 
                             {newChannelType === 'telegram' ? (
@@ -1231,6 +1368,18 @@ export default function Settings() {
                                                     style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
                                                 />
                                             </div>
+                                            <div>
+                                                <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Режим работы</label>
+                                                <select
+                                                    className="w-full"
+                                                    value={editingChannelConfig.workflow_mode || 'approval_required'}
+                                                    onChange={e => setEditingChannelConfig({ ...editingChannelConfig, workflow_mode: e.target.value })}
+                                                >
+                                                    <option value="prepare_only">Только подготовка</option>
+                                                    <option value="approval_required">После одобрения</option>
+                                                    <option value="auto_publish">Автопубликация</option>
+                                                </select>
+                                            </div>
 
                                             {channel.type === 'telegram' && (
                                                 <>
@@ -1524,6 +1673,9 @@ export default function Settings() {
                                         <div className="flex-center">
                                             <strong>{channel.name}</strong>
                                             <span className="badge" style={{ fontSize: '0.7rem', textTransform: 'uppercase' }}>{channel.type}</span>
+                                            <span className="badge" style={{ fontSize: '0.7rem' }}>
+                                                {channel.config?.workflow_mode === 'auto_publish' ? 'автопубликация' : channel.config?.workflow_mode === 'prepare_only' ? 'только подготовка' : 'после одобрения'}
+                                            </span>
                                             {channel.type === 'linkedin' && (
                                                 <span className="badge ml-1" style={{ fontSize: '0.7rem', textTransform: 'uppercase' }}>
                                                     {channel.config?.analytics_scope_enabled ? 'analytics ready' : 'reconnect for analytics'}
@@ -2060,6 +2212,8 @@ export default function Settings() {
                     </div>
                 </div>
             )}
+                </fieldset>
+            </div>
         </div>
     )
 }

@@ -16,6 +16,7 @@ const storage_service_1 = __importDefault(require("../services/storage.service")
 const generator_service_1 = __importDefault(require("../services/generator.service"));
 const project_utils_1 = require("../utils/project.utils");
 const channel_utils_1 = require("../utils/channel.utils");
+const initiative_service_1 = __importDefault(require("../services/initiative.service"));
 const planner_service_1 = require("../services/planner.service");
 const agentSettingKeyMap = {
     post_creator: {
@@ -317,6 +318,30 @@ async function projectRoutes(fastify) {
         const projects = await auth_service_1.default.getUserProjects(user.id);
         return projects;
     });
+    fastify.get('/api/projects/:id/operational-calendar', async (request, reply) => {
+        const user = request.user;
+        const { id } = request.params;
+        const { fromDate, toDate } = request.query;
+        const projectId = parseProjectId(id);
+        const from = fromDate || new Date().toISOString().slice(0, 10);
+        const to = toDate || from;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || from > to) {
+            return reply.code(400).send({ error: 'fromDate and toDate must be a valid ascending YYYY-MM-DD range' });
+        }
+        const actorId = `user:${user.id}`;
+        try {
+            return await initiative_service_1.default.getOperationalCalendarView({
+                projectId,
+                actorId,
+                fromDate: from,
+                toDate: to
+            });
+        }
+        catch (error) {
+            const denied = /Access denied|Security/.test(error?.message || '');
+            return reply.code(denied ? 403 : 400).send({ error: error?.message || 'Unable to load operational calendar' });
+        }
+    });
     // Create project
     fastify.post('/api/projects', async (request, reply) => {
         const user = request.user;
@@ -462,7 +487,7 @@ async function projectRoutes(fastify) {
         const { id } = request.params;
         const { key, value } = request.body;
         const projectId = parseInt(id);
-        const hasAccess = await auth_service_1.default.hasProjectAccess(user.id, projectId, 'editor');
+        const hasAccess = await auth_service_1.default.hasProjectAccess(user.id, projectId, 'owner');
         if (!hasAccess) {
             reply.code(403).send({ error: 'No access' });
             return;
@@ -525,6 +550,46 @@ async function projectRoutes(fastify) {
             }));
         }
         return project;
+    });
+    fastify.get('/api/projects/:id/mcp/status', async (request, reply) => {
+        const user = request.user;
+        const { id } = request.params;
+        const projectId = parseInt(id, 10);
+        const hasAccess = await auth_service_1.default.hasProjectAccess(user.id, projectId, 'owner');
+        if (!hasAccess) {
+            return reply.code(403).send({ error: 'Only owners can inspect MCP settings' });
+        }
+        const endpoint = (process.env.MCP_REMOTE_URL || 'http://127.0.0.1:8080/mcp').replace(/\/+$/, '');
+        const healthUrl = endpoint.endsWith('/mcp') ? endpoint.slice(0, -4) + '/health' : `${endpoint}/health`;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 2500);
+        try {
+            const response = await fetch(healthUrl, { signal: controller.signal });
+            const health = response.ok ? await response.json() : null;
+            return {
+                status: response.ok && health?.status === 'ok' ? 'online' : 'degraded',
+                endpoint,
+                health_url: healthUrl,
+                transport: health?.transport || null,
+                bearer_required: Boolean(health?.auth?.bearer_required),
+                uptime_s: health?.uptime_s || 0,
+                active_sessions: health?.active_sessions || 0,
+                checked_at: new Date().toISOString()
+            };
+        }
+        catch (error) {
+            return {
+                status: 'offline',
+                endpoint,
+                health_url: healthUrl,
+                bearer_required: null,
+                checked_at: new Date().toISOString(),
+                message: error?.name === 'AbortError' ? 'MCP health check timed out' : 'MCP server is unreachable'
+            };
+        }
+        finally {
+            clearTimeout(timeout);
+        }
     });
     fastify.get('/api/projects/:id/parser/health', async (request, reply) => {
         const user = request.user;
@@ -698,7 +763,7 @@ async function projectRoutes(fastify) {
         const { id } = request.params;
         const { type, name, config } = request.body;
         const projectId = parseInt(id);
-        const hasAccess = await auth_service_1.default.hasProjectAccess(user.id, projectId, 'editor');
+        const hasAccess = await auth_service_1.default.hasProjectAccess(user.id, projectId, 'owner');
         if (!hasAccess) {
             reply.code(403).send({ error: 'No access' });
             return;
@@ -723,7 +788,7 @@ async function projectRoutes(fastify) {
         const { name, config } = request.body;
         const projectId = parseInt(id);
         const parsedChannelId = parseInt(channelId);
-        const hasAccess = await auth_service_1.default.hasProjectAccess(user.id, projectId, 'editor');
+        const hasAccess = await auth_service_1.default.hasProjectAccess(user.id, projectId, 'owner');
         if (!hasAccess) {
             reply.code(403).send({ error: 'No access' });
             return;
@@ -750,7 +815,7 @@ async function projectRoutes(fastify) {
         const { id, channelId } = request.params;
         const projectId = parseInt(id);
         const parsedChannelId = parseInt(channelId);
-        const hasAccess = await auth_service_1.default.hasProjectAccess(user.id, projectId, 'editor');
+        const hasAccess = await auth_service_1.default.hasProjectAccess(user.id, projectId, 'owner');
         if (!hasAccess) {
             reply.code(403).send({ error: 'No access' });
             return;

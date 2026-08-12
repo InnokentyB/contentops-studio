@@ -1,0 +1,29 @@
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, resolve } from 'node:path'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const settings = readFileSync(resolve(__dirname, '../../src/pages/Settings.tsx'), 'utf8')
+const routes = readFileSync(resolve(__dirname, '../../../src/routes/project.routes.ts'), 'utf8')
+
+assert.match(settings, /Настройки проекта/)
+assert.match(settings, /Подключение MCP/)
+assert.match(settings, /MCP_AUTH_TOKEN/)
+assert.match(settings, /mcp\/status/)
+assert.match(settings, /MCP работает/)
+assert.match(settings, /Проверить/)
+assert.match(settings, /Только подготовка/)
+assert.match(settings, /Публикация после одобрения/)
+assert.match(settings, /Автопубликация/)
+assert.match(settings, /workflow_mode/)
+assert.match(settings, /currentMembership\?\.role === 'owner'/)
+assert.match(settings, /fieldset disabled={!isOwner}/)
+assert.doesNotMatch(settings, /<h1 className="mb-3">Project Settings/)
+
+const settingsRoute = routes.slice(routes.indexOf("fastify.post('/api/projects/:id/settings'"), routes.indexOf('// Get project details'))
+assert.match(settingsRoute, /hasProjectAccess\(user\.id, projectId, 'owner'\)/)
+
+assert.match(routes, /fastify\.post\('\/api\/projects\/:id\/channels'/)
+assert.match(routes, /fastify\.put\('\/api\/projects\/:id\/channels\/:channelId'/)
+assert.match(routes, /fastify\.delete\('\/api\/projects\/:id\/channels\/:channelId'/)

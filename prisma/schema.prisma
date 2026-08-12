@@ -50,25 +50,22 @@ model Project {
   runs        AgentRun[]
 
   // v2 Media Orchestrator Relations
-  quarter_plans           QuarterPlan[]
-  month_arcs              MonthArc[]
-  week_packages           WeekPackage[]
-  content_items           ContentItem[]
-  feedbacks               FeedbackPackage[]
-  work_items              WorkItem[]
-  workflow_events         WorkflowEvent[]
-  initiatives             Initiative[]
-  initiative_dependencies InitiativeDependency[]
-  vk_metric_snapshots     VkMetricSnapshot[]
-  outbox_events           OutboxEvent[]
-  webhook_inbox           WebhookInbox[]
-  delivery_attempts       DeliveryAttempt[]
-  image_assets            ImageAsset[]
-  metric_snapshots        MetricSnapshot[]
-
-
-
-
+  quarter_plans             QuarterPlan[]
+  month_arcs                MonthArc[]
+  week_packages             WeekPackage[]
+  content_items             ContentItem[]
+  feedbacks                 FeedbackPackage[]
+  work_items                WorkItem[]
+  workflow_events           WorkflowEvent[]
+  initiatives               Initiative[]
+  initiative_dependencies   InitiativeDependency[]
+  vk_metric_snapshots       VkMetricSnapshot[]
+  outbox_events             OutboxEvent[]
+  webhook_inbox             WebhookInbox[]
+  delivery_attempts         DeliveryAttempt[]
+  image_assets              ImageAsset[]
+  metric_snapshots          MetricSnapshot[]
+  service_identity_bindings ServiceIdentityBinding[]
 
   prompt_presets    PromptPreset[]
   comments          Comment[]
@@ -93,6 +90,22 @@ model ProjectMember {
 
   @@unique([project_id, user_id])
   @@map("project_members")
+  @@schema("planner")
+}
+
+model ServiceIdentityBinding {
+  id         Int      @id @default(autoincrement())
+  project_id Int
+  actor_id   String
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@unique([project_id, actor_id])
+  @@index([actor_id, is_active])
+  @@map("service_identity_bindings")
   @@schema("planner")
 }
 
@@ -590,7 +603,6 @@ model WorkItem {
   created_at            DateTime  @default(now())
   updated_at            DateTime  @updatedAt
 
-
   project            Project            @relation(fields: [project_id], references: [id], onDelete: Cascade)
   week_package       WeekPackage?       @relation(fields: [week_package_id], references: [id], onDelete: SetNull)
   content_item       ContentItem?       @relation(fields: [content_item_id], references: [id], onDelete: SetNull)
@@ -599,7 +611,6 @@ model WorkItem {
   approval_decisions ApprovalDecision[]
   workflow_events    WorkflowEvent[]
   outbox_events      OutboxEvent[]
-
 
   @@index([project_id])
   @@index([week_package_id])
@@ -759,20 +770,20 @@ model WebhookInbox {
 }
 
 model DeliveryAttempt {
-  id                            Int       @id @default(autoincrement())
-  project_id                    Int
-  content_item_id               Int
-  channel_id                    Int
-  mode                          String    @default("assisted") // assisted, automatic
-  status                        String    // pending, delivered, failed, recovered
-  attempt_number                Int       @default(1)
-  idempotency_key               String?
-  scheduled_at                  DateTime? @db.Timestamptz(6)
-  actual_published_at           DateTime? @db.Timestamptz(6)
+  id                           Int       @id @default(autoincrement())
+  project_id                   Int
+  content_item_id              Int
+  channel_id                   Int
+  mode                         String    @default("assisted") // assisted, automatic
+  status                       String // pending, delivered, failed, recovered
+  attempt_number               Int       @default(1)
+  idempotency_key              String?
+  scheduled_at                 DateTime? @db.Timestamptz(6)
+  actual_published_at          DateTime? @db.Timestamptz(6)
   requires_manual_confirmation Boolean   @default(false)
-  error_message                 String?
-  created_at                    DateTime  @default(now())
-  updated_at                    DateTime  @updatedAt
+  error_message                String?
+  created_at                   DateTime  @default(now())
+  updated_at                   DateTime  @updatedAt
 
   project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
 
@@ -827,7 +838,3 @@ model MetricSnapshot {
   @@map("metric_snapshots")
   @@schema("planner")
 }
-
-
-
-

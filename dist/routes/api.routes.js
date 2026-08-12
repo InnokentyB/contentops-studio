@@ -8,6 +8,7 @@ const planner_service_1 = __importDefault(require("../services/planner.service")
 const generator_service_1 = __importDefault(require("../services/generator.service"));
 const multi_agent_service_1 = __importDefault(require("../services/multi_agent.service"));
 const publisher_service_1 = __importDefault(require("../services/publisher.service"));
+const initiative_service_1 = __importDefault(require("../services/initiative.service"));
 const model_service_1 = __importDefault(require("../services/model.service"));
 const v2_orchestrator_service_1 = __importDefault(require("../services/v2_orchestrator.service"));
 const client_1 = require("@prisma/client");
@@ -929,7 +930,7 @@ async function apiRoutes(fastify) {
             assets: { not: undefined }
         };
         if (status === 'active') {
-            where.status = { in: ['planned', 'ready_for_execution', 'awaiting_manual_publication', 'published', 'failed'] };
+            where.status = { in: ['planned', 'drafted', 'revised', 'approved', 'scheduled', 'ready_for_execution', 'awaiting_manual_publication', 'published', 'failed'] };
         }
         else if (status) {
             where.status = status;
@@ -1218,6 +1219,7 @@ async function apiRoutes(fastify) {
                 }
             }
         });
+        await initiative_service_1.default.syncPublishedPublicationTask(projectId, updated.id);
         (0, egress_diagnostics_1.logEgressDiagnostic)('publication_tasks.confirm_publication', {
             projectId,
             taskId: updated.id,

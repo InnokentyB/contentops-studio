@@ -10,6 +10,7 @@ const types_js_1 = require("@modelcontextprotocol/sdk/types.js");
 const streamableHttp_js_1 = require("@modelcontextprotocol/sdk/server/streamableHttp.js");
 const shared_1 = require("./shared");
 const schema_plan_service_1 = __importDefault(require("../services/schema_plan.service"));
+const remote_auth_1 = require("./remote-auth");
 function parsePort(value, fallback) {
     const parsed = Number(value || fallback);
     if (!Number.isInteger(parsed) || parsed <= 0) {
@@ -37,6 +38,14 @@ async function main() {
     const port = parsePort(process.env.PORT || process.env.MCP_PORT, 8080);
     const host = process.env.MCP_HOST || '0.0.0.0';
     const authToken = (process.env.MCP_AUTH_TOKEN || '').trim();
+    const principalUserId = Number(process.env.MCP_PRINCIPAL_USER_ID || 0);
+    const principal = Number.isInteger(principalUserId) && principalUserId > 0
+        ? { userId: principalUserId, actorId: `user:${principalUserId}` }
+        : null;
+    const isProduction = Boolean(process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production');
+    if (isProduction && (!authToken || !principal)) {
+        throw new Error('Production remote MCP requires MCP_AUTH_TOKEN and MCP_PRINCIPAL_USER_ID');
+    }
     const sessions = new Map();
     const app = (0, express_js_1.createMcpExpressApp)({ host });
     function requireAuth(req, res, next) {
@@ -121,7 +130,8 @@ async function main() {
             uptime_s: Math.round(process.uptime()),
             transport: 'streamable-http',
             auth: {
-                bearer_required: Boolean(authToken)
+                bearer_required: Boolean(authToken),
+                principal_scoped: Boolean(principal)
             },
             active_sessions: sessions.size,
             schema_plan: schema_plan_service_1.default.getPlan(),
@@ -145,6 +155,16 @@ async function main() {
     });
     app.post('/mcp', requireAuth, async (req, res) => {
         try {
+            const scopedRequest = (0, remote_auth_1.scopeRemoteMcpRequest)(req.body, principal);
+            if (!scopedRequest.allowed) {
+                res.status(403).json({
+                    jsonrpc: '2.0',
+                    error: { code: -32003, message: 'Tool is not available through scoped remote MCP' },
+                    id: req.body?.id ?? null
+                });
+                return;
+            }
+            req.body = scopedRequest.body;
             const sessionIdHeader = req.headers['mcp-session-id'];
             const sessionId = Array.isArray(sessionIdHeader) ? sessionIdHeader[0] : sessionIdHeader;
             const entry = await getOrCreateSession(sessionId, req.body, res);

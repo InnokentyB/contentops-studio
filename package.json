@@ -14,6 +14,7 @@
     "test:mcp": "npm run build:backend >/dev/null && node scripts/test_mcp_server.js",
     "test:mcp:remote": "npm run build:backend >/dev/null && node scripts/test_remote_mcp.js",
     "test:tdpd:red": "npm run build:backend >/dev/null && node --env-file-if-exists=.env scripts/run_tdpd_red_tests.js",
+    "test:tdpd:db": "npm run build:backend >/dev/null && TDPD_REQUIRE_DATABASE=1 node --env-file-if-exists=.env scripts/run_tdpd_red_tests.js",
     "test:mcp:seturon": "npm run build:backend >/dev/null && node scripts/test_mcp_server.js --plan-path \"/Users/innokentyb/Documents/Claude/Projects/Seturon/content-pipeline-2026-04/08-automation/publication-plan.json\" --read-ref \"article_knowledge.target_url\"",
     "test:parser": "npm run build:backend >/dev/null && node scripts/test_parser_chain.js",
     "postinstall": "prisma generate",

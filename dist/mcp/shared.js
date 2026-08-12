@@ -549,6 +549,39 @@ function registerPlannerTools(server) {
     // ============================================
     // TDPD-001 Work Queue MCP Tools
     // ============================================
+    server.registerTool('ba_bind_service_identity', {
+        description: 'Allow a registered service identity to access one project. Project owner only.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            serviceActorId: zod_1.z.string()
+        }
+    }, async (args) => {
+        const result = await work_queue_service_1.default.bindServiceIdentity(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_unbind_service_identity', {
+        description: 'Revoke a service identity project binding immediately. Project owner only.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            serviceActorId: zod_1.z.string()
+        }
+    }, async (args) => {
+        const result = await work_queue_service_1.default.unbindServiceIdentity(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_list_service_bindings', {
+        description: 'List active and revoked service identity bindings for a project. Project owner only.',
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string()
+        }
+    }, async (args) => {
+        const result = await work_queue_service_1.default.listServiceBindings(args);
+        return asToolResult(result);
+    });
     server.registerTool('ba_decide_week_plan', {
         description: 'Approve or reject a weekly publication plan package. Unlocks content_write work items upon approval.',
         inputSchema: {
@@ -720,18 +753,18 @@ function registerPlannerTools(server) {
             projectId: zod_1.z.number().int().positive(),
             actorId: zod_1.z.string(),
             externalKey: zod_1.z.string(),
-            kind: zod_1.z.string(),
+            kind: zod_1.z.enum(['publication', 'event', 'campaign', 'infrastructure']),
             subtype: zod_1.z.string().optional(),
             title: zod_1.z.string(),
             description: zod_1.z.string().optional(),
-            status: zod_1.z.string().optional(),
+            status: zod_1.z.enum(['planned', 'in_progress', 'completed', 'blocked', 'cancelled']).optional(),
             ownerRole: zod_1.z.string().optional(),
-            dueAt: zod_1.z.string().nullable().optional(),
-            startAt: zod_1.z.string().nullable().optional(),
-            endAt: zod_1.z.string().nullable().optional(),
-            decisionAt: zod_1.z.string().nullable().optional(),
-            eventAt: zod_1.z.string().nullable().optional(),
-            measurementAt: zod_1.z.string().nullable().optional()
+            dueAt: zod_1.z.string().datetime({ offset: true }).nullable().optional(),
+            startAt: zod_1.z.string().datetime({ offset: true }).nullable().optional(),
+            endAt: zod_1.z.string().datetime({ offset: true }).nullable().optional(),
+            decisionAt: zod_1.z.string().datetime({ offset: true }).nullable().optional(),
+            eventAt: zod_1.z.string().datetime({ offset: true }).nullable().optional(),
+            measurementAt: zod_1.z.string().datetime({ offset: true }).nullable().optional()
         }
     }, async (args) => {
         const result = await initiative_service_1.default.upsertInitiative(args);
@@ -744,7 +777,7 @@ function registerPlannerTools(server) {
             actorId: zod_1.z.string(),
             fromKey: zod_1.z.string(),
             toKey: zod_1.z.string(),
-            type: zod_1.z.string().optional(),
+            type: zod_1.z.enum(['blocks', 'requires', 'not_before', 'informs']).optional(),
             condition: zod_1.z.string().optional(),
             source: zod_1.z.string().optional()
         }
@@ -760,22 +793,22 @@ function registerPlannerTools(server) {
             externalPlan: zod_1.z.object({
                 initiatives: zod_1.z.array(zod_1.z.object({
                     external_key: zod_1.z.string(),
-                    kind: zod_1.z.string(),
+                    kind: zod_1.z.enum(['publication', 'event', 'campaign', 'infrastructure']),
                     subtype: zod_1.z.string().optional(),
                     title: zod_1.z.string(),
                     description: zod_1.z.string().optional(),
-                    status: zod_1.z.string().optional(),
-                    due_at: zod_1.z.string().optional(),
-                    start_at: zod_1.z.string().optional(),
-                    end_at: zod_1.z.string().optional(),
-                    decision_at: zod_1.z.string().optional(),
-                    event_at: zod_1.z.string().optional(),
-                    measurement_at: zod_1.z.string().optional()
+                    status: zod_1.z.enum(['planned', 'in_progress', 'completed', 'blocked', 'cancelled']).optional(),
+                    due_at: zod_1.z.string().datetime({ offset: true }).optional(),
+                    start_at: zod_1.z.string().datetime({ offset: true }).optional(),
+                    end_at: zod_1.z.string().datetime({ offset: true }).optional(),
+                    decision_at: zod_1.z.string().datetime({ offset: true }).optional(),
+                    event_at: zod_1.z.string().datetime({ offset: true }).optional(),
+                    measurement_at: zod_1.z.string().datetime({ offset: true }).optional()
                 })).optional(),
                 dependencies: zod_1.z.array(zod_1.z.object({
                     from: zod_1.z.string(),
                     to: zod_1.z.string(),
-                    type: zod_1.z.string().optional(),
+                    type: zod_1.z.enum(['blocks', 'requires', 'not_before', 'informs']).optional(),
                     condition: zod_1.z.string().optional()
                 })).optional()
             }),
@@ -783,6 +816,23 @@ function registerPlannerTools(server) {
         }
     }, async (args) => {
         const result = await initiative_service_1.default.importOperationalPlan(args);
+        return asToolResult(result);
+    });
+    server.registerTool('ba_materialize_publication_task', {
+        description: 'Create or update the execution workspace linked to one publication initiative. Safe to retry with the same idempotency key and payload.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            initiativeKey: zod_1.z.string().min(1),
+            draftText: zod_1.z.string().optional(),
+            brief: zod_1.z.string().optional(),
+            channelId: zod_1.z.number().int().positive().optional(),
+            publicationMode: zod_1.z.enum(['manual_handoff', 'approval_required', 'automatic']),
+            scheduleAt: zod_1.z.string().datetime({ offset: true }).optional(),
+            idempotencyKey: zod_1.z.string().min(1)
+        }
+    }, async (args) => {
+        const result = await initiative_service_1.default.materializePublicationTask(args);
         return asToolResult(result);
     });
     server.registerTool('ba_get_initiative', {
@@ -821,7 +871,13 @@ function registerPlannerTools(server) {
             externalPlan: zod_1.z.object({
                 initiatives: zod_1.z.array(zod_1.z.object({
                     external_key: zod_1.z.string(),
-                    kind: zod_1.z.string()
+                    kind: zod_1.z.enum(['publication', 'event', 'campaign', 'infrastructure']),
+                    due_at: zod_1.z.string().datetime({ offset: true }).optional(),
+                    start_at: zod_1.z.string().datetime({ offset: true }).optional(),
+                    end_at: zod_1.z.string().datetime({ offset: true }).optional(),
+                    decision_at: zod_1.z.string().datetime({ offset: true }).optional(),
+                    event_at: zod_1.z.string().datetime({ offset: true }).optional(),
+                    measurement_at: zod_1.z.string().datetime({ offset: true }).optional()
                 })).optional()
             })
         }
@@ -847,23 +903,24 @@ function registerPlannerTools(server) {
         inputSchema: {
             projectId: zod_1.z.number().int().positive(),
             actorId: zod_1.z.string(),
-            asOf: zod_1.z.string().optional()
+            asOf: zod_1.z.string().datetime({ offset: true }).optional()
         }
     }, async (args) => {
         const result = await initiative_service_1.default.listReleaseBlockers(args);
         return asToolResult(result);
     });
     server.registerTool('ba_get_operational_calendar', {
-        description: 'Returns operational calendar items with explicit date_type preserved.',
+        description: 'Returns one operational view with typed calendar dates, readiness, overdue initiatives, and layer summary.',
         annotations: { readOnlyHint: true },
         inputSchema: {
             projectId: zod_1.z.number().int().positive(),
             actorId: zod_1.z.string(),
-            fromDate: zod_1.z.string(),
-            toDate: zod_1.z.string()
+            fromDate: zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+            toDate: zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+            asOf: zod_1.z.string().datetime({ offset: true }).optional()
         }
     }, async (args) => {
-        const result = await initiative_service_1.default.getOperationalCalendar(args);
+        const result = await initiative_service_1.default.getOperationalCalendarView(args);
         return asToolResult(result);
     });
     server.registerTool('ba_sync_task_tracker', {

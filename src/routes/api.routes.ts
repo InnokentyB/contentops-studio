@@ -3,6 +3,7 @@ import plannerService from '../services/planner.service';
 import generatorService from '../services/generator.service';
 import multiAgentService from '../services/multi_agent.service';
 import publisherService from '../services/publisher.service';
+import initiativeService from '../services/initiative.service';
 import modelService from '../services/model.service';
 import v2Orchestrator from '../services/v2_orchestrator.service';
 import { PrismaClient } from '@prisma/client';
@@ -1040,7 +1041,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         };
 
         if (status === 'active') {
-            where.status = { in: ['planned', 'ready_for_execution', 'awaiting_manual_publication', 'published', 'failed'] };
+            where.status = { in: ['planned', 'drafted', 'revised', 'approved', 'scheduled', 'ready_for_execution', 'awaiting_manual_publication', 'published', 'failed'] };
         } else if (status) {
             where.status = status;
         }
@@ -1374,6 +1375,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
                 } as any
             }
         });
+        await initiativeService.syncPublishedPublicationTask(projectId, updated.id);
 
         logEgressDiagnostic('publication_tasks.confirm_publication', {
             projectId,

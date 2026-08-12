@@ -202,6 +202,61 @@ const planner_service_2 = __importDefault(require("../services/planner.service")
         });
     }
 });
+(0, node_test_1.default)('PUT /api/projects/:id/channels/:channelId requires project owner', async () => {
+    const originalVerifyToken = auth_service_1.default.verifyToken;
+    const originalHasAccess = auth_service_1.default.hasProjectAccess;
+    let requestedRole;
+    auth_service_1.default.verifyToken = () => ({ id: 2, email: 'editor@example.com', name: 'Editor' });
+    auth_service_1.default.hasProjectAccess = async (_userId, _projectId, role) => {
+        requestedRole = role;
+        return false;
+    };
+    const app = (0, fastify_1.default)();
+    app.register(project_routes_1.default);
+    try {
+        const response = await app.inject({
+            method: 'PUT',
+            url: '/api/projects/1/channels/10',
+            headers: { authorization: 'Bearer mock-token' },
+            payload: { name: 'Blocked update', config: { workflow_mode: 'auto_publish' } }
+        });
+        strict_1.default.equal(requestedRole, 'owner');
+        strict_1.default.equal(response.statusCode, 403);
+    }
+    finally {
+        auth_service_1.default.verifyToken = originalVerifyToken;
+        auth_service_1.default.hasProjectAccess = originalHasAccess;
+    }
+});
+(0, node_test_1.default)('mergeChannelConfig keeps channel workflow mode', () => {
+    const merged = (0, channel_utils_1.mergeChannelConfig)({ workflow_mode: 'approval_required' }, { workflow_mode: 'prepare_only', api_key: 'secret' });
+    strict_1.default.equal(merged.workflow_mode, 'approval_required');
+});
+(0, node_test_1.default)('GET /api/projects/:id/mcp/status reports the configured MCP health', async () => {
+    const originalVerifyToken = auth_service_1.default.verifyToken;
+    const originalHasAccess = auth_service_1.default.hasProjectAccess;
+    const originalFetch = global.fetch;
+    auth_service_1.default.verifyToken = () => ({ id: 1, email: 'owner@example.com', name: 'Owner' });
+    auth_service_1.default.hasProjectAccess = async (_userId, _projectId, role) => role === 'owner';
+    global.fetch = async () => new Response(JSON.stringify({
+        status: 'ok', transport: 'streamable-http', auth: { bearer_required: false }, uptime_s: 12, active_sessions: 1
+    }), { status: 200, headers: { 'content-type': 'application/json' } });
+    const app = (0, fastify_1.default)();
+    app.register(project_routes_1.default);
+    try {
+        const response = await app.inject({ method: 'GET', url: '/api/projects/1/mcp/status', headers: { authorization: 'Bearer mock-token' } });
+        strict_1.default.equal(response.statusCode, 200);
+        const body = JSON.parse(response.body);
+        strict_1.default.equal(body.status, 'online');
+        strict_1.default.equal(body.bearer_required, false);
+        strict_1.default.equal(body.transport, 'streamable-http');
+    }
+    finally {
+        auth_service_1.default.verifyToken = originalVerifyToken;
+        auth_service_1.default.hasProjectAccess = originalHasAccess;
+        global.fetch = originalFetch;
+    }
+});
 (0, node_test_1.default)('cleanAndFormatHashtags removes duplicate and double hashtags', () => {
     const text = 'Hello world ##tech #programming. This is an awesome post!';
     const tags = ['tech', 'programming', 'typescript'];

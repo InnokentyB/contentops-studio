@@ -146,6 +146,12 @@ async function ensureFixture() {
         idempotencyKey: idempotencyKey('approve-plan'),
       });
 
+      await prisma.serviceIdentityBinding.createMany({
+        data: ['agent:content_writer', 'agent:content_reviewer', 'agent:plan_reviewer', 'system:planner']
+          .map((actor_id) => ({ project_id: imported.project.id, actor_id })),
+        skipDuplicates: true,
+      });
+
       return {
         projectId: imported.project.id,
         weekPackageId: imported.week_package.id,

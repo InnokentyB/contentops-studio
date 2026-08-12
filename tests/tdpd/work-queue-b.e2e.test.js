@@ -142,6 +142,18 @@ function buildWeekPlan(planId) {
         scheduled_at: '2026-08-10T20:00:00.000Z',
         content_files: [{ role: 'source_context', url_ref: 'inline_source' }],
       },
+      {
+        id: 'post-b7',
+        item_key: 'post-b7',
+        display_name: 'Post B7 for active lease stability',
+        channel: 'telegram',
+        account_ref: 'primary_tg',
+        action_type: 'post_text',
+        status: 'planned',
+        content_due_at: '2026-08-09T21:00:00.000Z',
+        scheduled_at: '2026-08-10T21:00:00.000Z',
+        content_files: [{ role: 'source_context', url_ref: 'inline_source' }],
+      },
     ],
     ongoing_rules: [],
     measurement: {},
@@ -192,6 +204,12 @@ async function ensureFixture() {
         planVersion: '1.0.0',
         decision: 'approved',
         idempotencyKey: idempotencyKey('approve-suite-b'),
+      });
+
+      await prisma.serviceIdentityBinding.createMany({
+        data: ['agent:content_writer', 'agent:content_reviewer', 'agent:plan_reviewer', 'system:planner']
+          .map((actor_id) => ({ project_id: imported.project.id, actor_id })),
+        skipDuplicates: true,
       });
 
       return {
@@ -301,11 +319,12 @@ test('B-002 / SC-B02: expired lease can be recovered by a new claim call', async
 
   // Now actor B claims the item with expired lease
   const newActor = 'agent:content_writer';
+  const recoveryKey = idempotencyKey('recovery-claim');
   const recoveryClaim = await callTool('ba_claim_work_item', {
     projectId: fixture.projectId,
     actorId: newActor,
     workItemId: item.id,
-    idempotencyKey: idempotencyKey('recovery-claim'),
+    idempotencyKey: recoveryKey,
   });
 
   assert.ok(recoveryClaim.lease_token);
@@ -315,6 +334,33 @@ test('B-002 / SC-B02: expired lease can be recovered by a new claim call', async
   const updatedItem = await prisma.workItem.findUnique({ where: { id: item.id } });
   assert.equal(updatedItem.state, 'claimed');
   assert.equal(updatedItem.lease_actor_id, newActor);
+
+  const staleCompletion = await client.callTool({
+    name: 'ba_complete_work_item',
+    arguments: {
+      projectId: fixture.projectId,
+      actorId: newActor,
+      workItemId: item.id,
+      leaseToken: 'lease-expired-old',
+      result: { body: 'Must not be accepted' },
+      idempotencyKey: idempotencyKey('expired-token-complete'),
+    },
+  });
+  assert.equal(staleCompletion.isError, true, 'The previous expired token must remain invalid after recovery');
+
+  const recoveryEvent = await prisma.workflowEvent.findFirst({
+    where: {
+      project_id: fixture.projectId,
+      work_item_id: item.id,
+      actor_id: newActor,
+      command: 'ba_claim_work_item',
+      idempotency_key: recoveryKey,
+    },
+  });
+  assert.ok(recoveryEvent, 'Lease recovery must create an audit event');
+  assert.equal(recoveryEvent.before_state?.lease_actor_id, 'agent:old_actor');
+  assert.equal(recoveryEvent.before_state?.lease_expires_at, pastDate.toISOString());
+  assert.equal(JSON.stringify(recoveryEvent.after_state).includes(recoveryClaim.lease_token), false, 'Audit history must not store the lease token');
 });
 
 test('B-003 / SC-B03: rejection of content creates a rewrite work item with incremented input_context_version', async (t) => {
@@ -487,4 +533,37 @@ test('B-006 / SC-B06: idempotency key is scoped per project, actor, and command'
     idempotencyKey: key,
   });
   assert.equal(releaseRes.work_item.state, 'available');
+});
+
+test('B-007 / SC-B07: a second claim with a different key cannot rotate an active lease, even for its owner', async (t) => {
+  if (!requireDatabase(t)) return;
+
+  const fixture = await ensureFixture();
+  const item = await findWorkItem(
+    fixture.projectId,
+    (w) => w.item_key === 'post-b7' && w.kind === 'content_write',
+    { state: 'available' },
+  );
+
+  const actorId = 'agent:content_writer';
+  const firstClaim = await callTool('ba_claim_work_item', {
+    projectId: fixture.projectId,
+    actorId,
+    workItemId: item.id,
+    idempotencyKey: idempotencyKey('stable-lease-first'),
+  });
+
+  const secondClaim = await client.callTool({
+    name: 'ba_claim_work_item',
+    arguments: {
+      projectId: fixture.projectId,
+      actorId,
+      workItemId: item.id,
+      idempotencyKey: idempotencyKey('stable-lease-second'),
+    },
+  });
+
+  assert.equal(secondClaim.isError, true, 'A different command key must not replace an active lease');
+  const persisted = await prisma.workItem.findUnique({ where: { id: item.id } });
+  assert.equal(persisted.lease_token, firstClaim.lease_token, 'The original active lease token must remain valid');
 });

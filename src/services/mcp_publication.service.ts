@@ -1,4 +1,5 @@
 import prisma from '../db';
+import initiativeService from './initiative.service';
 import publicationPlanService from './publication_plan.service';
 import redditService from './reddit.service';
 import vkService from './vk.service';
@@ -796,7 +797,7 @@ class McpPublicationService {
         };
 
         if (status === 'active') {
-            where.status = { in: ['planned', 'ready_for_execution', 'awaiting_manual_publication', 'published', 'failed'] };
+            where.status = { in: ['planned', 'drafted', 'revised', 'approved', 'scheduled', 'ready_for_execution', 'awaiting_manual_publication', 'published', 'failed'] };
         } else if (status) {
             where.status = status;
         }
@@ -918,7 +919,7 @@ class McpPublicationService {
         this.assertPublicationTaskMutableForMcp(item, 'confirm_publication');
 
         const monitoring = (item.metrics as any)?.monitoring || {};
-        return prisma.contentItem.update({
+        const updated = await prisma.contentItem.update({
             where: { id: item.id },
             data: {
                 status: 'published',
@@ -940,6 +941,8 @@ class McpPublicationService {
                 } as any
             }
         });
+        await initiativeService.syncPublishedPublicationTask(projectId, taskId);
+        return updated;
     }
 
     async publishDirect(params: DirectPublishParams) {

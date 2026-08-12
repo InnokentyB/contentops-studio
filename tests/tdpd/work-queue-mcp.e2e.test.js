@@ -176,6 +176,12 @@ async function ensureFixture() {
         idempotencyKey: idempotencyKey('approve-plan'),
       });
 
+      await prisma.serviceIdentityBinding.createMany({
+        data: ['agent:content_writer', 'agent:content_reviewer', 'agent:plan_reviewer', 'system:planner']
+          .map((actor_id) => ({ project_id: imported.project.id, actor_id })),
+        skipDuplicates: true,
+      });
+
       return {
         projectId: imported.project.id,
         weekPackageId: imported.week_package.id,
@@ -589,4 +595,86 @@ test('E2E-018 / SC-018: reschedule verifies lease ownership on claimed items', a
   });
 });
 
+test('E2E-019 / SC-019: a registered service identity without an explicit project binding is denied', async (t) => {
+  requireTools('ba_list_work_items');
+  if (!requireDatabase(t)) return;
 
+  const fixture = await ensureFixture();
+  const result = await client.callTool({
+    name: 'ba_list_work_items',
+    arguments: {
+      projectId: fixture.projectId,
+      actorId: 'system:orchestrator',
+    },
+  });
+
+  assert.equal(result.isError, true, 'Registered service actors must fail closed when no project binding exists');
+  const text = (result.content || []).map((item) => item.text || '').join('\n');
+  assert.match(text, /not authorized for project|project binding/i);
+});
+
+test('E2E-020 / SC-020: a project owner can bind, list and unbind a registered service identity', async (t) => {
+  requireTools('ba_bind_service_identity', 'ba_list_service_bindings', 'ba_unbind_service_identity', 'ba_list_work_items');
+  if (!requireDatabase(t)) return;
+
+  const fixture = await ensureFixture();
+  const targetActorId = 'system:orchestrator';
+
+  const bound = await callTool('ba_bind_service_identity', {
+    projectId: fixture.projectId,
+    actorId: ACTOR_ID,
+    serviceActorId: targetActorId,
+  });
+  assert.equal(bound.binding.actor_id, targetActorId);
+  assert.equal(bound.binding.is_active, true);
+
+  const listed = await callTool('ba_list_service_bindings', {
+    projectId: fixture.projectId,
+    actorId: ACTOR_ID,
+  });
+  assert.ok(listed.bindings.some((binding) => binding.actor_id === targetActorId && binding.is_active));
+
+  const allowed = await client.callTool({
+    name: 'ba_list_work_items',
+    arguments: { projectId: fixture.projectId, actorId: targetActorId },
+  });
+  assert.notEqual(allowed.isError, true, 'Bound service identity should access its project');
+
+  const unbound = await callTool('ba_unbind_service_identity', {
+    projectId: fixture.projectId,
+    actorId: ACTOR_ID,
+    serviceActorId: targetActorId,
+  });
+  assert.equal(unbound.binding.is_active, false);
+
+  const denied = await client.callTool({
+    name: 'ba_list_work_items',
+    arguments: { projectId: fixture.projectId, actorId: targetActorId },
+  });
+  assert.equal(denied.isError, true, 'Unbound service identity should immediately lose access');
+});
+
+test('E2E-021 / SC-021: a non-owner project member cannot manage service identity bindings', async (t) => {
+  requireTools('ba_bind_service_identity');
+  if (!requireDatabase(t)) return;
+
+  const fixture = await ensureFixture();
+  await prisma.projectMember.upsert({
+    where: { project_id_user_id: { project_id: fixture.projectId, user_id: OTHER_USER_ID } },
+    update: { role: 'editor' },
+    create: { project_id: fixture.projectId, user_id: OTHER_USER_ID, role: 'editor' },
+  });
+
+  const result = await client.callTool({
+    name: 'ba_bind_service_identity',
+    arguments: {
+      projectId: fixture.projectId,
+      actorId: `user:${OTHER_USER_ID}`,
+      serviceActorId: 'system:orchestrator',
+    },
+  });
+
+  assert.equal(result.isError, true);
+  const text = (result.content || []).map((item) => item.text || '').join('\n');
+  assert.match(text, /owner.*required|access denied/i);
+});

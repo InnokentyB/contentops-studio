@@ -1,0 +1,46 @@
+import assert from 'node:assert/strict'
+import { existsSync, readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, resolve } from 'node:path'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const pagePath = resolve(__dirname, '../../src/pages/OperationalCalendar.tsx')
+
+assert.equal(existsSync(pagePath), true, 'OperationalCalendar page must exist')
+
+const page = readFileSync(pagePath, 'utf8')
+const app = readFileSync(resolve(__dirname, '../../src/App.tsx'), 'utf8')
+const layout = readFileSync(resolve(__dirname, '../../src/components/Layout.tsx'), 'utf8')
+const publicationTasks = readFileSync(resolve(__dirname, '../../src/pages/PublicationTasks.tsx'), 'utf8')
+const routes = readFileSync(resolve(__dirname, '../../../src/routes/project.routes.ts'), 'utf8')
+
+assert.match(app, /path="\/calendar" element={<Suspense/)
+assert.match(layout, /Операционный план/)
+assert.match(page, /Публикации/)
+assert.match(page, /События/)
+assert.match(page, /Кампании/)
+assert.match(page, /Инфраструктура/)
+assert.match(page, /Просрочено/)
+assert.match(page, /Зависимости не подтверждены/)
+assert.match(page, /Повторить/)
+assert.match(page, /Открыть публикацию/)
+assert.match(page, /publication_task!\.workspace_path/)
+assert.match(publicationTasks, /searchParams\.get\('taskId'\)/)
+assert.match(publicationTasks, /useState\(!urlTaskId\)/)
+assert.match(page, /aria-pressed=/)
+assert.match(page, /role="status"/)
+assert.match(page, /aria-live="polite"/)
+assert.match(page, /aria-atomic="true"/)
+assert.match(page, /text-base[^"\n]*sm:text-sm/)
+assert.match(page, /2xl:flex-row/)
+assert.doesNotMatch(page, /(?<!2)xl:flex-row/)
+assert.doesNotMatch(page, /border-l-[2-9]/)
+assert.doesNotMatch(page, /border-r-[2-9]/)
+assert.doesNotMatch(page, /border-t-[2-9]/)
+assert.doesNotMatch(page, /bg-white/)
+assert.doesNotMatch(page, /bg-amber-|text-amber-|border-amber-/)
+assert.doesNotMatch(page, />Операционный план<\/p>/)
+assert.doesNotMatch(layout, /border-r-[2-9]/)
+assert.match(app, /lazy\(\(\) => import\('\.\/pages\/OperationalCalendar'\)\)/)
+assert.match(app, /<Suspense fallback=/)
+assert.match(routes, /\/api\/projects\/:id\/operational-calendar/)

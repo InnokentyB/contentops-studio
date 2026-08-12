@@ -37,6 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const db_1 = __importDefault(require("../db"));
+const initiative_service_1 = __importDefault(require("./initiative.service"));
 const publication_plan_service_1 = __importDefault(require("./publication_plan.service"));
 const reddit_service_1 = __importDefault(require("./reddit.service"));
 const vk_service_1 = __importDefault(require("./vk.service"));
@@ -658,7 +659,7 @@ class McpPublicationService {
             assets: { not: undefined }
         };
         if (status === 'active') {
-            where.status = { in: ['planned', 'ready_for_execution', 'awaiting_manual_publication', 'published', 'failed'] };
+            where.status = { in: ['planned', 'drafted', 'revised', 'approved', 'scheduled', 'ready_for_execution', 'awaiting_manual_publication', 'published', 'failed'] };
         }
         else if (status) {
             where.status = status;
@@ -763,7 +764,7 @@ class McpPublicationService {
         }
         this.assertPublicationTaskMutableForMcp(item, 'confirm_publication');
         const monitoring = item.metrics?.monitoring || {};
-        return db_1.default.contentItem.update({
+        const updated = await db_1.default.contentItem.update({
             where: { id: item.id },
             data: {
                 status: 'published',
@@ -785,6 +786,8 @@ class McpPublicationService {
                 }
             }
         });
+        await initiative_service_1.default.syncPublishedPublicationTask(projectId, taskId);
+        return updated;
     }
     async publishDirect(params) {
         const channel = await this.resolveChannel(params.projectId, params.channelId, params.channelType);

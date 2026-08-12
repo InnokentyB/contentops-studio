@@ -14,6 +14,7 @@ import storageService from '../services/storage.service';
 import generatorService from '../services/generator.service';
 import { normalizeProjectKind, slugifyProjectName } from '../utils/project.utils';
 import { sanitizeChannelConfig, mergeChannelConfig } from '../utils/channel.utils';
+import initiativeService from '../services/initiative.service';
 
 import { prisma } from '../services/planner.service';
 
@@ -388,6 +389,32 @@ export default async function projectRoutes(fastify: FastifyInstance) {
         return projects;
     });
 
+    fastify.get('/api/projects/:id/operational-calendar', async (request, reply) => {
+        const user = (request as any).user;
+        const { id } = request.params as { id: string };
+        const { fromDate, toDate } = request.query as { fromDate?: string; toDate?: string };
+        const projectId = parseProjectId(id);
+        const from = fromDate || new Date().toISOString().slice(0, 10);
+        const to = toDate || from;
+
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || from > to) {
+            return reply.code(400).send({ error: 'fromDate and toDate must be a valid ascending YYYY-MM-DD range' });
+        }
+
+        const actorId = `user:${user.id}`;
+        try {
+            return await initiativeService.getOperationalCalendarView({
+                projectId,
+                actorId,
+                fromDate: from,
+                toDate: to
+            });
+        } catch (error: any) {
+            const denied = /Access denied|Security/.test(error?.message || '');
+            return reply.code(denied ? 403 : 400).send({ error: error?.message || 'Unable to load operational calendar' });
+        }
+    });
+
     // Create project
     fastify.post('/api/projects', async (request, reply) => {
         const user = (request as any).user;
@@ -562,7 +589,7 @@ export default async function projectRoutes(fastify: FastifyInstance) {
         const { key, value } = request.body as any;
         const projectId = parseInt(id);
 
-        const hasAccess = await authService.hasProjectAccess(user.id, projectId, 'editor');
+        const hasAccess = await authService.hasProjectAccess(user.id, projectId, 'owner');
         if (!hasAccess) {
             reply.code(403).send({ error: 'No access' });
             return;
@@ -633,6 +660,47 @@ export default async function projectRoutes(fastify: FastifyInstance) {
         }
 
         return project;
+    });
+
+    fastify.get('/api/projects/:id/mcp/status', async (request, reply) => {
+        const user = (request as any).user;
+        const { id } = request.params as { id: string };
+        const projectId = parseInt(id, 10);
+        const hasAccess = await authService.hasProjectAccess(user.id, projectId, 'owner');
+        if (!hasAccess) {
+            return reply.code(403).send({ error: 'Only owners can inspect MCP settings' });
+        }
+
+        const endpoint = (process.env.MCP_REMOTE_URL || 'http://127.0.0.1:8080/mcp').replace(/\/+$/, '');
+        const healthUrl = endpoint.endsWith('/mcp') ? endpoint.slice(0, -4) + '/health' : `${endpoint}/health`;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 2500);
+
+        try {
+            const response = await fetch(healthUrl, { signal: controller.signal });
+            const health = response.ok ? await response.json() as any : null;
+            return {
+                status: response.ok && health?.status === 'ok' ? 'online' : 'degraded',
+                endpoint,
+                health_url: healthUrl,
+                transport: health?.transport || null,
+                bearer_required: Boolean(health?.auth?.bearer_required),
+                uptime_s: health?.uptime_s || 0,
+                active_sessions: health?.active_sessions || 0,
+                checked_at: new Date().toISOString()
+            };
+        } catch (error: any) {
+            return {
+                status: 'offline',
+                endpoint,
+                health_url: healthUrl,
+                bearer_required: null,
+                checked_at: new Date().toISOString(),
+                message: error?.name === 'AbortError' ? 'MCP health check timed out' : 'MCP server is unreachable'
+            };
+        } finally {
+            clearTimeout(timeout);
+        }
     });
 
     fastify.get('/api/projects/:id/parser/health', async (request, reply) => {
@@ -823,7 +891,7 @@ export default async function projectRoutes(fastify: FastifyInstance) {
         const { type, name, config } = request.body as any;
         const projectId = parseInt(id);
 
-        const hasAccess = await authService.hasProjectAccess(user.id, projectId, 'editor');
+        const hasAccess = await authService.hasProjectAccess(user.id, projectId, 'owner');
         if (!hasAccess) {
             reply.code(403).send({ error: 'No access' });
             return;
@@ -852,7 +920,7 @@ export default async function projectRoutes(fastify: FastifyInstance) {
         const projectId = parseInt(id);
         const parsedChannelId = parseInt(channelId);
 
-        const hasAccess = await authService.hasProjectAccess(user.id, projectId, 'editor');
+        const hasAccess = await authService.hasProjectAccess(user.id, projectId, 'owner');
         if (!hasAccess) {
             reply.code(403).send({ error: 'No access' });
             return;
@@ -885,7 +953,7 @@ export default async function projectRoutes(fastify: FastifyInstance) {
         const projectId = parseInt(id);
         const parsedChannelId = parseInt(channelId);
 
-        const hasAccess = await authService.hasProjectAccess(user.id, projectId, 'editor');
+        const hasAccess = await authService.hasProjectAccess(user.id, projectId, 'owner');
         if (!hasAccess) {
             reply.code(403).send({ error: 'No access' });
             return;

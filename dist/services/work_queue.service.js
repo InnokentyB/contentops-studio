@@ -47,13 +47,108 @@ const REGISTERED_SERVICE_IDENTITIES = {
     }
 };
 class WorkQueueService {
-    /**
-     * Register or bind a service identity to specific project IDs dynamically.
-     */
-    registerServiceBinding(actorId, allowedProjectIds) {
-        if (REGISTERED_SERVICE_IDENTITIES[actorId]) {
-            REGISTERED_SERVICE_IDENTITIES[actorId].allowedProjectIds = allowedProjectIds;
+    async requireProjectOwner(client, projectId, actorId) {
+        const match = /^user:(\d+)$/.exec(actorId);
+        if (!match) {
+            throw new Error('[Security] Access denied: Project owner user actor is required');
         }
+        const userId = Number(match[1]);
+        const membership = await client.projectMember.findUnique({
+            where: {
+                project_id_user_id: {
+                    project_id: projectId,
+                    user_id: userId
+                }
+            }
+        });
+        if (!membership || membership.role !== 'owner') {
+            throw new Error('[Security] Access denied: Project owner role is required to manage service identity bindings');
+        }
+        return userId;
+    }
+    async bindServiceIdentity(params) {
+        return db_1.default.$transaction(async (tx) => {
+            await this.requireProjectOwner(tx, params.projectId, params.actorId);
+            const identity = REGISTERED_SERVICE_IDENTITIES[params.serviceActorId];
+            if (!identity) {
+                throw new Error(`[Security] Access denied: Actor "${params.serviceActorId}" is not a registered service identity`);
+            }
+            const binding = await tx.serviceIdentityBinding.upsert({
+                where: {
+                    project_id_actor_id: {
+                        project_id: params.projectId,
+                        actor_id: params.serviceActorId
+                    }
+                },
+                update: { is_active: true },
+                create: {
+                    project_id: params.projectId,
+                    actor_id: params.serviceActorId,
+                    is_active: true
+                }
+            });
+            await this.recordWorkflowEvent(tx, {
+                projectId: params.projectId,
+                actorId: params.actorId,
+                command: 'ba_bind_service_identity',
+                afterState: { service_actor_id: binding.actor_id, is_active: binding.is_active }
+            });
+            return {
+                binding: {
+                    actor_id: binding.actor_id,
+                    name: identity.name,
+                    scopes: identity.scopes,
+                    is_active: binding.is_active
+                }
+            };
+        });
+    }
+    async unbindServiceIdentity(params) {
+        return db_1.default.$transaction(async (tx) => {
+            await this.requireProjectOwner(tx, params.projectId, params.actorId);
+            const existing = await tx.serviceIdentityBinding.findUnique({
+                where: {
+                    project_id_actor_id: {
+                        project_id: params.projectId,
+                        actor_id: params.serviceActorId
+                    }
+                }
+            });
+            if (!existing) {
+                throw new Error(`Service identity binding for "${params.serviceActorId}" was not found in project ${params.projectId}`);
+            }
+            const binding = await tx.serviceIdentityBinding.update({
+                where: { id: existing.id },
+                data: { is_active: false }
+            });
+            await this.recordWorkflowEvent(tx, {
+                projectId: params.projectId,
+                actorId: params.actorId,
+                command: 'ba_unbind_service_identity',
+                beforeState: { service_actor_id: binding.actor_id, is_active: true },
+                afterState: { service_actor_id: binding.actor_id, is_active: false }
+            });
+            return { binding: { actor_id: binding.actor_id, is_active: binding.is_active } };
+        });
+    }
+    async listServiceBindings(params) {
+        await this.requireProjectOwner(db_1.default, params.projectId, params.actorId);
+        const bindings = await db_1.default.serviceIdentityBinding.findMany({
+            where: { project_id: params.projectId },
+            orderBy: { actor_id: 'asc' }
+        });
+        return {
+            bindings: bindings.map((binding) => {
+                const identity = REGISTERED_SERVICE_IDENTITIES[binding.actor_id];
+                return {
+                    actor_id: binding.actor_id,
+                    name: identity?.name || binding.actor_id,
+                    scopes: identity?.scopes || [],
+                    is_active: binding.is_active,
+                    updated_at: binding.updated_at.toISOString()
+                };
+            })
+        };
     }
     /**
      * Verifies that the given actor is registered, has required scope, and has access to the project.
@@ -95,17 +190,16 @@ class WorkQueueService {
         if (requiredScope && !registeredIdentity.scopes.includes(requiredScope)) {
             throw new Error(`[Security] Access denied: Actor "${actorId}" lacks required scope "${requiredScope}"`);
         }
-        if (registeredIdentity.allowedProjectIds && registeredIdentity.allowedProjectIds.length > 0) {
-            if (!registeredIdentity.allowedProjectIds.includes(projectId)) {
-                throw new Error(`[Security] Access denied: Service identity "${actorId}" is not authorized for project ${projectId}`);
+        const binding = await client.serviceIdentityBinding.findUnique({
+            where: {
+                project_id_actor_id: {
+                    project_id: projectId,
+                    actor_id: actorId
+                }
             }
-        }
-        // Verify project has valid active members
-        const members = await client.projectMember.findMany({
-            where: { project_id: projectId }
         });
-        if (members.length === 0) {
-            throw new Error(`[Security] Access denied: Project ${projectId} has no members for actor ${actorId}`);
+        if (!binding || !binding.is_active) {
+            throw new Error(`[Security] Access denied: Service identity "${actorId}" has no active project binding for project ${projectId}`);
         }
     }
     /**
@@ -442,20 +536,46 @@ class WorkQueueService {
                 command: 'ba_claim_work_item',
                 idempotencyKey: params.idempotencyKey
             });
-            if (cached)
+            if (cached) {
+                const currentLease = await tx.workItem.findFirst({
+                    where: {
+                        id: params.workItemId,
+                        project_id: params.projectId,
+                        state: 'claimed',
+                        lease_actor_id: params.actorId,
+                        lease_token: { not: null }
+                    }
+                });
+                if (currentLease?.lease_token) {
+                    return {
+                        lease_token: currentLease.lease_token,
+                        lease_expires_at: currentLease.lease_expires_at?.toISOString() || null,
+                        work_item: {
+                            id: currentLease.id,
+                            state: currentLease.state,
+                            lease_token: currentLease.lease_token
+                        }
+                    };
+                }
                 return cached;
+            }
             const now = new Date();
             const leaseDuration = Math.min(Math.max(params.leaseSeconds || 1800, 60), 3600);
             const leaseToken = `lease-${(0, crypto_1.randomUUID)()}`;
             const leaseExpiresAt = new Date(now.getTime() + leaseDuration * 1000);
+            const beforeItem = await tx.workItem.findFirst({
+                where: { id: params.workItemId, project_id: params.projectId }
+            });
+            if (!beforeItem) {
+                throw new Error(`WorkItem ${params.workItemId} not found in project ${params.projectId}`);
+            }
             const updateResult = await tx.workItem.updateMany({
                 where: {
                     id: params.workItemId,
                     project_id: params.projectId,
                     OR: [
                         { state: 'available' },
-                        { lease_expires_at: { lt: now } },
-                        { lease_actor_id: params.actorId }
+                        { lease_expires_at: { lt: now } }
                     ]
                 },
                 data: {
@@ -466,13 +586,7 @@ class WorkQueueService {
                 }
             });
             if (updateResult.count === 0) {
-                const existing = await tx.workItem.findFirst({
-                    where: { id: params.workItemId, project_id: params.projectId }
-                });
-                if (!existing) {
-                    throw new Error(`WorkItem ${params.workItemId} not found in project ${params.projectId}`);
-                }
-                throw new Error(`[WORK_ITEM_ALREADY_CLAIMED] Work item ${params.workItemId} is currently claimed by ${existing.lease_actor_id || 'another actor'}`);
+                throw new Error(`[WORK_ITEM_ALREADY_CLAIMED] Work item ${params.workItemId} is currently claimed by ${beforeItem.lease_actor_id || 'another actor'}`);
             }
             const updated = await tx.workItem.findUniqueOrThrow({
                 where: { id: params.workItemId }
@@ -491,7 +605,16 @@ class WorkQueueService {
                 workItemId: params.workItemId,
                 actorId: params.actorId,
                 command: 'ba_claim_work_item',
-                afterState,
+                beforeState: {
+                    state: beforeItem.state,
+                    lease_actor_id: beforeItem.lease_actor_id,
+                    lease_expires_at: beforeItem.lease_expires_at?.toISOString() || null
+                },
+                afterState: {
+                    work_item: { id: updated.id, state: updated.state },
+                    lease_actor_id: params.actorId,
+                    lease_expires_at: leaseExpiresAt.toISOString()
+                },
                 idempotencyKey: params.idempotencyKey
             });
             return afterState;

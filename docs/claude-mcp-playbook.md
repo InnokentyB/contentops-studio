@@ -315,6 +315,31 @@ Use:
 - Do not expose channel secrets from returned config.
 - Do not publish to unsupported channel types through `ba_publish_direct`.
 
+## Four-layer operational planning
+
+Use this flow when an agent must coordinate publications, events, campaigns, and infrastructure in one schedule.
+
+1. Run `ba_audit_plan_coverage` against the external operational plan before importing it.
+2. Import with `ba_import_operational_plan`. Always provide a stable `idempotencyKey` for one logical import command; reuse it only when retrying the identical payload.
+3. Read `ba_get_operational_calendar` with `fromDate`, `toDate`, and an explicit `asOf`. The response includes typed dates (including `measurement_at`), per-initiative readiness, overdue work, and a four-layer summary.
+4. Before executing a campaign, event, or publication, call `ba_get_release_readiness` for that initiative. Treat `unknown` as not ready; never infer missing dependencies.
+5. If work is overdue, use `ba_list_release_blockers` to report downstream impact and select the next unblock action.
+
+For every publication initiative that is ready for execution:
+
+1. Call `ba_materialize_publication_task` with the initiative key, draft text, publication mode, optional channel, and a stable idempotency key.
+2. Open the returned `workspace_path`, or read the same task through `ba_get_publication_task`.
+3. Use `ba_prepare_publication_task` for a manual handoff. For automatic mode, do not execute delivery until the required approval is recorded.
+4. After an external/manual publication, call `ba_confirm_publication` with the canonical live URL. The linked operational initiative will be completed automatically.
+
+Agent acceptance checks:
+
+- a measurement checkpoint is returned with `date_type: measurement_at`;
+- an overdue blocker is visible even when it is outside the requested range;
+- the blocked downstream initiative has `is_ready: false` and names its blocker;
+- malformed or descending ranges fail explicitly;
+- retrying an identical import does not create a second audit event, while changed content with the same key fails with `IDEMPOTENCY_CONFLICT`.
+
 ## Related docs
 - [docs/mcp-publication-server.md](/Users/innokentyb/Ba_post_planner/docs/mcp-publication-server.md)
 - [docs/mcp-deployment.md](/Users/innokentyb/Ba_post_planner/docs/mcp-deployment.md)

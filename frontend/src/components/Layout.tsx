@@ -25,7 +25,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const navItems = [
     { label: 'Обзор', path: '/projects', icon: 'folder_open' },
-    { label: 'Автогенерация', path: '/calendar', icon: 'auto_awesome' },
+    { label: 'Операционный план', path: '/calendar', icon: 'calendar_month' },
+    { label: 'Автогенерация', path: '/weeks', icon: 'auto_awesome' },
     { label: 'Метрики', path: '/analytics', icon: 'monitoring' },
     { label: 'Исследования', path: '/parsers', icon: 'hub' },
     { label: 'Шаблоны', path: '/recipes', icon: 'book_2' },
@@ -78,7 +79,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               to={item.path}
               className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group ${
                 isActive(item.path)
-                  ? 'text-primary font-bold border-r-4 border-primary bg-surface-container-high'
+                  ? 'bg-primary-fixed text-on-primary-fixed font-bold'
                   : 'text-on-surface-variant hover:text-primary hover:bg-surface-container-high'
               }`}
             >
@@ -120,7 +121,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <div className="bg-surface font-body text-on-surface flex min-h-screen overflow-hidden">
-      <div className={`fixed inset-0 z-50 lg:hidden transition-opacity ${mobileNavOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
+      {mobileNavOpen && <div
+        id="mobile-navigation"
+        className="fixed inset-0 z-50 lg:hidden opacity-100"
+      >
         <button
           aria-label="Закрыть навигацию"
           className="absolute inset-0 bg-black/35 backdrop-blur-sm"
@@ -138,7 +142,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             {renderSidebar(true)}
           </div>
         </div>
-      </div>
+      </div>}
 
       <div className="hidden lg:flex shrink-0">
         {renderSidebar()}
@@ -151,6 +155,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="flex items-center gap-3 lg:gap-8 min-w-0">
             <button
               onClick={() => setMobileNavOpen(true)}
+              aria-expanded={mobileNavOpen}
+              aria-controls="mobile-navigation"
               className="lg:hidden w-11 h-11 rounded-2xl bg-surface-container-low text-on-surface flex items-center justify-center shrink-0"
               aria-label="Открыть навигацию"
             >

@@ -551,6 +551,42 @@ export function registerPlannerTools(server: McpServer) {
     // TDPD-001 Work Queue MCP Tools
     // ============================================
 
+    server.registerTool('ba_bind_service_identity', {
+        description: 'Allow a registered service identity to access one project. Project owner only.',
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string(),
+            serviceActorId: z.string()
+        }
+    }, async (args) => {
+        const result = await workQueueService.bindServiceIdentity(args);
+        return asToolResult(result);
+    });
+
+    server.registerTool('ba_unbind_service_identity', {
+        description: 'Revoke a service identity project binding immediately. Project owner only.',
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string(),
+            serviceActorId: z.string()
+        }
+    }, async (args) => {
+        const result = await workQueueService.unbindServiceIdentity(args);
+        return asToolResult(result);
+    });
+
+    server.registerTool('ba_list_service_bindings', {
+        description: 'List active and revoked service identity bindings for a project. Project owner only.',
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string()
+        }
+    }, async (args) => {
+        const result = await workQueueService.listServiceBindings(args);
+        return asToolResult(result);
+    });
+
     server.registerTool('ba_decide_week_plan', {
         description: 'Approve or reject a weekly publication plan package. Unlocks content_write work items upon approval.',
         inputSchema: {
@@ -734,18 +770,18 @@ export function registerPlannerTools(server: McpServer) {
             projectId: z.number().int().positive(),
             actorId: z.string(),
             externalKey: z.string(),
-            kind: z.string(),
+            kind: z.enum(['publication', 'event', 'campaign', 'infrastructure']),
             subtype: z.string().optional(),
             title: z.string(),
             description: z.string().optional(),
-            status: z.string().optional(),
+            status: z.enum(['planned', 'in_progress', 'completed', 'blocked', 'cancelled']).optional(),
             ownerRole: z.string().optional(),
-            dueAt: z.string().nullable().optional(),
-            startAt: z.string().nullable().optional(),
-            endAt: z.string().nullable().optional(),
-            decisionAt: z.string().nullable().optional(),
-            eventAt: z.string().nullable().optional(),
-            measurementAt: z.string().nullable().optional()
+            dueAt: z.string().datetime({ offset: true }).nullable().optional(),
+            startAt: z.string().datetime({ offset: true }).nullable().optional(),
+            endAt: z.string().datetime({ offset: true }).nullable().optional(),
+            decisionAt: z.string().datetime({ offset: true }).nullable().optional(),
+            eventAt: z.string().datetime({ offset: true }).nullable().optional(),
+            measurementAt: z.string().datetime({ offset: true }).nullable().optional()
         }
     }, async (args) => {
         const result = await initiativeService.upsertInitiative(args);
@@ -759,7 +795,7 @@ export function registerPlannerTools(server: McpServer) {
             actorId: z.string(),
             fromKey: z.string(),
             toKey: z.string(),
-            type: z.string().optional(),
+            type: z.enum(['blocks', 'requires', 'not_before', 'informs']).optional(),
             condition: z.string().optional(),
             source: z.string().optional()
         }
@@ -776,22 +812,22 @@ export function registerPlannerTools(server: McpServer) {
             externalPlan: z.object({
                 initiatives: z.array(z.object({
                     external_key: z.string(),
-                    kind: z.string(),
+                    kind: z.enum(['publication', 'event', 'campaign', 'infrastructure']),
                     subtype: z.string().optional(),
                     title: z.string(),
                     description: z.string().optional(),
-                    status: z.string().optional(),
-                    due_at: z.string().optional(),
-                    start_at: z.string().optional(),
-                    end_at: z.string().optional(),
-                    decision_at: z.string().optional(),
-                    event_at: z.string().optional(),
-                    measurement_at: z.string().optional()
+                    status: z.enum(['planned', 'in_progress', 'completed', 'blocked', 'cancelled']).optional(),
+                    due_at: z.string().datetime({ offset: true }).optional(),
+                    start_at: z.string().datetime({ offset: true }).optional(),
+                    end_at: z.string().datetime({ offset: true }).optional(),
+                    decision_at: z.string().datetime({ offset: true }).optional(),
+                    event_at: z.string().datetime({ offset: true }).optional(),
+                    measurement_at: z.string().datetime({ offset: true }).optional()
                 })).optional(),
                 dependencies: z.array(z.object({
                     from: z.string(),
                     to: z.string(),
-                    type: z.string().optional(),
+                    type: z.enum(['blocks', 'requires', 'not_before', 'informs']).optional(),
                     condition: z.string().optional()
                 })).optional()
             }),
@@ -799,6 +835,24 @@ export function registerPlannerTools(server: McpServer) {
         }
     }, async (args) => {
         const result = await initiativeService.importOperationalPlan(args);
+        return asToolResult(result);
+    });
+
+    server.registerTool('ba_materialize_publication_task', {
+        description: 'Create or update the execution workspace linked to one publication initiative. Safe to retry with the same idempotency key and payload.',
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string(),
+            initiativeKey: z.string().min(1),
+            draftText: z.string().optional(),
+            brief: z.string().optional(),
+            channelId: z.number().int().positive().optional(),
+            publicationMode: z.enum(['manual_handoff', 'approval_required', 'automatic']),
+            scheduleAt: z.string().datetime({ offset: true }).optional(),
+            idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => {
+        const result = await initiativeService.materializePublicationTask(args);
         return asToolResult(result);
     });
 
@@ -840,7 +894,13 @@ export function registerPlannerTools(server: McpServer) {
             externalPlan: z.object({
                 initiatives: z.array(z.object({
                     external_key: z.string(),
-                    kind: z.string()
+                    kind: z.enum(['publication', 'event', 'campaign', 'infrastructure']),
+                    due_at: z.string().datetime({ offset: true }).optional(),
+                    start_at: z.string().datetime({ offset: true }).optional(),
+                    end_at: z.string().datetime({ offset: true }).optional(),
+                    decision_at: z.string().datetime({ offset: true }).optional(),
+                    event_at: z.string().datetime({ offset: true }).optional(),
+                    measurement_at: z.string().datetime({ offset: true }).optional()
                 })).optional()
             })
         }
@@ -868,7 +928,7 @@ export function registerPlannerTools(server: McpServer) {
         inputSchema: {
             projectId: z.number().int().positive(),
             actorId: z.string(),
-            asOf: z.string().optional()
+            asOf: z.string().datetime({ offset: true }).optional()
         }
     }, async (args) => {
         const result = await initiativeService.listReleaseBlockers(args);
@@ -876,16 +936,17 @@ export function registerPlannerTools(server: McpServer) {
     });
 
     server.registerTool('ba_get_operational_calendar', {
-        description: 'Returns operational calendar items with explicit date_type preserved.',
+        description: 'Returns one operational view with typed calendar dates, readiness, overdue initiatives, and layer summary.',
         annotations: { readOnlyHint: true },
         inputSchema: {
             projectId: z.number().int().positive(),
             actorId: z.string(),
-            fromDate: z.string(),
-            toDate: z.string()
+            fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+            toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+            asOf: z.string().datetime({ offset: true }).optional()
         }
     }, async (args) => {
-        const result = await initiativeService.getOperationalCalendar(args);
+        const result = await initiativeService.getOperationalCalendarView(args);
         return asToolResult(result);
     });
 

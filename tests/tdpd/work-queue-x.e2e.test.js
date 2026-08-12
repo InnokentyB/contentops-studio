@@ -136,6 +136,18 @@ async function ensureFixture() {
   return fixturePromise;
 }
 
+async function createProject(label = 'suite-x') {
+  return prisma.project.create({
+    data: {
+      name: `Suite X ${label} ${randomUUID()}`,
+      slug: `${label}-${randomUUID()}`,
+      members: {
+        create: { user_id: TEST_USER_ID, role: 'owner' }
+      }
+    }
+  });
+}
+
 test.before(async () => {
   transport = new StdioClientTransport({
     command: 'node',
@@ -369,4 +381,341 @@ test('E2E-X08 / SC-X03: clearing a blocker recalculates downstream readiness', a
 
   assert.equal(readiness.is_blocked, false);
   assert.equal(readiness.is_ready, true);
+});
+
+test('E2E-X09 / SC-X05: unknown dependency state cannot be reported as release-ready', async (t) => {
+  requireTools('ba_upsert_initiative', 'ba_get_release_readiness');
+  if (!requireDatabase(t)) return;
+
+  const project = await createProject('unknown-readiness');
+  await callTool('ba_upsert_initiative', {
+    projectId: project.id,
+    actorId: ACTOR_ID,
+    externalKey: 'E-UNKNOWN',
+    kind: 'event',
+    title: 'Event with dependency data not yet confirmed',
+    status: 'planned',
+  });
+
+  const readiness = await callTool('ba_get_release_readiness', {
+    projectId: project.id,
+    actorId: ACTOR_ID,
+    initiativeKey: 'E-UNKNOWN',
+  });
+
+  assert.equal(readiness.dependencies_status, 'dependencies_unknown');
+  assert.equal(readiness.is_ready, false);
+  assert.equal(readiness.readiness, 'unknown');
+});
+
+test('E2E-X10 / SC-X01: coverage audit reports mismatches and planner-only initiatives', async (t) => {
+  requireTools('ba_upsert_initiative', 'ba_audit_plan_coverage');
+  if (!requireDatabase(t)) return;
+
+  const project = await createProject('coverage-diff');
+  await callTool('ba_upsert_initiative', {
+    projectId: project.id,
+    actorId: ACTOR_ID,
+    externalKey: 'C-DIFF',
+    kind: 'campaign',
+    title: 'Campaign stored with the wrong date',
+    startAt: '2026-08-12T09:00:00Z',
+  });
+  await callTool('ba_upsert_initiative', {
+    projectId: project.id,
+    actorId: ACTOR_ID,
+    externalKey: 'LOCAL-ONLY',
+    kind: 'infrastructure',
+    title: 'Planner-only initiative',
+  });
+
+  const coverage = await callTool('ba_audit_plan_coverage', {
+    projectId: project.id,
+    actorId: ACTOR_ID,
+    externalPlan: {
+      initiatives: [
+        {
+          external_key: 'C-DIFF',
+          kind: 'campaign',
+          start_at: '2026-08-11T09:00:00Z',
+        },
+      ],
+    },
+  });
+
+  assert.deepEqual(coverage.missing_keys, []);
+  assert.deepEqual(coverage.planner_only_keys, ['LOCAL-ONLY']);
+  assert.deepEqual(coverage.mismatches, [
+    {
+      external_key: 'C-DIFF',
+      fields: ['start_at'],
+    },
+  ]);
+});
+
+test('E2E-X11 / security: malformed or unbound actor identity cannot access initiative data', async (t) => {
+  requireTools('ba_list_initiatives');
+  if (!requireDatabase(t)) return;
+
+  const project = await createProject('actor-boundary');
+  for (const actorId of ['user:not-a-number', 'agent:unbound-cross-layer-agent', 'arbitrary-actor']) {
+    const result = await client.callTool({
+      name: 'ba_list_initiatives',
+      arguments: { projectId: project.id, actorId },
+    });
+    assert.equal(result.isError, true, `${actorId} must be rejected`);
+    const message = (result.content || []).map((item) => item.text || '').join('\n');
+    assert.match(message, /Access denied|Security/i);
+  }
+});
+
+test('E2E-X12 / import recovery: invalid dependency rolls back the whole operational-plan import', async (t) => {
+  requireTools('ba_import_operational_plan', 'ba_list_initiatives');
+  if (!requireDatabase(t)) return;
+
+  const project = await createProject('atomic-import');
+  const importResult = await client.callTool({
+    name: 'ba_import_operational_plan',
+    arguments: {
+      projectId: project.id,
+      actorId: ACTOR_ID,
+      externalPlan: {
+        initiatives: [
+          { external_key: 'ATOMIC-1', kind: 'campaign', title: 'Must roll back' },
+        ],
+        dependencies: [
+          { from: 'MISSING', to: 'ATOMIC-1', type: 'blocks' },
+        ],
+      },
+      idempotencyKey: idempotencyKey('atomic-import'),
+    },
+  });
+  assert.equal(importResult.isError, true);
+
+  const after = await callTool('ba_list_initiatives', {
+    projectId: project.id,
+    actorId: ACTOR_ID,
+  });
+  assert.deepEqual(after.initiatives, []);
+});
+
+test('E2E-X13 / unified calendar: one MCP view returns measurement checkpoints, readiness, overdue and summary', async (t) => {
+  requireTools('ba_import_operational_plan', 'ba_get_operational_calendar');
+  if (!requireDatabase(t)) return;
+
+  const project = await createProject('unified-calendar');
+  await callTool('ba_import_operational_plan', {
+    projectId: project.id,
+    actorId: ACTOR_ID,
+    idempotencyKey: idempotencyKey('unified-calendar-import'),
+    externalPlan: {
+      initiatives: [
+        {
+          external_key: 'MET-72',
+          kind: 'campaign',
+          subtype: 'measurement_checkpoint',
+          title: 'Campaign metrics T+72',
+          status: 'planned',
+          measurement_at: '2026-08-12T12:00:00Z',
+        },
+        {
+          external_key: 'BLOCK-1',
+          kind: 'infrastructure',
+          title: 'Overdue infrastructure blocker',
+          status: 'blocked',
+          due_at: '2026-08-10T10:00:00Z',
+        },
+      ],
+      dependencies: [
+        { from: 'BLOCK-1', to: 'MET-72', type: 'blocks' },
+      ],
+    },
+  });
+
+  const calendar = await callTool('ba_get_operational_calendar', {
+    projectId: project.id,
+    actorId: ACTOR_ID,
+    fromDate: '2026-08-10',
+    toDate: '2026-08-12',
+    asOf: '2026-08-11T12:00:00Z',
+  });
+
+  assert.deepEqual(calendar.range, { from: '2026-08-10', to: '2026-08-12' });
+  assert.equal(calendar.summary.total, 2);
+  assert.equal(calendar.summary.in_range, 2);
+  assert.equal(calendar.summary.overdue, 1);
+  assert.equal(calendar.summary.by_kind.campaign, 1);
+  assert.equal(calendar.summary.by_kind.infrastructure, 1);
+
+  const checkpoint = calendar.items.find((item) => item.external_key === 'MET-72');
+  assert.equal(checkpoint?.date_type, 'measurement_at');
+  assert.equal(checkpoint?.readiness?.is_blocked, true);
+  assert.ok(checkpoint?.readiness?.blockers.some((item) => item.external_key === 'BLOCK-1'));
+  assert.ok(calendar.overdue_initiatives.some((item) => item.external_key === 'BLOCK-1'));
+});
+
+test('E2E-X14 / calendar validation: invalid or descending date ranges fail explicitly', async (t) => {
+  requireTools('ba_get_operational_calendar');
+  const malformed = await client.callTool({
+    name: 'ba_get_operational_calendar',
+    arguments: { projectId: 1, actorId: ACTOR_ID, fromDate: 'not-a-date', toDate: '2026-08-10' },
+  });
+  assert.equal(malformed.isError, true);
+  assert.match((malformed.content || []).map((item) => item.text || '').join('\n'), /YYYY-MM-DD|invalid_string|Invalid/);
+
+  if (!requireDatabase(t)) return;
+  const project = await createProject('calendar-validation');
+  const descending = await client.callTool({
+    name: 'ba_get_operational_calendar',
+    arguments: { projectId: project.id, actorId: ACTOR_ID, fromDate: '2026-08-12', toDate: '2026-08-10' },
+  });
+  assert.equal(descending.isError, true);
+  assert.match((descending.content || []).map((item) => item.text || '').join('\n'), /INVALID_DATE_RANGE/);
+});
+
+test('E2E-X15 / import idempotency: replay returns one audited result and changed payload conflicts', async (t) => {
+  requireTools('ba_import_operational_plan');
+  if (!requireDatabase(t)) return;
+
+  const project = await createProject('import-idempotency');
+  const key = idempotencyKey('import-command-replay');
+  const args = {
+    projectId: project.id,
+    actorId: ACTOR_ID,
+    idempotencyKey: key,
+    externalPlan: {
+      initiatives: [{ external_key: 'IDEM-1', kind: 'event', title: 'Original payload', event_at: '2026-08-12T12:00:00Z' }],
+    },
+  };
+
+  const first = await callTool('ba_import_operational_plan', args);
+  const replay = await callTool('ba_import_operational_plan', args);
+  assert.deepEqual(replay, first);
+
+  const auditCount = await prisma.workflowEvent.count({
+    where: {
+      project_id: project.id,
+      actor_id: ACTOR_ID,
+      command: 'import_operational_plan',
+      idempotency_key: key,
+    },
+  });
+  assert.equal(auditCount, 1);
+
+  const conflict = await client.callTool({
+    name: 'ba_import_operational_plan',
+    arguments: {
+      ...args,
+      externalPlan: {
+        initiatives: [{ external_key: 'IDEM-1', kind: 'event', title: 'Changed payload', event_at: '2026-08-12T12:00:00Z' }],
+      },
+    },
+  });
+  assert.equal(conflict.isError, true);
+  const conflictMessage = (conflict.content || []).map((item) => item.text || '').join('\n');
+  assert.match(conflictMessage, /IDEMPOTENCY_CONFLICT/);
+});
+
+test('E2E-X16 / publication projection: a publication initiative materializes one linked execution task', async (t) => {
+  requireTools('ba_upsert_initiative', 'ba_materialize_publication_task');
+  if (!requireDatabase(t)) return;
+
+  const project = await createProject('publication-projection');
+  await callTool('ba_upsert_initiative', {
+    projectId: project.id,
+    actorId: ACTOR_ID,
+    externalKey: 'PUB-1',
+    kind: 'publication',
+    title: 'Publication with execution workspace',
+    dueAt: '2026-08-13T10:00:00Z',
+  });
+
+  const args = {
+    projectId: project.id,
+    actorId: ACTOR_ID,
+    initiativeKey: 'PUB-1',
+    draftText: 'Ready-to-review publication body',
+    publicationMode: 'manual_handoff',
+    idempotencyKey: idempotencyKey('publication-projection'),
+  };
+  const first = await callTool('ba_materialize_publication_task', args);
+  const replay = await callTool('ba_materialize_publication_task', args);
+
+  assert.equal(replay.publication_task_id, first.publication_task_id);
+  assert.equal(replay.work_item_id, first.work_item_id);
+  assert.equal(await prisma.contentItem.count({ where: { project_id: project.id } }), 1);
+  assert.equal(await prisma.workItem.count({
+    where: { project_id: project.id, initiative_id: first.initiative_id, content_item_id: first.publication_task_id },
+  }), 1);
+});
+
+test('E2E-X17 / calendar handoff: publication calendar item exposes its execution workspace', async (t) => {
+  requireTools('ba_upsert_initiative', 'ba_materialize_publication_task', 'ba_get_operational_calendar');
+  if (!requireDatabase(t)) return;
+
+  const project = await createProject('calendar-publication-link');
+  await callTool('ba_upsert_initiative', {
+    projectId: project.id,
+    actorId: ACTOR_ID,
+    externalKey: 'PUB-2',
+    kind: 'publication',
+    title: 'Open me from calendar',
+    dueAt: '2026-08-13T10:00:00Z',
+  });
+  const projected = await callTool('ba_materialize_publication_task', {
+    projectId: project.id,
+    actorId: ACTOR_ID,
+    initiativeKey: 'PUB-2',
+    draftText: 'Publication body',
+    publicationMode: 'approval_required',
+    idempotencyKey: idempotencyKey('calendar-publication-link'),
+  });
+
+  const calendar = await callTool('ba_get_operational_calendar', {
+    projectId: project.id,
+    actorId: ACTOR_ID,
+    fromDate: '2026-08-13',
+    toDate: '2026-08-13',
+  });
+  const item = calendar.items.find((entry) => entry.external_key === 'PUB-2');
+  assert.equal(item.publication_task.id, projected.publication_task_id);
+  assert.equal(item.publication_task.mode, 'approval_required');
+  assert.equal(item.publication_task.workspace_path, `/publication-tasks?taskId=${projected.publication_task_id}`);
+  assert.equal(item.publication_task.has_draft, true);
+});
+
+test('E2E-X18 / publication completion: confirmed link completes the linked initiative', async (t) => {
+  requireTools('ba_upsert_initiative', 'ba_materialize_publication_task', 'ba_confirm_publication', 'ba_get_initiative');
+  if (!requireDatabase(t)) return;
+
+  const project = await createProject('publication-completion');
+  await callTool('ba_upsert_initiative', {
+    projectId: project.id,
+    actorId: ACTOR_ID,
+    externalKey: 'PUB-3',
+    kind: 'publication',
+    title: 'Confirm published result',
+    dueAt: '2026-08-13T10:00:00Z',
+  });
+  const projected = await callTool('ba_materialize_publication_task', {
+    projectId: project.id,
+    actorId: ACTOR_ID,
+    initiativeKey: 'PUB-3',
+    draftText: 'Published body',
+    publicationMode: 'manual_handoff',
+    idempotencyKey: idempotencyKey('publication-completion'),
+  });
+
+  await callTool('ba_confirm_publication', {
+    projectId: project.id,
+    taskId: projected.publication_task_id,
+    publishedLink: 'https://example.com/published/pub-3',
+  });
+  const initiative = await callTool('ba_get_initiative', {
+    projectId: project.id,
+    actorId: ACTOR_ID,
+    externalKey: 'PUB-3',
+  });
+  assert.equal(initiative.status, 'completed');
+  assert.equal(initiative.publication_task.published_link, 'https://example.com/published/pub-3');
 });
