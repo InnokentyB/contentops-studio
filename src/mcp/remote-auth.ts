@@ -38,4 +38,3 @@ export function scopeRemoteMcpRequest(body: any, principal: RemotePrincipal | nu
         }
     };
 }
-
