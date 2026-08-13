@@ -217,6 +217,27 @@ function statusTone(status: string) {
     return 'bg-surface-container-high text-on-surface-variant'
 }
 
+function statusLabel(status: string) {
+    const labels: Record<string, string> = {
+        planned: 'Запланировано',
+        scheduled: 'В расписании',
+        ready_for_execution: 'Готово',
+        awaiting_manual_publication: 'Ждёт публикации',
+        deferred: 'Отложено',
+        published: 'Опубликовано',
+        failed: 'Ошибка',
+        skipped: 'Пропущено'
+    }
+
+    return labels[status] || status.replaceAll('_', ' ')
+}
+
+function executionModeLabel(mode: string) {
+    if (mode === 'manual') return 'Вручную'
+    if (mode === 'automatic' || mode === 'auto') return 'Автоматически'
+    return mode.replaceAll('_', ' ')
+}
+
 function taskChannel(task: PublicationTask) {
     return task.channel?.name || task.layer || task.type
 }
@@ -742,22 +763,21 @@ export default function PublicationTasks() {
 
     return (
         <div className="flex-1 w-full p-4 sm:p-6 lg:p-10 space-y-8 overflow-y-auto">
-            <section ref={workspaceRef} className="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] gap-6 items-start scroll-mt-4">
-                    <div className={`${mobileTaskOpen ? 'hidden lg:block' : 'block'} bg-white rounded-[2rem] border border-outline-variant/10 shadow-sm overflow-hidden lg:sticky lg:top-6`}>
-                        <div className="p-6 border-b border-outline-variant/10 space-y-4">
-                            <div className="flex items-center justify-between gap-3">
-                                <div>
-                                    <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">Консоль публикаций</div>
+            <section ref={workspaceRef} className="grid grid-cols-1 xl:grid-cols-[minmax(360px,400px)_minmax(0,1fr)] gap-6 items-start scroll-mt-4">
+                    <div className={`${mobileTaskOpen ? 'hidden xl:block' : 'block'} -mx-4 sm:mx-0 bg-white rounded-none sm:rounded-[2rem] border-y sm:border border-outline-variant/10 shadow-sm overflow-hidden xl:sticky xl:top-6`}>
+                        <div className="p-4 sm:p-6 border-b border-outline-variant/10 space-y-4">
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="min-w-0">
                                     <h2 className="text-xl font-headline font-black text-on-surface mt-2">Задачи на публикацию</h2>
-                                    <p className="text-xs text-on-surface-variant mt-2">
+                                    <p className="text-xs text-on-surface-variant mt-1 break-words">
                                         {currentProject ? `Проект: ${currentProject.name}` : 'Выбери или импортируй проект с планом публикаций.'}
                                     </p>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
-                                    <div className="text-xs text-on-surface-variant">
-                                        {tasks?.length || 0} элементов
+                                    <div className="text-xs tabular-nums text-on-surface-variant whitespace-nowrap">
+                                        {tasks?.length || 0} задач
                                     </div>
-                                    <button
+                                <button
                                         onClick={() => setShowPlanModal(true)}
                                         className="w-11 h-11 rounded-2xl ai-gradient text-white flex items-center justify-center shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
                                         title="Импортировать или обновить план публикаций"
@@ -784,7 +804,7 @@ export default function PublicationTasks() {
 
                                     <button
                                         onClick={() => setManualOnly((value) => !value)}
-                                        className={`rounded-xl px-4 py-3 text-sm font-black transition-all ${manualOnly ? 'bg-primary text-white' : 'bg-surface-container-low text-on-surface-variant'}`}
+                                        className={`min-h-11 rounded-xl px-4 py-3 text-sm font-black transition-all ${manualOnly ? 'bg-primary text-white' : 'bg-surface-container-low text-on-surface-variant'}`}
                                     >
                                         {manualOnly ? 'Только ручные' : 'Все режимы'}
                                     </button>
@@ -800,7 +820,7 @@ export default function PublicationTasks() {
                             <input
                                 value={taskSearch}
                                 onChange={(event) => setTaskSearch(event.target.value)}
-                                placeholder="Поиск: a-vk-promo-497-useful или 497"
+                                placeholder="Название, канал или ID"
                                 className="w-full bg-surface-container-low border-none rounded-xl px-4 py-3 text-sm font-medium text-on-surface placeholder:text-on-surface-variant/70 focus:ring-2 focus:ring-primary/20 outline-none"
                             />
                         </div>
@@ -844,7 +864,7 @@ export default function PublicationTasks() {
                                         type="button"
                                         onClick={() => openTask(task.id)}
                                         aria-label={`Открыть задачу: ${task.title || task.type}`}
-                                        className={`w-full min-h-24 touch-manipulation text-left px-5 py-4 border-b transition-all active:scale-[0.99] ${
+                                        className={`w-full min-h-24 touch-manipulation text-left px-4 sm:px-5 py-4 border-b transition-colors active:bg-primary/10 ${
                                             isOverdue
                                                 ? isSelected
                                                     ? 'bg-error-container/35 border-error/20'
@@ -854,36 +874,32 @@ export default function PublicationTasks() {
                                                     : 'border-outline-variant/10 hover:bg-surface-container-lowest'
                                         }`}
                                     >
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div className="min-w-0">
+                                        <div className="min-w-0">
+                                            <div className="flex items-center justify-between gap-3">
                                                 <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">
                                                     {taskChannel(task)}
                                                 </div>
-                                                <div className="font-bold text-sm text-on-surface mt-2 truncate">
-                                                    {task.title || task.type}
-                                                </div>
-                                                <div className="text-xs text-on-surface-variant mt-2">
-                                                    {formatDate(task.schedule_at)}
-                                                </div>
+                                                <span className={`max-w-[55%] truncate px-2.5 py-1 rounded-full text-[10px] font-black ${statusTone(task.status)}`} title={statusLabel(task.status)}>
+                                                    {statusLabel(task.status)}
+                                                </span>
+                                            </div>
+                                            <div className="font-bold text-sm text-on-surface mt-2 line-clamp-2 leading-snug">
+                                                {task.title || task.type}
+                                            </div>
+                                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-on-surface-variant mt-2">
+                                                <span>{formatDate(task.schedule_at)}</span>
+                                                <span>{executionModeLabel(mode)}</span>
+                                                {isOverdue && (
+                                                    <span className="font-black text-error">
+                                                        Просрочено
+                                                    </span>
+                                                )}
+                                            </div>
                                                 {planRef && (
-                                                    <div className="text-[11px] font-medium text-on-surface-variant/80 mt-2 break-all">
+                                                    <div className="text-[11px] font-medium text-on-surface-variant/80 mt-2 truncate" title={planRef}>
                                                         {planRef}
                                                     </div>
                                                 )}
-                                                {isOverdue && (
-                                                    <div className="text-[10px] font-black uppercase tracking-[0.2em] text-error mt-2">
-                                                        Overdue
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div className="flex flex-col items-end gap-2 shrink-0">
-                                                <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${statusTone(task.status)}`}>
-                                                    {task.status}
-                                                </span>
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
-                                                    {mode}
-                                                </span>
-                                            </div>
                                         </div>
                                     </button>
                                 )
@@ -891,9 +907,9 @@ export default function PublicationTasks() {
                         </div>
                     </div>
 
-                    <div className={`${mobileTaskOpen ? 'block' : 'hidden lg:block'} bg-white rounded-[2rem] border border-outline-variant/10 shadow-sm overflow-hidden`}>
+                    <div className={`${mobileTaskOpen ? 'block' : 'hidden xl:block'} -mx-4 sm:mx-0 bg-white rounded-none sm:rounded-[2rem] border-y sm:border border-outline-variant/10 shadow-sm overflow-hidden`}>
                         {mobileTaskOpen && (
-                            <div className="lg:hidden p-3 border-b border-outline-variant/10 bg-white sticky top-0 z-20">
+                            <div className="xl:hidden p-3 border-b border-outline-variant/10 bg-white sticky top-0 z-20">
                                 <button
                                     type="button"
                                     onClick={closeMobileTask}
@@ -931,7 +947,7 @@ export default function PublicationTasks() {
                                             </h2>
                                             <div className="flex flex-wrap gap-2">
                                                 <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${statusTone(activeTask.status)}`}>
-                                                    {activeTask.status}
+                                                    {statusLabel(activeTask.status)}
                                                 </span>
                                                 {isTaskOverdue && (
                                                     <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-error text-white">
