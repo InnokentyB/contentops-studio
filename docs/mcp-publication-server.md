@@ -3,6 +3,24 @@
 ## Purpose
 This project now includes a local MCP server that exposes publication workflows to MCP clients such as Claude.
 
+## Remote capability profiles
+
+The remote gateway can expose two project-bound least-privilege endpoints in addition to the owner endpoint:
+
+- `/mcp/planner` — slot shell ownership: channel, topic, schedule, operational initiatives and rescheduling.
+- `/mcp/writer` — content ownership: read publication tasks and resources, then update only the publication body through `ba_update_publication_content`.
+
+Configure them with separate secrets. Both endpoints require a fixed user and project; caller-provided `userId`, `actorId`, and `projectId` cannot widen the token scope.
+
+```dotenv
+MCP_PRINCIPAL_USER_ID=1
+MCP_PROJECT_ID=42
+MCP_PLANNER_AUTH_TOKEN=replace-with-planner-secret
+MCP_WRITER_AUTH_TOKEN=replace-with-writer-secret
+```
+
+The writer tool uses `expectedRevision` for optimistic concurrency. A stale write returns `CONTENT_REVISION_CONFLICT` and never overwrites a newer draft. Published tasks remain read-only.
+
 The server wraps existing planner functionality instead of creating a second publication backend.
 
 ## Available tools

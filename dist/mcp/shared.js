@@ -50,6 +50,7 @@ const task_tracker_service_1 = __importDefault(require("../services/task_tracker
 const delivery_service_1 = __importDefault(require("../services/delivery.service"));
 const image_asset_service_1 = __importDefault(require("../services/image_asset.service"));
 const metrics_service_1 = __importDefault(require("../services/metrics.service"));
+const capabilities_1 = require("./capabilities");
 function asToolResult(payload) {
     return {
         content: [
@@ -61,13 +62,13 @@ function asToolResult(payload) {
         structuredContent: payload
     };
 }
-function createPlannerMcpServer() {
+function createPlannerMcpServer(options = {}) {
     const server = new mcp_js_1.McpServer({
         name: 'ba-post-planner-publication',
         version: '1.0.0'
     });
     registerPlannerTools(server);
-    return server;
+    return (0, capabilities_1.filterMcpServerTools)(server, options.profile || 'owner');
 }
 function registerPlannerTools(server) {
     server.registerTool('ba_get_publication_plan_format', {
@@ -507,6 +508,18 @@ function registerPlannerTools(server) {
     }, async ({ projectId, taskId }) => {
         const result = await mcp_publication_service_1.default.preparePublicationTask(projectId, taskId);
         return asToolResult(result);
+    });
+    server.registerTool('ba_update_publication_content', {
+        description: 'Replace only the editable publication body for an existing slot. Slot topic, channel, schedule and lifecycle status remain unchanged.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            taskId: zod_1.z.number().int().positive(),
+            body: zod_1.z.string().max(200000),
+            expectedRevision: zod_1.z.number().int().nonnegative()
+        }
+    }, async ({ projectId, taskId, body, expectedRevision }) => {
+        const task = await mcp_publication_service_1.default.updatePublicationContent({ projectId, taskId, body, expectedRevision });
+        return asToolResult({ project_id: projectId, task });
     });
     server.registerTool('ba_confirm_publication', {
         description: 'Mark a publication task as published after a manual handoff or an external publish step. Already published tasks are read-only and cannot be modified via MCP.',

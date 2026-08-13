@@ -24,6 +24,7 @@ import publicationPlanService from '../services/publication_plan.service';
 import metricsService from '../services/metrics.service';
 import vkMetricsService from '../services/vk_metrics.service';
 import { jsonBytes, logEgressDiagnostic, textBytes } from '../utils/egress_diagnostics';
+import { derivePublicationContentState } from '../services/publication_content_state';
 
 async function loadPublicationPlanContext(projectId: number) {
     const settings = await prisma.projectSettings.findMany({
@@ -148,6 +149,8 @@ function buildPublicationTaskListItem(item: any) {
         status: item.status,
         schedule_at: item?.schedule_at?.toISOString?.() || item?.schedule_at || null,
         published_link: item.published_link,
+        content_state: derivePublicationContentState(item),
+        content_revision: item.content_revision || 0,
         metrics: {
             monitoring: metrics.monitoring || null,
             collected_metrics: metrics.collected_metrics || null,
@@ -196,6 +199,8 @@ function buildPublicationTaskDetailItem(item: any, options?: {
         schedule_at: resolveTaskScheduleAt(item),
         published_link: item.published_link,
         draft_text: item.draft_text || null,
+        content_state: derivePublicationContentState({ ...item, quality_report: { ...qualityReport, handoff_bundle: handoffBundle } }),
+        content_revision: item.content_revision || 0,
         channel: item.channel ? {
             id: item.channel.id,
             name: item.channel.name,
@@ -1057,6 +1062,8 @@ export default async function apiRoutes(fastify: FastifyInstance) {
                 status: true,
                 schedule_at: true,
                 published_link: true,
+                draft_text: true,
+                content_revision: true,
                 quality_report: true,
                 metrics: true,
                 channel: {
@@ -1194,6 +1201,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             where: { id: item.id },
             data: {
                 draft_text: body,
+                content_revision: { increment: 1 },
                 quality_report: nextQualityReport
             }
         });
@@ -1201,6 +1209,8 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         const response = {
             id: updated.id,
             draft_text: updated.draft_text,
+            content_revision: updated.content_revision,
+            content_state: derivePublicationContentState(updated),
             quality_report: updated.quality_report
         };
         logEgressDiagnostic('publication_tasks.save_content', {

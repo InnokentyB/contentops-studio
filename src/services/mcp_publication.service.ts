@@ -13,6 +13,7 @@ import threadsService from './threads.service';
 import fs from 'fs';
 import path from 'path';
 import { normalizeProjectKind, slugifyProjectName } from '../utils/project.utils';
+import { derivePublicationContentState } from './publication_content_state';
 
 type PublicationOutcome = 'published' | 'blocked' | 'removed' | 'restricted';
 
@@ -820,6 +821,8 @@ class McpPublicationService {
             layer: item.layer,
             schedule_at: resolveTaskScheduleAt(item),
             published_link: item.published_link,
+            content_state: derivePublicationContentState(item),
+            content_revision: item.content_revision,
             channel: item.channel
                 ? {
                     id: item.channel.id,
@@ -845,17 +848,97 @@ class McpPublicationService {
         const plan = await this.loadPublicationPlanContext(projectId);
         const action = (item.assets as any)?.action;
         if (!plan || !action) {
-            return item;
+            return {
+                ...item,
+                content_state: derivePublicationContentState(item)
+            };
         }
 
         const bundle = publicationPlanService.buildHandoffBundle({ ...plan, actions: [action] } as any, item);
         return {
             ...item,
+            content_state: derivePublicationContentState({
+                ...item,
+                quality_report: {
+                    ...((item.quality_report as any) || {}),
+                    handoff_bundle: bundle
+                }
+            }),
             schedule_at: resolveTaskScheduleAt(item),
             quality_report: {
                 ...((item.quality_report as any) || {}),
                 handoff_bundle: bundle
             }
+        };
+    }
+
+    async updatePublicationContent(input: {
+        projectId: number;
+        taskId: number;
+        body: string;
+        expectedRevision: number;
+    }) {
+        const item = await prisma.contentItem.findFirst({
+            where: { id: input.taskId, project_id: input.projectId }
+        });
+
+        if (!item) {
+            throw new Error(`Publication task ${input.taskId} not found for project ${input.projectId}`);
+        }
+
+        this.assertPublicationTaskMutableForMcp(item, 'update_publication_content');
+        const qualityReport = { ...((item.quality_report as any) || {}) } as any;
+        const previousBody = String(
+            qualityReport.handoff_bundle?.publication?.body
+            || item.draft_text
+            || ''
+        );
+        const history = Array.isArray(qualityReport.content_edit_history)
+            ? qualityReport.content_edit_history
+            : [];
+
+        if (input.body !== previousBody) {
+            qualityReport.content_edit_history = [{
+                edited_at: new Date().toISOString(),
+                previous_body: previousBody,
+                next_body: input.body
+            }, ...history].slice(0, 20);
+        }
+
+        if (qualityReport.handoff_bundle?.publication) {
+            qualityReport.handoff_bundle = {
+                ...qualityReport.handoff_bundle,
+                publication: {
+                    ...qualityReport.handoff_bundle.publication,
+                    body: input.body
+                }
+            };
+        }
+
+        const result = await prisma.contentItem.updateMany({
+            where: {
+                id: item.id,
+                project_id: input.projectId,
+                content_revision: input.expectedRevision
+            },
+            data: {
+                draft_text: input.body,
+                quality_report: qualityReport,
+                content_revision: { increment: 1 }
+            }
+        });
+
+        if (result.count !== 1) {
+            throw new Error('[CONTENT_REVISION_CONFLICT] Publication content changed since it was read. Reload the task and retry.');
+        }
+
+        const updated = await prisma.contentItem.findUniqueOrThrow({ where: { id: item.id } });
+        return {
+            id: updated.id,
+            draft_text: updated.draft_text,
+            content_revision: updated.content_revision,
+            content_state: derivePublicationContentState(updated),
+            updated_at: updated.updated_at
         };
     }
 

@@ -50,6 +50,7 @@ const dzen_service_1 = __importDefault(require("./dzen.service"));
 const threads_service_1 = __importDefault(require("./threads.service"));
 const path_1 = __importDefault(require("path"));
 const project_utils_1 = require("../utils/project.utils");
+const publication_content_state_1 = require("./publication_content_state");
 function resolveTaskScheduleAt(item) {
     const actionScheduleAt = item?.assets?.action?.scheduled_at;
     if (typeof actionScheduleAt === 'string' && actionScheduleAt.trim()) {
@@ -680,6 +681,8 @@ class McpPublicationService {
             layer: item.layer,
             schedule_at: resolveTaskScheduleAt(item),
             published_link: item.published_link,
+            content_state: (0, publication_content_state_1.derivePublicationContentState)(item),
+            content_revision: item.content_revision,
             channel: item.channel
                 ? {
                     id: item.channel.id,
@@ -702,16 +705,81 @@ class McpPublicationService {
         const plan = await this.loadPublicationPlanContext(projectId);
         const action = item.assets?.action;
         if (!plan || !action) {
-            return item;
+            return {
+                ...item,
+                content_state: (0, publication_content_state_1.derivePublicationContentState)(item)
+            };
         }
         const bundle = publication_plan_service_1.default.buildHandoffBundle({ ...plan, actions: [action] }, item);
         return {
             ...item,
+            content_state: (0, publication_content_state_1.derivePublicationContentState)({
+                ...item,
+                quality_report: {
+                    ...(item.quality_report || {}),
+                    handoff_bundle: bundle
+                }
+            }),
             schedule_at: resolveTaskScheduleAt(item),
             quality_report: {
                 ...(item.quality_report || {}),
                 handoff_bundle: bundle
             }
+        };
+    }
+    async updatePublicationContent(input) {
+        const item = await db_1.default.contentItem.findFirst({
+            where: { id: input.taskId, project_id: input.projectId }
+        });
+        if (!item) {
+            throw new Error(`Publication task ${input.taskId} not found for project ${input.projectId}`);
+        }
+        this.assertPublicationTaskMutableForMcp(item, 'update_publication_content');
+        const qualityReport = { ...(item.quality_report || {}) };
+        const previousBody = String(qualityReport.handoff_bundle?.publication?.body
+            || item.draft_text
+            || '');
+        const history = Array.isArray(qualityReport.content_edit_history)
+            ? qualityReport.content_edit_history
+            : [];
+        if (input.body !== previousBody) {
+            qualityReport.content_edit_history = [{
+                    edited_at: new Date().toISOString(),
+                    previous_body: previousBody,
+                    next_body: input.body
+                }, ...history].slice(0, 20);
+        }
+        if (qualityReport.handoff_bundle?.publication) {
+            qualityReport.handoff_bundle = {
+                ...qualityReport.handoff_bundle,
+                publication: {
+                    ...qualityReport.handoff_bundle.publication,
+                    body: input.body
+                }
+            };
+        }
+        const result = await db_1.default.contentItem.updateMany({
+            where: {
+                id: item.id,
+                project_id: input.projectId,
+                content_revision: input.expectedRevision
+            },
+            data: {
+                draft_text: input.body,
+                quality_report: qualityReport,
+                content_revision: { increment: 1 }
+            }
+        });
+        if (result.count !== 1) {
+            throw new Error('[CONTENT_REVISION_CONFLICT] Publication content changed since it was read. Reload the task and retry.');
+        }
+        const updated = await db_1.default.contentItem.findUniqueOrThrow({ where: { id: item.id } });
+        return {
+            id: updated.id,
+            draft_text: updated.draft_text,
+            content_revision: updated.content_revision,
+            content_state: (0, publication_content_state_1.derivePublicationContentState)(updated),
+            updated_at: updated.updated_at
         };
     }
     async preparePublicationTask(projectId, taskId) {

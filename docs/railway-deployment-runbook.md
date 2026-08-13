@@ -100,6 +100,9 @@ Required:
 - `APP_DB_SCHEMA=planner`
 - `PORT`
 - `MCP_AUTH_TOKEN` or equivalent remote MCP auth secret
+- `MCP_PRINCIPAL_USER_ID` and `MCP_PROJECT_ID` to pin agent calls to one owner/project
+- `MCP_PLANNER_AUTH_TOKEN` for `/mcp/planner`
+- `MCP_WRITER_AUTH_TOKEN` for `/mcp/writer` (must differ from planner and owner tokens)
 
 Compatibility aliases to keep in Railway for now:
 - `DATABASE_URL=<same as APP_DATABASE_URL>`

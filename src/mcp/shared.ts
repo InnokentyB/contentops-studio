@@ -8,6 +8,7 @@ import taskTrackerService from '../services/task_tracker.service';
 import deliveryService from '../services/delivery.service';
 import imageAssetService from '../services/image_asset.service';
 import metricsService from '../services/metrics.service';
+import { filterMcpServerTools, McpCapabilityProfile } from './capabilities';
 
 
 
@@ -26,14 +27,14 @@ export function asToolResult<T extends Record<string, unknown>>(payload: T) {
     };
 }
 
-export function createPlannerMcpServer() {
+export function createPlannerMcpServer(options: { profile?: McpCapabilityProfile } = {}) {
     const server = new McpServer({
         name: 'ba-post-planner-publication',
         version: '1.0.0'
     });
 
     registerPlannerTools(server);
-    return server;
+    return filterMcpServerTools(server, options.profile || 'owner');
 }
 
 export function registerPlannerTools(server: McpServer) {
@@ -505,6 +506,19 @@ export function registerPlannerTools(server: McpServer) {
     }, async ({ projectId, taskId }) => {
         const result = await mcpPublicationService.preparePublicationTask(projectId, taskId);
         return asToolResult(result);
+    });
+
+    server.registerTool('ba_update_publication_content', {
+        description: 'Replace only the editable publication body for an existing slot. Slot topic, channel, schedule and lifecycle status remain unchanged.',
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            taskId: z.number().int().positive(),
+            body: z.string().max(200000),
+            expectedRevision: z.number().int().nonnegative()
+        }
+    }, async ({ projectId, taskId, body, expectedRevision }) => {
+        const task = await mcpPublicationService.updatePublicationContent({ projectId, taskId, body, expectedRevision });
+        return asToolResult({ project_id: projectId, task });
     });
 
     server.registerTool('ba_confirm_publication', {

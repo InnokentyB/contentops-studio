@@ -9,7 +9,10 @@ const routes = readFileSync(resolve(__dirname, '../../../src/routes/project.rout
 
 assert.match(settings, /Настройки проекта/)
 assert.match(settings, /Подключение MCP/)
-assert.match(settings, /MCP_AUTH_TOKEN/)
+assert.match(settings, /Штаб планирования/)
+assert.match(settings, /Контент-агент/)
+assert.match(settings, /MCP_PLANNER_AUTH_TOKEN/)
+assert.match(settings, /MCP_WRITER_AUTH_TOKEN/)
 assert.match(settings, /mcp\/status/)
 assert.match(settings, /MCP работает/)
 assert.match(settings, /Проверить/)

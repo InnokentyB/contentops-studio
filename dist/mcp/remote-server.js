@@ -40,8 +40,24 @@ async function main() {
     const authToken = (process.env.MCP_AUTH_TOKEN || '').trim();
     const principalUserId = Number(process.env.MCP_PRINCIPAL_USER_ID || 0);
     const principal = Number.isInteger(principalUserId) && principalUserId > 0
-        ? { userId: principalUserId, actorId: `user:${principalUserId}` }
+        ? { userId: principalUserId, actorId: `user:${principalUserId}`, profile: 'owner' }
         : null;
+    const defaultProjectId = Number(process.env.MCP_PROJECT_ID || 0);
+    const buildScopedCredential = (profile) => {
+        const upper = profile.toUpperCase();
+        const token = String(process.env[`MCP_${upper}_AUTH_TOKEN`] || '').trim();
+        const userId = Number(process.env[`MCP_${upper}_USER_ID`] || principalUserId || 0);
+        const projectId = Number(process.env[`MCP_${upper}_PROJECT_ID`] || defaultProjectId || 0);
+        if (!token || !Number.isInteger(userId) || userId <= 0 || !Number.isInteger(projectId) || projectId <= 0) {
+            return null;
+        }
+        return {
+            token,
+            principal: { userId, actorId: `user:${userId}`, projectId, profile }
+        };
+    };
+    const plannerCredential = buildScopedCredential('planner');
+    const writerCredential = buildScopedCredential('writer');
     const isProduction = Boolean(process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production');
     if (isProduction && (!authToken || !principal)) {
         throw new Error('Production remote MCP requires MCP_AUTH_TOKEN and MCP_PRINCIPAL_USER_ID');
@@ -76,9 +92,14 @@ async function main() {
             // Ignore server close errors during cleanup.
         }
     }
-    async function getOrCreateSession(sessionId, body, res) {
+    async function getOrCreateSession(sessionId, body, res, endpoint = '/mcp', profile = 'owner') {
         if (sessionId && sessions.has(sessionId)) {
-            return sessions.get(sessionId);
+            const entry = sessions.get(sessionId);
+            if (entry.endpoint !== endpoint || entry.profile !== profile) {
+                res.status(403).json({ error: 'MCP session capability mismatch' });
+                return null;
+            }
+            return entry;
         }
         if (sessionId && !sessions.has(sessionId)) {
             res.status(404).json({
@@ -103,12 +124,12 @@ async function main() {
             return null;
         }
         let transport;
-        const server = (0, shared_1.createPlannerMcpServer)();
+        const server = (0, shared_1.createPlannerMcpServer)({ profile });
         transport = new streamableHttp_js_1.StreamableHTTPServerTransport({
             sessionIdGenerator: () => (0, crypto_1.randomUUID)(),
             enableJsonResponse: true,
             onsessioninitialized: (newSessionId) => {
-                sessions.set(newSessionId, { transport, server });
+                sessions.set(newSessionId, { transport, server, endpoint, profile });
             }
         });
         transport.onclose = () => {
@@ -133,6 +154,18 @@ async function main() {
                 bearer_required: Boolean(authToken),
                 principal_scoped: Boolean(principal)
             },
+            capability_endpoints: {
+                planner: plannerCredential ? {
+                    configured: true,
+                    project_id: plannerCredential.principal.projectId,
+                    user_id: plannerCredential.principal.userId
+                } : { configured: false },
+                writer: writerCredential ? {
+                    configured: true,
+                    project_id: writerCredential.principal.projectId,
+                    user_id: writerCredential.principal.userId
+                } : { configured: false }
+            },
             active_sessions: sessions.size,
             schema_plan: schema_plan_service_1.default.getPlan(),
             parser: {
@@ -147,7 +180,7 @@ async function main() {
         const sessionIdHeader = req.headers['mcp-session-id'];
         const sessionId = Array.isArray(sessionIdHeader) ? sessionIdHeader[0] : sessionIdHeader;
         const entry = sessionId ? sessions.get(sessionId) : null;
-        if (!entry) {
+        if (!entry || entry.endpoint !== '/mcp') {
             res.status(400).send('Invalid or missing session ID');
             return;
         }
@@ -191,7 +224,7 @@ async function main() {
         const sessionIdHeader = req.headers['mcp-session-id'];
         const sessionId = Array.isArray(sessionIdHeader) ? sessionIdHeader[0] : sessionIdHeader;
         const entry = sessionId ? sessions.get(sessionId) : null;
-        if (!entry) {
+        if (!entry || entry.endpoint !== '/mcp') {
             res.status(400).json({
                 jsonrpc: '2.0',
                 error: {
@@ -204,6 +237,72 @@ async function main() {
         }
         await entry.transport.handleRequest(req, res, req.body);
     });
+    function registerScopedEndpoint(endpoint, credential) {
+        const requireScopedAuth = (req, res, next) => {
+            if (!credential) {
+                res.status(503).json({ error: 'Capability endpoint is not configured' });
+                return;
+            }
+            const token = getBearerToken(req.headers.authorization);
+            if (!token || !safeTokenEquals(credential.token, token)) {
+                res.status(401).json({ error: 'Unauthorized', message: 'Missing or invalid bearer token' });
+                return;
+            }
+            next();
+        };
+        app.get(endpoint, requireScopedAuth, async (req, res) => {
+            const sessionIdHeader = req.headers['mcp-session-id'];
+            const sessionId = Array.isArray(sessionIdHeader) ? sessionIdHeader[0] : sessionIdHeader;
+            const entry = sessionId ? sessions.get(sessionId) : null;
+            if (!entry || entry.endpoint !== endpoint || entry.profile !== credential?.principal.profile) {
+                res.status(400).send('Invalid or missing session ID');
+                return;
+            }
+            await entry.transport.handleRequest(req, res);
+        });
+        app.post(endpoint, requireScopedAuth, async (req, res) => {
+            try {
+                const scopedRequest = (0, remote_auth_1.scopeRemoteMcpRequest)(req.body, credential.principal);
+                if (!scopedRequest.allowed) {
+                    res.status(403).json({
+                        jsonrpc: '2.0',
+                        error: { code: -32003, message: 'Tool is not available for this MCP capability profile' },
+                        id: req.body?.id ?? null
+                    });
+                    return;
+                }
+                req.body = scopedRequest.body;
+                const sessionIdHeader = req.headers['mcp-session-id'];
+                const sessionId = Array.isArray(sessionIdHeader) ? sessionIdHeader[0] : sessionIdHeader;
+                const entry = await getOrCreateSession(sessionId, req.body, res, endpoint, credential.principal.profile);
+                if (!entry)
+                    return;
+                await entry.transport.handleRequest(req, res, req.body);
+            }
+            catch (error) {
+                console.error(`[MCP Remote] Failed to handle ${endpoint} POST request:`, error);
+                if (!res.headersSent) {
+                    res.status(500).json({
+                        jsonrpc: '2.0',
+                        error: { code: -32603, message: 'Internal server error' },
+                        id: null
+                    });
+                }
+            }
+        });
+        app.delete(endpoint, requireScopedAuth, async (req, res) => {
+            const sessionIdHeader = req.headers['mcp-session-id'];
+            const sessionId = Array.isArray(sessionIdHeader) ? sessionIdHeader[0] : sessionIdHeader;
+            const entry = sessionId ? sessions.get(sessionId) : null;
+            if (!entry || entry.endpoint !== endpoint || entry.profile !== credential?.principal.profile) {
+                res.status(400).json({ error: 'Invalid or missing session ID' });
+                return;
+            }
+            await entry.transport.handleRequest(req, res, req.body);
+        });
+    }
+    registerScopedEndpoint('/mcp/planner', plannerCredential);
+    registerScopedEndpoint('/mcp/writer', writerCredential);
     const server = app.listen(port, host, () => {
         console.log(`[MCP Remote] listening on http://${host}:${port} (auth required: ${Boolean(authToken)})`);
     });

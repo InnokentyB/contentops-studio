@@ -19,6 +19,9 @@ interface PublicationTask {
     status: string
     schedule_at?: string | null
     published_link?: string | null
+    draft_text?: string | null
+    content_state?: 'empty' | 'ready' | 'published'
+    content_revision?: number
     quality_report?: JsonRecord | null
     metrics?: JsonRecord | null
     assets?: JsonRecord | null
@@ -208,34 +211,36 @@ function summarizeAtomaContext(description?: string | null, payload?: unknown) {
     return summary.join('\n\n')
 }
 
-function statusTone(status: string) {
-    if (status === 'published') return 'bg-success text-white'
-    if (status === 'awaiting_manual_publication') return 'bg-primary text-white'
-    if (status === 'deferred') return 'bg-yellow-200 text-yellow-950'
-    if (status === 'ready_for_execution' || status === 'scheduled') return 'bg-primary/10 text-primary'
-    if (status === 'failed') return 'bg-error text-white'
-    return 'bg-surface-container-high text-on-surface-variant'
-}
-
-function statusLabel(status: string) {
-    const labels: Record<string, string> = {
-        planned: 'Запланировано',
-        scheduled: 'В расписании',
-        ready_for_execution: 'Готово',
-        awaiting_manual_publication: 'Ждёт публикации',
-        deferred: 'Отложено',
-        published: 'Опубликовано',
-        failed: 'Ошибка',
-        skipped: 'Пропущено'
-    }
-
-    return labels[status] || status.replaceAll('_', ' ')
-}
-
 function executionModeLabel(mode: string) {
     if (mode === 'manual') return 'Вручную'
     if (mode === 'automatic' || mode === 'auto') return 'Автоматически'
     return mode.replaceAll('_', ' ')
+}
+
+function taskContentState(task: PublicationTask | null | undefined): 'empty' | 'ready' | 'published' {
+    if (!task) return 'empty'
+    if (task.content_state) return task.content_state
+    if (task.status === 'published' || task.published_link) return 'published'
+    if (task.draft_text?.trim() || task.quality_report?.handoff_bundle?.publication?.body?.trim()) return 'ready'
+    return 'empty'
+}
+
+function contentStateLabel(state: 'empty' | 'ready' | 'published') {
+    if (state === 'published') return 'Опубликовано'
+    if (state === 'ready') return 'Текст готов'
+    return 'Нужен текст'
+}
+
+function contentStateTone(state: 'empty' | 'ready' | 'published') {
+    if (state === 'published') return 'bg-success text-white'
+    if (state === 'ready') return 'bg-primary text-white'
+    return 'bg-surface-container-high text-on-surface-variant'
+}
+
+function contentStateIcon(state: 'empty' | 'ready' | 'published') {
+    if (state === 'published') return 'check_circle'
+    if (state === 'ready') return 'draft'
+    return 'edit_note'
 }
 
 function taskChannel(task: PublicationTask) {
@@ -416,6 +421,7 @@ export default function PublicationTasks() {
     const [statusFilter, setStatusFilter] = useState('active')
     const [manualOnly, setManualOnly] = useState(!urlTaskId)
     const [hidePublished, setHidePublished] = useState(true)
+    const [contentStateFilter, setContentStateFilter] = useState<'all' | 'empty' | 'ready' | 'published'>('all')
     const [taskSearch, setTaskSearch] = useState('')
     const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null)
     const [mobileTaskOpen, setMobileTaskOpen] = useState(false)
@@ -446,8 +452,9 @@ export default function PublicationTasks() {
     const filteredTasks = useMemo(
         () => (tasks || [])
             .filter((task) => !hidePublished || task.status !== 'published')
+            .filter((task) => contentStateFilter === 'all' || taskContentState(task) === contentStateFilter)
             .filter((task) => taskMatchesSearch(task, taskSearch)),
-        [tasks, hidePublished, taskSearch]
+        [tasks, hidePublished, contentStateFilter, taskSearch]
     )
 
     const selectedFromList = useMemo(
@@ -512,6 +519,7 @@ export default function PublicationTasks() {
 
     useEffect(() => {
         const nextBody = ((selectedTask?.quality_report?.handoff_bundle as JsonRecord | undefined)?.publication?.body
+            || selectedTask?.draft_text
             || selectedTask?.workspace_context?.source_content
             || '') as string
         setPublicationBody(nextBody)
@@ -823,6 +831,27 @@ export default function PublicationTasks() {
                                 placeholder="Название, канал или ID"
                                 className="w-full bg-surface-container-low border-none rounded-xl px-4 py-3 text-sm font-medium text-on-surface placeholder:text-on-surface-variant/70 focus:ring-2 focus:ring-primary/20 outline-none"
                             />
+
+                            <div className="grid grid-cols-3 gap-2" aria-label="Готовность контента">
+                                {([
+                                    ['empty', 'Без текста'],
+                                    ['ready', 'Текст готов'],
+                                    ['published', 'Опубликовано']
+                                ] as const).map(([value, label]) => (
+                                    <button
+                                        key={value}
+                                        type="button"
+                                        onClick={() => {
+                                            setContentStateFilter((current) => current === value ? 'all' : value)
+                                            if (value === 'published') setHidePublished(false)
+                                        }}
+                                        aria-pressed={contentStateFilter === value}
+                                        className={`min-h-10 rounded-xl px-2 text-[11px] font-black transition-colors ${contentStateFilter === value ? 'bg-primary text-white' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'}`}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
 
                         <div className="max-h-[720px] overflow-y-auto">
@@ -853,6 +882,7 @@ export default function PublicationTasks() {
                             {filteredTasks.map((task) => {
                                 const isSelected = task.id === activeTask?.id
                                 const mode = task.quality_report?.execution_mode || 'manual'
+                                const contentState = taskContentState(task)
                                 const planRef = taskPlanReference(task)
                                 const isOverdue = !!task.schedule_at
                                     && ['planned', 'ready_for_execution', 'awaiting_manual_publication'].includes(task.status)
@@ -879,8 +909,9 @@ export default function PublicationTasks() {
                                                 <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">
                                                     {taskChannel(task)}
                                                 </div>
-                                                <span className={`max-w-[55%] truncate px-2.5 py-1 rounded-full text-[10px] font-black ${statusTone(task.status)}`} title={statusLabel(task.status)}>
-                                                    {statusLabel(task.status)}
+                                                <span className={`max-w-[58%] inline-flex items-center gap-1 truncate px-2.5 py-1 rounded-full text-[10px] font-black ${contentStateTone(contentState)}`} title={contentStateLabel(contentState)}>
+                                                    <span className="material-symbols-outlined text-[14px]" aria-hidden="true">{contentStateIcon(contentState)}</span>
+                                                    {contentStateLabel(contentState)}
                                                 </span>
                                             </div>
                                             <div className="font-bold text-sm text-on-surface mt-2 line-clamp-2 leading-snug">
@@ -946,8 +977,9 @@ export default function PublicationTasks() {
                                                 {activeTask.title || activeTask.type}
                                             </h2>
                                             <div className="flex flex-wrap gap-2">
-                                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${statusTone(activeTask.status)}`}>
-                                                    {statusLabel(activeTask.status)}
+                                                <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black ${contentStateTone(taskContentState(activeTask))}`}>
+                                                    <span className="material-symbols-outlined text-[14px]" aria-hidden="true">{contentStateIcon(taskContentState(activeTask))}</span>
+                                                    {contentStateLabel(taskContentState(activeTask))}
                                                 </span>
                                                 {isTaskOverdue && (
                                                     <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-error text-white">
@@ -1003,6 +1035,24 @@ export default function PublicationTasks() {
                                                 </button>
                                             )}
                                         </div>
+                                    </div>
+
+                                    <div className="mt-6 grid grid-cols-3 gap-2" aria-label="Этапы публикации">
+                                        {([
+                                            ['empty', 'Слот создан', 'calendar_add_on'],
+                                            ['ready', 'Текст готов', 'draft'],
+                                            ['published', 'Опубликовано', 'check_circle']
+                                        ] as const).map(([state, label, icon], index) => {
+                                            const currentRank = { empty: 0, ready: 1, published: 2 }[taskContentState(activeTask)]
+                                            const reached = index <= currentRank
+                                            const current = index === currentRank
+                                            return (
+                                                <div key={state} className={`min-h-16 rounded-xl px-3 py-3 flex items-center gap-2 ${current ? 'bg-primary text-white' : reached ? 'bg-primary/10 text-primary' : 'bg-surface-container-low text-on-surface-variant'}`}>
+                                                    <span className="material-symbols-outlined text-lg" aria-hidden="true">{reached && !current ? 'check' : icon}</span>
+                                                    <span className="text-xs font-black leading-tight">{label}</span>
+                                                </div>
+                                            )
+                                        })}
                                     </div>
 
                                     {taskMessage && (

@@ -71,6 +71,10 @@ interface McpStatus {
     active_sessions?: number
     checked_at: string
     message?: string
+    capability_endpoints?: {
+        planner: { endpoint: string; configured: boolean; bound_project_id?: number | null }
+        writer: { endpoint: string; configured: boolean; bound_project_id?: number | null }
+    }
 }
 
 const AGENT_ROLES = [
@@ -962,14 +966,26 @@ export default function Settings() {
 
             {activeTab === 'mcp' && (() => {
                 const mcpUrl = mcpStatus?.endpoint || import.meta.env.VITE_MCP_URL || 'http://127.0.0.1:8080/mcp'
-                const mcpConfig = JSON.stringify({
-                    mcpServers: {
-                        'ba-post-planner': {
-                            url: mcpUrl,
-                            ...(mcpStatus?.bearer_required ? { headers: { Authorization: 'Bearer <MCP_AUTH_TOKEN>' } } : {})
-                        }
+                const capabilityCards = [
+                    {
+                        id: 'planner',
+                        title: 'Штаб планирования',
+                        description: 'Управляет слотами, каналами, темами и расписанием. Не редактирует текст публикации.',
+                        icon: 'calendar_month',
+                        endpoint: mcpStatus?.capability_endpoints?.planner.endpoint || `${mcpUrl}/planner`,
+                        configured: mcpStatus?.capability_endpoints?.planner.configured ?? false,
+                        token: '<MCP_PLANNER_AUTH_TOKEN>'
+                    },
+                    {
+                        id: 'writer',
+                        title: 'Контент-агент',
+                        description: 'Читает готовые слоты и заполняет только текст. Не может менять дату, канал, тему или статус.',
+                        icon: 'edit_note',
+                        endpoint: mcpStatus?.capability_endpoints?.writer.endpoint || `${mcpUrl}/writer`,
+                        configured: mcpStatus?.capability_endpoints?.writer.configured ?? false,
+                        token: '<MCP_WRITER_AUTH_TOKEN>'
                     }
-                }, null, 2)
+                ]
                 const isMcpOnline = mcpStatus?.status === 'online'
                 return (
                     <div className="rounded-2xl bg-white p-5 shadow-sm sm:p-7">
@@ -984,22 +1000,45 @@ export default function Settings() {
                             </div>
                         </div>
 
-                        <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
-                            <div className="min-w-0">
-                                <div className="flex items-center justify-between gap-3">
-                                    <h3 className="text-lg font-black text-on-surface">Конфигурация агента</h3>
-                                    <button type="button" className="btn-secondary" onClick={() => navigator.clipboard.writeText(mcpConfig).then(() => showToast('Конфигурация скопирована', 'success'))}>Копировать</button>
-                                </div>
-                                <pre className="mt-3 overflow-x-auto rounded-2xl bg-[#17181a] p-4 text-sm leading-6 text-white"><code>{mcpConfig}</code></pre>
-                                <p className="mt-3 text-xs leading-5 text-on-surface-variant">{mcpStatus?.bearer_required ? <>Замените <code>&lt;MCP_AUTH_TOKEN&gt;</code> на токен сервера. Не храните его в репозитории.</> : 'Локальный endpoint доступен только на этом компьютере и не требует токена.'}</p>
+                        <div className="mt-6 space-y-6">
+                            <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
+                                {capabilityCards.map((capability) => {
+                                    const config = JSON.stringify({
+                                        mcpServers: {
+                                            [`ba-post-planner-${capability.id}`]: {
+                                                url: capability.endpoint,
+                                                headers: { Authorization: `Bearer ${capability.token}` }
+                                            }
+                                        }
+                                    }, null, 2)
+                                    return (
+                                        <section key={capability.id} className="rounded-2xl bg-surface-container-low p-4 sm:p-5">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="flex min-w-0 items-start gap-3">
+                                                    <span className="material-symbols-outlined mt-0.5 text-primary" aria-hidden="true">{capability.icon}</span>
+                                                    <div>
+                                                        <h3 className="font-black text-on-surface">{capability.title}</h3>
+                                                        <p className="mt-1 text-xs leading-5 text-on-surface-variant">{capability.description}</p>
+                                                    </div>
+                                                </div>
+                                                <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black ${capability.configured ? 'bg-success/10 text-success' : 'bg-surface-container-high text-on-surface-variant'}`}>
+                                                    {capability.configured ? 'Настроен' : 'Не настроен'}
+                                                </span>
+                                            </div>
+                                            <pre className="mt-4 max-h-52 overflow-auto rounded-xl bg-[#17181a] p-3 text-xs leading-5 text-white"><code>{config}</code></pre>
+                                            <button type="button" className="btn-secondary mt-3 w-full" onClick={() => navigator.clipboard.writeText(config).then(() => showToast(`Конфигурация «${capability.title}» скопирована`, 'success'))}>Копировать конфигурацию</button>
+                                        </section>
+                                    )
+                                })}
+                                <p className="text-xs leading-5 text-on-surface-variant lg:col-span-2">Каждый агент получает отдельный endpoint и отдельный токен. Не передавайте токен одного профиля другому агенту и не храните токены в репозитории.</p>
                             </div>
-                            <div className="space-y-4 rounded-2xl bg-surface-container-low p-4">
+                            <div className="grid grid-cols-1 gap-4 rounded-2xl bg-surface-container-low p-4 sm:grid-cols-2 xl:grid-cols-4">
                                 <div><div className="text-xs text-on-surface-variant">Проект</div><div className="mt-1 font-black text-on-surface">{currentProject.name}</div></div>
                                 <div><div className="text-xs text-on-surface-variant">Project ID</div><div className="mt-1 font-black tabular-nums text-on-surface">{currentProject.id}</div></div>
                                 <div><div className="text-xs text-on-surface-variant">Actor ID владельца</div><div className="mt-1 font-black text-on-surface">user:{user?.id}</div></div>
                                 <div><div className="text-xs text-on-surface-variant">Endpoint</div><div className="mt-1 break-all text-sm font-bold text-on-surface">{mcpUrl}</div></div>
-                                {mcpStatus?.message && <div className="rounded-xl bg-error-container/30 p-3 text-xs leading-5 text-error">{mcpStatus.message}. Запустите локальный MCP-сервис и повторите проверку.</div>}
-                                <div className="border-t border-outline-variant/10 pt-4 text-xs leading-5 text-on-surface-variant">Передайте агенту Project ID и Actor ID вместе с задачей. Для сервисного агента сначала создайте отдельную привязку identity.</div>
+                                {mcpStatus?.message && <div className="rounded-xl bg-error-container/30 p-3 text-xs leading-5 text-error sm:col-span-2 xl:col-span-4">{mcpStatus.message}. Запустите локальный MCP-сервис и повторите проверку.</div>}
+                                <div className="border-t border-outline-variant/10 pt-4 text-xs leading-5 text-on-surface-variant sm:col-span-2 xl:col-span-4">Project ID и пользователь фиксируются на сервере вместе с токеном. Агент не может подменить их в вызове инструмента.</div>
                             </div>
                         </div>
                     </div>

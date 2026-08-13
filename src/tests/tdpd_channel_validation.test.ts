@@ -266,7 +266,11 @@ test('GET /api/projects/:id/mcp/status reports the configured MCP health', async
     authService.verifyToken = () => ({ id: 1, email: 'owner@example.com', name: 'Owner' });
     authService.hasProjectAccess = async (_userId, _projectId, role) => role === 'owner';
     global.fetch = async () => new Response(JSON.stringify({
-        status: 'ok', transport: 'streamable-http', auth: { bearer_required: false }, uptime_s: 12, active_sessions: 1
+        status: 'ok', transport: 'streamable-http', auth: { bearer_required: false }, uptime_s: 12, active_sessions: 1,
+        capability_endpoints: {
+            planner: { configured: true, project_id: 1, user_id: 1 },
+            writer: { configured: true, project_id: 1, user_id: 1 }
+        }
     }), { status: 200, headers: { 'content-type': 'application/json' } });
 
     const app = Fastify();
@@ -278,6 +282,9 @@ test('GET /api/projects/:id/mcp/status reports the configured MCP health', async
         assert.equal(body.status, 'online');
         assert.equal(body.bearer_required, false);
         assert.equal(body.transport, 'streamable-http');
+        assert.equal(body.capability_endpoints.planner.configured, true);
+        assert.match(body.capability_endpoints.planner.endpoint, /\/mcp\/planner$/);
+        assert.equal(body.capability_endpoints.writer.configured, true);
     } finally {
         authService.verifyToken = originalVerifyToken;
         authService.hasProjectAccess = originalHasAccess;

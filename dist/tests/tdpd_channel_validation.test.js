@@ -239,7 +239,11 @@ const planner_service_2 = __importDefault(require("../services/planner.service")
     auth_service_1.default.verifyToken = () => ({ id: 1, email: 'owner@example.com', name: 'Owner' });
     auth_service_1.default.hasProjectAccess = async (_userId, _projectId, role) => role === 'owner';
     global.fetch = async () => new Response(JSON.stringify({
-        status: 'ok', transport: 'streamable-http', auth: { bearer_required: false }, uptime_s: 12, active_sessions: 1
+        status: 'ok', transport: 'streamable-http', auth: { bearer_required: false }, uptime_s: 12, active_sessions: 1,
+        capability_endpoints: {
+            planner: { configured: true, project_id: 1, user_id: 1 },
+            writer: { configured: true, project_id: 1, user_id: 1 }
+        }
     }), { status: 200, headers: { 'content-type': 'application/json' } });
     const app = (0, fastify_1.default)();
     app.register(project_routes_1.default);
@@ -250,6 +254,9 @@ const planner_service_2 = __importDefault(require("../services/planner.service")
         strict_1.default.equal(body.status, 'online');
         strict_1.default.equal(body.bearer_required, false);
         strict_1.default.equal(body.transport, 'streamable-http');
+        strict_1.default.equal(body.capability_endpoints.planner.configured, true);
+        strict_1.default.match(body.capability_endpoints.planner.endpoint, /\/mcp\/planner$/);
+        strict_1.default.equal(body.capability_endpoints.writer.configured, true);
     }
     finally {
         auth_service_1.default.verifyToken = originalVerifyToken;

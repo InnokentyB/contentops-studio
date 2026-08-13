@@ -719,3 +719,67 @@ test('E2E-X18 / publication completion: confirmed link completes the linked init
   assert.equal(initiative.status, 'completed');
   assert.equal(initiative.publication_task.published_link, 'https://example.com/published/pub-3');
 });
+
+test('E2E-X19 / writer boundary: content changes without changing the publication slot', async (t) => {
+  requireTools('ba_upsert_initiative', 'ba_materialize_publication_task', 'ba_update_publication_content');
+  if (!requireDatabase(t)) return;
+
+  const project = await createProject('writer-content-boundary');
+  const channel = await prisma.socialChannel.create({
+    data: {
+      project_id: project.id,
+      type: 'telegram',
+      name: 'Writer boundary channel',
+      config: {},
+    },
+  });
+  await callTool('ba_upsert_initiative', {
+    projectId: project.id,
+    actorId: ACTOR_ID,
+    externalKey: 'PUB-WRITER-1',
+    kind: 'publication',
+    title: 'Immutable slot shell',
+    dueAt: '2026-08-15T10:00:00Z',
+  });
+  const projected = await callTool('ba_materialize_publication_task', {
+    projectId: project.id,
+    actorId: ACTOR_ID,
+    initiativeKey: 'PUB-WRITER-1',
+    brief: 'Planner-owned brief',
+    channelId: channel.id,
+    publicationMode: 'manual_handoff',
+    scheduleAt: '2026-08-15T10:00:00Z',
+    idempotencyKey: idempotencyKey('writer-content-boundary'),
+  });
+  const before = await prisma.contentItem.findUniqueOrThrow({ where: { id: projected.publication_task_id } });
+  assert.equal(before.content_revision, 0);
+
+  const result = await callTool('ba_update_publication_content', {
+    projectId: project.id,
+    taskId: before.id,
+    body: 'Writer-created publication body',
+    expectedRevision: 0,
+  });
+  assert.equal(result.task.content_state, 'ready');
+  assert.equal(result.task.content_revision, 1);
+
+  const after = await prisma.contentItem.findUniqueOrThrow({ where: { id: before.id } });
+  assert.equal(after.draft_text, 'Writer-created publication body');
+  assert.equal(after.title, before.title);
+  assert.equal(after.brief, before.brief);
+  assert.equal(after.channel_id, before.channel_id);
+  assert.equal(after.schedule_at.toISOString(), before.schedule_at.toISOString());
+  assert.equal(after.status, before.status);
+
+  const conflict = await client.callTool({
+    name: 'ba_update_publication_content',
+    arguments: {
+      projectId: project.id,
+      taskId: before.id,
+      body: 'Stale overwrite',
+      expectedRevision: 0,
+    },
+  });
+  assert.equal(conflict.isError, true);
+  assert.match((conflict.content || []).map((entry) => entry.text || '').join('\n'), /CONTENT_REVISION_CONFLICT/);
+});

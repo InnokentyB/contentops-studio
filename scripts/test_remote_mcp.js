@@ -29,6 +29,16 @@ const expectedTools = [
   'ba_publish_direct',
 ];
 
+const profileExpectedTools = {
+  planner: ['ba_list_publication_tasks', 'ba_import_operational_plan', 'ba_materialize_publication_task', 'ba_reschedule_work_item'],
+  writer: ['ba_list_publication_tasks', 'ba_get_publication_task', 'ba_get_publication_task_resources', 'ba_update_publication_content'],
+};
+
+const profileForbiddenTools = {
+  planner: ['ba_update_publication_content', 'ba_confirm_publication'],
+  writer: ['ba_import_operational_plan', 'ba_materialize_publication_task', 'ba_reschedule_work_item', 'ba_confirm_publication'],
+};
+
 function logStep(label, details) {
   if (details) {
     console.log(`[Remote MCP Smoke] ${label}: ${details}`);
@@ -106,11 +116,12 @@ function normalizeUrl(url) {
   }
 
   const normalized = url.replace(/\/+$/, '');
-  return normalized.endsWith('/mcp') ? normalized : `${normalized}/mcp`;
+  return /\/mcp(?:\/(?:planner|writer))?$/.test(normalized) ? normalized : `${normalized}/mcp`;
 }
 
 async function healthCheck(mcpUrl) {
-  const healthUrl = mcpUrl.replace(/\/mcp$/, '/health');
+  const parsed = new URL(mcpUrl);
+  const healthUrl = `${parsed.origin}/health`;
   logStep('Calling remote MCP /health', healthUrl);
 
   const response = await fetch(healthUrl);
@@ -181,10 +192,17 @@ async function main() {
 
     const listed = await client.listTools();
     const toolNames = (listed.tools || []).map((tool) => tool.name);
-    const missing = expectedTools.filter((name) => !toolNames.includes(name));
+    const profile = mcpUrl.endsWith('/planner') ? 'planner' : mcpUrl.endsWith('/writer') ? 'writer' : null;
+    const requiredTools = profile ? profileExpectedTools[profile] : expectedTools;
+    const forbiddenTools = profile ? profileForbiddenTools[profile] : [];
+    const missing = requiredTools.filter((name) => !toolNames.includes(name));
+    const forbiddenVisible = forbiddenTools.filter((name) => toolNames.includes(name));
 
     if (missing.length > 0) {
       throw new Error(`Missing expected tools: ${missing.join(', ')}`);
+    }
+    if (forbiddenVisible.length > 0) {
+      throw new Error(`Capability profile exposes forbidden tools: ${forbiddenVisible.join(', ')}`);
     }
 
     logStep('Tools available', toolNames.join(', '));

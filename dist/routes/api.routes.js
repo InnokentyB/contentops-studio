@@ -27,6 +27,7 @@ const publication_plan_service_1 = __importDefault(require("../services/publicat
 const metrics_service_1 = __importDefault(require("../services/metrics.service"));
 const vk_metrics_service_1 = __importDefault(require("../services/vk_metrics.service"));
 const egress_diagnostics_1 = require("../utils/egress_diagnostics");
+const publication_content_state_1 = require("../services/publication_content_state");
 async function loadPublicationPlanContext(projectId) {
     const settings = await prisma.projectSettings.findMany({
         where: {
@@ -135,6 +136,8 @@ function buildPublicationTaskListItem(item) {
         status: item.status,
         schedule_at: item?.schedule_at?.toISOString?.() || item?.schedule_at || null,
         published_link: item.published_link,
+        content_state: (0, publication_content_state_1.derivePublicationContentState)(item),
+        content_revision: item.content_revision || 0,
         metrics: {
             monitoring: metrics.monitoring || null,
             collected_metrics: metrics.collected_metrics || null,
@@ -173,6 +176,8 @@ function buildPublicationTaskDetailItem(item, options) {
         schedule_at: resolveTaskScheduleAt(item),
         published_link: item.published_link,
         draft_text: item.draft_text || null,
+        content_state: (0, publication_content_state_1.derivePublicationContentState)({ ...item, quality_report: { ...qualityReport, handoff_bundle: handoffBundle } }),
+        content_revision: item.content_revision || 0,
         channel: item.channel ? {
             id: item.channel.id,
             name: item.channel.name,
@@ -946,6 +951,8 @@ async function apiRoutes(fastify) {
                 status: true,
                 schedule_at: true,
                 published_link: true,
+                draft_text: true,
+                content_revision: true,
                 quality_report: true,
                 metrics: true,
                 channel: {
@@ -1063,12 +1070,15 @@ async function apiRoutes(fastify) {
             where: { id: item.id },
             data: {
                 draft_text: body,
+                content_revision: { increment: 1 },
                 quality_report: nextQualityReport
             }
         });
         const response = {
             id: updated.id,
             draft_text: updated.draft_text,
+            content_revision: updated.content_revision,
+            content_state: (0, publication_content_state_1.derivePublicationContentState)(updated),
             quality_report: updated.quality_report
         };
         (0, egress_diagnostics_1.logEgressDiagnostic)('publication_tasks.save_content', {

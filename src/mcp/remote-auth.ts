@@ -1,3 +1,5 @@
+import { isToolAllowedForProfile, McpCapabilityProfile } from './capabilities';
+
 const REMOTE_DENIED_TOOLS = new Set([
     'ba_list_users',
     'ba_get_user',
@@ -9,6 +11,8 @@ const REMOTE_DENIED_TOOLS = new Set([
 export type RemotePrincipal = {
     userId: number;
     actorId: string;
+    projectId?: number;
+    profile?: McpCapabilityProfile;
 };
 
 export function scopeRemoteMcpRequest(body: any, principal: RemotePrincipal | null) {
@@ -17,6 +21,10 @@ export function scopeRemoteMcpRequest(body: any, principal: RemotePrincipal | nu
     }
 
     const toolName = body.params?.name;
+    const profile = principal.profile || 'owner';
+    if (typeof toolName === 'string' && !isToolAllowedForProfile(profile, toolName)) {
+        return { allowed: false, body, toolName };
+    }
     if (typeof toolName === 'string' && REMOTE_DENIED_TOOLS.has(toolName)) {
         return { allowed: false, body, toolName };
     }
@@ -29,6 +37,7 @@ export function scopeRemoteMcpRequest(body: any, principal: RemotePrincipal | nu
     const scopedArguments = { ...currentArguments };
     if ('actorId' in scopedArguments) scopedArguments.actorId = principal.actorId;
     if ('userId' in scopedArguments) scopedArguments.userId = principal.userId;
+    if (principal.projectId && 'projectId' in scopedArguments) scopedArguments.projectId = principal.projectId;
 
     return {
         allowed: true,

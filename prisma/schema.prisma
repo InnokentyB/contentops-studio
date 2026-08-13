@@ -481,6 +481,7 @@ model ContentItem {
   cross_link_to       Json? // Array of target IDs
   assets              Json? // Images or diagrams
   draft_text          String?
+  content_revision    Int       @default(0)
   status              String    @default("planned") // planned, drafted, revised, approved, scheduled, published, failed
   schedule_at         DateTime? @db.Timestamptz(6)
   quality_report      Json?
