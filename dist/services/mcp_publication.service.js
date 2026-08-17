@@ -51,6 +51,8 @@ const threads_service_1 = __importDefault(require("./threads.service"));
 const path_1 = __importDefault(require("path"));
 const project_utils_1 = require("../utils/project.utils");
 const publication_content_state_1 = require("./publication_content_state");
+const publication_fact_service_1 = __importDefault(require("./publication_fact.service"));
+const publication_task_activity_1 = require("./publication_task_activity");
 function resolveTaskScheduleAt(item) {
     const actionScheduleAt = item?.assets?.action?.scheduled_at;
     if (typeof actionScheduleAt === 'string' && actionScheduleAt.trim()) {
@@ -660,19 +662,22 @@ class McpPublicationService {
             assets: { not: undefined }
         };
         if (status === 'active') {
-            where.status = { in: ['planned', 'drafted', 'revised', 'approved', 'scheduled', 'ready_for_execution', 'awaiting_manual_publication', 'published', 'failed'] };
+            where.status = { in: ['planned', 'drafted', 'revised', 'approved', 'scheduled', 'ready_for_execution', 'awaiting_manual_publication', 'failed'] };
         }
         else if (status) {
             where.status = status;
         }
         const items = await db_1.default.contentItem.findMany({
             where,
-            include: { channel: true },
+            include: { channel: true, publication_fact: true },
             orderBy: { schedule_at: 'asc' }
         });
-        const filtered = manualOnly
-            ? items.filter((item) => item.quality_report?.execution_mode === 'manual')
+        const activeFiltered = status === 'active'
+            ? items.filter(publication_task_activity_1.isPublicationTaskActive)
             : items;
+        const filtered = manualOnly
+            ? activeFiltered.filter((item) => item.quality_report?.execution_mode === 'manual')
+            : activeFiltered;
         return filtered.map((item) => ({
             id: item.id,
             title: item.title,
@@ -691,13 +696,14 @@ class McpPublicationService {
                 }
                 : null,
             execution_mode: item.quality_report?.execution_mode || null,
-            publication_outcome: item.metrics?.publication_outcome || item.quality_report?.publication_outcome || null
+            publication_outcome: item.metrics?.publication_outcome || item.quality_report?.publication_outcome || null,
+            publication_fact: item.publication_fact || null
         }));
     }
     async getPublicationTask(projectId, taskId) {
         const item = await db_1.default.contentItem.findFirst({
             where: { id: taskId, project_id: projectId },
-            include: { channel: true }
+            include: { channel: true, publication_fact: true, metric_snapshots: { orderBy: { scheduled_for: 'asc' } } }
         });
         if (!item) {
             throw new Error(`Publication task ${taskId} not found for project ${projectId}`);
@@ -831,29 +837,31 @@ class McpPublicationService {
             throw new Error(`Publication task ${taskId} not found for project ${projectId}`);
         }
         this.assertPublicationTaskMutableForMcp(item, 'confirm_publication');
-        const monitoring = item.metrics?.monitoring || {};
-        const updated = await db_1.default.contentItem.update({
-            where: { id: item.id },
-            data: {
-                status: 'published',
-                published_link: publishedLink,
-                metrics: {
-                    ...(item.metrics || {}),
-                    manual_confirmation_at: new Date().toISOString(),
-                    publication_outcome: outcome,
-                    monitoring: {
-                        ...monitoring,
-                        awaiting_analytics: true,
-                        awaiting_comment_alerts: monitoring.needs_comment_monitoring === true
-                    }
-                },
-                quality_report: {
-                    ...(item.quality_report || {}),
-                    manual_publication_note: note || null,
-                    publication_outcome: outcome
-                }
-            }
+        const owner = await db_1.default.projectMember.findFirst({
+            where: { project_id: projectId, role: 'owner' },
+            orderBy: { id: 'asc' }
         });
+        if (!owner)
+            throw new Error(`Project ${projectId} has no owner`);
+        const rawType = String(item.type || '').toLowerCase();
+        const artifactKind = rawType.includes('article') ? 'article'
+            : rawType.includes('comment') ? 'comment'
+                : rawType.includes('story') ? 'story'
+                    : rawType.includes('email') ? 'email'
+                        : 'post';
+        await publication_fact_service_1.default.record({
+            projectId,
+            taskId,
+            actorId: `user:${owner.user_id}`,
+            artifactKind,
+            outcome,
+            publishedAt: new Date().toISOString(),
+            publicUrl: publishedLink,
+            confirmationMode: 'manual',
+            evidence: { type: 'public_url', ref: publishedLink },
+            note
+        });
+        const updated = await db_1.default.contentItem.findUniqueOrThrow({ where: { id: item.id } });
         await initiative_service_1.default.syncPublishedPublicationTask(projectId, taskId);
         return updated;
     }

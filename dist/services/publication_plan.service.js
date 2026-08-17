@@ -203,6 +203,13 @@ function resolveImportedWeekTheme(plan) {
         || `Publication cycle ${plan.meta.plan_id}`;
     return String(candidate || '').trim() || `Publication cycle ${plan.meta.plan_id}`;
 }
+function normalizeCycleDate(value, fallback) {
+    const candidate = value || fallback.toISOString().slice(0, 10);
+    const match = candidate.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!match)
+        throw new Error(`Invalid publication cycle date: ${candidate}`);
+    return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+}
 function derivePublicationOutcome(action) {
     if (action?.status !== 'completed_with_negative_outcome') {
         return null;
@@ -1256,11 +1263,17 @@ class PublicationPlanService {
             }));
             const channelMap = new Map(channels.map((channel) => [channel.name, channel.id]));
             const gscChannel = channels.find((channel) => channel.type === 'google_search_console') || null;
-            const cycleStart = plan.meta.cycle_start ? new Date(plan.meta.cycle_start) : new Date();
-            const cycleEnd = plan.meta.cycle_end ? new Date(plan.meta.cycle_end) : new Date(cycleStart);
-            const existingWeekPackage = await tx.weekPackage.findFirst({
-                where: { project_id: project.id },
-                orderBy: { id: 'asc' }
+            const now = new Date();
+            const cycleStart = normalizeCycleDate(plan.meta.cycle_start, now);
+            const cycleEnd = normalizeCycleDate(plan.meta.cycle_end, cycleStart);
+            const existingWeekPackage = await tx.weekPackage.findUnique({
+                where: {
+                    project_id_week_start_week_end: {
+                        project_id: project.id,
+                        week_start: cycleStart,
+                        week_end: cycleEnd
+                    }
+                }
             });
             const weekPackageData = {
                 project_id: project.id,
@@ -1272,17 +1285,36 @@ class PublicationPlanService {
                 intent_tag: 'distribution_execution',
                 narrative_arc: plan.meta,
                 channel_mix: Object.fromEntries(Object.entries(plan.accounts).map(([key, value]) => [key, value.platform])),
+                plan_id: plan.meta.plan_id,
+                plan_version: plan.meta.plan_version || null,
+                timezone: plan.meta.timezone_default || 'UTC',
                 approval_status: 'approved'
             };
             const weekPackage = existingWeekPackage
                 ? await tx.weekPackage.update({
                     where: { id: existingWeekPackage.id },
-                    data: weekPackageData
+                    data: {
+                        week_theme: weekPackageData.week_theme,
+                        core_thesis: weekPackageData.core_thesis,
+                        audience_focus: weekPackageData.audience_focus,
+                        intent_tag: weekPackageData.intent_tag,
+                        narrative_arc: weekPackageData.narrative_arc,
+                        channel_mix: weekPackageData.channel_mix,
+                        plan_id: weekPackageData.plan_id,
+                        plan_version: weekPackageData.plan_version,
+                        timezone: weekPackageData.timezone,
+                        approval_status: weekPackageData.approval_status
+                    }
                 })
                 : await tx.weekPackage.create({
                     data: weekPackageData
                 });
             const importedTaskIds = new Set();
+            let createdTasks = 0;
+            let updatedTasks = 0;
+            let runtimeLockedTasksSkipped = 0;
+            let unchangedTasks = 0;
+            const conflicts = [];
             for (const action of actionsToImport) {
                 const schedule = computeSchedule(action, plan.meta.timezone_default);
                 const resolvedAssets = (action.asset_refs || []).map((ref) => ({
@@ -1358,14 +1390,34 @@ class PublicationPlanService {
                         : null
                 };
                 const existingItem = existingImportedItemsByTaskId.get(taskId);
-                const createdItem = existingItem
-                    ? await tx.contentItem.update({
+                if (existingItem?.week_package_id && existingItem.week_package_id !== weekPackage.id) {
+                    conflicts.push({
+                        code: 'CROSS_CYCLE_TASK_ID',
+                        taskId,
+                        contentItemId: existingItem.id,
+                        existingWeekPackageId: existingItem.week_package_id,
+                        targetWeekPackageId: weekPackage.id
+                    });
+                    throw new Error(`[CROSS_CYCLE_TASK_ID] Task ${taskId} already belongs to week package ${existingItem.week_package_id}`);
+                }
+                let createdItem;
+                if (existingItem && shouldFreezeImportedTaskContent(existingItem)) {
+                    createdItem = existingItem;
+                    runtimeLockedTasksSkipped += 1;
+                }
+                else if (existingItem) {
+                    createdItem = await tx.contentItem.update({
                         where: { id: existingItem.id },
                         data: mergeImportedItemData(existingItem, itemData, shouldPreserveRuntimeTask(existingItem))
-                    })
-                    : await tx.contentItem.create({
+                    });
+                    updatedTasks += 1;
+                }
+                else {
+                    createdItem = await tx.contentItem.create({
                         data: itemData
                     });
+                    createdTasks += 1;
+                }
                 const gscPostActions = (action.post_actions || []).filter((item) => item.type === 'submit_to_gsc' || item.type === 'gsc_url_inspection');
                 for (const postAction of gscPostActions) {
                     if (!gscChannel)
@@ -1454,7 +1506,16 @@ class PublicationPlanService {
                     contentFileSnapshotRefreshMode,
                     ongoingRules: (plan.ongoing_rules || []).length,
                     deletedStaleTasks: staleImportedIds.length,
-                    updatedExistingProject: Boolean(existingProject)
+                    updatedExistingProject: Boolean(existingProject),
+                    targetWeekPackageId: weekPackage.id,
+                    createdWeekPackage: !existingWeekPackage,
+                    createdTasks,
+                    updatedTasks,
+                    movedTasks: 0,
+                    runtimeLockedTasksSkipped,
+                    conflicts,
+                    unchangedTasks,
+                    previousPackagesUpdated: 0
                 }
             };
         });

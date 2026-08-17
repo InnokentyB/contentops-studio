@@ -206,10 +206,14 @@ export const projectsApi = {
 };
 
 export const publicationTasksApi = {
-    list: (params?: { status?: string; manualOnly?: boolean }) => {
+    listWeeks: () => api.get('/api/v2/weeks'),
+    list: (params?: { status?: string; manualOnly?: boolean; weekPackageId?: number; from?: string; to?: string }) => {
         const query = new URLSearchParams();
         if (params?.status) query.set('status', params.status);
         if (params?.manualOnly) query.set('manualOnly', 'true');
+        if (params?.weekPackageId) query.set('weekPackageId', String(params.weekPackageId));
+        if (params?.from) query.set('from', params.from);
+        if (params?.to) query.set('to', params.to);
         const suffix = query.toString() ? `?${query.toString()}` : '';
         return api.get(`/api/publication-tasks${suffix}`);
     },
@@ -219,6 +223,19 @@ export const publicationTasksApi = {
     publishNow: (id: number) => api.post(`/api/publication-tasks/${id}/publish-now`),
     confirmPublication: (id: number, data: { publishedLink: string; note?: string; outcome?: 'published' | 'blocked' | 'removed' | 'restricted' }) =>
         api.post(`/api/publication-tasks/${id}/confirm-publication`, data),
+    recordPublicationFact: (id: number, data: Record<string, any>) =>
+        api.post(`/api/publication-tasks/${id}/publication-fact`, data),
+    getPublicationFact: (id: number) => api.get(`/api/publication-tasks/${id}/publication-fact`),
+    listMetricCheckpoints: (params?: { status?: string; dueBefore?: string; channelId?: number }) => {
+        const query = new URLSearchParams();
+        if (params?.status) query.set('status', params.status);
+        if (params?.dueBefore) query.set('dueBefore', params.dueBefore);
+        if (params?.channelId) query.set('channelId', String(params.channelId));
+        const suffix = query.toString() ? `?${query.toString()}` : '';
+        return api.get(`/api/metric-checkpoints${suffix}`);
+    },
+    recordMetricCheckpoint: (id: number, checkpoint: string, data: Record<string, any>) =>
+        api.put(`/api/publication-tasks/${id}/metric-checkpoints/${checkpoint}`, data),
     criticCheck: (id: number, data?: { text?: string }) =>
         api.post(`/api/publication-tasks/${id}/critic-check`, data || {}),
     fixWithCritic: (id: number, data?: { text?: string }) =>

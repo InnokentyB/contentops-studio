@@ -82,8 +82,14 @@ async function ensureFixture() {
             },
           },
         });
+        const channel = await prisma.socialChannel.create({
+          data: { project_id: proj.id, type: 'telegram', name: 'Suite metrics channel', config: {} },
+        });
+        const contentItem = await prisma.contentItem.create({
+          data: { project_id: proj.id, channel_id: channel.id, type: 'telegram:post', status: 'published' },
+        });
 
-        return { projectId: proj.id };
+        return { projectId: proj.id, channelId: channel.id, contentItemId: contentItem.id };
       }
       return { projectId: 1 };
     })();
@@ -117,8 +123,8 @@ test('E2E-MET01 / SC-MET01: checkpoints T+1, T+24, T+72 organize metric snapshot
   const snap1 = await callTool('ba_record_metric_snapshot', {
     projectId: fixture.projectId,
     actorId: ACTOR_ID,
-    contentItemId: 1,
-    channelId: 1,
+    contentItemId: fixture.contentItemId,
+    channelId: fixture.channelId,
     checkpoint: 'T+1',
     metrics: { views: 150, likes: 12 },
   });
@@ -136,8 +142,8 @@ test('E2E-MET02 / SC-MET02: repeated metric snapshot recording for same checkpoi
   const snap1 = await callTool('ba_record_metric_snapshot', {
     projectId: fixture.projectId,
     actorId: ACTOR_ID,
-    contentItemId: 1,
-    channelId: 1,
+    contentItemId: fixture.contentItemId,
+    channelId: fixture.channelId,
     checkpoint: 'T+24',
     metrics: { views: 1200, likes: 95, shares: 14 },
     idempotencyKey: key,
@@ -146,8 +152,8 @@ test('E2E-MET02 / SC-MET02: repeated metric snapshot recording for same checkpoi
   const snap2 = await callTool('ba_record_metric_snapshot', {
     projectId: fixture.projectId,
     actorId: ACTOR_ID,
-    contentItemId: 1,
-    channelId: 1,
+    contentItemId: fixture.contentItemId,
+    channelId: fixture.channelId,
     checkpoint: 'T+24',
     metrics: { views: 1200, likes: 95, shares: 14 },
     idempotencyKey: key,
@@ -164,8 +170,8 @@ test('E2E-MET03 / SC-MET03: provider metrics preserve explicit zero vs missing d
   await callTool('ba_record_metric_snapshot', {
     projectId: fixture.projectId,
     actorId: ACTOR_ID,
-    contentItemId: 1,
-    channelId: 1,
+    contentItemId: fixture.contentItemId,
+    channelId: fixture.channelId,
     checkpoint: 'T+72',
     metrics: { views: 5000, likes: 0 }, // explicit zero likes vs missing comments
   });
@@ -173,7 +179,7 @@ test('E2E-MET03 / SC-MET03: provider metrics preserve explicit zero vs missing d
   const res = await callTool('ba_get_content_metrics', {
     projectId: fixture.projectId,
     actorId: ACTOR_ID,
-    contentItemId: 1,
+    contentItemId: fixture.contentItemId,
   });
 
   assert.equal(res.metrics.likes, 0, 'Explicit zero must be preserved');

@@ -65,6 +65,7 @@ model Project {
   delivery_attempts         DeliveryAttempt[]
   image_assets              ImageAsset[]
   metric_snapshots          MetricSnapshot[]
+  publication_facts         PublicationFact[]
   service_identity_bindings ServiceIdentityBinding[]
 
   prompt_presets    PromptPreset[]
@@ -160,6 +161,7 @@ model SocialChannel {
   posts               Post[]
   content_items       ContentItem[]
   vk_metric_snapshots VkMetricSnapshot[]
+  publication_facts   PublicationFact[]
 
   @@map("social_channels")
   @@schema("planner")
@@ -463,6 +465,7 @@ model WeekPackage {
   workflow_events WorkflowEvent[]
   initiatives     Initiative[]
 
+  @@unique([project_id, week_start, week_end])
   @@map("week_packages")
   @@schema("planner")
 }
@@ -503,6 +506,8 @@ model ContentItem {
   work_items          WorkItem[]
   workflow_events     WorkflowEvent[]
   vk_metric_snapshots VkMetricSnapshot[]
+  metric_snapshots    MetricSnapshot[]
+  publication_fact    PublicationFact?
 
   @@index([project_id])
   @@index([week_package_id])
@@ -821,21 +826,63 @@ model ImageAsset {
 }
 
 model MetricSnapshot {
-  id              Int      @id @default(autoincrement())
-  project_id      Int
-  content_item_id Int
-  channel_id      Int
-  checkpoint      String
-  metrics         Json
-  idempotency_key String?
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
+  id                Int       @id @default(autoincrement())
+  project_id        Int
+  content_item_id   Int
+  channel_id        Int
+  checkpoint        String
+  scheduled_for     DateTime? @db.Timestamptz(6)
+  captured_at       DateTime? @db.Timestamptz(6)
+  collection_mode   String    @default("manual")
+  source            String    @default("manual")
+  collection_status String    @default("pending")
+  metrics           Json
+  evidence_ref      String?
+  error_code        String?
+  error_message     String?
+  late              Boolean   @default(false)
+  window_start      DateTime? @db.Timestamptz(6)
+  window_end        DateTime? @db.Timestamptz(6)
+  idempotency_key   String?
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
 
-  project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  project      Project       @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  content_item ContentItem   @relation(fields: [content_item_id], references: [id], onDelete: Cascade)
 
   @@unique([project_id, content_item_id, channel_id, checkpoint])
   @@index([project_id])
   @@index([content_item_id])
   @@map("metric_snapshots")
+  @@schema("planner")
+}
+
+model PublicationFact {
+  id                    Int      @id @default(autoincrement())
+  project_id            Int
+  content_item_id       Int      @unique
+  channel_id            Int
+  artifact_kind         String
+  outcome               String
+  published_at          DateTime? @db.Timestamptz(6)
+  public_url             String?
+  provider_object_id    String?
+  confirmation_mode     String
+  evidence_type         String?
+  evidence_ref          String?
+  target_url            String?
+  utm_status            String   @default("unknown")
+  confirmed_by          String
+  confirmed_at          DateTime @default(now()) @db.Timestamptz(6)
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  project      Project       @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  content_item ContentItem   @relation(fields: [content_item_id], references: [id], onDelete: Cascade)
+  channel      SocialChannel @relation(fields: [channel_id], references: [id], onDelete: Restrict)
+
+  @@index([project_id, outcome, published_at])
+  @@index([channel_id, published_at])
+  @@map("publication_facts")
   @@schema("planner")
 }

@@ -25,6 +25,8 @@ import metricsService from '../services/metrics.service';
 import vkMetricsService from '../services/vk_metrics.service';
 import { jsonBytes, logEgressDiagnostic, textBytes } from '../utils/egress_diagnostics';
 import { derivePublicationContentState } from '../services/publication_content_state';
+import publicationFactService from '../services/publication_fact.service';
+import { isPublicationTaskActive } from '../services/publication_task_activity';
 
 async function loadPublicationPlanContext(projectId: number) {
     const settings = await prisma.projectSettings.findMany({
@@ -151,6 +153,8 @@ function buildPublicationTaskListItem(item: any) {
         published_link: item.published_link,
         content_state: derivePublicationContentState(item),
         content_revision: item.content_revision || 0,
+        week_package_id: item.week_package_id || null,
+        publication_fact: item.publication_fact || null,
         metrics: {
             monitoring: metrics.monitoring || null,
             collected_metrics: metrics.collected_metrics || null,
@@ -201,6 +205,9 @@ function buildPublicationTaskDetailItem(item: any, options?: {
         draft_text: item.draft_text || null,
         content_state: derivePublicationContentState({ ...item, quality_report: { ...qualityReport, handoff_bundle: handoffBundle } }),
         content_revision: item.content_revision || 0,
+        week_package_id: item.week_package_id || null,
+        publication_fact: item.publication_fact || null,
+        metric_checkpoints: Array.isArray(item.metric_snapshots) ? item.metric_snapshots : [],
         channel: item.channel ? {
             id: item.channel.id,
             name: item.channel.name,
@@ -1039,16 +1046,23 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         const projectId = (request as any).projectId;
         if (!projectId) return reply.code(400).send({ error: 'Project ID required' });
 
-        const { status, manualOnly } = request.query as { status?: string; manualOnly?: string };
+        const { status, manualOnly, weekPackageId, from, to } = request.query as { status?: string; manualOnly?: string; weekPackageId?: string; from?: string; to?: string };
         const where: any = {
             project_id: projectId,
             assets: { not: undefined }
         };
 
         if (status === 'active') {
-            where.status = { in: ['planned', 'drafted', 'revised', 'approved', 'scheduled', 'ready_for_execution', 'awaiting_manual_publication', 'published', 'failed'] };
+            where.status = { in: ['planned', 'drafted', 'revised', 'approved', 'scheduled', 'ready_for_execution', 'awaiting_manual_publication', 'failed'] };
         } else if (status) {
             where.status = status;
+        }
+        if (weekPackageId) where.week_package_id = Number(weekPackageId);
+        if (from || to) {
+            where.schedule_at = {
+                ...(from ? { gte: new Date(from) } : {}),
+                ...(to ? { lte: new Date(to) } : {})
+            };
         }
 
         const items = await prisma.contentItem.findMany({
@@ -1064,8 +1078,10 @@ export default async function apiRoutes(fastify: FastifyInstance) {
                 published_link: true,
                 draft_text: true,
                 content_revision: true,
+                week_package_id: true,
                 quality_report: true,
                 metrics: true,
+                publication_fact: true,
                 channel: {
                     select: {
                         id: true,
@@ -1078,9 +1094,12 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             orderBy: { schedule_at: 'asc' }
         });
 
-        const filtered = manualOnly === 'true'
-            ? items.filter((item) => (item.quality_report as any)?.execution_mode === 'manual')
+        const activeFiltered = status === 'active'
+            ? items.filter(isPublicationTaskActive)
             : items;
+        const filtered = manualOnly === 'true'
+            ? activeFiltered.filter((item) => (item.quality_report as any)?.execution_mode === 'manual')
+            : activeFiltered;
 
         const response = filtered.map(buildPublicationTaskListItem);
         logEgressDiagnostic('publication_tasks.list', {
@@ -1101,7 +1120,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         const { id } = request.params as { id: string };
         const item = await prisma.contentItem.findFirst({
             where: { id: parseInt(id), project_id: projectId },
-            include: { channel: true }
+            include: { channel: true, publication_fact: true, metric_snapshots: { orderBy: { scheduled_for: 'asc' } } }
         });
 
         if (!item) {
@@ -1361,30 +1380,25 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             return reply.code(404).send({ error: 'Publication task not found' });
         }
 
-        const monitoring = (item.metrics as any)?.monitoring || {};
         const publicationOutcome = outcome || 'published';
-        const updated = await prisma.contentItem.update({
-            where: { id: item.id },
-            data: {
-                status: 'published',
-                published_link: publishedLink,
-                metrics: {
-                    ...((item.metrics as any) || {}),
-                    manual_confirmation_at: new Date().toISOString(),
-                    publication_outcome: publicationOutcome,
-                    monitoring: {
-                        ...monitoring,
-                        awaiting_analytics: true,
-                        awaiting_comment_alerts: monitoring.needs_comment_monitoring === true
-                    }
-                } as any,
-                quality_report: {
-                    ...((item.quality_report as any) || {}),
-                    manual_publication_note: note || null,
-                    publication_outcome: publicationOutcome
-                } as any
-            }
+        const rawType = String(item.type || '').toLowerCase();
+        const artifactKind = rawType.includes('article') ? 'article'
+            : rawType.includes('comment') ? 'comment'
+                : rawType.includes('email') ? 'email'
+                    : 'post';
+        await publicationFactService.record({
+            projectId,
+            taskId: item.id,
+            actorId: `user:${(request as any).user.id}`,
+            artifactKind,
+            outcome: publicationOutcome,
+            publishedAt: new Date().toISOString(),
+            publicUrl: publishedLink,
+            confirmationMode: 'manual',
+            evidence: { type: 'public_url', ref: publishedLink },
+            note
         });
+        const updated = await prisma.contentItem.findUniqueOrThrow({ where: { id: item.id } });
         await initiativeService.syncPublishedPublicationTask(projectId, updated.id);
 
         logEgressDiagnostic('publication_tasks.confirm_publication', {
@@ -1396,6 +1410,81 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         });
 
         return updated;
+    });
+
+    fastify.post('/api/publication-tasks/:id/publication-fact', async (request, reply) => {
+        const projectId = (request as any).projectId;
+        const userId = (request as any).user?.id;
+        if (!projectId || !userId) return reply.code(400).send({ error: 'Project and user are required' });
+        const taskId = Number((request.params as { id: string }).id);
+        try {
+            return await publicationFactService.record({
+                ...(request.body as any),
+                projectId,
+                taskId,
+                actorId: `user:${userId}`
+            });
+        } catch (error: any) {
+            const code = String(error?.message || 'PUBLICATION_FACT_FAILED');
+            const statusCode = /Access denied|NOT_FOUND/.test(code) ? 404 : 400;
+            return reply.code(statusCode).send({ error: code });
+        }
+    });
+
+    fastify.get('/api/publication-tasks/:id/publication-fact', async (request, reply) => {
+        const projectId = (request as any).projectId;
+        const userId = (request as any).user?.id;
+        if (!projectId || !userId) return reply.code(400).send({ error: 'Project and user are required' });
+        try {
+            return {
+                publication_fact: await publicationFactService.get(
+                    projectId,
+                    Number((request.params as { id: string }).id),
+                    `user:${userId}`
+                )
+            };
+        } catch (error: any) {
+            return reply.code(404).send({ error: String(error?.message || 'PUBLICATION_FACT_NOT_FOUND') });
+        }
+    });
+
+    fastify.get('/api/metric-checkpoints', async (request, reply) => {
+        const projectId = (request as any).projectId;
+        const userId = (request as any).user?.id;
+        if (!projectId || !userId) return reply.code(400).send({ error: 'Project and user are required' });
+        const query = request.query as { status?: string; dueBefore?: string; channelId?: string };
+        try {
+            return {
+                checkpoints: await publicationFactService.listCheckpoints({
+                    projectId,
+                    actorId: `user:${userId}`,
+                    status: query.status,
+                    dueBefore: query.dueBefore,
+                    channelId: query.channelId ? Number(query.channelId) : undefined
+                })
+            };
+        } catch (error: any) {
+            return reply.code(400).send({ error: String(error?.message || 'METRIC_CHECKPOINTS_FAILED') });
+        }
+    });
+
+    fastify.put('/api/publication-tasks/:id/metric-checkpoints/:checkpoint', async (request, reply) => {
+        const projectId = (request as any).projectId;
+        const userId = (request as any).user?.id;
+        if (!projectId || !userId) return reply.code(400).send({ error: 'Project and user are required' });
+        const { id, checkpoint } = request.params as { id: string; checkpoint: string };
+        const body = request.body as any;
+        try {
+            return await metricsService.recordMetricSnapshot({
+                ...body,
+                projectId,
+                actorId: `user:${userId}`,
+                contentItemId: Number(id),
+                checkpoint
+            });
+        } catch (error: any) {
+            return reply.code(400).send({ error: String(error?.message || 'METRIC_SNAPSHOT_FAILED') });
+        }
     });
 
     fastify.post('/api/publication-tasks/:id/record-metrics', async (request, reply) => {

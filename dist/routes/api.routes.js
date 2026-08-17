@@ -28,6 +28,8 @@ const metrics_service_1 = __importDefault(require("../services/metrics.service")
 const vk_metrics_service_1 = __importDefault(require("../services/vk_metrics.service"));
 const egress_diagnostics_1 = require("../utils/egress_diagnostics");
 const publication_content_state_1 = require("../services/publication_content_state");
+const publication_fact_service_1 = __importDefault(require("../services/publication_fact.service"));
+const publication_task_activity_1 = require("../services/publication_task_activity");
 async function loadPublicationPlanContext(projectId) {
     const settings = await prisma.projectSettings.findMany({
         where: {
@@ -138,6 +140,8 @@ function buildPublicationTaskListItem(item) {
         published_link: item.published_link,
         content_state: (0, publication_content_state_1.derivePublicationContentState)(item),
         content_revision: item.content_revision || 0,
+        week_package_id: item.week_package_id || null,
+        publication_fact: item.publication_fact || null,
         metrics: {
             monitoring: metrics.monitoring || null,
             collected_metrics: metrics.collected_metrics || null,
@@ -178,6 +182,9 @@ function buildPublicationTaskDetailItem(item, options) {
         draft_text: item.draft_text || null,
         content_state: (0, publication_content_state_1.derivePublicationContentState)({ ...item, quality_report: { ...qualityReport, handoff_bundle: handoffBundle } }),
         content_revision: item.content_revision || 0,
+        week_package_id: item.week_package_id || null,
+        publication_fact: item.publication_fact || null,
+        metric_checkpoints: Array.isArray(item.metric_snapshots) ? item.metric_snapshots : [],
         channel: item.channel ? {
             id: item.channel.id,
             name: item.channel.name,
@@ -929,16 +936,24 @@ async function apiRoutes(fastify) {
         const projectId = request.projectId;
         if (!projectId)
             return reply.code(400).send({ error: 'Project ID required' });
-        const { status, manualOnly } = request.query;
+        const { status, manualOnly, weekPackageId, from, to } = request.query;
         const where = {
             project_id: projectId,
             assets: { not: undefined }
         };
         if (status === 'active') {
-            where.status = { in: ['planned', 'drafted', 'revised', 'approved', 'scheduled', 'ready_for_execution', 'awaiting_manual_publication', 'published', 'failed'] };
+            where.status = { in: ['planned', 'drafted', 'revised', 'approved', 'scheduled', 'ready_for_execution', 'awaiting_manual_publication', 'failed'] };
         }
         else if (status) {
             where.status = status;
+        }
+        if (weekPackageId)
+            where.week_package_id = Number(weekPackageId);
+        if (from || to) {
+            where.schedule_at = {
+                ...(from ? { gte: new Date(from) } : {}),
+                ...(to ? { lte: new Date(to) } : {})
+            };
         }
         const items = await prisma.contentItem.findMany({
             where,
@@ -953,8 +968,10 @@ async function apiRoutes(fastify) {
                 published_link: true,
                 draft_text: true,
                 content_revision: true,
+                week_package_id: true,
                 quality_report: true,
                 metrics: true,
+                publication_fact: true,
                 channel: {
                     select: {
                         id: true,
@@ -966,9 +983,12 @@ async function apiRoutes(fastify) {
             },
             orderBy: { schedule_at: 'asc' }
         });
-        const filtered = manualOnly === 'true'
-            ? items.filter((item) => item.quality_report?.execution_mode === 'manual')
+        const activeFiltered = status === 'active'
+            ? items.filter(publication_task_activity_1.isPublicationTaskActive)
             : items;
+        const filtered = manualOnly === 'true'
+            ? activeFiltered.filter((item) => item.quality_report?.execution_mode === 'manual')
+            : activeFiltered;
         const response = filtered.map(buildPublicationTaskListItem);
         (0, egress_diagnostics_1.logEgressDiagnostic)('publication_tasks.list', {
             projectId,
@@ -986,7 +1006,7 @@ async function apiRoutes(fastify) {
         const { id } = request.params;
         const item = await prisma.contentItem.findFirst({
             where: { id: parseInt(id), project_id: projectId },
-            include: { channel: true }
+            include: { channel: true, publication_fact: true, metric_snapshots: { orderBy: { scheduled_for: 'asc' } } }
         });
         if (!item) {
             return reply.code(404).send({ error: 'Publication task not found' });
@@ -1205,30 +1225,25 @@ async function apiRoutes(fastify) {
         if (!item) {
             return reply.code(404).send({ error: 'Publication task not found' });
         }
-        const monitoring = item.metrics?.monitoring || {};
         const publicationOutcome = outcome || 'published';
-        const updated = await prisma.contentItem.update({
-            where: { id: item.id },
-            data: {
-                status: 'published',
-                published_link: publishedLink,
-                metrics: {
-                    ...(item.metrics || {}),
-                    manual_confirmation_at: new Date().toISOString(),
-                    publication_outcome: publicationOutcome,
-                    monitoring: {
-                        ...monitoring,
-                        awaiting_analytics: true,
-                        awaiting_comment_alerts: monitoring.needs_comment_monitoring === true
-                    }
-                },
-                quality_report: {
-                    ...(item.quality_report || {}),
-                    manual_publication_note: note || null,
-                    publication_outcome: publicationOutcome
-                }
-            }
+        const rawType = String(item.type || '').toLowerCase();
+        const artifactKind = rawType.includes('article') ? 'article'
+            : rawType.includes('comment') ? 'comment'
+                : rawType.includes('email') ? 'email'
+                    : 'post';
+        await publication_fact_service_1.default.record({
+            projectId,
+            taskId: item.id,
+            actorId: `user:${request.user.id}`,
+            artifactKind,
+            outcome: publicationOutcome,
+            publishedAt: new Date().toISOString(),
+            publicUrl: publishedLink,
+            confirmationMode: 'manual',
+            evidence: { type: 'public_url', ref: publishedLink },
+            note
         });
+        const updated = await prisma.contentItem.findUniqueOrThrow({ where: { id: item.id } });
         await initiative_service_1.default.syncPublishedPublicationTask(projectId, updated.id);
         (0, egress_diagnostics_1.logEgressDiagnostic)('publication_tasks.confirm_publication', {
             projectId,
@@ -1238,6 +1253,81 @@ async function apiRoutes(fastify) {
             responseBytes: (0, egress_diagnostics_1.jsonBytes)(updated)
         });
         return updated;
+    });
+    fastify.post('/api/publication-tasks/:id/publication-fact', async (request, reply) => {
+        const projectId = request.projectId;
+        const userId = request.user?.id;
+        if (!projectId || !userId)
+            return reply.code(400).send({ error: 'Project and user are required' });
+        const taskId = Number(request.params.id);
+        try {
+            return await publication_fact_service_1.default.record({
+                ...request.body,
+                projectId,
+                taskId,
+                actorId: `user:${userId}`
+            });
+        }
+        catch (error) {
+            const code = String(error?.message || 'PUBLICATION_FACT_FAILED');
+            const statusCode = /Access denied|NOT_FOUND/.test(code) ? 404 : 400;
+            return reply.code(statusCode).send({ error: code });
+        }
+    });
+    fastify.get('/api/publication-tasks/:id/publication-fact', async (request, reply) => {
+        const projectId = request.projectId;
+        const userId = request.user?.id;
+        if (!projectId || !userId)
+            return reply.code(400).send({ error: 'Project and user are required' });
+        try {
+            return {
+                publication_fact: await publication_fact_service_1.default.get(projectId, Number(request.params.id), `user:${userId}`)
+            };
+        }
+        catch (error) {
+            return reply.code(404).send({ error: String(error?.message || 'PUBLICATION_FACT_NOT_FOUND') });
+        }
+    });
+    fastify.get('/api/metric-checkpoints', async (request, reply) => {
+        const projectId = request.projectId;
+        const userId = request.user?.id;
+        if (!projectId || !userId)
+            return reply.code(400).send({ error: 'Project and user are required' });
+        const query = request.query;
+        try {
+            return {
+                checkpoints: await publication_fact_service_1.default.listCheckpoints({
+                    projectId,
+                    actorId: `user:${userId}`,
+                    status: query.status,
+                    dueBefore: query.dueBefore,
+                    channelId: query.channelId ? Number(query.channelId) : undefined
+                })
+            };
+        }
+        catch (error) {
+            return reply.code(400).send({ error: String(error?.message || 'METRIC_CHECKPOINTS_FAILED') });
+        }
+    });
+    fastify.put('/api/publication-tasks/:id/metric-checkpoints/:checkpoint', async (request, reply) => {
+        const projectId = request.projectId;
+        const userId = request.user?.id;
+        if (!projectId || !userId)
+            return reply.code(400).send({ error: 'Project and user are required' });
+        const { id, checkpoint } = request.params;
+        const body = request.body;
+        try {
+            return await metrics_service_1.default.recordMetricSnapshot({
+                ...body,
+                projectId,
+                actorId: `user:${userId}`,
+                contentItemId: Number(id),
+                checkpoint
+            });
+        }
+        catch (error) {
+            return reply.code(400).send({ error: String(error?.message || 'METRIC_SNAPSHOT_FAILED') });
+        }
     });
     fastify.post('/api/publication-tasks/:id/record-metrics', async (request, reply) => {
         const projectId = request.projectId;

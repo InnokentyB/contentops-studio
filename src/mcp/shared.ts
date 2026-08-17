@@ -8,6 +8,8 @@ import taskTrackerService from '../services/task_tracker.service';
 import deliveryService from '../services/delivery.service';
 import imageAssetService from '../services/image_asset.service';
 import metricsService from '../services/metrics.service';
+import publicationFactService from '../services/publication_fact.service';
+import weekPackageRepairService from '../services/week_package_repair.service';
 import { filterMcpServerTools, McpCapabilityProfile } from './capabilities';
 
 
@@ -534,6 +536,90 @@ export function registerPlannerTools(server: McpServer) {
         const task = await mcpPublicationService.confirmPublication(projectId, taskId, publishedLink, note, outcome);
         return asToolResult({ project_id: projectId, task });
     });
+
+    server.registerTool('ba_record_publication_fact', {
+        description: 'Record or explicitly correct the canonical publication fact. Published posts/articles/comments require a permalink; stories require stable identity and evidence.',
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string().min(1),
+            taskId: z.number().int().positive(),
+            artifactKind: z.enum(['post', 'article', 'story', 'email', 'comment', 'other']),
+            outcome: z.enum(['published', 'blocked', 'removed', 'restricted']),
+            publishedAt: z.string().datetime({ offset: true }).nullable().optional(),
+            publicUrl: z.string().url().nullable().optional(),
+            providerObjectId: z.string().max(500).nullable().optional(),
+            confirmationMode: z.enum(['automatic', 'manual', 'imported', 'reconciled']),
+            evidence: z.object({
+                type: z.enum(['public_url', 'provider_id', 'screenshot', 'manual_note', 'api']),
+                ref: z.string().min(1).max(2000)
+            }).nullable().optional(),
+            targetUrl: z.string().url().nullable().optional(),
+            utmStatus: z.enum(['pass', 'not_applicable', 'missing', 'invalid', 'unknown']).optional(),
+            note: z.string().max(2000).nullable().optional(),
+            correctionReason: z.string().max(2000).nullable().optional()
+        }
+    }, async (args) => asToolResult(await publicationFactService.record(args)));
+
+    server.registerTool('ba_get_publication_fact', {
+        description: 'Read the canonical publication fact for one task.',
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string().min(1),
+            taskId: z.number().int().positive()
+        }
+    }, async ({ projectId, actorId, taskId }) => asToolResult({
+        publication_fact: await publicationFactService.get(projectId, taskId, actorId)
+    }));
+
+    server.registerTool('ba_list_metric_checkpoints', {
+        description: 'List due, overdue, partial, failed, or pending T+24h/T+7d metric checkpoints.',
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string().min(1),
+            status: z.enum(['pending', 'collected', 'partial', 'unknown', 'not_supported', 'failed', 'overdue']).optional(),
+            dueBefore: z.string().datetime({ offset: true }).optional(),
+            channelId: z.number().int().positive().optional()
+        }
+    }, async (args) => asToolResult({ checkpoints: await publicationFactService.listCheckpoints(args) }));
+
+    const repairMoveSchema = z.object({
+        contentItemId: z.number().int().positive(),
+        weekStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        weekEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+    });
+
+    server.registerTool('ba_preview_week_package_repair', {
+        description: 'Owner-only dry run for explicitly moving tasks between exact weekly packages. Never changes publication runtime.',
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string().min(1),
+            moves: z.array(repairMoveSchema).min(1)
+        }
+    }, async (args) => asToolResult(await weekPackageRepairService.preview(args)));
+
+    server.registerTool('ba_apply_week_package_repair', {
+        description: 'Apply an owner-approved week-package repair atomically after preview.',
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string().min(1),
+            moves: z.array(repairMoveSchema).min(1),
+            reason: z.string().min(1).max(2000),
+            idempotencyKey: z.string().min(1).max(500)
+        }
+    }, async (args) => asToolResult(await weekPackageRepairService.apply(args)));
+
+    server.registerTool('ba_rollback_week_package_repair', {
+        description: 'Rollback one audited week-package repair when task bindings still match its applied state.',
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string().min(1),
+            applyIdempotencyKey: z.string().min(1).max(500),
+            idempotencyKey: z.string().min(1).max(500)
+        }
+    }, async (args) => asToolResult(await weekPackageRepairService.rollback(args)));
 
     server.registerTool('ba_publish_direct', {
         description: 'Publish content directly to a configured project channel. Supports reddit, telegram, vk, and linkedin.',
@@ -1100,7 +1186,7 @@ export function registerPlannerTools(server: McpServer) {
     });
 
     server.registerTool('ba_record_metric_snapshot', {
-        description: 'Record a metric snapshot at checkpoint (T+1, T+24, T+72) idempotently.',
+        description: 'Record a T+24h/T+7d metric snapshot with per-field observed/unknown/not-supported semantics.',
         inputSchema: {
             projectId: z.number().int().positive(),
             actorId: z.string(),
@@ -1108,6 +1194,16 @@ export function registerPlannerTools(server: McpServer) {
             channelId: z.number().int().positive(),
             checkpoint: z.string(),
             metrics: z.record(z.string(), z.unknown()),
+            scheduledFor: z.string().datetime({ offset: true }).optional(),
+            capturedAt: z.string().datetime({ offset: true }).optional(),
+            collectionMode: z.enum(['automatic', 'manual', 'imported']).optional(),
+            source: z.enum(['provider_api', 'public_page', 'yandex_metrika', 'manual']).optional(),
+            collectionStatus: z.enum(['pending', 'collected', 'partial', 'unknown', 'not_supported', 'failed', 'overdue']).optional(),
+            evidenceRef: z.string().max(2000).optional(),
+            errorCode: z.string().max(200).optional(),
+            errorMessage: z.string().max(500).optional(),
+            windowStart: z.string().datetime({ offset: true }).optional(),
+            windowEnd: z.string().datetime({ offset: true }).optional(),
             idempotencyKey: z.string().optional()
         }
     }, async (args) => {

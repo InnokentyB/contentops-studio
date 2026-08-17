@@ -13,7 +13,7 @@ assert.match(source, /content_state/)
 
 assert.match(source, /Проверьте текст\. Затем опубликуйте его и сохраните ссылку/)
 assert.match(source, /Подготовить черновик/)
-assert.match(source, /Подтвердить ссылку на опубликованный пост/)
+assert.match(source, /Зафиксировать факт публикации/)
 assert.match(source, /Материалы и контекст/)
 assert.match(source, /как увидит читатель/)
 assert.doesNotMatch(source, /Что сделать сейчас/)

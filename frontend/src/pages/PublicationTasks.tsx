@@ -22,6 +22,9 @@ interface PublicationTask {
     draft_text?: string | null
     content_state?: 'empty' | 'ready' | 'published'
     content_revision?: number
+    week_package_id?: number | null
+    publication_fact?: PublicationFact | null
+    metric_checkpoints?: MetricCheckpoint[]
     quality_report?: JsonRecord | null
     metrics?: JsonRecord | null
     assets?: JsonRecord | null
@@ -47,6 +50,44 @@ interface PublicationTask {
         voice_profile?: string | null
         platform_type?: string | null
     } | null
+}
+
+type ArtifactKind = 'post' | 'article' | 'story' | 'email' | 'comment' | 'other'
+
+type PublicationFact = {
+    id: number
+    artifact_kind: ArtifactKind
+    outcome: PublicationOutcome
+    published_at?: string | null
+    public_url?: string | null
+    provider_object_id?: string | null
+    confirmation_mode: string
+    evidence_type?: string | null
+    evidence_ref?: string | null
+    target_url?: string | null
+    utm_status?: string | null
+    confirmed_by?: string | null
+    confirmed_at?: string | null
+}
+
+type MetricCheckpoint = {
+    id: number
+    checkpoint: 't24h' | 't7d' | string
+    scheduled_for?: string | null
+    captured_at?: string | null
+    collection_mode?: string
+    source?: string
+    collection_status?: string
+    late?: boolean
+    metrics?: JsonRecord
+}
+
+type WeekPackageOption = {
+    id: number
+    week_start: string
+    week_end: string
+    week_theme?: string | null
+    _count?: { content_items?: number }
 }
 
 type ContentEditHistoryEntry = {
@@ -247,6 +288,30 @@ function taskChannel(task: PublicationTask) {
     return task.channel?.name || task.layer || task.type
 }
 
+function inferArtifactKind(task: PublicationTask | null | undefined): ArtifactKind {
+    const type = String(task?.type || '').toLowerCase()
+    if (type.includes('story')) return 'story'
+    if (type.includes('article')) return 'article'
+    if (type.includes('email')) return 'email'
+    if (type.includes('comment')) return 'comment'
+    if (type.includes('post')) return 'post'
+    return 'other'
+}
+
+function checkpointLabel(value: string) {
+    if (value === 't24h') return 'T+24 часа'
+    if (value === 't7d') return 'T+7 дней'
+    return value
+}
+
+function checkpointStatusLabel(value?: string) {
+    const labels: Record<string, string> = {
+        pending: 'Ожидает сбора', collected: 'Собран', partial: 'Частично', unknown: 'Нет данных',
+        not_supported: 'Не поддерживается', failed: 'Ошибка', overdue: 'Просрочен'
+    }
+    return labels[value || ''] || value || 'Ожидает'
+}
+
 function taskPlanReference(task: PublicationTask | null | undefined) {
     if (!task) return ''
 
@@ -423,6 +488,7 @@ export default function PublicationTasks() {
     const [hidePublished, setHidePublished] = useState(true)
     const [contentStateFilter, setContentStateFilter] = useState<'all' | 'empty' | 'ready' | 'published'>('all')
     const [taskSearch, setTaskSearch] = useState('')
+    const [weekPackageId, setWeekPackageId] = useState<number | 'all' | null>(null)
     const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null)
     const [mobileTaskOpen, setMobileTaskOpen] = useState(false)
     const [planJson, setPlanJson] = useState(PUBLICATION_PLAN_TEMPLATE)
@@ -433,8 +499,13 @@ export default function PublicationTasks() {
     const [publishedLink, setPublishedLink] = useState('')
     const [publicationNote, setPublicationNote] = useState('')
     const [publicationOutcome, setPublicationOutcome] = useState<PublicationOutcome>('published')
+    const [artifactKind, setArtifactKind] = useState<ArtifactKind>('post')
+    const [providerObjectId, setProviderObjectId] = useState('')
+    const [evidenceRef, setEvidenceRef] = useState('')
+    const [targetUrl, setTargetUrl] = useState('')
+    const [selectedCheckpoint, setSelectedCheckpoint] = useState<'t24h' | 't7d'>('t24h')
     const [publicationBody, setPublicationBody] = useState('')
-    const [metricsJson, setMetricsJson] = useState('{\n  "views": 0,\n  "clicks": 0,\n  "comments": 0\n}')
+    const [metricsJson, setMetricsJson] = useState('{\n  "schema_version": 1,\n  "values": {\n    "views": { "value": 0, "status": "observed" },\n    "reactions": { "value": 0, "status": "observed" },\n    "platform_clicks": { "value": null, "status": "unknown" }\n  }\n}')
     const [commentAuthor, setCommentAuthor] = useState('')
     const [commentUrl, setCommentUrl] = useState('')
     const [commentText, setCommentText] = useState('')
@@ -443,10 +514,24 @@ export default function PublicationTasks() {
 
     const resolvedStatusFilter = statusFilter
 
-    const { data: tasks, isLoading, error } = useQuery<PublicationTask[]>({
-        queryKey: ['publication_tasks', currentProject?.id, resolvedStatusFilter || 'active', manualOnly],
-        queryFn: () => publicationTasksApi.list({ status: resolvedStatusFilter, manualOnly }),
+    const { data: weekPackages } = useQuery<WeekPackageOption[]>({
+        queryKey: ['publication_task_weeks', currentProject?.id],
+        queryFn: () => publicationTasksApi.listWeeks(),
         enabled: !!currentProject
+    })
+
+    useEffect(() => {
+        setWeekPackageId(weekPackages?.[0]?.id || 'all')
+    }, [currentProject?.id, weekPackages?.[0]?.id])
+
+    const { data: tasks, isLoading, error } = useQuery<PublicationTask[]>({
+        queryKey: ['publication_tasks', currentProject?.id, resolvedStatusFilter || 'active', manualOnly, weekPackageId],
+        queryFn: () => publicationTasksApi.list({
+            status: resolvedStatusFilter,
+            manualOnly,
+            weekPackageId: typeof weekPackageId === 'number' ? weekPackageId : undefined
+        }),
+        enabled: !!currentProject && weekPackageId !== null
     })
 
     const filteredTasks = useMemo(
@@ -467,6 +552,13 @@ export default function PublicationTasks() {
         queryFn: () => publicationTasksApi.get(selectedTaskId as number),
         enabled: !!selectedTaskId && !!currentProject
     })
+
+    useEffect(() => {
+        if (urlTaskId && selectedTask?.status === 'published') {
+            setHidePublished(false)
+            setStatusFilter('published')
+        }
+    }, [urlTaskId, selectedTask?.status])
 
     useEffect(() => {
         if (urlTaskId) {
@@ -525,14 +617,25 @@ export default function PublicationTasks() {
         setPublicationBody(nextBody)
         setPublishedLink(selectedTask?.published_link || '')
         setPublicationNote(selectedTask?.quality_report?.manual_publication_note || '')
-        setPublicationOutcome((selectedTask?.quality_report?.publication_outcome || selectedTask?.metrics?.publication_outcome || 'published') as PublicationOutcome)
-        setMetricsJson(prettyJson(selectedTask?.metrics?.collected_metrics || { views: 0, clicks: 0, comments: 0 }))
+        setPublicationOutcome((selectedTask?.publication_fact?.outcome || selectedTask?.quality_report?.publication_outcome || selectedTask?.metrics?.publication_outcome || 'published') as PublicationOutcome)
+        setArtifactKind(selectedTask?.publication_fact?.artifact_kind || inferArtifactKind(selectedTask))
+        setProviderObjectId(selectedTask?.publication_fact?.provider_object_id || '')
+        setEvidenceRef(selectedTask?.publication_fact?.evidence_ref || '')
+        setTargetUrl(selectedTask?.publication_fact?.target_url || '')
+        setMetricsJson(prettyJson(selectedTask?.metric_checkpoints?.find((entry) => entry.checkpoint === selectedCheckpoint)?.metrics || {
+            schema_version: 1,
+            values: {
+                views: { value: 0, status: 'observed' },
+                reactions: { value: 0, status: 'observed' },
+                platform_clicks: { value: null, status: 'unknown' }
+            }
+        }))
         setCriticReport((selectedTask?.quality_report?.critic_review as CriticReview | undefined) || null)
         setCommentAuthor('')
         setCommentUrl('')
         setCommentText('')
         setTaskMessage(null)
-    }, [selectedTask?.id])
+    }, [selectedTask?.id, selectedCheckpoint])
 
     const refreshTasks = () => {
         queryClient.invalidateQueries({ queryKey: ['publication_tasks'] })
@@ -599,10 +702,21 @@ export default function PublicationTasks() {
     const confirmPublication = useMutation({
         mutationFn: () => {
             if (!activeTaskId) throw new Error('Задача не выбрана')
-            return publicationTasksApi.confirmPublication(activeTaskId, {
-                publishedLink,
+            return publicationTasksApi.recordPublicationFact(activeTaskId, {
+                artifactKind,
+                outcome: publicationOutcome,
+                publishedAt: new Date().toISOString(),
+                publicUrl: publishedLink.trim() || null,
+                providerObjectId: providerObjectId.trim() || null,
+                confirmationMode: 'manual',
+                evidence: evidenceRef.trim()
+                    ? { type: 'screenshot', ref: evidenceRef.trim() }
+                    : publishedLink.trim()
+                        ? { type: 'public_url', ref: publishedLink.trim() }
+                        : null,
+                targetUrl: targetUrl.trim() || null,
                 note: publicationNote || undefined,
-                outcome: publicationOutcome
+                correctionReason: activeTask?.publication_fact ? publicationNote || 'Исправление оператором' : undefined
             })
         },
         onSuccess: () => {
@@ -691,7 +805,18 @@ export default function PublicationTasks() {
     const recordMetrics = useMutation({
         mutationFn: () => {
             if (!activeTaskId) throw new Error('Задача не выбрана')
-            return publicationTasksApi.recordMetrics(activeTaskId, JSON.parse(metricsJson))
+            const checkpoint = activeTask?.metric_checkpoints?.find((entry) => entry.checkpoint === selectedCheckpoint)
+            if (!activeTask?.channel?.id) throw new Error('У задачи не указан канал')
+            return publicationTasksApi.recordMetricCheckpoint(activeTaskId, selectedCheckpoint, {
+                channelId: activeTask.channel.id,
+                metrics: JSON.parse(metricsJson),
+                scheduledFor: checkpoint?.scheduled_for || undefined,
+                capturedAt: new Date().toISOString(),
+                collectionMode: 'manual',
+                source: 'manual',
+                collectionStatus: 'collected',
+                idempotencyKey: `manual:${activeTaskId}:${selectedCheckpoint}:${Date.now()}`
+            })
         },
         onSuccess: () => {
             setTaskMessage('Снимок метрик сохранён вручную.')
@@ -733,7 +858,9 @@ export default function PublicationTasks() {
     const sourceFiles = mergeSourceFiles(activeTask)
     const primarySourceEntry = resolvePrimarySourceEntry(activeTask, sourceFiles)
     const executionMode = handoffBundle?.mode || activeTask?.quality_report?.execution_mode || 'manual'
-    const activeOutcome = (activeTask?.quality_report?.publication_outcome || activeTask?.metrics?.publication_outcome || 'published') as PublicationOutcome
+    const activeOutcome = (activeTask?.publication_fact?.outcome || activeTask?.quality_report?.publication_outcome || activeTask?.metrics?.publication_outcome || 'published') as PublicationOutcome
+    const publicationFact = activeTask?.publication_fact || null
+    const metricCheckpoints = activeTask?.metric_checkpoints || []
     const isTaskOverdue = !!activeTask?.schedule_at
         && ['planned', 'ready_for_execution', 'awaiting_manual_publication'].includes(activeTask.status)
         && new Date(activeTask.schedule_at).getTime() < Date.now()
@@ -741,7 +868,7 @@ export default function PublicationTasks() {
     const canPublishNow = !!activeTask
         && supportsDirectPlannerPublish(activeTask)
         && ['planned', 'ready_for_execution', 'awaiting_manual_publication', 'failed'].includes(activeTask.status)
-    const canFetchMetrics = !!activeTask?.published_link && supportsAutoMetrics(activeTask)
+    const canFetchMetrics = taskContentState(activeTask) === 'published' && supportsAutoMetrics(activeTask)
     const vkSnapshots = vkMetricsHistory?.snapshots || []
     const latestVkSnapshot = vkSnapshots[vkSnapshots.length - 1]
     const targetResourceUrl = activeTask?.workspace_context?.target_resource_url || handoffBundle?.publication?.link_url || ''
@@ -768,6 +895,10 @@ export default function PublicationTasks() {
     const publicationActionTitle = !hasPublicationText
         ? 'Сначала подготовьте текст публикации: нажмите «Подготовить черновик» или напишите текст вручную.'
         : 'Опубликуйте текст в подключённый канал, затем вставьте ссылку на пост справа.'
+    const requiresPermalink = publicationOutcome === 'published' && ['post', 'article', 'comment'].includes(artifactKind)
+    const requiresStoryEvidence = publicationOutcome === 'published' && artifactKind === 'story'
+    const publicationFactReady = (!requiresPermalink || publishedLink.trim().length > 0)
+        && (!requiresStoryEvidence || (providerObjectId.trim().length > 0 && evidenceRef.trim().length > 0))
 
     return (
         <div className="flex-1 w-full p-4 sm:p-6 lg:p-10 space-y-8 overflow-y-auto">
@@ -796,6 +927,19 @@ export default function PublicationTasks() {
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <select
+                                    value={weekPackageId ?? ''}
+                                    onChange={(event) => setWeekPackageId(event.target.value === 'all' ? 'all' : Number(event.target.value))}
+                                    aria-label="Неделя публикаций"
+                                    className="w-full bg-surface-container-low border-none rounded-xl px-4 py-3 text-base sm:text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none sm:col-span-2"
+                                >
+                                    {(weekPackages || []).map((week) => (
+                                        <option key={week.id} value={week.id}>
+                                            {formatDate(week.week_start)} — {formatDate(week.week_end)} · {week._count?.content_items || 0}
+                                        </option>
+                                    ))}
+                                    <option value="all">Все недели / история</option>
+                                </select>
                                 <select
                                     value={statusFilter}
                                     onChange={(event) => setStatusFilter(event.target.value)}
@@ -1360,13 +1504,67 @@ export default function PublicationTasks() {
                                                         <div><dt className="text-xs text-on-surface-variant">Режим</dt><dd className="mt-1 font-bold">{executionMode}</dd></div>
                                                     </dl>
                                                     <label className="block">
-                                                        <span className="text-sm font-bold text-on-surface">{sourceLinkLabel}</span>
+                                                        <span className="text-sm font-bold text-on-surface">Тип размещения</span>
+                                                        <select
+                                                            value={artifactKind}
+                                                            onChange={(event) => setArtifactKind(event.target.value as ArtifactKind)}
+                                                            className="mt-2 w-full bg-surface-container-low border-none rounded-2xl px-4 py-3 text-base sm:text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                                        >
+                                                            <option value="post">Пост</option>
+                                                            <option value="article">Статья</option>
+                                                            <option value="story">Story без постоянной ссылки</option>
+                                                            <option value="email">Email-рассылка</option>
+                                                            <option value="comment">Комментарий</option>
+                                                            <option value="other">Другой артефакт</option>
+                                                        </select>
+                                                    </label>
+                                                    <label className="block">
+                                                        <span className="text-sm font-bold text-on-surface">
+                                                            {artifactKind === 'story' || artifactKind === 'email' ? 'Публичная ссылка, если есть' : sourceLinkLabel}
+                                                        </span>
                                                         <input
                                                             type="url"
                                                             value={publishedLink}
                                                             onChange={(event) => setPublishedLink(event.target.value)}
                                                             placeholder={sourceLinkPlaceholder}
-                                                            className="mt-2 w-full bg-surface-container-low border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                                            required={requiresPermalink}
+                                                            aria-describedby="publication-link-hint"
+                                                            className="mt-2 w-full bg-surface-container-low border-none rounded-2xl px-4 py-3 text-base sm:text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                                        />
+                                                        <span id="publication-link-hint" className="mt-2 block text-xs leading-5 text-on-surface-variant">
+                                                            {requiresPermalink ? 'Permalink обязателен для этого типа.' : 'Для story и email ссылка может отсутствовать.'}
+                                                        </span>
+                                                    </label>
+                                                    {(artifactKind === 'story' || artifactKind === 'email') && (
+                                                        <label className="block">
+                                                            <span className="text-sm font-bold text-on-surface">ID у площадки</span>
+                                                            <input
+                                                                value={providerObjectId}
+                                                                onChange={(event) => setProviderObjectId(event.target.value)}
+                                                                placeholder={artifactKind === 'story' ? 'story:channel:timestamp' : 'campaign-id'}
+                                                                className="mt-2 w-full bg-surface-container-low border-none rounded-2xl px-4 py-3 text-base sm:text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                                            />
+                                                        </label>
+                                                    )}
+                                                    {artifactKind === 'story' && (
+                                                        <label className="block">
+                                                            <span className="text-sm font-bold text-on-surface">Доказательство размещения</span>
+                                                            <input
+                                                                value={evidenceRef}
+                                                                onChange={(event) => setEvidenceRef(event.target.value)}
+                                                                placeholder="asset://... или ссылка на скриншот"
+                                                                className="mt-2 w-full bg-surface-container-low border-none rounded-2xl px-4 py-3 text-base sm:text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                                            />
+                                                        </label>
+                                                    )}
+                                                    <label className="block">
+                                                        <span className="text-sm font-bold text-on-surface">Целевая ссылка / UTM</span>
+                                                        <input
+                                                            type="url"
+                                                            value={targetUrl}
+                                                            onChange={(event) => setTargetUrl(event.target.value)}
+                                                            placeholder="https://...utm_source=..."
+                                                            className="mt-2 w-full bg-surface-container-low border-none rounded-2xl px-4 py-3 text-base sm:text-sm focus:ring-2 focus:ring-primary/20 outline-none"
                                                         />
                                                     </label>
                                                     <select
@@ -1390,12 +1588,68 @@ export default function PublicationTasks() {
                                                     />
                                                     <button
                                                         onClick={() => confirmPublication.mutate()}
-                                                        disabled={!publishedLink.trim() || confirmPublication.isPending}
+                                                        disabled={!publicationFactReady || confirmPublication.isPending}
                                                         className="w-full bg-primary text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
                                                     >
-                                                        {confirmPublication.isPending ? 'Сохраняем...' : 'Подтвердить ссылку на опубликованный пост'}
+                                                        {confirmPublication.isPending ? 'Сохраняем...' : publicationFact ? 'Сохранить исправление факта' : 'Зафиксировать факт публикации'}
                                                     </button>
+                                                    {publicationFact && (
+                                                        <div className="pt-4 border-t border-outline-variant/15 text-xs leading-5 text-on-surface-variant">
+                                                            <div className="font-bold text-on-surface">Факт подтверждён</div>
+                                                            <div>{formatDate(publicationFact.published_at)} · {publicationFact.confirmation_mode}</div>
+                                                            <div>UTM: {publicationFact.utm_status || 'unknown'}</div>
+                                                            {publicationFact.confirmed_by && <div className="break-words">Актор: {publicationFact.confirmed_by}</div>}
+                                                        </div>
+                                                    )}
                                                 </div>
+
+                                                {publicationFact && (
+                                                    <section className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4 border border-outline-variant/10" aria-label="Контрольные снимки метрик">
+                                                        <div>
+                                                            <h3 className="text-lg font-headline font-black text-on-surface">Контрольные снимки</h3>
+                                                            <p className="mt-1 text-xs leading-5 text-on-surface-variant">T+24h и T+7d хранятся раздельно; неизвестное значение не считается нулём.</p>
+                                                        </div>
+                                                        <div className="grid grid-cols-2 gap-2">
+                                                            {(['t24h', 't7d'] as const).map((checkpointName) => {
+                                                                const checkpoint = metricCheckpoints.find((entry) => entry.checkpoint === checkpointName)
+                                                                const selected = selectedCheckpoint === checkpointName
+                                                                return (
+                                                                    <button
+                                                                        key={checkpointName}
+                                                                        type="button"
+                                                                        onClick={() => setSelectedCheckpoint(checkpointName)}
+                                                                        className={`min-w-0 rounded-2xl px-3 py-3 text-start transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${selected ? 'bg-primary text-white' : 'bg-white text-on-surface hover:bg-primary/5'}`}
+                                                                    >
+                                                                        <span className="block text-sm font-black">{checkpointLabel(checkpointName)}</span>
+                                                                        <span className={`mt-1 block text-xs break-words ${selected ? 'text-white/80' : 'text-on-surface-variant'}`}>{checkpointStatusLabel(checkpoint?.collection_status)}</span>
+                                                                        {checkpoint?.late && <span className="mt-1 block text-xs font-black">Собран поздно</span>}
+                                                                    </button>
+                                                                )
+                                                            })}
+                                                        </div>
+                                                        <div className="text-xs leading-5 text-on-surface-variant">
+                                                            Срок: {formatDate(metricCheckpoints.find((entry) => entry.checkpoint === selectedCheckpoint)?.scheduled_for)}
+                                                        </div>
+                                                        <label className="block">
+                                                            <span className="text-sm font-bold text-on-surface">Метрики JSON v1</span>
+                                                            <textarea
+                                                                value={metricsJson}
+                                                                onChange={(event) => setMetricsJson(event.target.value)}
+                                                                rows={10}
+                                                                spellCheck={false}
+                                                                className="mt-2 w-full bg-white border-none rounded-2xl p-4 font-mono text-sm leading-6 focus:ring-2 focus:ring-primary/20 outline-none resize-y"
+                                                            />
+                                                        </label>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => recordMetrics.mutate()}
+                                                            disabled={recordMetrics.isPending}
+                                                            className="w-full rounded-2xl bg-on-surface px-5 py-3 text-sm font-black text-white transition-colors hover:bg-primary disabled:opacity-50"
+                                                        >
+                                                            {recordMetrics.isPending ? 'Сохраняем снимок...' : `Сохранить ${checkpointLabel(selectedCheckpoint)}`}
+                                                        </button>
+                                                    </section>
+                                                )}
 
                                                 <details className="group rounded-[1.5rem] bg-surface-container-low border border-outline-variant/10">
                                                     <summary className="list-none cursor-pointer flex min-h-14 items-center justify-between gap-3 px-5 py-4">
@@ -1833,7 +2087,7 @@ export default function PublicationTasks() {
 
                                     <section>
                                         <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
-                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Сохранение метрик</div>
+                                            <h3 className="text-lg font-headline font-black text-on-surface">Автоматические метрики канала</h3>
                                             <div className="rounded-2xl bg-white px-4 py-3 text-xs leading-6 text-on-surface-variant">
                                                 {activeTask.channel?.type === 'linkedin'
                                                     ? 'Для LinkedIn мы подтягиваем аналитику из подключённого канала. Если токен был выдан до нового analytics scope, сначала переподключи LinkedIn.'
@@ -1893,27 +2147,13 @@ export default function PublicationTasks() {
                                                     )}
                                                 </div>
                                             )}
-                                            <textarea
-                                                value={metricsJson}
-                                                onChange={(event) => setMetricsJson(event.target.value)}
-                                                rows={9}
-                                                spellCheck={false}
-                                                className="w-full bg-white border-none rounded-2xl p-4 text-xs font-mono leading-6 focus:ring-2 focus:ring-primary/20 outline-none"
-                                            />
-                                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+                                            <div>
                                                 <button
                                                     onClick={() => collectMetrics.mutate()}
                                                     disabled={collectMetrics.isPending || !canFetchMetrics}
-                                                    className="w-full bg-primary text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
+                                                    className="w-full sm:w-auto bg-primary text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
                                                 >
                                                     {collectMetrics.isPending ? 'Получаем...' : 'Получить из канала'}
-                                                </button>
-                                                <button
-                                                    onClick={() => recordMetrics.mutate()}
-                                                    disabled={recordMetrics.isPending}
-                                                    className="w-full bg-surface-container-highest text-on-surface font-black text-sm px-5 py-3 rounded-2xl hover:bg-primary/10 hover:text-primary transition-all disabled:opacity-50"
-                                                >
-                                                    {recordMetrics.isPending ? 'Сохраняем метрики...' : 'Сохранить снимок метрик'}
                                                 </button>
                                             </div>
                                         </div>

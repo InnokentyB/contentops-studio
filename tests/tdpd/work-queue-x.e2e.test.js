@@ -689,6 +689,14 @@ test('E2E-X18 / publication completion: confirmed link completes the linked init
   if (!requireDatabase(t)) return;
 
   const project = await createProject('publication-completion');
+  const channel = await prisma.socialChannel.create({
+    data: {
+      project_id: project.id,
+      type: 'telegram',
+      name: 'Publication completion channel',
+      config: {},
+    },
+  });
   await callTool('ba_upsert_initiative', {
     projectId: project.id,
     actorId: ACTOR_ID,
@@ -702,6 +710,7 @@ test('E2E-X18 / publication completion: confirmed link completes the linked init
     actorId: ACTOR_ID,
     initiativeKey: 'PUB-3',
     draftText: 'Published body',
+    channelId: channel.id,
     publicationMode: 'manual_handoff',
     idempotencyKey: idempotencyKey('publication-completion'),
   });

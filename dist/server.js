@@ -93,86 +93,85 @@ server.setNotFoundHandler((request, reply) => {
 const publisher_service_1 = __importDefault(require("./services/publisher.service"));
 const start = async () => {
     try {
+        const backgroundJobsEnabled = process.env.BACKGROUND_JOBS_ENABLED !== 'false';
         // Initialize Telegram Bot
-        try {
-            await telegram_service_1.default.launch();
+        if (backgroundJobsEnabled) {
+            try {
+                await telegram_service_1.default.launch();
+            }
+            catch (error) {
+                console.error('[Startup] Telegram initialization failed:', error);
+            }
+            // Initialize Storage
+            const storageService = require('./services/storage.service').default;
+            try {
+                await storageService.ensureBucketExists();
+            }
+            catch (error) {
+                console.error('[Startup] Storage initialization failed:', error);
+            }
         }
-        catch (error) {
-            console.error('[Startup] Telegram initialization failed:', error);
+        else {
+            console.log('[Startup] Safe mode: external integrations and background jobs are disabled.');
         }
-        // Initialize Storage
-        const storageService = require('./services/storage.service').default;
-        try {
-            await storageService.ensureBucketExists();
-        }
-        catch (error) {
-            console.error('[Startup] Storage initialization failed:', error);
-        }
-        const startupHealth = await health_service_1.default.getDeepHealth().catch((error) => ({
-            status: 'error',
-            message: error?.message || 'Startup health check failed'
-        }));
+        const startupHealth = backgroundJobsEnabled
+            ? await health_service_1.default.getDeepHealth().catch((error) => ({
+                status: 'error',
+                message: error?.message || 'Startup health check failed'
+            }))
+            : { status: 'safe_mode', message: 'External dependency checks skipped' };
         console.log('[Startup] Dependency health snapshot:', JSON.stringify(startupHealth));
         const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3003;
         await server.listen({ port: PORT, host: '0.0.0.0' });
         console.log(`Server is running on port ${PORT}`);
-        // Internal Scheduler: Check for due posts every 60 seconds
-        console.log('Starting internal scheduler (every 60s)...');
-        setInterval(async () => {
-            try {
-                const count = await publisher_service_1.default.publishDuePosts();
-                const createdRuleTasks = await publisher_service_1.default.processPublicationOngoingRules();
-                const processedOperationalTasks = await publisher_service_1.default.processOperationalTasks();
-                const reactivatedDeferred = await publisher_service_1.default.processDeferredPublicationTasks();
-                const preparedTasks = await publisher_service_1.default.processPublicationTasks();
-                await publisher_service_1.default.scheduleNativePosts();
-                if (count > 0) {
-                    console.log(`[Scheduler] Published ${count} posts.`);
+        if (backgroundJobsEnabled) {
+            // Internal Scheduler: Check for due posts every 60 seconds
+            console.log('Starting internal scheduler (every 60s)...');
+            setInterval(async () => {
+                try {
+                    const count = await publisher_service_1.default.publishDuePosts();
+                    const createdRuleTasks = await publisher_service_1.default.processPublicationOngoingRules();
+                    const processedOperationalTasks = await publisher_service_1.default.processOperationalTasks();
+                    const reactivatedDeferred = await publisher_service_1.default.processDeferredPublicationTasks();
+                    const preparedTasks = await publisher_service_1.default.processPublicationTasks();
+                    await publisher_service_1.default.scheduleNativePosts();
+                    if (count > 0)
+                        console.log(`[Scheduler] Published ${count} posts.`);
+                    if (createdRuleTasks > 0)
+                        console.log(`[Scheduler] Created ${createdRuleTasks} ongoing rule tasks.`);
+                    if (processedOperationalTasks > 0)
+                        console.log(`[Scheduler] Processed ${processedOperationalTasks} internal operational tasks.`);
+                    if (reactivatedDeferred > 0)
+                        console.log(`[Scheduler] Reactivated ${reactivatedDeferred} deferred publication tasks.`);
+                    if (preparedTasks > 0)
+                        console.log(`[Scheduler] Prepared ${preparedTasks} publication tasks.`);
                 }
-                if (createdRuleTasks > 0) {
-                    console.log(`[Scheduler] Created ${createdRuleTasks} ongoing rule tasks.`);
+                catch (e) {
+                    console.error('[Scheduler] Error publishing due posts:', e);
                 }
-                if (processedOperationalTasks > 0) {
-                    console.log(`[Scheduler] Processed ${processedOperationalTasks} internal operational tasks.`);
-                }
-                if (reactivatedDeferred > 0) {
-                    console.log(`[Scheduler] Reactivated ${reactivatedDeferred} deferred publication tasks.`);
-                }
-                if (preparedTasks > 0) {
-                    console.log(`[Scheduler] Prepared ${preparedTasks} publication tasks.`);
-                }
-            }
-            catch (e) {
-                console.error('[Scheduler] Error publishing due posts:', e);
-            }
-        }, 60000);
-        // Reset stuck publishing posts
-        await publisher_service_1.default.resetStuckPublishingPosts().catch(e => console.error('[Startup] Reset stuck posts failed:', e));
-        // Run once immediately on startup
-        publisher_service_1.default.publishDuePosts().catch(e => console.error('[Scheduler] Initial check failed:', e));
-        publisher_service_1.default.processPublicationOngoingRules().catch(e => console.error('[Scheduler] Initial ongoing-rules check failed:', e));
-        publisher_service_1.default.processOperationalTasks().catch(e => console.error('[Scheduler] Initial operational-task check failed:', e));
-        publisher_service_1.default.processDeferredPublicationTasks().catch(e => console.error('[Scheduler] Initial deferred-task check failed:', e));
-        publisher_service_1.default.processPublicationTasks().catch(e => console.error('[Scheduler] Initial publication task check failed:', e));
-        // Setup metrics collector schedule (run every 12 hours)
-        const metricsService = require('./services/metrics.service').default;
-        // 12 hours in milliseconds = 12 * 60 * 60 * 1000 = 43200000
-        console.log('Starting metrics collection scheduler (every 12h)...');
-        setInterval(async () => {
-            console.log('[MetricsService] Triggering scheduled metrics collection...');
-            await metricsService.collectAllMetrics();
-        }, 43200000);
-        // Optionally run once on startup, 
-        // using setTimeout to delay it by a few minutes to not block initial startup
-        setTimeout(() => {
-            console.log('[MetricsService] Running initial post-startup metrics collection check...');
-            metricsService.collectAllMetrics().catch((e) => console.error('Initial metrics check failed:', e));
-        }, 30000); // 30 seconds after boot
+            }, 60000);
+            await publisher_service_1.default.resetStuckPublishingPosts().catch(e => console.error('[Startup] Reset stuck posts failed:', e));
+            publisher_service_1.default.publishDuePosts().catch(e => console.error('[Scheduler] Initial check failed:', e));
+            publisher_service_1.default.processPublicationOngoingRules().catch(e => console.error('[Scheduler] Initial ongoing-rules check failed:', e));
+            publisher_service_1.default.processOperationalTasks().catch(e => console.error('[Scheduler] Initial operational-task check failed:', e));
+            publisher_service_1.default.processDeferredPublicationTasks().catch(e => console.error('[Scheduler] Initial deferred-task check failed:', e));
+            publisher_service_1.default.processPublicationTasks().catch(e => console.error('[Scheduler] Initial publication task check failed:', e));
+            const metricsService = require('./services/metrics.service').default;
+            console.log('Starting metrics collection scheduler (every 12h)...');
+            setInterval(async () => {
+                console.log('[MetricsService] Triggering scheduled metrics collection...');
+                await metricsService.collectAllMetrics();
+            }, 43200000);
+            setTimeout(() => {
+                console.log('[MetricsService] Running initial post-startup metrics collection check...');
+                metricsService.collectAllMetrics().catch((e) => console.error('Initial metrics check failed:', e));
+            }, 30000);
+        }
         // Initialize Background Workers (BullMQ)
         let topicWorker = null;
         let postWorker = null;
         let imageWorker = null;
-        if (process.env.QUEUE_WORKERS_ENABLED !== 'false') {
+        if (backgroundJobsEnabled && process.env.QUEUE_WORKERS_ENABLED !== 'false') {
             console.log('[Queue] Initializing background workers...');
             const { createTopicWorker } = require('./queue/workers/topicWorker');
             const { createPostWorker } = require('./queue/workers/postWorker');
@@ -199,8 +198,10 @@ const start = async () => {
             await Promise.allSettled(workersToClose);
             console.log('[Queue] Workers successfully shut down.');
             // 3. Close generic Redis
-            const { connection } = require('./queue/index');
-            await connection.quit();
+            if (backgroundJobsEnabled) {
+                const { connection } = require('./queue/index');
+                await connection.quit();
+            }
             console.log('[Server] Graceful shutdown complete. Exiting.');
             process.exit(0);
         };

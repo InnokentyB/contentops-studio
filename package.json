@@ -22,6 +22,7 @@
     "migrate": "npx prisma migrate dev",
     "migrate:status": "npx prisma migrate status",
     "migrate:deploy": "npx prisma migrate deploy",
+    "audit:tdpd:004-005": "node scripts/audit_tdpd_004_005_migration.js",
     "test": "npm run build >/dev/null && node --test dist/tests/**/*.test.js"
   },
   "keywords": [],

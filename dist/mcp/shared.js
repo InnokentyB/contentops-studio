@@ -50,6 +50,8 @@ const task_tracker_service_1 = __importDefault(require("../services/task_tracker
 const delivery_service_1 = __importDefault(require("../services/delivery.service"));
 const image_asset_service_1 = __importDefault(require("../services/image_asset.service"));
 const metrics_service_1 = __importDefault(require("../services/metrics.service"));
+const publication_fact_service_1 = __importDefault(require("../services/publication_fact.service"));
+const week_package_repair_service_1 = __importDefault(require("../services/week_package_repair.service"));
 const capabilities_1 = require("./capabilities");
 function asToolResult(payload) {
     return {
@@ -534,6 +536,83 @@ function registerPlannerTools(server) {
         const task = await mcp_publication_service_1.default.confirmPublication(projectId, taskId, publishedLink, note, outcome);
         return asToolResult({ project_id: projectId, task });
     });
+    server.registerTool('ba_record_publication_fact', {
+        description: 'Record or explicitly correct the canonical publication fact. Published posts/articles/comments require a permalink; stories require stable identity and evidence.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string().min(1),
+            taskId: zod_1.z.number().int().positive(),
+            artifactKind: zod_1.z.enum(['post', 'article', 'story', 'email', 'comment', 'other']),
+            outcome: zod_1.z.enum(['published', 'blocked', 'removed', 'restricted']),
+            publishedAt: zod_1.z.string().datetime({ offset: true }).nullable().optional(),
+            publicUrl: zod_1.z.string().url().nullable().optional(),
+            providerObjectId: zod_1.z.string().max(500).nullable().optional(),
+            confirmationMode: zod_1.z.enum(['automatic', 'manual', 'imported', 'reconciled']),
+            evidence: zod_1.z.object({
+                type: zod_1.z.enum(['public_url', 'provider_id', 'screenshot', 'manual_note', 'api']),
+                ref: zod_1.z.string().min(1).max(2000)
+            }).nullable().optional(),
+            targetUrl: zod_1.z.string().url().nullable().optional(),
+            utmStatus: zod_1.z.enum(['pass', 'not_applicable', 'missing', 'invalid', 'unknown']).optional(),
+            note: zod_1.z.string().max(2000).nullable().optional(),
+            correctionReason: zod_1.z.string().max(2000).nullable().optional()
+        }
+    }, async (args) => asToolResult(await publication_fact_service_1.default.record(args)));
+    server.registerTool('ba_get_publication_fact', {
+        description: 'Read the canonical publication fact for one task.',
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string().min(1),
+            taskId: zod_1.z.number().int().positive()
+        }
+    }, async ({ projectId, actorId, taskId }) => asToolResult({
+        publication_fact: await publication_fact_service_1.default.get(projectId, taskId, actorId)
+    }));
+    server.registerTool('ba_list_metric_checkpoints', {
+        description: 'List due, overdue, partial, failed, or pending T+24h/T+7d metric checkpoints.',
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string().min(1),
+            status: zod_1.z.enum(['pending', 'collected', 'partial', 'unknown', 'not_supported', 'failed', 'overdue']).optional(),
+            dueBefore: zod_1.z.string().datetime({ offset: true }).optional(),
+            channelId: zod_1.z.number().int().positive().optional()
+        }
+    }, async (args) => asToolResult({ checkpoints: await publication_fact_service_1.default.listCheckpoints(args) }));
+    const repairMoveSchema = zod_1.z.object({
+        contentItemId: zod_1.z.number().int().positive(),
+        weekStart: zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        weekEnd: zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+    });
+    server.registerTool('ba_preview_week_package_repair', {
+        description: 'Owner-only dry run for explicitly moving tasks between exact weekly packages. Never changes publication runtime.',
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string().min(1),
+            moves: zod_1.z.array(repairMoveSchema).min(1)
+        }
+    }, async (args) => asToolResult(await week_package_repair_service_1.default.preview(args)));
+    server.registerTool('ba_apply_week_package_repair', {
+        description: 'Apply an owner-approved week-package repair atomically after preview.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string().min(1),
+            moves: zod_1.z.array(repairMoveSchema).min(1),
+            reason: zod_1.z.string().min(1).max(2000),
+            idempotencyKey: zod_1.z.string().min(1).max(500)
+        }
+    }, async (args) => asToolResult(await week_package_repair_service_1.default.apply(args)));
+    server.registerTool('ba_rollback_week_package_repair', {
+        description: 'Rollback one audited week-package repair when task bindings still match its applied state.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string().min(1),
+            applyIdempotencyKey: zod_1.z.string().min(1).max(500),
+            idempotencyKey: zod_1.z.string().min(1).max(500)
+        }
+    }, async (args) => asToolResult(await week_package_repair_service_1.default.rollback(args)));
     server.registerTool('ba_publish_direct', {
         description: 'Publish content directly to a configured project channel. Supports reddit, telegram, vk, and linkedin.',
         inputSchema: {
@@ -1063,7 +1142,7 @@ function registerPlannerTools(server) {
         return asToolResult(result);
     });
     server.registerTool('ba_record_metric_snapshot', {
-        description: 'Record a metric snapshot at checkpoint (T+1, T+24, T+72) idempotently.',
+        description: 'Record a T+24h/T+7d metric snapshot with per-field observed/unknown/not-supported semantics.',
         inputSchema: {
             projectId: zod_1.z.number().int().positive(),
             actorId: zod_1.z.string(),
@@ -1071,6 +1150,16 @@ function registerPlannerTools(server) {
             channelId: zod_1.z.number().int().positive(),
             checkpoint: zod_1.z.string(),
             metrics: zod_1.z.record(zod_1.z.string(), zod_1.z.unknown()),
+            scheduledFor: zod_1.z.string().datetime({ offset: true }).optional(),
+            capturedAt: zod_1.z.string().datetime({ offset: true }).optional(),
+            collectionMode: zod_1.z.enum(['automatic', 'manual', 'imported']).optional(),
+            source: zod_1.z.enum(['provider_api', 'public_page', 'yandex_metrika', 'manual']).optional(),
+            collectionStatus: zod_1.z.enum(['pending', 'collected', 'partial', 'unknown', 'not_supported', 'failed', 'overdue']).optional(),
+            evidenceRef: zod_1.z.string().max(2000).optional(),
+            errorCode: zod_1.z.string().max(200).optional(),
+            errorMessage: zod_1.z.string().max(500).optional(),
+            windowStart: zod_1.z.string().datetime({ offset: true }).optional(),
+            windowEnd: zod_1.z.string().datetime({ offset: true }).optional(),
             idempotencyKey: zod_1.z.string().optional()
         }
     }, async (args) => {

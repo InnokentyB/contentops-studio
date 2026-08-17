@@ -14,6 +14,8 @@ import fs from 'fs';
 import path from 'path';
 import { normalizeProjectKind, slugifyProjectName } from '../utils/project.utils';
 import { derivePublicationContentState } from './publication_content_state';
+import publicationFactService from './publication_fact.service';
+import { isPublicationTaskActive } from './publication_task_activity';
 
 type PublicationOutcome = 'published' | 'blocked' | 'removed' | 'restricted';
 
@@ -798,20 +800,23 @@ class McpPublicationService {
         };
 
         if (status === 'active') {
-            where.status = { in: ['planned', 'drafted', 'revised', 'approved', 'scheduled', 'ready_for_execution', 'awaiting_manual_publication', 'published', 'failed'] };
+            where.status = { in: ['planned', 'drafted', 'revised', 'approved', 'scheduled', 'ready_for_execution', 'awaiting_manual_publication', 'failed'] };
         } else if (status) {
             where.status = status;
         }
 
         const items = await prisma.contentItem.findMany({
             where,
-            include: { channel: true },
+            include: { channel: true, publication_fact: true },
             orderBy: { schedule_at: 'asc' }
         });
 
-        const filtered = manualOnly
-            ? items.filter((item) => (item.quality_report as any)?.execution_mode === 'manual')
+        const activeFiltered = status === 'active'
+            ? items.filter(isPublicationTaskActive)
             : items;
+        const filtered = manualOnly
+            ? activeFiltered.filter((item) => (item.quality_report as any)?.execution_mode === 'manual')
+            : activeFiltered;
 
         return filtered.map((item) => ({
             id: item.id,
@@ -831,14 +836,15 @@ class McpPublicationService {
                 }
                 : null,
             execution_mode: (item.quality_report as any)?.execution_mode || null,
-            publication_outcome: (item.metrics as any)?.publication_outcome || (item.quality_report as any)?.publication_outcome || null
+            publication_outcome: (item.metrics as any)?.publication_outcome || (item.quality_report as any)?.publication_outcome || null,
+            publication_fact: item.publication_fact || null
         }));
     }
 
     async getPublicationTask(projectId: number, taskId: number) {
         const item = await prisma.contentItem.findFirst({
             where: { id: taskId, project_id: projectId },
-            include: { channel: true }
+            include: { channel: true, publication_fact: true, metric_snapshots: { orderBy: { scheduled_for: 'asc' } } }
         });
 
         if (!item) {
@@ -1001,29 +1007,30 @@ class McpPublicationService {
 
         this.assertPublicationTaskMutableForMcp(item, 'confirm_publication');
 
-        const monitoring = (item.metrics as any)?.monitoring || {};
-        const updated = await prisma.contentItem.update({
-            where: { id: item.id },
-            data: {
-                status: 'published',
-                published_link: publishedLink,
-                metrics: {
-                    ...((item.metrics as any) || {}),
-                    manual_confirmation_at: new Date().toISOString(),
-                    publication_outcome: outcome,
-                    monitoring: {
-                        ...monitoring,
-                        awaiting_analytics: true,
-                        awaiting_comment_alerts: monitoring.needs_comment_monitoring === true
-                    }
-                } as any,
-                quality_report: {
-                    ...((item.quality_report as any) || {}),
-                    manual_publication_note: note || null,
-                    publication_outcome: outcome
-                } as any
-            }
+        const owner = await prisma.projectMember.findFirst({
+            where: { project_id: projectId, role: 'owner' },
+            orderBy: { id: 'asc' }
         });
+        if (!owner) throw new Error(`Project ${projectId} has no owner`);
+        const rawType = String(item.type || '').toLowerCase();
+        const artifactKind = rawType.includes('article') ? 'article'
+            : rawType.includes('comment') ? 'comment'
+                : rawType.includes('story') ? 'story'
+                    : rawType.includes('email') ? 'email'
+                        : 'post';
+        await publicationFactService.record({
+            projectId,
+            taskId,
+            actorId: `user:${owner.user_id}`,
+            artifactKind,
+            outcome,
+            publishedAt: new Date().toISOString(),
+            publicUrl: publishedLink,
+            confirmationMode: 'manual',
+            evidence: { type: 'public_url', ref: publishedLink },
+            note
+        });
+        const updated = await prisma.contentItem.findUniqueOrThrow({ where: { id: item.id } });
         await initiativeService.syncPublishedPublicationTask(projectId, taskId);
         return updated;
     }
