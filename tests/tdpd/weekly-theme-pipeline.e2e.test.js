@@ -89,6 +89,23 @@ async function createPilotProject() {
   return { project, channel };
 }
 
+async function createSundayThemeSlot(projectId, channelId) {
+  return prisma.contentItem.create({
+    data: {
+      project_id: projectId,
+      channel_id: channelId,
+      type: 'telegram_post:manual_handoff',
+      title: 'Sunday weekly-theme placeholder',
+      brief: 'Awaiting accepted theme',
+      item_key: `sunday-theme-slot-${randomUUID()}`,
+      status: 'planned',
+      publish_at: new Date('2026-08-23T11:00:00.000Z'),
+      schedule_at: new Date('2026-08-23T11:00:00.000Z'),
+      publication_mode: 'manual_handoff',
+    },
+  });
+}
+
 function themeArgs(projectId, channelId, overrides = {}) {
   return {
     projectId,
@@ -182,6 +199,57 @@ test('E2E-006-001: accepted Sunday theme creates exactly seven dated proposals a
     },
   });
   assert.equal(productionItems, 0);
+});
+
+test('E2E-006-006: accepted theme fills and links the preceding Sunday publication slot', async (t) => {
+  if (!requireDatabase(t)) return;
+  const { project, channel } = await createPilotProject();
+  const sundaySlot = await createSundayThemeSlot(project.id, channel.id);
+  const theme = await callTool('ba_upsert_week_theme', themeArgs(project.id, channel.id));
+
+  assert.equal(theme.source_publication_content_item_id, sundaySlot.id);
+  const updatedSlot = await prisma.contentItem.findUnique({ where: { id: sundaySlot.id } });
+  assert.equal(updatedSlot.title, 'Как аналитик сохраняет субъектность при работе с агентами');
+  assert.equal(updatedSlot.brief, 'Одна ось недели: делегировать производство, но не отдавать постановку задачи и приёмку результата.');
+  assert.ok(Array.isArray(updatedSlot.source_refs));
+  assert.ok(updatedSlot.source_refs.some((ref) => ref.type === 'week_theme' && ref.theme_content_item_id === theme.theme_content_item_id));
+});
+
+test('E2E-006-007: production provider adapter returns seven substantive validated proposals', async (t) => {
+  if (!requireDatabase(t)) return;
+  const providerResponse = {
+    proposals: [
+      ['Приёмка до генерации: почему критерии нельзя дописывать после ответа', 'frame', 'Разделяет постановку и оценку результата'],
+      ['Красивый ответ без доказательств: как агент маскирует пробелы уверенным тоном', 'diagnose', 'Показывает диагностические признаки'],
+      ['Тест раньше текста: как превратить ожидание в исполняемый контракт', 'demonstrate', 'Даёт практический механизм'],
+      ['Делегировать производство, не делегируя решение: где проходит граница', 'contrast', 'Сопоставляет две модели работы'],
+      ['Три вопроса перед запуском агента, которые экономят цикл переписывания', 'apply', 'Предлагает прикладной чек-лист'],
+      ['Почему ручная приёмка не масштабируется и что именно автоматизировать', 'reflect', 'Разбирает предел ручного контроля'],
+      ['Субъектность как система: постановка, ограничения, тест и финальное решение', 'synthesize', 'Собирает недельную арку'],
+    ].map(([thesis, fn, difference]) => ({ thesis, function: fn, difference_from_neighbors: difference })),
+  };
+  const providerTransport = new StdioClientTransport({
+    command: 'node',
+    args: [SERVER_PATH],
+    env: {
+      ...process.env,
+      DATABASE_URL: TEST_DATABASE_URL,
+      WEEK_TOPIC_GENERATOR_MODE: 'provider_test',
+      WEEK_TOPIC_GENERATOR_TEST_RESPONSE: JSON.stringify(providerResponse),
+    },
+  });
+  const providerClient = new Client({ name: 'tdpd-006-provider-test', version: '1.0.0' }, { capabilities: {} });
+  await providerClient.connect(providerTransport);
+  try {
+    const { project, channel } = await createPilotProject();
+    const theme = payload(await providerClient.callTool({ name: 'ba_upsert_week_theme', arguments: themeArgs(project.id, channel.id) }));
+    const preview = payload(await providerClient.callTool({ name: 'ba_generate_week_topic_preview', arguments: previewArgs(project.id, channel.id, theme) }));
+    assertSevenDayPreview(preview);
+    assert.equal(new Set(preview.proposals.map((entry) => entry.thesis)).size, 7);
+    assert.ok(preview.proposals.every((entry) => !/фокус дня/i.test(entry.thesis)));
+  } finally {
+    await providerClient.close();
+  }
 });
 
 test('E2E-006-002: preview generation replay returns the same plan version without duplicates', async (t) => {

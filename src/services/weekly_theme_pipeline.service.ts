@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 import { Prisma } from '@prisma/client';
 import prisma from '../db';
 import workQueueService from './work_queue.service';
+import multiAgentService from './multi_agent.service';
 
 type ThemeState = 'draft' | 'accepted';
 
@@ -83,6 +84,33 @@ function proposalPayload(dayIndex: number, themeTitle: string, themeItemId: numb
     };
 }
 
+interface GeneratedProposal {
+    thesis: string;
+    function: string;
+    difference_from_neighbors: string;
+}
+
+function validateGeneratedProposals(value: unknown): GeneratedProposal[] {
+    const proposals = (value as { proposals?: unknown })?.proposals;
+    if (!Array.isArray(proposals) || proposals.length !== 7) {
+        throw new Error('[TOPIC_GENERATOR_INVALID_OUTPUT] Provider must return exactly seven proposals');
+    }
+    const normalized = proposals.map((entry, index) => {
+        const proposal = entry as Partial<GeneratedProposal>;
+        const thesis = typeof proposal.thesis === 'string' ? proposal.thesis.trim() : '';
+        const fn = typeof proposal.function === 'string' ? proposal.function.trim() : '';
+        const difference = typeof proposal.difference_from_neighbors === 'string' ? proposal.difference_from_neighbors.trim() : '';
+        if (thesis.length < 20 || !fn || difference.length < 10 || /(?:фокус|тема) дня\s*\d*/i.test(thesis)) {
+            throw new Error(`[TOPIC_GENERATOR_INVALID_OUTPUT] Proposal ${index + 1} is incomplete or placeholder-like`);
+        }
+        return { thesis, function: fn, difference_from_neighbors: difference };
+    });
+    if (new Set(normalized.map((proposal) => proposal.thesis.toLocaleLowerCase('ru'))).size !== 7) {
+        throw new Error('[TOPIC_GENERATOR_INVALID_OUTPUT] Provider returned duplicate theses');
+    }
+    return normalized;
+}
+
 class WeeklyThemePipelineService {
     private async cachedResult(tx: Prisma.TransactionClient, projectId: number, actorId: string, command: string, idempotencyKey: string) {
         const event = await tx.workflowEvent.findUnique({
@@ -155,6 +183,32 @@ class WeeklyThemePipelineService {
                     }
                 });
 
+            const sourceSundayDate = dateOnly(addUtcDays(weekStart, -1));
+            const sourceSundayStart = zonedLocalToUtc(sourceSundayDate, '00:00', input.timezone);
+            const sourceSundayEnd = zonedLocalToUtc(dateOnly(addUtcDays(weekStart, 0)), '00:00', input.timezone);
+            const sourcePublication = await tx.contentItem.findFirst({
+                where: {
+                    project_id: input.projectId,
+                    channel_id: input.channelId,
+                    type: { not: 'week_theme' },
+                    publish_at: { gte: sourceSundayStart, lt: sourceSundayEnd },
+                    status: { notIn: ['published', 'cancelled'] }
+                },
+                orderBy: { publish_at: 'asc' }
+            });
+            if (sourcePublication) {
+                const existingSourceRefs = Array.isArray(sourcePublication.source_refs) ? sourcePublication.source_refs : [];
+                const themeRef = { type: 'week_theme', theme_content_item_id: theme.id, theme_revision: nextRevision, target_week_package_id: weekPackage.id };
+                await tx.contentItem.update({
+                    where: { id: sourcePublication.id },
+                    data: {
+                        title: input.title,
+                        brief: input.body,
+                        source_refs: [...existingSourceRefs, themeRef] as Prisma.InputJsonValue
+                    }
+                });
+            }
+
             await tx.weekPackage.update({
                 where: { id: weekPackage.id },
                 data: { week_theme: input.title, core_thesis: input.body, timezone: input.timezone, plan_version: null, approval_status: 'draft' }
@@ -165,7 +219,8 @@ class WeeklyThemePipelineService {
                 theme_content_item_id: theme.id,
                 theme_revision: nextRevision,
                 state: input.state,
-                accepted_at: acceptedAt?.toISOString() || null
+                accepted_at: acceptedAt?.toISOString() || null,
+                source_publication_content_item_id: sourcePublication?.id || null
             };
             await tx.workflowEvent.create({ data: {
                 project_id: input.projectId, week_package_id: weekPackage.id, content_item_id: theme.id,
@@ -177,10 +232,10 @@ class WeeklyThemePipelineService {
     }
 
     async generatePreview(input: PreviewInput): Promise<Record<string, unknown>> {
-        return prisma.$transaction(async (tx) => {
+        const prepared = await prisma.$transaction(async (tx) => {
             await workQueueService.assertProjectAccess(tx, input.projectId, input.actorId, 'work_queue:decide');
             const cached = await this.cachedResult(tx, input.projectId, input.actorId, 'ba_generate_week_topic_preview', input.idempotencyKey);
-            if (cached) return cached;
+            if (cached) return { cached };
 
             const weekPackage = await tx.weekPackage.findFirst({ where: { id: input.weekPackageId, project_id: input.projectId } });
             if (!weekPackage) throw new Error('[WEEK_THEME_NOT_FOUND] Weekly theme was not found in the requested project and package');
@@ -200,12 +255,58 @@ class WeeklyThemePipelineService {
             const cutoff = zonedLocalToUtc(cutoffDate, '18:00', input.timezone);
             if (!acceptedAt || acceptedAt > cutoff) throw new Error('[WEEK_THEME_LATE] Weekly theme was accepted after Saturday 18:00 local cutoff');
 
-            if (process.env.WEEK_TOPIC_GENERATOR_MODE !== 'deterministic_test') {
-                throw new Error('[TOPIC_GENERATOR_NOT_CONFIGURED] Slice A requires an explicit topic generator mode');
-            }
             const normalizedDays = [...input.scheduleTemplate.days].sort((a, b) => a - b);
             if (normalizedDays.length !== 7 || normalizedDays.some((day, index) => day !== index + 1)) {
                 throw new Error('[INVALID_SCHEDULE_TEMPLATE] Preview requires seven unique day positions');
+            }
+
+            return { weekPackage, theme };
+        });
+
+        if ('cached' in prepared) return prepared.cached as Record<string, unknown>;
+
+        const generatorMode = process.env.WEEK_TOPIC_GENERATOR_MODE || 'project_provider';
+        let generated: GeneratedProposal[];
+        if (generatorMode === 'deterministic_test') {
+            generated = Array.from({ length: 7 }, (_, index) => {
+                const proposal = proposalPayload(index + 1, prepared.theme.title || 'Weekly theme', prepared.theme.id, prepared.theme.content_revision);
+                return { thesis: proposal.thesis, function: proposal.function, difference_from_neighbors: proposal.difference_from_neighbors };
+            });
+        } else if (generatorMode === 'provider_test') {
+            let parsed: unknown;
+            try {
+                parsed = JSON.parse(process.env.WEEK_TOPIC_GENERATOR_TEST_RESPONSE || '{}');
+            } catch {
+                throw new Error('[TOPIC_GENERATOR_INVALID_OUTPUT] Test provider response is not valid JSON');
+            }
+            generated = validateGeneratedProposals(parsed);
+        } else if (generatorMode === 'project_provider') {
+            const providerResult = await multiAgentService.generateWeeklyTopicProposals(input.projectId, {
+                theme_title: prepared.theme.title || '',
+                theme_body: prepared.theme.brief || '',
+                channel_name: String(input.channelId),
+                week_start: dateOnly(prepared.weekPackage.week_start),
+                week_end: dateOnly(prepared.weekPackage.week_end)
+            });
+            generated = validateGeneratedProposals(providerResult);
+        } else {
+            throw new Error(`[TOPIC_GENERATOR_NOT_CONFIGURED] Unsupported generator mode "${generatorMode}"`);
+        }
+
+        return prisma.$transaction(async (tx) => {
+            await workQueueService.assertProjectAccess(tx, input.projectId, input.actorId, 'work_queue:decide');
+            const cached = await this.cachedResult(tx, input.projectId, input.actorId, 'ba_generate_week_topic_preview', input.idempotencyKey);
+            if (cached) return cached;
+            const weekPackage = await tx.weekPackage.findFirst({ where: { id: input.weekPackageId, project_id: input.projectId } });
+            if (!weekPackage) throw new Error('[WEEK_THEME_NOT_FOUND] Weekly theme was not found in the requested project and package');
+            await tx.$queryRaw(Prisma.sql`SELECT id FROM planner.week_packages WHERE id = ${weekPackage.id} FOR UPDATE`);
+            const theme = await tx.contentItem.findFirst({ where: {
+                id: input.themeContentItemId, project_id: input.projectId, week_package_id: input.weekPackageId,
+                channel_id: input.channelId, type: 'week_theme'
+            } });
+            if (!theme) throw new Error('[WEEK_THEME_NOT_FOUND] Weekly theme was not found in the requested project and package');
+            if (theme.content_revision !== input.themeRevision || theme.status !== 'accepted') {
+                throw new Error('[STALE_THEME_REVISION] Theme changed while the preview was being generated');
             }
 
             const versionSeed = `${input.weekPackageId}:${input.themeRevision}:${input.channelId}:${input.scheduleTemplate.localTime}`;
@@ -215,7 +316,11 @@ class WeeklyThemePipelineService {
                 const dayIndex = index + 1;
                 const localDate = dateOnly(addUtcDays(weekPackage.week_start, index));
                 const publishAt = zonedLocalToUtc(localDate, input.scheduleTemplate.localTime, input.timezone);
-                const proposal = proposalPayload(dayIndex, theme.title || 'Weekly theme', theme.id, theme.content_revision);
+                const proposal = {
+                    ...generated[index],
+                    day_index: dayIndex,
+                    source: { theme_content_item_id: theme.id, theme_revision: theme.content_revision }
+                };
                 const itemKey = `week-topic:${weekPackage.id}:r${theme.content_revision}:day${dayIndex}`;
                 const existingTopic = await tx.contentItem.findFirst({ where: { project_id: input.projectId, item_key: itemKey } });
                 const contentItem = existingTopic || await tx.contentItem.create({

@@ -1,6 +1,6 @@
 # TDPD-006: воскресная тема → семь проверенных публикаций
 
-Статус: Slice A engineering complete, awaiting Human UAT
+Статус: Corrective Green PASS, production re-UAT required
 Режим: TDPD Plan
 Метод: Test-Driven Product Development (TDPD), оригинальный метод Иннокентия Бодрова
 Версия: 0.1
@@ -403,12 +403,14 @@ provider этим решением не определяется. Автомат
 | R-006-007 | E2E-006-017: missing/unapproved/late theme блокирует сборку точным reason code | must-have | MCP + DB |
 | R-006-018 | E2E-006-018: planner/writer capability profiles соблюдают least privilege | must-have | contract |
 | R-006-020 | E2E-006-019: legacy task вне feature flag не меняется | should-have | MCP + DB |
+| Production provider | E2E-006-007: provider adapter возвращает семь содержательных валидных proposals | must-have | MCP + provider contract |
+| Sunday source slot | E2E-006-006: принятая тема заполняет и связывает предшествуюющий воскресный слот | must-have | MCP + DB |
 
 ## 17. Gate status
 
 - Input Gate: **PASS** — семь настроек пилота утверждены владельцем 18.08.2026.
 - Red Gate: **PASS** — 7/7 сценариев Slice A исполняются и честно падают на отсутствующих MCP-контрактах `ba_upsert_week_theme`, `ba_generate_week_topic_preview`, `ba_get_week_pipeline` и capability planner для `ba_upsert_week_theme`; test DB и MCP-транспорт работают.
-- Green Gate: **PASS** — 7/7 Slice A acceptance-сценариев, 73/73 полных DB-backed TDPD-сценариев в последовательном режиме и 58/58 backend-регрессий проходят. Параллельный DB-runner заменён на последовательный: девять suite на одной test DB вызывали ложные 5-секундные transaction timeout.
-- Output Gate / UAT: **не начат**.
+- Green Gate: **PASS after corrective cycle** — 9/9 Slice A acceptance-сценариев, 75/75 полных DB-backed TDPD-сценариев и 58/58 backend-регрессий проходят. Реальный OpenAI provider smoke на изолированной test DB вернул 7/7 proposals. Внешний provider вызывается вне DB-транзакции; перед записью повторно проверяется theme revision.
+- Output Gate / UAT: **FAILED on first production pilot; re-UAT required after corrective deploy**. Первый pilot создал W51/Theme Item 775, но выявил отсутствие production provider-path и связи с воскресным slot 774. Оба дефекта покрыты E2E-006-006/007.
 
 Базовая регрессия перед Green: `npm test` — **58/58 PASS** (18.08.2026).

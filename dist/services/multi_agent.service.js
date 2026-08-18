@@ -774,6 +774,27 @@ Output JSON Format (Strict):
             prompt
         };
     }
+    async generateWeeklyTopicProposals(projectId, context) {
+        const agentConfig = await this.getAgentConfig(projectId, 'topic_creator');
+        if (!agentConfig.apiKey) {
+            throw new Error('[TOPIC_PROVIDER_NOT_CONFIGURED] Configure the project topic_creator provider key or OPENAI_API_KEY');
+        }
+        const systemPrompt = `${agentConfig.prompt || this.DEFAULT_TOPIC_CREATOR_PROMPT}
+
+Create exactly seven distinct publication proposals forming one Monday-to-Sunday narrative arc.
+Return JSON only in this exact shape:
+{
+  "proposals": [
+    {
+      "thesis": "specific substantive post thesis in Russian",
+      "function": "frame|diagnose|demonstrate|contrast|apply|reflect|synthesize",
+      "difference_from_neighbors": "how this proposal differs from adjacent days"
+    }
+  ]
+}
+Do not return placeholders, day labels, generic "focus of the day" formulations, categories, or tags instead of theses.`;
+        return this.invokeStructuredAgent(agentConfig, systemPrompt, JSON.stringify(context), projectId, 'weekly_topic_planner');
+    }
     // --- Post Generation Loop (New) ---
     async runPostGeneration(projectId, theme, topic, postId, promptOverride, withImage = false) {
         console.log(`[MultiAgent Post] Starting generation for: "${topic}"(Image: ${withImage})`);
