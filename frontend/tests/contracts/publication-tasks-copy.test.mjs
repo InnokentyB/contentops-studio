@@ -19,3 +19,11 @@ assert.match(source, /как увидит читатель/)
 assert.doesNotMatch(source, /Что сделать сейчас/)
 assert.doesNotMatch(source, /Prepare Handoff/)
 assert.doesNotMatch(source, /Подтвердить live URL/)
+
+// Legacy/imported tasks may contain nulls or objects where older payloads promised arrays.
+// The publication card must degrade to an empty source list instead of crashing React.
+assert.match(source, /function asJsonRecordArray\(value: unknown\)/)
+assert.match(source, /if \(!Array\.isArray\(value\)\) return \[\]/)
+assert.match(source, /const handoffFiles = asJsonRecordArray\(/)
+assert.match(source, /const resolvedAssets = asJsonRecordArray\(/)
+assert.match(source, /const keyPoints = asJsonRecordArray\(/)

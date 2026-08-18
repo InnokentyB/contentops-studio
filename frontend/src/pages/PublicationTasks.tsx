@@ -406,9 +406,14 @@ function assetInlineContent(entry: JsonRecord | null | undefined) {
     return ''
 }
 
+function asJsonRecordArray(value: unknown): JsonRecord[] {
+    if (!Array.isArray(value)) return []
+    return value.filter((entry): entry is JsonRecord => Boolean(entry) && typeof entry === 'object' && !Array.isArray(entry))
+}
+
 function mergeSourceFiles(task: PublicationTask | null | undefined) {
-    const handoffFiles = ((task?.quality_report?.handoff_bundle as JsonRecord | undefined)?.resource_files as JsonRecord[] | undefined) || []
-    const resolvedAssets = (task?.assets?.resolved_assets as JsonRecord[] | undefined) || []
+    const handoffFiles = asJsonRecordArray((task?.quality_report?.handoff_bundle as JsonRecord | undefined)?.resource_files)
+    const resolvedAssets = asJsonRecordArray(task?.assets?.resolved_assets)
     const merged = new Map<string, JsonRecord>()
 
     const score = (entry: JsonRecord) => {
@@ -446,7 +451,7 @@ function resolvePrimarySourceContent(task: PublicationTask | null | undefined, s
         if (content) return content
     }
 
-    const keyPoints = (task?.key_points as JsonRecord[] | undefined) || []
+    const keyPoints = asJsonRecordArray(task?.key_points)
     for (const entry of keyPoints) {
         const content = assetInlineContent(entry)
         if (content) return content
