@@ -23,7 +23,9 @@ if (process.env.TDPD_REQUIRE_DATABASE === '1' && !process.env.TDPD_TEST_DATABASE
 
 console.log(`[TDPD] Running ${testFiles.length} acceptance suites.`);
 
-const result = spawnSync('node', ['--test', ...testFiles], {
+// DB-backed suites share one isolated database. Run them sequentially so one
+// suite's interactive transactions cannot be starved by eight parallel MCP servers.
+const result = spawnSync('node', ['--test', '--test-concurrency=1', ...testFiles], {
     stdio: 'inherit',
     env: process.env
 });

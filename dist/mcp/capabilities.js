@@ -12,7 +12,13 @@ const WRITER_TOOLS = new Set([
     'ba_read_publication_plan_asset',
     'ba_read_publication_plan_ref',
     'ba_update_publication_content',
-    'ba_list_image_assets'
+    'ba_list_image_assets',
+    'ba_list_work_items',
+    'ba_claim_work_item',
+    'ba_get_work_item_context',
+    'ba_complete_work_item',
+    'ba_block_work_item',
+    'ba_release_work_item'
 ]);
 const PLANNER_TOOLS = new Set([
     'ba_list_project_channels',
@@ -36,7 +42,11 @@ const PLANNER_TOOLS = new Set([
     'ba_audit_plan_coverage',
     'ba_get_release_readiness',
     'ba_list_release_blockers',
-    'ba_get_operational_calendar'
+    'ba_get_operational_calendar',
+    'ba_upsert_week_theme',
+    'ba_generate_week_topic_preview',
+    'ba_decide_week_plan',
+    'ba_get_week_pipeline'
 ]);
 function isToolAllowedForProfile(profile, toolName) {
     if (profile === 'owner')

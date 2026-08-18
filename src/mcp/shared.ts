@@ -10,6 +10,7 @@ import imageAssetService from '../services/image_asset.service';
 import metricsService from '../services/metrics.service';
 import publicationFactService from '../services/publication_fact.service';
 import weekPackageRepairService from '../services/week_package_repair.service';
+import weeklyThemePipelineService from '../services/weekly_theme_pipeline.service';
 import { filterMcpServerTools, McpCapabilityProfile } from './capabilities';
 
 
@@ -702,6 +703,39 @@ export function registerPlannerTools(server: McpServer) {
         const result = await workQueueService.decideWeekPlan(args);
         return asToolResult(result);
     });
+
+    server.registerTool('ba_upsert_week_theme', {
+        description: 'Create or revise the planner-owned weekly theme for a channel and target week.',
+        inputSchema: {
+            projectId: z.number().int().positive(), actorId: z.string(), channelId: z.number().int().positive(),
+            targetWeekStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+            targetWeekEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+            timezone: z.string().min(1).max(100),
+            title: z.string().min(1).max(300), body: z.string().min(1).max(20000),
+            sourceRefs: z.array(z.object({ type: z.string().min(1).max(100), ref: z.string().min(1).max(2000) })).max(50),
+            expectedRevision: z.number().int().nonnegative(), state: z.enum(['draft', 'accepted']),
+            acceptedAt: z.string().nullable().optional(), idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await weeklyThemePipelineService.upsertWeekTheme(args)));
+
+    server.registerTool('ba_generate_week_topic_preview', {
+        description: 'Generate an idempotent seven-day topic preview from the current accepted weekly theme.',
+        inputSchema: {
+            projectId: z.number().int().positive(), actorId: z.string(), channelId: z.number().int().positive(),
+            weekPackageId: z.number().int().positive(), themeContentItemId: z.number().int().positive(),
+            themeRevision: z.number().int().positive(), timezone: z.string().min(1).max(100),
+            scheduleTemplate: z.object({ localTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), days: z.array(z.number().int().min(1).max(7)).length(7) }),
+            idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await weeklyThemePipelineService.generatePreview(args)));
+
+    server.registerTool('ba_get_week_pipeline', {
+        description: 'Read the current theme, preview days, and approval decision for one weekly package.',
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+            projectId: z.number().int().positive(), actorId: z.string(), weekPackageId: z.number().int().positive()
+        }
+    }, async (args) => asToolResult(await weeklyThemePipelineService.getPipeline(args)));
 
     server.registerTool('ba_get_week_execution_summary', {
         description: 'Get material stats and work item stage counts for a weekly publication plan.',

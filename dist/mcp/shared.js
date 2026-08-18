@@ -52,6 +52,7 @@ const image_asset_service_1 = __importDefault(require("../services/image_asset.s
 const metrics_service_1 = __importDefault(require("../services/metrics.service"));
 const publication_fact_service_1 = __importDefault(require("../services/publication_fact.service"));
 const week_package_repair_service_1 = __importDefault(require("../services/week_package_repair.service"));
+const weekly_theme_pipeline_service_1 = __importDefault(require("../services/weekly_theme_pipeline.service"));
 const capabilities_1 = require("./capabilities");
 function asToolResult(payload) {
     return {
@@ -689,6 +690,36 @@ function registerPlannerTools(server) {
         const result = await work_queue_service_1.default.decideWeekPlan(args);
         return asToolResult(result);
     });
+    server.registerTool('ba_upsert_week_theme', {
+        description: 'Create or revise the planner-owned weekly theme for a channel and target week.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(), actorId: zod_1.z.string(), channelId: zod_1.z.number().int().positive(),
+            targetWeekStart: zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+            targetWeekEnd: zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+            timezone: zod_1.z.string().min(1).max(100),
+            title: zod_1.z.string().min(1).max(300), body: zod_1.z.string().min(1).max(20000),
+            sourceRefs: zod_1.z.array(zod_1.z.object({ type: zod_1.z.string().min(1).max(100), ref: zod_1.z.string().min(1).max(2000) })).max(50),
+            expectedRevision: zod_1.z.number().int().nonnegative(), state: zod_1.z.enum(['draft', 'accepted']),
+            acceptedAt: zod_1.z.string().nullable().optional(), idempotencyKey: zod_1.z.string().min(1)
+        }
+    }, async (args) => asToolResult(await weekly_theme_pipeline_service_1.default.upsertWeekTheme(args)));
+    server.registerTool('ba_generate_week_topic_preview', {
+        description: 'Generate an idempotent seven-day topic preview from the current accepted weekly theme.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(), actorId: zod_1.z.string(), channelId: zod_1.z.number().int().positive(),
+            weekPackageId: zod_1.z.number().int().positive(), themeContentItemId: zod_1.z.number().int().positive(),
+            themeRevision: zod_1.z.number().int().positive(), timezone: zod_1.z.string().min(1).max(100),
+            scheduleTemplate: zod_1.z.object({ localTime: zod_1.z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), days: zod_1.z.array(zod_1.z.number().int().min(1).max(7)).length(7) }),
+            idempotencyKey: zod_1.z.string().min(1)
+        }
+    }, async (args) => asToolResult(await weekly_theme_pipeline_service_1.default.generatePreview(args)));
+    server.registerTool('ba_get_week_pipeline', {
+        description: 'Read the current theme, preview days, and approval decision for one weekly package.',
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(), actorId: zod_1.z.string(), weekPackageId: zod_1.z.number().int().positive()
+        }
+    }, async (args) => asToolResult(await weekly_theme_pipeline_service_1.default.getPipeline(args)));
     server.registerTool('ba_get_week_execution_summary', {
         description: 'Get material stats and work item stage counts for a weekly publication plan.',
         inputSchema: {

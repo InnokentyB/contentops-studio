@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WorkQueueService = void 0;
 const crypto_1 = require("crypto");
+const client_1 = require("@prisma/client");
 const db_1 = __importDefault(require("../db"));
 /**
  * Registry of authorized service identities and their granted scopes.
@@ -203,6 +204,13 @@ class WorkQueueService {
         }
     }
     /**
+     * Shared authorization boundary for adjacent MCP workflow services.
+     * Keeps project membership and service-identity binding checks in one place.
+     */
+    async assertProjectAccess(client, projectId, actorId, requiredScope) {
+        await this.requireProjectAccess(client, projectId, actorId, requiredScope);
+    }
+    /**
      * Checks if a workflow event with the idempotency key exists and matches composite scope.
      * Enforces project + actor + command scoping as specified in TDPD-001 Section 10.
      */
@@ -269,7 +277,19 @@ class WorkQueueService {
             if (!weekPackage) {
                 throw new Error(`WeekPackage ${params.weekPackageId} not found in project ${params.projectId}`);
             }
+            await tx.$queryRaw(client_1.Prisma.sql `SELECT id FROM planner.week_packages WHERE id = ${weekPackage.id} FOR UPDATE`);
+            const replayAfterLock = await this.checkIdempotency(tx, {
+                projectId: params.projectId,
+                actorId: params.actorId,
+                command: 'ba_decide_week_plan',
+                idempotencyKey: params.idempotencyKey
+            });
+            if (replayAfterLock)
+                return replayAfterLock;
             const beforeState = { approval_status: weekPackage.approval_status };
+            if (!weekPackage.plan_version || weekPackage.plan_version !== params.planVersion) {
+                throw new Error('[STALE_THEME_REVISION] Weekly plan was generated from an outdated theme revision');
+            }
             if (params.decision === 'approved') {
                 await tx.weekPackage.update({
                     where: { id: params.weekPackageId },
@@ -286,6 +306,8 @@ class WorkQueueService {
                     data: { state: 'completed' }
                 });
                 for (const item of weekPackage.content_items) {
+                    if (item.type === 'week_theme')
+                        continue;
                     const existingWrite = await tx.workItem.findFirst({
                         where: {
                             content_item_id: item.id,
@@ -330,7 +352,8 @@ class WorkQueueService {
                     id: params.weekPackageId,
                     approval_status: params.decision
                 },
-                decision: params.decision
+                decision: params.decision,
+                comment: params.comment || null
             };
             await this.recordWorkflowEvent(tx, {
                 projectId: params.projectId,
