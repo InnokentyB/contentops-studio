@@ -14,6 +14,21 @@ const connectionString = process.env.DATABASE_URL;
 const pool = new pg_1.Pool({ connectionString });
 const adapter = new adapter_pg_1.PrismaPg(pool);
 const prisma = new client_1.PrismaClient({ adapter });
+const DEFAULT_GOOGLE_IMAGE_MODEL = 'gemini-3.1-flash-image';
+const RETIRED_GOOGLE_IMAGE_MODELS = new Set([
+    'imagen-3.0-generate-002',
+    'imagen-4.0-generate-001'
+]);
+function resolveGoogleImageModel() {
+    const configured = (process.env.GOOGLE_IMAGE_MODEL || '').trim().replace(/^models\//, '');
+    if (!configured || RETIRED_GOOGLE_IMAGE_MODELS.has(configured)) {
+        return DEFAULT_GOOGLE_IMAGE_MODEL;
+    }
+    if (!/^[a-z0-9][a-z0-9._-]*$/i.test(configured)) {
+        throw new Error('GOOGLE_IMAGE_MODEL has an invalid format');
+    }
+    return configured;
+}
 class GeneratorService {
     constructor() {
         this.PROMPT_KEY_GPT_IMAGE = 'image_generation_prompt';
@@ -191,51 +206,55 @@ CTA: ${item.cta || 'Нет'}
             throw new Error('GOOGLE_API_KEY is not set');
         }
         try {
-            // Using Imagen 4.0 as per available models
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${process.env.GOOGLE_API_KEY}`;
-            let instancesPayload = [{ prompt: prompt }];
-            if (referenceImageBase64) {
-                // Some Imagen versions accept reference images through the "image" field
-                // If it fails, we will catch it and retry without the image
-                instancesPayload = [{
-                        prompt: prompt,
-                        image: {
-                            bytesBase64Encoded: referenceImageBase64.replace(/^data:image\/\w+;base64,/, '')
-                        }
-                    }];
+            const model = resolveGoogleImageModel();
+            const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent`;
+            const referenceMatch = referenceImageBase64?.match(/^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i);
+            const promptParts = [{ text: prompt }];
+            if (referenceMatch) {
+                promptParts.push({
+                    inline_data: {
+                        mime_type: referenceMatch[1],
+                        data: referenceMatch[2]
+                    }
+                });
             }
-            const sendRequest = async (payload) => {
+            const sendRequest = async (parts) => {
                 return await fetch(url, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-goog-api-key': process.env.GOOGLE_API_KEY
+                    },
                     body: JSON.stringify({
-                        instances: payload,
-                        parameters: {
-                            sampleCount: 1,
-                            aspectRatio: "1:1"
+                        contents: [{ parts }],
+                        generationConfig: {
+                            responseModalities: ['IMAGE']
                         }
                     })
                 });
             };
-            let response = await sendRequest(instancesPayload);
-            if (!response.ok && referenceImageBase64) {
+            let response = await sendRequest(promptParts);
+            if (!response.ok && referenceMatch) {
                 const errorText = await response.text();
                 console.warn(`[Nano Banana] Reference image rejected, falling back to prompt only. Error: ${errorText}`);
-                // Fallback: send without the reference image
-                response = await sendRequest([{ prompt: prompt }]);
+                response = await sendRequest([{ text: prompt }]);
             }
             if (!response.ok) {
                 const errorText = await response.text();
                 throw new Error(`Google API Error: ${response.status} ${response.statusText} - ${errorText}`);
             }
             const data = await response.json();
-            // Check for valid response structure
-            if (!data.predictions || !data.predictions[0] || !data.predictions[0].bytesBase64Encoded) {
+            const parts = data?.candidates?.[0]?.content?.parts;
+            const imagePart = Array.isArray(parts)
+                ? parts.find((part) => part?.inlineData?.data || part?.inline_data?.data)
+                : null;
+            const inlineData = imagePart?.inlineData || imagePart?.inline_data;
+            if (!inlineData?.data) {
                 console.error("Unexpected Google API Query Response", JSON.stringify(data));
-                throw new Error('No image data returned from Google Imagen');
+                throw new Error('No image data returned from Google Gemini Image');
             }
-            const base64Image = data.predictions[0].bytesBase64Encoded;
-            return `data:image/jpeg;base64,${base64Image}`;
+            const mimeType = inlineData.mimeType || inlineData.mime_type || 'image/png';
+            return `data:${mimeType};base64,${inlineData.data}`;
         }
         catch (e) {
             console.error('Failed to generate image (Nano Banana)', e);

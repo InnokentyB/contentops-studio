@@ -1744,7 +1744,7 @@ async function apiRoutes(fastify) {
                     role: 'nano_image_gen',
                     prompt: nanoPrompt,
                     apiKey: '',
-                    model: 'imagen-3.0',
+                    model: 'gemini-3.1-flash-image',
                     provider: 'Google (Env)'
                 });
             }
