@@ -278,6 +278,17 @@ model AgentRun {
   output     String?
   error      String?
   created_at DateTime @default(now())
+  provider            String?
+  model               String?
+  input_tokens         Int?
+  output_tokens        Int?
+  cached_input_tokens  Int?
+  reasoning_tokens     Int?
+  image_tokens         Int?
+  estimated_cost_usd   Decimal? @db.Decimal(12, 8)
+  latency_ms           Int?
+  provider_request_id  String?
+  invocation_metadata Json?
 
   // Legacy fields (optional to match old schema if needed, or removed)
   // topic            String // Removed/Mapped to input
@@ -288,6 +299,8 @@ model AgentRun {
 
   @@index([project_id])
   @@index([type])
+  @@index([model])
+  @@index([created_at])
   @@map("agent_runs")
   @@schema("planner")
 }
@@ -808,7 +821,7 @@ model ImageAsset {
   asset_version   Int      @default(1)
   prompt          String
   prompt_version  Int      @default(1)
-  provider        String   @default("gemini-imagen-3")
+  provider        String   @default("google")
   model           String?
   seed            Int?
   alt_text        String?

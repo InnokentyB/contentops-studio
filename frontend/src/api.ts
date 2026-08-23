@@ -240,7 +240,7 @@ export const publicationTasksApi = {
         api.post(`/api/publication-tasks/${id}/critic-check`, data || {}),
     fixWithCritic: (id: number, data?: { text?: string }) =>
         api.post(`/api/publication-tasks/${id}/fix-with-critic`, data || {}),
-    generateImage: (id: number, data?: { provider?: 'gpt-image' | 'nano' }) =>
+    generateImage: (id: number, data?: { provider?: 'preview' | 'final' | 'flagship' }) =>
         api.post(`/api/publication-tasks/${id}/generate-image`, data || {}),
     collectMetrics: (id: number) => api.post(`/api/publication-tasks/${id}/collect-metrics`),
     getMetricsHistory: (id: number, params?: { from?: string; to?: string }) => {

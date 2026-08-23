@@ -8,7 +8,7 @@ const strict_1 = __importDefault(require("node:assert/strict"));
 const multi_agent_service_1 = __importDefault(require("../services/multi_agent.service"));
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
-(0, node_test_1.default)('multiAgentService.getAgentConfig falls back to gpt-4o for invalid model names', async () => {
+(0, node_test_1.default)('multiAgentService.getAgentConfig keeps configured GPT-5 model names', async () => {
     // Mock directly on the service's prisma client by casting to any
     const originalFindFirst = multi_agent_service_1.default.prisma.projectSettings.findFirst;
     const mockDelegate = {
@@ -29,7 +29,7 @@ const path_1 = __importDefault(require("path"));
     });
     try {
         const config = await multi_agent_service_1.default.getAgentConfig(1, 'post_critic');
-        strict_1.default.equal(config.model, 'gpt-4o');
+        strict_1.default.equal(config.model, 'gpt-5.4-pro');
     }
     finally {
         delete multi_agent_service_1.default.prisma.projectSettings;
@@ -81,6 +81,10 @@ const path_1 = __importDefault(require("path"));
         get: () => mockSettingsDelegate,
         configurable: true
     });
+    Object.defineProperty(multi_agent_service_1.default.prisma, 'agentRun', {
+        get: () => ({ create: async (args) => ({ id: 1, ...args.data }) }),
+        configurable: true
+    });
     // Mock the openai client and completions.create call
     let passedImageUrl = '';
     const originalOpenai = multi_agent_service_1.default.openai;
@@ -106,6 +110,7 @@ const path_1 = __importDefault(require("path"));
     finally {
         multi_agent_service_1.default.openai = originalOpenai;
         delete multi_agent_service_1.default.prisma.projectSettings;
+        delete multi_agent_service_1.default.prisma.agentRun;
         process.env.OPENAI_API_KEY = originalApiKey;
         if (fs_1.default.existsSync(testFilePath)) {
             fs_1.default.unlinkSync(testFilePath);

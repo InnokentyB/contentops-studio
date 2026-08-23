@@ -70,3 +70,24 @@ test('generateImageNanoBanana ignores the retired Imagen model override', async 
         else process.env.GOOGLE_IMAGE_MODEL = originalModel;
     }
 });
+
+test('generateImageNanoBanana can explicitly use the low-cost preview model', async () => {
+    const originalFetch = globalThis.fetch;
+    const originalApiKey = process.env.GOOGLE_API_KEY;
+    let requestedUrl = '';
+    process.env.GOOGLE_API_KEY = 'test-google-key';
+    globalThis.fetch = (async (url: string | URL | Request) => {
+        requestedUrl = String(url);
+        return new Response(JSON.stringify({
+            candidates: [{ content: { parts: [{ inlineData: { mimeType: 'image/png', data: 'ZmFrZQ==' } }] } }]
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }) as typeof fetch;
+
+    try {
+        await generatorService.generateImageNanoBanana('Draft visual', undefined, 'gemini-3.1-flash-lite-image');
+        assert.match(requestedUrl, /gemini-3\.1-flash-lite-image:generateContent$/);
+    } finally {
+        globalThis.fetch = originalFetch;
+        process.env.GOOGLE_API_KEY = originalApiKey;
+    }
+});

@@ -5,6 +5,7 @@ import OpenAI from 'openai';
 import { config } from 'dotenv';
 import { POST_SYSTEM_PROMPT } from '../config/prompts';
 import multiAgentService from './multi_agent.service';
+import { estimateImageCostUsd, modelForRole } from './model_policy.service';
 
 config();
 
@@ -14,13 +15,14 @@ const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 const DEFAULT_GOOGLE_IMAGE_MODEL = 'gemini-3.1-flash-image';
+const DEFAULT_OPENAI_IMAGE_MODEL = 'gpt-image-2';
 const RETIRED_GOOGLE_IMAGE_MODELS = new Set([
     'imagen-3.0-generate-002',
     'imagen-4.0-generate-001'
 ]);
 
-function resolveGoogleImageModel() {
-    const configured = (process.env.GOOGLE_IMAGE_MODEL || '').trim().replace(/^models\//, '');
+function resolveGoogleImageModel(explicitModel?: string) {
+    const configured = (explicitModel || process.env.GOOGLE_IMAGE_MODEL || '').trim().replace(/^models\//, '');
     if (!configured || RETIRED_GOOGLE_IMAGE_MODELS.has(configured)) {
         return DEFAULT_GOOGLE_IMAGE_MODEL;
     }
@@ -54,6 +56,46 @@ class GeneratorService {
             } catch (e) {
                 console.error('Failed to initialize Google AI', e);
             }
+        }
+    }
+
+    private async logImageInvocation(input: {
+        projectId?: number;
+        status: 'success' | 'failed';
+        provider: string;
+        model: string;
+        prompt: string;
+        output?: string;
+        error?: string;
+        latencyMs: number;
+        inputTokens?: number;
+        outputTokens?: number;
+        providerRequestId?: string;
+        metadata?: Record<string, unknown>;
+    }) {
+        if (!input.projectId) return;
+        try {
+            await prisma.agentRun.create({
+                data: {
+                    project: { connect: { id: input.projectId } },
+                    type: 'model_invocation',
+                    agent_role: 'image_generator',
+                    status: input.status,
+                    input: input.prompt.slice(0, 5000),
+                    output: input.output?.slice(0, 5000),
+                    error: input.error?.slice(0, 5000),
+                    provider: input.provider,
+                    model: input.model,
+                    input_tokens: input.inputTokens,
+                    output_tokens: input.outputTokens,
+                    estimated_cost_usd: estimateImageCostUsd(input.model) ?? undefined,
+                    latency_ms: input.latencyMs,
+                    provider_request_id: input.providerRequestId,
+                    invocation_metadata: input.metadata as any
+                }
+            });
+        } catch (error) {
+            console.error('Failed to log image invocation', error);
         }
     }
 
@@ -165,7 +207,7 @@ CTA: ${item.cta || 'Нет'}
             .replace('${text.substring(0, 500)}', text.substring(0, 500));
 
         const response = await this.openai.chat.completions.create({
-            model: 'gpt-4o',
+            model: modelForRole('precision_fixer'),
             messages: [{ role: 'user', content: filledPrompt }], // Simplification: just use the template as the prompt
         });
 
@@ -174,10 +216,12 @@ CTA: ${item.cta || 'Нет'}
         return generatedPrompt;
     }
 
-    async generateImage(prompt: string): Promise<string> {
+    async generateImage(prompt: string, projectId?: number): Promise<string> {
+        const startedAt = Date.now();
+        const model = (process.env.OPENAI_IMAGE_MODEL || DEFAULT_OPENAI_IMAGE_MODEL).trim();
         try {
-            const response = await this.openai.images.generate({
-                model: "gpt-image-1.5",
+            const response: any = await this.openai.images.generate({
+                model,
                 prompt: prompt,
                 n: 1,
                 size: "1024x1024",
@@ -204,9 +248,19 @@ CTA: ${item.cta || 'Нет'}
             // Upload buffer directly to storage
             const filename = `img-${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
             const storageService = require('./storage.service').default;
-            return await storageService.uploadFileFromBuffer(buffer, 'image/png', `generated/${filename}`);
-        } catch (e) {
+            const url = await storageService.uploadFileFromBuffer(buffer, 'image/png', `generated/${filename}`);
+            await this.logImageInvocation({
+                projectId, status: 'success', provider: 'openai', model, prompt, output: url,
+                latencyMs: Date.now() - startedAt,
+                inputTokens: response.usage?.input_tokens,
+                outputTokens: response.usage?.output_tokens,
+                providerRequestId: response.id,
+                metadata: { size: '1024x1024', quality: 'default' }
+            });
+            return url;
+        } catch (e: any) {
             console.error('Failed to generate image (GPT-Image)', e);
+            await this.logImageInvocation({ projectId, status: 'failed', provider: 'openai', model, prompt, error: e?.message || String(e), latencyMs: Date.now() - startedAt });
             throw e;
         }
     }
@@ -227,13 +281,15 @@ CTA: ${item.cta || 'Нет'}
         }
     }
 
-    async generateImageNanoBanana(prompt: string, referenceImageBase64?: string): Promise<string> {
+    async generateImageNanoBanana(prompt: string, referenceImageBase64?: string, requestedModel?: string, projectId?: number): Promise<string> {
         if (!process.env.GOOGLE_API_KEY) {
             throw new Error('GOOGLE_API_KEY is not set');
         }
 
+        const startedAt = Date.now();
+        let model = '';
         try {
-            const model = resolveGoogleImageModel();
+            model = resolveGoogleImageModel(requestedModel);
             const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent`;
             const referenceMatch = referenceImageBase64?.match(/^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i);
 
@@ -289,10 +345,20 @@ CTA: ${item.cta || 'Нет'}
             }
 
             const mimeType = inlineData.mimeType || inlineData.mime_type || 'image/png';
-            return `data:${mimeType};base64,${inlineData.data}`;
+            const resultUrl = `data:${mimeType};base64,${inlineData.data}`;
+            await this.logImageInvocation({
+                projectId, status: 'success', provider: 'google', model, prompt, output: '[inline image]',
+                latencyMs: Date.now() - startedAt,
+                inputTokens: data.usageMetadata?.promptTokenCount,
+                outputTokens: data.usageMetadata?.candidatesTokenCount,
+                providerRequestId: data.responseId,
+                metadata: { referenceImage: Boolean(referenceMatch), resolution: '1K' }
+            });
+            return resultUrl;
 
-        } catch (e) {
+        } catch (e: any) {
             console.error('Failed to generate image (Nano Banana)', e);
+            await this.logImageInvocation({ projectId, status: 'failed', provider: 'google', model: model || requestedModel || DEFAULT_GOOGLE_IMAGE_MODEL, prompt, error: e?.message || String(e), latencyMs: Date.now() - startedAt });
             throw e;
         }
     }

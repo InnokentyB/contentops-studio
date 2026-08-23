@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { config } from 'dotenv';
+import { modelForRole } from './model_policy.service';
 
 config();
 
@@ -32,7 +33,7 @@ export class V2OrchestratorService {
 
     private async callLLM(systemPrompt: string, userPrompt: string): Promise<string> {
         const completion = await this.getOpenAIClient().chat.completions.create({
-            model: 'gpt-4o',
+            model: modelForRole('topic_creator'),
             messages: [
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userPrompt }

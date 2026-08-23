@@ -5,7 +5,7 @@ import multiAgentService from '../services/multi_agent.service';
 import fs from 'fs';
 import path from 'path';
 
-test('multiAgentService.getAgentConfig falls back to gpt-4o for invalid model names', async () => {
+test('multiAgentService.getAgentConfig keeps configured GPT-5 model names', async () => {
     // Mock directly on the service's prisma client by casting to any
     const originalFindFirst = (multiAgentService as any).prisma.projectSettings.findFirst;
     const mockDelegate = {
@@ -28,7 +28,7 @@ test('multiAgentService.getAgentConfig falls back to gpt-4o for invalid model na
 
     try {
         const config = await multiAgentService.getAgentConfig(1, 'post_critic');
-        assert.equal(config.model, 'gpt-4o');
+        assert.equal(config.model, 'gpt-5.4-pro');
     } finally {
         delete (multiAgentService as any).prisma.projectSettings;
     }
@@ -84,6 +84,10 @@ test('multiAgentService.runImageCritic converts local relative upload paths to b
         get: () => mockSettingsDelegate,
         configurable: true
     });
+    Object.defineProperty((multiAgentService as any).prisma, 'agentRun', {
+        get: () => ({ create: async (args: any) => ({ id: 1, ...args.data }) }),
+        configurable: true
+    });
 
     // Mock the openai client and completions.create call
     let passedImageUrl = '';
@@ -110,6 +114,7 @@ test('multiAgentService.runImageCritic converts local relative upload paths to b
     } finally {
         (multiAgentService as any).openai = originalOpenai;
         delete (multiAgentService as any).prisma.projectSettings;
+        delete (multiAgentService as any).prisma.agentRun;
         process.env.OPENAI_API_KEY = originalApiKey;
         if (fs.existsSync(testFilePath)) {
             fs.unlinkSync(testFilePath);

@@ -113,7 +113,7 @@ export default function WeekDetail() {
     })
 
     const generateImage = useMutation({
-        mutationFn: ({ postId, provider }: { postId: number, provider: 'gpt-image' | 'nano' | 'full' }) => {
+        mutationFn: ({ postId, provider }: { postId: number, provider: 'preview' | 'final' | 'flagship' }) => {
             setGeneratingPostId(postId);
             return api.post(`/api/posts/${postId}/generate-image`, { provider });
         },
@@ -397,9 +397,9 @@ export default function WeekDetail() {
                                         {post.status === 'published' ? 'DEPLOYED' : (post.status === 'publishing' || publishNow.isPending) ? 'PUBLISHING...' : 'DEPLOY NOW'}
                                     </button>
                                     <button 
-                                        onClick={(e) => { e.stopPropagation(); generateImage.mutate({ postId: post.id, provider: 'full' }); }}
+                                        onClick={(e) => { e.stopPropagation(); generateImage.mutate({ postId: post.id, provider: 'preview' }); }}
                                         disabled={generatingPostId === post.id || post.status === 'generating'}
-                                        title="Auto-generate image"
+                                        title="Создать экономный черновик изображения"
                                         className="w-12 h-12 bg-surface-container-low hover:bg-surface-container-high rounded-xl flex items-center justify-center text-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         {generatingPostId === post.id || post.status === 'generating' ? (

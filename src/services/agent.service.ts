@@ -8,6 +8,7 @@ import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import generatorService from './generator.service';
 import multiAgentService from './multi_agent.service';
+import { modelForRole } from './model_policy.service';
 import { format } from 'date-fns';
 
 config();
@@ -118,7 +119,7 @@ class AgentService {
         ];
 
         let response = await openai.chat.completions.create({
-            model: 'gpt-4o',
+            model: modelForRole('classifier'),
             messages: [
                 { role: 'system', content: `${AGENT_SYSTEM_PROMPT}\n\nТекущая дата: ${new Date().toISOString()}` },
                 ...this.history
@@ -287,7 +288,7 @@ class AgentService {
             }
 
             response = await openai.chat.completions.create({
-                model: 'gpt-4o',
+                model: modelForRole('classifier'),
                 messages: [
                     { role: 'system', content: AGENT_SYSTEM_PROMPT },
                     ...this.history

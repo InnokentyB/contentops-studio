@@ -13,6 +13,7 @@ const pg_1 = require("pg");
 const adapter_pg_1 = require("@prisma/adapter-pg");
 const generator_service_1 = __importDefault(require("./generator.service"));
 const multi_agent_service_1 = __importDefault(require("./multi_agent.service"));
+const model_policy_service_1 = require("./model_policy.service");
 const date_fns_1 = require("date-fns");
 (0, dotenv_1.config)();
 const connectionString = process.env.DATABASE_URL;
@@ -117,7 +118,7 @@ class AgentService {
             }
         ];
         let response = await openai.chat.completions.create({
-            model: 'gpt-4o',
+            model: (0, model_policy_service_1.modelForRole)('classifier'),
             messages: [
                 { role: 'system', content: `${prompts_1.AGENT_SYSTEM_PROMPT}\n\nТекущая дата: ${new Date().toISOString()}` },
                 ...this.history
@@ -284,7 +285,7 @@ class AgentService {
                 });
             }
             response = await openai.chat.completions.create({
-                model: 'gpt-4o',
+                model: (0, model_policy_service_1.modelForRole)('classifier'),
                 messages: [
                     { role: 'system', content: prompts_1.AGENT_SYSTEM_PROMPT },
                     ...this.history

@@ -9,6 +9,7 @@ const generative_ai_1 = require("@google/generative-ai");
 const dotenv_1 = require("dotenv");
 const db_1 = __importDefault(require("../db"));
 const comment_service_1 = __importDefault(require("./comment.service"));
+const model_policy_service_1 = require("./model_policy.service");
 (0, dotenv_1.config)();
 class MultiAgentService {
     /**
@@ -94,67 +95,17 @@ Do not return markdown fences. Keep the original intent, but fully address platf
     async runJsonAgent(projectId, role, promptKey, defaultPrompt, input) {
         const config = await this.getAgentConfig(projectId, role); // cast for now
         const systemPrompt = config.prompt || defaultPrompt;
-        let responseText = '';
-        if (!this.openai)
-            throw new Error("OpenAI not initialized");
         try {
-            const completion = await this.openai.chat.completions.create({
-                model: config.model || 'gpt-4o',
-                messages: [
-                    { role: 'system', content: systemPrompt + (systemPrompt.toLowerCase().includes('json') ? '' : '\n\nOutput must be in JSON format.') },
-                    { role: 'user', content: input }
-                ],
-                response_format: { type: 'json_object' }
-            });
-            responseText = completion.choices[0].message.content || '{}';
-            // Log run
-            await this.logRun(projectId, 'seq_gen', role, 'success', input, systemPrompt, responseText, null);
+            const responseText = await this.invokeTextAgent(projectId, role, { ...config, prompt: systemPrompt }, input, { json: true, temperature: 0.3 });
             return JSON.parse(responseText);
         }
         catch (error) {
             console.error(`[MultiAgent] ${role} failed:`, error);
-            await this.logRun(projectId, 'seq_gen', role, 'failed', input, systemPrompt, '', error.message);
             return null;
         }
     }
     async invokeStructuredAgent(config, systemPrompt, input, projectId, role) {
-        let responseText = '{}';
-        if (config.apiKey && config.apiKey.startsWith('sk-ant')) {
-            const anthropic = new sdk_1.default({ apiKey: config.apiKey });
-            const response = await anthropic.messages.create({
-                model: config.model,
-                max_tokens: 4000,
-                system: `${systemPrompt}\nIMPORTANT: return valid JSON only.`,
-                messages: [
-                    { role: 'user', content: input }
-                ]
-            });
-            // @ts-ignore
-            responseText = response.content[0].text || '{}';
-        }
-        else if (config.apiKey && config.apiKey.startsWith('AIza')) {
-            const genAI = new generative_ai_1.GoogleGenerativeAI(config.apiKey);
-            const model = genAI.getGenerativeModel({
-                model: config.model,
-                systemInstruction: `${systemPrompt}\nIMPORTANT: return valid JSON only.`
-            });
-            const result = await model.generateContent(input);
-            responseText = result.response.text();
-        }
-        else {
-            const client = new openai_1.default({ apiKey: config.apiKey });
-            const response = await client.chat.completions.create({
-                model: config.model || 'gpt-4o',
-                messages: [
-                    { role: 'system', content: systemPrompt + '\n\nOutput must be valid JSON.' },
-                    { role: 'user', content: input }
-                ],
-                response_format: { type: 'json_object' },
-                temperature: 0.3
-            });
-            responseText = response.choices[0].message.content || '{}';
-        }
-        await this.logRun(projectId, 'publication_pipeline', role, 'success', input, systemPrompt, responseText, null);
+        const responseText = await this.invokeTextAgent(projectId, role, { ...config, prompt: systemPrompt }, input, { json: true, temperature: 0.3, maxTokens: 4000 });
         try {
             let cleaned = responseText.trim();
             const firstBrace = cleaned.indexOf('{');
@@ -165,7 +116,7 @@ Do not return markdown fences. Keep the original intent, but fully address platf
             return JSON.parse(cleaned);
         }
         catch (error) {
-            await this.logRun(projectId, 'publication_pipeline', role, 'failed', input, systemPrompt, responseText, error?.message || 'JSON parse failed');
+            await this.logRun(projectId, 'publication_pipeline_parse', role, 'failed', input, systemPrompt, responseText, error?.message || 'JSON parse failed');
             throw new Error(`Failed to parse ${role} response as JSON`);
         }
     }
@@ -506,7 +457,7 @@ Output JSON Format (Strict):
         }
         this.prisma = db_1.default;
     }
-    async logRun(projectId, type, agentRole, status, input, prompt, output, error) {
+    async logRun(projectId, type, agentRole, status, input, prompt, output, error, telemetry) {
         try {
             await this.prisma.agentRun.create({
                 data: {
@@ -517,12 +468,117 @@ Output JSON Format (Strict):
                     input: input ? input.substring(0, 5000) : null,
                     prompt: prompt ? prompt.substring(0, 5000) : null,
                     output: output ? output.substring(0, 5000) : null,
-                    error: error ? error.substring(0, 5000) : null
+                    error: error ? error.substring(0, 5000) : null,
+                    provider: telemetry?.provider,
+                    model: telemetry?.model,
+                    input_tokens: telemetry?.inputTokens,
+                    output_tokens: telemetry?.outputTokens,
+                    cached_input_tokens: telemetry?.cachedInputTokens,
+                    reasoning_tokens: telemetry?.reasoningTokens,
+                    estimated_cost_usd: telemetry ? (0, model_policy_service_1.estimateModelCostUsd)({
+                        model: telemetry.model,
+                        inputTokens: telemetry.inputTokens,
+                        outputTokens: telemetry.outputTokens,
+                        cachedInputTokens: telemetry.cachedInputTokens
+                    }) ?? undefined : undefined,
+                    latency_ms: telemetry?.latencyMs,
+                    provider_request_id: telemetry?.providerRequestId
                 }
             });
         }
         catch (e) {
             console.error('Failed to log agent run', e);
+        }
+    }
+    async invokeTextAgent(projectId, role, config, input, options = {}) {
+        const provider = (0, model_policy_service_1.preflightInvocation)(config);
+        const startedAt = Date.now();
+        let output = '';
+        let telemetry = {
+            provider,
+            model: config.model,
+            latencyMs: 0
+        };
+        try {
+            if (provider === 'anthropic') {
+                const response = await new sdk_1.default({ apiKey: config.apiKey }).messages.create({
+                    model: config.model,
+                    max_tokens: options.maxTokens || 4000,
+                    system: config.prompt + (options.json ? '\nIMPORTANT: return valid JSON only.' : ''),
+                    messages: [{ role: 'user', content: input }]
+                });
+                output = response.content?.[0]?.text || '';
+                telemetry = {
+                    ...telemetry,
+                    inputTokens: response.usage?.input_tokens,
+                    outputTokens: response.usage?.output_tokens,
+                    providerRequestId: response.id
+                };
+            }
+            else if (provider === 'google') {
+                const model = new generative_ai_1.GoogleGenerativeAI(config.apiKey).getGenerativeModel({
+                    model: config.model,
+                    systemInstruction: config.prompt + (options.json ? '\nIMPORTANT: return valid JSON only.' : ''),
+                    generationConfig: options.json ? { responseMimeType: 'application/json' } : undefined
+                });
+                const result = await model.generateContent(input);
+                output = result.response.text();
+                const usage = result.response.usageMetadata;
+                telemetry = {
+                    ...telemetry,
+                    inputTokens: usage?.promptTokenCount,
+                    outputTokens: usage?.candidatesTokenCount,
+                    cachedInputTokens: usage?.cachedContentTokenCount,
+                    providerRequestId: result.response.responseId
+                };
+            }
+            else {
+                const client = new openai_1.default({ apiKey: config.apiKey });
+                if (config.model.toLowerCase().startsWith('gpt-5')) {
+                    const response = await client.responses.create({
+                        model: config.model,
+                        instructions: config.prompt + (options.json ? '\nReturn valid JSON only.' : ''),
+                        input
+                    });
+                    output = response.output_text || '';
+                    telemetry = {
+                        ...telemetry,
+                        inputTokens: response.usage?.input_tokens,
+                        outputTokens: response.usage?.output_tokens,
+                        cachedInputTokens: response.usage?.input_tokens_details?.cached_tokens,
+                        reasoningTokens: response.usage?.output_tokens_details?.reasoning_tokens,
+                        providerRequestId: response.id
+                    };
+                }
+                else {
+                    const response = await client.chat.completions.create({
+                        model: config.model,
+                        messages: [
+                            { role: 'system', content: config.prompt + (options.json ? '\nReturn valid JSON only.' : '') },
+                            { role: 'user', content: input }
+                        ],
+                        ...(options.json ? { response_format: { type: 'json_object' } } : {}),
+                        ...(options.temperature === undefined ? {} : { temperature: options.temperature })
+                    });
+                    output = response.choices?.[0]?.message?.content || '';
+                    telemetry = {
+                        ...telemetry,
+                        inputTokens: response.usage?.prompt_tokens,
+                        outputTokens: response.usage?.completion_tokens,
+                        cachedInputTokens: response.usage?.prompt_tokens_details?.cached_tokens,
+                        reasoningTokens: response.usage?.completion_tokens_details?.reasoning_tokens,
+                        providerRequestId: response.id
+                    };
+                }
+            }
+            telemetry.latencyMs = Date.now() - startedAt;
+            await this.logRun(projectId, 'model_invocation', role, 'success', input, config.prompt, output, null, telemetry);
+            return output;
+        }
+        catch (error) {
+            telemetry.latencyMs = Date.now() - startedAt;
+            await this.logRun(projectId, 'model_invocation', role, 'failed', input, config.prompt, null, error?.message || String(error), telemetry);
+            throw error;
         }
     }
     // ... existing methods (need to be updated to use logRun) ...
@@ -570,24 +626,12 @@ Output JSON Format (Strict):
         const fixerConfig = await this.getAgentConfig(projectId, 'precision_fixer');
         const systemPrompt = fixerConfig.prompt || this.DEFAULT_PRECISION_FIXER_PROMPT;
         try {
-            if (!this.openai)
-                throw new Error("OpenAI not initialized");
-            const response = await this.openai.chat.completions.create({
-                model: fixerConfig.model || 'gpt-4o',
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: fixerInput }
-                ],
-                temperature: 0.7
-            });
-            const finalPrompt = response.choices[0].message.content || '';
-            await this.logRun(projectId, 'image_chain', 'precision_fixer', 'success', fixerInput, systemPrompt, finalPrompt, null);
+            const finalPrompt = await this.invokeTextAgent(projectId, 'precision_fixer', { ...fixerConfig, prompt: systemPrompt }, fixerInput, { temperature: 0.7 });
             // Clean up prompt (remove quotes if added by LLM)
             return finalPrompt.replace(/^"|"$/g, '').trim() || `Illustration about ${topic}`;
         }
         catch (e) {
             console.error('[MultiAgent] Precision Fixer failed:', e);
-            await this.logRun(projectId, 'image_chain', 'precision_fixer', 'failed', fixerInput, systemPrompt, null, e.message);
             return sceneConcept; // Fallback to raw text from previous agent
         }
     }
@@ -614,6 +658,7 @@ Output JSON Format (Strict):
             }
         }
         try {
+            const startedAt = Date.now();
             const response = await client.chat.completions.create({
                 model: config.model || 'gpt-4o', // Must use a vision-capable model
                 messages: [
@@ -629,7 +674,16 @@ Output JSON Format (Strict):
                 response_format: { type: 'json_object' }
             });
             const content = response.choices[0].message.content || '{}';
-            await this.logRun(projectId, 'image_critic', 'image_critic', 'success', 'Image URL + Text', systemPrompt, content, null);
+            await this.logRun(projectId, 'model_invocation', 'image_critic', 'success', 'Image URL + Text', systemPrompt, content, null, {
+                provider: 'openai',
+                model: config.model,
+                inputTokens: response.usage?.prompt_tokens,
+                outputTokens: response.usage?.completion_tokens,
+                cachedInputTokens: response.usage?.prompt_tokens_details?.cached_tokens,
+                reasoningTokens: response.usage?.completion_tokens_details?.reasoning_tokens,
+                latencyMs: Date.now() - startedAt,
+                providerRequestId: response.id
+            });
             return JSON.parse(content);
         }
         catch (e) {
@@ -726,6 +780,12 @@ Output JSON Format (Strict):
             promptKey = this.KEY_IMAGE_CRITIC_PROMPT;
             defaultPrompt = this.DEFAULT_IMAGE_CRITIC_PROMPT;
         }
+        else if (rolePrefix === 'classifier' || rolePrefix === this.KEY_POST_CLASSIFIER) {
+            apiKeyKey = '';
+            modelKey = '';
+            promptKey = this.KEY_POST_CLASSIFIER;
+            defaultPrompt = this.DEFAULT_POST_CLASSIFIER_PROMPT;
+        }
         else if (rolePrefix === 'seq_writer') {
             apiKeyKey = ''; // No specific key for now, use default
             modelKey = '';
@@ -744,14 +804,11 @@ Output JSON Format (Strict):
             promptKey = this.KEY_SEQ_FIXER_PROMPT;
             defaultPrompt = this.DEFAULT_SEQ_FIXER_PROMPT;
         }
-        let apiKey = await this.getPrompt(projectId, apiKeyKey, '');
-        let model = await this.getPrompt(projectId, modelKey, 'gpt-4o');
+        let apiKey = apiKeyKey ? await this.getPrompt(projectId, apiKeyKey, '') : '';
+        let model = modelKey ? await this.getPrompt(projectId, modelKey, (0, model_policy_service_1.modelForRole)(rolePrefix)) : (0, model_policy_service_1.modelForRole)(rolePrefix === this.KEY_POST_CLASSIFIER ? 'classifier' : rolePrefix);
         const prompt = await this.getPrompt(projectId, promptKey, defaultPrompt);
-        // Normalize invalid models (like gpt-5.4-pro or other test/invalid model strings)
-        if (model && (model.toLowerCase().includes('gpt-5') || (!model.startsWith('gpt-') && !model.startsWith('o1-') && !model.startsWith('o3-') && !model.startsWith('claude-') && !model.startsWith('gemini-')))) {
-            console.warn(`[MultiAgent] Invalid model name "${model}" resolved. Defaulting to "gpt-4o".`);
-            model = 'gpt-4o';
-        }
+        // Validate model families explicitly. Never hide configuration mistakes behind a paid fallback.
+        (0, model_policy_service_1.inferModelProvider)(model);
         // Resolve Provider Key if it starts with pk_
         if (apiKey && apiKey.startsWith('pk_')) {
             const keyId = parseInt(apiKey.substring(3));
@@ -768,10 +825,17 @@ Output JSON Format (Strict):
                 }
             }
         }
+        const provider = (0, model_policy_service_1.inferModelProvider)(model);
+        const providerFallback = provider === 'google'
+            ? process.env.GOOGLE_API_KEY
+            : provider === 'anthropic'
+                ? process.env.ANTHROPIC_API_KEY
+                : process.env.OPENAI_API_KEY;
         return {
-            apiKey: apiKey || process.env.OPENAI_API_KEY || '', // Fallback to env
+            apiKey: apiKey || providerFallback || '',
             model,
-            prompt
+            prompt,
+            provider
         };
     }
     async generateWeeklyTopicProposals(projectId, context) {
@@ -848,20 +912,23 @@ Do not return placeholders, day labels, generic "focus of the day" formulations,
         let tags;
         try {
             const creatorConfig = await this.getAgentConfig(projectId, 'post_creator');
+            const criticConfig = await this.getAgentConfig(projectId, 'post_critic');
+            const fixerConfig = await this.getAgentConfig(projectId, 'post_fixer');
+            const classifierConfig = await this.getAgentConfig(projectId, 'classifier');
+            // Validate every provider/model pair before the creator incurs the first paid request.
+            [creatorConfig, criticConfig, fixerConfig, classifierConfig].forEach(model_policy_service_1.preflightInvocation);
             if (promptOverride) {
                 creatorConfig.prompt = promptOverride;
                 console.log('[MultiAgent Post] Using prompt override');
             }
-            currentText = await this.postCreator(theme, topic, creatorConfig, runLogId, commentsContext);
-            const MAX_ITERATIONS = 3;
+            currentText = await this.postCreator(projectId, theme, topic, creatorConfig, runLogId, commentsContext);
+            const MAX_ITERATIONS = 2; // one repair at most, followed by a final verification
             const TARGET_SCORE = 80;
             while (iterations < MAX_ITERATIONS) {
                 iterations++;
                 console.log(`[MultiAgent Post] Iteration ${iterations} starting...`);
-                const criticConfig = await this.getAgentConfig(projectId, 'post_critic');
-                const fixerConfig = await this.getAgentConfig(projectId, 'post_fixer');
                 // Pass constraint to Critic
-                const critiqueResult = await this.postCritic(currentText, topic, criticConfig, runLogId, iterations, lengthConstraint);
+                const critiqueResult = await this.postCritic(projectId, currentText, topic, criticConfig, runLogId, iterations, lengthConstraint);
                 currentScore = critiqueResult.score;
                 history.push({
                     iteration: iterations,
@@ -885,17 +952,16 @@ Do not return placeholders, day labels, generic "focus of the day" formulations,
                 if (iterations < MAX_ITERATIONS) {
                     console.log(`[MultiAgent Post] Fixing text based on critique...`);
                     // Pass constraint to Fixer
-                    currentText = await this.postFixer(currentText, critiqueResult.critique, fixerConfig, runLogId, iterations, lengthConstraint);
+                    currentText = await this.postFixer(projectId, currentText, critiqueResult.critique, fixerConfig, runLogId, iterations, lengthConstraint);
                 }
             }
             // Run Classifier
             try {
                 console.log('[MultiAgent Post] Running Classifier...');
-                const classifierConfig = await this.getAgentConfig(projectId, this.KEY_POST_CLASSIFIER);
                 if (!classifierConfig.prompt || classifierConfig.prompt === this.DEFAULT_POST_CREATOR_PROMPT) {
                     classifierConfig.prompt = this.DEFAULT_POST_CLASSIFIER_PROMPT;
                 }
-                const classification = await this.postClassifier(currentText, classifierConfig);
+                const classification = await this.postClassifier(projectId, currentText, classifierConfig);
                 category = classification.category;
                 tags = classification.tags;
                 console.log('[MultiAgent Post] Classification result:', classification);
@@ -947,20 +1013,8 @@ Do not return placeholders, day labels, generic "focus of the day" formulations,
             tags
         };
     }
-    async postClassifier(text, config) {
-        let output = '{}';
-        if (!this.openai)
-            return { category: '', tags: [] };
-        const response = await this.openai.chat.completions.create({
-            model: 'gpt-4o', // Force JSON capable model
-            messages: [
-                { role: 'system', content: (config.prompt || this.DEFAULT_POST_CLASSIFIER_PROMPT) + ((config.prompt || this.DEFAULT_POST_CLASSIFIER_PROMPT).toLowerCase().includes('json') ? '' : '\n\nOutput must be in JSON format.') },
-                { role: 'user', content: `Post Content: \n${text} ` }
-            ],
-            temperature: 0.3,
-            response_format: { type: "json_object" }
-        });
-        output = response.choices[0].message.content || '{}';
+    async postClassifier(projectId, text, config) {
+        const output = await this.invokeTextAgent(projectId, 'classifier', { ...config, prompt: config.prompt || this.DEFAULT_POST_CLASSIFIER_PROMPT }, `Post Content: \n${text}`, { json: true, temperature: 0.3 });
         try {
             return JSON.parse(output);
         }
@@ -969,49 +1023,13 @@ Do not return placeholders, day labels, generic "focus of the day" formulations,
             return { category: 'General', tags: [] };
         }
     }
-    async postCreator(theme, topic, config, runId, additionalContext = '') {
+    async postCreator(projectId, theme, topic, config, runId, additionalContext = '') {
         let output = '';
         let userContent = `Theme: ${theme} \nPost Topic: ${topic} `;
         if (additionalContext) {
             userContent += `\n\nUSER COMMENTS / REQUIREMENTS: \n${additionalContext} `;
         }
-        if (config.apiKey && config.apiKey.startsWith('sk-ant')) {
-            // Use Anthropic
-            const anthropic = new sdk_1.default({ apiKey: config.apiKey });
-            const response = await anthropic.messages.create({
-                model: config.model,
-                max_tokens: 4000,
-                system: config.prompt,
-                messages: [
-                    { role: 'user', content: userContent }
-                ]
-            });
-            // @ts-ignore
-            output = response.content[0].text || '';
-        }
-        else if (config.apiKey && config.apiKey.startsWith('AIza')) {
-            // Use Gemini
-            const genAI = new generative_ai_1.GoogleGenerativeAI(config.apiKey);
-            const model = genAI.getGenerativeModel({
-                model: config.model,
-                systemInstruction: config.prompt
-            });
-            const result = await model.generateContent(userContent);
-            output = result.response.text();
-        }
-        else {
-            // Use OpenAI (Default)
-            const client = new openai_1.default({ apiKey: config.apiKey });
-            const response = await client.chat.completions.create({
-                model: config.model,
-                messages: [
-                    { role: 'system', content: config.prompt },
-                    { role: 'user', content: userContent }
-                ],
-                temperature: 0.7
-            });
-            output = response.choices[0].message.content || '';
-        }
+        output = await this.invokeTextAgent(projectId, 'post_creator', config, userContent, { temperature: 0.7, maxTokens: 4000 });
         if (runId > 0) {
             await this.prisma.agentIteration.create({
                 data: {
@@ -1022,48 +1040,15 @@ Do not return placeholders, day labels, generic "focus of the day" formulations,
         }
         return output;
     }
-    async postCritic(text, topic, config, runId, iteration, lengthConstraint = '') {
+    async postCritic(projectId, text, topic, config, runId, iteration, lengthConstraint = '') {
         let result = { score: 50, critique: '' };
         let content = '{}';
         const context = `Topic: ${topic} \n\nPost to evaluate: \n${text} \n\n${lengthConstraint ? `CRITICAL CONSTRAINT TO VERIFY: ${lengthConstraint}. If text exceeds limit, SCORE MUST BE < 50 and critique must demand shortening.` : ''} `;
-        if (config.apiKey && config.apiKey.startsWith('sk-ant')) {
-            const anthropic = new sdk_1.default({ apiKey: config.apiKey });
-            // Claude doesn't have JSON mode enforcement like OpenAI, so we ask politely in prompt
-            const response = await anthropic.messages.create({
-                model: config.model,
-                max_tokens: 1000,
-                system: config.prompt + "\nIMPORTANT: You MUST return valid JSON only.",
-                messages: [
-                    { role: 'user', content: context }
-                ]
-            });
-            // @ts-ignore
-            content = response.content[0].text || '{}';
-        }
-        else if (config.apiKey && config.apiKey.startsWith('AIza')) {
-            // Use Gemini
-            const genAI = new generative_ai_1.GoogleGenerativeAI(config.apiKey);
-            const model = genAI.getGenerativeModel({
-                model: config.model,
-                systemInstruction: config.prompt + "\nIMPORTANT: You MUST return valid JSON only.",
-                generationConfig: { responseMimeType: "application/json" }
-            });
-            const result = await model.generateContent(context);
-            content = result.response.text();
-        }
-        else {
-            const client = new openai_1.default({ apiKey: config.apiKey });
-            const response = await client.chat.completions.create({
-                model: config.model,
-                messages: [
-                    { role: 'system', content: config.prompt + (config.prompt.toLowerCase().includes('json') ? '' : '\n\nOutput must be in JSON format.') },
-                    { role: 'user', content: context }
-                ],
-                response_format: { type: "json_object" },
-                temperature: 0.3
-            });
-            content = response.choices[0].message.content || '{}';
-        }
+        content = await this.invokeTextAgent(projectId, 'post_critic', config, context, {
+            json: true,
+            temperature: 0.3,
+            maxTokens: 1000
+        });
         try {
             // Attempt to extract JSON object from text (handles text before/after JSON)
             let cleaned = content.trim();
@@ -1095,45 +1080,14 @@ Do not return placeholders, day labels, generic "focus of the day" formulations,
         }
         return result;
     }
-    async postFixer(text, critique, config, runId, iteration, lengthConstraint = '') {
+    async postFixer(projectId, text, critique, config, runId, iteration, lengthConstraint = '') {
         let output = '';
         const context = `Original Text: \n${text} \n\nCritique to address: \n${critique} \n\n${lengthConstraint ? `MANDATORY CONSTRAINT: ${lengthConstraint}` : ''} `;
-        if (config.apiKey && config.apiKey.startsWith('sk-ant')) {
-            const anthropic = new sdk_1.default({ apiKey: config.apiKey });
-            const response = await anthropic.messages.create({
-                model: config.model,
-                max_tokens: 4000,
-                system: config.prompt,
-                messages: [
-                    { role: 'user', content: context }
-                ]
-            });
-            // @ts-ignore
-            output = response.content[0].text || '';
-        }
-        else if (config.apiKey && config.apiKey.startsWith('AIza')) {
-            // Use Gemini
-            const genAI = new generative_ai_1.GoogleGenerativeAI(config.apiKey);
-            const model = genAI.getGenerativeModel({
-                model: config.model,
-                systemInstruction: config.prompt
-            });
-            const result = await model.generateContent(context);
-            output = result.response.text();
-        }
-        else {
-            const client = new openai_1.default({ apiKey: config.apiKey });
-            const response = await client.chat.completions.create({
-                model: config.model,
-                messages: [
-                    { role: 'system', content: config.prompt + (config.prompt.toLowerCase().includes('json') ? '' : '\n\nOutput must be in JSON format.') },
-                    { role: 'user', content: context }
-                ],
-                temperature: 0.7,
-                response_format: { type: "json_object" }
-            });
-            output = response.choices[0].message.content || text;
-        }
+        output = await this.invokeTextAgent(projectId, 'post_fixer', config, context, {
+            json: true,
+            temperature: 0.7,
+            maxTokens: 4000
+        });
         let finalPostText = output;
         let metadata = {};
         try {
@@ -1207,13 +1161,10 @@ Do not return placeholders, day labels, generic "focus of the day" formulations,
             console.error('Failed to create run log', e);
             fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [MultiAgent] Run Log Creation Failed: ${e}\n`);
         }
-        // Initialize Agents
-        if (!this.openai)
-            throw new Error('OpenAI client not initialized (Missing API Key)');
         let currentTopicsJSON = '{}';
         let currentScore = 0;
         let iterations = 0;
-        const MAX_ITERATIONS = 3;
+        const MAX_ITERATIONS = 2; // creator + at most one repair + final verification
         const TARGET_SCORE = 80; // Changed from 90 to 80
         try {
             // Creator
@@ -1223,7 +1174,12 @@ Do not return placeholders, day labels, generic "focus of the day" formulations,
             if (promptOverride)
                 creatorPrompt = promptOverride;
             fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [MultiAgent] Calling Validated Topic Creator...\n`);
-            currentTopicsJSON = await this.topicCreator(theme, creatorPrompt, runLogId, fullContext);
+            const creatorConfig = await this.getAgentConfig(projectId, 'topic_creator');
+            const criticConfig = await this.getAgentConfig(projectId, 'topic_critic');
+            const fixerConfig = await this.getAgentConfig(projectId, 'topic_fixer');
+            [creatorConfig, criticConfig, fixerConfig].forEach(model_policy_service_1.preflightInvocation);
+            creatorConfig.prompt = creatorPrompt;
+            currentTopicsJSON = await this.topicCreator(projectId, theme, creatorConfig, runLogId, fullContext);
             // Ensure it's valid JSON structure from the start
             try {
                 const parsed = JSON.parse(currentTopicsJSON);
@@ -1237,10 +1193,10 @@ Do not return placeholders, day labels, generic "focus of the day" formulations,
                 iterations++;
                 fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [MultiAgent Topics] Iteration ${iterations} starting...\n`);
                 console.log(`[MultiAgent Topics] Iteration ${iterations} starting...`);
-                const criticPrompt = await this.getPrompt(projectId, this.KEY_TOPIC_CRITIC, this.DEFAULT_TOPIC_CRITIC_PROMPT);
-                const fixerPrompt = await this.getPrompt(projectId, this.KEY_TOPIC_FIXER, this.DEFAULT_TOPIC_FIXER_PROMPT);
+                criticConfig.prompt = await this.getPrompt(projectId, this.KEY_TOPIC_CRITIC, this.DEFAULT_TOPIC_CRITIC_PROMPT);
+                fixerConfig.prompt = await this.getPrompt(projectId, this.KEY_TOPIC_FIXER, this.DEFAULT_TOPIC_FIXER_PROMPT);
                 // Critic
-                const critiqueResult = await this.topicCritic(currentTopicsJSON, theme, criticPrompt, runLogId, iterations);
+                const critiqueResult = await this.topicCritic(projectId, currentTopicsJSON, theme, criticConfig, runLogId, iterations);
                 currentScore = critiqueResult.score;
                 console.log(`[MultiAgent Topics] Iteration ${iterations} score: ${currentScore}`);
                 // Update Log
@@ -1260,7 +1216,7 @@ Do not return placeholders, day labels, generic "focus of the day" formulations,
                 if (iterations < MAX_ITERATIONS) {
                     // Fixer
                     console.log(`[MultiAgent Topics] Fixing based on critique...`);
-                    currentTopicsJSON = await this.topicFixer(currentTopicsJSON, critiqueResult.critique, theme, fixerPrompt, runLogId, iterations);
+                    currentTopicsJSON = await this.topicFixer(projectId, currentTopicsJSON, critiqueResult.critique, theme, fixerConfig, runLogId, iterations);
                 }
             }
             if (runLogId > 0) {
@@ -1312,27 +1268,16 @@ Do not return placeholders, day labels, generic "focus of the day" formulations,
         }
         return { topics, score: currentScore };
     }
-    async topicCreator(theme, systemPrompt, runId, additionalContext = '') {
+    async topicCreator(projectId, theme, config, runId, additionalContext = '') {
         const fs = require('fs');
         fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [TopicCreator] Starting... Theme: ${theme}\n`);
-        if (!this.openai)
-            throw new Error('OpenAI client not initialized (Missing API Key)');
         let userContent = `Theme: ${theme}`;
         if (additionalContext) {
             userContent += `\n\nUSER COMMENTS / REQUIREMENTS:\n${additionalContext}`;
         }
         try {
-            const response = await this.openai.chat.completions.create({
-                model: 'gpt-4o',
-                messages: [
-                    { role: 'system', content: systemPrompt + (systemPrompt.toLowerCase().includes('json') ? '' : '\n\nOutput must be in JSON format.') },
-                    { role: 'user', content: userContent }
-                ],
-                temperature: 0.7,
-                response_format: { type: "json_object" }
-            });
+            const output = await this.invokeTextAgent(projectId, 'topic_creator', config, userContent, { json: true, temperature: 0.7 });
             fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [TopicCreator] OpenAI response received.\n`);
-            const output = response.choices[0].message.content || '{}';
             if (runId > 0) {
                 try {
                     await this.prisma.agentIteration.create({
@@ -1357,25 +1302,14 @@ Do not return placeholders, day labels, generic "focus of the day" formulations,
             throw error;
         }
     }
-    async topicCritic(topicsJSON, theme, systemPrompt, runId, iteration) {
+    async topicCritic(projectId, topicsJSON, theme, config, runId, iteration) {
         const fs = require('fs');
         fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [TopicCritic] Starting Iteration ${iteration}...\n`);
-        if (!this.openai)
-            throw new Error('OpenAI client not initialized (Missing API Key)');
         try {
-            const response = await this.openai.chat.completions.create({
-                model: 'gpt-4o',
-                messages: [
-                    { role: 'system', content: systemPrompt + (systemPrompt.toLowerCase().includes('json') ? '' : '\n\nOutput must be in JSON format.') },
-                    { role: 'user', content: `Theme: ${theme}\n\nTopics JSON:\n${topicsJSON}` }
-                ],
-                response_format: { type: "json_object" },
-                temperature: 0.3
-            });
+            const content = await this.invokeTextAgent(projectId, 'topic_critic', config, `Theme: ${theme}\n\nTopics JSON:\n${topicsJSON}`, { json: true, temperature: 0.3 });
             fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [TopicCritic] OpenAI response received.\n`);
             let result;
             try {
-                const content = response.choices[0].message.content || '{}';
                 result = JSON.parse(content);
                 if (!result.critique)
                     result.critique = "No critique provided.";
@@ -1409,23 +1343,12 @@ Do not return placeholders, day labels, generic "focus of the day" formulations,
             throw error;
         }
     }
-    async topicFixer(topicsJSON, critique, theme, systemPrompt, runId, iteration) {
+    async topicFixer(projectId, topicsJSON, critique, theme, config, runId, iteration) {
         const fs = require('fs');
         fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [TopicFixer] Starting Iteration ${iteration}...\n`);
-        if (!this.openai)
-            throw new Error('OpenAI client not initialized (Missing API Key)');
         try {
-            const response = await this.openai.chat.completions.create({
-                model: 'gpt-4o',
-                messages: [
-                    { role: 'system', content: systemPrompt + (systemPrompt.toLowerCase().includes('json') ? '' : '\n\nOutput must be in JSON format.') },
-                    { role: 'user', content: `Original Topics:\n${topicsJSON}\n\nCritique:\n${critique}` }
-                ],
-                response_format: { type: "json_object" },
-                temperature: 0.7
-            });
+            const output = await this.invokeTextAgent(projectId, 'topic_fixer', config, `Original Topics:\n${topicsJSON}\n\nCritique:\n${critique}`, { json: true, temperature: 0.7 });
             fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [TopicFixer] OpenAI response received.\n`);
-            const output = response.choices[0].message.content || topicsJSON;
             if (runId > 0) {
                 try {
                     await this.prisma.agentIteration.create({

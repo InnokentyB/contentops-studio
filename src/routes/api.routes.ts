@@ -5,8 +5,9 @@ import multiAgentService from '../services/multi_agent.service';
 import publisherService from '../services/publisher.service';
 import initiativeService from '../services/initiative.service';
 import modelService from '../services/model.service';
+import { modelForRole } from '../services/model_policy.service';
 import v2Orchestrator from '../services/v2_orchestrator.service';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 
@@ -801,7 +802,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     fastify.post('/api/posts/:id/generate-image', async (request, reply) => {
         const projectId = (request as any).projectId;
         const { id } = request.params as { id: string };
-        const { provider } = request.body as { provider?: 'gpt-image' | 'nano' | 'full' };
+        const { provider } = request.body as { provider?: 'preview' | 'final' | 'flagship' | 'gpt-image' | 'nano' | 'full' };
 
         const post = await prisma.post.findUnique({
             where: { id: parseInt(id) }
@@ -812,7 +813,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         }
 
         try {
-            console.log(`[Generate Image] Enqueueing request for Post ${id}, Provider: ${provider || 'gpt-image'}`);
+            console.log(`[Generate Image] Enqueueing request for Post ${id}, Mode: ${provider || 'preview'}`);
             const textToUse = post.final_text || post.generated_text || post.topic || '';
             
             // Mark immediately to stop re-clicks
@@ -825,7 +826,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             await imageQueue.add('generate-image', {
                 projectId,
                 postId: post.id,
-                provider: provider || 'gpt-image',
+                provider: provider || 'preview',
                 textToUse,
                 topic: post.topic
             }, {
@@ -1825,7 +1826,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         if (!projectId) return reply.code(400).send({ error: 'Project ID required' });
 
         const { id } = request.params as { id: string };
-        const { provider } = request.body as { provider?: 'gpt-image' | 'nano' };
+        const { provider } = request.body as { provider?: 'preview' | 'final' | 'flagship' | 'gpt-image' | 'nano' | 'full' };
 
         const item = await prisma.contentItem.findFirst({
             where: { id: parseInt(id), project_id: projectId }
@@ -1843,7 +1844,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
 
         const publicationBody = (bundle?.publication?.body || item.draft_text || '').trim();
         const topic = item.title || (action as any)?.display_name || item.type;
-        const selectedProvider = provider || 'gpt-image';
+        const selectedProvider = provider || 'preview';
 
         if (!publicationBody) {
             return reply.code(400).send({ error: 'No publication body is available to generate an image.' });
@@ -1851,14 +1852,29 @@ export default async function apiRoutes(fastify: FastifyInstance) {
 
         let prompt = '';
         try {
-            prompt = await generatorService.generateImagePrompt(projectId, topic, publicationBody, selectedProvider);
+            if (selectedProvider === 'flagship' || selectedProvider === 'full') {
+                prompt = await multiAgentService.runImagePromptingChain(projectId, publicationBody, topic);
+            } else {
+                prompt = `Editorial illustration for "${topic}". Context: ${publicationBody.slice(0, 700)}. No decorative text.`;
+            }
         } catch {
             prompt = `Create an editorial visual for "${topic}". Context: ${publicationBody.slice(0, 700)}`;
         }
 
-        const imageUrl = selectedProvider === 'nano'
-            ? await generatorService.generateImageNanoBanana(prompt)
-            : await generatorService.generateImage(prompt);
+        let imageUrl = '';
+        if (selectedProvider === 'preview') {
+            imageUrl = await generatorService.generateImageNanoBanana(prompt, undefined, 'gemini-3.1-flash-lite-image', projectId);
+        } else if (selectedProvider === 'final' || selectedProvider === 'nano') {
+            imageUrl = await generatorService.generateImageNanoBanana(prompt, undefined, 'gemini-3.1-flash-image', projectId);
+        } else if (selectedProvider === 'flagship' || selectedProvider === 'full') {
+            const draftUrl = await generatorService.generateImage(prompt, projectId);
+            const critic = await multiAgentService.runImageCritic(projectId, publicationBody, draftUrl);
+            const refinedPrompt = critic?.new_prompt || prompt;
+            imageUrl = await generatorService.generateImageNanoBanana(refinedPrompt, draftUrl, 'gemini-3.1-flash-image', projectId);
+            prompt = refinedPrompt;
+        } else {
+            imageUrl = await generatorService.generateImage(prompt, projectId);
+        }
 
         const previousVisuals = Array.isArray((item.assets as any)?.generated_visuals)
             ? (item.assets as any).generated_visuals
@@ -1946,7 +1962,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
                     role: 'gpt_image_gen',
                     prompt: dallePrompt,
                     apiKey: '', // Managed via env mostly for now
-                    model: 'dall-e-3',
+                    model: process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2',
                     provider: 'OpenAI (Env)'
                 });
             } catch (e) {
@@ -1972,6 +1988,50 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             console.error('Error in GET /api/settings/agents:', e);
             return reply.code(500).send({ error: 'Internal Server Error' });
         }
+    });
+
+    fastify.get('/api/settings/model-usage', async (request, reply) => {
+        const projectId = (request as any).projectId;
+        if (!projectId) return reply.code(400).send({ error: 'Project ID required' });
+        const daysRaw = Number((request.query as any)?.days || 30);
+        const days = Number.isFinite(daysRaw) ? Math.min(90, Math.max(1, Math.trunc(daysRaw))) : 30;
+
+        const rows = await prisma.$queryRaw<Array<{
+            provider: string | null;
+            model: string | null;
+            calls: number;
+            failed_calls: number;
+            input_tokens: number;
+            output_tokens: number;
+            estimated_cost_usd: string | null;
+            avg_latency_ms: number | null;
+        }>>(Prisma.sql`
+            SELECT provider,
+                   model,
+                   COUNT(*)::int AS calls,
+                   COUNT(*) FILTER (WHERE status = 'failed')::int AS failed_calls,
+                   COALESCE(SUM(input_tokens), 0)::int AS input_tokens,
+                   COALESCE(SUM(output_tokens), 0)::int AS output_tokens,
+                   SUM(estimated_cost_usd)::text AS estimated_cost_usd,
+                   AVG(latency_ms)::int AS avg_latency_ms
+              FROM planner.agent_runs
+             WHERE project_id = ${projectId}
+               AND type = 'model_invocation'
+               AND created_at >= NOW() - (${days} * INTERVAL '1 day')
+             GROUP BY provider, model
+             ORDER BY SUM(estimated_cost_usd) DESC NULLS LAST, COUNT(*) DESC
+        `);
+
+        return {
+            period_days: days,
+            exact_cost_coverage: rows.filter((row) => row.estimated_cost_usd !== null).reduce((sum, row) => sum + row.calls, 0),
+            total_calls: rows.reduce((sum, row) => sum + row.calls, 0),
+            total_estimated_cost_usd: Number(rows.reduce((sum, row) => sum + Number(row.estimated_cost_usd || 0), 0).toFixed(6)),
+            by_model: rows.map((row) => ({
+                ...row,
+                estimated_cost_usd: row.estimated_cost_usd === null ? null : Number(row.estimated_cost_usd)
+            }))
+        };
     });
 
     fastify.put('/api/settings/agents/:role', async (request, reply) => {
@@ -2839,7 +2899,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
 
         try {
             const completion = await openai.chat.completions.create({
-                model: 'gpt-4o',
+                model: modelForRole('classifier'),
                 messages,
                 max_tokens: 1000
             });

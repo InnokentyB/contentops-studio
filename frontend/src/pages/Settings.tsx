@@ -12,6 +12,23 @@ interface AgentConfig {
     provider?: string
 }
 
+interface ModelUsageSummary {
+    period_days: number
+    total_calls: number
+    exact_cost_coverage: number
+    total_estimated_cost_usd: number
+    by_model: Array<{
+        provider: string | null
+        model: string | null
+        calls: number
+        failed_calls: number
+        input_tokens: number
+        output_tokens: number
+        estimated_cost_usd: number | null
+        avg_latency_ms: number | null
+    }>
+}
+
 interface PromptPreset {
     id: number
     name: string
@@ -378,6 +395,12 @@ export default function Settings() {
     const { data: agents } = useQuery<AgentConfig[]>({
         queryKey: ['agents', currentProject?.id],
         queryFn: () => api.get('/api/settings/agents'),
+        enabled: !!currentProject && activeTab === 'agents'
+    })
+
+    const { data: modelUsage } = useQuery<ModelUsageSummary>({
+        queryKey: ['model-usage', currentProject?.id, 30],
+        queryFn: () => api.get('/api/settings/model-usage?days=30'),
         enabled: !!currentProject && activeTab === 'agents'
     })
 
@@ -2160,6 +2183,44 @@ export default function Settings() {
 
             {activeTab === 'agents' && (
                 <div className="space-y-6">
+                    <div className="card space-y-4">
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                            <div>
+                                <div className="text-[10px] font-black uppercase tracking-widest text-primary">Расходы моделей · 30 дней</div>
+                                <h3 className="mt-2 text-2xl font-black text-on-surface">
+                                    ${Number(modelUsage?.total_estimated_cost_usd || 0).toFixed(2)}
+                                </h3>
+                                <p className="mt-1 text-sm text-on-surface-variant">
+                                    {modelUsage?.total_calls || 0} вызовов · стоимость известна для {modelUsage?.exact_cost_coverage || 0}
+                                </p>
+                            </div>
+                            <span className="rounded-full bg-surface-container-high px-3 py-1 text-xs font-bold text-on-surface-variant">
+                                Новые вызовы учитываются автоматически
+                            </span>
+                        </div>
+                        {modelUsage?.by_model?.length ? (
+                            <div className="overflow-x-auto rounded-2xl border border-outline-variant/10">
+                                <table className="w-full min-w-[620px] text-left text-sm">
+                                    <thead className="bg-surface-container-low text-xs uppercase tracking-wider text-on-surface-variant">
+                                        <tr><th className="p-3">Модель</th><th className="p-3">Вызовы</th><th className="p-3">Ошибки</th><th className="p-3">Токены</th><th className="p-3">Оценка</th></tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-outline-variant/10">
+                                        {modelUsage.by_model.map((row, index) => (
+                                            <tr key={`${row.provider}-${row.model}-${index}`}>
+                                                <td className="p-3 font-bold">{row.model || 'Не зафиксирована'}<div className="text-xs font-normal text-on-surface-variant">{row.provider || 'n/a'}</div></td>
+                                                <td className="p-3">{row.calls}</td>
+                                                <td className={`p-3 ${row.failed_calls ? 'text-error font-bold' : ''}`}>{row.failed_calls}</td>
+                                                <td className="p-3">{(row.input_tokens + row.output_tokens).toLocaleString('ru-RU')}</td>
+                                                <td className="p-3 font-bold">{row.estimated_cost_usd === null ? 'нет тарифа' : `$${row.estimated_cost_usd.toFixed(4)}`}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : (
+                            <div className="rounded-2xl bg-surface-container-low p-4 text-sm text-on-surface-variant">Телеметрия появится после первого вызова модели на новой версии.</div>
+                        )}
+                    </div>
                     {AGENT_ROLES.map(group => (
                         <div key={group.group} className="card p-0 overflow-hidden">
                             <div className="bg-surface-container-low px-4 py-3 border-b flex-between">

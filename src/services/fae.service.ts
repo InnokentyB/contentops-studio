@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import OpenAI from 'openai';
 import { config } from 'dotenv';
+import { modelForRole } from './model_policy.service';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 
@@ -61,7 +62,7 @@ export class FaeService {
 Предложи корректировки стратегии.`;
 
         const responseStr = await this.getOpenAIClient().chat.completions.create({
-            model: 'gpt-4o',
+            model: modelForRole('post_critic'),
             messages: [
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userPrompt }

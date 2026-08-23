@@ -7,6 +7,7 @@ exports.FaeService = void 0;
 const client_1 = require("@prisma/client");
 const openai_1 = __importDefault(require("openai"));
 const dotenv_1 = require("dotenv");
+const model_policy_service_1 = require("./model_policy.service");
 const pg_1 = require("pg");
 const adapter_pg_1 = require("@prisma/adapter-pg");
 (0, dotenv_1.config)();
@@ -57,7 +58,7 @@ class FaeService {
 
 Предложи корректировки стратегии.`;
         const responseStr = await this.getOpenAIClient().chat.completions.create({
-            model: 'gpt-4o',
+            model: (0, model_policy_service_1.modelForRole)('post_critic'),
             messages: [
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userPrompt }

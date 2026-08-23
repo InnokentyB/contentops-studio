@@ -145,7 +145,7 @@ export default function PostEditor() {
     })
 
     const generateImage = useMutation({
-        mutationFn: (provider: 'gpt-image' | 'nano' | 'full' = 'gpt-image') => api.post(`/api/posts/${id}/generate-image`, { provider }),
+        mutationFn: (provider: 'preview' | 'final' | 'flagship' = 'preview') => api.post(`/api/posts/${id}/generate-image`, { provider }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['post', id] })
             setImageTimestamp(Date.now())
@@ -461,22 +461,31 @@ export default function PostEditor() {
                         </div>
 
                         {/* Explicit Generation Controls */}
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-3 gap-3">
                             <button 
-                                onClick={() => generateImage.mutate('gpt-image')}
+                                onClick={() => generateImage.mutate('preview')}
                                 disabled={generateImage.isPending}
                                 className="flex-1 bg-surface-container border border-outline-variant/30 text-on-surface p-3 sm:p-4 rounded-xl text-xs sm:text-sm font-bold shadow-sm hover:bg-surface-container-high hover:border-primary/30 transition-all text-center flex flex-col items-center justify-center gap-1 sm:gap-2 disabled:opacity-50"
                             >
                                 <span className="material-symbols-rounded text-lg sm:text-xl text-primary">draw</span>
-                                GPT-Image 1.5
+                                Черновик
                             </button>
                             <button 
-                                onClick={() => generateImage.mutate('full')}
+                                onClick={() => generateImage.mutate('final')}
                                 disabled={generateImage.isPending || post.status === 'generating'}
                                 className="flex items-center justify-center gap-2 py-3 bg-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:active:scale-100"
                             >
+                                <span className="material-symbols-outlined text-sm">check_circle</span>
+                                Финал
+                            </button>
+                            <button
+                                onClick={() => generateImage.mutate('flagship')}
+                                disabled={generateImage.isPending || post.status === 'generating'}
+                                className="flex items-center justify-center gap-2 py-3 bg-on-surface text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                                title="Полный цикл для флагманских материалов"
+                            >
                                 <span className="material-symbols-outlined text-sm">psychology</span>
-                                Agent
+                                Флагман
                             </button>
                         </div>
                         {post.image_prompt && (

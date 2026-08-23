@@ -10,6 +10,7 @@ const multi_agent_service_1 = __importDefault(require("../services/multi_agent.s
 const publisher_service_1 = __importDefault(require("../services/publisher.service"));
 const initiative_service_1 = __importDefault(require("../services/initiative.service"));
 const model_service_1 = __importDefault(require("../services/model.service"));
+const model_policy_service_1 = require("../services/model_policy.service");
 const v2_orchestrator_service_1 = __importDefault(require("../services/v2_orchestrator.service"));
 const client_1 = require("@prisma/client");
 const pg_1 = require("pg");
@@ -737,7 +738,7 @@ async function apiRoutes(fastify) {
             return reply.code(404).send({ error: 'Post not found' });
         }
         try {
-            console.log(`[Generate Image] Enqueueing request for Post ${id}, Provider: ${provider || 'gpt-image'}`);
+            console.log(`[Generate Image] Enqueueing request for Post ${id}, Mode: ${provider || 'preview'}`);
             const textToUse = post.final_text || post.generated_text || post.topic || '';
             // Mark immediately to stop re-clicks
             await prisma.post.update({
@@ -748,7 +749,7 @@ async function apiRoutes(fastify) {
             await imageQueue.add('generate-image', {
                 projectId,
                 postId: post.id,
-                provider: provider || 'gpt-image',
+                provider: provider || 'preview',
                 textToUse,
                 topic: post.topic
             }, {
@@ -1634,20 +1635,39 @@ async function apiRoutes(fastify) {
             : (item.quality_report?.handoff_bundle || null);
         const publicationBody = (bundle?.publication?.body || item.draft_text || '').trim();
         const topic = item.title || action?.display_name || item.type;
-        const selectedProvider = provider || 'gpt-image';
+        const selectedProvider = provider || 'preview';
         if (!publicationBody) {
             return reply.code(400).send({ error: 'No publication body is available to generate an image.' });
         }
         let prompt = '';
         try {
-            prompt = await generator_service_1.default.generateImagePrompt(projectId, topic, publicationBody, selectedProvider);
+            if (selectedProvider === 'flagship' || selectedProvider === 'full') {
+                prompt = await multi_agent_service_1.default.runImagePromptingChain(projectId, publicationBody, topic);
+            }
+            else {
+                prompt = `Editorial illustration for "${topic}". Context: ${publicationBody.slice(0, 700)}. No decorative text.`;
+            }
         }
         catch {
             prompt = `Create an editorial visual for "${topic}". Context: ${publicationBody.slice(0, 700)}`;
         }
-        const imageUrl = selectedProvider === 'nano'
-            ? await generator_service_1.default.generateImageNanoBanana(prompt)
-            : await generator_service_1.default.generateImage(prompt);
+        let imageUrl = '';
+        if (selectedProvider === 'preview') {
+            imageUrl = await generator_service_1.default.generateImageNanoBanana(prompt, undefined, 'gemini-3.1-flash-lite-image', projectId);
+        }
+        else if (selectedProvider === 'final' || selectedProvider === 'nano') {
+            imageUrl = await generator_service_1.default.generateImageNanoBanana(prompt, undefined, 'gemini-3.1-flash-image', projectId);
+        }
+        else if (selectedProvider === 'flagship' || selectedProvider === 'full') {
+            const draftUrl = await generator_service_1.default.generateImage(prompt, projectId);
+            const critic = await multi_agent_service_1.default.runImageCritic(projectId, publicationBody, draftUrl);
+            const refinedPrompt = critic?.new_prompt || prompt;
+            imageUrl = await generator_service_1.default.generateImageNanoBanana(refinedPrompt, draftUrl, 'gemini-3.1-flash-image', projectId);
+            prompt = refinedPrompt;
+        }
+        else {
+            imageUrl = await generator_service_1.default.generateImage(prompt, projectId);
+        }
         const previousVisuals = Array.isArray(item.assets?.generated_visuals)
             ? item.assets.generated_visuals
             : [];
@@ -1730,7 +1750,7 @@ async function apiRoutes(fastify) {
                     role: 'gpt_image_gen',
                     prompt: dallePrompt,
                     apiKey: '', // Managed via env mostly for now
-                    model: 'dall-e-3',
+                    model: process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2',
                     provider: 'OpenAI (Env)'
                 });
             }
@@ -1757,6 +1777,39 @@ async function apiRoutes(fastify) {
             console.error('Error in GET /api/settings/agents:', e);
             return reply.code(500).send({ error: 'Internal Server Error' });
         }
+    });
+    fastify.get('/api/settings/model-usage', async (request, reply) => {
+        const projectId = request.projectId;
+        if (!projectId)
+            return reply.code(400).send({ error: 'Project ID required' });
+        const daysRaw = Number(request.query?.days || 30);
+        const days = Number.isFinite(daysRaw) ? Math.min(90, Math.max(1, Math.trunc(daysRaw))) : 30;
+        const rows = await prisma.$queryRaw(client_1.Prisma.sql `
+            SELECT provider,
+                   model,
+                   COUNT(*)::int AS calls,
+                   COUNT(*) FILTER (WHERE status = 'failed')::int AS failed_calls,
+                   COALESCE(SUM(input_tokens), 0)::int AS input_tokens,
+                   COALESCE(SUM(output_tokens), 0)::int AS output_tokens,
+                   SUM(estimated_cost_usd)::text AS estimated_cost_usd,
+                   AVG(latency_ms)::int AS avg_latency_ms
+              FROM planner.agent_runs
+             WHERE project_id = ${projectId}
+               AND type = 'model_invocation'
+               AND created_at >= NOW() - (${days} * INTERVAL '1 day')
+             GROUP BY provider, model
+             ORDER BY SUM(estimated_cost_usd) DESC NULLS LAST, COUNT(*) DESC
+        `);
+        return {
+            period_days: days,
+            exact_cost_coverage: rows.filter((row) => row.estimated_cost_usd !== null).reduce((sum, row) => sum + row.calls, 0),
+            total_calls: rows.reduce((sum, row) => sum + row.calls, 0),
+            total_estimated_cost_usd: Number(rows.reduce((sum, row) => sum + Number(row.estimated_cost_usd || 0), 0).toFixed(6)),
+            by_model: rows.map((row) => ({
+                ...row,
+                estimated_cost_usd: row.estimated_cost_usd === null ? null : Number(row.estimated_cost_usd)
+            }))
+        };
     });
     fastify.put('/api/settings/agents/:role', async (request, reply) => {
         const projectId = request.projectId;
@@ -2539,7 +2592,7 @@ async function apiRoutes(fastify) {
         ];
         try {
             const completion = await openai.chat.completions.create({
-                model: 'gpt-4o',
+                model: (0, model_policy_service_1.modelForRole)('classifier'),
                 messages,
                 max_tokens: 1000
             });

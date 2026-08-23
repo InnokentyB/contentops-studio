@@ -10,7 +10,7 @@ class ImageAssetService {
      * Generate an image asset candidate recording prompt, seed, model, provider, altText, and version history.
      */
     async generateImageAsset(args) {
-        const { projectId, contentItemId, prompt, provider = 'gemini-imagen-3', model = 'imagen-3.0-generate-002', seed = 42, promptVersion = 1, altText, aspectRatio, } = args;
+        const { projectId, contentItemId, prompt, provider = 'google', model = 'gemini-3.1-flash-lite-image', seed = 42, promptVersion = 1, altText, aspectRatio, } = args;
         const latestAsset = await db_1.default.imageAsset.findFirst({
             where: { project_id: projectId, content_item_id: contentItemId },
             orderBy: { asset_version: 'desc' },

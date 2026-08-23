@@ -11,6 +11,16 @@ const pg_1 = require("pg");
 const adapter_pg_1 = require("@prisma/adapter-pg");
 const generator_service_1 = __importDefault(require("../../services/generator.service"));
 const multi_agent_service_1 = __importDefault(require("../../services/multi_agent.service"));
+const model_policy_service_1 = require("../../services/model_policy.service");
+function normalizeImageMode(provider) {
+    if (provider === 'full' || provider === 'flagship')
+        return 'flagship';
+    if (provider === 'nano' || provider === 'final')
+        return 'final';
+    if (provider === 'gpt-image')
+        return 'openai-direct';
+    return 'preview';
+}
 const connectionString = process.env.DATABASE_URL;
 const pool = new pg_1.Pool({ connectionString });
 const adapter = new adapter_pg_1.PrismaPg(pool);
@@ -29,10 +39,14 @@ const createImageWorker = () => {
                 where: { id: postId },
                 data: { status: 'generating' } // Reusing generating status for UX
             });
-            // 1. Generate Prompt (Multi-Agent Chain)
-            console.log(`[Worker - Image] Generating prompt via Multi-Agent Chain...`);
-            const imagePrompt = await multi_agent_service_1.default.runImagePromptingChain(projectId, textToUse, topic || 'Tech Post');
-            console.log(`[Worker - Image] Generated prompt: ${imagePrompt.substring(0, 50)}...`);
+            const mode = normalizeImageMode(provider);
+            const plan = mode === 'openai-direct' ? null : (0, model_policy_service_1.resolveImageExecutionPlan)(mode);
+            const fallbackPrompt = `Editorial illustration for "${topic || 'Technology'}". Context: ${String(textToUse || '').slice(0, 700)}. No decorative text.`;
+            // The expensive three-agent prompt chain is reserved for explicitly flagged flagship assets.
+            const imagePrompt = plan?.runPromptChain
+                ? await multi_agent_service_1.default.runImagePromptingChain(projectId, textToUse, topic || 'Tech Post')
+                : fallbackPrompt;
+            console.log(`[Worker - Image] Mode ${mode}; prompt: ${imagePrompt.substring(0, 50)}...`);
             // 2. Generate Image
             let imageUrl = '';
             safePrompt = imagePrompt;
@@ -40,11 +54,11 @@ const createImageWorker = () => {
                 console.warn('[Worker - Image] Fallback triggered: imagePrompt was empty');
                 safePrompt = `A professional vector illustration for a tech blog post about: ${topic || 'Technology'}. Minimalist style.`;
             }
-            if (provider === 'nano') {
-                imageUrl = await generator_service_1.default.generateImageNanoBanana(safePrompt);
+            if (mode === 'preview' || mode === 'final') {
+                imageUrl = await generator_service_1.default.generateImageNanoBanana(safePrompt, undefined, plan.model, projectId);
             }
-            else if (provider === 'full') {
-                const dalleUrl = await generator_service_1.default.generateImage(safePrompt);
+            else if (mode === 'flagship') {
+                const dalleUrl = await generator_service_1.default.generateImage(safePrompt, projectId);
                 const criticResult = await multi_agent_service_1.default.runImageCritic(projectId, textToUse, dalleUrl);
                 if (!criticResult)
                     throw new Error("Critic failed to generate feedback.");
@@ -52,10 +66,10 @@ const createImageWorker = () => {
                 if (!safePrompt || typeof safePrompt !== 'string' || safePrompt.trim() === '') {
                     safePrompt = `A professional illustration for: ${topic}`;
                 }
-                imageUrl = await generator_service_1.default.generateImageNanoBanana(safePrompt, dalleUrl);
+                imageUrl = await generator_service_1.default.generateImageNanoBanana(safePrompt, dalleUrl, 'gemini-3.1-flash-image', projectId);
             }
             else {
-                imageUrl = await generator_service_1.default.generateImage(safePrompt);
+                imageUrl = await generator_service_1.default.generateImage(safePrompt, projectId);
             }
             // 3. Save to DB
             await prisma.post.update({

@@ -783,7 +783,7 @@ export default function PublicationTasks() {
     })
 
     const generateTaskImage = useMutation({
-        mutationFn: (provider: 'gpt-image' | 'nano' = 'gpt-image') => {
+        mutationFn: (provider: 'preview' | 'final' | 'flagship' = 'preview') => {
             if (!activeTaskId) throw new Error('Задача не выбрана')
             return publicationTasksApi.generateImage(activeTaskId, { provider })
         },
@@ -1662,20 +1662,28 @@ export default function PublicationTasks() {
                                                         <span className="material-symbols-outlined text-on-surface-variant transition-transform group-open:rotate-180">expand_more</span>
                                                     </summary>
                                                     <div className="border-t border-outline-variant/10 p-5 space-y-4">
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                                         <button
-                                                            onClick={() => generateTaskImage.mutate('gpt-image')}
+                                                            onClick={() => generateTaskImage.mutate('preview')}
                                                             disabled={generateTaskImage.isPending}
                                                             className="w-full bg-primary text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
                                                         >
-                                                            {generateTaskImage.isPending ? 'Генерируем...' : 'Сгенерировать через GPT-Image'}
+                                                            {generateTaskImage.isPending ? 'Генерируем...' : 'Черновик · экономно'}
                                                         </button>
                                                         <button
-                                                            onClick={() => generateTaskImage.mutate('nano')}
+                                                            onClick={() => generateTaskImage.mutate('final')}
                                                             disabled={generateTaskImage.isPending}
                                                             className="w-full bg-surface-container-highest text-on-surface font-black text-sm px-5 py-3 rounded-2xl hover:bg-primary/10 hover:text-primary transition-all disabled:opacity-50"
                                                         >
-                                                            {generateTaskImage.isPending ? 'Подготовка...' : 'Сгенерировать через Nano'}
+                                                            {generateTaskImage.isPending ? 'Подготовка...' : 'Финал · стандарт'}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => generateTaskImage.mutate('flagship')}
+                                                            disabled={generateTaskImage.isPending}
+                                                            className="w-full bg-on-surface text-white font-black text-sm px-5 py-3 rounded-2xl hover:bg-primary transition-all disabled:opacity-50"
+                                                            title="Полная агентная цепочка и повторная отрисовка — только для ключевых публикаций"
+                                                        >
+                                                            {generateTaskImage.isPending ? 'Подготовка...' : 'Флагман · полный цикл'}
                                                         </button>
                                                     </div>
                                                     {latestGeneratedImage?.url ? (

@@ -9,6 +9,7 @@ const client_1 = require("@prisma/client");
 const pg_1 = require("pg");
 const adapter_pg_1 = require("@prisma/adapter-pg");
 const dotenv_1 = require("dotenv");
+const model_policy_service_1 = require("./model_policy.service");
 (0, dotenv_1.config)();
 const connectionString = process.env.DATABASE_URL;
 const pool = new pg_1.Pool({ connectionString });
@@ -31,7 +32,7 @@ class V2OrchestratorService {
     }
     async callLLM(systemPrompt, userPrompt) {
         const completion = await this.getOpenAIClient().chat.completions.create({
-            model: 'gpt-4o',
+            model: (0, model_policy_service_1.modelForRole)('topic_creator'),
             messages: [
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userPrompt }

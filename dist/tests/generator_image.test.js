@@ -70,3 +70,23 @@ const generator_service_1 = __importDefault(require("../services/generator.servi
             process.env.GOOGLE_IMAGE_MODEL = originalModel;
     }
 });
+(0, node_test_1.default)('generateImageNanoBanana can explicitly use the low-cost preview model', async () => {
+    const originalFetch = globalThis.fetch;
+    const originalApiKey = process.env.GOOGLE_API_KEY;
+    let requestedUrl = '';
+    process.env.GOOGLE_API_KEY = 'test-google-key';
+    globalThis.fetch = (async (url) => {
+        requestedUrl = String(url);
+        return new Response(JSON.stringify({
+            candidates: [{ content: { parts: [{ inlineData: { mimeType: 'image/png', data: 'ZmFrZQ==' } }] } }]
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+    try {
+        await generator_service_1.default.generateImageNanoBanana('Draft visual', undefined, 'gemini-3.1-flash-lite-image');
+        strict_1.default.match(requestedUrl, /gemini-3\.1-flash-lite-image:generateContent$/);
+    }
+    finally {
+        globalThis.fetch = originalFetch;
+        process.env.GOOGLE_API_KEY = originalApiKey;
+    }
+});
