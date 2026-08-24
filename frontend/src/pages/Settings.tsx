@@ -91,6 +91,7 @@ interface McpStatus {
     capability_endpoints?: {
         planner: { endpoint: string; configured: boolean; bound_project_id?: number | null }
         writer: { endpoint: string; configured: boolean; bound_project_id?: number | null }
+        art_director?: { endpoint: string; configured: boolean; bound_project_id?: number | null }
     }
 }
 
@@ -389,6 +390,7 @@ export default function Settings() {
     })
 
     const defaultChannelId = (projectData as any)?.settings?.find((s: any) => s.key === 'default_channel_id')?.value;
+    const artDirectionEnabled = (projectData as any)?.settings?.find((s: any) => s.key === 'art_direction_pipeline_enabled')?.value === 'true'
     const currentMembership = (projectData as any)?.members?.find((member: any) => member.user_id === user?.id || member.user?.id === user?.id)
     const isOwner = currentMembership?.role === 'owner'
 
@@ -983,6 +985,21 @@ export default function Settings() {
                                 </p>
                             </span>
                         </label>
+                        <label htmlFor="artDirectionPipeline" className="mt-4 flex max-w-2xl cursor-pointer items-start gap-3 rounded-2xl bg-surface-container-low p-4">
+                            <input
+                                type="checkbox"
+                                id="artDirectionPipeline"
+                                checked={artDirectionEnabled}
+                                onChange={event => updateSetting.mutate({ key: 'art_direction_pipeline_enabled', value: String(event.target.checked) })}
+                                className="mt-1 h-5 w-5 accent-primary"
+                            />
+                            <span>
+                                <strong className="block text-sm text-on-surface">Проверять визуальную необходимость до публикации</strong>
+                                <p className="mt-1 text-sm leading-6 text-on-surface-variant">
+                                    Арт-директор решит, нужен ли визуал, запросит реальный источник или отправит изображение на ревью. До явного допуска handoff и публикация будут заблокированы.
+                                </p>
+                            </span>
+                        </label>
                     </div>
                 </div>
             )}
@@ -1007,6 +1024,15 @@ export default function Settings() {
                         endpoint: mcpStatus?.capability_endpoints?.writer.endpoint || `${mcpUrl}/writer`,
                         configured: mcpStatus?.capability_endpoints?.writer.configured ?? false,
                         token: '<MCP_WRITER_AUTH_TOKEN>'
+                    },
+                    {
+                        id: 'art-director',
+                        title: 'Арт-директор',
+                        description: 'Оценивает необходимость визуала, формирует brief, принимает источники и проводит визуальное ревью. Не может переписывать посты.',
+                        icon: 'art_track',
+                        endpoint: mcpStatus?.capability_endpoints?.art_director?.endpoint || `${mcpUrl}/art-director`,
+                        configured: mcpStatus?.capability_endpoints?.art_director?.configured ?? false,
+                        token: '<MCP_ART_DIRECTOR_AUTH_TOKEN>'
                     }
                 ]
                 const isMcpOnline = mcpStatus?.status === 'online'

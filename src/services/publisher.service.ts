@@ -16,6 +16,7 @@ import habrService from './habr.service';
 import vcService from './vc.service';
 import dzenService from './dzen.service';
 import threadsService from './threads.service';
+import artDirectionService from './art_direction.service';
 import { parseRecurringTrigger } from './publication_runtime.helpers';
 import { config } from 'dotenv';
 import * as fs from 'fs';
@@ -1306,6 +1307,12 @@ class PublisherService {
     }
 
     private async processPublicationTaskItem(task: any, options: { manualTrigger?: boolean, requestHost?: string } = {}) {
+        const visualReadiness = await artDirectionService.getReadiness(task.project_id, task.id);
+        if (!visualReadiness.ready) {
+            if (options.manualTrigger) throw new Error(`[VISUAL_GATE_BLOCKED] ${visualReadiness.reason}`);
+            logToFile('INFO', `[Publisher] Task ${task.id} is waiting on visual readiness.`, visualReadiness);
+            return { success: false, status: task.status, skipped: true, reason: visualReadiness.reason };
+        }
         const dependencyState = await this.areTaskDependenciesSatisfied(task);
         if (!dependencyState.ready) {
             if (options.manualTrigger) {

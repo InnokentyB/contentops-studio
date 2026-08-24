@@ -7,6 +7,7 @@ exports.WorkQueueService = void 0;
 const crypto_1 = require("crypto");
 const client_1 = require("@prisma/client");
 const db_1 = __importDefault(require("../db"));
+const art_direction_service_1 = __importDefault(require("./art_direction.service"));
 /**
  * Registry of authorized service identities and their granted scopes.
  */
@@ -40,6 +41,11 @@ const REGISTERED_SERVICE_IDENTITIES = {
         actorId: 'agent:plan_reviewer',
         name: 'Plan Reviewer Agent',
         scopes: ['work_queue:read', 'work_queue:claim', 'work_queue:complete', 'work_queue:decide']
+    },
+    'agent:art_director': {
+        actorId: 'agent:art_director',
+        name: 'Art Director Agent',
+        scopes: ['work_queue:read', 'work_queue:claim', 'work_queue:complete', 'work_queue:block', 'work_queue:release', 'work_queue:decide']
     },
     'tdpd-red-agent': {
         actorId: 'tdpd-red-agent',
@@ -708,12 +714,15 @@ class WorkQueueService {
                 }
                 throw new Error(`[CONCURRENCY_CONFLICT] Work item ${params.workItemId} lease or state was concurrently modified`);
             }
-            if (currentItem.content_item_id) {
+            if (currentItem.content_item_id && currentItem.kind === 'content_write') {
+                await art_direction_service_1.default.markRevisionStale(tx, currentItem.content_item_id);
                 await tx.contentItem.update({
                     where: { id: currentItem.content_item_id },
                     data: {
                         draft_text: params.result.body || params.result.text || '',
-                        status: 'drafted'
+                        status: 'drafted',
+                        content_revision: { increment: 1 },
+                        text_state: 'draft'
                     }
                 });
                 const existingReview = await tx.workItem.findFirst({
@@ -817,6 +826,9 @@ class WorkQueueService {
                     where: { id: item.content_item_id },
                     data: { status: 'approved' }
                 });
+                if (item.kind === 'content_review') {
+                    await art_direction_service_1.default.acceptContentRevision(tx, item.content_item_id, params.actorId);
+                }
             }
             else if (params.decision === 'rejected' && item.content_item_id) {
                 await tx.workItem.create({

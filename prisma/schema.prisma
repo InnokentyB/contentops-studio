@@ -64,6 +64,7 @@ model Project {
   webhook_inbox             WebhookInbox[]
   delivery_attempts         DeliveryAttempt[]
   image_assets              ImageAsset[]
+  art_direction_decisions   ArtDirectionDecision[]
   metric_snapshots          MetricSnapshot[]
   publication_facts         PublicationFact[]
   service_identity_bindings ServiceIdentityBinding[]
@@ -267,27 +268,27 @@ model Event {
 }
 
 model AgentRun {
-  id         Int      @id @default(autoincrement())
-  project_id Int
-  project    Project  @relation(fields: [project_id], references: [id], onDelete: Cascade)
-  type       String // 'week_plan', 'post_write', 'image_gen', 'image_chain', etc.
-  agent_role String? // 'visual_architect', 'post_creator', 'critic', etc.
-  status     String // 'success', 'failed'
-  input      String?
-  prompt     String?
-  output     String?
-  error      String?
-  created_at DateTime @default(now())
+  id                  Int      @id @default(autoincrement())
+  project_id          Int
+  project             Project  @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  type                String // 'week_plan', 'post_write', 'image_gen', 'image_chain', etc.
+  agent_role          String? // 'visual_architect', 'post_creator', 'critic', etc.
+  status              String // 'success', 'failed'
+  input               String?
+  prompt              String?
+  output              String?
+  error               String?
+  created_at          DateTime @default(now())
   provider            String?
   model               String?
-  input_tokens         Int?
-  output_tokens        Int?
-  cached_input_tokens  Int?
-  reasoning_tokens     Int?
-  image_tokens         Int?
-  estimated_cost_usd   Decimal? @db.Decimal(12, 8)
-  latency_ms           Int?
-  provider_request_id  String?
+  input_tokens        Int?
+  output_tokens       Int?
+  cached_input_tokens Int?
+  reasoning_tokens    Int?
+  image_tokens        Int?
+  estimated_cost_usd  Decimal? @db.Decimal(12, 8)
+  latency_ms          Int?
+  provider_request_id String?
   invocation_metadata Json?
 
   // Legacy fields (optional to match old schema if needed, or removed)
@@ -484,47 +485,60 @@ model WeekPackage {
 }
 
 model ContentItem {
-  id                  Int       @id @default(autoincrement())
-  project_id          Int
-  week_package_id     Int?
-  channel_id          Int? // Target channel
-  type                String // tg_post, vk_post, habr_article, vc_article, zen_article, video_script
-  layer               String? // azbuka, analyst, pro, community
-  title               String?
-  brief               String?
-  key_points          Json? // Array of strings
-  cta                 String?
-  cross_link_to       Json? // Array of target IDs
-  assets              Json? // Images or diagrams
-  draft_text          String?
-  content_revision    Int       @default(0)
-  status              String    @default("planned") // planned, drafted, revised, approved, scheduled, published, failed
-  schedule_at         DateTime? @db.Timestamptz(6)
-  quality_report      Json?
-  metrics             Json?
-  telegram_message_id Int? // Fallback UI tracking
-  published_link      String?
-  item_key            String?
-  content_due_at      DateTime? @db.Timestamptz(6)
-  publish_at          DateTime? @db.Timestamptz(6)
-  review_policy       String?
-  publication_mode    String?   @default("manual_handoff")
-  source_refs         Json?
-  created_at          DateTime  @default(now())
-  updated_at          DateTime  @updatedAt
+  id                      Int       @id @default(autoincrement())
+  project_id              Int
+  week_package_id         Int?
+  channel_id              Int? // Target channel
+  type                    String // tg_post, vk_post, habr_article, vc_article, zen_article, video_script
+  layer                   String? // azbuka, analyst, pro, community
+  title                   String?
+  brief                   String?
+  key_points              Json? // Array of strings
+  cta                     String?
+  cross_link_to           Json? // Array of target IDs
+  assets                  Json? // Images or diagrams
+  draft_text              String?
+  content_revision        Int       @default(0)
+  text_state              String    @default("draft")
+  accepted_revision       Int?
+  visual_state            String    @default("PENDING_ASSESSMENT")
+  handoff_state           String    @default("blocked")
+  visual_mode             String    @default("auto_assess")
+  visual_placement        String?
+  visual_decision_version Int       @default(0)
+  selected_asset_id       Int?
+  status                  String    @default("planned") // planned, drafted, revised, approved, scheduled, published, failed
+  schedule_at             DateTime? @db.Timestamptz(6)
+  quality_report          Json?
+  metrics                 Json?
+  telegram_message_id     Int? // Fallback UI tracking
+  published_link          String?
+  item_key                String?
+  content_due_at          DateTime? @db.Timestamptz(6)
+  publish_at              DateTime? @db.Timestamptz(6)
+  review_policy           String?
+  publication_mode        String?   @default("manual_handoff")
+  source_refs             Json?
+  created_at              DateTime  @default(now())
+  updated_at              DateTime  @updatedAt
 
-  project             Project            @relation(fields: [project_id], references: [id], onDelete: Cascade)
-  week_package        WeekPackage?       @relation(fields: [week_package_id], references: [id], onDelete: SetNull)
-  channel             SocialChannel?     @relation(fields: [channel_id], references: [id], onDelete: SetNull)
-  work_items          WorkItem[]
-  workflow_events     WorkflowEvent[]
-  vk_metric_snapshots VkMetricSnapshot[]
-  metric_snapshots    MetricSnapshot[]
-  publication_fact    PublicationFact?
+  project                 Project                @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  week_package            WeekPackage?           @relation(fields: [week_package_id], references: [id], onDelete: SetNull)
+  channel                 SocialChannel?         @relation(fields: [channel_id], references: [id], onDelete: SetNull)
+  work_items              WorkItem[]
+  workflow_events         WorkflowEvent[]
+  vk_metric_snapshots     VkMetricSnapshot[]
+  metric_snapshots        MetricSnapshot[]
+  publication_fact        PublicationFact?
+  image_assets            ImageAsset[]           @relation("ContentItemImageAssets")
+  selected_asset          ImageAsset?            @relation("SelectedVisualAsset", fields: [selected_asset_id], references: [id], onDelete: SetNull)
+  art_direction_decisions ArtDirectionDecision[]
 
   @@index([project_id])
   @@index([week_package_id])
   @@index([status])
+  @@index([visual_state])
+  @@index([selected_asset_id])
   @@map("content_items")
   @@schema("planner")
 }
@@ -619,6 +633,7 @@ model WorkItem {
   last_synced_at        DateTime? @db.Timestamptz(6)
   sync_status           String?
   sync_error            String?
+  dedupe_key            String?   @unique
   created_at            DateTime  @default(now())
   updated_at            DateTime  @updatedAt
 
@@ -815,26 +830,81 @@ model DeliveryAttempt {
 }
 
 model ImageAsset {
-  id              Int      @id @default(autoincrement())
-  project_id      Int
-  content_item_id Int
-  asset_version   Int      @default(1)
-  prompt          String
-  prompt_version  Int      @default(1)
-  provider        String   @default("google")
-  model           String?
-  seed            Int?
-  alt_text        String?
-  aspect_ratio    String?
-  status          String   @default("candidate") // candidate, approved, rejected
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
+  id               Int       @id @default(autoincrement())
+  project_id       Int
+  content_item_id  Int
+  decision_id      Int?
+  content_revision Int       @default(0)
+  placement        String?
+  asset_version    Int       @default(1)
+  prompt           String
+  prompt_version   Int       @default(1)
+  provider         String    @default("google")
+  model            String?
+  seed             Int?
+  alt_text         String?
+  aspect_ratio     String?
+  file_url         String?
+  provenance       Json?
+  qa_report        Json?
+  review_reason    String?
+  reviewed_by      String?
+  reviewed_at      DateTime?
+  status           String    @default("candidate") // candidate, approved, rejected
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
 
-  project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  project      Project               @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  content_item ContentItem           @relation("ContentItemImageAssets", fields: [content_item_id], references: [id], onDelete: Cascade)
+  selected_for ContentItem[]         @relation("SelectedVisualAsset")
+  decision     ArtDirectionDecision? @relation(fields: [decision_id], references: [id], onDelete: SetNull)
 
   @@index([project_id])
   @@index([content_item_id])
+  @@index([decision_id])
   @@map("image_assets")
+  @@schema("planner")
+}
+
+model ArtDirectionDecision {
+  id                      Int      @id @default(autoincrement())
+  project_id              Int
+  content_item_id         Int
+  work_item_id            Int?
+  decision_version        Int
+  source_content_revision Int
+  channel                 String
+  placement               String
+  decision                String
+  visual_function         String?
+  reason                  String
+  post_owns               String?
+  visual_adds             String?
+  loss_without_visual     String?
+  authenticity_class      String?
+  evidence_refs           Json?
+  visual_format           String?
+  dimensions              Json?
+  required_text           Json?
+  forbidden_text          Json?
+  visible_copy_budget     Int?
+  prompt                  String?
+  alt_text                String?
+  acceptance_criteria     Json?
+  recent_asset_refs       Json?
+  status                  String   @default("active")
+  actor_id                String
+  created_at              DateTime @default(now())
+  updated_at              DateTime @updatedAt
+
+  project      Project      @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  content_item ContentItem  @relation(fields: [content_item_id], references: [id], onDelete: Cascade)
+  image_assets ImageAsset[]
+
+  @@unique([content_item_id, source_content_revision, placement, decision_version])
+  @@index([project_id, status])
+  @@index([content_item_id, status])
+  @@map("art_direction_decisions")
   @@schema("planner")
 }
 
@@ -860,8 +930,8 @@ model MetricSnapshot {
   created_at        DateTime  @default(now())
   updated_at        DateTime  @updatedAt
 
-  project      Project       @relation(fields: [project_id], references: [id], onDelete: Cascade)
-  content_item ContentItem   @relation(fields: [content_item_id], references: [id], onDelete: Cascade)
+  project      Project     @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  content_item ContentItem @relation(fields: [content_item_id], references: [id], onDelete: Cascade)
 
   @@unique([project_id, content_item_id, channel_id, checkpoint])
   @@index([project_id])
@@ -871,24 +941,24 @@ model MetricSnapshot {
 }
 
 model PublicationFact {
-  id                    Int      @id @default(autoincrement())
-  project_id            Int
-  content_item_id       Int      @unique
-  channel_id            Int
-  artifact_kind         String
-  outcome               String
-  published_at          DateTime? @db.Timestamptz(6)
-  public_url             String?
-  provider_object_id    String?
-  confirmation_mode     String
-  evidence_type         String?
-  evidence_ref          String?
-  target_url            String?
-  utm_status            String   @default("unknown")
-  confirmed_by          String
-  confirmed_at          DateTime @default(now()) @db.Timestamptz(6)
-  created_at            DateTime @default(now())
-  updated_at            DateTime @updatedAt
+  id                 Int       @id @default(autoincrement())
+  project_id         Int
+  content_item_id    Int       @unique
+  channel_id         Int
+  artifact_kind      String
+  outcome            String
+  published_at       DateTime? @db.Timestamptz(6)
+  public_url         String?
+  provider_object_id String?
+  confirmation_mode  String
+  evidence_type      String?
+  evidence_ref       String?
+  target_url         String?
+  utm_status         String    @default("unknown")
+  confirmed_by       String
+  confirmed_at       DateTime  @default(now()) @db.Timestamptz(6)
+  created_at         DateTime  @default(now())
+  updated_at         DateTime  @updatedAt
 
   project      Project       @relation(fields: [project_id], references: [id], onDelete: Cascade)
   content_item ContentItem   @relation(fields: [content_item_id], references: [id], onDelete: Cascade)

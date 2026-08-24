@@ -7,6 +7,7 @@ import initiativeService from '../services/initiative.service';
 import taskTrackerService from '../services/task_tracker.service';
 import deliveryService from '../services/delivery.service';
 import imageAssetService from '../services/image_asset.service';
+import artDirectionService from '../services/art_direction.service';
 import metricsService from '../services/metrics.service';
 import publicationFactService from '../services/publication_fact.service';
 import weekPackageRepairService from '../services/week_package_repair.service';
@@ -1186,6 +1187,9 @@ export function registerPlannerTools(server: McpServer) {
             promptVersion: z.number().int().optional(),
             altText: z.string().optional(),
             aspectRatio: z.string().optional()
+            ,decisionId: z.number().int().positive().optional()
+            ,contentRevision: z.number().int().positive().optional()
+            ,placement: z.string().optional()
         }
     }, async (args) => {
         const result = await imageAssetService.generateImageAsset(args);
@@ -1200,11 +1204,73 @@ export function registerPlannerTools(server: McpServer) {
             assetId: z.number().int().positive(),
             decision: z.enum(['approved', 'rejected']),
             reason: z.string().optional()
+            ,qaReport: z.record(z.string(), z.unknown()).optional()
         }
     }, async (args) => {
         const result = await imageAssetService.reviewImageAsset(args);
         return asToolResult(result);
     });
+
+    server.registerTool('ba_get_art_direction_context', {
+        description: 'Read accepted copy, placement, visual mode and recent assets for an art-direction work item.',
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string(),
+            workItemId: z.number().int().positive()
+        }
+    }, async (args) => asToolResult(await artDirectionService.getContext(args.projectId, args.workItemId)));
+
+    server.registerTool('ba_submit_art_direction_decision', {
+        description: 'Submit a revision-bound visual-fit decision. Generated visuals remain blocked until separate review approval.',
+        inputSchema: {
+            projectId: z.number().int().positive(), actorId: z.string(), workItemId: z.number().int().positive(),
+            leaseToken: z.string(), idempotencyKey: z.string(),
+            decision: z.object({
+                decision: z.enum(['NO_VISUAL_NEEDED', 'GENERATE', 'SOURCE_REQUIRED', 'MANUAL_ASSET_REQUIRED', 'BLOCKED']),
+                source_content_revision: z.number().int().positive(), channel: z.string(), placement: z.string(),
+                visual_function: z.string().nullable().optional(), reason: z.string(), post_owns: z.string().nullable().optional(),
+                visual_adds: z.string().nullable().optional(), loss_without_visual: z.string().nullable().optional(),
+                authenticity_class: z.enum(['ACTUAL_EVIDENCE', 'OWNER_DOCUMENTATION', 'CONCEPTUAL_EDITORIAL', 'SIMULATED_DOCUMENTATION']).nullable().optional(),
+                evidence_refs: z.array(z.unknown()).optional(), visual_format: z.string().nullable().optional(),
+                dimensions: z.object({ width: z.number().optional(), height: z.number().optional(), aspect_ratio: z.string().optional() }).nullable().optional(),
+                required_text: z.array(z.string()).optional(), forbidden_text: z.array(z.string()).optional(),
+                visible_copy_budget: z.number().int().nullable().optional(), prompt: z.string().nullable().optional(),
+                alt_text: z.string().nullable().optional(), acceptance_criteria: z.array(z.string()).optional(), recent_asset_refs: z.array(z.unknown()).optional()
+            })
+        }
+    }, async (args) => asToolResult(await artDirectionService.submitDecision(args) as Record<string, unknown>));
+
+    server.registerTool('ba_get_visual_readiness', {
+        description: 'Return the authoritative publication visual gate for a content item.',
+        annotations: { readOnlyHint: true },
+        inputSchema: { projectId: z.number().int().positive(), actorId: z.string(), contentItemId: z.number().int().positive() }
+    }, async (args) => asToolResult(await artDirectionService.getReadiness(args.projectId, args.contentItemId)));
+
+    server.registerTool('ba_set_art_direction_pipeline', {
+        description: 'Enable or disable the revision-bound art-direction pipeline for a project. Owner profile only.',
+        inputSchema: { projectId: z.number().int().positive(), actorId: z.string(), enabled: z.boolean() }
+    }, async (args) => {
+        await prisma.projectSettings.upsert({
+            where: { project_id_key: { project_id: args.projectId, key: 'art_direction_pipeline_enabled' } },
+            update: { value: String(args.enabled) },
+            create: { project_id: args.projectId, key: 'art_direction_pipeline_enabled', value: String(args.enabled) }
+        });
+        return asToolResult({ project_id: args.projectId, enabled: args.enabled });
+    });
+
+    server.registerTool('ba_backfill_art_direction_pipeline', {
+        description: 'Explicitly queue visual-fit assessment for existing unpublished content after the project feature is enabled. Published and terminal items are never changed.',
+        inputSchema: { projectId: z.number().int().positive(), actorId: z.string() }
+    }, async (args) => asToolResult(await artDirectionService.backfillProject(args.projectId, args.actorId)));
+
+    server.registerTool('ba_attach_visual_source', {
+        description: 'Attach a real source or owner-provided visual with provenance to the current accepted revision.',
+        inputSchema: {
+            projectId: z.number().int().positive(), actorId: z.string(), contentItemId: z.number().int().positive(),
+            fileUrl: z.string().url(), provenance: z.record(z.string(), z.unknown()), altText: z.string().optional()
+        }
+    }, async (args) => asToolResult(await artDirectionService.attachVisualSource(args)));
 
     server.registerTool('ba_list_image_assets', {
         description: 'List all generated image asset versions for a content item.',

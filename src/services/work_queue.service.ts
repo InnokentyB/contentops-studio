@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { Prisma } from '@prisma/client';
 import prisma from '../db';
+import artDirectionService from './art_direction.service';
 
 /**
  * Scopes for work queue operations.
@@ -53,6 +54,11 @@ const REGISTERED_SERVICE_IDENTITIES: Record<string, RegisteredServiceIdentity> =
         actorId: 'agent:plan_reviewer',
         name: 'Plan Reviewer Agent',
         scopes: ['work_queue:read', 'work_queue:claim', 'work_queue:complete', 'work_queue:decide']
+    },
+    'agent:art_director': {
+        actorId: 'agent:art_director',
+        name: 'Art Director Agent',
+        scopes: ['work_queue:read', 'work_queue:claim', 'work_queue:complete', 'work_queue:block', 'work_queue:release', 'work_queue:decide']
     },
     'tdpd-red-agent': {
         actorId: 'tdpd-red-agent',
@@ -881,12 +887,15 @@ export class WorkQueueService {
                 throw new Error(`[CONCURRENCY_CONFLICT] Work item ${params.workItemId} lease or state was concurrently modified`);
             }
 
-            if (currentItem.content_item_id) {
+            if (currentItem.content_item_id && currentItem.kind === 'content_write') {
+                await artDirectionService.markRevisionStale(tx, currentItem.content_item_id);
                 await tx.contentItem.update({
                     where: { id: currentItem.content_item_id },
                     data: {
                         draft_text: params.result.body || params.result.text || '',
-                        status: 'drafted'
+                        status: 'drafted',
+                        content_revision: { increment: 1 },
+                        text_state: 'draft'
                     }
                 });
 
@@ -1010,6 +1019,9 @@ export class WorkQueueService {
                     where: { id: item.content_item_id },
                     data: { status: 'approved' }
                 });
+                if (item.kind === 'content_review') {
+                    await artDirectionService.acceptContentRevision(tx, item.content_item_id, params.actorId);
+                }
             } else if (params.decision === 'rejected' && item.content_item_id) {
                 await tx.workItem.create({
                     data: {

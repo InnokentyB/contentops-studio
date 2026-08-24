@@ -61,7 +61,7 @@ async function main() {
         ? { userId: principalUserId, actorId: `user:${principalUserId}`, profile: 'owner' as const }
         : null;
     const defaultProjectId = Number(process.env.MCP_PROJECT_ID || 0);
-    const buildScopedCredential = (profile: 'planner' | 'writer'): ScopedCredential | null => {
+    const buildScopedCredential = (profile: 'planner' | 'writer' | 'art_director'): ScopedCredential | null => {
         const upper = profile.toUpperCase();
         const token = String(process.env[`MCP_${upper}_AUTH_TOKEN`] || '').trim();
         const userId = Number(process.env[`MCP_${upper}_USER_ID`] || principalUserId || 0);
@@ -76,6 +76,7 @@ async function main() {
     };
     const plannerCredential = buildScopedCredential('planner');
     const writerCredential = buildScopedCredential('writer');
+    const artDirectorCredential = buildScopedCredential('art_director');
     const isProduction = Boolean(process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production');
     if (isProduction && (!authToken || !principal)) {
         throw new Error('Production remote MCP requires MCP_AUTH_TOKEN and MCP_PRINCIPAL_USER_ID');
@@ -200,6 +201,11 @@ async function main() {
                     configured: true,
                     project_id: writerCredential.principal.projectId,
                     user_id: writerCredential.principal.userId
+                } : { configured: false },
+                art_director: artDirectorCredential ? {
+                    configured: true,
+                    project_id: artDirectorCredential.principal.projectId,
+                    user_id: artDirectorCredential.principal.userId
                 } : { configured: false }
             },
             active_sessions: sessions.size,
@@ -356,6 +362,7 @@ async function main() {
 
     registerScopedEndpoint('/mcp/planner', plannerCredential);
     registerScopedEndpoint('/mcp/writer', writerCredential);
+    registerScopedEndpoint('/mcp/art-director', artDirectorCredential);
 
     const server = app.listen(port, host, () => {
         console.log(`[MCP Remote] listening on http://${host}:${port} (auth required: ${Boolean(authToken)})`);

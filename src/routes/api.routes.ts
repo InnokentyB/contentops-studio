@@ -28,6 +28,7 @@ import { jsonBytes, logEgressDiagnostic, textBytes } from '../utils/egress_diagn
 import { derivePublicationContentState } from '../services/publication_content_state';
 import publicationFactService from '../services/publication_fact.service';
 import { isPublicationTaskActive } from '../services/publication_task_activity';
+import artDirectionService from '../services/art_direction.service';
 
 async function loadPublicationPlanContext(projectId: number) {
     const settings = await prisma.projectSettings.findMany({
@@ -1163,6 +1164,14 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         return response;
     });
 
+    fastify.get('/api/publication-tasks/:id/visual-readiness', async (request, reply) => {
+        const projectId = (request as any).projectId;
+        if (!projectId) return reply.code(400).send({ error: 'Project ID required' });
+        const taskId = Number((request.params as { id: string }).id);
+        if (!Number.isInteger(taskId)) return reply.code(400).send({ error: 'Invalid task ID' });
+        return artDirectionService.getReadiness(projectId, taskId);
+    });
+
     fastify.put('/api/publication-tasks/:id/content', async (request, reply) => {
         const projectId = (request as any).projectId;
         if (!projectId) return reply.code(400).send({ error: 'Project ID required' });
@@ -1256,6 +1265,8 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         if (!item) {
             return reply.code(404).send({ error: 'Publication task not found' });
         }
+
+        await artDirectionService.assertPublicationReady(projectId, item.id);
 
         const plan = await loadPublicationPlanContext(projectId);
         if (!plan) {

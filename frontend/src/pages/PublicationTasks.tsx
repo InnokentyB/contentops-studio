@@ -684,6 +684,11 @@ export default function PublicationTasks() {
 
     const activeTask = selectedTask || selectedFromList
     const activeTaskId = activeTask?.id ?? selectedTaskId
+    const { data: visualReadiness } = useQuery<any>({
+        queryKey: ['publication_task_visual_readiness', currentProject?.id, activeTaskId],
+        queryFn: () => publicationTasksApi.getVisualReadiness(activeTaskId as number),
+        enabled: !!activeTaskId && !!currentProject
+    })
     const isVkTask = activeTask?.channel?.type === 'vk'
     const { data: vkMetricsHistory, isFetching: isLoadingVkMetrics } = useQuery<{ snapshots: VkMetricSnapshot[] }>({
         queryKey: ['vk_metrics_history', currentProject?.id, activeTaskId],
@@ -869,9 +874,11 @@ export default function PublicationTasks() {
     const isTaskOverdue = !!activeTask?.schedule_at
         && ['planned', 'ready_for_execution', 'awaiting_manual_publication'].includes(activeTask.status)
         && new Date(activeTask.schedule_at).getTime() < Date.now()
-    const canPrepareHandoff = !!activeTask && !['published', 'skipped'].includes(activeTask.status)
+    const visualGateOpen = visualReadiness?.ready !== false
+    const canPrepareHandoff = !!activeTask && !['published', 'skipped'].includes(activeTask.status) && visualGateOpen
     const canPublishNow = !!activeTask
         && supportsDirectPlannerPublish(activeTask)
+        && visualGateOpen
         && ['planned', 'ready_for_execution', 'awaiting_manual_publication', 'failed'].includes(activeTask.status)
     const canFetchMetrics = taskContentState(activeTask) === 'published' && supportsAutoMetrics(activeTask)
     const vkSnapshots = vkMetricsHistory?.snapshots || []
@@ -1157,6 +1164,22 @@ export default function PublicationTasks() {
                                                     <span className="material-symbols-outlined text-base" aria-hidden="true">open_in_new</span>
                                                     Открыть опубликованный пост
                                                 </a>
+                                            )}
+                                            {visualReadiness?.enabled && (
+                                                <div className={`rounded-2xl px-4 py-3 text-sm ${visualGateOpen ? 'bg-emerald-50 text-emerald-900' : 'bg-amber-50 text-amber-950'}`}>
+                                                    <div className="font-black">Визуальный допуск: {visualReadiness.visual_state}</div>
+                                                    <div className="mt-1 text-xs opacity-80">
+                                                        {visualGateOpen
+                                                            ? (visualReadiness.visual_state === 'NO_VISUAL_NEEDED' ? 'Арт-директор подтвердил, что визуал не нужен.' : 'Одобренный визуал соответствует текущей версии текста.')
+                                                            : visualReadiness.reason === 'visual_stale'
+                                                                ? 'Текст изменился: визуал нужно проверить заново.'
+                                                                : visualReadiness.visual_state === 'SOURCE_REQUIRED'
+                                                                    ? 'Нужен реальный источник или доказательный материал.'
+                                                                    : visualReadiness.visual_state === 'MANUAL_ASSET_REQUIRED'
+                                                                        ? 'Нужно вручную приложить исходный визуал.'
+                                                                        : 'Публикация ждёт решения арт-директора или ревью визуала.'}
+                                                    </div>
+                                                </div>
                                             )}
                                         </div>
 

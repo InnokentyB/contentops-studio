@@ -11,6 +11,9 @@ export interface GenerateImageAssetArgs {
     promptVersion?: number;
     altText?: string;
     aspectRatio?: string;
+    decisionId?: number;
+    contentRevision?: number;
+    placement?: string;
 }
 
 export interface ReviewImageAssetArgs {
@@ -19,6 +22,7 @@ export interface ReviewImageAssetArgs {
     assetId: number;
     decision: 'approved' | 'rejected';
     reason?: string;
+    qaReport?: Record<string, unknown>;
 }
 
 export interface ListImageAssetsArgs {
@@ -41,7 +45,7 @@ export class ImageAssetService {
             seed = 42,
             promptVersion = 1,
             altText,
-            aspectRatio,
+            aspectRatio, decisionId, contentRevision, placement,
         } = args;
 
         const latestAsset = await prisma.imageAsset.findFirst({
@@ -51,10 +55,18 @@ export class ImageAssetService {
 
         const nextVersion = latestAsset ? latestAsset.asset_version + 1 : 1;
 
+        const boundDecision = decisionId ? await prisma.artDirectionDecision.findFirst({
+            where: { id: decisionId, project_id: projectId, content_item_id: contentItemId, status: 'active', decision: 'GENERATE' }
+        }) : null;
+        if (decisionId && !boundDecision) throw new Error('[INVALID_ART_DIRECTION_DECISION] Active GENERATE decision is required');
+
         const asset = await prisma.imageAsset.create({
             data: {
                 project_id: projectId,
                 content_item_id: contentItemId,
+                decision_id: decisionId || null,
+                content_revision: boundDecision?.source_content_revision || contentRevision || 0,
+                placement: boundDecision?.placement || placement || null,
                 asset_version: nextVersion,
                 prompt,
                 prompt_version: promptVersion,
@@ -66,6 +78,21 @@ export class ImageAssetService {
                 status: 'candidate',
             },
         });
+
+        if (boundDecision) {
+            await prisma.$transaction(async (tx) => {
+                const item = await tx.contentItem.findUnique({ where: { id: contentItemId } });
+                if (!item || item.accepted_revision !== boundDecision.source_content_revision) throw new Error('[STALE_CONTENT_REVISION] Visual was generated for an old revision');
+                await tx.contentItem.update({ where: { id: contentItemId }, data: { visual_state: 'IN_REVIEW', handoff_state: 'blocked' } });
+                const dedupeKey = `visual-review:${asset.id}:${asset.asset_version}`;
+                await tx.workItem.upsert({ where: { dedupe_key: dedupeKey }, update: {}, create: {
+                    project_id: projectId, week_package_id: item.week_package_id, content_item_id: contentItemId,
+                    item_key: item.item_key || `content:${contentItemId}`, kind: 'visual_review', state: 'available',
+                    assignee_role: 'visual_reviewer', input_context_version: boundDecision.source_content_revision,
+                    dedupe_key: dedupeKey, result_payload: { asset_id: asset.id, decision_id: boundDecision.id } as any
+                } });
+            });
+        }
 
         return {
             asset_id: asset.id,
@@ -86,21 +113,30 @@ export class ImageAssetService {
      * Review an image asset candidate (approve or reject).
      */
     async reviewImageAsset(args: ReviewImageAssetArgs) {
-        const { assetId, decision, reason } = args;
+        const { projectId, actorId, assetId, decision, reason, qaReport } = args;
 
-        const asset = await prisma.imageAsset.findUnique({
-            where: { id: assetId },
+        const asset = await prisma.imageAsset.findFirst({
+            where: { id: assetId, project_id: projectId },
+            include: { content_item: true, decision: true },
         });
 
         if (!asset) {
             throw new Error(`ImageAsset ${assetId} not found`);
         }
 
-        const updated = await prisma.imageAsset.update({
-            where: { id: assetId },
-            data: {
-                status: decision,
-            },
+        if (decision === 'approved' && (!asset.decision || asset.content_revision !== asset.content_item.accepted_revision)) {
+            throw new Error('[STALE_VISUAL_ASSET] Asset is not bound to the current accepted decision and revision');
+        }
+        const updated = await prisma.$transaction(async (tx) => {
+            const reviewed = await tx.imageAsset.update({ where: { id: assetId }, data: {
+                status: decision, review_reason: reason || null, qa_report: (qaReport || {}) as any,
+                reviewed_by: actorId, reviewed_at: new Date()
+            } });
+            await tx.contentItem.update({ where: { id: asset.content_item_id }, data: decision === 'approved'
+                ? { selected_asset_id: asset.id, visual_state: 'APPROVED', handoff_state: 'ready' }
+                : { selected_asset_id: null, visual_state: 'REJECTED', handoff_state: 'blocked' }
+            });
+            return reviewed;
         });
 
         return {
@@ -108,6 +144,7 @@ export class ImageAssetService {
             status: updated.status,
             decision,
             reason: reason || null,
+            qa_report: qaReport || {},
         };
     }
 

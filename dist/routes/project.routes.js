@@ -572,7 +572,7 @@ async function projectRoutes(fastify) {
                 const configured = remote === true || remote?.configured === true;
                 const boundProjectId = Number(remote?.project_id || 0) || null;
                 return {
-                    endpoint: `${endpoint}/${profile}`,
+                    endpoint: `${endpoint}/${profile.replace('_', '-')}`,
                     configured: configured && (!boundProjectId || boundProjectId === projectId),
                     bound_project_id: boundProjectId
                 };
@@ -587,7 +587,8 @@ async function projectRoutes(fastify) {
                 active_sessions: health?.active_sessions || 0,
                 capability_endpoints: {
                     planner: capabilityStatus('planner'),
-                    writer: capabilityStatus('writer')
+                    writer: capabilityStatus('writer'),
+                    art_director: capabilityStatus('art_director')
                 },
                 checked_at: new Date().toISOString()
             };

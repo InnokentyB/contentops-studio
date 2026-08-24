@@ -48,10 +48,31 @@ const PLANNER_TOOLS = new Set([
     'ba_decide_week_plan',
     'ba_get_week_pipeline'
 ]);
+const ART_DIRECTOR_TOOLS = new Set([
+    'ba_list_project_channels',
+    'ba_list_publication_tasks',
+    'ba_get_publication_task',
+    'ba_get_publication_task_resources',
+    'ba_list_work_items',
+    'ba_claim_work_item',
+    'ba_block_work_item',
+    'ba_release_work_item',
+    'ba_get_art_direction_context',
+    'ba_submit_art_direction_decision',
+    'ba_get_visual_readiness',
+    'ba_attach_visual_source',
+    'ba_generate_image_asset',
+    'ba_review_image_asset',
+    'ba_list_image_assets'
+]);
 function isToolAllowedForProfile(profile, toolName) {
     if (profile === 'owner')
         return true;
-    return (profile === 'writer' ? WRITER_TOOLS : PLANNER_TOOLS).has(toolName);
+    if (profile === 'writer')
+        return WRITER_TOOLS.has(toolName);
+    if (profile === 'art_director')
+        return ART_DIRECTOR_TOOLS.has(toolName);
+    return PLANNER_TOOLS.has(toolName);
 }
 function filterMcpServerTools(server, profile) {
     if (profile === 'owner')

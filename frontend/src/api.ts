@@ -218,6 +218,7 @@ export const publicationTasksApi = {
         return api.get(`/api/publication-tasks${suffix}`);
     },
     get: (id: number) => api.get(`/api/publication-tasks/${id}`),
+    getVisualReadiness: (id: number) => api.get(`/api/publication-tasks/${id}/visual-readiness`),
     saveContent: (id: number, data: { body: string }) => api.put(`/api/publication-tasks/${id}/content`, data),
     prepareHandoff: (id: number) => api.post(`/api/publication-tasks/${id}/prepare-handoff`),
     publishNow: (id: number) => api.post(`/api/publication-tasks/${id}/publish-now`),

@@ -49,6 +49,7 @@ const initiative_service_1 = __importDefault(require("../services/initiative.ser
 const task_tracker_service_1 = __importDefault(require("../services/task_tracker.service"));
 const delivery_service_1 = __importDefault(require("../services/delivery.service"));
 const image_asset_service_1 = __importDefault(require("../services/image_asset.service"));
+const art_direction_service_1 = __importDefault(require("../services/art_direction.service"));
 const metrics_service_1 = __importDefault(require("../services/metrics.service"));
 const publication_fact_service_1 = __importDefault(require("../services/publication_fact.service"));
 const week_package_repair_service_1 = __importDefault(require("../services/week_package_repair.service"));
@@ -1141,7 +1142,10 @@ function registerPlannerTools(server) {
             seed: zod_1.z.number().int().optional(),
             promptVersion: zod_1.z.number().int().optional(),
             altText: zod_1.z.string().optional(),
-            aspectRatio: zod_1.z.string().optional()
+            aspectRatio: zod_1.z.string().optional(),
+            decisionId: zod_1.z.number().int().positive().optional(),
+            contentRevision: zod_1.z.number().int().positive().optional(),
+            placement: zod_1.z.string().optional()
         }
     }, async (args) => {
         const result = await image_asset_service_1.default.generateImageAsset(args);
@@ -1154,12 +1158,68 @@ function registerPlannerTools(server) {
             actorId: zod_1.z.string(),
             assetId: zod_1.z.number().int().positive(),
             decision: zod_1.z.enum(['approved', 'rejected']),
-            reason: zod_1.z.string().optional()
+            reason: zod_1.z.string().optional(),
+            qaReport: zod_1.z.record(zod_1.z.string(), zod_1.z.unknown()).optional()
         }
     }, async (args) => {
         const result = await image_asset_service_1.default.reviewImageAsset(args);
         return asToolResult(result);
     });
+    server.registerTool('ba_get_art_direction_context', {
+        description: 'Read accepted copy, placement, visual mode and recent assets for an art-direction work item.',
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            workItemId: zod_1.z.number().int().positive()
+        }
+    }, async (args) => asToolResult(await art_direction_service_1.default.getContext(args.projectId, args.workItemId)));
+    server.registerTool('ba_submit_art_direction_decision', {
+        description: 'Submit a revision-bound visual-fit decision. Generated visuals remain blocked until separate review approval.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(), actorId: zod_1.z.string(), workItemId: zod_1.z.number().int().positive(),
+            leaseToken: zod_1.z.string(), idempotencyKey: zod_1.z.string(),
+            decision: zod_1.z.object({
+                decision: zod_1.z.enum(['NO_VISUAL_NEEDED', 'GENERATE', 'SOURCE_REQUIRED', 'MANUAL_ASSET_REQUIRED', 'BLOCKED']),
+                source_content_revision: zod_1.z.number().int().positive(), channel: zod_1.z.string(), placement: zod_1.z.string(),
+                visual_function: zod_1.z.string().nullable().optional(), reason: zod_1.z.string(), post_owns: zod_1.z.string().nullable().optional(),
+                visual_adds: zod_1.z.string().nullable().optional(), loss_without_visual: zod_1.z.string().nullable().optional(),
+                authenticity_class: zod_1.z.enum(['ACTUAL_EVIDENCE', 'OWNER_DOCUMENTATION', 'CONCEPTUAL_EDITORIAL', 'SIMULATED_DOCUMENTATION']).nullable().optional(),
+                evidence_refs: zod_1.z.array(zod_1.z.unknown()).optional(), visual_format: zod_1.z.string().nullable().optional(),
+                dimensions: zod_1.z.object({ width: zod_1.z.number().optional(), height: zod_1.z.number().optional(), aspect_ratio: zod_1.z.string().optional() }).nullable().optional(),
+                required_text: zod_1.z.array(zod_1.z.string()).optional(), forbidden_text: zod_1.z.array(zod_1.z.string()).optional(),
+                visible_copy_budget: zod_1.z.number().int().nullable().optional(), prompt: zod_1.z.string().nullable().optional(),
+                alt_text: zod_1.z.string().nullable().optional(), acceptance_criteria: zod_1.z.array(zod_1.z.string()).optional(), recent_asset_refs: zod_1.z.array(zod_1.z.unknown()).optional()
+            })
+        }
+    }, async (args) => asToolResult(await art_direction_service_1.default.submitDecision(args)));
+    server.registerTool('ba_get_visual_readiness', {
+        description: 'Return the authoritative publication visual gate for a content item.',
+        annotations: { readOnlyHint: true },
+        inputSchema: { projectId: zod_1.z.number().int().positive(), actorId: zod_1.z.string(), contentItemId: zod_1.z.number().int().positive() }
+    }, async (args) => asToolResult(await art_direction_service_1.default.getReadiness(args.projectId, args.contentItemId)));
+    server.registerTool('ba_set_art_direction_pipeline', {
+        description: 'Enable or disable the revision-bound art-direction pipeline for a project. Owner profile only.',
+        inputSchema: { projectId: zod_1.z.number().int().positive(), actorId: zod_1.z.string(), enabled: zod_1.z.boolean() }
+    }, async (args) => {
+        await db_1.default.projectSettings.upsert({
+            where: { project_id_key: { project_id: args.projectId, key: 'art_direction_pipeline_enabled' } },
+            update: { value: String(args.enabled) },
+            create: { project_id: args.projectId, key: 'art_direction_pipeline_enabled', value: String(args.enabled) }
+        });
+        return asToolResult({ project_id: args.projectId, enabled: args.enabled });
+    });
+    server.registerTool('ba_backfill_art_direction_pipeline', {
+        description: 'Explicitly queue visual-fit assessment for existing unpublished content after the project feature is enabled. Published and terminal items are never changed.',
+        inputSchema: { projectId: zod_1.z.number().int().positive(), actorId: zod_1.z.string() }
+    }, async (args) => asToolResult(await art_direction_service_1.default.backfillProject(args.projectId, args.actorId)));
+    server.registerTool('ba_attach_visual_source', {
+        description: 'Attach a real source or owner-provided visual with provenance to the current accepted revision.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(), actorId: zod_1.z.string(), contentItemId: zod_1.z.number().int().positive(),
+            fileUrl: zod_1.z.string().url(), provenance: zod_1.z.record(zod_1.z.string(), zod_1.z.unknown()), altText: zod_1.z.string().optional()
+        }
+    }, async (args) => asToolResult(await art_direction_service_1.default.attachVisualSource(args)));
     server.registerTool('ba_list_image_assets', {
         description: 'List all generated image asset versions for a content item.',
         annotations: { readOnlyHint: true },

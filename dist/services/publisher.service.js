@@ -53,6 +53,7 @@ const habr_service_1 = __importDefault(require("./habr.service"));
 const vc_service_1 = __importDefault(require("./vc.service"));
 const dzen_service_1 = __importDefault(require("./dzen.service"));
 const threads_service_1 = __importDefault(require("./threads.service"));
+const art_direction_service_1 = __importDefault(require("./art_direction.service"));
 const publication_runtime_helpers_1 = require("./publication_runtime.helpers");
 const dotenv_1 = require("dotenv");
 const fs = __importStar(require("fs"));
@@ -1210,6 +1211,13 @@ class PublisherService {
         return this.processPublicationTaskItem(task, { manualTrigger: true, requestHost });
     }
     async processPublicationTaskItem(task, options = {}) {
+        const visualReadiness = await art_direction_service_1.default.getReadiness(task.project_id, task.id);
+        if (!visualReadiness.ready) {
+            if (options.manualTrigger)
+                throw new Error(`[VISUAL_GATE_BLOCKED] ${visualReadiness.reason}`);
+            logToFile('INFO', `[Publisher] Task ${task.id} is waiting on visual readiness.`, visualReadiness);
+            return { success: false, status: task.status, skipped: true, reason: visualReadiness.reason };
+        }
         const dependencyState = await this.areTaskDependenciesSatisfied(task);
         if (!dependencyState.ready) {
             if (options.manualTrigger) {
