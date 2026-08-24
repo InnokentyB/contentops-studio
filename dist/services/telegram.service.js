@@ -55,6 +55,8 @@ const prisma = new client_1.PrismaClient({ adapter });
 class TelegramService {
     constructor() {
         this.isWebhook = false;
+        this.pollingStarted = false;
+        this.pollingRetryTimer = null;
         this.promptEditState = new Map(); // userId -> promptKey being edited
         const token = process.env.TELEGRAM_BOT_TOKEN;
         if (!token) {
@@ -842,8 +844,25 @@ class TelegramService {
         }
         else {
             console.log('Starting via polling...');
-            this.bot.launch();
+            this.startPollingSafely();
         }
+    }
+    startPollingSafely() {
+        if (this.pollingStarted)
+            return;
+        this.pollingStarted = true;
+        void this.bot.launch().catch((error) => {
+            this.pollingStarted = false;
+            const isPollingConflict = error?.response?.error_code === 409;
+            console.error(`[TelegramService] Polling stopped${isPollingConflict ? ' because another replica is still active' : ''}:`, error?.message || error);
+            if (this.pollingRetryTimer)
+                clearTimeout(this.pollingRetryTimer);
+            this.pollingRetryTimer = setTimeout(() => {
+                this.pollingRetryTimer = null;
+                this.startPollingSafely();
+            }, isPollingConflict ? 30000 : 60000);
+            this.pollingRetryTimer.unref?.();
+        });
     }
     async sendMessage(chatId, text, extra) {
         console.log(`[TelegramService] Sending Message to ${chatId}. Extra:`, JSON.stringify(extra));

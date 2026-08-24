@@ -20,6 +20,8 @@ const prisma = new PrismaClient({ adapter });
 class TelegramService {
     public bot: Telegraf;
     private isWebhook = false;
+    private pollingStarted = false;
+    private pollingRetryTimer: NodeJS.Timeout | null = null;
     private promptEditState: Map<number, string> = new Map(); // userId -> promptKey being edited
 
     constructor() {
@@ -939,8 +941,24 @@ class TelegramService {
             console.log(`Webhook set to ${process.env.DOMAIN}${secretPath}`);
         } else {
             console.log('Starting via polling...');
-            this.bot.launch();
+            this.startPollingSafely();
         }
+    }
+
+    private startPollingSafely() {
+        if (this.pollingStarted) return;
+        this.pollingStarted = true;
+        void this.bot.launch().catch((error: any) => {
+            this.pollingStarted = false;
+            const isPollingConflict = error?.response?.error_code === 409;
+            console.error(`[TelegramService] Polling stopped${isPollingConflict ? ' because another replica is still active' : ''}:`, error?.message || error);
+            if (this.pollingRetryTimer) clearTimeout(this.pollingRetryTimer);
+            this.pollingRetryTimer = setTimeout(() => {
+                this.pollingRetryTimer = null;
+                this.startPollingSafely();
+            }, isPollingConflict ? 30_000 : 60_000);
+            this.pollingRetryTimer.unref?.();
+        });
     }
 
     async sendMessage(chatId: string | number, text: string, extra?: any) {
