@@ -367,16 +367,17 @@ test('E2E-006-017: draft or late Sunday theme blocks preview with a machine-read
 });
 
 test('E2E-006-018: planner and writer profiles expose only their pipeline responsibilities', () => {
-  for (const tool of ['ba_upsert_week_theme', 'ba_generate_week_topic_preview', 'ba_decide_week_plan', 'ba_get_week_pipeline']) {
+  for (const tool of ['ba_upsert_week_theme', 'ba_start_week_autogeneration', 'ba_generate_week_topic_preview', 'ba_decide_week_plan', 'ba_get_week_pipeline', 'ba_get_week_autogeneration']) {
     assert.equal(isToolAllowedForProfile('planner', tool), true, `planner must be allowed to use ${tool}`);
   }
   assert.equal(isToolAllowedForProfile('planner', 'ba_update_publication_content'), false);
   assert.equal(isToolAllowedForProfile('planner', 'ba_publish_direct'), false);
 
-  for (const tool of ['ba_list_work_items', 'ba_claim_work_item', 'ba_get_work_item_context', 'ba_complete_work_item', 'ba_block_work_item', 'ba_release_work_item']) {
+  for (const tool of ['ba_list_work_items', 'ba_claim_work_item', 'ba_get_work_item_context', 'ba_complete_work_item', 'ba_block_work_item', 'ba_release_work_item', 'ba_get_week_autogeneration']) {
     assert.equal(isToolAllowedForProfile('writer', tool), true, `writer must be allowed to use ${tool}`);
   }
   assert.equal(isToolAllowedForProfile('writer', 'ba_upsert_week_theme'), false);
+  assert.equal(isToolAllowedForProfile('writer', 'ba_start_week_autogeneration'), false);
   assert.equal(isToolAllowedForProfile('writer', 'ba_decide_week_plan'), false);
   assert.equal(isToolAllowedForProfile('writer', 'ba_publish_direct'), false);
 });

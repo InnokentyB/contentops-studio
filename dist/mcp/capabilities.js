@@ -18,7 +18,9 @@ const WRITER_TOOLS = new Set([
     'ba_get_work_item_context',
     'ba_complete_work_item',
     'ba_block_work_item',
-    'ba_release_work_item'
+    'ba_release_work_item',
+    'ba_get_week_pipeline',
+    'ba_get_week_autogeneration'
 ]);
 const PLANNER_TOOLS = new Set([
     'ba_list_project_channels',
@@ -44,9 +46,11 @@ const PLANNER_TOOLS = new Set([
     'ba_list_release_blockers',
     'ba_get_operational_calendar',
     'ba_upsert_week_theme',
+    'ba_start_week_autogeneration',
     'ba_generate_week_topic_preview',
     'ba_decide_week_plan',
-    'ba_get_week_pipeline'
+    'ba_get_week_pipeline',
+    'ba_get_week_autogeneration'
 ]);
 const ART_DIRECTOR_TOOLS = new Set([
     'ba_list_project_channels',
@@ -63,7 +67,9 @@ const ART_DIRECTOR_TOOLS = new Set([
     'ba_attach_visual_source',
     'ba_generate_image_asset',
     'ba_review_image_asset',
-    'ba_list_image_assets'
+    'ba_list_image_assets',
+    'ba_get_week_pipeline',
+    'ba_get_week_autogeneration'
 ]);
 function isToolAllowedForProfile(profile, toolName) {
     if (profile === 'owner')

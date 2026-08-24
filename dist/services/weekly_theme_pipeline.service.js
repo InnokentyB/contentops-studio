@@ -8,6 +8,7 @@ const client_1 = require("@prisma/client");
 const db_1 = __importDefault(require("../db"));
 const work_queue_service_1 = __importDefault(require("./work_queue.service"));
 const multi_agent_service_1 = __importDefault(require("./multi_agent.service"));
+const week_autogeneration_state_1 = require("./week_autogeneration_state");
 function isoDate(value, field) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(value))
         throw new Error(`[INVALID_${field.toUpperCase()}] Expected YYYY-MM-DD`);
@@ -302,6 +303,33 @@ class WeeklyThemePipelineService {
             return result;
         });
     }
+    async startWeekAutomation(input) {
+        if (input.state !== 'accepted') {
+            throw new Error('[WEEK_THEME_NOT_APPROVED] Autogeneration can only start from an accepted weekly theme');
+        }
+        const theme = await this.upsertWeekTheme(input);
+        const preview = await this.generatePreview({
+            projectId: input.projectId,
+            actorId: input.actorId,
+            channelId: input.channelId,
+            weekPackageId: Number(theme.week_package_id),
+            themeContentItemId: Number(theme.theme_content_item_id),
+            themeRevision: Number(theme.theme_revision),
+            timezone: input.timezone,
+            scheduleTemplate: input.scheduleTemplate,
+            idempotencyKey: input.previewIdempotencyKey
+        });
+        return {
+            stage: 'awaiting_topic_approval',
+            theme,
+            preview,
+            next_action: {
+                actor: 'headquarters',
+                command: 'ba_decide_week_plan',
+                description: 'Проверьте семь тем и утвердите или отклоните пакет целиком. До утверждения writer не получит задания.'
+            }
+        };
+    }
     async getPipeline(input) {
         await work_queue_service_1.default.assertProjectAccess(db_1.default, input.projectId, input.actorId, 'work_queue:read');
         const weekPackage = await db_1.default.weekPackage.findFirst({ where: { id: input.weekPackageId, project_id: input.projectId } });
@@ -315,16 +343,55 @@ class WeeklyThemePipelineService {
         const decisionEvent = await db_1.default.workflowEvent.findFirst({
             where: { project_id: input.projectId, week_package_id: weekPackage.id, command: 'ba_decide_week_plan' }, orderBy: { created_at: 'desc' }
         });
-        const decision = decisionEvent?.after_state;
+        const latestDecision = decisionEvent?.after_state;
+        const decision = latestDecision?.plan_version === weekPackage.plan_version ? latestDecision : null;
+        const workItems = await db_1.default.workItem.findMany({
+            where: { week_package_id: weekPackage.id },
+            orderBy: [{ content_item_id: 'asc' }, { created_at: 'asc' }]
+        });
+        const activeStates = new Set(['available', 'claimed', 'blocked', 'waiting_approval']);
+        const activeCount = (kind) => workItems.filter((item) => item.kind === kind && activeStates.has(item.state)).length;
+        const activeVisualCount = workItems.filter((item) => ['art_direction', 'image_generate', 'image_review'].includes(item.kind) && activeStates.has(item.state)).length;
+        const automation = (0, week_autogeneration_state_1.deriveWeekAutomationState)({
+            themeExists: !!theme,
+            themeAccepted: theme?.status === 'accepted',
+            topicCount: topics.length,
+            planDecision: typeof decision?.decision === 'string' ? decision.decision : null,
+            activeWriteCount: activeCount('content_write'),
+            activeReviewCount: activeCount('content_review'),
+            activeVisualCount
+        });
+        const workByContent = new Map();
+        for (const item of workItems) {
+            if (!item.content_item_id)
+                continue;
+            const current = workByContent.get(item.content_item_id) || [];
+            current.push(item);
+            workByContent.set(item.content_item_id, current);
+        }
         return {
             week_package_id: weekPackage.id,
             plan_version: weekPackage.plan_version,
             theme_revision: theme?.content_revision || null,
+            automation,
+            stage_counts: {
+                topics: topics.length,
+                content_write: activeCount('content_write'),
+                content_review: activeCount('content_review'),
+                visual: activeVisualCount
+            },
             approval: decision ? { decision: decision.decision, comment: decision.comment || null } : { decision: null, comment: null },
             days: topics.map((item) => ({
                 id: item.id,
                 local_date: item.publish_at?.toISOString().slice(0, 10),
                 publish_at: item.publish_at?.toISOString(),
+                content_status: item.status,
+                work: (workByContent.get(item.id) || []).map((workItem) => ({
+                    id: workItem.id,
+                    kind: workItem.kind,
+                    state: workItem.state,
+                    assignee_role: workItem.assignee_role
+                })),
                 ...(item.key_points || {})
             }))
         };

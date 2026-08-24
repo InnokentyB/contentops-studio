@@ -719,6 +719,22 @@ export function registerPlannerTools(server: McpServer) {
         }
     }, async (args) => asToolResult(await weeklyThemePipelineService.upsertWeekTheme(args)));
 
+    server.registerTool('ba_start_week_autogeneration', {
+        description: 'Start the synchronized weekly autogeneration canvas in one command: accept the headquarters theme and generate exactly seven daily topic proposals. The result always stops at headquarters topic approval; it never unlocks writer work by itself.',
+        inputSchema: {
+            projectId: z.number().int().positive(), actorId: z.string(), channelId: z.number().int().positive(),
+            targetWeekStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+            targetWeekEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+            timezone: z.string().min(1).max(100),
+            title: z.string().min(1).max(300), body: z.string().min(1).max(20000),
+            sourceRefs: z.array(z.object({ type: z.string().min(1).max(100), ref: z.string().min(1).max(2000) })).max(50),
+            expectedRevision: z.number().int().nonnegative(), state: z.literal('accepted'),
+            acceptedAt: z.string(),
+            scheduleTemplate: z.object({ localTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), days: z.array(z.number().int().min(1).max(7)).length(7) }),
+            idempotencyKey: z.string().min(1), previewIdempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await weeklyThemePipelineService.startWeekAutomation(args)));
+
     server.registerTool('ba_generate_week_topic_preview', {
         description: 'Generate an idempotent seven-day topic preview from the current accepted weekly theme.',
         inputSchema: {
@@ -731,7 +747,15 @@ export function registerPlannerTools(server: McpServer) {
     }, async (args) => asToolResult(await weeklyThemePipelineService.generatePreview(args)));
 
     server.registerTool('ba_get_week_pipeline', {
-        description: 'Read the current theme, preview days, and approval decision for one weekly package.',
+        description: 'Read the synchronized weekly autogeneration canvas: current stage, next actor and command, seven daily topics, content work, review, and visual progress. Call this before acting instead of guessing the next step.',
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+            projectId: z.number().int().positive(), actorId: z.string(), weekPackageId: z.number().int().positive()
+        }
+    }, async (args) => asToolResult(await weeklyThemePipelineService.getPipeline(args)));
+
+    server.registerTool('ba_get_week_autogeneration', {
+        description: 'Canonical status tool for the weekly flow: headquarters theme -> seven topic approval -> writer -> content approval -> art direction -> publication. Returns the same durable state to headquarters, Planner, Writer, and Art Director profiles.',
         annotations: { readOnlyHint: true },
         inputSchema: {
             projectId: z.number().int().positive(), actorId: z.string(), weekPackageId: z.number().int().positive()

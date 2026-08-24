@@ -461,8 +461,10 @@ export class WorkQueueService {
             const afterState = {
                 week_package: {
                     id: params.weekPackageId,
-                    approval_status: params.decision
+                    approval_status: params.decision,
+                    plan_version: params.planVersion
                 },
+                plan_version: params.planVersion,
                 decision: params.decision,
                 comment: params.comment || null
             };
