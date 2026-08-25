@@ -1266,6 +1266,15 @@ export default function PublicationTasks() {
                                         </div>
 
                                         <div className="flex flex-col sm:flex-row xl:flex-col xl:items-stretch sm:flex-wrap items-stretch sm:items-center gap-3 w-full xl:w-[16rem] sm:w-auto">
+                                            {activeTask.week_package_id && activeTask.channel?.id && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => navigate(`/channels/${activeTask.channel!.id}?weekPackageId=${activeTask.week_package_id}`)}
+                                                    className="w-full border border-primary/20 bg-primary/5 text-primary font-black text-sm px-5 py-3 rounded-2xl hover:bg-primary/10 transition-all"
+                                                >
+                                                    Открыть план недели
+                                                </button>
+                                            )}
                                             {canPrepareHandoff && (
                                                 <button
                                                     onClick={() => prepareHandoff.mutate(activeTask.id)}

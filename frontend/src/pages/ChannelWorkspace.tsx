@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, projectsApi, publicationTasksApi } from '../api'
 import { useAuth } from '../context/AuthContext'
@@ -37,6 +37,7 @@ type AutoCanvasStatus = {
         week_theme?: string | null
         core_thesis?: string | null
         approval_status?: string | null
+        plan_version?: string | null
         week_start?: string | null
         week_end?: string | null
     } | null
@@ -144,6 +145,7 @@ function mergeChannelResourceFiles(task: PublicationTask | null) {
 
 export default function ChannelWorkspace() {
     const { channelId } = useParams()
+    const [searchParams] = useSearchParams()
     const navigate = useNavigate()
     const queryClient = useQueryClient()
     const { currentProject } = useAuth()
@@ -163,6 +165,7 @@ export default function ChannelWorkspace() {
     const [autoCanvasMessage, setAutoCanvasMessage] = useState<string | null>(null)
 
     const channelIdNumber = Number(channelId)
+    const requestedWeekPackageId = Number(searchParams.get('weekPackageId') || 0) || undefined
 
     const { data: projectData } = useQuery<ProjectDetails>({
         queryKey: ['channel_workspace_project', currentProject?.id],
@@ -189,9 +192,9 @@ export default function ChannelWorkspace() {
         || String(selectedChannel?.name || '').toLowerCase().includes('аналитик который думал')
     )
 
-    const { data: autoCanvasStatus } = useQuery<AutoCanvasStatus>({
-        queryKey: ['channel_auto_canvas_status', currentProject?.id, selectedChannel?.id],
-        queryFn: () => projectsApi.getAutoCanvasStatus(currentProject!.id, selectedChannel!.id),
+    const { data: autoCanvasStatus, isLoading: isAutoCanvasLoading, error: autoCanvasError } = useQuery<AutoCanvasStatus>({
+        queryKey: ['channel_auto_canvas_status', currentProject?.id, selectedChannel?.id, requestedWeekPackageId],
+        queryFn: () => projectsApi.getAutoCanvasStatus(currentProject!.id, selectedChannel!.id, requestedWeekPackageId),
         enabled: !!currentProject?.id && !!selectedChannel?.id && isAutoCanvasChannel
     })
 
@@ -283,6 +286,27 @@ export default function ChannelWorkspace() {
             queryClient.invalidateQueries({ queryKey: ['channel_workspace_task_detail'] })
             queryClient.invalidateQueries({ queryKey: ['publication_tasks'] })
             queryClient.invalidateQueries({ queryKey: ['channel_auto_canvas_status'] })
+        }
+    })
+
+    const decideWeekPlan = useMutation({
+        mutationFn: (decision: 'approved' | 'rejected') => {
+            if (!currentProject?.id || !selectedChannel?.id || !autoCanvasStatus?.week_package?.id) {
+                throw new Error('Недельный план не выбран')
+            }
+            return projectsApi.decideWeekPlan(
+                currentProject.id,
+                selectedChannel.id,
+                autoCanvasStatus.week_package.id,
+                decision
+            )
+        },
+        onSuccess: (_result, decision) => {
+            setAutoCanvasMessage(decision === 'approved'
+                ? 'Семь тем утверждены. Задания на тексты открыты для контентного агента.'
+                : 'План отклонён и возвращён на пересборку.')
+            queryClient.invalidateQueries({ queryKey: ['channel_auto_canvas_status'] })
+            queryClient.invalidateQueries({ queryKey: ['publication_tasks'] })
         }
     })
 
@@ -686,21 +710,7 @@ export default function ChannelWorkspace() {
                                         </section>
                                     )}
 
-                                    {sourceMode === 'generate' && isAutoCanvasChannel && (
-                                        <section className="rounded-[1.5rem] ai-gradient text-white p-7 shadow-lg shadow-primary/20">
-                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-white/70">Единый контур</div>
-                                            <h3 className="mt-3 text-2xl font-headline font-black">Автогенерация управляется из штаба</h3>
-                                            <p className="mt-4 max-w-3xl text-sm leading-7 text-white/80">
-                                                Штаб передаёт тему недели через MCP. Семь тем, тексты, проверка, визуалы, публикация и метрики живут в общем плане публикаций.
-                                            </p>
-                                            <Link to="/publication-tasks" className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-4 text-sm font-black text-primary shadow-lg hover:scale-[1.01] active:scale-95 transition-all">
-                                                <span className="material-symbols-outlined">calendar_view_week</span>
-                                                Открыть общий план
-                                            </Link>
-                                        </section>
-                                    )}
-
-                                    {sourceMode === 'generate' && !isAutoCanvasChannel && (
+                                    {sourceMode === 'generate' && (
                                         isAutoCanvasChannel ? (
                                             <section className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.1fr)_380px] gap-6">
                                                 <div className="rounded-[1.5rem] bg-surface-container-low p-6 border border-outline-variant/10">
@@ -749,6 +759,15 @@ export default function ChannelWorkspace() {
                                                     )}
 
                                                     <div className="mt-6 space-y-3">
+                                                        {isAutoCanvasLoading && (
+                                                            <div role="status" className="rounded-2xl bg-white px-4 py-5 text-sm text-on-surface-variant">Загружаем семь тем…</div>
+                                                        )}
+                                                        {autoCanvasError instanceof Error && (
+                                                            <div role="alert" className="rounded-2xl bg-error-container/30 px-4 py-5 text-sm text-error">{autoCanvasError.message}</div>
+                                                        )}
+                                                        {!isAutoCanvasLoading && !autoCanvasError && (autoCanvasStatus?.items.length || 0) === 0 && (
+                                                            <div className="rounded-2xl bg-white px-4 py-5 text-sm leading-6 text-on-surface-variant">В этом пакете пока нет тем для проверки.</div>
+                                                        )}
                                                         {(autoCanvasStatus?.items || []).map((item) => (
                                                             <div key={item.id} className="rounded-2xl bg-white px-4 py-4 space-y-2">
                                                                 <div className="flex items-start justify-between gap-3">
@@ -768,6 +787,40 @@ export default function ChannelWorkspace() {
                                                 </div>
 
                                                 <div className="space-y-4">
+                                                    {autoCanvasStatus?.week_package?.approval_status === 'needs_review' && (
+                                                        <div className="rounded-[1.5rem] bg-primary text-white p-6 shadow-lg shadow-primary/20">
+                                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-white/70">Решение штаба</div>
+                                                            <h3 className="mt-3 text-2xl font-headline font-black">Проверить и утвердить семь тем</h3>
+                                                            <p className="mt-4 text-sm leading-7 text-white/80">
+                                                                Утверждение откроет задания на тексты. Даты и сами слоты останутся под управлением планера.
+                                                            </p>
+                                                            {decideWeekPlan.error instanceof Error && (
+                                                                <div role="alert" className="mt-4 rounded-2xl bg-white/15 px-4 py-3 text-sm">{decideWeekPlan.error.message}</div>
+                                                            )}
+                                                            <div className="mt-6 grid grid-cols-2 gap-3">
+                                                                <button
+                                                                    onClick={() => decideWeekPlan.mutate('rejected')}
+                                                                    disabled={decideWeekPlan.isPending}
+                                                                    className="rounded-2xl border border-white/40 px-4 py-4 text-sm font-black disabled:opacity-50"
+                                                                >
+                                                                    Вернуть
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => decideWeekPlan.mutate('approved')}
+                                                                    disabled={decideWeekPlan.isPending || autoCanvasStatus.items.length !== 7}
+                                                                    className="rounded-2xl bg-white px-4 py-4 text-sm font-black text-primary disabled:opacity-50"
+                                                                >
+                                                                    {decideWeekPlan.isPending ? 'Сохраняем…' : 'Утвердить план'}
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    {autoCanvasStatus?.week_package?.approval_status === 'approved' && (
+                                                        <div className="rounded-[1.5rem] bg-success/10 p-6 text-success">
+                                                            <div className="text-[10px] font-black uppercase tracking-[0.25em]">План утверждён</div>
+                                                            <p className="mt-3 text-sm leading-6">Контентный агент уже может брать задания на тексты.</p>
+                                                        </div>
+                                                    )}
                                                     <div className="rounded-[1.5rem] ai-gradient text-white p-6 shadow-lg shadow-primary/20">
                                                         <div className="text-[10px] font-black uppercase tracking-[0.25em] text-white/70">Автогенерация</div>
                                                         <h3 className="mt-3 text-2xl font-headline font-black">Прогнать всю очередь тем</h3>

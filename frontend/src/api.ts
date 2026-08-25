@@ -196,8 +196,12 @@ export const projectsApi = {
             }
         }
     ),
-    getAutoCanvasStatus: (projectId: number, channelId: number) =>
-        api.get(`/api/projects/${projectId}/channels/${channelId}/auto-canvas-status`),
+    getAutoCanvasStatus: (projectId: number, channelId: number, weekPackageId?: number) => {
+        const query = weekPackageId ? `?weekPackageId=${weekPackageId}` : '';
+        return api.get(`/api/projects/${projectId}/channels/${channelId}/auto-canvas-status${query}`);
+    },
+    decideWeekPlan: (projectId: number, channelId: number, weekPackageId: number, decision: 'approved' | 'rejected', comment?: string) =>
+        api.post(`/api/projects/${projectId}/channels/${channelId}/week-plans/${weekPackageId}/decision`, { decision, comment }),
     runAutoCanvasGeneration: (projectId: number, channelId: number, limit = 10) =>
         api.post(`/api/projects/${projectId}/channels/${channelId}/auto-canvas-generate`, { limit }),
     update: (id: number, data: { name: string; description: string }) => api.put(`/api/projects/${id}`, data),

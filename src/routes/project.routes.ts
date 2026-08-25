@@ -15,6 +15,7 @@ import generatorService from '../services/generator.service';
 import { normalizeProjectKind, slugifyProjectName } from '../utils/project.utils';
 import { sanitizeChannelConfig, mergeChannelConfig } from '../utils/channel.utils';
 import initiativeService from '../services/initiative.service';
+import workQueueService from '../services/work_queue.service';
 
 import { prisma } from '../services/planner.service';
 
@@ -1265,6 +1266,7 @@ export default async function projectRoutes(fastify: FastifyInstance) {
         const { id, channelId } = request.params as { id: string; channelId: string };
         const projectId = parseInt(id);
         const parsedChannelId = parseInt(channelId);
+        const requestedWeekPackageId = Number((request.query as { weekPackageId?: string }).weekPackageId || 0);
 
         const hasAccess = await authService.hasProjectAccess(user.id, projectId, 'editor');
         if (!hasAccess) {
@@ -1286,7 +1288,8 @@ export default async function projectRoutes(fastify: FastifyInstance) {
         const items = await prisma.contentItem.findMany({
             where: {
                 project_id: projectId,
-                channel_id: parsedChannelId
+                channel_id: parsedChannelId,
+                ...(requestedWeekPackageId > 0 ? { week_package_id: requestedWeekPackageId } : {})
             },
             include: {
                 week_package: true
@@ -1306,6 +1309,10 @@ export default async function projectRoutes(fastify: FastifyInstance) {
                 return rightTime - leftTime;
             })[0] || null;
 
+        const visibleItems = latestWeekPackage
+            ? items.filter((item) => item.week_package_id === latestWeekPackage.id && item.type !== 'week_theme')
+            : [];
+
         return {
             channel: {
                 id: channel.id,
@@ -1319,17 +1326,18 @@ export default async function projectRoutes(fastify: FastifyInstance) {
                 week_theme: latestWeekPackage.week_theme,
                 core_thesis: latestWeekPackage.core_thesis,
                 approval_status: latestWeekPackage.approval_status,
+                plan_version: latestWeekPackage.plan_version,
                 week_start: latestWeekPackage.week_start,
                 week_end: latestWeekPackage.week_end
             } : null,
             stats: {
-                total: items.length,
-                planned: items.filter((item) => item.status === 'planned').length,
-                drafted: items.filter((item) => item.status === 'drafted').length,
-                published: items.filter((item) => item.status === 'published').length,
-                failed: items.filter((item) => item.status === 'failed').length
+                total: visibleItems.length,
+                planned: visibleItems.filter((item) => item.status === 'planned').length,
+                drafted: visibleItems.filter((item) => item.status === 'drafted').length,
+                published: visibleItems.filter((item) => item.status === 'published').length,
+                failed: visibleItems.filter((item) => item.status === 'failed').length
             },
-            items: items.map((item) => ({
+            items: visibleItems.map((item) => ({
                 id: item.id,
                 title: item.title,
                 brief: item.brief,
@@ -1339,6 +1347,42 @@ export default async function projectRoutes(fastify: FastifyInstance) {
                 published_link: item.published_link
             }))
         };
+    });
+
+    fastify.post('/api/projects/:id/channels/:channelId/week-plans/:weekPackageId/decision', async (request, reply) => {
+        const user = (request as any).user;
+        const { id, channelId, weekPackageId } = request.params as { id: string; channelId: string; weekPackageId: string };
+        const { decision, comment } = request.body as { decision?: 'approved' | 'rejected'; comment?: string };
+        const projectId = Number(id);
+        const parsedChannelId = Number(channelId);
+        const parsedWeekPackageId = Number(weekPackageId);
+
+        if (![projectId, parsedChannelId, parsedWeekPackageId].every(Number.isInteger) || !['approved', 'rejected'].includes(String(decision))) {
+            return reply.code(400).send({ error: 'Invalid week-plan decision request' });
+        }
+        if (!await authService.hasProjectAccess(user.id, projectId, 'owner')) {
+            return reply.code(403).send({ error: 'Only the project owner can approve the weekly plan' });
+        }
+
+        const weekPackage = await prisma.weekPackage.findFirst({
+            where: {
+                id: parsedWeekPackageId,
+                project_id: projectId,
+                content_items: { some: { channel_id: parsedChannelId, type: { not: 'week_theme' } } }
+            }
+        });
+        if (!weekPackage) return reply.code(404).send({ error: 'Weekly plan not found for this channel' });
+        if (!weekPackage.plan_version) return reply.code(409).send({ error: 'Weekly plan has no current version to approve' });
+
+        return workQueueService.decideWeekPlan({
+            projectId,
+            actorId: `user:${user.id}`,
+            weekPackageId: parsedWeekPackageId,
+            planVersion: weekPackage.plan_version,
+            decision: decision!,
+            comment: comment?.trim() || undefined,
+            idempotencyKey: `ui-week-plan:${parsedWeekPackageId}:${weekPackage.plan_version}:${decision}`
+        });
     });
 
     fastify.post('/api/projects/:id/channels/:channelId/auto-canvas-generate', async (request, reply) => {
