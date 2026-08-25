@@ -1102,7 +1102,7 @@ async function projectRoutes(fastify) {
         if (!channel) {
             return reply.code(404).send({ error: 'Channel not found' });
         }
-        const items = await planner_service_1.prisma.contentItem.findMany({
+        const channelItems = await planner_service_1.prisma.contentItem.findMany({
             where: {
                 project_id: projectId,
                 channel_id: parsedChannelId,
@@ -1116,7 +1116,7 @@ async function projectRoutes(fastify) {
                 { id: 'asc' }
             ]
         });
-        const latestWeekPackage = items
+        const latestWeekPackage = channelItems
             .map((item) => item.week_package)
             .filter(Boolean)
             .sort((left, right) => {
@@ -1124,9 +1124,19 @@ async function projectRoutes(fastify) {
             const rightTime = new Date(right.week_start).getTime();
             return rightTime - leftTime;
         })[0] || null;
-        const visibleItems = latestWeekPackage
-            ? items.filter((item) => item.week_package_id === latestWeekPackage.id && item.type !== 'week_theme')
+        const packageItems = latestWeekPackage
+            ? await planner_service_1.prisma.contentItem.findMany({
+                where: {
+                    project_id: projectId,
+                    week_package_id: latestWeekPackage.id,
+                    type: { not: 'week_theme' }
+                },
+                include: { channel: true },
+                orderBy: [{ publish_at: 'asc' }, { id: 'asc' }]
+            })
             : [];
+        const visibleItems = packageItems.filter((item) => item.channel_id === parsedChannelId
+            && item.item_key?.startsWith(`week-topic:${latestWeekPackage?.id}:`));
         return {
             channel: {
                 id: channel.id,
@@ -1155,10 +1165,27 @@ async function projectRoutes(fastify) {
                 id: item.id,
                 title: item.title,
                 brief: item.brief,
+                key_points: item.key_points,
                 status: item.status,
                 schedule_at: item.schedule_at,
                 draft_text: item.draft_text,
                 published_link: item.published_link
+            })),
+            plan_items: packageItems.map((item) => ({
+                id: item.id,
+                title: item.title,
+                type: item.type,
+                status: item.status,
+                schedule_at: item.schedule_at,
+                publish_at: item.publish_at,
+                published_link: item.published_link,
+                channel: item.channel ? {
+                    id: item.channel.id,
+                    name: item.channel.name,
+                    type: item.channel.type
+                } : null,
+                is_week_topic: item.channel_id === parsedChannelId
+                    && item.item_key?.startsWith(`week-topic:${latestWeekPackage?.id}:`)
             }))
         };
     });

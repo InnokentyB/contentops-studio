@@ -52,10 +52,22 @@ type AutoCanvasStatus = {
         id: number
         title?: string | null
         brief?: string | null
+        key_points?: JsonRecord | null
         status: string
         schedule_at?: string | null
         draft_text?: string | null
         published_link?: string | null
+    }>
+    plan_items: Array<{
+        id: number
+        title?: string | null
+        type: string
+        status: string
+        schedule_at?: string | null
+        publish_at?: string | null
+        published_link?: string | null
+        is_week_topic?: boolean
+        channel?: { id: number; name: string; type: string } | null
     }>
 }
 
@@ -99,6 +111,18 @@ function statusTone(status?: string | null) {
     if (status === 'deferred') return 'bg-yellow-200 text-yellow-950'
     if (status === 'awaiting_manual_publication') return 'bg-primary text-white'
     return 'bg-surface-container-high text-on-surface-variant'
+}
+
+function topicDetail(item: AutoCanvasStatus['items'][number], field: 'function' | 'difference_from_neighbors') {
+    const value = item.key_points?.[field]
+    return typeof value === 'string' ? value.trim() : ''
+}
+
+function compactSchedule(value?: string | null) {
+    if (!value) return 'Без даты'
+    return new Intl.DateTimeFormat('ru-RU', {
+        weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+    }).format(new Date(value))
 }
 
 function channelIcon(type: string) {
@@ -237,6 +261,10 @@ export default function ChannelWorkspace() {
         return ['planned', 'ready_for_execution', 'awaiting_manual_publication'].includes(task.status)
             && new Date(task.schedule_at).getTime() < Date.now()
     }).length
+    const otherPlanItems = useMemo(
+        () => (autoCanvasStatus?.plan_items || []).filter((item) => !item.is_week_topic),
+        [autoCanvasStatus?.plan_items]
+    )
 
     const saveManualContent = useMutation({
         mutationFn: () => {
@@ -768,13 +796,25 @@ export default function ChannelWorkspace() {
                                                         {!isAutoCanvasLoading && !autoCanvasError && (autoCanvasStatus?.items.length || 0) === 0 && (
                                                             <div className="rounded-2xl bg-white px-4 py-5 text-sm leading-6 text-on-surface-variant">В этом пакете пока нет тем для проверки.</div>
                                                         )}
-                                                        {(autoCanvasStatus?.items || []).map((item) => (
-                                                            <div key={item.id} className="rounded-2xl bg-white px-4 py-4 space-y-2">
+                                                        {(autoCanvasStatus?.items || []).map((item, index) => (
+                                                            <div key={item.id} className="rounded-2xl bg-white px-4 py-4">
                                                                 <div className="flex items-start justify-between gap-3">
-                                                                    <div>
+                                                                    <div className="min-w-0">
+                                                                        <div className="mb-2 flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-primary/60">
+                                                                            <span>День {index + 1}</span>
+                                                                            <span aria-hidden="true">·</span>
+                                                                            <span>{compactSchedule(item.schedule_at)}</span>
+                                                                        </div>
                                                                         <div className="font-bold text-sm text-on-surface">{item.title || `Тема ${item.id}`}</div>
-                                                                        {item.brief && (
-                                                                            <div className="mt-2 text-xs leading-6 text-on-surface-variant">{item.brief}</div>
+                                                                        {topicDetail(item, 'function') && (
+                                                                            <div className="mt-3 text-xs leading-6 text-on-surface-variant">
+                                                                                <span className="font-bold text-on-surface">Роль в неделе:</span> {topicDetail(item, 'function')}
+                                                                            </div>
+                                                                        )}
+                                                                        {topicDetail(item, 'difference_from_neighbors') && (
+                                                                            <div className="mt-1 text-xs leading-6 text-on-surface-variant">
+                                                                                <span className="font-bold text-on-surface">Чем отличается:</span> {topicDetail(item, 'difference_from_neighbors')}
+                                                                            </div>
                                                                         )}
                                                                     </div>
                                                                     <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${statusTone(item.status)}`}>
@@ -783,6 +823,39 @@ export default function ChannelWorkspace() {
                                                                 </div>
                                                             </div>
                                                         ))}
+                                                    </div>
+
+                                                    <div className="mt-8 border-t border-outline-variant/10 pt-7">
+                                                        <div className="flex flex-wrap items-end justify-between gap-3">
+                                                            <div>
+                                                                <h4 className="text-xl font-headline font-black text-on-surface">Остальной план недели</h4>
+                                                                <p className="mt-2 text-sm text-on-surface-variant">Все другие публикации пакета №{autoCanvasStatus?.week_package?.id} по каналам.</p>
+                                                            </div>
+                                                            <span className="text-sm font-black text-primary">{otherPlanItems.length} пунктов</span>
+                                                        </div>
+                                                        <div className="mt-5 divide-y divide-outline-variant/10 rounded-2xl bg-white px-4">
+                                                            {otherPlanItems.map((item) => (
+                                                                <button
+                                                                    key={item.id}
+                                                                    type="button"
+                                                                    onClick={() => navigate(`/publication-tasks?taskId=${item.id}`)}
+                                                                    className="grid w-full grid-cols-[minmax(0,1fr)_auto] gap-4 py-4 text-left hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                                                                >
+                                                                    <span className="min-w-0">
+                                                                        <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-primary/60">
+                                                                            {item.channel?.name || 'Канал не указан'} · {compactSchedule(item.publish_at || item.schedule_at)}
+                                                                        </span>
+                                                                        <span className="mt-1 block text-sm font-bold leading-5 text-on-surface">{item.title || item.type}</span>
+                                                                    </span>
+                                                                    <span className={`self-start rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${statusTone(item.status)}`}>
+                                                                        {item.status}
+                                                                    </span>
+                                                                </button>
+                                                            ))}
+                                                            {otherPlanItems.length === 0 && (
+                                                                <div className="py-5 text-sm text-on-surface-variant">Других публикаций в пакете нет.</div>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
 
