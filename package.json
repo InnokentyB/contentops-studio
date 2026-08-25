@@ -11,6 +11,7 @@
     "mcp:start": "node dist/mcp/server.js",
     "mcp:remote:dev": "ts-node src/mcp/remote-server.ts",
     "mcp:remote:start": "node dist/mcp/remote-server.js",
+    "scheduler:publication": "node dist/publication-scheduler.js",
     "test:mcp": "npm run build:backend >/dev/null && node scripts/test_mcp_server.js",
     "test:mcp:remote": "npm run build:backend >/dev/null && node scripts/test_remote_mcp.js",
     "test:tdpd:red": "npm run build:backend >/dev/null && node --env-file-if-exists=.env scripts/run_tdpd_red_tests.js",

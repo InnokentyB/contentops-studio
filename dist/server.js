@@ -133,7 +133,9 @@ const start = async () => {
                     const createdRuleTasks = await publisher_service_1.default.processPublicationOngoingRules();
                     const processedOperationalTasks = await publisher_service_1.default.processOperationalTasks();
                     const reactivatedDeferred = await publisher_service_1.default.processDeferredPublicationTasks();
-                    const preparedTasks = await publisher_service_1.default.processPublicationTasks();
+                    const preparedTasks = process.env.ENABLE_INLINE_PUBLICATION_SCHEDULER === 'true'
+                        ? await publisher_service_1.default.processPublicationTasks()
+                        : 0;
                     await publisher_service_1.default.scheduleNativePosts();
                     if (count > 0)
                         console.log(`[Scheduler] Published ${count} posts.`);
@@ -155,7 +157,9 @@ const start = async () => {
             publisher_service_1.default.processPublicationOngoingRules().catch(e => console.error('[Scheduler] Initial ongoing-rules check failed:', e));
             publisher_service_1.default.processOperationalTasks().catch(e => console.error('[Scheduler] Initial operational-task check failed:', e));
             publisher_service_1.default.processDeferredPublicationTasks().catch(e => console.error('[Scheduler] Initial deferred-task check failed:', e));
-            publisher_service_1.default.processPublicationTasks().catch(e => console.error('[Scheduler] Initial publication task check failed:', e));
+            if (process.env.ENABLE_INLINE_PUBLICATION_SCHEDULER === 'true') {
+                publisher_service_1.default.processPublicationTasks().catch(e => console.error('[Scheduler] Initial publication task check failed:', e));
+            }
             const metricsService = require('./services/metrics.service').default;
             console.log('Starting metrics collection scheduler (every 12h)...');
             setInterval(async () => {

@@ -4,7 +4,7 @@ exports.canonicalPublicationOutcome = canonicalPublicationOutcome;
 exports.isPublicationTaskActive = isPublicationTaskActive;
 const ACTIVE_STATUSES = new Set([
     'planned', 'drafted', 'revised', 'approved', 'scheduled',
-    'ready_for_execution', 'awaiting_manual_publication', 'failed'
+    'ready_for_execution', 'browser_required', 'awaiting_manual_publication', 'failed'
 ]);
 function canonicalPublicationOutcome(item) {
     return item?.publication_fact?.outcome

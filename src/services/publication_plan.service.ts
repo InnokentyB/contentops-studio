@@ -74,6 +74,7 @@ const RUNTIME_LOCKED_TASK_STATUSES = new Set([
     'approved',
     'scheduled',
     'ready_for_execution',
+    'browser_required',
     'awaiting_manual_publication',
     'published'
 ]);

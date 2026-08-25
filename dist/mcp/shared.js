@@ -770,6 +770,23 @@ function registerPlannerTools(server) {
         const result = await work_queue_service_1.default.listWorkItems(args);
         return asToolResult(result);
     });
+    server.registerTool('ba_list_browser_publication_tasks', {
+        description: 'List publication tasks that require browser execution because no direct API is available or connector publishing failed. Claim the returned work item before publishing, then confirm the public URL with ba_confirm_publication.',
+        annotations: {
+            readOnlyHint: true
+        },
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            asOf: zod_1.z.string().optional()
+        }
+    }, async (args) => {
+        const result = await work_queue_service_1.default.listWorkItems({
+            ...args,
+            filter: { kind: 'browser_publish' }
+        });
+        return asToolResult(result);
+    });
     server.registerTool('ba_get_work_item', {
         description: 'Get details of a specific work item including latest approval decision.',
         inputSchema: {

@@ -22,6 +22,7 @@ interface PublicationTask {
     draft_text?: string | null
     content_state?: 'empty' | 'ready' | 'published'
     content_revision?: number
+    publication_mode?: string | null
     week_package_id?: number | null
     publication_fact?: PublicationFact | null
     metric_checkpoints?: MetricCheckpoint[]
@@ -274,6 +275,7 @@ function summarizeAtomaContext(description?: string | null, payload?: unknown) {
 
 function executionModeLabel(mode: string) {
     if (mode === 'manual') return 'Вручную'
+    if (mode === 'browser' || mode === 'browser_required') return 'Через браузер'
     if (mode === 'automatic' || mode === 'auto') return 'Автоматически'
     return mode.replaceAll('_', ' ')
 }
@@ -892,18 +894,21 @@ export default function PublicationTasks() {
     const handoffBundle = activeTask?.quality_report?.handoff_bundle as JsonRecord | undefined
     const sourceFiles = mergeSourceFiles(activeTask)
     const primarySourceEntry = resolvePrimarySourceEntry(activeTask, sourceFiles)
-    const executionMode = handoffBundle?.mode || activeTask?.quality_report?.execution_mode || 'manual'
+    const executionMode = activeTask?.publication_mode === 'browser_required'
+        ? 'browser_required'
+        : handoffBundle?.mode || activeTask?.quality_report?.execution_mode || 'manual'
     const activeOutcome = (activeTask?.publication_fact?.outcome || activeTask?.quality_report?.publication_outcome || activeTask?.metrics?.publication_outcome || 'published') as PublicationOutcome
     const publicationFact = activeTask?.publication_fact || null
     const metricCheckpoints = activeTask?.metric_checkpoints || []
     const isTaskOverdue = !!activeTask?.schedule_at
-        && ['planned', 'ready_for_execution', 'awaiting_manual_publication'].includes(activeTask.status)
+        && ['planned', 'ready_for_execution', 'browser_required', 'awaiting_manual_publication'].includes(activeTask.status)
         && new Date(activeTask.schedule_at).getTime() < Date.now()
     const visualGateOpen = visualReadiness?.ready !== false
     const canPrepareHandoff = !!activeTask && !['published', 'skipped'].includes(activeTask.status) && visualGateOpen
     const canPublishNow = !!activeTask
         && supportsDirectPlannerPublish(activeTask)
         && visualGateOpen
+        && activeTask.status !== 'browser_required'
         && ['planned', 'ready_for_execution', 'awaiting_manual_publication', 'failed'].includes(activeTask.status)
     const canFetchMetrics = taskContentState(activeTask) === 'published' && supportsAutoMetrics(activeTask)
     const vkSnapshots = vkMetricsHistory?.snapshots || []
@@ -986,6 +991,7 @@ export default function PublicationTasks() {
                                     <option value="planned">Запланированные</option>
                                     <option value="awaiting_manual_publication">Ждут ручной публикации</option>
                                     <option value="ready_for_execution">Готовы</option>
+                                    <option value="browser_required">Нужна публикация через браузер</option>
                                     <option value="deferred">Отложенные</option>
                                     <option value="published">Опубликованные</option>
                                     <option value="failed">С ошибкой</option>
@@ -1062,11 +1068,13 @@ export default function PublicationTasks() {
 
                             {filteredTasks.map((task) => {
                                 const isSelected = task.id === activeTask?.id
-                                const mode = task.quality_report?.execution_mode || 'manual'
+                                const mode = task.publication_mode === 'browser_required'
+                                    ? 'browser_required'
+                                    : task.quality_report?.execution_mode || 'manual'
                                 const contentState = taskContentState(task)
                                 const planRef = taskPlanReference(task)
                                 const isOverdue = !!task.schedule_at
-                                    && ['planned', 'ready_for_execution', 'awaiting_manual_publication'].includes(task.status)
+                                    && ['planned', 'ready_for_execution', 'browser_required', 'awaiting_manual_publication'].includes(task.status)
                                     && new Date(task.schedule_at).getTime() < Date.now()
 
                                 return (

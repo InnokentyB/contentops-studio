@@ -139,6 +139,24 @@ class PublicationFactService {
                     }
                 }
             });
+            if (args.outcome === 'published') {
+                await tx.workItem.updateMany({
+                    where: {
+                        project_id: args.projectId,
+                        content_item_id: item.id,
+                        kind: 'browser_publish',
+                        state: { notIn: ['completed', 'cancelled'] }
+                    },
+                    data: {
+                        state: 'completed',
+                        lease_token: null,
+                        lease_expires_at: null,
+                        lease_actor_id: null,
+                        reason_code: null,
+                        note: args.note || 'Publication confirmed with a public URL.'
+                    }
+                });
+            }
             let createdCheckpoints = 0;
             let createdMetricWorkItems = 0;
             if (args.outcome === 'published' && publishedAt) {

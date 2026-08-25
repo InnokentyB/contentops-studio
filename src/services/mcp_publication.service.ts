@@ -16,6 +16,7 @@ import { normalizeProjectKind, slugifyProjectName } from '../utils/project.utils
 import { derivePublicationContentState } from './publication_content_state';
 import publicationFactService from './publication_fact.service';
 import { isPublicationTaskActive } from './publication_task_activity';
+import publicationAdapterService from './publication_adapter.service';
 
 type PublicationOutcome = 'published' | 'blocked' | 'removed' | 'restricted';
 
@@ -800,7 +801,7 @@ class McpPublicationService {
         };
 
         if (status === 'active') {
-            where.status = { in: ['planned', 'drafted', 'revised', 'approved', 'scheduled', 'ready_for_execution', 'awaiting_manual_publication', 'failed'] };
+            where.status = { in: ['planned', 'drafted', 'revised', 'approved', 'scheduled', 'ready_for_execution', 'browser_required', 'awaiting_manual_publication', 'failed'] };
         } else if (status) {
             where.status = status;
         }
@@ -815,7 +816,12 @@ class McpPublicationService {
             ? items.filter(isPublicationTaskActive)
             : items;
         const filtered = manualOnly
-            ? activeFiltered.filter((item) => (item.quality_report as any)?.execution_mode === 'manual')
+            ? activeFiltered.filter((item) => {
+                const executionMode = (item.quality_report as any)?.execution_mode;
+                return item.publication_mode === 'browser_required'
+                    || executionMode === 'manual'
+                    || executionMode === 'browser';
+            })
             : activeFiltered;
 
         return filtered.map((item) => ({
@@ -828,6 +834,7 @@ class McpPublicationService {
             published_link: item.published_link,
             content_state: derivePublicationContentState(item),
             content_revision: item.content_revision,
+            publication_mode: item.publication_mode,
             channel: item.channel
                 ? {
                     id: item.channel.id,
@@ -973,14 +980,24 @@ class McpPublicationService {
         const action = (item.assets as any)?.action;
         plan.actions = action ? [action] : [];
         const bundle = publicationPlanService.buildHandoffBundle(plan as any, item);
+        const channelConfig = (item.channel?.config as any) || {};
+        const rawAccount = channelConfig.raw_account || channelConfig;
+        const directExecutionSupported = publicationAdapterService.supportsDirectExecution({
+            ...rawAccount,
+            platform: rawAccount.platform || item.channel?.type
+        });
+        const browserRequired = bundle.mode === 'manual' || !directExecutionSupported;
 
         const updated = await prisma.contentItem.update({
             where: { id: item.id },
             data: {
-                status: bundle.mode === 'manual' ? 'awaiting_manual_publication' : 'ready_for_execution',
+                status: browserRequired ? 'browser_required' : 'ready_for_execution',
+                publication_mode: browserRequired ? 'browser_required' : 'connector_auto',
                 quality_report: {
                     ...((item.quality_report as any) || {}),
                     handoff_bundle: bundle,
+                    execution_mode: browserRequired ? 'browser' : 'automatic',
+                    publication_route: browserRequired ? 'browser_required' : 'connector_auto',
                     prepared_at: new Date().toISOString()
                 } as any
             }

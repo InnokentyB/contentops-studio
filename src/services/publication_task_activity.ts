@@ -1,6 +1,6 @@
 const ACTIVE_STATUSES = new Set([
     'planned', 'drafted', 'revised', 'approved', 'scheduled',
-    'ready_for_execution', 'awaiting_manual_publication', 'failed'
+    'ready_for_execution', 'browser_required', 'awaiting_manual_publication', 'failed'
 ]);
 
 export function canonicalPublicationOutcome(item: any) {

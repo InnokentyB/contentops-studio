@@ -18,6 +18,8 @@ import dzenService from './dzen.service';
 import threadsService from './threads.service';
 import artDirectionService from './art_direction.service';
 import { parseRecurringTrigger } from './publication_runtime.helpers';
+import { browserFallbackReason, resolvePublicationExecutionRoute } from './publication_execution_route';
+import { derivePublicationContentState } from './publication_content_state';
 import { config } from 'dotenv';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -54,6 +56,71 @@ function logToFile(level: 'INFO' | 'WARN' | 'ERROR', message: string, data?: any
 }
 
 class PublisherService {
+    async closeConnections() {
+        await prisma.$disconnect();
+        await pool.end();
+    }
+
+    private async routeToBrowserPublication(task: any, bundle: any, reason: Record<string, unknown>) {
+        const now = new Date().toISOString();
+        const qualityReport = {
+            ...((task.quality_report as any) || {}),
+            handoff_bundle: bundle,
+            publication_route: 'browser_required',
+            browser_handoff: {
+                reason,
+                created_at: now,
+                content_revision: task.content_revision
+            }
+        };
+
+        await prisma.$transaction(async (tx) => {
+            await tx.contentItem.update({
+                where: { id: task.id },
+                data: {
+                    status: 'browser_required',
+                    publication_mode: 'browser_required',
+                    quality_report: qualityReport as any
+                }
+            });
+
+            const dedupeKey = `browser_publish:${task.id}:r${task.content_revision}`;
+            await tx.workItem.upsert({
+                where: { dedupe_key: dedupeKey },
+                update: {
+                    state: 'available',
+                    reason_code: String(reason.code || 'BROWSER_REQUIRED'),
+                    note: String(reason.message || 'Browser publication is required'),
+                    result_payload: reason as any
+                },
+                create: {
+                    project_id: task.project_id,
+                    week_package_id: task.week_package_id,
+                    content_item_id: task.id,
+                    item_key: task.item_key || `publication-${task.id}`,
+                    kind: 'browser_publish',
+                    state: 'available',
+                    assignee_role: 'browser_publisher',
+                    due_at: task.schedule_at || task.publish_at || new Date(),
+                    reason_code: String(reason.code || 'BROWSER_REQUIRED'),
+                    note: String(reason.message || 'Browser publication is required'),
+                    result_payload: reason as any,
+                    dedupe_key: dedupeKey
+                }
+            });
+        });
+
+        return {
+            success: true,
+            mode: 'browser',
+            status: 'browser_required',
+            adapter: task.channel?.type || task.layer || null,
+            publishedLink: task.published_link || null,
+            browserRequired: true,
+            reason
+        };
+    }
+
     private normalizeTelegramHandle(value: unknown): string | null {
         if (typeof value !== 'string') return null;
         const trimmed = value.trim();
@@ -1261,13 +1328,22 @@ class PublisherService {
 
     async processPublicationTasks() {
         const now = new Date();
+        const staleAttemptCutoff = new Date(now.getTime() - 30 * 60 * 1000);
         const dueTasks = await prisma.contentItem.findMany({
             where: {
                 schedule_at: { lte: now },
-                status: { in: ['planned', 'ready_for_execution'] },
-                assets: { not: undefined }
+                publication_mode: { not: 'browser_required' },
+                assets: { not: undefined },
+                OR: [
+                    { status: { in: ['planned', 'ready_for_execution'] } },
+                    {
+                        status: 'publishing',
+                        publication_mode: 'connector_auto',
+                        updated_at: { lte: staleAttemptCutoff }
+                    }
+                ]
             },
-            include: { channel: true }
+            include: { channel: true, publication_fact: true }
         });
 
         if (dueTasks.length === 0) {
@@ -1352,45 +1428,96 @@ class PublisherService {
         const bundle = publicationPlanService.buildHandoffBundle(plan as any, task);
         const channelConfig: any = task.channel?.config || {};
         const executionMode = bundle.mode;
-        const directExecutionSupported = publicationAdapterService.supportsDirectExecution((channelConfig.raw_account || channelConfig || {}) as any);
+        const rawAccount = channelConfig.raw_account || channelConfig || {};
+        const directExecutionSupported = publicationAdapterService.supportsDirectExecution({
+            ...rawAccount,
+            platform: rawAccount.platform || task.channel?.type
+        });
+        const route = resolvePublicationExecutionRoute({
+            contentReady: derivePublicationContentState(task) === 'ready',
+            visualReady: visualReadiness.ready,
+            due: !task.schedule_at || new Date(task.schedule_at).getTime() <= Date.now(),
+            published: derivePublicationContentState(task) === 'published',
+            executionMode,
+            directExecutionSupported,
+            publicationMode: task.publication_mode
+        });
 
-        if (executionMode === 'manual' && !(options.manualTrigger && directExecutionSupported)) {
-            await prisma.contentItem.update({
-                where: { id: task.id },
-                data: {
-                    status: 'awaiting_manual_publication',
-                    quality_report: {
-                        ...((task.quality_report as any) || {}),
-                        handoff_bundle: bundle,
-                        prepared_at: new Date().toISOString()
-                    } as any
-                }
+        if (task.status === 'publishing') {
+            return this.routeToBrowserPublication(task, bundle, {
+                code: 'CONNECTOR_ATTEMPT_STALE',
+                message: 'The connector attempt did not finish. Verify in the browser before publishing to avoid a duplicate post.',
+                retry_via_api: false,
+                next_route: 'browser_required'
             });
-
-            logToFile('INFO', `[Publisher] Prepared publication task ${task.id} (${bundle.task.action_type}) for manual execution.`);
-
-            return {
-                success: true,
-                mode: 'manual',
-                status: 'awaiting_manual_publication',
-                adapter: task.channel?.type || task.layer || null,
-                publishedLink: task.published_link || null
-            };
         }
 
-        const automatedResult = await this.executeAutomatedPublicationTask(task, bundle, channelConfig, plan as any, options.requestHost);
-        const nextStatus = automatedResult.manualFallback ? 'awaiting_manual_publication' : 'published';
+        if (route === 'waiting' || route === 'published') {
+            return { success: false, status: task.status, skipped: true, reason: route };
+        }
+
+        if (route === 'browser_required') {
+            return this.routeToBrowserPublication(task, bundle, {
+                code: directExecutionSupported ? 'MANUAL_EXECUTION_REQUIRED' : 'CONNECTOR_NOT_AVAILABLE',
+                message: directExecutionSupported
+                    ? 'Publication policy requires an authenticated browser flow.'
+                    : `No direct publication connector is available for ${task.channel?.type || 'this channel'}.`,
+                retry_via_api: false,
+                next_route: 'browser_required'
+            });
+        }
+
+        const claimed = await prisma.contentItem.updateMany({
+            where: {
+                id: task.id,
+                status: { in: ['planned', 'ready_for_execution'] },
+                publication_mode: { not: 'browser_required' }
+            },
+            data: {
+                status: 'publishing',
+                publication_mode: 'connector_auto',
+                quality_report: {
+                    ...((task.quality_report as any) || {}),
+                    handoff_bundle: bundle,
+                    publication_route: 'connector_auto',
+                    connector_attempt_started_at: new Date().toISOString()
+                } as any
+            }
+        });
+        if (claimed.count !== 1) {
+            if (options.manualTrigger) throw new Error('[PUBLICATION_ALREADY_CLAIMED] Publication task is already being processed');
+            return { success: false, status: task.status, skipped: true, reason: 'already_claimed' };
+        }
+
+        let automatedResult: any;
+        try {
+            automatedResult = await this.executeAutomatedPublicationTask(task, bundle, channelConfig, plan as any, options.requestHost);
+            if (automatedResult.manualFallback) {
+                return this.routeToBrowserPublication(task, bundle, {
+                    code: 'CONNECTOR_NOT_AVAILABLE',
+                    message: automatedResult.reason || 'The connector requires browser publication.',
+                    retry_via_api: false,
+                    next_route: 'browser_required'
+                });
+            }
+        } catch (error) {
+            const fallback = browserFallbackReason(error);
+            logToFile('WARN', `[Publisher] Connector failed for task ${task.id}; routed to browser publication.`, fallback);
+            return this.routeToBrowserPublication(task, bundle, fallback);
+        }
 
         await prisma.contentItem.update({
             where: { id: task.id },
             data: {
-                status: nextStatus,
+                status: 'published',
+                publication_mode: 'connector_auto',
                 published_link: automatedResult.publishedLink || task.published_link,
                 quality_report: {
                     ...((task.quality_report as any) || {}),
                     handoff_bundle: bundle,
                     execution_result: automatedResult,
-                    prepared_at: new Date().toISOString()
+                    publication_route: 'connector_auto',
+                    connector_attempt_completed_at: new Date().toISOString()
                 } as any,
                 metrics: {
                     ...((task.metrics as any) || {}),
@@ -1404,12 +1531,12 @@ class PublisherService {
 
         return {
             success: true,
-            mode: automatedResult.manualFallback ? 'manual' : 'automated',
-            status: nextStatus,
+            mode: 'automated',
+            status: 'published',
             adapter: automatedResult.adapter || task.channel?.type || task.layer || null,
             publishedLink: automatedResult.publishedLink || task.published_link || null,
-            manualFallback: automatedResult.manualFallback === true,
-            reason: automatedResult.reason || null
+            browserRequired: false,
+            reason: null
         };
     }
 

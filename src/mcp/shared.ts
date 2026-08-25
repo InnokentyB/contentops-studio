@@ -791,6 +791,24 @@ export function registerPlannerTools(server: McpServer) {
         return asToolResult(result);
     });
 
+    server.registerTool('ba_list_browser_publication_tasks', {
+        description: 'List publication tasks that require browser execution because no direct API is available or connector publishing failed. Claim the returned work item before publishing, then confirm the public URL with ba_confirm_publication.',
+        annotations: {
+            readOnlyHint: true
+        },
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string(),
+            asOf: z.string().optional()
+        }
+    }, async (args) => {
+        const result = await workQueueService.listWorkItems({
+            ...args,
+            filter: { kind: 'browser_publish' }
+        });
+        return asToolResult(result);
+    });
+
     server.registerTool('ba_get_work_item', {
         description: 'Get details of a specific work item including latest approval decision.',
         inputSchema: {
