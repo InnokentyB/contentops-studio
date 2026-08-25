@@ -190,6 +190,26 @@ function formatDate(value?: string | null) {
     }
 }
 
+function localDateKey(date = new Date()) {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).formatToParts(date)
+    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]))
+    return `${values.year}-${values.month}-${values.day}`
+}
+
+function resolveCurrentWeekPackageId(weeks: WeekPackageOption[], today = localDateKey()): number | 'all' {
+    const currentWeek = weeks.find((week) => {
+        const start = week.week_start.slice(0, 10)
+        const end = week.week_end.slice(0, 10)
+        return start <= today && today <= end
+    })
+
+    return currentWeek?.id || 'all'
+}
+
 function prettyJson(value: unknown) {
     if (value == null) return ''
     return JSON.stringify(value, null, 2)
@@ -516,6 +536,7 @@ export default function PublicationTasks() {
     const [commentText, setCommentText] = useState('')
     const [criticReport, setCriticReport] = useState<CriticReview | null>(null)
     const workspaceRef = useRef<HTMLElement | null>(null)
+    const initializedWeekProjectIdRef = useRef<number | null>(null)
 
     const resolvedStatusFilter = statusFilter
 
@@ -526,8 +547,12 @@ export default function PublicationTasks() {
     })
 
     useEffect(() => {
-        setWeekPackageId(weekPackages?.[0]?.id || 'all')
-    }, [currentProject?.id, weekPackages?.[0]?.id])
+        if (!currentProject || !weekPackages) return
+        if (initializedWeekProjectIdRef.current === currentProject.id && weekPackageId !== null) return
+
+        setWeekPackageId(urlTaskId ? 'all' : resolveCurrentWeekPackageId(weekPackages))
+        initializedWeekProjectIdRef.current = currentProject.id
+    }, [currentProject, urlTaskId, weekPackageId, weekPackages])
 
     const { data: tasks, isLoading, error } = useQuery<PublicationTask[]>({
         queryKey: ['publication_tasks', currentProject?.id, resolvedStatusFilter || 'active', manualOnly, weekPackageId],
