@@ -971,7 +971,7 @@ async function apiRoutes(fastify) {
             project_id: projectId,
             type: { not: 'week_theme' },
             OR: [
-                { assets: { not: undefined } },
+                { assets: { not: client_1.Prisma.AnyNull } },
                 { item_key: { startsWith: 'week-topic:' } }
             ]
         };

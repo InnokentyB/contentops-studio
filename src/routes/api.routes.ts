@@ -1081,7 +1081,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             project_id: projectId,
             type: { not: 'week_theme' },
             OR: [
-                { assets: { not: undefined } },
+                { assets: { not: Prisma.AnyNull } },
                 { item_key: { startsWith: 'week-topic:' } }
             ]
         };
