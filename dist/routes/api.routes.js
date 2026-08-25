@@ -34,6 +34,8 @@ const publication_task_activity_1 = require("../services/publication_task_activi
 const art_direction_service_1 = __importDefault(require("../services/art_direction.service"));
 const publication_adapter_service_1 = __importDefault(require("../services/publication_adapter.service"));
 const publication_generation_stage_1 = require("../services/publication_generation_stage");
+const image_asset_service_1 = __importDefault(require("../services/image_asset.service"));
+const visual_generation_policy_1 = require("../services/visual_generation_policy");
 async function loadPublicationPlanContext(projectId) {
     const settings = await prisma.projectSettings.findMany({
         where: {
@@ -1672,16 +1674,40 @@ async function apiRoutes(fastify) {
     });
     fastify.post('/api/publication-tasks/:id/generate-image', async (request, reply) => {
         const projectId = request.projectId;
-        if (!projectId)
-            return reply.code(400).send({ error: 'Project ID required' });
+        const userId = request.user?.id;
+        if (!projectId || !userId)
+            return reply.code(400).send({ error: 'Project and user are required' });
         const { id } = request.params;
         const { provider } = request.body;
         const item = await prisma.contentItem.findFirst({
-            where: { id: parseInt(id), project_id: projectId }
+            where: { id: parseInt(id), project_id: projectId },
+            include: {
+                week_package: true,
+                art_direction_decisions: { where: { status: 'active' }, orderBy: { decision_version: 'desc' }, take: 1 }
+            }
         });
         if (!item) {
             return reply.code(404).send({ error: 'Publication task not found' });
         }
+        const visualDecision = item.art_direction_decisions[0] || null;
+        try {
+            (0, visual_generation_policy_1.assertVisualGenerationGate)({
+                weekPackageId: item.week_package_id,
+                weekApprovalStatus: item.week_package?.approval_status,
+                textState: item.text_state,
+                acceptedRevision: item.accepted_revision,
+                contentRevision: item.content_revision,
+                decisionType: visualDecision?.decision,
+                decisionSourceRevision: visualDecision?.source_content_revision,
+                prompt: visualDecision?.prompt,
+                altText: visualDecision?.alt_text
+            });
+        }
+        catch (error) {
+            return reply.code(409).send({ error: error.message });
+        }
+        const approvedPrompt = visualDecision.prompt.trim();
+        const approvedAltText = visualDecision.alt_text.trim();
         const plan = await loadPublicationPlanContext(projectId);
         const action = item.assets?.action;
         const bundle = plan && action
@@ -1693,18 +1719,7 @@ async function apiRoutes(fastify) {
         if (!publicationBody) {
             return reply.code(400).send({ error: 'No publication body is available to generate an image.' });
         }
-        let prompt = '';
-        try {
-            if (selectedProvider === 'flagship' || selectedProvider === 'full') {
-                prompt = await multi_agent_service_1.default.runImagePromptingChain(projectId, publicationBody, topic);
-            }
-            else {
-                prompt = `Editorial illustration for "${topic}". Context: ${publicationBody.slice(0, 700)}. No decorative text.`;
-            }
-        }
-        catch {
-            prompt = `Create an editorial visual for "${topic}". Context: ${publicationBody.slice(0, 700)}`;
-        }
+        let prompt = (0, visual_generation_policy_1.hardenEditorialVisualPrompt)(approvedPrompt);
         let imageUrl = '';
         if (selectedProvider === 'preview') {
             imageUrl = await generator_service_1.default.generateImageNanoBanana(prompt, undefined, 'gemini-3.1-flash-lite-image', projectId);
@@ -1715,7 +1730,7 @@ async function apiRoutes(fastify) {
         else if (selectedProvider === 'flagship' || selectedProvider === 'full') {
             const draftUrl = await generator_service_1.default.generateImage(prompt, projectId);
             const critic = await multi_agent_service_1.default.runImageCritic(projectId, publicationBody, draftUrl);
-            const refinedPrompt = critic?.new_prompt || prompt;
+            const refinedPrompt = (0, visual_generation_policy_1.hardenEditorialVisualPrompt)(critic?.new_prompt || approvedPrompt);
             imageUrl = await generator_service_1.default.generateImageNanoBanana(refinedPrompt, draftUrl, 'gemini-3.1-flash-image', projectId);
             prompt = refinedPrompt;
         }
@@ -1729,14 +1744,30 @@ async function apiRoutes(fastify) {
             provider: selectedProvider,
             prompt,
             url: imageUrl,
+            alt_text: approvedAltText,
+            decision_id: visualDecision.id,
             generated_at: new Date().toISOString()
         };
+        const imageAsset = await image_asset_service_1.default.generateImageAsset({
+            projectId,
+            actorId: `user:${userId}`,
+            contentItemId: item.id,
+            prompt,
+            provider: selectedProvider,
+            model: selectedProvider === 'preview' ? 'gemini-3.1-flash-lite-image' : 'gemini-3.1-flash-image',
+            altText: approvedAltText,
+            aspectRatio: visualDecision.dimensions?.aspect_ratio || undefined,
+            decisionId: visualDecision.id,
+            contentRevision: item.content_revision,
+            placement: visualDecision.placement,
+            fileUrl: imageUrl
+        });
         await prisma.contentItem.update({
             where: { id: item.id },
             data: {
                 assets: {
                     ...(item.assets || {}),
-                    generated_visuals: [generatedImage, ...previousVisuals].slice(0, 6)
+                    generated_visuals: [{ ...generatedImage, asset_id: imageAsset.asset_id }, ...previousVisuals].slice(0, 6)
                 },
                 quality_report: {
                     ...(item.quality_report || {}),
@@ -1752,7 +1783,7 @@ async function apiRoutes(fastify) {
             promptBytes: (0, egress_diagnostics_1.textBytes)(prompt),
             responseBytes: (0, egress_diagnostics_1.jsonBytes)(generatedImage)
         });
-        return generatedImage;
+        return { ...generatedImage, asset_id: imageAsset.asset_id, asset_status: imageAsset.status };
     });
     // Settings
     fastify.get('/api/settings/agents', async (request, reply) => {

@@ -322,6 +322,7 @@ export class ArtDirectionService {
             content_item_id: item.id,
             text_state: item.text_state,
             accepted_revision: item.accepted_revision,
+            content_revision: item.content_revision,
             visual_state: item.visual_state,
             handoff_state: item.handoff_state,
             visual_mode: item.visual_mode,

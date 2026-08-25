@@ -1217,7 +1217,7 @@ export function registerPlannerTools(server: McpServer) {
     });
 
     server.registerTool('ba_generate_image_asset', {
-        description: 'Generate an image asset candidate for a content item.',
+        description: 'Register a generated image candidate only after the weekly plan and current text revision are accepted and an active GENERATE art-direction decision exists. Requires the stored image URL and alt text; the asset remains blocked until visual review.',
         inputSchema: {
             projectId: z.number().int().positive(),
             actorId: z.string(),
@@ -1227,11 +1227,12 @@ export function registerPlannerTools(server: McpServer) {
             model: z.string().optional(),
             seed: z.number().int().optional(),
             promptVersion: z.number().int().optional(),
-            altText: z.string().optional(),
+            altText: z.string().min(1),
             aspectRatio: z.string().optional()
-            ,decisionId: z.number().int().positive().optional()
+            ,decisionId: z.number().int().positive()
             ,contentRevision: z.number().int().positive().optional()
             ,placement: z.string().optional()
+            ,fileUrl: z.string().min(1)
         }
     }, async (args) => {
         const result = await imageAssetService.generateImageAsset(args);

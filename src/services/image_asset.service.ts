@@ -1,4 +1,6 @@
 import prisma from '../db';
+import { requireProjectActorAccess } from './project_access.service';
+import { assertVisualGenerationGate } from './visual_generation_policy';
 
 export interface GenerateImageAssetArgs {
     projectId: number;
@@ -14,6 +16,7 @@ export interface GenerateImageAssetArgs {
     decisionId?: number;
     contentRevision?: number;
     placement?: string;
+    fileUrl?: string;
 }
 
 export interface ReviewImageAssetArgs {
@@ -45,8 +48,31 @@ export class ImageAssetService {
             seed = 42,
             promptVersion = 1,
             altText,
-            aspectRatio, decisionId, contentRevision, placement,
+            aspectRatio, decisionId, contentRevision, placement, fileUrl,
         } = args;
+
+        await requireProjectActorAccess(projectId, args.actorId);
+        const item = await prisma.contentItem.findFirst({
+            where: { id: contentItemId, project_id: projectId },
+            include: { week_package: true }
+        });
+        if (!item) throw new Error('[PUBLICATION_TASK_NOT_FOUND] Content item was not found in the project');
+
+        const boundDecision = decisionId ? await prisma.artDirectionDecision.findFirst({
+            where: { id: decisionId, project_id: projectId, content_item_id: contentItemId, status: 'active', decision: 'GENERATE' }
+        }) : null;
+        assertVisualGenerationGate({
+            weekPackageId: item.week_package_id,
+            weekApprovalStatus: item.week_package?.approval_status,
+            textState: item.text_state,
+            acceptedRevision: item.accepted_revision,
+            contentRevision: item.content_revision,
+            decisionType: boundDecision?.decision,
+            decisionSourceRevision: boundDecision?.source_content_revision,
+            prompt,
+            altText
+        });
+        if (!fileUrl?.trim()) throw new Error('[IMAGE_FILE_REQUIRED] Generated image URL or stored file path is required');
 
         const latestAsset = await prisma.imageAsset.findFirst({
             where: { project_id: projectId, content_item_id: contentItemId },
@@ -54,11 +80,6 @@ export class ImageAssetService {
         });
 
         const nextVersion = latestAsset ? latestAsset.asset_version + 1 : 1;
-
-        const boundDecision = decisionId ? await prisma.artDirectionDecision.findFirst({
-            where: { id: decisionId, project_id: projectId, content_item_id: contentItemId, status: 'active', decision: 'GENERATE' }
-        }) : null;
-        if (decisionId && !boundDecision) throw new Error('[INVALID_ART_DIRECTION_DECISION] Active GENERATE decision is required');
 
         const asset = await prisma.imageAsset.create({
             data: {
@@ -75,24 +96,21 @@ export class ImageAssetService {
                 seed,
                 alt_text: altText || null,
                 aspect_ratio: aspectRatio || null,
+                file_url: fileUrl,
                 status: 'candidate',
             },
         });
 
-        if (boundDecision) {
-            await prisma.$transaction(async (tx) => {
-                const item = await tx.contentItem.findUnique({ where: { id: contentItemId } });
-                if (!item || item.accepted_revision !== boundDecision.source_content_revision) throw new Error('[STALE_CONTENT_REVISION] Visual was generated for an old revision');
-                await tx.contentItem.update({ where: { id: contentItemId }, data: { visual_state: 'IN_REVIEW', handoff_state: 'blocked' } });
-                const dedupeKey = `visual-review:${asset.id}:${asset.asset_version}`;
-                await tx.workItem.upsert({ where: { dedupe_key: dedupeKey }, update: {}, create: {
-                    project_id: projectId, week_package_id: item.week_package_id, content_item_id: contentItemId,
-                    item_key: item.item_key || `content:${contentItemId}`, kind: 'visual_review', state: 'available',
-                    assignee_role: 'visual_reviewer', input_context_version: boundDecision.source_content_revision,
-                    dedupe_key: dedupeKey, result_payload: { asset_id: asset.id, decision_id: boundDecision.id } as any
-                } });
-            });
-        }
+        await prisma.$transaction(async (tx) => {
+            await tx.contentItem.update({ where: { id: contentItemId }, data: { visual_state: 'IN_REVIEW', handoff_state: 'blocked' } });
+            const dedupeKey = `visual-review:${asset.id}:${asset.asset_version}`;
+            await tx.workItem.upsert({ where: { dedupe_key: dedupeKey }, update: {}, create: {
+                project_id: projectId, week_package_id: item.week_package_id, content_item_id: contentItemId,
+                item_key: item.item_key || `content:${contentItemId}`, kind: 'visual_review', state: 'available',
+                assignee_role: 'visual_reviewer', input_context_version: boundDecision!.source_content_revision,
+                dedupe_key: dedupeKey, result_payload: { asset_id: asset.id, decision_id: boundDecision!.id } as any
+            } });
+        });
 
         return {
             asset_id: asset.id,
@@ -105,6 +123,7 @@ export class ImageAssetService {
             seed: asset.seed,
             alt_text: asset.alt_text,
             aspect_ratio: asset.aspect_ratio,
+            file_url: asset.file_url,
             status: asset.status,
         };
     }

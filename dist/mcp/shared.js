@@ -1170,7 +1170,7 @@ function registerPlannerTools(server) {
         return asToolResult(result);
     });
     server.registerTool('ba_generate_image_asset', {
-        description: 'Generate an image asset candidate for a content item.',
+        description: 'Register a generated image candidate only after the weekly plan and current text revision are accepted and an active GENERATE art-direction decision exists. Requires the stored image URL and alt text; the asset remains blocked until visual review.',
         inputSchema: {
             projectId: zod_1.z.number().int().positive(),
             actorId: zod_1.z.string(),
@@ -1180,11 +1180,12 @@ function registerPlannerTools(server) {
             model: zod_1.z.string().optional(),
             seed: zod_1.z.number().int().optional(),
             promptVersion: zod_1.z.number().int().optional(),
-            altText: zod_1.z.string().optional(),
+            altText: zod_1.z.string().min(1),
             aspectRatio: zod_1.z.string().optional(),
-            decisionId: zod_1.z.number().int().positive().optional(),
+            decisionId: zod_1.z.number().int().positive(),
             contentRevision: zod_1.z.number().int().positive().optional(),
-            placement: zod_1.z.string().optional()
+            placement: zod_1.z.string().optional(),
+            fileUrl: zod_1.z.string().min(1)
         }
     }, async (args) => {
         const result = await image_asset_service_1.default.generateImageAsset(args);

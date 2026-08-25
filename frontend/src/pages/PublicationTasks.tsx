@@ -844,8 +844,11 @@ export default function PublicationTasks() {
             return publicationTasksApi.generateImage(activeTaskId, { provider })
         },
         onSuccess: () => {
-            setTaskMessage('Изображение для публикации сгенерировано.')
+            setTaskMessage('Кандидат изображения создан и передан на визуальное ревью.')
             refreshTasks()
+        },
+        onError: (error: Error) => {
+            setTaskMessage(error.message)
         }
     })
 
@@ -928,6 +931,11 @@ export default function PublicationTasks() {
         && ['planned', 'ready_for_execution', 'browser_required', 'awaiting_manual_publication'].includes(activeTask.status)
         && new Date(activeTask.schedule_at).getTime() < Date.now()
     const visualGateOpen = visualReadiness?.ready !== false
+    const canGenerateVisual = visualReadiness?.text_state === 'accepted'
+        && visualReadiness?.accepted_revision === visualReadiness?.content_revision
+        && visualReadiness?.decision?.decision === 'GENERATE'
+        && visualReadiness?.decision?.source_content_revision === visualReadiness?.accepted_revision
+        && Boolean(visualReadiness?.decision?.alt_text)
     const canPrepareHandoff = !!activeTask && !['published', 'skipped'].includes(activeTask.status) && visualGateOpen
     const canPublishNow = !!activeTask
         && supportsDirectPlannerPublish(activeTask)
@@ -944,8 +952,8 @@ export default function PublicationTasks() {
     const atomaDescription = activeTask?.project_context?.atoma_files_description || ''
     const atomaPayload = activeTask?.project_context?.atoma_files_payload
     const atomaSummary = summarizeAtomaContext(atomaDescription, atomaPayload)
-    const latestGeneratedImage = (((activeTask?.assets as JsonRecord | undefined)?.generated_visuals as JsonRecord[] | undefined)?.[0])
-        || ((activeTask?.quality_report as JsonRecord | undefined)?.generated_image as JsonRecord | undefined)
+    const generatedVisualCandidates = ((activeTask?.assets as JsonRecord | undefined)?.generated_visuals as JsonRecord[] | undefined) || []
+    const latestGeneratedImage = generatedVisualCandidates.find((entry) => Boolean(entry?.asset_id))
     const currentPublicationBody = (handoffBundle?.publication?.body || '') as string
     const isPublicationBodyDirty = publicationBody !== currentPublicationBody
     const hasPublicationText = publicationBody.trim().length > 0
@@ -1759,24 +1767,29 @@ export default function PublicationTasks() {
                                                         <span className="material-symbols-outlined text-on-surface-variant transition-transform group-open:rotate-180">expand_more</span>
                                                     </summary>
                                                     <div className="border-t border-outline-variant/10 p-5 space-y-4">
+                                                    {!canGenerateVisual && (
+                                                        <div className="rounded-2xl bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
+                                                            Генерация откроется после утверждения недельных тем, принятия текущей версии текста и решения арт-директора «Создать визуал» с готовым alt-текстом.
+                                                        </div>
+                                                    )}
                                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                                         <button
                                                             onClick={() => generateTaskImage.mutate('preview')}
-                                                            disabled={generateTaskImage.isPending}
+                                                            disabled={generateTaskImage.isPending || !canGenerateVisual}
                                                             className="w-full bg-primary text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
                                                         >
                                                             {generateTaskImage.isPending ? 'Генерируем...' : 'Черновик · экономно'}
                                                         </button>
                                                         <button
                                                             onClick={() => generateTaskImage.mutate('final')}
-                                                            disabled={generateTaskImage.isPending}
+                                                            disabled={generateTaskImage.isPending || !canGenerateVisual}
                                                             className="w-full bg-surface-container-highest text-on-surface font-black text-sm px-5 py-3 rounded-2xl hover:bg-primary/10 hover:text-primary transition-all disabled:opacity-50"
                                                         >
                                                             {generateTaskImage.isPending ? 'Подготовка...' : 'Финал · стандарт'}
                                                         </button>
                                                         <button
                                                             onClick={() => generateTaskImage.mutate('flagship')}
-                                                            disabled={generateTaskImage.isPending}
+                                                            disabled={generateTaskImage.isPending || !canGenerateVisual}
                                                             className="w-full bg-on-surface text-white font-black text-sm px-5 py-3 rounded-2xl hover:bg-primary transition-all disabled:opacity-50"
                                                             title="Полная агентная цепочка и повторная отрисовка — только для ключевых публикаций"
                                                         >
@@ -1787,11 +1800,14 @@ export default function PublicationTasks() {
                                                         <div className="space-y-3">
                                                             <img
                                                                 src={String(latestGeneratedImage.url)}
-                                                                alt="Generated post visual"
+                                                                alt={String(latestGeneratedImage.alt_text || 'Кандидат изображения к публикации')}
                                                                 className="w-full rounded-2xl border border-outline-variant/10 bg-white object-cover"
                                                             />
                                                             <div className="rounded-2xl bg-white px-4 py-3 text-xs leading-6 text-on-surface-variant">
                                                                 <div><span className="font-bold text-on-surface">Provider:</span> {String(latestGeneratedImage.provider || 'n/a')}</div>
+                                                                {latestGeneratedImage.alt_text && (
+                                                                    <div className="mt-2"><span className="font-bold text-on-surface">Alt:</span> {String(latestGeneratedImage.alt_text)}</div>
+                                                                )}
                                                                 {latestGeneratedImage.prompt && (
                                                                     <div className="mt-2 whitespace-pre-wrap break-words">{String(latestGeneratedImage.prompt)}</div>
                                                                 )}

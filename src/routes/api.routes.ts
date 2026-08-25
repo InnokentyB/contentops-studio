@@ -31,6 +31,8 @@ import { isPublicationTaskActive } from '../services/publication_task_activity';
 import artDirectionService from '../services/art_direction.service';
 import publicationAdapterService from '../services/publication_adapter.service';
 import { derivePublicationGenerationStage } from '../services/publication_generation_stage';
+import imageAssetService from '../services/image_asset.service';
+import { assertVisualGenerationGate, hardenEditorialVisualPrompt } from '../services/visual_generation_policy';
 
 async function loadPublicationPlanContext(projectId: number) {
     const settings = await prisma.projectSettings.findMany({
@@ -1875,18 +1877,42 @@ export default async function apiRoutes(fastify: FastifyInstance) {
 
     fastify.post('/api/publication-tasks/:id/generate-image', async (request, reply) => {
         const projectId = (request as any).projectId;
-        if (!projectId) return reply.code(400).send({ error: 'Project ID required' });
+        const userId = (request as any).user?.id;
+        if (!projectId || !userId) return reply.code(400).send({ error: 'Project and user are required' });
 
         const { id } = request.params as { id: string };
         const { provider } = request.body as { provider?: 'preview' | 'final' | 'flagship' | 'gpt-image' | 'nano' | 'full' };
 
         const item = await prisma.contentItem.findFirst({
-            where: { id: parseInt(id), project_id: projectId }
+            where: { id: parseInt(id), project_id: projectId },
+            include: {
+                week_package: true,
+                art_direction_decisions: { where: { status: 'active' }, orderBy: { decision_version: 'desc' }, take: 1 }
+            }
         });
 
         if (!item) {
             return reply.code(404).send({ error: 'Publication task not found' });
         }
+
+        const visualDecision = item.art_direction_decisions[0] || null;
+        try {
+            assertVisualGenerationGate({
+                weekPackageId: item.week_package_id,
+                weekApprovalStatus: item.week_package?.approval_status,
+                textState: item.text_state,
+                acceptedRevision: item.accepted_revision,
+                contentRevision: item.content_revision,
+                decisionType: visualDecision?.decision,
+                decisionSourceRevision: visualDecision?.source_content_revision,
+                prompt: visualDecision?.prompt,
+                altText: visualDecision?.alt_text
+            });
+        } catch (error: any) {
+            return reply.code(409).send({ error: error.message });
+        }
+        const approvedPrompt = visualDecision!.prompt!.trim();
+        const approvedAltText = visualDecision!.alt_text!.trim();
 
         const plan = await loadPublicationPlanContext(projectId);
         const action = (item.assets as any)?.action;
@@ -1902,16 +1928,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             return reply.code(400).send({ error: 'No publication body is available to generate an image.' });
         }
 
-        let prompt = '';
-        try {
-            if (selectedProvider === 'flagship' || selectedProvider === 'full') {
-                prompt = await multiAgentService.runImagePromptingChain(projectId, publicationBody, topic);
-            } else {
-                prompt = `Editorial illustration for "${topic}". Context: ${publicationBody.slice(0, 700)}. No decorative text.`;
-            }
-        } catch {
-            prompt = `Create an editorial visual for "${topic}". Context: ${publicationBody.slice(0, 700)}`;
-        }
+        let prompt = hardenEditorialVisualPrompt(approvedPrompt);
 
         let imageUrl = '';
         if (selectedProvider === 'preview') {
@@ -1921,7 +1938,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         } else if (selectedProvider === 'flagship' || selectedProvider === 'full') {
             const draftUrl = await generatorService.generateImage(prompt, projectId);
             const critic = await multiAgentService.runImageCritic(projectId, publicationBody, draftUrl);
-            const refinedPrompt = critic?.new_prompt || prompt;
+            const refinedPrompt = hardenEditorialVisualPrompt(critic?.new_prompt || approvedPrompt);
             imageUrl = await generatorService.generateImageNanoBanana(refinedPrompt, draftUrl, 'gemini-3.1-flash-image', projectId);
             prompt = refinedPrompt;
         } else {
@@ -1936,15 +1953,32 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             provider: selectedProvider,
             prompt,
             url: imageUrl,
+            alt_text: approvedAltText,
+            decision_id: visualDecision.id,
             generated_at: new Date().toISOString()
         };
+
+        const imageAsset = await imageAssetService.generateImageAsset({
+            projectId,
+            actorId: `user:${userId}`,
+            contentItemId: item.id,
+            prompt,
+            provider: selectedProvider,
+            model: selectedProvider === 'preview' ? 'gemini-3.1-flash-lite-image' : 'gemini-3.1-flash-image',
+            altText: approvedAltText,
+            aspectRatio: (visualDecision.dimensions as any)?.aspect_ratio || undefined,
+            decisionId: visualDecision.id,
+            contentRevision: item.content_revision,
+            placement: visualDecision.placement,
+            fileUrl: imageUrl
+        });
 
         await prisma.contentItem.update({
             where: { id: item.id },
             data: {
                 assets: {
                     ...((item.assets as any) || {}),
-                    generated_visuals: [generatedImage, ...previousVisuals].slice(0, 6)
+                    generated_visuals: [{ ...generatedImage, asset_id: imageAsset.asset_id }, ...previousVisuals].slice(0, 6)
                 } as any,
                 quality_report: {
                     ...((item.quality_report as any) || {}),
@@ -1962,7 +1996,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             responseBytes: jsonBytes(generatedImage)
         });
 
-        return generatedImage;
+        return { ...generatedImage, asset_id: imageAsset.asset_id, asset_status: imageAsset.status };
     });
 
     // Settings
