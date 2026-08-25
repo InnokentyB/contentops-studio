@@ -720,7 +720,7 @@ export function registerPlannerTools(server: McpServer) {
     }, async (args) => asToolResult(await weeklyThemePipelineService.upsertWeekTheme(args)));
 
     server.registerTool('ba_start_week_autogeneration', {
-        description: 'Start the synchronized weekly autogeneration canvas in one command: accept the headquarters theme and generate exactly seven daily topic proposals. The result always stops at headquarters topic approval; it never unlocks writer work by itself.',
+        description: 'Headquarters entrypoint for the shared publication workflow: accept the weekly theme and create exactly seven dated publication tasks. The tasks immediately appear in ba_list_publication_tasks, stop for headquarters topic approval, then progress through writer, review, visual, connector/browser publication, permalink, and metrics.',
         inputSchema: {
             projectId: z.number().int().positive(), actorId: z.string(), channelId: z.number().int().positive(),
             targetWeekStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -755,7 +755,7 @@ export function registerPlannerTools(server: McpServer) {
     }, async (args) => asToolResult(await weeklyThemePipelineService.getPipeline(args)));
 
     server.registerTool('ba_get_week_autogeneration', {
-        description: 'Canonical status tool for the weekly flow: headquarters theme -> seven topic approval -> writer -> content approval -> art direction -> publication. Returns the same durable state to headquarters, Planner, Writer, and Art Director profiles.',
+        description: 'Canonical status for the shared weekly publication flow. Returns publication_task_id, generation stage, draft/visual readiness, publication mode, outcome and public URL for every day; use the same IDs with ba_get_publication_task and ba_list_publication_tasks.',
         annotations: { readOnlyHint: true },
         inputSchema: {
             projectId: z.number().int().positive(), actorId: z.string(), weekPackageId: z.number().int().positive()

@@ -133,7 +133,7 @@ export class ImageAssetService {
                 reviewed_by: actorId, reviewed_at: new Date()
             } });
             await tx.contentItem.update({ where: { id: asset.content_item_id }, data: decision === 'approved'
-                ? { selected_asset_id: asset.id, visual_state: 'APPROVED', handoff_state: 'ready' }
+                ? { status: 'ready_for_execution', selected_asset_id: asset.id, visual_state: 'APPROVED', handoff_state: 'ready' }
                 : { selected_asset_id: null, visual_state: 'REJECTED', handoff_state: 'blocked' }
             });
             return reviewed;

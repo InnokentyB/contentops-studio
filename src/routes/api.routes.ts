@@ -30,6 +30,7 @@ import publicationFactService from '../services/publication_fact.service';
 import { isPublicationTaskActive } from '../services/publication_task_activity';
 import artDirectionService from '../services/art_direction.service';
 import publicationAdapterService from '../services/publication_adapter.service';
+import { derivePublicationGenerationStage } from '../services/publication_generation_stage';
 
 async function loadPublicationPlanContext(projectId: number) {
     const settings = await prisma.projectSettings.findMany({
@@ -156,6 +157,15 @@ function buildPublicationTaskListItem(item: any) {
         published_link: item.published_link,
         content_state: derivePublicationContentState(item),
         content_revision: item.content_revision || 0,
+        generation_stage: derivePublicationGenerationStage({
+            status: item.status,
+            draftText: item.draft_text,
+            textState: item.text_state,
+            visualState: item.visual_state,
+            handoffState: item.handoff_state,
+            publicationMode: item.publication_mode,
+            workItems: item.work_items
+        }),
         publication_mode: item.publication_mode || null,
         week_package_id: item.week_package_id || null,
         publication_fact: item.publication_fact || null,
@@ -211,6 +221,15 @@ function buildPublicationTaskDetailItem(item: any, options?: {
         draft_text: item.draft_text || null,
         content_state: derivePublicationContentState({ ...item, quality_report: { ...qualityReport, handoff_bundle: handoffBundle } }),
         content_revision: item.content_revision || 0,
+        generation_stage: derivePublicationGenerationStage({
+            status: item.status,
+            draftText: item.draft_text,
+            textState: item.text_state,
+            visualState: item.visual_state,
+            handoffState: item.handoff_state,
+            publicationMode: item.publication_mode,
+            workItems: item.work_items
+        }),
         publication_mode: item.publication_mode || null,
         week_package_id: item.week_package_id || null,
         publication_fact: item.publication_fact || null,
@@ -1056,7 +1075,11 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         const { status, manualOnly, weekPackageId, from, to } = request.query as { status?: string; manualOnly?: string; weekPackageId?: string; from?: string; to?: string };
         const where: any = {
             project_id: projectId,
-            assets: { not: undefined }
+            type: { not: 'week_theme' },
+            OR: [
+                { assets: { not: undefined } },
+                { item_key: { startsWith: 'week-topic:' } }
+            ]
         };
 
         if (status === 'active') {
@@ -1086,10 +1109,16 @@ export default async function apiRoutes(fastify: FastifyInstance) {
                 draft_text: true,
                 content_revision: true,
                 publication_mode: true,
+                text_state: true,
+                visual_state: true,
+                handoff_state: true,
                 week_package_id: true,
                 quality_report: true,
                 metrics: true,
                 publication_fact: true,
+                work_items: {
+                    select: { kind: true, state: true }
+                },
                 channel: {
                     select: {
                         id: true,
@@ -1133,7 +1162,12 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         const { id } = request.params as { id: string };
         const item = await prisma.contentItem.findFirst({
             where: { id: parseInt(id), project_id: projectId },
-            include: { channel: true, publication_fact: true, metric_snapshots: { orderBy: { scheduled_for: 'asc' } } }
+            include: {
+                channel: true,
+                publication_fact: true,
+                metric_snapshots: { orderBy: { scheduled_for: 'asc' } },
+                work_items: { select: { id: true, kind: true, state: true, assignee_role: true } }
+            }
         });
 
         if (!item) {
@@ -1270,7 +1304,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         const { id } = request.params as { id: string };
         const item = await prisma.contentItem.findFirst({
             where: { id: parseInt(id), project_id: projectId },
-            include: { channel: true }
+            include: { channel: true, selected_asset: true }
         });
 
         if (!item) {
@@ -1280,28 +1314,11 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         await artDirectionService.assertPublicationReady(projectId, item.id);
 
         const plan = await loadPublicationPlanContext(projectId);
-        if (!plan) {
-            const response = {
-                item: {
-                    ...item,
-                    schedule_at: resolveTaskScheduleAt(item)
-                },
-                bundle: null,
-                reused: false,
-                warning: 'No imported publication plan context is available for this task.'
-            };
-            logEgressDiagnostic('publication_tasks.prepare_handoff', {
-                projectId,
-                taskId: item.id,
-                hasPlan: false,
-                responseBytes: jsonBytes(response)
-            });
-            return reply.code(200).send(response);
-        }
-
         const action = (item.assets as any)?.action;
-        plan.actions = action ? [action] : [];
-        const bundle = publicationPlanService.buildHandoffBundle(plan as any, item);
+        if (plan) plan.actions = action ? [action] : [];
+        const bundle = plan && action
+            ? publicationPlanService.buildHandoffBundle(plan as any, item)
+            : publicationPlanService.buildGeneratedContentItemHandoff(item);
         const channelConfig = (item.channel?.config as any) || {};
         const rawAccount = channelConfig.raw_account || channelConfig;
         const directExecutionSupported = publicationAdapterService.supportsDirectExecution({
@@ -1335,7 +1352,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         logEgressDiagnostic('publication_tasks.prepare_handoff', {
             projectId,
             taskId: item.id,
-            hasPlan: true,
+            hasPlan: Boolean(plan && action),
             bundleResourceFiles: countBundleResourceFiles(bundle),
             publicationBodyBytes: textBytes(bundle?.publication?.body),
             responseBytes: jsonBytes(response)

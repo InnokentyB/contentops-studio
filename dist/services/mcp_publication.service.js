@@ -54,6 +54,7 @@ const publication_content_state_1 = require("./publication_content_state");
 const publication_fact_service_1 = __importDefault(require("./publication_fact.service"));
 const publication_task_activity_1 = require("./publication_task_activity");
 const publication_adapter_service_1 = __importDefault(require("./publication_adapter.service"));
+const publication_generation_stage_1 = require("./publication_generation_stage");
 function resolveTaskScheduleAt(item) {
     const actionScheduleAt = item?.assets?.action?.scheduled_at;
     if (typeof actionScheduleAt === 'string' && actionScheduleAt.trim()) {
@@ -614,7 +615,7 @@ class McpPublicationService {
     async getPublicationTaskResources(projectId, taskId, maxChars = 12000) {
         const item = await db_1.default.contentItem.findFirst({
             where: { id: taskId, project_id: projectId },
-            include: { channel: true }
+            include: { channel: true, selected_asset: true }
         });
         if (!item) {
             throw new Error(`Publication task ${taskId} not found for project ${projectId}`);
@@ -660,7 +661,11 @@ class McpPublicationService {
     async listPublicationTasks(projectId, status, manualOnly) {
         const where = {
             project_id: projectId,
-            assets: { not: undefined }
+            type: { not: 'week_theme' },
+            OR: [
+                { assets: { not: undefined } },
+                { item_key: { startsWith: 'week-topic:' } }
+            ]
         };
         if (status === 'active') {
             where.status = { in: ['planned', 'drafted', 'revised', 'approved', 'scheduled', 'ready_for_execution', 'browser_required', 'awaiting_manual_publication', 'failed'] };
@@ -670,7 +675,7 @@ class McpPublicationService {
         }
         const items = await db_1.default.contentItem.findMany({
             where,
-            include: { channel: true, publication_fact: true },
+            include: { channel: true, publication_fact: true, work_items: { select: { kind: true, state: true } } },
             orderBy: { schedule_at: 'asc' }
         });
         const activeFiltered = status === 'active'
@@ -694,6 +699,15 @@ class McpPublicationService {
             published_link: item.published_link,
             content_state: (0, publication_content_state_1.derivePublicationContentState)(item),
             content_revision: item.content_revision,
+            generation_stage: (0, publication_generation_stage_1.derivePublicationGenerationStage)({
+                status: item.status,
+                draftText: item.draft_text,
+                textState: item.text_state,
+                visualState: item.visual_state,
+                handoffState: item.handoff_state,
+                publicationMode: item.publication_mode,
+                workItems: item.work_items
+            }),
             publication_mode: item.publication_mode,
             channel: item.channel
                 ? {
@@ -710,7 +724,13 @@ class McpPublicationService {
     async getPublicationTask(projectId, taskId) {
         const item = await db_1.default.contentItem.findFirst({
             where: { id: taskId, project_id: projectId },
-            include: { channel: true, publication_fact: true, metric_snapshots: { orderBy: { scheduled_for: 'asc' } } }
+            include: {
+                channel: true,
+                selected_asset: true,
+                publication_fact: true,
+                metric_snapshots: { orderBy: { scheduled_for: 'asc' } },
+                work_items: { select: { kind: true, state: true } }
+            }
         });
         if (!item) {
             throw new Error(`Publication task ${taskId} not found for project ${projectId}`);
@@ -718,14 +738,38 @@ class McpPublicationService {
         const plan = await this.loadPublicationPlanContext(projectId);
         const action = item.assets?.action;
         if (!plan || !action) {
+            const bundle = publication_plan_service_1.default.buildGeneratedContentItemHandoff(item);
             return {
                 ...item,
-                content_state: (0, publication_content_state_1.derivePublicationContentState)(item)
+                content_state: (0, publication_content_state_1.derivePublicationContentState)(item),
+                generation_stage: (0, publication_generation_stage_1.derivePublicationGenerationStage)({
+                    status: item.status,
+                    draftText: item.draft_text,
+                    textState: item.text_state,
+                    visualState: item.visual_state,
+                    handoffState: item.handoff_state,
+                    publicationMode: item.publication_mode,
+                    workItems: item.work_items
+                }),
+                schedule_at: resolveTaskScheduleAt(item),
+                quality_report: {
+                    ...(item.quality_report || {}),
+                    handoff_bundle: bundle
+                }
             };
         }
         const bundle = publication_plan_service_1.default.buildHandoffBundle({ ...plan, actions: [action] }, item);
         return {
             ...item,
+            generation_stage: (0, publication_generation_stage_1.derivePublicationGenerationStage)({
+                status: item.status,
+                draftText: item.draft_text,
+                textState: item.text_state,
+                visualState: item.visual_state,
+                handoffState: item.handoff_state,
+                publicationMode: item.publication_mode,
+                workItems: item.work_items
+            }),
             content_state: (0, publication_content_state_1.derivePublicationContentState)({
                 ...item,
                 quality_report: {
@@ -805,17 +849,12 @@ class McpPublicationService {
         }
         this.assertPublicationTaskMutableForMcp(item, 'prepare_publication_task');
         const plan = await this.loadPublicationPlanContext(projectId);
-        if (!plan) {
-            return {
-                item,
-                bundle: null,
-                reused: false,
-                warning: 'No imported publication plan context is available for this task.'
-            };
-        }
         const action = item.assets?.action;
-        plan.actions = action ? [action] : [];
-        const bundle = publication_plan_service_1.default.buildHandoffBundle(plan, item);
+        if (plan)
+            plan.actions = action ? [action] : [];
+        const bundle = plan && action
+            ? publication_plan_service_1.default.buildHandoffBundle(plan, item)
+            : publication_plan_service_1.default.buildGeneratedContentItemHandoff(item);
         const channelConfig = item.channel?.config || {};
         const rawAccount = channelConfig.raw_account || channelConfig;
         const directExecutionSupported = publication_adapter_service_1.default.supportsDirectExecution({

@@ -1944,5 +1944,45 @@ class PublicationPlanService {
             dependencies: action.dependencies || []
         };
     }
+    buildGeneratedContentItemHandoff(item) {
+        const channelType = item.channel?.type || item.layer || 'unknown';
+        const body = String(item.draft_text || '').trim();
+        const mode = ['manual', 'manual_handoff', 'browser_required'].includes(String(item.publication_mode || ''))
+            ? 'manual'
+            : 'automated';
+        const selectedAsset = item.selected_asset || null;
+        return {
+            task: {
+                id: item.item_key || `content-item:${item.id}`,
+                content_item_id: item.id,
+                action_type: `${channelType}_post:publish`,
+                channel: channelType,
+                account_ref: item.channel?.name || null,
+                schedule_at: item.schedule_at?.toISOString?.() || item.schedule_at || null
+            },
+            mode: mode,
+            publication: {
+                body,
+                link_url: null,
+                html_bundle: [{ asset: { title: item.title || null, content: body } }],
+                image_url: selectedAsset?.file_url || null,
+                alt_text: selectedAsset?.alt_text || null
+            },
+            resource_files: [],
+            checklist: publication_adapter_service_1.default.buildManualChecklist({
+                id: item.item_key || `content-item:${item.id}`,
+                channel: channelType,
+                action_type: `${channelType}_post:publish`
+            }, {
+                accountRef: item.channel?.name || null,
+                linkUrl: null
+            }),
+            monitoring: publication_adapter_service_1.default.deriveMonitoringPlan({
+                id: item.item_key || `content-item:${item.id}`,
+                channel: channelType,
+                action_type: `${channelType}_post:publish`
+            })
+        };
+    }
 }
 exports.default = new PublicationPlanService();

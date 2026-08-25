@@ -20,6 +20,7 @@ import artDirectionService from './art_direction.service';
 import { parseRecurringTrigger } from './publication_runtime.helpers';
 import { browserFallbackReason, resolvePublicationExecutionRoute } from './publication_execution_route';
 import { derivePublicationContentState } from './publication_content_state';
+import publicationFactService from './publication_fact.service';
 import { config } from 'dotenv';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -889,6 +890,7 @@ class PublisherService {
                 } as any
             }
         });
+
     }
 
     private async createGeneratedPublicationTask(params: {
@@ -1333,17 +1335,21 @@ class PublisherService {
             where: {
                 schedule_at: { lte: now },
                 publication_mode: { not: 'browser_required' },
-                assets: { not: undefined },
+                type: { not: 'week_theme' },
                 OR: [
+                    { assets: { not: undefined } },
+                    { item_key: { startsWith: 'week-topic:' } }
+                ],
+                AND: [{ OR: [
                     { status: { in: ['planned', 'ready_for_execution'] } },
                     {
                         status: 'publishing',
                         publication_mode: 'connector_auto',
                         updated_at: { lte: staleAttemptCutoff }
                     }
-                ]
+                ] }]
             },
-            include: { channel: true, publication_fact: true }
+            include: { channel: true, publication_fact: true, selected_asset: true }
         });
 
         if (dueTasks.length === 0) {
@@ -1410,11 +1416,7 @@ class PublisherService {
         }
 
         const plan = await this.loadPublicationPlanContext(task.project_id);
-        if (!plan) {
-            throw new Error('No imported publication plan context is available for this task');
-        }
-
-        const blockingState = await this.evaluateBlockingConditions(task, plan);
+        const blockingState = plan ? await this.evaluateBlockingConditions(task, plan) : { ready: true };
         if (!blockingState.ready) {
             if (options.manualTrigger) {
                 throw new Error('Task is waiting on blocking conditions');
@@ -1424,8 +1426,10 @@ class PublisherService {
         }
 
         const action = (task.assets as any)?.action;
-        plan.actions = action ? [action] : [];
-        const bundle = publicationPlanService.buildHandoffBundle(plan as any, task);
+        if (plan) plan.actions = action ? [action] : [];
+        const bundle = plan && action
+            ? publicationPlanService.buildHandoffBundle(plan as any, task)
+            : publicationPlanService.buildGeneratedContentItemHandoff(task);
         const channelConfig: any = task.channel?.config || {};
         const executionMode = bundle.mode;
         const rawAccount = channelConfig.raw_account || channelConfig || {};
@@ -1491,7 +1495,7 @@ class PublisherService {
 
         let automatedResult: any;
         try {
-            automatedResult = await this.executeAutomatedPublicationTask(task, bundle, channelConfig, plan as any, options.requestHost);
+            automatedResult = await this.executeAutomatedPublicationTask(task, bundle, channelConfig, plan || { actions: [], assets: {}, accounts: {} }, options.requestHost);
             if (automatedResult.manualFallback) {
                 return this.routeToBrowserPublication(task, bundle, {
                     code: 'CONNECTOR_NOT_AVAILABLE',
@@ -1526,6 +1530,38 @@ class PublisherService {
                 } as any
             }
         });
+
+        if (automatedResult.publishedLink) {
+            try {
+                const owner = await prisma.projectMember.findFirst({
+                    where: { project_id: task.project_id, role: 'owner' },
+                    orderBy: { id: 'asc' }
+                });
+                if (owner) {
+                    const rawType = String(task.type || '').toLowerCase();
+                    const artifactKind = rawType.includes('article') ? 'article'
+                        : rawType.includes('comment') ? 'comment'
+                            : rawType.includes('story') ? 'story'
+                                : rawType.includes('email') ? 'email'
+                                    : 'post';
+                    await publicationFactService.record({
+                        projectId: task.project_id,
+                        taskId: task.id,
+                        actorId: `user:${owner.user_id}`,
+                        artifactKind,
+                        outcome: 'published',
+                        publishedAt: new Date().toISOString(),
+                        publicUrl: automatedResult.publishedLink,
+                        confirmationMode: 'automatic',
+                        evidence: { type: 'api', ref: automatedResult.publishedLink },
+                        note: `Published automatically via ${automatedResult.adapter || task.channel?.type || 'connector'}`
+                    });
+                }
+            } catch (factError) {
+                // The connector has already published; never retry and risk a duplicate post.
+                logToFile('WARN', `[Publisher] Task ${task.id} was published but its canonical fact needs verification.`, factError);
+            }
+        }
 
         logToFile('INFO', `[Publisher] Processed publication task ${task.id} (${bundle.task.action_type}) via automated adapter.`);
 
@@ -1644,7 +1680,12 @@ class PublisherService {
         const generatedVisual = Array.isArray((task.assets as any)?.generated_visuals)
             ? (task.assets as any).generated_visuals[0]
             : null;
-        const imageUrl = generatedVisual?.url || generatedVisual?.image_url || generatedVisual?.src || null;
+        const imageUrl = generatedVisual?.url
+            || generatedVisual?.image_url
+            || generatedVisual?.src
+            || task.selected_asset?.file_url
+            || bundle.publication?.image_url
+            || null;
 
         if (channelType === 'reddit') {
             const title = bundle.publication?.html_bundle?.[0]?.asset?.title

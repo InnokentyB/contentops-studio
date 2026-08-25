@@ -686,7 +686,21 @@ export default function ChannelWorkspace() {
                                         </section>
                                     )}
 
-                                    {sourceMode === 'generate' && (
+                                    {sourceMode === 'generate' && isAutoCanvasChannel && (
+                                        <section className="rounded-[1.5rem] ai-gradient text-white p-7 shadow-lg shadow-primary/20">
+                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-white/70">Единый контур</div>
+                                            <h3 className="mt-3 text-2xl font-headline font-black">Автогенерация управляется из штаба</h3>
+                                            <p className="mt-4 max-w-3xl text-sm leading-7 text-white/80">
+                                                Штаб передаёт тему недели через MCP. Семь тем, тексты, проверка, визуалы, публикация и метрики живут в общем плане публикаций.
+                                            </p>
+                                            <Link to="/publication-tasks" className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-4 text-sm font-black text-primary shadow-lg hover:scale-[1.01] active:scale-95 transition-all">
+                                                <span className="material-symbols-outlined">calendar_view_week</span>
+                                                Открыть общий план
+                                            </Link>
+                                        </section>
+                                    )}
+
+                                    {sourceMode === 'generate' && !isAutoCanvasChannel && (
                                         isAutoCanvasChannel ? (
                                             <section className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.1fr)_380px] gap-6">
                                                 <div className="rounded-[1.5rem] bg-surface-container-low p-6 border border-outline-variant/10">

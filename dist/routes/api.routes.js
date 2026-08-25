@@ -33,6 +33,7 @@ const publication_fact_service_1 = __importDefault(require("../services/publicat
 const publication_task_activity_1 = require("../services/publication_task_activity");
 const art_direction_service_1 = __importDefault(require("../services/art_direction.service"));
 const publication_adapter_service_1 = __importDefault(require("../services/publication_adapter.service"));
+const publication_generation_stage_1 = require("../services/publication_generation_stage");
 async function loadPublicationPlanContext(projectId) {
     const settings = await prisma.projectSettings.findMany({
         where: {
@@ -143,6 +144,15 @@ function buildPublicationTaskListItem(item) {
         published_link: item.published_link,
         content_state: (0, publication_content_state_1.derivePublicationContentState)(item),
         content_revision: item.content_revision || 0,
+        generation_stage: (0, publication_generation_stage_1.derivePublicationGenerationStage)({
+            status: item.status,
+            draftText: item.draft_text,
+            textState: item.text_state,
+            visualState: item.visual_state,
+            handoffState: item.handoff_state,
+            publicationMode: item.publication_mode,
+            workItems: item.work_items
+        }),
         publication_mode: item.publication_mode || null,
         week_package_id: item.week_package_id || null,
         publication_fact: item.publication_fact || null,
@@ -188,6 +198,15 @@ function buildPublicationTaskDetailItem(item, options) {
         draft_text: item.draft_text || null,
         content_state: (0, publication_content_state_1.derivePublicationContentState)({ ...item, quality_report: { ...qualityReport, handoff_bundle: handoffBundle } }),
         content_revision: item.content_revision || 0,
+        generation_stage: (0, publication_generation_stage_1.derivePublicationGenerationStage)({
+            status: item.status,
+            draftText: item.draft_text,
+            textState: item.text_state,
+            visualState: item.visual_state,
+            handoffState: item.handoff_state,
+            publicationMode: item.publication_mode,
+            workItems: item.work_items
+        }),
         publication_mode: item.publication_mode || null,
         week_package_id: item.week_package_id || null,
         publication_fact: item.publication_fact || null,
@@ -946,7 +965,11 @@ async function apiRoutes(fastify) {
         const { status, manualOnly, weekPackageId, from, to } = request.query;
         const where = {
             project_id: projectId,
-            assets: { not: undefined }
+            type: { not: 'week_theme' },
+            OR: [
+                { assets: { not: undefined } },
+                { item_key: { startsWith: 'week-topic:' } }
+            ]
         };
         if (status === 'active') {
             where.status = { in: ['planned', 'drafted', 'revised', 'approved', 'scheduled', 'ready_for_execution', 'browser_required', 'awaiting_manual_publication', 'failed'] };
@@ -976,10 +999,16 @@ async function apiRoutes(fastify) {
                 draft_text: true,
                 content_revision: true,
                 publication_mode: true,
+                text_state: true,
+                visual_state: true,
+                handoff_state: true,
                 week_package_id: true,
                 quality_report: true,
                 metrics: true,
                 publication_fact: true,
+                work_items: {
+                    select: { kind: true, state: true }
+                },
                 channel: {
                     select: {
                         id: true,
@@ -1019,7 +1048,12 @@ async function apiRoutes(fastify) {
         const { id } = request.params;
         const item = await prisma.contentItem.findFirst({
             where: { id: parseInt(id), project_id: projectId },
-            include: { channel: true, publication_fact: true, metric_snapshots: { orderBy: { scheduled_for: 'asc' } } }
+            include: {
+                channel: true,
+                publication_fact: true,
+                metric_snapshots: { orderBy: { scheduled_for: 'asc' } },
+                work_items: { select: { id: true, kind: true, state: true, assignee_role: true } }
+            }
         });
         if (!item) {
             return reply.code(404).send({ error: 'Publication task not found' });
@@ -1138,34 +1172,19 @@ async function apiRoutes(fastify) {
         const { id } = request.params;
         const item = await prisma.contentItem.findFirst({
             where: { id: parseInt(id), project_id: projectId },
-            include: { channel: true }
+            include: { channel: true, selected_asset: true }
         });
         if (!item) {
             return reply.code(404).send({ error: 'Publication task not found' });
         }
         await art_direction_service_1.default.assertPublicationReady(projectId, item.id);
         const plan = await loadPublicationPlanContext(projectId);
-        if (!plan) {
-            const response = {
-                item: {
-                    ...item,
-                    schedule_at: resolveTaskScheduleAt(item)
-                },
-                bundle: null,
-                reused: false,
-                warning: 'No imported publication plan context is available for this task.'
-            };
-            (0, egress_diagnostics_1.logEgressDiagnostic)('publication_tasks.prepare_handoff', {
-                projectId,
-                taskId: item.id,
-                hasPlan: false,
-                responseBytes: (0, egress_diagnostics_1.jsonBytes)(response)
-            });
-            return reply.code(200).send(response);
-        }
         const action = item.assets?.action;
-        plan.actions = action ? [action] : [];
-        const bundle = publication_plan_service_1.default.buildHandoffBundle(plan, item);
+        if (plan)
+            plan.actions = action ? [action] : [];
+        const bundle = plan && action
+            ? publication_plan_service_1.default.buildHandoffBundle(plan, item)
+            : publication_plan_service_1.default.buildGeneratedContentItemHandoff(item);
         const channelConfig = item.channel?.config || {};
         const rawAccount = channelConfig.raw_account || channelConfig;
         const directExecutionSupported = publication_adapter_service_1.default.supportsDirectExecution({
@@ -1197,7 +1216,7 @@ async function apiRoutes(fastify) {
         (0, egress_diagnostics_1.logEgressDiagnostic)('publication_tasks.prepare_handoff', {
             projectId,
             taskId: item.id,
-            hasPlan: true,
+            hasPlan: Boolean(plan && action),
             bundleResourceFiles: countBundleResourceFiles(bundle),
             publicationBodyBytes: (0, egress_diagnostics_1.textBytes)(bundle?.publication?.body),
             responseBytes: (0, egress_diagnostics_1.jsonBytes)(response)

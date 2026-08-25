@@ -4,6 +4,7 @@ import prisma from '../db';
 import workQueueService from './work_queue.service';
 import multiAgentService from './multi_agent.service';
 import { deriveWeekAutomationState } from './week_autogeneration_state';
+import { derivePublicationGenerationStage } from './publication_generation_stage';
 
 type ThemeState = 'draft' | 'accepted';
 
@@ -390,6 +391,7 @@ class WeeklyThemePipelineService {
         const theme = await prisma.contentItem.findFirst({ where: { week_package_id: weekPackage.id, type: 'week_theme' }, orderBy: { updated_at: 'desc' } });
         const topics = await prisma.contentItem.findMany({
             where: { week_package_id: weekPackage.id, type: { not: 'week_theme' }, item_key: { startsWith: `week-topic:${weekPackage.id}:r${theme?.content_revision || 0}:` } },
+            include: { publication_fact: true },
             orderBy: { publish_at: 'asc' }
         });
         const decisionEvent = await prisma.workflowEvent.findFirst({
@@ -404,7 +406,7 @@ class WeeklyThemePipelineService {
         const activeStates = new Set(['available', 'claimed', 'blocked', 'waiting_approval']);
         const activeCount = (kind: string) => workItems.filter((item) => item.kind === kind && activeStates.has(item.state)).length;
         const activeVisualCount = workItems.filter((item) =>
-            ['art_direction', 'image_generate', 'image_review'].includes(item.kind) && activeStates.has(item.state)
+            ['art_direction', 'visual_generate', 'visual_review', 'visual_source_collect'].includes(item.kind) && activeStates.has(item.state)
         ).length;
         const automation = deriveWeekAutomationState({
             themeExists: !!theme,
@@ -436,9 +438,24 @@ class WeeklyThemePipelineService {
             approval: decision ? { decision: decision.decision, comment: decision.comment || null } : { decision: null, comment: null },
             days: topics.map((item) => ({
                 id: item.id,
+                publication_task_id: item.id,
                 local_date: item.publish_at?.toISOString().slice(0, 10),
                 publish_at: item.publish_at?.toISOString(),
                 content_status: item.status,
+                generation_stage: derivePublicationGenerationStage({
+                    status: item.status,
+                    draftText: item.draft_text,
+                    textState: item.text_state,
+                    visualState: item.visual_state,
+                    handoffState: item.handoff_state,
+                    publicationMode: item.publication_mode,
+                    workItems: workByContent.get(item.id) || []
+                }),
+                publication_mode: item.publication_mode,
+                draft_ready: Boolean(item.draft_text?.trim()),
+                visual_state: item.visual_state,
+                public_url: item.publication_fact?.public_url || item.published_link || null,
+                publication_outcome: item.publication_fact?.outcome || null,
                 work: (workByContent.get(item.id) || []).map((workItem) => ({
                     id: workItem.id,
                     kind: workItem.kind,

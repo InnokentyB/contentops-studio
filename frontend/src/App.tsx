@@ -2,7 +2,6 @@ import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider, useAuth } from './context/AuthContext'
-import WeeksList from './pages/WeeksList'
 import WeekDetail from './pages/WeekDetail'
 import PostEditor from './pages/PostEditor'
 import Settings from './pages/Settings'
@@ -60,7 +59,7 @@ function AppContent() {
         <Route path="/publication-tasks" element={<PublicationTasks />} />
         <Route path="/guide" element={<Guide />} />
         <Route path="/calendar" element={<Suspense fallback={<div role="status" className="p-6 text-on-surface-variant">Загрузка операционного плана…</div>}><OperationalCalendar /></Suspense>} />
-        <Route path="/weeks" element={<WeeksList />} />
+        <Route path="/weeks" element={<Navigate to="/publication-tasks" replace />} />
         <Route path="*" element={<Navigate to="/projects" />} />
       </Routes>
     </Layout>

@@ -26,7 +26,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navItems = [
     { label: 'Обзор', path: '/projects', icon: 'folder_open' },
     { label: 'Операционный план', path: '/calendar', icon: 'calendar_month' },
-    { label: 'Автогенерация', path: '/weeks', icon: 'auto_awesome' },
     { label: 'Метрики', path: '/analytics', icon: 'monitoring' },
     { label: 'Исследования', path: '/parsers', icon: 'hub' },
     { label: 'Шаблоны', path: '/recipes', icon: 'book_2' },

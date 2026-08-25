@@ -112,6 +112,7 @@ class ArtDirectionService {
         await client.contentItem.update({
             where: { id: item.id },
             data: {
+                status: !enabled || mode === 'forbidden' ? 'ready_for_execution' : 'approved',
                 text_state: 'accepted',
                 accepted_revision: item.content_revision,
                 visual_mode: mode,
@@ -242,6 +243,7 @@ class ArtDirectionService {
             await tx.contentItem.update({
                 where: { id: item.id },
                 data: {
+                    status: validated.decision === 'NO_VISUAL_NEEDED' ? 'ready_for_execution' : 'approved',
                     visual_state: stateByDecision[validated.decision],
                     visual_decision_version: version,
                     handoff_state: validated.decision === 'NO_VISUAL_NEEDED' ? 'ready' : 'blocked'

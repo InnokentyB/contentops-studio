@@ -17,6 +17,7 @@ import { derivePublicationContentState } from './publication_content_state';
 import publicationFactService from './publication_fact.service';
 import { isPublicationTaskActive } from './publication_task_activity';
 import publicationAdapterService from './publication_adapter.service';
+import { derivePublicationGenerationStage } from './publication_generation_stage';
 
 type PublicationOutcome = 'published' | 'blocked' | 'removed' | 'restricted';
 
@@ -744,7 +745,7 @@ class McpPublicationService {
     async getPublicationTaskResources(projectId: number, taskId: number, maxChars = 12000) {
         const item = await prisma.contentItem.findFirst({
             where: { id: taskId, project_id: projectId },
-            include: { channel: true }
+            include: { channel: true, selected_asset: true }
         });
 
         if (!item) {
@@ -797,7 +798,11 @@ class McpPublicationService {
     async listPublicationTasks(projectId: number, status?: string, manualOnly?: boolean) {
         const where: any = {
             project_id: projectId,
-            assets: { not: undefined }
+            type: { not: 'week_theme' },
+            OR: [
+                { assets: { not: undefined } },
+                { item_key: { startsWith: 'week-topic:' } }
+            ]
         };
 
         if (status === 'active') {
@@ -808,7 +813,7 @@ class McpPublicationService {
 
         const items = await prisma.contentItem.findMany({
             where,
-            include: { channel: true, publication_fact: true },
+            include: { channel: true, publication_fact: true, work_items: { select: { kind: true, state: true } } },
             orderBy: { schedule_at: 'asc' }
         });
 
@@ -834,6 +839,15 @@ class McpPublicationService {
             published_link: item.published_link,
             content_state: derivePublicationContentState(item),
             content_revision: item.content_revision,
+            generation_stage: derivePublicationGenerationStage({
+                status: item.status,
+                draftText: item.draft_text,
+                textState: item.text_state,
+                visualState: item.visual_state,
+                handoffState: item.handoff_state,
+                publicationMode: item.publication_mode,
+                workItems: item.work_items
+            }),
             publication_mode: item.publication_mode,
             channel: item.channel
                 ? {
@@ -851,7 +865,13 @@ class McpPublicationService {
     async getPublicationTask(projectId: number, taskId: number) {
         const item = await prisma.contentItem.findFirst({
             where: { id: taskId, project_id: projectId },
-            include: { channel: true, publication_fact: true, metric_snapshots: { orderBy: { scheduled_for: 'asc' } } }
+            include: {
+                channel: true,
+                selected_asset: true,
+                publication_fact: true,
+                metric_snapshots: { orderBy: { scheduled_for: 'asc' } },
+                work_items: { select: { kind: true, state: true } }
+            }
         });
 
         if (!item) {
@@ -861,15 +881,39 @@ class McpPublicationService {
         const plan = await this.loadPublicationPlanContext(projectId);
         const action = (item.assets as any)?.action;
         if (!plan || !action) {
+            const bundle = publicationPlanService.buildGeneratedContentItemHandoff(item);
             return {
                 ...item,
-                content_state: derivePublicationContentState(item)
+                content_state: derivePublicationContentState(item),
+                generation_stage: derivePublicationGenerationStage({
+                    status: item.status,
+                    draftText: item.draft_text,
+                    textState: item.text_state,
+                    visualState: item.visual_state,
+                    handoffState: item.handoff_state,
+                    publicationMode: item.publication_mode,
+                    workItems: item.work_items
+                }),
+                schedule_at: resolveTaskScheduleAt(item),
+                quality_report: {
+                    ...((item.quality_report as any) || {}),
+                    handoff_bundle: bundle
+                }
             };
         }
 
         const bundle = publicationPlanService.buildHandoffBundle({ ...plan, actions: [action] } as any, item);
         return {
             ...item,
+            generation_stage: derivePublicationGenerationStage({
+                status: item.status,
+                draftText: item.draft_text,
+                textState: item.text_state,
+                visualState: item.visual_state,
+                handoffState: item.handoff_state,
+                publicationMode: item.publication_mode,
+                workItems: item.work_items
+            }),
             content_state: derivePublicationContentState({
                 ...item,
                 quality_report: {
@@ -968,18 +1012,11 @@ class McpPublicationService {
         this.assertPublicationTaskMutableForMcp(item, 'prepare_publication_task');
 
         const plan = await this.loadPublicationPlanContext(projectId);
-        if (!plan) {
-            return {
-                item,
-                bundle: null,
-                reused: false,
-                warning: 'No imported publication plan context is available for this task.'
-            };
-        }
-
         const action = (item.assets as any)?.action;
-        plan.actions = action ? [action] : [];
-        const bundle = publicationPlanService.buildHandoffBundle(plan as any, item);
+        if (plan) plan.actions = action ? [action] : [];
+        const bundle = plan && action
+            ? publicationPlanService.buildHandoffBundle(plan as any, item)
+            : publicationPlanService.buildGeneratedContentItemHandoff(item);
         const channelConfig = (item.channel?.config as any) || {};
         const rawAccount = channelConfig.raw_account || channelConfig;
         const directExecutionSupported = publicationAdapterService.supportsDirectExecution({

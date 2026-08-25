@@ -22,6 +22,7 @@ interface PublicationTask {
     draft_text?: string | null
     content_state?: 'empty' | 'ready' | 'published'
     content_revision?: number
+    generation_stage?: string
     publication_mode?: string | null
     week_package_id?: number | null
     publication_fact?: PublicationFact | null
@@ -306,6 +307,21 @@ function contentStateIcon(state: 'empty' | 'ready' | 'published') {
     return 'edit_note'
 }
 
+function generationStageLabel(stage?: string) {
+    const labels: Record<string, string> = {
+        topic_approval: 'Тема на утверждении',
+        writing: 'Генерация текста',
+        content_review: 'Проверка текста',
+        visual_production: 'Подготовка визуала',
+        ready_for_publication: 'Готово к публикации',
+        publishing: 'Публикуется',
+        browser_required: 'Нужен браузер',
+        published: 'Опубликовано',
+        failed: 'Ошибка'
+    }
+    return labels[stage || ''] || stage || ''
+}
+
 function taskChannel(task: PublicationTask) {
     return task.channel?.name || task.layer || task.type
 }
@@ -511,7 +527,7 @@ export default function PublicationTasks() {
     const urlTaskId = searchParams.get('taskId')
 
     const [statusFilter, setStatusFilter] = useState('active')
-    const [manualOnly, setManualOnly] = useState(!urlTaskId)
+    const [manualOnly, setManualOnly] = useState(false)
     const [hidePublished, setHidePublished] = useState(true)
     const [contentStateFilter, setContentStateFilter] = useState<'all' | 'empty' | 'ready' | 'published'>('all')
     const [taskSearch, setTaskSearch] = useState('')
@@ -1109,6 +1125,9 @@ export default function PublicationTasks() {
                                             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-on-surface-variant mt-2">
                                                 <span>{formatDate(task.schedule_at)}</span>
                                                 <span>{executionModeLabel(mode)}</span>
+                                                {task.generation_stage && (
+                                                    <span className="font-bold text-primary">{generationStageLabel(task.generation_stage)}</span>
+                                                )}
                                                 {isOverdue && (
                                                     <span className="font-black text-error">
                                                         Просрочено
@@ -1166,6 +1185,12 @@ export default function PublicationTasks() {
                                                 {activeTask.title || activeTask.type}
                                             </h2>
                                             <div className="flex flex-wrap gap-2">
+                                                {activeTask.generation_stage && (
+                                                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black bg-primary/10 text-primary">
+                                                        <span className="material-symbols-outlined text-[14px]" aria-hidden="true">account_tree</span>
+                                                        {generationStageLabel(activeTask.generation_stage)}
+                                                    </span>
+                                                )}
                                                 <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black ${contentStateTone(taskContentState(activeTask))}`}>
                                                     <span className="material-symbols-outlined text-[14px]" aria-hidden="true">{contentStateIcon(taskContentState(activeTask))}</span>
                                                     {contentStateLabel(taskContentState(activeTask))}

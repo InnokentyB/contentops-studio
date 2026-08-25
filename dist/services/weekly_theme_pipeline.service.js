@@ -9,6 +9,7 @@ const db_1 = __importDefault(require("../db"));
 const work_queue_service_1 = __importDefault(require("./work_queue.service"));
 const multi_agent_service_1 = __importDefault(require("./multi_agent.service"));
 const week_autogeneration_state_1 = require("./week_autogeneration_state");
+const publication_generation_stage_1 = require("./publication_generation_stage");
 function isoDate(value, field) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(value))
         throw new Error(`[INVALID_${field.toUpperCase()}] Expected YYYY-MM-DD`);
@@ -338,6 +339,7 @@ class WeeklyThemePipelineService {
         const theme = await db_1.default.contentItem.findFirst({ where: { week_package_id: weekPackage.id, type: 'week_theme' }, orderBy: { updated_at: 'desc' } });
         const topics = await db_1.default.contentItem.findMany({
             where: { week_package_id: weekPackage.id, type: { not: 'week_theme' }, item_key: { startsWith: `week-topic:${weekPackage.id}:r${theme?.content_revision || 0}:` } },
+            include: { publication_fact: true },
             orderBy: { publish_at: 'asc' }
         });
         const decisionEvent = await db_1.default.workflowEvent.findFirst({
@@ -351,7 +353,7 @@ class WeeklyThemePipelineService {
         });
         const activeStates = new Set(['available', 'claimed', 'blocked', 'waiting_approval']);
         const activeCount = (kind) => workItems.filter((item) => item.kind === kind && activeStates.has(item.state)).length;
-        const activeVisualCount = workItems.filter((item) => ['art_direction', 'image_generate', 'image_review'].includes(item.kind) && activeStates.has(item.state)).length;
+        const activeVisualCount = workItems.filter((item) => ['art_direction', 'visual_generate', 'visual_review', 'visual_source_collect'].includes(item.kind) && activeStates.has(item.state)).length;
         const automation = (0, week_autogeneration_state_1.deriveWeekAutomationState)({
             themeExists: !!theme,
             themeAccepted: theme?.status === 'accepted',
@@ -383,9 +385,24 @@ class WeeklyThemePipelineService {
             approval: decision ? { decision: decision.decision, comment: decision.comment || null } : { decision: null, comment: null },
             days: topics.map((item) => ({
                 id: item.id,
+                publication_task_id: item.id,
                 local_date: item.publish_at?.toISOString().slice(0, 10),
                 publish_at: item.publish_at?.toISOString(),
                 content_status: item.status,
+                generation_stage: (0, publication_generation_stage_1.derivePublicationGenerationStage)({
+                    status: item.status,
+                    draftText: item.draft_text,
+                    textState: item.text_state,
+                    visualState: item.visual_state,
+                    handoffState: item.handoff_state,
+                    publicationMode: item.publication_mode,
+                    workItems: workByContent.get(item.id) || []
+                }),
+                publication_mode: item.publication_mode,
+                draft_ready: Boolean(item.draft_text?.trim()),
+                visual_state: item.visual_state,
+                public_url: item.publication_fact?.public_url || item.published_link || null,
+                publication_outcome: item.publication_fact?.outcome || null,
                 work: (workByContent.get(item.id) || []).map((workItem) => ({
                     id: workItem.id,
                     kind: workItem.kind,
