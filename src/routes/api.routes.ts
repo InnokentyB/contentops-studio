@@ -148,6 +148,7 @@ function buildPublicationTaskListItem(item: any) {
 
     return {
         id: item.id,
+        item_key: item.item_key || null,
         type: item.type,
         layer: item.layer,
         title: item.title,
@@ -210,6 +211,7 @@ function buildPublicationTaskDetailItem(item: any, options?: {
 
     return {
         id: item.id,
+        item_key: item.item_key || null,
         type: item.type,
         layer: item.layer,
         title: item.title,
@@ -1099,6 +1101,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             where,
             select: {
                 id: true,
+                item_key: true,
                 type: true,
                 layer: true,
                 title: true,

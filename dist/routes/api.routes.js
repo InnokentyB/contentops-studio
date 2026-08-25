@@ -135,6 +135,7 @@ function buildPublicationTaskListItem(item) {
     const metrics = item.metrics || {};
     return {
         id: item.id,
+        item_key: item.item_key || null,
         type: item.type,
         layer: item.layer,
         title: item.title,
@@ -187,6 +188,7 @@ function buildPublicationTaskDetailItem(item, options) {
     const derivedVoice = derivePublicationVoice(item);
     return {
         id: item.id,
+        item_key: item.item_key || null,
         type: item.type,
         layer: item.layer,
         title: item.title,
@@ -989,6 +991,7 @@ async function apiRoutes(fastify) {
             where,
             select: {
                 id: true,
+                item_key: true,
                 type: true,
                 layer: true,
                 title: true,

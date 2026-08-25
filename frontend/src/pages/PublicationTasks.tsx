@@ -11,6 +11,7 @@ type JsonRecord = Record<string, any>
 
 interface PublicationTask {
     id: number
+    item_key?: string | null
     type: string
     layer?: string | null
     title?: string | null
@@ -353,10 +354,16 @@ function checkpointStatusLabel(value?: string) {
 function taskPlanReference(task: PublicationTask | null | undefined) {
     if (!task) return ''
 
-    return task.workspace_context?.plan_item_ref
+    return task.item_key
+        || task.workspace_context?.plan_item_ref
         || (task.assets as JsonRecord | undefined)?.action?.id
         || (task.metrics as JsonRecord | undefined)?.task_id
         || ''
+}
+
+function taskIdentifierLabel(task: PublicationTask) {
+    const stableRef = taskPlanReference(task)
+    return stableRef ? `#${task.id} · ${stableRef}` : `#${task.id}`
 }
 
 function taskMatchesSearch(task: PublicationTask, query: string) {
@@ -371,7 +378,8 @@ function taskMatchesSearch(task: PublicationTask, query: string) {
         task.channel?.name || '',
         task.channel?.type || '',
         task.brief || '',
-        planRef
+        planRef,
+        String(task.id)
     ].join(' ').toLowerCase()
 
     if (haystack.includes(normalizedQuery)) {
@@ -380,7 +388,7 @@ function taskMatchesSearch(task: PublicationTask, query: string) {
 
     if (/^\d+$/.test(normalizedQuery)) {
         const numericTokens = Array.from(
-            `${planRef} ${task.title || ''} ${task.type || ''}`.matchAll(/\d+/g)
+            `${task.id} ${planRef} ${task.title || ''} ${task.type || ''}`.matchAll(/\d+/g)
         ).map((match) => match[0])
 
         return numericTokens.includes(normalizedQuery)
@@ -1088,7 +1096,6 @@ export default function PublicationTasks() {
                                     ? 'browser_required'
                                     : task.quality_report?.execution_mode || 'manual'
                                 const contentState = taskContentState(task)
-                                const planRef = taskPlanReference(task)
                                 const isOverdue = !!task.schedule_at
                                     && ['planned', 'ready_for_execution', 'browser_required', 'awaiting_manual_publication'].includes(task.status)
                                     && new Date(task.schedule_at).getTime() < Date.now()
@@ -1134,11 +1141,9 @@ export default function PublicationTasks() {
                                                     </span>
                                                 )}
                                             </div>
-                                                {planRef && (
-                                                    <div className="text-[11px] font-medium text-on-surface-variant/80 mt-2 truncate" title={planRef}>
-                                                        {planRef}
-                                                    </div>
-                                                )}
+                                                <div className="text-[11px] font-medium text-on-surface-variant/80 mt-2 truncate" title={taskIdentifierLabel(task)}>
+                                                    {taskIdentifierLabel(task)}
+                                                </div>
                                         </div>
                                     </button>
                                 )
@@ -1178,8 +1183,19 @@ export default function PublicationTasks() {
                                 <div className="p-4 sm:p-6 border-b border-outline-variant/10">
                                     <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_auto] gap-5 items-start">
                                         <div className="space-y-4 min-w-0">
-                                            <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">
-                                                {taskChannel(activeTask)}
+                                            <div className="flex flex-wrap items-center gap-3">
+                                                <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">
+                                                    {taskChannel(activeTask)}
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => navigator.clipboard?.writeText(taskPlanReference(activeTask) || String(activeTask.id))}
+                                                    className="inline-flex min-h-8 items-center gap-1.5 rounded-lg bg-surface-container-high px-2.5 text-[11px] font-black text-on-surface-variant hover:text-primary"
+                                                    title="Скопировать идентификатор задачи"
+                                                >
+                                                    <span className="material-symbols-outlined text-sm" aria-hidden="true">content_copy</span>
+                                                    {taskIdentifierLabel(activeTask)}
+                                                </button>
                                             </div>
                                             <h2 className="text-xl sm:text-2xl font-headline font-black tracking-tight text-on-surface break-words">
                                                 {activeTask.title || activeTask.type}
