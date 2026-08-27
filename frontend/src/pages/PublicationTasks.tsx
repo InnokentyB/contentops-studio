@@ -241,6 +241,32 @@ function taskMatchesManualFilter(task: PublicationTask, manualOnly: boolean) {
         || executionMode === 'browser'
 }
 
+function isTerminalPublicationTask(task: PublicationTask) {
+    return task.status === 'cancelled'
+        || taskContentState(task) === 'published'
+        || ['blocked', 'removed', 'restricted'].includes(task.publication_outcome || '')
+}
+
+function comparePublicationTasks(a: PublicationTask, b: PublicationTask, now: number) {
+    const aTerminal = isTerminalPublicationTask(a)
+    const bTerminal = isTerminalPublicationTask(b)
+    const parsedATime = a.schedule_at ? new Date(a.schedule_at).getTime() : Number.NaN
+    const parsedBTime = b.schedule_at ? new Date(b.schedule_at).getTime() : Number.NaN
+    const aTime = Number.isFinite(parsedATime) ? parsedATime : Number.POSITIVE_INFINITY
+    const bTime = Number.isFinite(parsedBTime) ? parsedBTime : Number.POSITIVE_INFINITY
+    const aOverdue = !aTerminal && aTime < now
+    const bOverdue = !bTerminal && bTime < now
+    const aRank = aOverdue ? 0 : aTerminal ? 2 : 1
+    const bRank = bOverdue ? 0 : bTerminal ? 2 : 1
+
+    if (aRank !== bRank) return aRank - bRank
+    if (Number.isFinite(aTime) !== Number.isFinite(bTime)) return Number.isFinite(aTime) ? -1 : 1
+    if (aTime !== bTime) {
+        return aTerminal && bTerminal ? bTime - aTime : aTime - bTime
+    }
+    return a.id - b.id
+}
+
 function prettyJson(value: unknown) {
     if (value == null) return ''
     return JSON.stringify(value, null, 2)
@@ -643,11 +669,15 @@ export default function PublicationTasks() {
     }, [tasks, crossPackageTasks])
 
     const filteredTasks = useMemo(
-        () => taskPool
-            .filter((task) => taskMatchesStatusFilter(task, statusFilter))
-            .filter((task) => taskMatchesManualFilter(task, manualOnly))
-            .filter((task) => contentStateFilter === 'all' || taskContentState(task) === contentStateFilter)
-            .filter((task) => taskMatchesSearch(task, taskSearch)),
+        () => {
+            const now = Date.now()
+            return taskPool
+                .filter((task) => taskMatchesStatusFilter(task, statusFilter))
+                .filter((task) => taskMatchesManualFilter(task, manualOnly))
+                .filter((task) => contentStateFilter === 'all' || taskContentState(task) === contentStateFilter)
+                .filter((task) => taskMatchesSearch(task, taskSearch))
+                .sort((a, b) => comparePublicationTasks(a, b, now))
+        },
         [taskPool, statusFilter, manualOnly, contentStateFilter, taskSearch]
     )
 
@@ -655,7 +685,8 @@ export default function PublicationTasks() {
         active: (tasks || []).filter((task) => task.is_active === true).length,
         published: (tasks || []).filter((task) => taskContentState(task) === 'published').length,
         blocked: (tasks || []).filter((task) => task.publication_outcome === 'blocked').length,
-        removed: (tasks || []).filter((task) => task.publication_outcome === 'removed').length
+        removed: (tasks || []).filter((task) => task.publication_outcome === 'removed').length,
+        cancelled: (tasks || []).filter((task) => task.status === 'cancelled').length
     }), [tasks])
 
     const dateMismatchIds = useMemo(() => {
@@ -1137,6 +1168,7 @@ export default function PublicationTasks() {
                                     <option value="blocked">Заблокированные</option>
                                     <option value="removed">Удалённые с площадки</option>
                                     <option value="restricted">Ограниченные</option>
+                                    <option value="cancelled">Отменённые</option>
                                     <option value="failed">С ошибкой</option>
                                 </select>
 
@@ -1153,14 +1185,15 @@ export default function PublicationTasks() {
                                     ['active', 'Активные', statusCounts.active],
                                     ['published', 'Опубликовано', statusCounts.published],
                                     ['blocked', 'Заблокировано', statusCounts.blocked],
-                                    ['removed', 'Удалено', statusCounts.removed]
+                                    ['removed', 'Удалено', statusCounts.removed],
+                                    ['cancelled', 'Отменено', statusCounts.cancelled]
                                 ] as const).map(([value, label, count]) => (
                                     <button
                                         key={value}
                                         type="button"
                                         onClick={() => selectStatusFilter(value)}
                                         aria-pressed={statusFilter === value}
-                                        className={`flex min-h-12 items-center justify-between gap-2 rounded-xl px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${statusFilter === value ? 'bg-primary text-white' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'}`}
+                                        className={`flex min-h-12 items-center justify-between gap-2 rounded-xl px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${value === 'cancelled' ? 'col-span-2' : ''} ${statusFilter === value ? 'bg-primary text-white' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'}`}
                                     >
                                         <span className="truncate text-xs font-bold" title={label}>{label}</span>
                                         <span className="shrink-0 text-base font-black tabular-nums">{count}</span>
@@ -1251,6 +1284,12 @@ export default function PublicationTasks() {
                                     ? 'browser_required'
                                     : task.quality_report?.execution_mode || 'manual'
                                 const contentState = taskContentState(task)
+                                const isCancelled = task.status === 'cancelled'
+                                const listStateLabel = isCancelled ? 'Отменено' : contentStateLabel(contentState)
+                                const listStateIcon = isCancelled ? 'event_busy' : contentStateIcon(contentState)
+                                const listStateTone = isCancelled
+                                    ? 'bg-surface-container-high text-on-surface-variant'
+                                    : contentStateTone(contentState)
                                 const isOverdue = !!task.schedule_at
                                     && ['planned', 'ready_for_execution', 'browser_required', 'awaiting_manual_publication'].includes(task.status)
                                     && new Date(task.schedule_at).getTime() < Date.now()
@@ -1283,9 +1322,9 @@ export default function PublicationTasks() {
                                                         {taskChannel(task)}
                                                     </span>
                                                 </div>
-                                                <span className={`max-w-[58%] inline-flex items-center gap-1 truncate px-2.5 py-1 rounded-full text-[10px] font-black ${contentStateTone(contentState)}`} title={contentStateLabel(contentState)}>
-                                                    <span className="material-symbols-outlined text-[14px]" aria-hidden="true">{contentStateIcon(contentState)}</span>
-                                                    {contentStateLabel(contentState)}
+                                                <span className={`max-w-[58%] inline-flex items-center gap-1 truncate px-2.5 py-1 rounded-full text-[10px] font-black ${listStateTone}`} title={listStateLabel}>
+                                                    <span className="material-symbols-outlined text-[14px]" aria-hidden="true">{listStateIcon}</span>
+                                                    {listStateLabel}
                                                 </span>
                                             </div>
                                             <div className="font-bold text-sm text-on-surface mt-2 line-clamp-2 leading-snug transition-colors group-hover:text-primary">
