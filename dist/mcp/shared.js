@@ -871,6 +871,20 @@ function registerPlannerTools(server) {
         const result = await work_queue_service_1.default.recoverContentReview(args);
         return asToolResult(result);
     });
+    server.registerTool('ba_recover_missing_content_review', {
+        description: 'Owner-only audited recovery: create a missing content-review gate for an existing unaccepted revision without changing publication content, slot fields or accepting the revision.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            taskId: zod_1.z.number().int().positive(),
+            expectedContentRevision: zod_1.z.number().int().positive(),
+            idempotencyKey: zod_1.z.string(),
+            evidenceRequirement: zod_1.z.string().optional()
+        }
+    }, async (args) => {
+        const result = await work_queue_service_1.default.recoverMissingContentReview(args);
+        return asToolResult(result);
+    });
     server.registerTool('ba_list_schedule_exceptions', {
         description: 'List schedule exceptions (overdue content, missed publication slots, unavailable sources).',
         inputSchema: {

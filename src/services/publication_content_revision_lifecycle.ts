@@ -51,3 +51,20 @@ export function planContentReviewRecovery(input: {
         reviewResultVersion: input.contentRevision
     };
 }
+
+export function planMissingContentReviewRecovery(input: {
+    contentRevision: number;
+    acceptedRevision: number | null;
+    textState: string;
+}) {
+    return {
+        contentRevision: input.contentRevision,
+        taskStatus: 'drafted',
+        textState: 'draft',
+        acceptedRevision: null,
+        handoffState: 'blocked',
+        reviewState: 'available',
+        reviewResultVersion: Math.max(0, input.contentRevision - 1),
+        reviewInputContextVersion: input.contentRevision
+    };
+}

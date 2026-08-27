@@ -4,7 +4,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
     planAcceptedContentEdit,
-    planContentReviewRecovery
+    planContentReviewRecovery,
+    planMissingContentReviewRecovery
 } from '../services/publication_content_revision_lifecycle';
 
 test('editing accepted content creates a new draft revision and reopens review without reusing its approval version', () => {
@@ -80,4 +81,21 @@ test('publication content update and owner recovery are wired to the lifecycle c
     assert.match(queueService, /requireProjectOwner\(tx, params\.projectId, params\.actorId\)/);
     assert.match(queueService, /command = 'ba_recover_content_review'/);
     assert.match(mcpServer, /registerTool\('ba_recover_content_review'/);
+});
+
+test('missing review recovery restores a draft gate without accepting or changing the current revision', () => {
+    assert.deepEqual(planMissingContentReviewRecovery({
+        contentRevision: 1,
+        acceptedRevision: null,
+        textState: 'draft'
+    }), {
+        contentRevision: 1,
+        taskStatus: 'drafted',
+        textState: 'draft',
+        acceptedRevision: null,
+        handoffState: 'blocked',
+        reviewState: 'available',
+        reviewResultVersion: 0,
+        reviewInputContextVersion: 1
+    });
 });

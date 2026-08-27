@@ -57,6 +57,7 @@ const principal = { userId: 2, actorId: 'user:2' };
     strict_1.default.ok(!tools.includes('ba_reschedule_work_item'));
     strict_1.default.ok(!tools.includes('ba_confirm_publication'));
     strict_1.default.ok(!tools.includes('ba_recover_content_review'));
+    strict_1.default.ok(!tools.includes('ba_recover_missing_content_review'));
 });
 (0, node_test_1.default)('planner MCP discovery exposes slot controls but not content mutation', () => {
     const server = (0, shared_1.createPlannerMcpServer)({ profile: 'planner' });
@@ -66,9 +67,11 @@ const principal = { userId: 2, actorId: 'user:2' };
     strict_1.default.ok(tools.includes('ba_reschedule_work_item'));
     strict_1.default.ok(!tools.includes('ba_update_publication_content'));
     strict_1.default.ok(!tools.includes('ba_recover_content_review'));
+    strict_1.default.ok(!tools.includes('ba_recover_missing_content_review'));
 });
 (0, node_test_1.default)('only the owner MCP profile discovers audited content review recovery', () => {
     const server = (0, shared_1.createPlannerMcpServer)({ profile: 'owner' });
     const tools = Object.keys(server._registeredTools || {});
     strict_1.default.ok(tools.includes('ba_recover_content_review'));
+    strict_1.default.ok(tools.includes('ba_recover_missing_content_review'));
 });

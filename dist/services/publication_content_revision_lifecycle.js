@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.planAcceptedContentEdit = planAcceptedContentEdit;
 exports.planContentReviewRecovery = planContentReviewRecovery;
+exports.planMissingContentReviewRecovery = planMissingContentReviewRecovery;
 function planAcceptedContentEdit(input) {
     if (!input.bodyChanged) {
         return {
@@ -39,5 +40,17 @@ function planContentReviewRecovery(input) {
         acceptedRevision: null,
         reviewState: 'waiting_approval',
         reviewResultVersion: input.contentRevision
+    };
+}
+function planMissingContentReviewRecovery(input) {
+    return {
+        contentRevision: input.contentRevision,
+        taskStatus: 'drafted',
+        textState: 'draft',
+        acceptedRevision: null,
+        handoffState: 'blocked',
+        reviewState: 'available',
+        reviewResultVersion: Math.max(0, input.contentRevision - 1),
+        reviewInputContextVersion: input.contentRevision
     };
 }

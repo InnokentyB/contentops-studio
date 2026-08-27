@@ -77,3 +77,19 @@ const publication_content_revision_lifecycle_1 = require("../services/publicatio
     strict_1.default.match(queueService, /command = 'ba_recover_content_review'/);
     strict_1.default.match(mcpServer, /registerTool\('ba_recover_content_review'/);
 });
+(0, node_test_1.default)('missing review recovery restores a draft gate without accepting or changing the current revision', () => {
+    strict_1.default.deepEqual((0, publication_content_revision_lifecycle_1.planMissingContentReviewRecovery)({
+        contentRevision: 1,
+        acceptedRevision: null,
+        textState: 'draft'
+    }), {
+        contentRevision: 1,
+        taskStatus: 'drafted',
+        textState: 'draft',
+        acceptedRevision: null,
+        handoffState: 'blocked',
+        reviewState: 'available',
+        reviewResultVersion: 0,
+        reviewInputContextVersion: 1
+    });
+});

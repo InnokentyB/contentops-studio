@@ -55,6 +55,103 @@ const REGISTERED_SERVICE_IDENTITIES = {
     }
 };
 class WorkQueueService {
+    async recoverMissingContentReview(params) {
+        return db_1.default.$transaction(async (tx) => {
+            await this.requireProjectOwner(tx, params.projectId, params.actorId);
+            const command = 'ba_recover_missing_content_review';
+            const cached = await this.checkIdempotency(tx, {
+                projectId: params.projectId,
+                actorId: params.actorId,
+                command,
+                idempotencyKey: params.idempotencyKey
+            });
+            if (cached)
+                return cached;
+            const content = await tx.contentItem.findFirst({
+                where: { id: params.taskId, project_id: params.projectId }
+            });
+            if (!content)
+                throw new Error(`Publication task ${params.taskId} not found for project ${params.projectId}`);
+            if (content.content_revision !== params.expectedContentRevision) {
+                throw new Error(`[CONTENT_REVISION_CONFLICT] Expected revision ${params.expectedContentRevision}; current revision is ${content.content_revision}`);
+            }
+            if (!content.draft_text?.trim())
+                throw new Error('[CONTENT_BODY_MISSING] Cannot create review for empty content');
+            if (content.accepted_revision !== null || content.text_state === 'accepted') {
+                throw new Error('[CONTENT_ALREADY_ACCEPTED] Missing-review recovery cannot invalidate accepted content');
+            }
+            if (['published', 'cancelled', 'removed'].includes(content.status)) {
+                throw new Error(`[CONTENT_TERMINAL] Missing-review recovery is not allowed for status ${content.status}`);
+            }
+            const lifecycle = (0, publication_content_revision_lifecycle_1.planMissingContentReviewRecovery)({
+                contentRevision: content.content_revision,
+                acceptedRevision: content.accepted_revision,
+                textState: content.text_state
+            });
+            const existingReview = await tx.workItem.findFirst({
+                where: { content_item_id: content.id, project_id: params.projectId, kind: 'content_review' },
+                orderBy: { updated_at: 'desc' }
+            });
+            const beforeState = {
+                task_status: content.status,
+                content_revision: content.content_revision,
+                accepted_revision: content.accepted_revision,
+                text_state: content.text_state,
+                handoff_state: content.handoff_state,
+                work_item_id: existingReview?.id || null
+            };
+            await tx.contentItem.update({
+                where: { id: content.id },
+                data: {
+                    status: lifecycle.taskStatus,
+                    text_state: lifecycle.textState,
+                    accepted_revision: lifecycle.acceptedRevision,
+                    handoff_state: lifecycle.handoffState
+                }
+            });
+            const review = existingReview || await tx.workItem.upsert({
+                where: { dedupe_key: `content-review-recovery:${content.id}:${content.content_revision}` },
+                update: {},
+                create: {
+                    project_id: params.projectId,
+                    week_package_id: content.week_package_id,
+                    content_item_id: content.id,
+                    item_key: content.item_key || `content:${content.id}`,
+                    kind: 'content_review',
+                    state: lifecycle.reviewState,
+                    assignee_role: 'content_reviewer',
+                    input_context_version: lifecycle.reviewInputContextVersion,
+                    result_version: lifecycle.reviewResultVersion,
+                    dedupe_key: `content-review-recovery:${content.id}:${content.content_revision}`,
+                    note: params.evidenceRequirement || 'Review required before acceptance'
+                }
+            });
+            const afterState = {
+                recovered: !existingReview,
+                task_id: content.id,
+                task_status: lifecycle.taskStatus,
+                content_revision: lifecycle.contentRevision,
+                accepted_revision: lifecycle.acceptedRevision,
+                text_state: lifecycle.textState,
+                handoff_state: lifecycle.handoffState,
+                work_item_id: review.id,
+                review_state: review.state,
+                review_result_version: review.result_version
+            };
+            await this.recordWorkflowEvent(tx, {
+                projectId: params.projectId,
+                workItemId: review.id,
+                weekPackageId: content.week_package_id || undefined,
+                contentItemId: content.id,
+                actorId: params.actorId,
+                command,
+                beforeState,
+                afterState,
+                idempotencyKey: params.idempotencyKey
+            });
+            return afterState;
+        });
+    }
     async recoverContentReview(params) {
         return db_1.default.$transaction(async (tx) => {
             await this.requireProjectOwner(tx, params.projectId, params.actorId);
