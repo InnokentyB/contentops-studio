@@ -536,7 +536,6 @@ export default function PublicationTasks() {
 
     const [statusFilter, setStatusFilter] = useState('active')
     const [manualOnly, setManualOnly] = useState(false)
-    const [hidePublished, setHidePublished] = useState(true)
     const [contentStateFilter, setContentStateFilter] = useState<'all' | 'empty' | 'ready' | 'published'>('all')
     const [taskSearch, setTaskSearch] = useState('')
     const [weekPackageId, setWeekPackageId] = useState<number | 'all' | null>(null)
@@ -592,11 +591,37 @@ export default function PublicationTasks() {
 
     const filteredTasks = useMemo(
         () => (tasks || [])
-            .filter((task) => !hidePublished || task.status !== 'published')
             .filter((task) => contentStateFilter === 'all' || taskContentState(task) === contentStateFilter)
             .filter((task) => taskMatchesSearch(task, taskSearch)),
-        [tasks, hidePublished, contentStateFilter, taskSearch]
+        [tasks, contentStateFilter, taskSearch]
     )
+
+    const selectStatusFilter = (nextStatus: string) => {
+        setStatusFilter(nextStatus)
+        if (nextStatus === 'published') {
+            setContentStateFilter('published')
+        } else if (contentStateFilter === 'published') {
+            setContentStateFilter('all')
+        }
+    }
+
+    const toggleContentStateFilter = (nextState: 'empty' | 'ready' | 'published') => {
+        if (contentStateFilter === nextState) {
+            setContentStateFilter('all')
+            if (nextState === 'published') setStatusFilter('active')
+            return
+        }
+
+        setContentStateFilter(nextState)
+        setStatusFilter(nextState === 'published' ? 'published' : 'active')
+    }
+
+    const resetTaskFilters = () => {
+        setStatusFilter('active')
+        setManualOnly(false)
+        setContentStateFilter('all')
+        setTaskSearch('')
+    }
 
     const selectedFromList = useMemo(
         () => filteredTasks.find((task) => task.id === selectedTaskId) || null,
@@ -611,8 +636,8 @@ export default function PublicationTasks() {
 
     useEffect(() => {
         if (urlTaskId && selectedTask?.status === 'published') {
-            setHidePublished(false)
             setStatusFilter('published')
+            setContentStateFilter('published')
         }
     }, [urlTaskId, selectedTask?.status])
 
@@ -988,7 +1013,7 @@ export default function PublicationTasks() {
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
                                     <div className="text-xs tabular-nums text-on-surface-variant whitespace-nowrap">
-                                        {tasks?.length || 0} задач
+                                        {filteredTasks.length} задач
                                     </div>
                                 <button
                                         onClick={() => setShowPlanModal(true)}
@@ -1016,7 +1041,8 @@ export default function PublicationTasks() {
                                 </select>
                                 <select
                                     value={statusFilter}
-                                    onChange={(event) => setStatusFilter(event.target.value)}
+                                    onChange={(event) => selectStatusFilter(event.target.value)}
+                                    aria-label="Статус задач"
                                     className="w-full bg-surface-container-low border-none rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
                                 >
                                     <option value="active">Активные</option>
@@ -1037,13 +1063,6 @@ export default function PublicationTasks() {
                                     </button>
                                 </div>
 
-                            <button
-                                onClick={() => setHidePublished((value) => !value)}
-                                className={`w-full rounded-xl px-4 py-3 text-sm font-black transition-all ${hidePublished ? 'bg-surface-container-high text-on-surface' : 'bg-surface-container-low text-on-surface-variant'}`}
-                            >
-                                {hidePublished ? 'Опубликованные скрыты' : 'Показывать опубликованные'}
-                            </button>
-
                             <input
                                 value={taskSearch}
                                 onChange={(event) => setTaskSearch(event.target.value)}
@@ -1060,10 +1079,7 @@ export default function PublicationTasks() {
                                     <button
                                         key={value}
                                         type="button"
-                                        onClick={() => {
-                                            setContentStateFilter((current) => current === value ? 'all' : value)
-                                            if (value === 'published') setHidePublished(false)
-                                        }}
+                                        onClick={() => toggleContentStateFilter(value)}
                                         aria-pressed={contentStateFilter === value}
                                         className={`min-h-10 rounded-xl px-2 text-[11px] font-black transition-colors ${contentStateFilter === value ? 'bg-primary text-white' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'}`}
                                     >
@@ -1093,8 +1109,15 @@ export default function PublicationTasks() {
                             )}
 
                             {currentProject && !isLoading && !filteredTasks.length && (
-                                <div className="p-8 text-sm text-on-surface-variant leading-relaxed">
-                                    Под текущий фильтр задач не найдено. Попробуй отключить режим `Только ручные` или синхронизировать свежий план публикаций.
+                                <div className="p-8 text-sm text-on-surface-variant leading-relaxed" role="status">
+                                    <p>По выбранным условиям задач не найдено.</p>
+                                    <button
+                                        type="button"
+                                        onClick={resetTaskFilters}
+                                        className="mt-4 min-h-11 rounded-xl bg-surface-container-high px-4 font-black text-on-surface transition-colors hover:bg-primary hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                                    >
+                                        Сбросить фильтры
+                                    </button>
                                 </div>
                             )}
 

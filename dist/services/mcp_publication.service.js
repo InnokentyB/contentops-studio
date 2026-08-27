@@ -1,37 +1,4 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -55,6 +22,7 @@ const publication_fact_service_1 = __importDefault(require("./publication_fact.s
 const publication_task_activity_1 = require("./publication_task_activity");
 const publication_adapter_service_1 = __importDefault(require("./publication_adapter.service"));
 const publication_generation_stage_1 = require("./publication_generation_stage");
+const publisher_service_1 = __importDefault(require("./publisher.service"));
 function resolveTaskScheduleAt(item) {
     const actionScheduleAt = item?.assets?.action?.scheduled_at;
     if (typeof actionScheduleAt === 'string' && actionScheduleAt.trim()) {
@@ -103,26 +71,6 @@ function normalizeTextPreview(text, maxLength = 280) {
         return compact;
     }
     return `${compact.slice(0, maxLength - 1)}…`;
-}
-async function resolveTelegramPhotoSource(imageUrl) {
-    if (imageUrl.startsWith('data:')) {
-        const base64Data = imageUrl.split(',')[1];
-        return { source: Buffer.from(base64Data, 'base64') };
-    }
-    if (imageUrl.startsWith('/uploads/')) {
-        const fs = await Promise.resolve().then(() => __importStar(require('fs')));
-        const path = await Promise.resolve().then(() => __importStar(require('path')));
-        const filename = imageUrl.split('/').pop();
-        const localPath = path.join(__dirname, '../../uploads', filename || '');
-        if (!fs.existsSync(localPath)) {
-            throw new Error(`Local image file not found: ${localPath}`);
-        }
-        return { source: fs.createReadStream(localPath) };
-    }
-    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-        return imageUrl;
-    }
-    throw new Error(`Unsupported image format: ${imageUrl}`);
 }
 class McpPublicationService {
     assertPublicationTaskMutableForMcp(item, operation) {
@@ -943,6 +891,7 @@ class McpPublicationService {
         }
         let publishedLink = null;
         let externalId = null;
+        let deliveryMethod = null;
         if (channel.type === 'reddit') {
             if (!params.title?.trim()) {
                 throw new Error('`title` is required for Reddit publication');
@@ -959,59 +908,19 @@ class McpPublicationService {
             externalId = result.name;
         }
         else if (channel.type === 'telegram') {
-            const telegramService = require('./telegram.service').default;
             const rawChannelId = channel.config?.telegram_channel_id?.toString();
             if (!rawChannelId) {
                 throw new Error(`Telegram channel ${channel.id} is missing telegram_channel_id`);
             }
-            const localTestChannel = process.env.LOCAL_TEST_CHANNEL;
-            const targetChannelId = (process.env.NODE_ENV !== 'production' && localTestChannel)
-                ? localTestChannel
-                : rawChannelId;
-            let sentMessage;
-            let linkMessageId = null;
-            if (params.imageUrl) {
-                const captionLimit = 1024;
-                const photoSource = await resolveTelegramPhotoSource(params.imageUrl);
-                if (params.text.length <= captionLimit) {
-                    sentMessage = await telegramService.sendPhoto(targetChannelId, photoSource, {
-                        caption: params.text
-                    });
-                    linkMessageId = sentMessage?.message_id || null;
-                }
-                else {
-                    let splitIndex = params.text.lastIndexOf('\n', captionLimit);
-                    if (splitIndex === -1 || splitIndex < Math.floor(captionLimit * 0.5)) {
-                        splitIndex = params.text.lastIndexOf(' ', captionLimit);
-                    }
-                    if (splitIndex === -1) {
-                        splitIndex = captionLimit;
-                    }
-                    const caption = params.text.substring(0, splitIndex);
-                    const remainder = params.text.substring(splitIndex).trim();
-                    const photoMessage = await telegramService.sendPhoto(targetChannelId, photoSource, {
-                        caption
-                    });
-                    linkMessageId = photoMessage?.message_id || null;
-                    sentMessage = remainder
-                        ? await telegramService.sendMessage(targetChannelId, remainder, {
-                            reply_to_message_id: photoMessage?.message_id
-                        })
-                        : photoMessage;
-                }
-            }
-            else {
-                sentMessage = await telegramService.sendMessage(targetChannelId, params.text);
-                linkMessageId = sentMessage?.message_id || null;
-            }
-            externalId = linkMessageId || sentMessage?.message_id || null;
-            const channelUsername = channel.config?.channel_username;
-            if (channelUsername && externalId) {
-                publishedLink = `https://t.me/${channelUsername}/${externalId}`;
-            }
-            else if (String(targetChannelId).startsWith('-100') && externalId) {
-                publishedLink = `https://t.me/c/${String(targetChannelId).slice(4)}/${externalId}`;
-            }
+            const result = await publisher_service_1.default.publishDirectTelegram({
+                projectId: params.projectId,
+                channel,
+                text: params.text,
+                imageUrl: params.imageUrl
+            });
+            publishedLink = result.publishedLink;
+            externalId = result.metrics?.telegram_message_id || null;
+            deliveryMethod = result.deliveryMethod || null;
         }
         else if (channel.type === 'threads') {
             const threadsUserId = config?.threads_user_id;
@@ -1089,6 +998,7 @@ class McpPublicationService {
                     subreddit: params.subreddit || null,
                     published_link: publishedLink,
                     external_id: externalId,
+                    delivery_method: deliveryMethod,
                     has_image: Boolean(params.imageUrl),
                     text_preview: normalizeTextPreview(params.text, 500)
                 }
@@ -1103,7 +1013,8 @@ class McpPublicationService {
                 type: channel.type
             },
             published_link: publishedLink,
-            external_id: externalId
+            external_id: externalId,
+            delivery_method: deliveryMethod
         };
     }
     async resolveChannel(projectId, channelId, channelType) {

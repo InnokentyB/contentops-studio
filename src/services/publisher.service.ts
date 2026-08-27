@@ -62,6 +62,27 @@ class PublisherService {
         await pool.end();
     }
 
+    async publishDirectTelegram(params: {
+        projectId: number;
+        channel: any;
+        text: string;
+        imageUrl?: string;
+        requestHost?: string;
+    }) {
+        return this.executeAutomatedPublicationTask(
+            {
+                id: 0,
+                project_id: params.projectId,
+                channel_id: params.channel.id,
+                channel: params.channel
+            },
+            { mode: 'automatic', task: { action_type: 'telegram:direct' } },
+            params.channel.config || {},
+            { actions: [], assets: {}, accounts: {} },
+            params.requestHost
+        );
+    }
+
     private async routeToBrowserPublication(task: any, bundle: any, reason: Record<string, unknown>) {
         const now = new Date().toISOString();
         const qualityReport = {
@@ -317,6 +338,9 @@ class PublisherService {
         if (!imageUrl) return null;
         if (imageUrl.startsWith('http')) {
             return imageUrl;
+        }
+        if (!itemId) {
+            return null;
         }
         const baseHost = requestHost || process.env.RAILWAY_PUBLIC_DOMAIN || process.env.PUBLIC_URL || process.env.APP_URL;
         if (baseHost) {
@@ -1809,6 +1833,7 @@ class PublisherService {
             const mtprotoCheck = await this.checkMTProto(task.project_id);
             let sentMessageId: number | undefined;
             let publishWarning: string | undefined;
+            let publishedViaMtproto = false;
 
             if (!mtprotoCheck.available) {
                 publishWarning = `MTProto недоступен (${mtprotoCheck.reason}). Публикация через Bot API.`;
@@ -1821,6 +1846,7 @@ class PublisherService {
                     const result = await importedClient.publishPost(task.project_id, targetChannelId, text, imageUrl || undefined, undefined, undefined, requestHost);
                     if (result?.id) {
                         sentMessageId = result.id;
+                        publishedViaMtproto = true;
                     }
                 } catch (clientErr: any) {
                     publishWarning = `MTProto отказал: ${clientErr.message || clientErr}. Публикация через Bot API.`;
@@ -1863,8 +1889,7 @@ class PublisherService {
 
                                 if (remainder.length > 0) {
                                     const sentMsg = await telegramService.sendMessage(targetChannelId, remainder, {
-                                        parse_mode: 'HTML',
-                                        reply_to_message_id: photoMsg?.message_id
+                                        parse_mode: 'HTML'
                                     });
                                     sentMessageId = sentMsg?.message_id;
                                 } else {
@@ -1899,6 +1924,7 @@ class PublisherService {
 
             return {
                 adapter: 'telegram',
+                deliveryMethod: publishedViaMtproto ? 'mtproto' : 'bot_api',
                 publishedLink,
                 warning: publishWarning,
                 metrics: sentMessageId ? { telegram_message_id: sentMessageId } : undefined
@@ -2231,8 +2257,7 @@ class PublisherService {
 
                                             if (remainder.length > 0) {
                                                 sentMessage = await telegramService.sendMessage(targetChannelId, remainder, {
-                                                    parse_mode: 'HTML',
-                                                    reply_to_message_id: photoMsg?.message_id
+                                                    parse_mode: 'HTML'
                                                 });
                                             } else {
                                                 sentMessage = photoMsg;
@@ -2494,10 +2519,8 @@ class PublisherService {
                                     });
 
                                     if (remainder.length > 0) {
-                                        // Send overflow as reply to the photo — keeps visual unit intact
                                         sentMessage = await telegramService.sendMessage(targetChannelId, remainder, {
-                                            parse_mode: 'HTML',
-                                            reply_to_message_id: photoMsg?.message_id
+                                            parse_mode: 'HTML'
                                         });
                                     } else {
                                         sentMessage = photoMsg;

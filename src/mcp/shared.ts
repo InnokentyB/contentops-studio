@@ -624,7 +624,7 @@ export function registerPlannerTools(server: McpServer) {
     }, async (args) => asToolResult(await weekPackageRepairService.rollback(args)));
 
     server.registerTool('ba_publish_direct', {
-        description: 'Publish content directly to a configured project channel. Supports reddit, telegram, vk, and linkedin.',
+        description: 'Publish content directly to a configured project channel. Supports reddit, telegram, vk, and linkedin. Telegram uses the project MTProto session first and falls back to Bot API.',
         inputSchema: {
             projectId: z.number().int().positive(),
             channelId: z.number().int().positive().optional(),

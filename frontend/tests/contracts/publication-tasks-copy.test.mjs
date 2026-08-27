@@ -27,3 +27,11 @@ assert.match(source, /if \(!Array\.isArray\(value\)\) return \[\]/)
 assert.match(source, /const handoffFiles = asJsonRecordArray\(/)
 assert.match(source, /const resolvedAssets = asJsonRecordArray\(/)
 assert.match(source, /const keyPoints = asJsonRecordArray\(/)
+
+// Published content is a server-side status slice, so the readiness chip must
+// switch that slice instead of combining an impossible "active + published" filter.
+assert.match(source, /setStatusFilter\(nextState === 'published' \? 'published' : 'active'\)/)
+assert.match(source, /if \(nextStatus === 'published'\)/)
+assert.match(source, /Сбросить фильтры/)
+assert.doesNotMatch(source, /hidePublished/)
+assert.doesNotMatch(source, /Попробуй отключить режим `Только ручные`/)

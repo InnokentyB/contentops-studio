@@ -10,7 +10,6 @@ import habrService from './habr.service';
 import vcService from './vc.service';
 import dzenService from './dzen.service';
 import threadsService from './threads.service';
-import fs from 'fs';
 import path from 'path';
 import { normalizeProjectKind, slugifyProjectName } from '../utils/project.utils';
 import { derivePublicationContentState } from './publication_content_state';
@@ -18,6 +17,7 @@ import publicationFactService from './publication_fact.service';
 import { isPublicationTaskActive } from './publication_task_activity';
 import publicationAdapterService from './publication_adapter.service';
 import { derivePublicationGenerationStage } from './publication_generation_stage';
+import publisherService from './publisher.service';
 
 type PublicationOutcome = 'published' | 'blocked' | 'removed' | 'restricted';
 
@@ -92,30 +92,6 @@ function normalizeTextPreview(text: string, maxLength = 280) {
     }
 
     return `${compact.slice(0, maxLength - 1)}…`;
-}
-
-async function resolveTelegramPhotoSource(imageUrl: string): Promise<string | { source: Buffer } | { source: NodeJS.ReadableStream }> {
-    if (imageUrl.startsWith('data:')) {
-        const base64Data = imageUrl.split(',')[1];
-        return { source: Buffer.from(base64Data, 'base64') };
-    }
-
-    if (imageUrl.startsWith('/uploads/')) {
-        const fs = await import('fs');
-        const path = await import('path');
-        const filename = imageUrl.split('/').pop();
-        const localPath = path.join(__dirname, '../../uploads', filename || '');
-        if (!fs.existsSync(localPath)) {
-            throw new Error(`Local image file not found: ${localPath}`);
-        }
-        return { source: fs.createReadStream(localPath) };
-    }
-
-    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-        return imageUrl;
-    }
-
-    throw new Error(`Unsupported image format: ${imageUrl}`);
 }
 
 class McpPublicationService {
@@ -1113,6 +1089,7 @@ class McpPublicationService {
 
         let publishedLink: string | null = null;
         let externalId: string | number | null = null;
+        let deliveryMethod: string | null = null;
 
         if (channel.type === 'reddit') {
             if (!params.title?.trim()) {
@@ -1130,64 +1107,20 @@ class McpPublicationService {
             publishedLink = result.url;
             externalId = result.name;
         } else if (channel.type === 'telegram') {
-            const telegramService = require('./telegram.service').default;
             const rawChannelId = (channel.config as any)?.telegram_channel_id?.toString();
             if (!rawChannelId) {
                 throw new Error(`Telegram channel ${channel.id} is missing telegram_channel_id`);
             }
 
-            const localTestChannel = process.env.LOCAL_TEST_CHANNEL;
-            const targetChannelId = (process.env.NODE_ENV !== 'production' && localTestChannel)
-                ? localTestChannel
-                : rawChannelId;
-
-            let sentMessage: any;
-            let linkMessageId: number | null = null;
-
-            if (params.imageUrl) {
-                const captionLimit = 1024;
-                const photoSource = await resolveTelegramPhotoSource(params.imageUrl);
-
-                if (params.text.length <= captionLimit) {
-                    sentMessage = await telegramService.sendPhoto(targetChannelId, photoSource, {
-                        caption: params.text
-                    });
-                    linkMessageId = sentMessage?.message_id || null;
-                } else {
-                    let splitIndex = params.text.lastIndexOf('\n', captionLimit);
-                    if (splitIndex === -1 || splitIndex < Math.floor(captionLimit * 0.5)) {
-                        splitIndex = params.text.lastIndexOf(' ', captionLimit);
-                    }
-                    if (splitIndex === -1) {
-                        splitIndex = captionLimit;
-                    }
-
-                    const caption = params.text.substring(0, splitIndex);
-                    const remainder = params.text.substring(splitIndex).trim();
-
-                    const photoMessage = await telegramService.sendPhoto(targetChannelId, photoSource, {
-                        caption
-                    });
-                    linkMessageId = photoMessage?.message_id || null;
-
-                    sentMessage = remainder
-                        ? await telegramService.sendMessage(targetChannelId, remainder, {
-                            reply_to_message_id: photoMessage?.message_id
-                        })
-                        : photoMessage;
-                }
-            } else {
-                sentMessage = await telegramService.sendMessage(targetChannelId, params.text);
-                linkMessageId = sentMessage?.message_id || null;
-            }
-
-            externalId = linkMessageId || sentMessage?.message_id || null;
-            const channelUsername = (channel.config as any)?.channel_username;
-            if (channelUsername && externalId) {
-                publishedLink = `https://t.me/${channelUsername}/${externalId}`;
-            } else if (String(targetChannelId).startsWith('-100') && externalId) {
-                publishedLink = `https://t.me/c/${String(targetChannelId).slice(4)}/${externalId}`;
-            }
+            const result = await publisherService.publishDirectTelegram({
+                projectId: params.projectId,
+                channel,
+                text: params.text,
+                imageUrl: params.imageUrl
+            });
+            publishedLink = result.publishedLink;
+            externalId = result.metrics?.telegram_message_id || null;
+            deliveryMethod = result.deliveryMethod || null;
         } else if (channel.type === 'threads') {
             const threadsUserId = config?.threads_user_id;
             const accessToken = config?.access_token;
@@ -1261,6 +1194,7 @@ class McpPublicationService {
                     subreddit: params.subreddit || null,
                     published_link: publishedLink,
                     external_id: externalId,
+                    delivery_method: deliveryMethod,
                     has_image: Boolean(params.imageUrl),
                     text_preview: normalizeTextPreview(params.text, 500)
                 } as any
@@ -1276,7 +1210,8 @@ class McpPublicationService {
                 type: channel.type
             },
             published_link: publishedLink,
-            external_id: externalId
+            external_id: externalId,
+            delivery_method: deliveryMethod
         };
     }
 

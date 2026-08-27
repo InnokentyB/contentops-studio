@@ -238,8 +238,7 @@ export class TelegramClientService {
                                         result = await client.sendMessage(entity, {
                                             message: chunk,
                                             parseMode: "markdown",
-                                            schedule: scheduleTime,
-                                            replyTo: firstMsg ? firstMsg.id : undefined
+                                            schedule: scheduleTime
                                         });
                                         chunkCounter++;
                                         remainder = remainder.substring(chunk.length).trim();
