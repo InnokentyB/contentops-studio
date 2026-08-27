@@ -856,6 +856,21 @@ function registerPlannerTools(server) {
         const result = await work_queue_service_1.default.decideApproval(args);
         return asToolResult(result);
     });
+    server.registerTool('ba_recover_content_review', {
+        description: 'Owner-only audited recovery: expose an existing publication content revision as a separately approvable review result without changing its body, channel, schedule, CTA or UTM data.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            taskId: zod_1.z.number().int().positive(),
+            workItemId: zod_1.z.number().int().positive(),
+            expectedContentRevision: zod_1.z.number().int().positive(),
+            idempotencyKey: zod_1.z.string(),
+            evidence: zod_1.z.string().optional()
+        }
+    }, async (args) => {
+        const result = await work_queue_service_1.default.recoverContentReview(args);
+        return asToolResult(result);
+    });
     server.registerTool('ba_list_schedule_exceptions', {
         description: 'List schedule exceptions (overdue content, missed publication slots, unavailable sources).',
         inputSchema: {

@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { Prisma } from '@prisma/client';
 import prisma from '../db';
 import artDirectionService from './art_direction.service';
+import { planContentReviewRecovery } from './publication_content_revision_lifecycle';
 
 /**
  * Scopes for work queue operations.
@@ -68,6 +69,118 @@ const REGISTERED_SERVICE_IDENTITIES: Record<string, RegisteredServiceIdentity> =
 };
 
 export class WorkQueueService {
+    async recoverContentReview(params: {
+        projectId: number;
+        actorId: string;
+        taskId: number;
+        workItemId: number;
+        expectedContentRevision: number;
+        idempotencyKey: string;
+        evidence?: string;
+    }): Promise<Record<string, unknown>> {
+        return prisma.$transaction(async (tx) => {
+            await this.requireProjectOwner(tx, params.projectId, params.actorId);
+            const command = 'ba_recover_content_review';
+            const cached = await this.checkIdempotency(tx, {
+                projectId: params.projectId,
+                actorId: params.actorId,
+                command,
+                idempotencyKey: params.idempotencyKey
+            });
+            if (cached) return cached as Record<string, unknown>;
+
+            const content = await tx.contentItem.findFirst({
+                where: { id: params.taskId, project_id: params.projectId }
+            });
+            const review = await tx.workItem.findFirst({
+                where: {
+                    id: params.workItemId,
+                    project_id: params.projectId,
+                    content_item_id: params.taskId,
+                    kind: 'content_review'
+                }
+            });
+            if (!content) throw new Error(`Publication task ${params.taskId} not found for project ${params.projectId}`);
+            if (!review) throw new Error(`Content review work item ${params.workItemId} not found for publication task ${params.taskId}`);
+            if (content.content_revision !== params.expectedContentRevision) {
+                throw new Error(`[CONTENT_REVISION_CONFLICT] Expected revision ${params.expectedContentRevision}; current revision is ${content.content_revision}`);
+            }
+
+            const currentApproval = await tx.approvalDecision.findUnique({
+                where: {
+                    work_item_id_result_version: {
+                        work_item_id: review.id,
+                        result_version: content.content_revision
+                    }
+                }
+            });
+            const lifecycle = planContentReviewRecovery({
+                contentRevision: content.content_revision,
+                acceptedRevision: content.accepted_revision,
+                textState: content.text_state,
+                reviewResultVersion: review.result_version,
+                currentRevisionAlreadyApproved: currentApproval?.decision === 'approved'
+            });
+            const beforeState = {
+                content_revision: content.content_revision,
+                accepted_revision: content.accepted_revision,
+                text_state: content.text_state,
+                review_result_version: review.result_version,
+                review_state: review.state
+            };
+
+            if (lifecycle.needsRecovery) {
+                await tx.contentItem.update({
+                    where: { id: content.id },
+                    data: {
+                        text_state: lifecycle.textState,
+                        accepted_revision: lifecycle.acceptedRevision
+                    }
+                });
+                await tx.workItem.update({
+                    where: { id: review.id },
+                    data: {
+                        state: lifecycle.reviewState,
+                        input_context_version: content.content_revision,
+                        result_version: lifecycle.reviewResultVersion,
+                        result_payload: {
+                            recovered_content_revision: content.content_revision,
+                            body: content.draft_text,
+                            evidence: params.evidence || null
+                        },
+                        lease_token: null,
+                        lease_expires_at: null,
+                        lease_actor_id: null,
+                        note: params.evidence || `Recovered review result for content revision ${content.content_revision}`
+                    }
+                });
+            }
+
+            const afterState = {
+                recovered: lifecycle.needsRecovery,
+                task_id: content.id,
+                content_revision: content.content_revision,
+                accepted_revision: lifecycle.acceptedRevision,
+                text_state: lifecycle.textState,
+                work_item_id: review.id,
+                review_result_version: lifecycle.reviewResultVersion,
+                review_state: lifecycle.reviewState
+            };
+            await this.recordWorkflowEvent(tx, {
+                projectId: params.projectId,
+                workItemId: review.id,
+                weekPackageId: review.week_package_id || undefined,
+                contentItemId: content.id,
+                actorId: params.actorId,
+                command,
+                beforeState,
+                afterState,
+                idempotencyKey: params.idempotencyKey
+            });
+            return afterState;
+        });
+    }
+
     private async requireProjectOwner(
         client: Prisma.TransactionClient | typeof prisma,
         projectId: number,

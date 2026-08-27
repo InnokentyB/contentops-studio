@@ -18,6 +18,9 @@ import { isPublicationTaskActive } from './publication_task_activity';
 import publicationAdapterService from './publication_adapter.service';
 import { derivePublicationGenerationStage } from './publication_generation_stage';
 import publisherService from './publisher.service';
+import artDirectionService from './art_direction.service';
+import { planAcceptedContentEdit } from './publication_content_revision_lifecycle';
+import { Prisma } from '@prisma/client';
 
 type PublicationOutcome = 'published' | 'blocked' | 'removed' | 'restricted';
 
@@ -918,6 +921,9 @@ class McpPublicationService {
         if (!item) {
             throw new Error(`Publication task ${input.taskId} not found for project ${input.projectId}`);
         }
+        if (item.content_revision !== input.expectedRevision) {
+            throw new Error('[CONTENT_REVISION_CONFLICT] Publication content changed since it was read. Reload the task and retry.');
+        }
 
         this.assertPublicationTaskMutableForMcp(item, 'update_publication_content');
         const qualityReport = { ...((item.quality_report as any) || {}) } as any;
@@ -948,24 +954,76 @@ class McpPublicationService {
             };
         }
 
-        const result = await prisma.contentItem.updateMany({
-            where: {
-                id: item.id,
-                project_id: input.projectId,
-                content_revision: input.expectedRevision
-            },
-            data: {
-                draft_text: input.body,
-                quality_report: qualityReport,
-                content_revision: { increment: 1 }
-            }
+        const lifecycle = planAcceptedContentEdit({
+            currentRevision: item.content_revision,
+            acceptedRevision: item.accepted_revision,
+            textState: item.text_state,
+            bodyChanged: input.body !== previousBody
         });
 
-        if (result.count !== 1) {
-            throw new Error('[CONTENT_REVISION_CONFLICT] Publication content changed since it was read. Reload the task and retry.');
+        if (!lifecycle.reopenReview) {
+            return {
+                id: item.id,
+                draft_text: item.draft_text,
+                content_revision: item.content_revision,
+                content_state: derivePublicationContentState(item),
+                updated_at: item.updated_at
+            };
         }
 
-        const updated = await prisma.contentItem.findUniqueOrThrow({ where: { id: item.id } });
+        const updated = await prisma.$transaction(async (tx) => {
+            await artDirectionService.markRevisionStale(tx, item.id);
+            const result = await tx.contentItem.updateMany({
+                where: {
+                    id: item.id,
+                    project_id: input.projectId,
+                    content_revision: input.expectedRevision
+                },
+                data: {
+                    draft_text: input.body,
+                    quality_report: qualityReport,
+                    content_revision: lifecycle.contentRevision,
+                    text_state: lifecycle.textState,
+                    accepted_revision: lifecycle.acceptedRevision,
+                    status: 'drafted'
+                }
+            });
+
+            if (result.count !== 1) {
+                throw new Error('[CONTENT_REVISION_CONFLICT] Publication content changed since it was read. Reload the task and retry.');
+            }
+
+            const existingReview = await tx.workItem.findFirst({
+                where: { content_item_id: item.id, kind: 'content_review' },
+                orderBy: { updated_at: 'desc' }
+            });
+            const reviewData = {
+                state: 'available',
+                input_context_version: lifecycle.contentRevision,
+                result_version: lifecycle.reviewBaseResultVersion,
+                result_payload: Prisma.DbNull,
+                lease_token: null,
+                lease_expires_at: null,
+                lease_actor_id: null,
+                note: `Review publication content revision ${lifecycle.contentRevision}`
+            };
+            if (existingReview) {
+                await tx.workItem.update({ where: { id: existingReview.id }, data: reviewData });
+            } else {
+                await tx.workItem.create({
+                    data: {
+                        project_id: input.projectId,
+                        week_package_id: item.week_package_id,
+                        content_item_id: item.id,
+                        item_key: item.item_key || `content:${item.id}`,
+                        kind: 'content_review',
+                        assignee_role: 'content_reviewer',
+                        ...reviewData
+                    }
+                });
+            }
+            return tx.contentItem.findUniqueOrThrow({ where: { id: item.id } });
+        });
         return {
             id: updated.id,
             draft_text: updated.draft_text,

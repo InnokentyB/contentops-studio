@@ -883,6 +883,22 @@ export function registerPlannerTools(server: McpServer) {
         return asToolResult(result);
     });
 
+    server.registerTool('ba_recover_content_review', {
+        description: 'Owner-only audited recovery: expose an existing publication content revision as a separately approvable review result without changing its body, channel, schedule, CTA or UTM data.',
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string(),
+            taskId: z.number().int().positive(),
+            workItemId: z.number().int().positive(),
+            expectedContentRevision: z.number().int().positive(),
+            idempotencyKey: z.string(),
+            evidence: z.string().optional()
+        }
+    }, async (args) => {
+        const result = await workQueueService.recoverContentReview(args);
+        return asToolResult(result);
+    });
+
     server.registerTool('ba_list_schedule_exceptions', {
         description: 'List schedule exceptions (overdue content, missed publication slots, unavailable sources).',
         inputSchema: {
