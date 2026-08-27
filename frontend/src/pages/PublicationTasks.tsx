@@ -27,6 +27,7 @@ interface PublicationTask {
     content_revision?: number
     generation_stage?: string
     publication_mode?: string | null
+    visual_placement?: string | null
     week_package_id?: number | null
     publication_fact?: PublicationFact | null
     metric_checkpoints?: MetricCheckpoint[]
@@ -1658,6 +1659,16 @@ export default function PublicationTasks() {
                                                         <div className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant shadow-sm">
                                                             {activeTask.channel?.type || activeTask.layer || 'channel'}
                                                         </div>
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        <span className="rounded-full bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-on-surface-variant shadow-sm">
+                                                            Канал: {activeTask.channel?.name || activeTask.channel?.type || activeTask.layer || 'не указан'}
+                                                        </span>
+                                                        {activeTask.visual_placement && (
+                                                            <span className="rounded-full bg-primary/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-primary">
+                                                                Размещение: {activeTask.visual_placement === 'article_cover' ? 'обложка статьи' : activeTask.visual_placement}
+                                                            </span>
+                                                        )}
                                                     </div>
                                                     <div className="space-y-4">
                                                         <div>

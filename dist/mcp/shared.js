@@ -885,6 +885,25 @@ function registerPlannerTools(server) {
         const result = await work_queue_service_1.default.recoverMissingContentReview(args);
         return asToolResult(result);
     });
+    server.registerTool('ba_repair_publication_placement', {
+        description: 'Owner-only audited metadata repair for an unpublished accepted publication: atomically change only channel and visual placement and create a new revision-bound art-direction work item.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string(),
+            taskId: zod_1.z.number().int().positive(),
+            expectedContentRevision: zod_1.z.number().int().positive(),
+            expectedAcceptedRevision: zod_1.z.number().int().positive(),
+            expectedChannelId: zod_1.z.number().int().positive(),
+            expectedPlacement: zod_1.z.string(),
+            targetChannelId: zod_1.z.number().int().positive(),
+            targetPlacement: zod_1.z.string(),
+            blockedWorkItemId: zod_1.z.number().int().positive(),
+            idempotencyKey: zod_1.z.string()
+        }
+    }, async (args) => {
+        const result = await work_queue_service_1.default.repairPublicationPlacement(args);
+        return asToolResult(result);
+    });
     server.registerTool('ba_list_schedule_exceptions', {
         description: 'List schedule exceptions (overdue content, missed publication slots, unavailable sources).',
         inputSchema: {

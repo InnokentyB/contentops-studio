@@ -914,6 +914,26 @@ export function registerPlannerTools(server: McpServer) {
         return asToolResult(result);
     });
 
+    server.registerTool('ba_repair_publication_placement', {
+        description: 'Owner-only audited metadata repair for an unpublished accepted publication: atomically change only channel and visual placement and create a new revision-bound art-direction work item.',
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string(),
+            taskId: z.number().int().positive(),
+            expectedContentRevision: z.number().int().positive(),
+            expectedAcceptedRevision: z.number().int().positive(),
+            expectedChannelId: z.number().int().positive(),
+            expectedPlacement: z.string(),
+            targetChannelId: z.number().int().positive(),
+            targetPlacement: z.string(),
+            blockedWorkItemId: z.number().int().positive(),
+            idempotencyKey: z.string()
+        }
+    }, async (args) => {
+        const result = await workQueueService.repairPublicationPlacement(args);
+        return asToolResult(result);
+    });
+
     server.registerTool('ba_list_schedule_exceptions', {
         description: 'List schedule exceptions (overdue content, missed publication slots, unavailable sources).',
         inputSchema: {

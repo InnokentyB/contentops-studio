@@ -9,6 +9,7 @@ const client_1 = require("@prisma/client");
 const db_1 = __importDefault(require("../db"));
 const art_direction_service_1 = __importDefault(require("./art_direction.service"));
 const publication_content_revision_lifecycle_1 = require("./publication_content_revision_lifecycle");
+const publication_metadata_repair_1 = require("./publication_metadata_repair");
 /**
  * Registry of authorized service identities and their granted scopes.
  */
@@ -55,6 +56,131 @@ const REGISTERED_SERVICE_IDENTITIES = {
     }
 };
 class WorkQueueService {
+    async repairPublicationPlacement(params) {
+        return db_1.default.$transaction(async (tx) => {
+            await this.requireProjectOwner(tx, params.projectId, params.actorId);
+            const command = 'ba_repair_publication_placement';
+            const cached = await this.checkIdempotency(tx, {
+                projectId: params.projectId,
+                actorId: params.actorId,
+                command,
+                idempotencyKey: params.idempotencyKey
+            });
+            if (cached)
+                return cached;
+            const content = await tx.contentItem.findFirst({
+                where: { id: params.taskId, project_id: params.projectId },
+                include: { publication_fact: true }
+            });
+            const targetChannel = await tx.socialChannel.findFirst({
+                where: { id: params.targetChannelId, project_id: params.projectId }
+            });
+            const blockedItem = await tx.workItem.findFirst({
+                where: {
+                    id: params.blockedWorkItemId,
+                    project_id: params.projectId,
+                    content_item_id: params.taskId,
+                    kind: 'art_direction'
+                }
+            });
+            if (!content)
+                throw new Error(`Publication task ${params.taskId} not found for project ${params.projectId}`);
+            if (!targetChannel)
+                throw new Error(`Target channel ${params.targetChannelId} not found for project ${params.projectId}`);
+            if (!targetChannel.type.toLowerCase().includes('habr'))
+                throw new Error('[TARGET_CHANNEL_MISMATCH] Target channel must be Habr');
+            if (!blockedItem || blockedItem.state !== 'blocked' || blockedItem.reason_code !== 'channel_placement_mismatch') {
+                throw new Error('[BLOCKED_INPUT_MISMATCH] Expected the original channel-placement mismatch work item to remain blocked');
+            }
+            if (content.status === 'published' || content.published_link || content.publication_fact?.outcome === 'published') {
+                throw new Error('[PUBLICATION_READ_ONLY] Published tasks cannot be repaired');
+            }
+            if (content.content_revision !== params.expectedContentRevision
+                || content.accepted_revision !== params.expectedAcceptedRevision) {
+                throw new Error('[CONTENT_REVISION_CONFLICT] Content or accepted revision changed');
+            }
+            if (content.channel_id !== params.expectedChannelId || content.visual_placement !== params.expectedPlacement) {
+                throw new Error('[PLACEMENT_CONFLICT] Channel or placement changed since preview');
+            }
+            const plan = (0, publication_metadata_repair_1.planPublicationPlacementRepair)({
+                contentItemId: content.id,
+                contentRevision: content.content_revision,
+                acceptedRevision: content.accepted_revision,
+                currentChannelId: content.channel_id,
+                targetChannelId: targetChannel.id,
+                currentPlacement: content.visual_placement,
+                targetPlacement: params.targetPlacement
+            });
+            const beforeState = {
+                channel_id: content.channel_id,
+                visual_placement: content.visual_placement,
+                content_revision: content.content_revision,
+                accepted_revision: content.accepted_revision,
+                blocked_work_item_id: blockedItem.id,
+                blocked_work_item_state: blockedItem.state
+            };
+            const update = await tx.contentItem.updateMany({
+                where: {
+                    id: content.id,
+                    project_id: params.projectId,
+                    content_revision: params.expectedContentRevision,
+                    accepted_revision: params.expectedAcceptedRevision,
+                    channel_id: params.expectedChannelId,
+                    visual_placement: params.expectedPlacement
+                },
+                data: {
+                    channel_id: plan.channelId,
+                    visual_placement: plan.placement
+                }
+            });
+            if (update.count !== 1)
+                throw new Error('[PLACEMENT_CONFLICT] Metadata changed concurrently');
+            const artDirectionItem = await tx.workItem.upsert({
+                where: { dedupe_key: plan.dedupeKey },
+                update: {},
+                create: {
+                    project_id: params.projectId,
+                    week_package_id: content.week_package_id,
+                    content_item_id: content.id,
+                    item_key: content.item_key || `content:${content.id}`,
+                    kind: 'art_direction',
+                    state: plan.artDirectionState,
+                    assignee_role: 'art_director',
+                    input_context_version: plan.inputContextVersion,
+                    result_version: 0,
+                    dedupe_key: plan.dedupeKey,
+                    note: plan.note
+                }
+            });
+            const afterState = {
+                repaired: true,
+                task_id: content.id,
+                channel_id: plan.channelId,
+                channel_type: targetChannel.type,
+                visual_placement: plan.placement,
+                content_revision: plan.contentRevision,
+                accepted_revision: plan.acceptedRevision,
+                old_work_item_id: blockedItem.id,
+                old_work_item_state: blockedItem.state,
+                art_direction_work_item_id: artDirectionItem.id,
+                art_direction_state: artDirectionItem.state,
+                art_direction_dedupe_key: artDirectionItem.dedupe_key,
+                input_context_version: artDirectionItem.input_context_version
+            };
+            await this.recordWorkflowEvent(tx, {
+                projectId: params.projectId,
+                workItemId: artDirectionItem.id,
+                weekPackageId: content.week_package_id || undefined,
+                contentItemId: content.id,
+                actorId: params.actorId,
+                command,
+                beforeState,
+                afterState,
+                idempotencyKey: params.idempotencyKey
+            });
+            return afterState;
+        });
+    }
     async recoverMissingContentReview(params) {
         return db_1.default.$transaction(async (tx) => {
             await this.requireProjectOwner(tx, params.projectId, params.actorId);
