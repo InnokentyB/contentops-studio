@@ -30,8 +30,22 @@ assert.match(source, /const keyPoints = asJsonRecordArray\(/)
 
 // Published content is a server-side status slice, so the readiness chip must
 // switch that slice instead of combining an impossible "active + published" filter.
-assert.match(source, /setStatusFilter\(nextState === 'published' \? 'published' : 'active'\)/)
+assert.match(source, /useState\('all'\)/)
 assert.match(source, /if \(nextStatus === 'published'\)/)
 assert.match(source, /Сбросить фильтры/)
 assert.doesNotMatch(source, /hidePublished/)
 assert.doesNotMatch(source, /Попробуй отключить режим `Только ручные`/)
+
+assert.match(source, /Все статусы/)
+assert.match(source, /statusCounts\.active/)
+assert.match(source, /statusCounts\.published/)
+assert.match(source, /statusCounts\.blocked/)
+assert.match(source, /statusCounts\.removed/)
+assert.match(source, /Дата вне недели/)
+assert.match(source, /Из пакета №/)
+assert.match(source, /publication_tasks_by_date/)
+assert.match(source, /служебных/)
+assert.match(source, /Номер #760, название или канал/)
+assert.match(source, /Номер задачи \$\{task\.id\}/)
+assert.match(source, /#\{task\.id\}/)
+assert.match(source, /Открыть задачу #\$\{task\.id\}/)

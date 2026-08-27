@@ -18,6 +18,8 @@ interface PublicationTask {
     brief?: string | null
     key_points?: JsonRecord[] | null
     status: string
+    is_active?: boolean
+    publication_outcome?: PublicationOutcome | null
     schedule_at?: string | null
     published_link?: string | null
     draft_text?: string | null
@@ -211,6 +213,32 @@ function resolveCurrentWeekPackageId(weeks: WeekPackageOption[], today = localDa
     })
 
     return currentWeek?.id || 'all'
+}
+
+function inclusiveWeekRange(week?: WeekPackageOption) {
+    if (!week) return null
+    const end = new Date(week.week_end)
+    end.setUTCDate(end.getUTCDate() + 1)
+    end.setUTCMilliseconds(end.getUTCMilliseconds() - 1)
+    return { from: week.week_start, to: end.toISOString() }
+}
+
+function taskMatchesStatusFilter(task: PublicationTask, status: string) {
+    if (status === 'all') return true
+    if (status === 'active') return task.is_active === true
+    if (status === 'published') return taskContentState(task) === 'published'
+    if (status === 'blocked' || status === 'removed' || status === 'restricted') {
+        return task.publication_outcome === status
+    }
+    return task.status === status
+}
+
+function taskMatchesManualFilter(task: PublicationTask, manualOnly: boolean) {
+    if (!manualOnly) return true
+    const executionMode = task.quality_report?.execution_mode
+    return task.publication_mode === 'browser_required'
+        || executionMode === 'manual'
+        || executionMode === 'browser'
 }
 
 function prettyJson(value: unknown) {
@@ -534,7 +562,7 @@ export default function PublicationTasks() {
     const [searchParams] = useSearchParams()
     const urlTaskId = searchParams.get('taskId')
 
-    const [statusFilter, setStatusFilter] = useState('active')
+    const [statusFilter, setStatusFilter] = useState('all')
     const [manualOnly, setManualOnly] = useState(false)
     const [contentStateFilter, setContentStateFilter] = useState<'all' | 'empty' | 'ready' | 'published'>('all')
     const [taskSearch, setTaskSearch] = useState('')
@@ -563,8 +591,6 @@ export default function PublicationTasks() {
     const workspaceRef = useRef<HTMLElement | null>(null)
     const initializedWeekProjectIdRef = useRef<number | null>(null)
 
-    const resolvedStatusFilter = statusFilter
-
     const { data: weekPackages } = useQuery<WeekPackageOption[]>({
         queryKey: ['publication_task_weeks', currentProject?.id],
         queryFn: () => publicationTasksApi.listWeeks(),
@@ -579,22 +605,77 @@ export default function PublicationTasks() {
         initializedWeekProjectIdRef.current = currentProject.id
     }, [currentProject, urlTaskId, weekPackageId, weekPackages])
 
+    const selectedWeekPackage = typeof weekPackageId === 'number'
+        ? weekPackages?.find((week) => week.id === weekPackageId)
+        : undefined
+    const selectedWeekRange = inclusiveWeekRange(selectedWeekPackage)
+
     const { data: tasks, isLoading, error } = useQuery<PublicationTask[]>({
-        queryKey: ['publication_tasks', currentProject?.id, resolvedStatusFilter || 'active', manualOnly, weekPackageId],
+        queryKey: ['publication_tasks', currentProject?.id, 'all', weekPackageId],
         queryFn: () => publicationTasksApi.list({
-            status: resolvedStatusFilter,
-            manualOnly,
+            status: 'all',
             weekPackageId: typeof weekPackageId === 'number' ? weekPackageId : undefined
         }),
         enabled: !!currentProject && weekPackageId !== null
     })
 
+    const { data: datedWeekTasks } = useQuery<PublicationTask[]>({
+        queryKey: ['publication_tasks_by_date', currentProject?.id, weekPackageId, selectedWeekRange?.from, selectedWeekRange?.to],
+        queryFn: () => publicationTasksApi.list({
+            status: 'all',
+            from: selectedWeekRange?.from,
+            to: selectedWeekRange?.to
+        }),
+        enabled: !!currentProject && typeof weekPackageId === 'number' && !!selectedWeekRange
+    })
+
+    const crossPackageTasks = useMemo(
+        () => typeof weekPackageId === 'number'
+            ? (datedWeekTasks || []).filter((task) => task.week_package_id !== weekPackageId)
+            : [],
+        [datedWeekTasks, weekPackageId]
+    )
+
+    const taskPool = useMemo(() => {
+        const byId = new Map<number, PublicationTask>()
+        ;[...(tasks || []), ...crossPackageTasks].forEach((task) => byId.set(task.id, task))
+        return Array.from(byId.values())
+    }, [tasks, crossPackageTasks])
+
     const filteredTasks = useMemo(
-        () => (tasks || [])
+        () => taskPool
+            .filter((task) => taskMatchesStatusFilter(task, statusFilter))
+            .filter((task) => taskMatchesManualFilter(task, manualOnly))
             .filter((task) => contentStateFilter === 'all' || taskContentState(task) === contentStateFilter)
             .filter((task) => taskMatchesSearch(task, taskSearch)),
-        [tasks, contentStateFilter, taskSearch]
+        [taskPool, statusFilter, manualOnly, contentStateFilter, taskSearch]
     )
+
+    const statusCounts = useMemo(() => ({
+        active: (tasks || []).filter((task) => task.is_active === true).length,
+        published: (tasks || []).filter((task) => taskContentState(task) === 'published').length,
+        blocked: (tasks || []).filter((task) => task.publication_outcome === 'blocked').length,
+        removed: (tasks || []).filter((task) => task.publication_outcome === 'removed').length
+    }), [tasks])
+
+    const dateMismatchIds = useMemo(() => {
+        if (!selectedWeekPackage) return new Set<number>()
+        const start = selectedWeekPackage.week_start.slice(0, 10)
+        const end = selectedWeekPackage.week_end.slice(0, 10)
+        return new Set((tasks || [])
+            .filter((task) => {
+                const date = task.schedule_at?.slice(0, 10)
+                return Boolean(date && (date < start || date > end))
+            })
+            .map((task) => task.id))
+    }, [tasks, selectedWeekPackage])
+
+    const crossPackageIds = useMemo(
+        () => new Set(crossPackageTasks.map((task) => task.id)),
+        [crossPackageTasks]
+    )
+    const packageRecordCount = selectedWeekPackage?._count?.content_items || 0
+    const nonPublicationRecordCount = Math.max(0, packageRecordCount - (tasks?.length || 0))
 
     const selectStatusFilter = (nextStatus: string) => {
         setStatusFilter(nextStatus)
@@ -608,16 +689,16 @@ export default function PublicationTasks() {
     const toggleContentStateFilter = (nextState: 'empty' | 'ready' | 'published') => {
         if (contentStateFilter === nextState) {
             setContentStateFilter('all')
-            if (nextState === 'published') setStatusFilter('active')
+            if (nextState === 'published') setStatusFilter('all')
             return
         }
 
         setContentStateFilter(nextState)
-        setStatusFilter(nextState === 'published' ? 'published' : 'active')
+        setStatusFilter(nextState === 'published' ? 'published' : (statusFilter === 'published' ? 'all' : statusFilter))
     }
 
     const resetTaskFilters = () => {
-        setStatusFilter('active')
+        setStatusFilter('all')
         setManualOnly(false)
         setContentStateFilter('all')
         setTaskSearch('')
@@ -1045,6 +1126,7 @@ export default function PublicationTasks() {
                                     aria-label="Статус задач"
                                     className="w-full bg-surface-container-low border-none rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
                                 >
+                                    <option value="all">Все статусы</option>
                                     <option value="active">Активные</option>
                                     <option value="planned">Запланированные</option>
                                     <option value="awaiting_manual_publication">Ждут ручной публикации</option>
@@ -1052,6 +1134,9 @@ export default function PublicationTasks() {
                                     <option value="browser_required">Нужна публикация через браузер</option>
                                     <option value="deferred">Отложенные</option>
                                     <option value="published">Опубликованные</option>
+                                    <option value="blocked">Заблокированные</option>
+                                    <option value="removed">Удалённые с площадки</option>
+                                    <option value="restricted">Ограниченные</option>
                                     <option value="failed">С ошибкой</option>
                                 </select>
 
@@ -1063,12 +1148,38 @@ export default function PublicationTasks() {
                                     </button>
                                 </div>
 
-                            <input
-                                value={taskSearch}
-                                onChange={(event) => setTaskSearch(event.target.value)}
-                                placeholder="Название, канал или ID"
-                                className="w-full bg-surface-container-low border-none rounded-xl px-4 py-3 text-sm font-medium text-on-surface placeholder:text-on-surface-variant/70 focus:ring-2 focus:ring-primary/20 outline-none"
-                            />
+                            <div className="grid grid-cols-2 gap-2" aria-label="Состав недельного пакета">
+                                {([
+                                    ['active', 'Активные', statusCounts.active],
+                                    ['published', 'Опубликовано', statusCounts.published],
+                                    ['blocked', 'Заблокировано', statusCounts.blocked],
+                                    ['removed', 'Удалено', statusCounts.removed]
+                                ] as const).map(([value, label, count]) => (
+                                    <button
+                                        key={value}
+                                        type="button"
+                                        onClick={() => selectStatusFilter(value)}
+                                        aria-pressed={statusFilter === value}
+                                        className={`flex min-h-12 items-center justify-between gap-2 rounded-xl px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${statusFilter === value ? 'bg-primary text-white' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'}`}
+                                    >
+                                        <span className="truncate text-xs font-bold" title={label}>{label}</span>
+                                        <span className="shrink-0 text-base font-black tabular-nums">{count}</span>
+                                    </button>
+                                ))}
+                            </div>
+
+                            <label className="block space-y-2">
+                                <span className="text-xs font-bold text-on-surface-variant">Поиск по задачам</span>
+                                <div className="relative">
+                                    <span className="material-symbols-outlined pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-xl text-on-surface-variant/70" aria-hidden="true">search</span>
+                                    <input
+                                        value={taskSearch}
+                                        onChange={(event) => setTaskSearch(event.target.value)}
+                                        placeholder="Номер #760, название или канал"
+                                        className="w-full bg-surface-container-low border-none rounded-xl py-3 pl-11 pr-4 text-sm font-medium text-on-surface placeholder:text-on-surface-variant/70 focus:ring-2 focus:ring-primary/20 outline-none"
+                                    />
+                                </div>
+                            </label>
 
                             <div className="grid grid-cols-3 gap-2" aria-label="Готовность контента">
                                 {([
@@ -1090,6 +1201,19 @@ export default function PublicationTasks() {
                         </div>
 
                         <div className="max-h-[720px] overflow-y-auto">
+                            {typeof weekPackageId === 'number' && (nonPublicationRecordCount > 0 || dateMismatchIds.size > 0 || crossPackageTasks.length > 0) && (
+                                <div className="border-b border-outline-variant/10 bg-surface-container-low px-4 py-4 text-xs leading-relaxed text-on-surface-variant" role="status">
+                                    {nonPublicationRecordCount > 0 && (
+                                        <p>В селекторе учтено <strong className="text-on-surface">{packageRecordCount}</strong> записей: публикационных задач — <strong className="text-on-surface">{tasks?.length || 0}</strong>, служебных — {nonPublicationRecordCount}.</p>
+                                    )}
+                                    {dateMismatchIds.size > 0 && (
+                                        <p className={nonPublicationRecordCount > 0 ? 'mt-1' : ''}><strong className="text-on-surface">{dateMismatchIds.size}</strong> задач в пакете имеют дату за пределами выбранной недели.</p>
+                                    )}
+                                    {crossPackageTasks.length > 0 && (
+                                        <p className={nonPublicationRecordCount > 0 || dateMismatchIds.size > 0 ? 'mt-1' : ''}><strong className="text-on-surface">{crossPackageTasks.length}</strong> задач датированы этой неделей, но привязаны к другому пакету. Они добавлены в список с отметкой.</p>
+                                    )}
+                                </div>
+                            )}
                             {!currentProject && (
                                 <div className="p-8 text-sm text-on-surface-variant">
                                     Сначала импортируй план публикаций, а затем выбери проект для работы с очередью задач.
@@ -1130,14 +1254,16 @@ export default function PublicationTasks() {
                                 const isOverdue = !!task.schedule_at
                                     && ['planned', 'ready_for_execution', 'browser_required', 'awaiting_manual_publication'].includes(task.status)
                                     && new Date(task.schedule_at).getTime() < Date.now()
+                                const hasPackageDateMismatch = dateMismatchIds.has(task.id)
+                                const comesFromAnotherPackage = crossPackageIds.has(task.id)
 
                                 return (
                                     <button
                                         key={task.id}
                                         type="button"
                                         onClick={() => openTask(task.id)}
-                                        aria-label={`Открыть задачу: ${task.title || task.type}`}
-                                        className={`w-full min-h-24 touch-manipulation text-left px-4 sm:px-5 py-4 border-b transition-colors active:bg-primary/10 ${
+                                        aria-label={`Открыть задачу #${task.id}: ${task.title || task.type}`}
+                                        className={`group w-full min-h-24 touch-manipulation text-left px-4 sm:px-5 py-4 border-b transition-colors focus-visible:relative focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40 active:bg-primary/10 ${
                                             isOverdue
                                                 ? isSelected
                                                     ? 'bg-error-container/35 border-error/20'
@@ -1149,15 +1275,20 @@ export default function PublicationTasks() {
                                     >
                                         <div className="min-w-0">
                                             <div className="flex items-center justify-between gap-3">
-                                                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">
-                                                    {taskChannel(task)}
+                                                <div className="flex min-w-0 items-center gap-2">
+                                                    <span className="inline-flex shrink-0 select-all items-center rounded-lg bg-primary/10 px-2 py-1 text-xs font-black tabular-nums text-primary" title={`Номер задачи ${task.id}`}>
+                                                        #{task.id}
+                                                    </span>
+                                                    <span className="truncate text-[10px] font-black uppercase tracking-[0.18em] text-primary/60" title={taskChannel(task)}>
+                                                        {taskChannel(task)}
+                                                    </span>
                                                 </div>
                                                 <span className={`max-w-[58%] inline-flex items-center gap-1 truncate px-2.5 py-1 rounded-full text-[10px] font-black ${contentStateTone(contentState)}`} title={contentStateLabel(contentState)}>
                                                     <span className="material-symbols-outlined text-[14px]" aria-hidden="true">{contentStateIcon(contentState)}</span>
                                                     {contentStateLabel(contentState)}
                                                 </span>
                                             </div>
-                                            <div className="font-bold text-sm text-on-surface mt-2 line-clamp-2 leading-snug">
+                                            <div className="font-bold text-sm text-on-surface mt-2 line-clamp-2 leading-snug transition-colors group-hover:text-primary">
                                                 {task.title || task.type}
                                             </div>
                                             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-on-surface-variant mt-2">
@@ -1171,10 +1302,22 @@ export default function PublicationTasks() {
                                                         Просрочено
                                                     </span>
                                                 )}
+                                                {hasPackageDateMismatch && (
+                                                    <span className="font-black text-error" title="Дата задачи находится за пределами выбранного недельного пакета">
+                                                        Дата вне недели
+                                                    </span>
+                                                )}
+                                                {comesFromAnotherPackage && (
+                                                    <span className="font-black text-primary" title={`Задача привязана к пакету №${task.week_package_id || '—'}`}>
+                                                        Из пакета №{task.week_package_id || '—'}
+                                                    </span>
+                                                )}
                                             </div>
-                                                <div className="text-[11px] font-medium text-on-surface-variant/80 mt-2 truncate" title={taskIdentifierLabel(task)}>
-                                                    {taskIdentifierLabel(task)}
+                                            {taskPlanReference(task) && (
+                                                <div className="mt-2 truncate text-xs font-medium text-on-surface-variant/80" title={taskPlanReference(task)}>
+                                                    План: {taskPlanReference(task)}
                                                 </div>
+                                            )}
                                         </div>
                                     </button>
                                 )

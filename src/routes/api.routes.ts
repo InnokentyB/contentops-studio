@@ -147,6 +147,10 @@ function resolveTaskScheduleAt(item: any) {
 function buildPublicationTaskListItem(item: any) {
     const qualityReport = (item.quality_report as any) || {};
     const metrics = (item.metrics as any) || {};
+    const publicationOutcome = item.publication_fact?.outcome
+        || qualityReport.publication_outcome
+        || metrics.publication_outcome
+        || null;
 
     return {
         id: item.id,
@@ -156,6 +160,8 @@ function buildPublicationTaskListItem(item: any) {
         title: item.title,
         brief: item.brief,
         status: item.status,
+        is_active: isPublicationTaskActive(item),
+        publication_outcome: publicationOutcome,
         schedule_at: item?.schedule_at?.toISOString?.() || item?.schedule_at || null,
         published_link: item.published_link,
         content_state: derivePublicationContentState(item),
@@ -1088,7 +1094,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
 
         if (status === 'active') {
             where.status = { in: ['planned', 'drafted', 'revised', 'approved', 'scheduled', 'ready_for_execution', 'browser_required', 'awaiting_manual_publication', 'failed'] };
-        } else if (status) {
+        } else if (status && status !== 'all') {
             where.status = status;
         }
         if (weekPackageId) where.week_package_id = Number(weekPackageId);
