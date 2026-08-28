@@ -59,6 +59,7 @@ const publication_execution_route_1 = require("./publication_execution_route");
 const publication_content_state_1 = require("./publication_content_state");
 const publication_fact_service_1 = __importDefault(require("./publication_fact.service"));
 const telegram_delivery_payload_1 = require("./telegram_delivery_payload");
+const telegram_client_service_1 = __importDefault(require("./telegram_client.service"));
 const dotenv_1 = require("dotenv");
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
@@ -115,6 +116,41 @@ class PublisherService {
             throw new Error('[PUBLICATION_IDENTITY_MISSING] Telegram provider did not confirm a message ID or permalink');
         }
         return result;
+    }
+    async publishTelegramTaskMtproto(params) {
+        const payload = (0, telegram_delivery_payload_1.normalizeTelegramDeliveryPayload)(params);
+        const channelConfig = this.extractTelegramAccountConfig(params.channel?.config || {});
+        const rawChannelId = channelConfig.telegram_channel_id?.toString?.() || null;
+        const normalizedHandle = this.normalizeTelegramHandle(channelConfig.handle || channelConfig.channel_username || params.channel?.name);
+        const target = rawChannelId || normalizedHandle;
+        if (!target) {
+            throw new Error('[TELEGRAM_TARGET_REQUIRED] Telegram channel config has no channel ID or public handle');
+        }
+        const initialized = await telegram_client_service_1.default.init(params.projectId);
+        if (!initialized) {
+            throw new Error('[MTPROTO_UNAVAILABLE] No active Telegram MTProto session is available for the project');
+        }
+        const sent = await telegram_client_service_1.default.publishPost(params.projectId, target, payload.text, payload.imageUrl, undefined, params.taskId, undefined, { forceMediaUpload: true });
+        const messageId = Number(sent?.id);
+        if (!Number.isInteger(messageId) || messageId <= 0) {
+            throw new Error('[PUBLICATION_IDENTITY_MISSING] MTProto did not confirm a Telegram message ID');
+        }
+        const channelUsername = normalizedHandle?.replace(/^@/, '') || null;
+        const targetString = String(target);
+        const publishedLink = channelUsername
+            ? `https://t.me/${channelUsername}/${messageId}`
+            : targetString.startsWith('-100')
+                ? `https://t.me/c/${targetString.substring(4)}/${messageId}`
+                : null;
+        if (!publishedLink) {
+            throw new Error('[PUBLICATION_IDENTITY_MISSING] MTProto message has no resolvable Telegram permalink');
+        }
+        return {
+            adapter: 'telegram',
+            deliveryMethod: 'mtproto',
+            publishedLink,
+            metrics: { telegram_message_id: messageId }
+        };
     }
     async routeToBrowserPublication(task, bundle, reason) {
         const now = new Date().toISOString();

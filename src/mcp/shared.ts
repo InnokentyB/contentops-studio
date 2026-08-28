@@ -12,6 +12,7 @@ import metricsService from '../services/metrics.service';
 import publicationFactService from '../services/publication_fact.service';
 import weekPackageRepairService from '../services/week_package_repair.service';
 import weeklyThemePipelineService from '../services/weekly_theme_pipeline.service';
+import telegramTaskPublicationService from '../services/telegram_task_publication.service';
 import { filterMcpServerTools, McpCapabilityProfile } from './capabilities';
 
 
@@ -648,6 +649,16 @@ export function registerPlannerTools(server: McpServer) {
         });
         return asToolResult(result);
     });
+
+    server.registerTool('ba_publish_publication_task', {
+        description: 'Publish one canonical Telegram publication task through the project MTProto session. The server resolves the accepted text and selected approved durable visual; no Bot API or browser fallback is used.',
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            taskId: z.number().int().positive(),
+            dryRun: z.boolean().optional().describe('Validate and return the exact normalized MTProto payload without sending.'),
+            idempotencyKey: z.string().min(1).max(500).optional().describe('Required for live publication and reused to safely replay a confirmed result.')
+        }
+    }, async (args) => asToolResult(await telegramTaskPublicationService.execute(args)));
 
     // ============================================
     // TDPD-001 Work Queue MCP Tools

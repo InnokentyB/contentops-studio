@@ -1,6 +1,7 @@
 import { TelegramClient } from "telegram";
 import { StringSession } from "telegram/sessions";
 import { Api } from "telegram/tl";
+import { CustomFile } from "telegram/client/uploads";
 import { MarkdownParser } from "telegram/extensions/markdown";
 import { PrismaClient } from "@prisma/client";
 import { Pool } from 'pg';
@@ -8,8 +9,51 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { config } from 'dotenv';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as net from 'net';
 
 config();
+
+const MAX_TELEGRAM_IMAGE_BYTES = 10 * 1024 * 1024;
+
+function assertSafeRemoteImageUrl(rawUrl: string) {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== 'https:') throw new Error('[TELEGRAM_IMAGE_URL_INVALID] Image URL must use HTTPS');
+    const hostname = parsed.hostname.toLowerCase();
+    if (hostname === 'localhost' || hostname.endsWith('.localhost')) {
+        throw new Error('[TELEGRAM_IMAGE_URL_FORBIDDEN] Local image hosts are not allowed');
+    }
+    if (net.isIP(hostname)) {
+        const privateAddress = hostname === '::1'
+            || hostname.startsWith('fc') || hostname.startsWith('fd')
+            || hostname.startsWith('fe8') || hostname.startsWith('fe9')
+            || hostname.startsWith('fea') || hostname.startsWith('feb')
+            || /^127\./.test(hostname) || /^10\./.test(hostname) || /^169\.254\./.test(hostname)
+            || /^192\.168\./.test(hostname) || /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
+        if (privateAddress) throw new Error('[TELEGRAM_IMAGE_URL_FORBIDDEN] Private image hosts are not allowed');
+    }
+    return parsed;
+}
+
+export async function loadTelegramRemoteImage(rawUrl: string, fetchImpl: typeof fetch = fetch) {
+    const parsed = assertSafeRemoteImageUrl(rawUrl);
+    const response = await fetchImpl(parsed, {
+        redirect: 'error',
+        signal: AbortSignal.timeout(15_000)
+    });
+    if (!response.ok) throw new Error(`[TELEGRAM_IMAGE_FETCH_FAILED] Image server returned ${response.status}`);
+    const contentType = response.headers.get('content-type')?.split(';')[0].trim().toLowerCase() || '';
+    if (!contentType.startsWith('image/')) throw new Error('[TELEGRAM_IMAGE_TYPE_INVALID] Approved asset is not an image');
+    const declaredSize = Number(response.headers.get('content-length') || 0);
+    if (declaredSize > MAX_TELEGRAM_IMAGE_BYTES) throw new Error('[TELEGRAM_IMAGE_TOO_LARGE] Approved asset exceeds 10 MB');
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (!buffer.length || buffer.length > MAX_TELEGRAM_IMAGE_BYTES) {
+        throw new Error('[TELEGRAM_IMAGE_TOO_LARGE] Approved asset is empty or exceeds 10 MB');
+    }
+    const extension = contentType === 'image/png' ? 'png'
+        : contentType === 'image/webp' ? 'webp'
+            : contentType === 'image/gif' ? 'gif' : 'jpg';
+    return new CustomFile(`approved-visual.${extension}`, buffer.length, '', buffer);
+}
 
 const connectionString = process.env.DATABASE_URL;
 const pool = new Pool({ connectionString });
@@ -75,7 +119,7 @@ export class TelegramClientService {
      * Publish a post to a channel/chat
      * @param target which could be a username, phone number, or chat ID
      */
-    async publishPost(projectId: number, target: string | number, text: string, imageUrl?: string | null, scheduleDate?: Date, postId?: number, requestHost?: string) {
+    async publishPost(projectId: number, target: string | number, text: string, imageUrl?: string | null, scheduleDate?: Date, postId?: number, requestHost?: string, options: { forceMediaUpload?: boolean } = {}) {
         const client = await this.getClient(projectId);
         if (!client) {
             throw new Error("Telegram Client not initialized or no account found.");
@@ -144,8 +188,9 @@ export class TelegramClientService {
                     fs.writeFileSync(tempFilePath, buffer);
                     fileSource = tempFilePath;
                 } else if (imageUrl.startsWith('http')) {
-                    fileSource = imageUrl; // GramJS can sometimes handle URLs, but often better to download buffer
-                    // For now let implementation handle URL if library supports, else we might need to download
+                    fileSource = options.forceMediaUpload
+                        ? await loadTelegramRemoteImage(imageUrl)
+                        : imageUrl;
                 } else if (imageUrl.startsWith('/uploads/')) {
                     const filename = imageUrl.split('/').pop();
                     const localPath = path.join(__dirname, '../../uploads', filename || '');
@@ -173,7 +218,7 @@ export class TelegramClientService {
                     if (text.length > CAPTION_LIMIT) {
                         console.log(`[TelegramClient] Text exceeds CAPTION_LIMIT (${text.length} > ${CAPTION_LIMIT}). Splitting logic triggered.`);
 
-                        if (publicImageUrl && publicImageUrl.startsWith('http')) {
+                        if (!options.forceMediaUpload && publicImageUrl && publicImageUrl.startsWith('http')) {
                             console.log(`[TelegramClient] imageUrl is HTTP URL (resolved: ${publicImageUrl}). Attempting invisible char trick for web preview instead of file upload.`);
                             // Use invisible markdown link trick to generate web preview for large images.
                             // GramJS's markdown parser doesn't detect [text](url) properly, so we parse manually

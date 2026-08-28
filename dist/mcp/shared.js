@@ -54,6 +54,7 @@ const metrics_service_1 = __importDefault(require("../services/metrics.service")
 const publication_fact_service_1 = __importDefault(require("../services/publication_fact.service"));
 const week_package_repair_service_1 = __importDefault(require("../services/week_package_repair.service"));
 const weekly_theme_pipeline_service_1 = __importDefault(require("../services/weekly_theme_pipeline.service"));
+const telegram_task_publication_service_1 = __importDefault(require("../services/telegram_task_publication.service"));
 const capabilities_1 = require("./capabilities");
 function asToolResult(payload) {
     return {
@@ -640,6 +641,15 @@ function registerPlannerTools(server) {
         });
         return asToolResult(result);
     });
+    server.registerTool('ba_publish_publication_task', {
+        description: 'Publish one canonical Telegram publication task through the project MTProto session. The server resolves the accepted text and selected approved durable visual; no Bot API or browser fallback is used.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            taskId: zod_1.z.number().int().positive(),
+            dryRun: zod_1.z.boolean().optional().describe('Validate and return the exact normalized MTProto payload without sending.'),
+            idempotencyKey: zod_1.z.string().min(1).max(500).optional().describe('Required for live publication and reused to safely replay a confirmed result.')
+        }
+    }, async (args) => asToolResult(await telegram_task_publication_service_1.default.execute(args)));
     // ============================================
     // TDPD-001 Work Queue MCP Tools
     // ============================================

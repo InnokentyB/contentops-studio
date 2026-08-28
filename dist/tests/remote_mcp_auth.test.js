@@ -65,6 +65,8 @@ const principal = { userId: 2, actorId: 'user:2' };
     const tools = Object.keys(server._registeredTools || {});
     strict_1.default.ok(tools.includes('ba_import_operational_plan'));
     strict_1.default.ok(tools.includes('ba_materialize_publication_task'));
+    strict_1.default.ok(tools.includes('ba_publish_publication_task'));
+    strict_1.default.ok(!tools.includes('ba_publish_direct'));
     strict_1.default.ok(tools.includes('ba_reschedule_work_item'));
     strict_1.default.ok(!tools.includes('ba_update_publication_content'));
     strict_1.default.ok(!tools.includes('ba_recover_content_review'));

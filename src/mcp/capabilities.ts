@@ -38,6 +38,7 @@ const PLANNER_TOOLS = new Set([
     'ba_link_initiatives',
     'ba_import_operational_plan',
     'ba_materialize_publication_task',
+    'ba_publish_publication_task',
     'ba_get_initiative',
     'ba_list_initiatives',
     'ba_audit_plan_coverage',
