@@ -37,6 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.asToolResult = asToolResult;
+exports.asTelegramRouteToolError = asTelegramRouteToolError;
 exports.createPlannerMcpServer = createPlannerMcpServer;
 exports.registerPlannerTools = registerPlannerTools;
 exports.shutdownMcpResources = shutdownMcpResources;
@@ -65,6 +66,18 @@ function asToolResult(payload) {
             }
         ],
         structuredContent: payload
+    };
+}
+function asTelegramRouteToolError(error) {
+    if (!error?.routeTrace)
+        return null;
+    return {
+        ...asToolResult({
+            mode: 'failed',
+            error: String(error?.message || error || 'Telegram publication failed'),
+            route_trace: error.routeTrace
+        }),
+        isError: true
     };
 }
 function createPlannerMcpServer(options = {}) {
@@ -629,20 +642,28 @@ function registerPlannerTools(server) {
             dryRun: zod_1.z.boolean().optional().describe('When true, validate channel resolution and preview the payload without publishing.')
         }
     }, async ({ projectId, channelId, channelType, title, text, subreddit, imageUrl, dryRun }) => {
-        const result = await mcp_publication_service_1.default.publishDirect({
-            projectId,
-            channelId,
-            channelType,
-            title,
-            text,
-            subreddit,
-            imageUrl,
-            dryRun
-        });
-        return asToolResult(result);
+        try {
+            const result = await mcp_publication_service_1.default.publishDirect({
+                projectId,
+                channelId,
+                channelType,
+                title,
+                text,
+                subreddit,
+                imageUrl,
+                dryRun
+            });
+            return asToolResult(result);
+        }
+        catch (error) {
+            const toolError = asTelegramRouteToolError(error);
+            if (!toolError)
+                throw error;
+            return toolError;
+        }
     });
     server.registerTool('ba_publish_publication_task', {
-        description: 'Publish one canonical Telegram publication task through the project MTProto session. The server resolves the accepted text and selected approved durable visual; no Bot API or browser fallback is used.',
+        description: 'Publish one canonical Telegram or VK task through its configured provider API. The server resolves accepted text and the selected approved durable visual; no browser fallback or silent visual downgrade is used.',
         inputSchema: {
             projectId: zod_1.z.number().int().positive(),
             taskId: zod_1.z.number().int().positive(),

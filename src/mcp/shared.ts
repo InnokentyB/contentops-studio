@@ -32,6 +32,18 @@ export function asToolResult<T extends Record<string, unknown>>(payload: T) {
     };
 }
 
+export function asTelegramRouteToolError(error: any) {
+    if (!error?.routeTrace) return null;
+    return {
+        ...asToolResult({
+            mode: 'failed',
+            error: String(error?.message || error || 'Telegram publication failed'),
+            route_trace: error.routeTrace
+        }),
+        isError: true
+    };
+}
+
 export function createPlannerMcpServer(options: { profile?: McpCapabilityProfile } = {}) {
     const server = new McpServer({
         name: 'ba-post-planner-publication',
@@ -637,21 +649,27 @@ export function registerPlannerTools(server: McpServer) {
             dryRun: z.boolean().optional().describe('When true, validate channel resolution and preview the payload without publishing.')
         }
     }, async ({ projectId, channelId, channelType, title, text, subreddit, imageUrl, dryRun }) => {
-        const result = await mcpPublicationService.publishDirect({
-            projectId,
-            channelId,
-            channelType,
-            title,
-            text,
-            subreddit,
-            imageUrl,
-            dryRun
-        });
-        return asToolResult(result);
+        try {
+            const result = await mcpPublicationService.publishDirect({
+                projectId,
+                channelId,
+                channelType,
+                title,
+                text,
+                subreddit,
+                imageUrl,
+                dryRun
+            });
+            return asToolResult(result);
+        } catch (error: any) {
+            const toolError = asTelegramRouteToolError(error);
+            if (!toolError) throw error;
+            return toolError;
+        }
     });
 
     server.registerTool('ba_publish_publication_task', {
-        description: 'Publish one canonical Telegram publication task through the project MTProto session. The server resolves the accepted text and selected approved durable visual; no Bot API or browser fallback is used.',
+        description: 'Publish one canonical Telegram or VK task through its configured provider API. The server resolves accepted text and the selected approved durable visual; no browser fallback or silent visual downgrade is used.',
         inputSchema: {
             projectId: z.number().int().positive(),
             taskId: z.number().int().positive(),

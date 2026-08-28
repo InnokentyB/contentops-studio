@@ -62,6 +62,7 @@ const prisma = new PrismaClient({ adapter });
 
 export class TelegramClientService {
     private client: TelegramClient | null = null;
+    private activeProjectId: number | null = null;
     private sessionString: string = "";
     private apiId: number = 0;
     private apiHash: string = "";
@@ -69,13 +70,41 @@ export class TelegramClientService {
 
     constructor() { }
 
+    async inspectSessionTarget(projectId: number) {
+        const account = await prisma.telegramAccount.findFirst({
+            where: { project_id: projectId, is_active: true },
+            orderBy: { id: 'asc' },
+            select: { id: true, project_id: true, phone_number: true, is_active: true }
+        });
+        if (!account) {
+            return {
+                configured: false,
+                project_id: projectId,
+                account_id: null,
+                phone_hint: null,
+                reason_code: 'project_session_missing',
+                reason: 'No active Telegram account session found for this project'
+            };
+        }
+        const digits = String(account.phone_number || '').replace(/\D/g, '');
+        return {
+            configured: true,
+            project_id: account.project_id,
+            account_id: account.id,
+            phone_hint: digits ? `***${digits.slice(-4)}` : null,
+            reason_code: null,
+            reason: null
+        };
+    }
+
     /**
      * Initialize client with data from DB for a specific project
      */
     async init(projectId: number = 1) {
         // @ts-ignore
         const account = await prisma.telegramAccount.findFirst({
-            where: { project_id: projectId, is_active: true }
+            where: { project_id: projectId, is_active: true },
+            orderBy: { id: 'asc' }
         });
 
         if (!account) {
@@ -87,6 +116,8 @@ export class TelegramClientService {
         this.apiId = account.api_id;
         this.apiHash = account.api_hash;
         this.phoneNumber = account.phone_number;
+        this.client = null;
+        this.activeProjectId = null;
 
         try {
             this.client = new TelegramClient(
@@ -99,6 +130,7 @@ export class TelegramClientService {
             // Connect without login if session is valid? 
             // Actually connect() does not trigger interactive login if session is present.
             await this.client.connect();
+            this.activeProjectId = projectId;
             console.log(`[TelegramClient] Connected as ${this.phoneNumber}`);
             return true;
         } catch (e) {
@@ -108,7 +140,7 @@ export class TelegramClientService {
     }
 
     async getClient(projectId: number = 1): Promise<TelegramClient | null> {
-        if (!this.client) {
+        if (!this.client || this.activeProjectId !== projectId) {
             const success = await this.init(projectId);
             if (!success) return null;
         }

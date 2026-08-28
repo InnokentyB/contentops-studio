@@ -2,6 +2,10 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 class PublicationAdapterService {
     supportsDirectExecution(account) {
+        if (account.platform === 'vk') {
+            return Boolean(account.vk_id
+                && (account.publish_access_token || account.api_key));
+        }
         return ['telegram', 'vk', 'linkedin', 'reddit', 'tilda', 'ok', 'odnoklassniki', 'habr', 'habr_article', 'vc', 'vc_article', 'zen', 'zen_article', 'dzen', 'threads'].includes(account.platform);
     }
     inferExecutionMode(account, action) {

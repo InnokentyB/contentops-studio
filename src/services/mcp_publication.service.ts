@@ -1055,6 +1055,7 @@ class McpPublicationService {
         const channelConfig = (item.channel?.config as any) || {};
         const rawAccount = channelConfig.raw_account || channelConfig;
         const directExecutionSupported = publicationAdapterService.supportsDirectExecution({
+            ...channelConfig,
             ...rawAccount,
             platform: rawAccount.platform || item.channel?.type
         });
@@ -1132,6 +1133,14 @@ class McpPublicationService {
             : null;
 
         if (params.dryRun) {
+            const routeTrace = telegramPayload
+                ? await publisherService.inspectTelegramDirectRoute({
+                    projectId: params.projectId,
+                    channel,
+                    text: telegramPayload.text,
+                    imageUrl: telegramPayload.imageUrl || undefined
+                })
+                : null;
             return {
                 mode: 'dry_run',
                 project_id: params.projectId,
@@ -1146,13 +1155,15 @@ class McpPublicationService {
                     subreddit: params.subreddit || null,
                     has_image: Boolean(telegramPayload?.imageUrl || params.imageUrl),
                     ...(telegramPayload ? buildTelegramDeliveryPreview(telegramPayload) : {})
-                }
+                },
+                ...(routeTrace ? { route_trace: routeTrace } : {})
             };
         }
 
         let publishedLink: string | null = null;
         let externalId: string | number | null = null;
         let deliveryMethod: string | null = null;
+        let routeTrace: any = null;
 
         if (channel.type === 'reddit') {
             if (!params.title?.trim()) {
@@ -1170,11 +1181,6 @@ class McpPublicationService {
             publishedLink = result.url;
             externalId = result.name;
         } else if (channel.type === 'telegram') {
-            const rawChannelId = (channel.config as any)?.telegram_channel_id?.toString();
-            if (!rawChannelId) {
-                throw new Error(`Telegram channel ${channel.id} is missing telegram_channel_id`);
-            }
-
             const result = await publisherService.publishDirectTelegram({
                 projectId: params.projectId,
                 channel,
@@ -1184,6 +1190,7 @@ class McpPublicationService {
             publishedLink = result.publishedLink;
             externalId = result.metrics?.telegram_message_id || null;
             deliveryMethod = result.deliveryMethod || null;
+            routeTrace = result.routeTrace || null;
         } else if (channel.type === 'threads') {
             const threadsUserId = config?.threads_user_id;
             const accessToken = config?.access_token;
@@ -1258,6 +1265,7 @@ class McpPublicationService {
                     published_link: publishedLink,
                     external_id: externalId,
                     delivery_method: deliveryMethod,
+                    route_trace: routeTrace,
                     has_image: Boolean(params.imageUrl),
                     text_preview: normalizeTextPreview(params.text, 500)
                 } as any
@@ -1274,7 +1282,8 @@ class McpPublicationService {
             },
             published_link: publishedLink,
             external_id: externalId,
-            delivery_method: deliveryMethod
+            delivery_method: deliveryMethod,
+            ...(routeTrace ? { route_trace: routeTrace } : {})
         };
     }
 

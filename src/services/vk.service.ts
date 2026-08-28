@@ -1,6 +1,7 @@
 import { VK } from 'vk-io';
 import fs from 'fs';
 import path from 'path';
+import net from 'net';
 
 export type VkCollectionStatus = 'collected' | 'unavailable' | 'forbidden' | 'not_found' | 'rate_limited' | 'failed';
 
@@ -42,6 +43,49 @@ export interface VkPostMetricsResult {
 
 const VK_API_BASE_URL = 'https://api.vk.com/method';
 const VK_API_VERSION = '5.199';
+const MAX_VK_IMAGE_BYTES = 10 * 1024 * 1024;
+
+type VkServiceDependencies = {
+    createClient: (token: string) => any;
+    loadRemoteImage: (url: string) => Promise<{ buffer: Buffer; filename: string; contentType: string }>;
+};
+
+function assertSafeVkImageUrl(rawUrl: string) {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== 'https:') throw new Error('[VK_IMAGE_URL_INVALID] Approved visual must use HTTPS');
+    const hostname = parsed.hostname.toLowerCase();
+    if (hostname === 'localhost' || hostname.endsWith('.localhost')) {
+        throw new Error('[VK_IMAGE_URL_FORBIDDEN] Local image hosts are not allowed');
+    }
+    if (net.isIP(hostname)) {
+        const privateAddress = hostname === '::1'
+            || hostname.startsWith('fc') || hostname.startsWith('fd')
+            || hostname.startsWith('fe8') || hostname.startsWith('fe9')
+            || hostname.startsWith('fea') || hostname.startsWith('feb')
+            || /^127\./.test(hostname) || /^10\./.test(hostname) || /^169\.254\./.test(hostname)
+            || /^192\.168\./.test(hostname) || /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
+        if (privateAddress) throw new Error('[VK_IMAGE_URL_FORBIDDEN] Private image hosts are not allowed');
+    }
+    return parsed;
+}
+
+export async function loadVkRemoteImage(rawUrl: string) {
+    const url = assertSafeVkImageUrl(rawUrl);
+    const response = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(15_000) });
+    if (!response.ok) throw new Error(`[VK_IMAGE_FETCH_FAILED] Image server returned ${response.status}`);
+    const contentType = response.headers.get('content-type')?.split(';')[0].trim().toLowerCase() || '';
+    if (!contentType.startsWith('image/')) throw new Error('[VK_IMAGE_TYPE_INVALID] Approved asset is not an image');
+    const declaredSize = Number(response.headers.get('content-length') || 0);
+    if (declaredSize > MAX_VK_IMAGE_BYTES) throw new Error('[VK_IMAGE_TOO_LARGE] Approved asset exceeds 10 MB');
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (!buffer.length || buffer.length > MAX_VK_IMAGE_BYTES) {
+        throw new Error('[VK_IMAGE_TOO_LARGE] Approved asset is empty or exceeds 10 MB');
+    }
+    const extension = contentType === 'image/png' ? 'png'
+        : contentType === 'image/webp' ? 'webp'
+            : contentType === 'image/gif' ? 'gif' : 'jpg';
+    return { buffer, filename: `approved-visual.${extension}`, contentType };
+}
 
 const emptyMetrics = (): VkNormalizedMetrics => ({
     views: null,
@@ -104,6 +148,11 @@ function classifyVkError(error: any): VkCollectionStatus {
 }
 
 export class VKService {
+    constructor(private readonly dependencies: VkServiceDependencies = {
+        createClient: (token) => new VK({ token }),
+        loadRemoteImage: loadVkRemoteImage
+    }) {}
+
     private async callApi(method: string, token: string, params: Record<string, string>): Promise<any> {
         const query = new URLSearchParams({
             ...params,
@@ -135,10 +184,16 @@ export class VKService {
      * @param imageUrl Optional image URL (local path or remote URL)
      * @returns The generated VK post URL (e.g., https://vk.com/wall-123456_789)
      */
-    async publishPost(vkId: string, apiKey: string, text: string, imageUrl?: string): Promise<string> {
-        const vk = new VK({
-            token: apiKey
-        });
+    async publishPostWithIdentity(
+        vkId: string,
+        apiKey: string,
+        text: string,
+        imageUrl?: string,
+        options: { guid?: string } = {}
+    ): Promise<{ ownerId: string; postId: string; publishedLink: string }> {
+        const normalizedText = typeof text === 'string' ? text.trim() : '';
+        if (!normalizedText) throw new Error('[VK_TEXT_REQUIRED] VK publication text must not be empty');
+        const vk = this.dependencies.createClient(apiKey);
 
         // Convert string vkId to number, removing any '-' prefix if the user included it or not.
         // VK wall.post owner_id requires negative number for communities.
@@ -147,65 +202,67 @@ export class VKService {
         let attachmentString: string | undefined;
 
         if (imageUrl) {
-            try {
-                let photoSource: any;
+            let photoSource: any;
 
-                if (imageUrl.startsWith('data:')) {
-                    const base64Data = imageUrl.split(',')[1];
-                    photoSource = {
-                        value: Buffer.from(base64Data, 'base64')
-                    };
-                } else if (imageUrl.startsWith('/uploads/')) {
-                    const filename = imageUrl.split('/').pop();
-                    const localPath = path.join(__dirname, '../../uploads', filename || '');
-                    if (fs.existsSync(localPath)) {
-                        photoSource = {
-                            value: fs.createReadStream(localPath)
-                        };
-                    } else {
-                        throw new Error(`Local image file not found: ${localPath}`);
-                    }
-                } else if (imageUrl.startsWith('http')) {
-                    // For remote URLs, vk-io upload.wallPhoto supports stream/buffer, so we fetch it first
-                    const response = await fetch(imageUrl);
-                    if (!response.ok) {
-                        throw new Error(`Failed to fetch remote image: ${response.statusText}`);
-                    }
-                    const buffer = await response.arrayBuffer();
-                    photoSource = {
-                        value: Buffer.from(buffer)
-                    };
+            if (imageUrl.startsWith('data:')) {
+                const base64Data = imageUrl.split(',')[1];
+                photoSource = { value: Buffer.from(base64Data, 'base64') };
+            } else if (imageUrl.startsWith('/uploads/')) {
+                const filename = imageUrl.split('/').pop();
+                const localPath = path.join(__dirname, '../../uploads', filename || '');
+                if (fs.existsSync(localPath)) {
+                    photoSource = { value: fs.createReadStream(localPath) };
                 } else {
-                    throw new Error(`Unsupported image URL format: ${imageUrl}`);
+                    throw new Error(`Local image file not found: ${localPath}`);
                 }
+            } else if (imageUrl.startsWith('https://')) {
+                const remote = await this.dependencies.loadRemoteImage(imageUrl);
+                photoSource = { value: remote.buffer, filename: remote.filename };
+            } else {
+                throw new Error(`Unsupported image URL format: ${imageUrl}`);
+            }
 
-                if (photoSource) {
-                    // Upload photo to the wall
-                    const photo = await vk.upload.wallPhoto({
-                        source: photoSource,
-                        group_id: Math.abs(ownerId) // upload.wallPhoto requires positive group_id
-                    });
-                    attachmentString = photo.toString(); // format: photo{owner_id}_{photo_id}
-                }
-            } catch (err) {
-                console.error(`[VKService] Failed to upload image, falling back to text only:`, err);
+            const photo = await vk.upload.wallPhoto({
+                source: photoSource,
+                group_id: Math.abs(ownerId)
+            });
+            attachmentString = photo?.toString?.();
+            if (!attachmentString || !/^photo-?\d+_\d+$/.test(attachmentString)) {
+                throw new Error('[VK_IMAGE_IDENTITY_MISSING] VK did not confirm the uploaded photo attachment');
             }
         }
 
         // Post to the wall
         const postParams: any = {
             owner_id: ownerId,
-            message: text
+            message: normalizedText
         };
 
         if (attachmentString) {
             postParams.attachments = attachmentString;
         }
+        if (options.guid?.trim()) postParams.guid = options.guid.trim();
 
         const response = await vk.api.wall.post(postParams);
+        const postId = Number(response?.post_id);
+        if (!Number.isSafeInteger(postId) || postId <= 0) {
+            throw new Error('[VK_PUBLICATION_IDENTITY_MISSING] VK wall.post did not confirm post_id');
+        }
+        return {
+            ownerId: String(ownerId),
+            postId: String(postId),
+            publishedLink: `https://vk.com/wall${ownerId}_${postId}`
+        };
+    }
 
-        // Construct the post URL
-        return `https://vk.com/wall${ownerId}_${response.post_id}`;
+    async publishPost(
+        vkId: string,
+        apiKey: string,
+        text: string,
+        imageUrl?: string,
+        options: { guid?: string } = {}
+    ): Promise<string> {
+        return (await this.publishPostWithIdentity(vkId, apiKey, text, imageUrl, options)).publishedLink;
     }
 
     /**

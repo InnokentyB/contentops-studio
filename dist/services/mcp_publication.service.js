@@ -864,6 +864,7 @@ class McpPublicationService {
         const channelConfig = item.channel?.config || {};
         const rawAccount = channelConfig.raw_account || channelConfig;
         const directExecutionSupported = publication_adapter_service_1.default.supportsDirectExecution({
+            ...channelConfig,
             ...rawAccount,
             platform: rawAccount.platform || item.channel?.type
         });
@@ -934,6 +935,14 @@ class McpPublicationService {
             ? (0, telegram_delivery_payload_1.normalizeTelegramDeliveryPayload)(params)
             : null;
         if (params.dryRun) {
+            const routeTrace = telegramPayload
+                ? await publisher_service_1.default.inspectTelegramDirectRoute({
+                    projectId: params.projectId,
+                    channel,
+                    text: telegramPayload.text,
+                    imageUrl: telegramPayload.imageUrl || undefined
+                })
+                : null;
             return {
                 mode: 'dry_run',
                 project_id: params.projectId,
@@ -948,12 +957,14 @@ class McpPublicationService {
                     subreddit: params.subreddit || null,
                     has_image: Boolean(telegramPayload?.imageUrl || params.imageUrl),
                     ...(telegramPayload ? (0, telegram_delivery_payload_1.buildTelegramDeliveryPreview)(telegramPayload) : {})
-                }
+                },
+                ...(routeTrace ? { route_trace: routeTrace } : {})
             };
         }
         let publishedLink = null;
         let externalId = null;
         let deliveryMethod = null;
+        let routeTrace = null;
         if (channel.type === 'reddit') {
             if (!params.title?.trim()) {
                 throw new Error('`title` is required for Reddit publication');
@@ -970,10 +981,6 @@ class McpPublicationService {
             externalId = result.name;
         }
         else if (channel.type === 'telegram') {
-            const rawChannelId = channel.config?.telegram_channel_id?.toString();
-            if (!rawChannelId) {
-                throw new Error(`Telegram channel ${channel.id} is missing telegram_channel_id`);
-            }
             const result = await publisher_service_1.default.publishDirectTelegram({
                 projectId: params.projectId,
                 channel,
@@ -983,6 +990,7 @@ class McpPublicationService {
             publishedLink = result.publishedLink;
             externalId = result.metrics?.telegram_message_id || null;
             deliveryMethod = result.deliveryMethod || null;
+            routeTrace = result.routeTrace || null;
         }
         else if (channel.type === 'threads') {
             const threadsUserId = config?.threads_user_id;
@@ -1061,6 +1069,7 @@ class McpPublicationService {
                     published_link: publishedLink,
                     external_id: externalId,
                     delivery_method: deliveryMethod,
+                    route_trace: routeTrace,
                     has_image: Boolean(params.imageUrl),
                     text_preview: normalizeTextPreview(params.text, 500)
                 }
@@ -1076,7 +1085,8 @@ class McpPublicationService {
             },
             published_link: publishedLink,
             external_id: externalId,
-            delivery_method: deliveryMethod
+            delivery_method: deliveryMethod,
+            ...(routeTrace ? { route_trace: routeTrace } : {})
         };
     }
     async resolveChannel(projectId, channelId, channelType) {

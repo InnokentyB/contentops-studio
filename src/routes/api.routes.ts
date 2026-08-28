@@ -1333,6 +1333,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         const channelConfig = (item.channel?.config as any) || {};
         const rawAccount = channelConfig.raw_account || channelConfig;
         const directExecutionSupported = publicationAdapterService.supportsDirectExecution({
+            ...channelConfig,
             ...rawAccount,
             platform: rawAccount.platform || item.channel?.type
         });

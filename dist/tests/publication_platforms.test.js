@@ -105,3 +105,12 @@ const publication_adapter_service_1 = __importDefault(require("../services/publi
     strict_1.default.equal(publication_adapter_service_1.default.supportsDirectExecution(vcAccount), true);
     strict_1.default.equal(publication_adapter_service_1.default.supportsDirectExecution(dzenAccount), true);
 });
+(0, node_test_1.default)('VK direct execution is available only with a provider target and publish credential', () => {
+    strict_1.default.equal(publication_adapter_service_1.default.supportsDirectExecution({ platform: 'vk' }), false);
+    strict_1.default.equal(publication_adapter_service_1.default.supportsDirectExecution({ platform: 'vk', vk_id: '-123' }), false);
+    strict_1.default.equal(publication_adapter_service_1.default.supportsDirectExecution({
+        platform: 'vk',
+        vk_id: '-123',
+        publish_access_token: 'token'
+    }), true);
+});

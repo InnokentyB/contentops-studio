@@ -127,3 +127,13 @@ test('publicationAdapterService recognizes new platforms as direct-execution fri
     assert.equal(publicationAdapterService.supportsDirectExecution(vcAccount), true);
     assert.equal(publicationAdapterService.supportsDirectExecution(dzenAccount), true);
 });
+
+test('VK direct execution is available only with a provider target and publish credential', () => {
+    assert.equal(publicationAdapterService.supportsDirectExecution({ platform: 'vk' }), false);
+    assert.equal(publicationAdapterService.supportsDirectExecution({ platform: 'vk', vk_id: '-123' }), false);
+    assert.equal(publicationAdapterService.supportsDirectExecution({
+        platform: 'vk',
+        vk_id: '-123',
+        publish_access_token: 'token'
+    }), true);
+});

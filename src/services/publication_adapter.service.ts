@@ -17,6 +17,12 @@ type PublicationAccount = Record<string, any>;
 
 class PublicationAdapterService {
     supportsDirectExecution(account: PublicationAccount) {
+        if (account.platform === 'vk') {
+            return Boolean(
+                account.vk_id
+                && (account.publish_access_token || account.api_key)
+            );
+        }
         return ['telegram', 'vk', 'linkedin', 'reddit', 'tilda', 'ok', 'odnoklassniki', 'habr', 'habr_article', 'vc', 'vc_article', 'zen', 'zen_article', 'dzen', 'threads'].includes(account.platform);
     }
 

@@ -26,6 +26,7 @@ import telegramClientService from './telegram_client.service';
 import { config } from 'dotenv';
 import * as fs from 'fs';
 import * as path from 'path';
+import { createHash } from 'crypto';
 
 config();
 
@@ -56,6 +57,45 @@ function logToFile(level: 'INFO' | 'WARN' | 'ERROR', message: string, data?: any
     if (level === 'ERROR') console.error(message, data || '');
     else if (level === 'WARN') console.warn(message, data || '');
     else console.log(message, data || '');
+}
+
+export type TelegramRouteTrace = {
+    eligibility: {
+        mtproto: boolean;
+        bot_api_fallback: boolean;
+        reason_code: 'project_session_missing' | 'session_connection_failed' | 'session_lookup_failed' | null;
+        reason: string | null;
+    };
+    session_target: {
+        configured: boolean;
+        project_id: number;
+        account_id: number | null;
+        phone_hint: string | null;
+    };
+    target: {
+        value: string | null;
+        source: 'telegram_channel_id' | 'channel_handle' | 'bot_api_handle_resolution' | 'local_test_override' | 'missing';
+        configured_channel_id: string | null;
+        configured_handle: string | null;
+        matched_channel_id: number | null;
+    };
+    asset_resolution: {
+        has_asset: boolean;
+        source: 'normalized_input' | 'none';
+        kind: 'https_url' | 'http_url' | 'data_uri' | 'local_path' | 'none';
+        resolved_url: string | null;
+        server_resolvable: boolean;
+        reason_code: 'asset_non_server_resolvable' | null;
+    };
+    fallback_reason: string | null;
+    final_adapter: 'not_dispatched' | 'mtproto' | 'bot_api';
+};
+
+export class TelegramPublicationRouteError extends Error {
+    constructor(message: string, public readonly routeTrace: TelegramRouteTrace) {
+        super(message);
+        this.name = 'TelegramPublicationRouteError';
+    }
 }
 
 class PublisherService {
@@ -93,9 +133,106 @@ class PublisherService {
             params.requestHost
         );
         if (!result.publishedLink && !result.metrics?.telegram_message_id) {
-            throw new Error('[PUBLICATION_IDENTITY_MISSING] Telegram provider did not confirm a message ID or permalink');
+            if (!result.routeTrace) {
+                throw new Error('[PUBLICATION_IDENTITY_MISSING] Telegram provider did not confirm a message ID or permalink');
+            }
+            throw new TelegramPublicationRouteError(
+                '[PUBLICATION_IDENTITY_MISSING] Telegram provider did not confirm a message ID or permalink',
+                result.routeTrace
+            );
         }
         return result;
+    }
+
+    async inspectTelegramDirectRoute(params: {
+        projectId: number;
+        channel: any;
+        text: string;
+        imageUrl?: string;
+    }): Promise<TelegramRouteTrace> {
+        const payload = normalizeTelegramDeliveryPayload(params);
+        const resolved = await this.resolveTelegramDeliveryConfig({
+            id: 0,
+            project_id: params.projectId,
+            channel: params.channel,
+            metrics: {},
+            assets: {}
+        }, params.channel?.config || {});
+        let sessionTarget: any;
+        try {
+            sessionTarget = await telegramClientService.inspectSessionTarget(params.projectId);
+        } catch {
+            sessionTarget = {
+                configured: false,
+                project_id: params.projectId,
+                account_id: null,
+                phone_hint: null,
+                reason: 'Telegram session lookup failed',
+                reason_code: 'session_lookup_failed'
+            };
+        }
+        return this.buildTelegramRouteTrace({
+            projectId: params.projectId,
+            resolved,
+            imageUrl: payload.imageUrl || null,
+            sessionTarget
+        });
+    }
+
+    private buildTelegramRouteTrace(params: {
+        projectId: number;
+        resolved: { rawChannelId: string | null; normalizedHandle: string | null; matchedChannelId: number | null };
+        imageUrl: string | null;
+        sessionTarget?: any;
+        targetOverride?: string | null;
+        targetSourceOverride?: TelegramRouteTrace['target']['source'];
+    }): TelegramRouteTrace {
+        const configuredTarget = params.resolved.rawChannelId || params.resolved.normalizedHandle || null;
+        const target = params.targetOverride || configuredTarget;
+        const source = params.targetSourceOverride || (params.targetOverride && params.targetOverride !== configuredTarget
+            ? 'local_test_override'
+            : params.resolved.rawChannelId
+                ? 'telegram_channel_id'
+                : params.resolved.normalizedHandle
+                    ? 'channel_handle'
+                    : 'missing');
+        const imageUrl = params.imageUrl;
+        const assetKind = !imageUrl ? 'none'
+            : imageUrl.startsWith('https://') ? 'https_url'
+                : imageUrl.startsWith('http://') ? 'http_url'
+                    : imageUrl.startsWith('data:') ? 'data_uri' : 'local_path';
+        const session = params.sessionTarget || {};
+        return {
+            eligibility: {
+                mtproto: Boolean(session.configured),
+                bot_api_fallback: true,
+                reason_code: session.reason_code || (session.configured ? null : 'project_session_missing'),
+                reason: session.reason || null
+            },
+            session_target: {
+                configured: Boolean(session.configured),
+                project_id: Number(session.project_id || params.projectId),
+                account_id: Number.isInteger(session.account_id) ? session.account_id : null,
+                phone_hint: typeof session.phone_hint === 'string' ? session.phone_hint : null
+            },
+            target: {
+                value: target,
+                source,
+                configured_channel_id: params.resolved.rawChannelId,
+                configured_handle: params.resolved.normalizedHandle,
+                matched_channel_id: params.resolved.matchedChannelId
+            },
+            asset_resolution: {
+                has_asset: Boolean(imageUrl),
+                source: imageUrl ? 'normalized_input' : 'none',
+                kind: assetKind,
+                resolved_url: assetKind === 'https_url' || assetKind === 'http_url' ? imageUrl : null,
+                server_resolvable: assetKind === 'https_url' || assetKind === 'none',
+                reason_code: imageUrl && assetKind !== 'https_url' ? 'asset_non_server_resolvable' : null
+            },
+            fallback_reason: null,
+            final_adapter: 'not_dispatched'
+        };
     }
 
     async publishTelegramTaskMtproto(params: {
@@ -152,6 +289,40 @@ class PublisherService {
             deliveryMethod: 'mtproto',
             publishedLink,
             metrics: { telegram_message_id: messageId }
+        };
+    }
+
+    async publishVkTask(params: {
+        projectId: number;
+        taskId: number;
+        channel: any;
+        text: string;
+        imageUrl?: string;
+        idempotencyKey: string;
+    }) {
+        const text = typeof params.text === 'string' ? params.text.trim() : '';
+        if (!text) throw new Error('[VK_TEXT_REQUIRED] VK publication text must not be empty');
+        const vkConfig = this.extractVkAccountConfig(params.channel?.config || {});
+        if (!vkConfig.vk_id || !vkConfig.publish_access_token) {
+            throw new Error('[VK_CONNECTOR_NOT_READY] VK channel requires vk_id and publish_access_token');
+        }
+        const guid = `planner-${createHash('sha256').update(params.idempotencyKey).digest('hex').slice(0, 32)}`;
+        const result = await vkService.publishPostWithIdentity(
+            String(vkConfig.vk_id),
+            String(vkConfig.publish_access_token),
+            text,
+            params.imageUrl,
+            { guid }
+        );
+        return {
+            adapter: 'vk',
+            deliveryMethod: 'vk_api',
+            publishedLink: result.publishedLink,
+            metrics: {
+                vk_owner_id: result.ownerId,
+                vk_post_id: result.postId,
+                vk_guid: guid
+            }
         };
     }
 
@@ -235,6 +406,24 @@ class PublisherService {
             channel_username: raw.channel_username ?? topLevel.channel_username ?? null,
             handle: raw.handle ?? topLevel.handle ?? null,
             account_ref: raw.account_ref ?? topLevel.account_ref ?? null
+        };
+    }
+
+    private extractVkAccountConfig(config: any) {
+        const topLevel = config && typeof config === 'object' ? config : {};
+        const raw = topLevel.raw_account && typeof topLevel.raw_account === 'object'
+            ? topLevel.raw_account
+            : {};
+        return {
+            ...topLevel,
+            ...raw,
+            vk_id: raw.vk_id ?? topLevel.vk_id ?? null,
+            publish_access_token: raw.publish_access_token
+                ?? raw.api_key
+                ?? topLevel.publish_access_token
+                ?? topLevel.api_key
+                ?? null,
+            stats_access_token: raw.stats_access_token ?? topLevel.stats_access_token ?? null
         };
     }
 
@@ -1466,7 +1655,7 @@ class PublisherService {
     async processPublicationTaskNow(taskId: number, requestHost?: string) {
         const task = await prisma.contentItem.findUnique({
             where: { id: taskId },
-            include: { channel: true, selected_asset: true }
+            include: { channel: true, publication_fact: true, selected_asset: true }
         });
 
         if (!task) {
@@ -1530,6 +1719,7 @@ class PublisherService {
         const executionMode = bundle.mode;
         const rawAccount = channelConfig.raw_account || channelConfig || {};
         const directExecutionSupported = publicationAdapterService.supportsDirectExecution({
+            ...channelConfig,
             ...rawAccount,
             platform: rawAccount.platform || task.channel?.type
         });
@@ -1605,6 +1795,14 @@ class PublisherService {
                 && !automatedResult.metrics?.telegram_message_id) {
                 throw new Error('[PUBLICATION_IDENTITY_MISSING] Telegram provider did not confirm a message ID or permalink');
             }
+            if (task.channel?.type === 'vk') {
+                const ownerId = String(automatedResult.metrics?.vk_owner_id || '').trim();
+                const postId = String(automatedResult.metrics?.vk_post_id || '').trim();
+                const expectedLink = ownerId && postId ? `https://vk.com/wall${ownerId}_${postId}` : null;
+                if (!expectedLink || automatedResult.publishedLink !== expectedLink) {
+                    throw new Error('[PUBLICATION_IDENTITY_MISSING] VK provider did not confirm a matching owner ID, post ID, and permalink');
+                }
+            }
         } catch (error) {
             const fallback = browserFallbackReason(error);
             logToFile('WARN', `[Publisher] Connector failed for task ${task.id}; routed to browser publication.`, fallback);
@@ -1653,9 +1851,15 @@ class PublisherService {
                         outcome: 'published',
                         publishedAt: new Date().toISOString(),
                         publicUrl: automatedResult.publishedLink,
+                        providerObjectId: task.channel?.type === 'vk'
+                            ? `wall${automatedResult.metrics.vk_owner_id}_${automatedResult.metrics.vk_post_id}`
+                            : null,
                         confirmationMode: 'automatic',
                         evidence: { type: 'api', ref: automatedResult.publishedLink },
-                        note: `Published automatically via ${automatedResult.adapter || task.channel?.type || 'connector'}`
+                        note: `Published automatically via ${automatedResult.adapter || task.channel?.type || 'connector'}`,
+                        correctionReason: task.publication_fact
+                            ? `Replace prior ${task.publication_fact.outcome || 'existing'} publication fact after confirmed provider delivery.`
+                            : null
                     });
                 }
             } catch (factError) {
@@ -1852,17 +2056,36 @@ class PublisherService {
         }
 
         if (channelType === 'vk') {
-            const vkConfig = channelConfig.raw_account || channelConfig;
+            const vkConfig = this.extractVkAccountConfig(channelConfig);
             const vkId = vkConfig.vk_id;
-            const apiKey = vkConfig.publish_access_token || vkConfig.api_key;
+            const apiKey = vkConfig.publish_access_token;
             if (!vkId || !apiKey) {
                 throw new Error('VK channel config is missing vk_id or api_key');
             }
 
-            const publishedLink = await vkService.publishPost(vkId, apiKey, text, imageUrl || undefined);
+            const vkText = typeof text === 'string' ? text.trim() : '';
+            const vkImageUrl = typeof imageUrl === 'string' ? imageUrl.trim() : '';
+            if (!vkText) throw new Error('[VK_TEXT_REQUIRED] VK publication text must not be empty');
+            const revision = task.accepted_revision || task.content_revision || 0;
+            const guid = `planner-${createHash('sha256')
+                .update(`task:${task.project_id}:${task.id}:revision:${revision}`)
+                .digest('hex')
+                .slice(0, 32)}`;
+            const result = await vkService.publishPostWithIdentity(
+                String(vkId),
+                String(apiKey),
+                vkText,
+                vkImageUrl || undefined,
+                { guid }
+            );
             return {
                 adapter: 'vk',
-                publishedLink
+                publishedLink: result.publishedLink,
+                metrics: {
+                    vk_owner_id: result.ownerId,
+                    vk_post_id: result.postId,
+                    vk_guid: guid
+                }
             };
         }
 
@@ -1916,12 +2139,32 @@ class PublisherService {
                 : telegramTarget;
 
             const mtprotoCheck = await this.checkMTProto(task.project_id);
+            const routeTrace = this.buildTelegramRouteTrace({
+                projectId: task.project_id,
+                resolved: resolvedTelegram,
+                imageUrl: imageUrl || null,
+                sessionTarget: mtprotoCheck.sessionTarget,
+                targetOverride: targetChannelId,
+                targetSourceOverride: (process.env.NODE_ENV !== 'production' && localTestChannel)
+                    ? 'local_test_override'
+                    : resolvedChatId && resolvedChatId !== rawChannelId && normalizedHandle
+                        ? 'bot_api_handle_resolution'
+                        : undefined
+            });
+            routeTrace.eligibility.mtproto = mtprotoCheck.available;
+            routeTrace.eligibility.reason = mtprotoCheck.reason || null;
+            routeTrace.eligibility.reason_code = mtprotoCheck.available
+                ? null
+                : mtprotoCheck.sessionTarget?.configured
+                    ? 'session_connection_failed'
+                    : mtprotoCheck.sessionTarget?.reason_code || 'project_session_missing';
             let sentMessageId: number | undefined;
             let publishWarning: string | undefined;
             let publishedViaMtproto = false;
 
             if (!mtprotoCheck.available) {
                 publishWarning = `MTProto недоступен (${mtprotoCheck.reason}). Публикация через Bot API.`;
+                routeTrace.fallback_reason = `mtproto_unavailable: ${mtprotoCheck.reason || 'unknown reason'}`;
                 logToFile('WARN', `[Publisher] ${publishWarning}`);
             }
 
@@ -1932,14 +2175,18 @@ class PublisherService {
                     if (result?.id) {
                         sentMessageId = result.id;
                         publishedViaMtproto = true;
+                    } else {
+                        routeTrace.fallback_reason = 'mtproto_missing_message_identity';
                     }
                 } catch (clientErr: any) {
                     publishWarning = `MTProto отказал: ${clientErr.message || clientErr}. Публикация через Bot API.`;
+                    routeTrace.fallback_reason = `mtproto_failed: ${clientErr.message || clientErr}`;
                     logToFile('WARN', `[Publisher] ${publishWarning}`);
                 }
             }
 
             if (!sentMessageId) {
+                routeTrace.final_adapter = 'bot_api';
                 try {
                     const telegramText = this.markdownToTelegramHtml(text);
                     const photoSource = this.getTelegramPhotoSource(imageUrl);
@@ -1993,10 +2240,15 @@ class PublisherService {
                         sentMessageId = sentMessage?.message_id;
                     }
                 } catch (error: any) {
-                    throw new Error(
-                        `Telegram publish failed for ${normalizedHandle || rawChannelId || task.channel?.name || 'channel'}: ${this.extractTelegramErrorDescription(error)}`
+                    throw new TelegramPublicationRouteError(
+                        `Telegram publish failed for ${normalizedHandle || rawChannelId || task.channel?.name || 'channel'}: ${this.extractTelegramErrorDescription(error)}`,
+                        routeTrace
                     );
                 }
+            }
+
+            if (publishedViaMtproto) {
+                routeTrace.final_adapter = 'mtproto';
             }
 
             let publishedLink: string | null = null;
@@ -2012,6 +2264,7 @@ class PublisherService {
                 deliveryMethod: publishedViaMtproto ? 'mtproto' : 'bot_api',
                 publishedLink,
                 warning: publishWarning,
+                routeTrace,
                 metrics: sentMessageId ? { telegram_message_id: sentMessageId } : undefined
             };
         }
@@ -2197,9 +2450,9 @@ class PublisherService {
                 } else if (channel.type === 'vk') {
                     // VK Publishing Logic
                     logToFile('INFO', `[Publisher] Publishing to VK for post ${post.id}`);
-                    const vkConfig = channel.config as any;
+                    const vkConfig = this.extractVkAccountConfig(channel.config);
                     const vkId = vkConfig.vk_id;
-                    const apiKey = vkConfig.publish_access_token || vkConfig.api_key;
+                    const apiKey = vkConfig.publish_access_token;
 
                     if (!vkId || !apiKey) {
                         logToFile('ERROR', `VK config missing id/key for post ${post.id}`);
@@ -2430,16 +2683,25 @@ class PublisherService {
      * Checks whether the MTProto (GramJS) client can connect for a given project.
      * Returns true if the session is active and the connection was successful.
      */
-    async checkMTProto(projectId: number): Promise<{ available: boolean; reason?: string }> {
+    async checkMTProto(projectId: number): Promise<{ available: boolean; reason?: string; sessionTarget?: any }> {
+        let sessionTarget: any;
         try {
             const importedClient = require('./telegram_client.service').default;
+            sessionTarget = await importedClient.inspectSessionTarget(projectId);
+            if (!sessionTarget.configured) {
+                return {
+                    available: false,
+                    reason: sessionTarget.reason || 'No active Telegram account session found for this project',
+                    sessionTarget
+                };
+            }
             const success = await importedClient.init(projectId);
             if (success) {
-                return { available: true };
+                return { available: true, sessionTarget };
             }
-            return { available: false, reason: 'No active Telegram account session found for this project' };
+            return { available: false, reason: 'Telegram MTProto session could not connect', sessionTarget };
         } catch (e: any) {
-            return { available: false, reason: e.message || 'MTProto connection failed' };
+            return { available: false, reason: e.message || 'MTProto connection failed', sessionTarget };
         }
     }
 
@@ -2497,9 +2759,9 @@ class PublisherService {
             }
             publishedLink = await threadsService.publishPost(threadsUserId, accessToken, text, post.image_url || undefined);
         } else if (channel.type === 'vk') {
-            const vkConfig = channel.config as any;
+            const vkConfig = this.extractVkAccountConfig(channel.config);
             const vkId = vkConfig.vk_id;
-            const apiKey = vkConfig.publish_access_token || vkConfig.api_key;
+            const apiKey = vkConfig.publish_access_token;
             if (!vkId || !apiKey) {
                 throw new Error(`VK config missing id/key for post ${postId}`);
             }
