@@ -2,7 +2,11 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.sanitizeChannelConfig = sanitizeChannelConfig;
 exports.mergeChannelConfig = mergeChannelConfig;
+exports.prepareChannelConfigForStorage = prepareChannelConfigForStorage;
+exports.resolveChannelConfigSecrets = resolveChannelConfigSecrets;
 exports.cleanAndFormatHashtags = cleanAndFormatHashtags;
+const channel_secrets_1 = require("./channel_secrets");
+const DZEN_TYPES = new Set(['zen', 'zen_article', 'dzen']);
 /**
  * Sanitize channel configuration before returning it to the client by masking secrets.
  */
@@ -10,6 +14,9 @@ function sanitizeChannelConfig(type, config) {
     if (!config || typeof config !== 'object')
         return config;
     const sanitized = { ...config };
+    if (sanitized.raw_account && typeof sanitized.raw_account === 'object') {
+        sanitized.raw_account = sanitizeChannelConfig(type, sanitized.raw_account);
+    }
     // Mask sensitive fields
     if (sanitized.api_key)
         sanitized.api_key = '******';
@@ -21,6 +28,10 @@ function sanitizeChannelConfig(type, config) {
         sanitized.access_token = '******';
     if (sanitized.cookies)
         sanitized.cookies = '******';
+    if (sanitized.cookies_encrypted) {
+        sanitized.cookies = '******';
+        delete sanitized.cookies_encrypted;
+    }
     if (sanitized.application_secret_key)
         sanitized.application_secret_key = '******';
     return sanitized;
@@ -38,7 +49,35 @@ function mergeChannelConfig(incomingConfig, existingConfig) {
             merged[key] = existingConfig[key];
         }
     }
+    if (merged.cookies === '******' && existingConfig.cookies_encrypted) {
+        delete merged.cookies;
+        merged.cookies_encrypted = existingConfig.cookies_encrypted;
+    }
     return merged;
+}
+function prepareChannelConfigForStorage(type, config) {
+    const prepared = { ...(config || {}) };
+    if (!DZEN_TYPES.has(type))
+        return prepared;
+    if (prepared.raw_account && typeof prepared.raw_account === 'object') {
+        prepared.raw_account = prepareChannelConfigForStorage(type, prepared.raw_account);
+    }
+    const cookies = typeof prepared.cookies === 'string' ? prepared.cookies.trim() : '';
+    if (cookies && cookies !== '******') {
+        prepared.cookies_encrypted = (0, channel_secrets_1.encryptChannelSecret)(cookies);
+    }
+    delete prepared.cookies;
+    return prepared;
+}
+function resolveChannelConfigSecrets(type, config) {
+    const resolved = { ...(config || {}) };
+    if (!DZEN_TYPES.has(type))
+        return resolved;
+    if (!resolved.cookies && typeof resolved.cookies_encrypted === 'string') {
+        resolved.cookies = (0, channel_secrets_1.decryptChannelSecret)(resolved.cookies_encrypted);
+    }
+    delete resolved.cookies_encrypted;
+    return resolved;
 }
 /**
  * Clean up, format, and append hashtags to a post text, ensuring no duplicates or double hashes.

@@ -511,6 +511,12 @@ export default function Settings() {
         onError: (err: any) => showToast('Failed to delete channel', 'error', err.message)
     })
 
+    const testChannelConnection = useMutation({
+        mutationFn: (channelId: number) => projectsApi.testChannelConnection(currentProject!.id, channelId),
+        onSuccess: () => showToast('Сессия Дзена активна, редактор доступен', 'success'),
+        onError: (err: any) => showToast('Не удалось подключиться к Дзену', 'error', err.message)
+    })
+
     // Note: Delete channel endpoint might need to be added or we just hide it?
     // Reviewing api routes: we don't have a specific delete channel route in project.routes.ts...
     // Wait, let's check if we can delete. 
@@ -740,8 +746,8 @@ export default function Settings() {
             config.vk_id = newChannelId;
         } else if (newChannelType === 'zen') {
             config.channel_id = newChannelId;
-            if (webhookUrl) config.webhook_url = webhookUrl;
             if (sessionCookies) config.cookies = sessionCookies;
+            config.default_publication_type = 'article';
             config.vk_id = newChannelId;
         } else if (newChannelType === 'threads') {
             if (!newChannelApiKey) return showToast('Access Token is required', 'warning');
@@ -1314,25 +1320,17 @@ export default function Settings() {
                             ) : newChannelType === 'zen' ? (
                                 <>
                                     <div>
-                                        <label>Dzen Channel ID</label>
+                                        <label>ID или slug канала в Дзене</label>
                                         <input
                                             placeholder="e.g. channel_id..."
                                             value={newChannelId}
                                             onChange={e => setNewChannelId(e.target.value)}
                                         />
                                     </div>
-                                    <div>
-                                        <label>Webhook URL (Optional)</label>
-                                        <input
-                                            placeholder="https://..."
-                                            value={webhookUrl}
-                                            onChange={e => setWebhookUrl(e.target.value)}
-                                        />
-                                    </div>
                                     <div style={{ gridColumn: '1 / -1' }}>
-                                        <label>Session Cookies (для автопубликации через Puppeteer)</label>
+                                        <label>Авторизованная сессия Дзена</label>
                                         <p style={{ fontSize: '0.75rem', color: 'var(--text-muted, #8a8fa8)', margin: '0 0 6px' }}>
-                                            Войдите в Яндекс/Дзен в браузере, откройте DevTools → Network → скопируйте значение заголовка <code>Cookie</code> из запроса к dzen.ru и вставьте сюда.
+                                            После сохранения сессия шифруется и больше не показывается. Заполним её после настройки Railway.
                                         </p>
                                         <textarea
                                             rows={3}
@@ -1690,7 +1688,7 @@ export default function Settings() {
                                                 </>
                                             )}
 
-                                            {channel.type === 'zen' && (
+                                            {['zen', 'dzen', 'zen_article'].includes(channel.type) && (
                                                 <>
                                                     <div>
                                                         <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Zen Channel ID</label>
@@ -1703,25 +1701,38 @@ export default function Settings() {
                                                         />
                                                     </div>
                                                     <div>
-                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Webhook URL</label>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Тип публикации по умолчанию</label>
+                                                        <select className="w-full" value={editingChannelConfig.default_publication_type || 'article'} onChange={e => setEditingChannelConfig({ ...editingChannelConfig, default_publication_type: e.target.value })}>
+                                                            <option value="article">Статья</option>
+                                                            <option value="post">Короткий пост</option>
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>URL канала</label>
                                                         <input
                                                             className="w-full"
-                                                            value={editingChannelConfig.webhook_url || ''}
-                                                            onChange={e => setEditingChannelConfig({ ...editingChannelConfig, webhook_url: e.target.value })}
-                                                            placeholder="Webhook URL"
+                                                            value={editingChannelConfig.channel_url || ''}
+                                                            onChange={e => setEditingChannelConfig({ ...editingChannelConfig, channel_url: e.target.value })}
+                                                            placeholder="https://dzen.ru/id/..."
                                                             style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
                                                         />
                                                     </div>
                                                     <div style={{ gridColumn: '1 / -1' }}>
-                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Cookies (Raw JSON/String)</label>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Авторизованная сессия</label>
                                                         <textarea
                                                             className="w-full"
                                                             value={editingChannelConfig.cookies || ''}
                                                             onChange={e => setEditingChannelConfig({ ...editingChannelConfig, cookies: e.target.value })}
-                                                            placeholder="Cookies"
+                                                            placeholder={editingChannelConfig.cookies_configured ? 'Сессия уже сохранена. Вставьте новое значение только для замены.' : 'Session_id=...; yandexuid=...'}
                                                             rows={2}
                                                             style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
                                                         />
+                                                        <div className="text-xs text-on-surface-variant mt-1">Сначала сохраните изменения, затем запустите проверку подключения.</div>
+                                                    </div>
+                                                    <div style={{ gridColumn: '1 / -1' }}>
+                                                        <button type="button" className="btn-secondary w-full" disabled={testChannelConnection.isPending} onClick={() => testChannelConnection.mutate(channel.id)}>
+                                                            {testChannelConnection.isPending ? 'Проверяем Дзен…' : 'Проверить подключение к Дзену'}
+                                                        </button>
                                                     </div>
                                                 </>
                                             )}

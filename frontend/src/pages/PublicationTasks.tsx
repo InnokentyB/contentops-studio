@@ -6,6 +6,7 @@ import { projectsApi, publicationTasksApi } from '../api'
 import { useAuth } from '../context/AuthContext'
 import ContentMarkupRenderer from '../components/ContentMarkupRenderer'
 import ResourcePreviewCard from '../components/ResourcePreviewCard'
+import { useLocale } from '../i18n/LocaleContext'
 
 type JsonRecord = Record<string, any>
 
@@ -583,6 +584,20 @@ function resolvePrimarySourceEntry(task: PublicationTask | null | undefined, sou
 }
 
 export default function PublicationTasks() {
+    const { locale } = useLocale()
+    const copy = locale === 'ru' ? {
+        title: 'Задачи на публикацию', project: 'Проект', chooseProject: 'Выбери или импортируй проект с планом публикаций.', tasks: 'задач', importPlan: 'Импортировать или обновить план публикаций',
+        searchPlaceholder: 'Номер #760, название или канал', searchLabel: 'Поиск по задачам', weekLabel: 'Неделя публикаций', allWeeks: 'Все недели / история', statusLabel: 'Статус задач',
+        allStatuses: 'Все статусы', active: 'Активные', planned: 'Запланированные', awaitingManual: 'Ждут ручной публикации', ready: 'Готовы', browser: 'Нужна публикация через браузер', deferred: 'Отложенные', publishedPlural: 'Опубликованные', blockedPlural: 'Заблокированные', removedPlural: 'Удалённые с площадки', restricted: 'Ограниченные', cancelledPlural: 'Отменённые', failed: 'С ошибкой',
+        manualOnly: 'Только ручные', allModes: 'Все режимы', textReadiness: 'Готовность текста', packageState: 'Состояние пакета', noText: 'Без текста', textReady: 'Текст готов', published: 'Опубликовано', packageContents: 'Состав недельного пакета', blocked: 'Заблокировано', removed: 'Удалено', cancelled: 'Отменено',
+        noResults: 'По выбранным условиям задач не найдено.', reset: 'Сбросить фильтры', importFirst: 'Сначала импортируй план публикаций, а затем выбери проект для работы с очередью задач.'
+    } : {
+        title: 'Publication tasks', project: 'Project', chooseProject: 'Choose or import a project with a publication plan.', tasks: 'tasks', importPlan: 'Import or update publication plan',
+        searchPlaceholder: 'Task #760, title, or channel', searchLabel: 'Search tasks', weekLabel: 'Publication week', allWeeks: 'All weeks / history', statusLabel: 'Task status',
+        allStatuses: 'All statuses', active: 'Active', planned: 'Planned', awaitingManual: 'Awaiting manual publication', ready: 'Ready', browser: 'Browser publication required', deferred: 'Deferred', publishedPlural: 'Published', blockedPlural: 'Blocked', removedPlural: 'Removed from channel', restricted: 'Restricted', cancelledPlural: 'Cancelled', failed: 'Failed',
+        manualOnly: 'Manual only', allModes: 'All modes', textReadiness: 'Content readiness', packageState: 'Package state', noText: 'No content', textReady: 'Content ready', published: 'Published', packageContents: 'Weekly package contents', blocked: 'Blocked', removed: 'Removed', cancelled: 'Cancelled',
+        noResults: 'No tasks match the selected filters.', reset: 'Reset filters', importFirst: 'Import a publication plan, then choose a project to work with its task queue.'
+    }
     const queryClient = useQueryClient()
     const { currentProject, projects, createProject, setCurrentProject } = useAuth()
     const navigate = useNavigate()
@@ -593,6 +608,7 @@ export default function PublicationTasks() {
     const [manualOnly, setManualOnly] = useState(false)
     const [contentStateFilter, setContentStateFilter] = useState<'all' | 'empty' | 'ready' | 'published'>('all')
     const [taskSearch, setTaskSearch] = useState('')
+    const [showTaskFilterDetails, setShowTaskFilterDetails] = useState(false)
     const [weekPackageId, setWeekPackageId] = useState<number | 'all' | null>(null)
     const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null)
     const [mobileTaskOpen, setMobileTaskOpen] = useState(false)
@@ -1116,122 +1132,137 @@ export default function PublicationTasks() {
         <div className="flex-1 w-full p-4 sm:p-6 lg:p-10 space-y-8 overflow-y-auto">
             <section ref={workspaceRef} className="grid grid-cols-1 xl:grid-cols-[minmax(360px,400px)_minmax(0,1fr)] gap-6 items-start scroll-mt-4">
                     <div className={`${mobileTaskOpen ? 'hidden xl:block' : 'block'} -mx-4 sm:mx-0 bg-white rounded-none sm:rounded-[2rem] border-y sm:border border-outline-variant/10 shadow-sm overflow-hidden xl:sticky xl:top-6`}>
-                        <div className="p-4 sm:p-6 border-b border-outline-variant/10 space-y-4">
-                            <div className="flex items-start justify-between gap-4">
+                        <div className="p-4 sm:p-5 border-b border-outline-variant/10 space-y-3">
+                            <div className="flex items-center justify-between gap-4">
                                 <div className="min-w-0">
-                                    <h2 className="text-xl font-headline font-black text-on-surface mt-2">Задачи на публикацию</h2>
+                                    <h2 className="text-lg font-headline font-black text-on-surface">{copy.title}</h2>
                                     <p className="text-xs text-on-surface-variant mt-1 break-words">
-                                        {currentProject ? `Проект: ${currentProject.name}` : 'Выбери или импортируй проект с планом публикаций.'}
+                                        {currentProject ? `${copy.project}: ${currentProject.name}` : copy.chooseProject}
                                     </p>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
                                     <div className="text-xs tabular-nums text-on-surface-variant whitespace-nowrap">
-                                        {filteredTasks.length} задач
+                                        {filteredTasks.length} {copy.tasks}
                                     </div>
                                 <button
                                         onClick={() => setShowPlanModal(true)}
                                         className="w-11 h-11 rounded-2xl ai-gradient text-white flex items-center justify-center shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
-                                        title="Импортировать или обновить план публикаций"
+                                        title={copy.importPlan}
                                     >
                                         <span className="material-symbols-outlined text-xl">hub</span>
                                     </button>
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="relative">
+                                <span className="material-symbols-outlined pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-xl text-on-surface-variant/70" aria-hidden="true">search</span>
+                                <input
+                                    value={taskSearch}
+                                    onChange={(event) => setTaskSearch(event.target.value)}
+                                    placeholder={copy.searchPlaceholder}
+                                    aria-label={copy.searchLabel}
+                                    className="w-full bg-surface-container-low border-none rounded-xl py-2.5 pl-11 pr-4 text-sm font-medium text-on-surface placeholder:text-on-surface-variant/70 focus:ring-2 focus:ring-primary/20 outline-none"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 <select
                                     value={weekPackageId ?? ''}
                                     onChange={(event) => setWeekPackageId(event.target.value === 'all' ? 'all' : Number(event.target.value))}
-                                    aria-label="Неделя публикаций"
-                                    className="w-full bg-surface-container-low border-none rounded-xl px-4 py-3 text-base sm:text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none sm:col-span-2"
+                                    aria-label={copy.weekLabel}
+                                    className="w-full bg-surface-container-low border-none rounded-xl px-3 py-2.5 text-base sm:text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none sm:col-span-2"
                                 >
                                     {(weekPackages || []).map((week) => (
                                         <option key={week.id} value={week.id}>
                                             {formatDate(week.week_start)} — {formatDate(week.week_end)} · {week._count?.content_items || 0}
                                         </option>
                                     ))}
-                                    <option value="all">Все недели / история</option>
+                                    <option value="all">{copy.allWeeks}</option>
                                 </select>
                                 <select
                                     value={statusFilter}
                                     onChange={(event) => selectStatusFilter(event.target.value)}
-                                    aria-label="Статус задач"
-                                    className="w-full bg-surface-container-low border-none rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
+                                    aria-label={copy.statusLabel}
+                                    className="w-full bg-surface-container-low border-none rounded-xl px-3 py-2.5 text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
                                 >
-                                    <option value="all">Все статусы</option>
-                                    <option value="active">Активные</option>
-                                    <option value="planned">Запланированные</option>
-                                    <option value="awaiting_manual_publication">Ждут ручной публикации</option>
-                                    <option value="ready_for_execution">Готовы</option>
-                                    <option value="browser_required">Нужна публикация через браузер</option>
-                                    <option value="deferred">Отложенные</option>
-                                    <option value="published">Опубликованные</option>
-                                    <option value="blocked">Заблокированные</option>
-                                    <option value="removed">Удалённые с площадки</option>
-                                    <option value="restricted">Ограниченные</option>
-                                    <option value="cancelled">Отменённые</option>
-                                    <option value="failed">С ошибкой</option>
+                                    <option value="all">{copy.allStatuses}</option>
+                                    <option value="active">{copy.active}</option>
+                                    <option value="planned">{copy.planned}</option>
+                                    <option value="awaiting_manual_publication">{copy.awaitingManual}</option>
+                                    <option value="ready_for_execution">{copy.ready}</option>
+                                    <option value="browser_required">{copy.browser}</option>
+                                    <option value="deferred">{copy.deferred}</option>
+                                    <option value="published">{copy.publishedPlural}</option>
+                                    <option value="blocked">{copy.blockedPlural}</option>
+                                    <option value="removed">{copy.removedPlural}</option>
+                                    <option value="restricted">{copy.restricted}</option>
+                                    <option value="cancelled">{copy.cancelledPlural}</option>
+                                    <option value="failed">{copy.failed}</option>
                                 </select>
 
                                     <button
                                         onClick={() => setManualOnly((value) => !value)}
-                                        className={`min-h-11 rounded-xl px-4 py-3 text-sm font-black transition-all ${manualOnly ? 'bg-primary text-white' : 'bg-surface-container-low text-on-surface-variant'}`}
+                                        aria-pressed={manualOnly}
+                                        className={`min-h-10 rounded-xl px-3 py-2.5 text-sm font-black transition-all ${manualOnly ? 'bg-primary text-white' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'}`}
                                     >
-                                        {manualOnly ? 'Только ручные' : 'Все режимы'}
+                                        {manualOnly ? copy.manualOnly : copy.allModes}
                                     </button>
                                 </div>
 
-                            <div className="grid grid-cols-2 gap-2" aria-label="Состав недельного пакета">
-                                {([
-                                    ['active', 'Активные', statusCounts.active],
-                                    ['published', 'Опубликовано', statusCounts.published],
-                                    ['blocked', 'Заблокировано', statusCounts.blocked],
-                                    ['removed', 'Удалено', statusCounts.removed],
-                                    ['cancelled', 'Отменено', statusCounts.cancelled]
-                                ] as const).map(([value, label, count]) => (
-                                    <button
-                                        key={value}
-                                        type="button"
-                                        onClick={() => selectStatusFilter(value)}
-                                        aria-pressed={statusFilter === value}
-                                        className={`flex min-h-12 items-center justify-between gap-2 rounded-xl px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${value === 'cancelled' ? 'col-span-2' : ''} ${statusFilter === value ? 'bg-primary text-white' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'}`}
-                                    >
-                                        <span className="truncate text-xs font-bold" title={label}>{label}</span>
-                                        <span className="shrink-0 text-base font-black tabular-nums">{count}</span>
-                                    </button>
-                                ))}
+                            <div className="flex items-center justify-between gap-3">
+                                <span className="text-xs font-bold text-on-surface-variant">{copy.textReadiness}</span>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowTaskFilterDetails((value) => !value)}
+                                    aria-expanded={showTaskFilterDetails}
+                                    aria-controls="task-package-summary"
+                                    className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-xs font-black text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                                >
+                                    {copy.packageState}
+                                    <span className="material-symbols-outlined text-base" aria-hidden="true">{showTaskFilterDetails ? 'expand_less' : 'expand_more'}</span>
+                                </button>
                             </div>
 
-                            <label className="block space-y-2">
-                                <span className="text-xs font-bold text-on-surface-variant">Поиск по задачам</span>
-                                <div className="relative">
-                                    <span className="material-symbols-outlined pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-xl text-on-surface-variant/70" aria-hidden="true">search</span>
-                                    <input
-                                        value={taskSearch}
-                                        onChange={(event) => setTaskSearch(event.target.value)}
-                                        placeholder="Номер #760, название или канал"
-                                        className="w-full bg-surface-container-low border-none rounded-xl py-3 pl-11 pr-4 text-sm font-medium text-on-surface placeholder:text-on-surface-variant/70 focus:ring-2 focus:ring-primary/20 outline-none"
-                                    />
-                                </div>
-                            </label>
-
-                            <div className="grid grid-cols-3 gap-2" aria-label="Готовность контента">
+                            <div className="grid grid-cols-3 gap-2" aria-label={copy.textReadiness}>
                                 {([
-                                    ['empty', 'Без текста'],
-                                    ['ready', 'Текст готов'],
-                                    ['published', 'Опубликовано']
+                                    ['empty', copy.noText],
+                                    ['ready', copy.textReady],
+                                    ['published', copy.published]
                                 ] as const).map(([value, label]) => (
                                     <button
                                         key={value}
                                         type="button"
                                         onClick={() => toggleContentStateFilter(value)}
                                         aria-pressed={contentStateFilter === value}
-                                        className={`min-h-10 rounded-xl px-2 text-[11px] font-black transition-colors ${contentStateFilter === value ? 'bg-primary text-white' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'}`}
+                                        className={`min-h-9 rounded-xl px-2 text-[11px] font-black transition-colors ${contentStateFilter === value ? 'bg-primary text-white' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'}`}
                                     >
                                         {label}
                                     </button>
                                 ))}
                             </div>
+
+                            {showTaskFilterDetails && (
+                                <div id="task-package-summary" className="grid grid-cols-2 gap-2 pt-1" aria-label={copy.packageContents}>
+                                    {([
+                                        ['active', copy.active, statusCounts.active],
+                                        ['published', copy.published, statusCounts.published],
+                                        ['blocked', copy.blocked, statusCounts.blocked],
+                                        ['removed', copy.removed, statusCounts.removed],
+                                        ['cancelled', copy.cancelled, statusCounts.cancelled]
+                                    ] as const).map(([value, label, count]) => (
+                                        <button
+                                            key={value}
+                                            type="button"
+                                            onClick={() => selectStatusFilter(value)}
+                                            aria-pressed={statusFilter === value}
+                                            className={`flex min-h-10 items-center justify-between gap-2 rounded-xl px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${value === 'cancelled' ? 'col-span-2' : ''} ${statusFilter === value ? 'bg-primary text-white' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'}`}
+                                        >
+                                            <span className="truncate text-xs font-bold" title={label}>{label}</span>
+                                            <span className="shrink-0 text-sm font-black tabular-nums">{count}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         <div className="max-h-[720px] overflow-y-auto">
@@ -1250,7 +1281,7 @@ export default function PublicationTasks() {
                             )}
                             {!currentProject && (
                                 <div className="p-8 text-sm text-on-surface-variant">
-                                    Сначала импортируй план публикаций, а затем выбери проект для работы с очередью задач.
+                                    {copy.importFirst}
                                 </div>
                             )}
 
@@ -1268,13 +1299,13 @@ export default function PublicationTasks() {
 
                             {currentProject && !isLoading && !filteredTasks.length && (
                                 <div className="p-8 text-sm text-on-surface-variant leading-relaxed" role="status">
-                                    <p>По выбранным условиям задач не найдено.</p>
+                                    <p>{copy.noResults}</p>
                                     <button
                                         type="button"
                                         onClick={resetTaskFilters}
                                         className="mt-4 min-h-11 rounded-xl bg-surface-container-high px-4 font-black text-on-surface transition-colors hover:bg-primary hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                                     >
-                                        Сбросить фильтры
+                                        {copy.reset}
                                     </button>
                                 </div>
                             )}
@@ -1286,7 +1317,7 @@ export default function PublicationTasks() {
                                     : task.quality_report?.execution_mode || 'manual'
                                 const contentState = taskContentState(task)
                                 const isCancelled = task.status === 'cancelled'
-                                const listStateLabel = isCancelled ? 'Отменено' : contentStateLabel(contentState)
+                                const listStateLabel = isCancelled ? copy.cancelled : contentState === 'empty' ? copy.noText : contentState === 'ready' ? copy.textReady : copy.published
                                 const listStateIcon = isCancelled ? 'event_busy' : contentStateIcon(contentState)
                                 const listStateTone = isCancelled
                                     ? 'bg-surface-container-high text-on-surface-variant'

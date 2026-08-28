@@ -16,6 +16,7 @@ const storage_service_1 = __importDefault(require("../services/storage.service")
 const generator_service_1 = __importDefault(require("../services/generator.service"));
 const project_utils_1 = require("../utils/project.utils");
 const channel_utils_1 = require("../utils/channel.utils");
+const dzen_service_1 = __importDefault(require("../services/dzen.service"));
 const initiative_service_1 = __importDefault(require("../services/initiative.service"));
 const work_queue_service_1 = __importDefault(require("../services/work_queue.service"));
 const planner_service_1 = require("../services/planner.service");
@@ -785,12 +786,19 @@ async function projectRoutes(fastify) {
             reply.code(403).send({ error: 'No access' });
             return;
         }
+        let storedConfig;
+        try {
+            storedConfig = (0, channel_utils_1.prepareChannelConfigForStorage)(type, config);
+        }
+        catch (error) {
+            return reply.code(400).send({ error: error.message });
+        }
         const channel = await planner_service_1.prisma.socialChannel.create({
             data: {
                 project_id: projectId,
                 type,
                 name,
-                config
+                config: storedConfig
             }
         });
         return {
@@ -813,7 +821,16 @@ async function projectRoutes(fastify) {
         const existingChannel = await planner_service_1.prisma.socialChannel.findUnique({
             where: { id: parsedChannelId, project_id: projectId }
         });
-        const mergedConfig = (0, channel_utils_1.mergeChannelConfig)(config, existingChannel?.config || {});
+        if (!existingChannel) {
+            return reply.code(404).send({ error: 'Channel not found' });
+        }
+        let mergedConfig;
+        try {
+            mergedConfig = (0, channel_utils_1.prepareChannelConfigForStorage)(existingChannel.type, (0, channel_utils_1.mergeChannelConfig)(config, existingChannel.config || {}));
+        }
+        catch (error) {
+            return reply.code(400).send({ error: error.message });
+        }
         const channel = await planner_service_1.prisma.socialChannel.update({
             where: { id: parsedChannelId, project_id: projectId },
             data: {
@@ -825,6 +842,34 @@ async function projectRoutes(fastify) {
             ...channel,
             config: (0, channel_utils_1.sanitizeChannelConfig)(channel.type, channel.config)
         };
+    });
+    fastify.post('/api/projects/:id/channels/:channelId/test-connection', async (request, reply) => {
+        const user = request.user;
+        const { id, channelId } = request.params;
+        const projectId = parseInt(id, 10);
+        const parsedChannelId = parseInt(channelId, 10);
+        const hasAccess = await auth_service_1.default.hasProjectAccess(user.id, projectId, 'owner');
+        if (!hasAccess)
+            return reply.code(403).send({ error: 'No access' });
+        const channel = await planner_service_1.prisma.socialChannel.findFirst({
+            where: { id: parsedChannelId, project_id: projectId }
+        });
+        if (!channel)
+            return reply.code(404).send({ error: 'Channel not found' });
+        if (!['zen', 'zen_article', 'dzen'].includes(channel.type)) {
+            return reply.code(400).send({ error: 'Connection test is not supported for this channel type' });
+        }
+        try {
+            const storedConfig = channel.config?.raw_account || channel.config;
+            const result = await dzen_service_1.default.testConnection((0, channel_utils_1.resolveChannelConfigSecrets)(channel.type, storedConfig));
+            return { success: true, result };
+        }
+        catch (error) {
+            return reply.code(400).send({
+                error: error.message || 'Dzen connection test failed',
+                code: 'DZEN_CONNECTION_TEST_FAILED'
+            });
+        }
     });
     // Delete channel
     fastify.delete('/api/projects/:id/channels/:channelId', async (request, reply) => {

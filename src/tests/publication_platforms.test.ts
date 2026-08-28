@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import okService from '../services/ok.service';
 import habrService from '../services/habr.service';
 import vcService from '../services/vc.service';
-import dzenService from '../services/dzen.service';
+import dzenService, { isDzenPublishedUrl } from '../services/dzen.service';
 import publicationAdapterService from '../services/publication_adapter.service';
 
 test('Odnoklassniki signature helper handles request parameters correctly', () => {
@@ -105,27 +105,37 @@ test('VCService throws error when Osnova API request fails', async (t: TestConte
     );
 });
 
-test('DzenService publishes and returns mock URL', async () => {
+test('DzenService refuses to publish without an authenticated browser session', async () => {
     const config = {
         channel_id: 'dzen_channel_123'
     };
 
-    const mockUrl = await dzenService.publishPost(config, 'Тестовый текст Дзен', undefined, 'Дзен статья');
+    await assert.rejects(
+        () => dzenService.publishPost(config, 'Тестовый текст Дзен', undefined, 'Дзен статья'),
+        /authenticated Dzen session/i
+    );
+});
 
-    assert.ok(mockUrl);
-    assert.ok(mockUrl.startsWith('https://dzen.ru/media/mock-'));
+test('Dzen permalink validation rejects editor and fabricated URLs', () => {
+    assert.equal(isDzenPublishedUrl('https://dzen.ru/studio/editor/create/article'), false);
+    assert.equal(isDzenPublishedUrl('https://dzen.ru/media/mock-123'), false);
+    assert.equal(isDzenPublishedUrl('https://example.com/a/real-looking-id'), false);
+    assert.equal(isDzenPublishedUrl('https://dzen.ru/a/ZkExampleSlug'), true);
+    assert.equal(isDzenPublishedUrl('https://dzen.ru/media/id/123456/example'), true);
 });
 
 test('publicationAdapterService recognizes new platforms as direct-execution friendly', () => {
     const okAccount = { platform: 'ok' };
     const habrAccount = { platform: 'habr_article' };
     const vcAccount = { platform: 'vc_article' };
-    const dzenAccount = { platform: 'dzen' };
+    const dzenAccount = { platform: 'dzen', cookies_encrypted: 'enc:v1:test' };
+    const unconfiguredDzenAccount = { platform: 'dzen' };
 
     assert.equal(publicationAdapterService.supportsDirectExecution(okAccount), true);
     assert.equal(publicationAdapterService.supportsDirectExecution(habrAccount), true);
     assert.equal(publicationAdapterService.supportsDirectExecution(vcAccount), true);
     assert.equal(publicationAdapterService.supportsDirectExecution(dzenAccount), true);
+    assert.equal(publicationAdapterService.supportsDirectExecution(unconfiguredDzenAccount), false);
 });
 
 test('VK direct execution is available only with a provider target and publish credential', () => {

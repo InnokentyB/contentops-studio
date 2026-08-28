@@ -19,6 +19,7 @@ import SavedRecipesLibrary from './pages/SavedRecipesLibrary'
 import './index.css'
 
 import Layout from './components/Layout'
+import { LocaleProvider } from './i18n/LocaleContext'
 
 const queryClient = new QueryClient()
 const OperationalCalendar = lazy(() => import('./pages/OperationalCalendar'))
@@ -71,13 +72,15 @@ import { ToastProvider } from './components/ToastContainer'
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AuthProvider>
-          <ToastProvider>
-            <AppContent />
-          </ToastProvider>
-        </AuthProvider>
-      </BrowserRouter>
+      <LocaleProvider>
+        <BrowserRouter>
+          <AuthProvider>
+            <ToastProvider>
+              <AppContent />
+            </ToastProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </LocaleProvider>
     </QueryClientProvider>
   )
 }

@@ -58,6 +58,7 @@ const art_direction_service_1 = __importDefault(require("./art_direction.service
 const publication_runtime_helpers_1 = require("./publication_runtime.helpers");
 const publication_execution_route_1 = require("./publication_execution_route");
 const publication_content_state_1 = require("./publication_content_state");
+const channel_utils_1 = require("../utils/channel.utils");
 const publication_fact_service_1 = __importDefault(require("./publication_fact.service"));
 const telegram_delivery_payload_1 = require("./telegram_delivery_payload");
 const telegram_client_service_1 = __importDefault(require("./telegram_client.service"));
@@ -2096,14 +2097,24 @@ class PublisherService {
             };
         }
         if (['zen', 'zen_article', 'dzen'].includes(channelType)) {
-            const dzenConfig = channelConfig.raw_account || channelConfig;
+            const rawDzenConfig = channelConfig.raw_account || channelConfig;
+            const dzenConfig = (0, channel_utils_1.resolveChannelConfigSecrets)(channelType, rawDzenConfig);
             const title = bundle.publication?.html_bundle?.[0]?.asset?.title || task.title || 'Zen article';
+            const actionType = String(task.assets?.action?.action_type || task.type || '').toLowerCase();
+            const publicationType = actionType.includes('article') || channelType === 'zen_article'
+                ? 'article'
+                : actionType.includes('post')
+                    ? 'post'
+                    : dzenConfig.default_publication_type === 'post' ? 'post' : 'article';
             const publishedLink = await dzen_service_1.default.publishPost({
                 channel_id: dzenConfig.channel_id || dzenConfig.vk_id,
-                webhook_url: dzenConfig.webhook_url
-            }, text, imageUrl || undefined, title);
+                cookies: dzenConfig.cookies,
+                article_editor_url: dzenConfig.article_editor_url,
+                post_editor_url: dzenConfig.post_editor_url
+            }, text, imageUrl || undefined, title, publicationType);
             return {
                 adapter: 'dzen',
+                publicationType,
                 publishedLink
             };
         }

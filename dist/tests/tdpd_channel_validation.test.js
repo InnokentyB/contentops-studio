@@ -73,6 +73,52 @@ const planner_service_2 = __importDefault(require("../services/planner.service")
     strict_1.default.equal(merged.api_key, 'new-vk-key');
     strict_1.default.equal(merged.access_token, 'original-threads-token');
 });
+(0, node_test_1.default)('Dzen session cookies are encrypted at rest and masked in API responses', () => {
+    const previousKey = process.env.CHANNEL_SECRETS_KEY;
+    process.env.CHANNEL_SECRETS_KEY = 'test-only-channel-secret-key';
+    try {
+        const stored = (0, channel_utils_1.prepareChannelConfigForStorage)('zen', {
+            channel_id: 'channel-1',
+            cookies: 'Session_id=secret-session; yandexuid=123'
+        });
+        strict_1.default.equal(stored.cookies, undefined);
+        strict_1.default.match(stored.cookies_encrypted, /^enc:v1:/);
+        strict_1.default.equal(JSON.stringify(stored).includes('secret-session'), false);
+        const sanitized = (0, channel_utils_1.sanitizeChannelConfig)('zen', stored);
+        strict_1.default.equal(sanitized.cookies, '******');
+        strict_1.default.equal(sanitized.cookies_encrypted, undefined);
+        const resolved = (0, channel_utils_1.resolveChannelConfigSecrets)('zen', stored);
+        strict_1.default.equal(resolved.cookies, 'Session_id=secret-session; yandexuid=123');
+        strict_1.default.equal(resolved.cookies_encrypted, undefined);
+    }
+    finally {
+        if (previousKey === undefined)
+            delete process.env.CHANNEL_SECRETS_KEY;
+        else
+            process.env.CHANNEL_SECRETS_KEY = previousKey;
+    }
+});
+(0, node_test_1.default)('Dzen credentials nested in raw_account are also encrypted and redacted', () => {
+    const previousKey = process.env.CHANNEL_SECRETS_KEY;
+    process.env.CHANNEL_SECRETS_KEY = 'test-only-channel-secret-key';
+    try {
+        const stored = (0, channel_utils_1.prepareChannelConfigForStorage)('dzen', {
+            platform: 'dzen',
+            raw_account: { channel_id: 'nested', cookies: 'Session_id=nested-secret' }
+        });
+        strict_1.default.equal(stored.raw_account.cookies, undefined);
+        strict_1.default.match(stored.raw_account.cookies_encrypted, /^enc:v1:/);
+        const sanitized = (0, channel_utils_1.sanitizeChannelConfig)('dzen', stored);
+        strict_1.default.equal(sanitized.raw_account.cookies, '******');
+        strict_1.default.equal(sanitized.raw_account.cookies_encrypted, undefined);
+    }
+    finally {
+        if (previousKey === undefined)
+            delete process.env.CHANNEL_SECRETS_KEY;
+        else
+            process.env.CHANNEL_SECRETS_KEY = previousKey;
+    }
+});
 (0, node_test_1.default)('GET /api/projects/:id masks secrets', async () => {
     // 1. Mock auth checks
     const originalVerifyToken = auth_service_1.default.verifyToken;

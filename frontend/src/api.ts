@@ -204,6 +204,8 @@ export const projectsApi = {
         api.post(`/api/projects/${projectId}/channels/${channelId}/week-plans/${weekPackageId}/decision`, { decision, comment }),
     runAutoCanvasGeneration: (projectId: number, channelId: number, limit = 10) =>
         api.post(`/api/projects/${projectId}/channels/${channelId}/auto-canvas-generate`, { limit }),
+    testChannelConnection: (projectId: number, channelId: number) =>
+        api.post(`/api/projects/${projectId}/channels/${channelId}/test-connection`, {}),
     update: (id: number, data: { name: string; description: string }) => api.put(`/api/projects/${id}`, data),
     addMember: (id: number, email: string, role: string) => api.post(`/api/projects/${id}/members`, { email, role }),
     removeMember: (id: number, userId: number) => api.delete(`/api/projects/${id}/members/${userId}`)

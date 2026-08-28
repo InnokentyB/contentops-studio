@@ -3,7 +3,13 @@ import assert from 'node:assert/strict';
 import Fastify from 'fastify';
 
 // Import our utility functions
-import { sanitizeChannelConfig, mergeChannelConfig, cleanAndFormatHashtags } from '../utils/channel.utils';
+import {
+    sanitizeChannelConfig,
+    mergeChannelConfig,
+    cleanAndFormatHashtags,
+    prepareChannelConfigForStorage,
+    resolveChannelConfigSecrets
+} from '../utils/channel.utils';
 import projectRoutes from '../routes/project.routes';
 import authService from '../services/auth.service';
 import { prisma } from '../services/planner.service';
@@ -79,6 +85,51 @@ test('mergeChannelConfig updates secrets when incoming has actual new values', (
 
     assert.equal(merged.api_key, 'new-vk-key');
     assert.equal(merged.access_token, 'original-threads-token');
+});
+
+test('Dzen session cookies are encrypted at rest and masked in API responses', () => {
+    const previousKey = process.env.CHANNEL_SECRETS_KEY;
+    process.env.CHANNEL_SECRETS_KEY = 'test-only-channel-secret-key';
+    try {
+        const stored = prepareChannelConfigForStorage('zen', {
+            channel_id: 'channel-1',
+            cookies: 'Session_id=secret-session; yandexuid=123'
+        });
+
+        assert.equal(stored.cookies, undefined);
+        assert.match(stored.cookies_encrypted, /^enc:v1:/);
+        assert.equal(JSON.stringify(stored).includes('secret-session'), false);
+
+        const sanitized = sanitizeChannelConfig('zen', stored);
+        assert.equal(sanitized.cookies, '******');
+        assert.equal(sanitized.cookies_encrypted, undefined);
+
+        const resolved = resolveChannelConfigSecrets('zen', stored);
+        assert.equal(resolved.cookies, 'Session_id=secret-session; yandexuid=123');
+        assert.equal(resolved.cookies_encrypted, undefined);
+    } finally {
+        if (previousKey === undefined) delete process.env.CHANNEL_SECRETS_KEY;
+        else process.env.CHANNEL_SECRETS_KEY = previousKey;
+    }
+});
+
+test('Dzen credentials nested in raw_account are also encrypted and redacted', () => {
+    const previousKey = process.env.CHANNEL_SECRETS_KEY;
+    process.env.CHANNEL_SECRETS_KEY = 'test-only-channel-secret-key';
+    try {
+        const stored = prepareChannelConfigForStorage('dzen', {
+            platform: 'dzen',
+            raw_account: { channel_id: 'nested', cookies: 'Session_id=nested-secret' }
+        });
+        assert.equal(stored.raw_account.cookies, undefined);
+        assert.match(stored.raw_account.cookies_encrypted, /^enc:v1:/);
+        const sanitized = sanitizeChannelConfig('dzen', stored);
+        assert.equal(sanitized.raw_account.cookies, '******');
+        assert.equal(sanitized.raw_account.cookies_encrypted, undefined);
+    } finally {
+        if (previousKey === undefined) delete process.env.CHANNEL_SECRETS_KEY;
+        else process.env.CHANNEL_SECRETS_KEY = previousKey;
+    }
 });
 
 test('GET /api/projects/:id masks secrets', async () => {

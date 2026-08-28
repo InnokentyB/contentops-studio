@@ -27,6 +27,7 @@ const art_direction_service_1 = __importDefault(require("./art_direction.service
 const publication_content_revision_lifecycle_1 = require("./publication_content_revision_lifecycle");
 const client_1 = require("@prisma/client");
 const telegram_delivery_payload_1 = require("./telegram_delivery_payload");
+const channel_utils_1 = require("../utils/channel.utils");
 function resolveTaskScheduleAt(item) {
     const actionScheduleAt = item?.assets?.action?.scheduled_at;
     if (typeof actionScheduleAt === 'string' && actionScheduleAt.trim()) {
@@ -1047,11 +1048,13 @@ class McpPublicationService {
             }, params.text, params.imageUrl, params.title);
         }
         else if (['zen', 'zen_article', 'dzen'].includes(channel.type)) {
+            const dzenConfig = (0, channel_utils_1.resolveChannelConfigSecrets)(channel.type, config);
             publishedLink = await dzen_service_1.default.publishPost({
-                channel_id: config?.channel_id || config?.vk_id,
-                webhook_url: config?.webhook_url,
-                cookies: config?.cookies
-            }, params.text, params.imageUrl, params.title);
+                channel_id: dzenConfig?.channel_id || dzenConfig?.vk_id,
+                cookies: dzenConfig?.cookies,
+                article_editor_url: dzenConfig?.article_editor_url,
+                post_editor_url: dzenConfig?.post_editor_url
+            }, params.text, params.imageUrl, params.title, params.title ? 'article' : 'post');
         }
         else {
             throw new Error(`Direct MCP publication is not supported for channel type '${channel.type}'`);
