@@ -1954,6 +1954,7 @@ class PublicationPlanService {
         const persistedResolvedAssets = Array.isArray(item.assets?.resolved_assets) ? item.assets.resolved_assets : [];
         const persistedKeyPoints = Array.isArray(item.key_points) ? item.key_points : [];
         const persistedAssetsByRef = new Map<string, any>();
+        const selectedAsset = this.resolveApprovedSelectedAsset(item);
         const inferPersistedFileName = (runtimeFileName: string | null | undefined, persistedAsset: any) => {
             if (runtimeFileName) return runtimeFileName;
             if (typeof persistedAsset?.path === 'string' && persistedAsset.path.trim()) {
@@ -2118,7 +2119,19 @@ class PublicationPlanService {
                 body: primaryTextAsset?.content || item.draft_text || '',
                 html_bundle: resolvedAssets.filter((entry: any) => entry.asset?.type?.includes('html')),
                 link_url: linkUrl,
-                visuals: resolvedAssets.filter((entry: any) => entry.asset?.visual_style || entry.asset?.gamma_source)
+                image_url: selectedAsset?.file_url || null,
+                alt_text: selectedAsset?.alt_text || null,
+                visuals: selectedAsset
+                    ? [{
+                        ref: 'selected_asset',
+                        asset_id: selectedAsset.id,
+                        url: selectedAsset.file_url,
+                        preview_url: selectedAsset.file_url,
+                        alt_text: selectedAsset.alt_text || null,
+                        status: selectedAsset.status,
+                        content_revision: selectedAsset.content_revision
+                    }]
+                    : resolvedAssets.filter((entry: any) => entry.asset?.visual_style || entry.asset?.gamma_source)
             },
             resource_files: resourceFiles,
             manual_checklist: publicationAdapterService.buildManualChecklist(action, {
@@ -2137,7 +2150,7 @@ class PublicationPlanService {
         const mode = ['manual', 'manual_handoff', 'browser_required'].includes(String(item.publication_mode || ''))
             ? 'manual'
             : 'automated';
-        const selectedAsset = item.selected_asset || null;
+        const selectedAsset = this.resolveApprovedSelectedAsset(item);
 
         return {
             task: {
@@ -2171,6 +2184,22 @@ class PublicationPlanService {
                 action_type: `${channelType}_post:publish`
             })
         };
+    }
+
+    private resolveApprovedSelectedAsset(item: any) {
+        if (!item?.selected_asset_id && !item?.selected_asset) return null;
+        const selectedAsset = item.selected_asset;
+        if (!selectedAsset) {
+            throw new Error('[APPROVED_VISUAL_UNRESOLVABLE] Selected visual asset could not be loaded');
+        }
+        if (selectedAsset.status !== 'approved'
+            || selectedAsset.content_revision !== item.accepted_revision) {
+            throw new Error('[APPROVED_VISUAL_REQUIRED] Selected visual must be approved for the accepted content revision');
+        }
+        if (typeof selectedAsset.file_url !== 'string' || !selectedAsset.file_url.trim()) {
+            throw new Error('[APPROVED_VISUAL_UNRESOLVABLE] Selected approved visual has no resolvable file URL');
+        }
+        return { ...selectedAsset, file_url: selectedAsset.file_url.trim() };
     }
 }
 

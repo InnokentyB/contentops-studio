@@ -47,12 +47,74 @@ const publication_plan_service_1 = __importDefault(require("../services/publicat
         title: 'Тема среды',
         draft_text: 'Полный готовый текст поста',
         publication_mode: 'automatic',
+        accepted_revision: 3,
         schedule_at: new Date('2026-08-26T10:00:00.000Z'),
         channel: { name: 'analysts_thinking_tg', type: 'telegram' },
-        selected_asset: { file_url: 'https://cdn.example/post.png', alt_text: 'Схема' }
+        selected_asset: {
+            id: 7,
+            status: 'approved',
+            content_revision: 3,
+            file_url: 'https://cdn.example/post.png',
+            alt_text: 'Схема'
+        }
     });
     strict_1.default.equal(bundle.mode, 'automated');
     strict_1.default.equal(bundle.publication.body, 'Полный готовый текст поста');
     strict_1.default.equal(bundle.publication.image_url, 'https://cdn.example/post.png');
     strict_1.default.equal(bundle.task.content_item_id, 42);
+});
+(0, node_test_1.default)('plan handoff preserves the approved visual bound to the accepted revision', () => {
+    const bundle = publication_plan_service_1.default.buildHandoffBundle({
+        meta: { plan_id: 'plan-1' },
+        accounts: { telegram_main: { platform: 'telegram' } },
+        assets: {},
+        actions: []
+    }, {
+        id: 779,
+        title: 'Accepted publication',
+        draft_text: 'Accepted text',
+        accepted_revision: 4,
+        selected_asset_id: 91,
+        selected_asset: {
+            id: 91,
+            status: 'approved',
+            content_revision: 4,
+            file_url: ' https://cdn.example/approved.png ',
+            alt_text: 'Approved diagram'
+        },
+        assets: {
+            account_ref: 'telegram_main',
+            asset_refs: [],
+            action: { id: 'telegram-publish', channel: 'telegram', action_type: 'telegram:publish' }
+        }
+    });
+    strict_1.default.equal(bundle.publication.body, 'Accepted text');
+    strict_1.default.equal(bundle.publication.image_url, 'https://cdn.example/approved.png');
+    strict_1.default.deepEqual(bundle.publication.visuals, [{
+            ref: 'selected_asset',
+            asset_id: 91,
+            url: 'https://cdn.example/approved.png',
+            preview_url: 'https://cdn.example/approved.png',
+            alt_text: 'Approved diagram',
+            status: 'approved',
+            content_revision: 4
+        }]);
+});
+(0, node_test_1.default)('handoff blocks a selected visual that cannot be resolved', () => {
+    strict_1.default.throws(() => publication_plan_service_1.default.buildGeneratedContentItemHandoff({
+        id: 779,
+        draft_text: 'Accepted text',
+        accepted_revision: 4,
+        selected_asset_id: 91,
+        selected_asset: null,
+        channel: { type: 'telegram' }
+    }), /APPROVED_VISUAL_UNRESOLVABLE/);
+    strict_1.default.throws(() => publication_plan_service_1.default.buildGeneratedContentItemHandoff({
+        id: 779,
+        draft_text: 'Accepted text',
+        accepted_revision: 4,
+        selected_asset_id: 91,
+        selected_asset: { id: 91, status: 'approved', content_revision: 4, file_url: '   ' },
+        channel: { type: 'telegram' }
+    }), /APPROVED_VISUAL_UNRESOLVABLE/);
 });

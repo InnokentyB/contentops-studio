@@ -26,6 +26,7 @@ const publisher_service_1 = __importDefault(require("./publisher.service"));
 const art_direction_service_1 = __importDefault(require("./art_direction.service"));
 const publication_content_revision_lifecycle_1 = require("./publication_content_revision_lifecycle");
 const client_1 = require("@prisma/client");
+const telegram_delivery_payload_1 = require("./telegram_delivery_payload");
 function resolveTaskScheduleAt(item) {
     const actionScheduleAt = item?.assets?.action?.scheduled_at;
     if (typeof actionScheduleAt === 'string' && actionScheduleAt.trim()) {
@@ -847,7 +848,7 @@ class McpPublicationService {
     async preparePublicationTask(projectId, taskId) {
         const item = await db_1.default.contentItem.findFirst({
             where: { id: taskId, project_id: projectId },
-            include: { channel: true }
+            include: { channel: true, selected_asset: true }
         });
         if (!item) {
             throw new Error(`Publication task ${taskId} not found for project ${projectId}`);
@@ -929,6 +930,9 @@ class McpPublicationService {
     async publishDirect(params) {
         const channel = await this.resolveChannel(params.projectId, params.channelId, params.channelType);
         const config = channel.config?.raw_account || channel.config;
+        const telegramPayload = channel.type === 'telegram'
+            ? (0, telegram_delivery_payload_1.normalizeTelegramDeliveryPayload)(params)
+            : null;
         if (params.dryRun) {
             return {
                 mode: 'dry_run',
@@ -940,9 +944,10 @@ class McpPublicationService {
                 },
                 payload_preview: {
                     title: params.title || null,
-                    text_preview: normalizeTextPreview(params.text),
+                    text_preview: normalizeTextPreview(telegramPayload?.text || params.text),
                     subreddit: params.subreddit || null,
-                    has_image: Boolean(params.imageUrl)
+                    has_image: Boolean(telegramPayload?.imageUrl || params.imageUrl),
+                    ...(telegramPayload ? (0, telegram_delivery_payload_1.buildTelegramDeliveryPreview)(telegramPayload) : {})
                 }
             };
         }
@@ -972,8 +977,8 @@ class McpPublicationService {
             const result = await publisher_service_1.default.publishDirectTelegram({
                 projectId: params.projectId,
                 channel,
-                text: params.text,
-                imageUrl: params.imageUrl
+                text: telegramPayload.text,
+                imageUrl: telegramPayload.imageUrl || undefined
             });
             publishedLink = result.publishedLink;
             externalId = result.metrics?.telegram_message_id || null;

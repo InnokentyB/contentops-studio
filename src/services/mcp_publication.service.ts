@@ -21,6 +21,7 @@ import publisherService from './publisher.service';
 import artDirectionService from './art_direction.service';
 import { planAcceptedContentEdit } from './publication_content_revision_lifecycle';
 import { Prisma } from '@prisma/client';
+import { buildTelegramDeliveryPreview, normalizeTelegramDeliveryPayload } from './telegram_delivery_payload';
 
 type PublicationOutcome = 'published' | 'blocked' | 'removed' | 'restricted';
 
@@ -1036,7 +1037,7 @@ class McpPublicationService {
     async preparePublicationTask(projectId: number, taskId: number) {
         const item = await prisma.contentItem.findFirst({
             where: { id: taskId, project_id: projectId },
-            include: { channel: true }
+            include: { channel: true, selected_asset: true }
         });
 
         if (!item) {
@@ -1126,6 +1127,9 @@ class McpPublicationService {
     async publishDirect(params: DirectPublishParams) {
         const channel = await this.resolveChannel(params.projectId, params.channelId, params.channelType);
         const config = (channel.config as any)?.raw_account || channel.config;
+        const telegramPayload = channel.type === 'telegram'
+            ? normalizeTelegramDeliveryPayload(params)
+            : null;
 
         if (params.dryRun) {
             return {
@@ -1138,9 +1142,10 @@ class McpPublicationService {
                 },
                 payload_preview: {
                     title: params.title || null,
-                    text_preview: normalizeTextPreview(params.text),
+                    text_preview: normalizeTextPreview(telegramPayload?.text || params.text),
                     subreddit: params.subreddit || null,
-                    has_image: Boolean(params.imageUrl)
+                    has_image: Boolean(telegramPayload?.imageUrl || params.imageUrl),
+                    ...(telegramPayload ? buildTelegramDeliveryPreview(telegramPayload) : {})
                 }
             };
         }
@@ -1173,8 +1178,8 @@ class McpPublicationService {
             const result = await publisherService.publishDirectTelegram({
                 projectId: params.projectId,
                 channel,
-                text: params.text,
-                imageUrl: params.imageUrl
+                text: telegramPayload!.text,
+                imageUrl: telegramPayload!.imageUrl || undefined
             });
             publishedLink = result.publishedLink;
             externalId = result.metrics?.telegram_message_id || null;

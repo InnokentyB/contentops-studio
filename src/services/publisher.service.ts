@@ -21,6 +21,7 @@ import { parseRecurringTrigger } from './publication_runtime.helpers';
 import { browserFallbackReason, resolvePublicationExecutionRoute } from './publication_execution_route';
 import { derivePublicationContentState } from './publication_content_state';
 import publicationFactService from './publication_fact.service';
+import { normalizeTelegramDeliveryPayload } from './telegram_delivery_payload';
 import { config } from 'dotenv';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -69,18 +70,31 @@ class PublisherService {
         imageUrl?: string;
         requestHost?: string;
     }) {
-        return this.executeAutomatedPublicationTask(
+        const payload = normalizeTelegramDeliveryPayload(params);
+        const result = await this.executeAutomatedPublicationTask(
             {
                 id: 0,
                 project_id: params.projectId,
                 channel_id: params.channel.id,
-                channel: params.channel
+                channel: params.channel,
+                selected_asset: payload.imageUrl ? { file_url: payload.imageUrl } : null
             },
-            { mode: 'automatic', task: { action_type: 'telegram:direct' } },
+            {
+                mode: 'automatic',
+                task: { action_type: 'telegram:direct' },
+                publication: {
+                    body: payload.text,
+                    image_url: payload.imageUrl
+                }
+            },
             params.channel.config || {},
             { actions: [], assets: {}, accounts: {} },
             params.requestHost
         );
+        if (!result.publishedLink && !result.metrics?.telegram_message_id) {
+            throw new Error('[PUBLICATION_IDENTITY_MISSING] Telegram provider did not confirm a message ID or permalink');
+        }
+        return result;
     }
 
     private async routeToBrowserPublication(task: any, bundle: any, reason: Record<string, unknown>) {
@@ -1394,7 +1408,7 @@ class PublisherService {
     async processPublicationTaskNow(taskId: number, requestHost?: string) {
         const task = await prisma.contentItem.findUnique({
             where: { id: taskId },
-            include: { channel: true }
+            include: { channel: true, selected_asset: true }
         });
 
         if (!task) {
@@ -1527,6 +1541,11 @@ class PublisherService {
                     retry_via_api: false,
                     next_route: 'browser_required'
                 });
+            }
+            if (task.channel?.type === 'telegram'
+                && !automatedResult.publishedLink
+                && !automatedResult.metrics?.telegram_message_id) {
+                throw new Error('[PUBLICATION_IDENTITY_MISSING] Telegram provider did not confirm a message ID or permalink');
             }
         } catch (error) {
             const fallback = browserFallbackReason(error);
@@ -1700,16 +1719,24 @@ class PublisherService {
     private async executeAutomatedPublicationTask(task: any, bundle: any, channelConfig: any, plan: any, requestHost?: string) {
         const channelType = task.channel?.type;
         const action = (task.assets as any)?.action || {};
-        const text = bundle.publication?.body || '';
+        const directTelegramPayload = channelType === 'telegram'
+            ? normalizeTelegramDeliveryPayload({
+                text: bundle.publication?.body,
+                imageUrl: bundle.publication?.image_url || task.selected_asset?.file_url
+            })
+            : null;
+        const text = directTelegramPayload?.text || bundle.publication?.body || '';
         const generatedVisual = Array.isArray((task.assets as any)?.generated_visuals)
             ? (task.assets as any).generated_visuals[0]
             : null;
-        const imageUrl = generatedVisual?.url
-            || generatedVisual?.image_url
-            || generatedVisual?.src
-            || task.selected_asset?.file_url
-            || bundle.publication?.image_url
-            || null;
+        const imageUrl = channelType === 'telegram'
+            ? directTelegramPayload!.imageUrl
+            : generatedVisual?.url
+                || generatedVisual?.image_url
+                || generatedVisual?.src
+                || task.selected_asset?.file_url
+                || bundle.publication?.image_url
+                || null;
 
         if (channelType === 'reddit') {
             const title = bundle.publication?.html_bundle?.[0]?.asset?.title
