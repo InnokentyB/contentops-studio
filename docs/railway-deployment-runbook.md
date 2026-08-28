@@ -68,6 +68,7 @@ Required baseline:
 - `APP_DB_SCHEMA=planner`
 - `APP_TARGET_DB_SCHEMA=planner`
 - `JWT_SECRET`
+- `CHANNEL_SECRETS_KEY` (stable random secret used to encrypt authenticated channel sessions)
 - `PORT`
 
 Likely required based on current codebase:

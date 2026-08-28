@@ -22,6 +22,7 @@ import artDirectionService from './art_direction.service';
 import { planAcceptedContentEdit } from './publication_content_revision_lifecycle';
 import { Prisma } from '@prisma/client';
 import { buildTelegramDeliveryPreview, normalizeTelegramDeliveryPayload } from './telegram_delivery_payload';
+import { resolveChannelConfigSecrets } from '../utils/channel.utils';
 
 type PublicationOutcome = 'published' | 'blocked' | 'removed' | 'restricted';
 
@@ -1236,11 +1237,13 @@ class McpPublicationService {
                 webhook_url: config?.webhook_url
             }, params.text, params.imageUrl, params.title);
         } else if (['zen', 'zen_article', 'dzen'].includes(channel.type)) {
+            const dzenConfig = resolveChannelConfigSecrets(channel.type, config);
             publishedLink = await dzenService.publishPost({
-                channel_id: config?.channel_id || config?.vk_id,
-                webhook_url: config?.webhook_url,
-                cookies: config?.cookies
-            }, params.text, params.imageUrl, params.title);
+                channel_id: dzenConfig?.channel_id || dzenConfig?.vk_id,
+                cookies: dzenConfig?.cookies,
+                article_editor_url: dzenConfig?.article_editor_url,
+                post_editor_url: dzenConfig?.post_editor_url
+            }, params.text, params.imageUrl, params.title, params.title ? 'article' : 'post');
         } else {
             throw new Error(`Direct MCP publication is not supported for channel type '${channel.type}'`);
         }

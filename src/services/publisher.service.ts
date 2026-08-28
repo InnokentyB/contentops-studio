@@ -20,6 +20,7 @@ import artDirectionService from './art_direction.service';
 import { parseRecurringTrigger } from './publication_runtime.helpers';
 import { browserFallbackReason, resolvePublicationExecutionRoute } from './publication_execution_route';
 import { derivePublicationContentState } from './publication_content_state';
+import { resolveChannelConfigSecrets } from '../utils/channel.utils';
 import publicationFactService from './publication_fact.service';
 import { normalizeTelegramDeliveryPayload } from './telegram_delivery_payload';
 import telegramClientService from './telegram_client.service';
@@ -2093,15 +2094,25 @@ class PublisherService {
         }
 
         if (['zen', 'zen_article', 'dzen'].includes(channelType)) {
-            const dzenConfig = channelConfig.raw_account || channelConfig;
+            const rawDzenConfig = channelConfig.raw_account || channelConfig;
+            const dzenConfig = resolveChannelConfigSecrets(channelType, rawDzenConfig);
             const title = bundle.publication?.html_bundle?.[0]?.asset?.title || task.title || 'Zen article';
+            const actionType = String((task.assets as any)?.action?.action_type || task.type || '').toLowerCase();
+            const publicationType = actionType.includes('article') || channelType === 'zen_article'
+                ? 'article'
+                : actionType.includes('post')
+                    ? 'post'
+                    : dzenConfig.default_publication_type === 'post' ? 'post' : 'article';
             const publishedLink = await dzenService.publishPost({
                 channel_id: dzenConfig.channel_id || dzenConfig.vk_id,
-                webhook_url: dzenConfig.webhook_url
-            }, text, imageUrl || undefined, title);
+                cookies: dzenConfig.cookies,
+                article_editor_url: dzenConfig.article_editor_url,
+                post_editor_url: dzenConfig.post_editor_url
+            }, text, imageUrl || undefined, title, publicationType);
 
             return {
                 adapter: 'dzen',
+                publicationType,
                 publishedLink
             };
         }

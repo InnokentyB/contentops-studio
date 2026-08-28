@@ -1,6 +1,8 @@
 import puppeteer, { type Page } from 'puppeteer';
 import fs from 'fs';
 import path from 'path';
+import dns from 'dns/promises';
+import net from 'net';
 
 interface HabrPublishConfig {
     cookies: string;
@@ -10,7 +12,11 @@ interface HabrPublishConfig {
 interface DzenPublishConfig {
     cookies: string;
     channel_id?: string;
+    article_editor_url?: string;
+    post_editor_url?: string;
 }
+
+type DzenPublicationType = 'article' | 'post';
 
 class PuppeteerPublisherService {
     /**
@@ -71,6 +77,151 @@ class PuppeteerPublisherService {
             console.error('[PuppeteerPublisher] Failed to take diagnostic screenshot:', e.message);
             return 'screenshot-failed';
         }
+    }
+
+    private async assertDzenAuthenticated(page: Page) {
+        const currentUrl = page.url();
+        const pageText = await page.evaluate(() => document.body?.innerText || '').catch(() => '');
+        if (
+            currentUrl.includes('/login')
+            || currentUrl.includes('passport.yandex.ru')
+            || /войти|авторизуйтесь|sign in/i.test(pageText.slice(0, 1200))
+        ) {
+            throw new Error('Dzen authentication failed: the saved session is invalid or expired');
+        }
+        if (/captcha|подтвердите, что вы не робот|робот/i.test(`${currentUrl}\n${pageText}`)) {
+            throw new Error('Dzen requires a CAPTCHA or interactive account verification');
+        }
+    }
+
+    private isPublicDzenUrl(value: string) {
+        try {
+            const url = new URL(value);
+            return ['dzen.ru', 'www.dzen.ru'].includes(url.hostname)
+                && !url.pathname.startsWith('/studio')
+                && !url.pathname.includes('/editor/')
+                && !/\bmock[-_/]/i.test(url.pathname)
+                && (/\/(?:a|b)\//.test(url.pathname) || /\/media\/id\//.test(url.pathname));
+        } catch {
+            return false;
+        }
+    }
+
+    private async uploadDzenImage(page: Page, imageUrl: string) {
+        const url = new URL(imageUrl);
+        if (url.protocol !== 'https:' || url.username || url.password) {
+            throw new Error('Dzen image URL must be an authenticated-free HTTPS URL');
+        }
+        if (['localhost', 'metadata.google.internal'].includes(url.hostname.toLowerCase())) {
+            throw new Error('Dzen image URL points to a forbidden host');
+        }
+        const addresses = await dns.lookup(url.hostname, { all: true });
+        if (addresses.length === 0 || addresses.some(({ address }) => this.isPrivateNetworkAddress(address))) {
+            throw new Error('Dzen image URL resolves to a private or unavailable network address');
+        }
+
+        const response = await fetch(url, { signal: AbortSignal.timeout(20_000), redirect: 'error' });
+        if (!response.ok) {
+            throw new Error(`Unable to download the Dzen image (${response.status})`);
+        }
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.startsWith('image/')) {
+            throw new Error(`Dzen image URL returned unsupported content type: ${contentType || 'unknown'}`);
+        }
+        const declaredLength = Number(response.headers.get('content-length') || 0);
+        if (declaredLength > 15 * 1024 * 1024) {
+            throw new Error('Dzen image is larger than 15 MB');
+        }
+        if (!response.body) throw new Error('Dzen image response body is empty');
+        const chunks: Buffer[] = [];
+        let totalBytes = 0;
+        for await (const chunk of response.body as any) {
+            const buffer = Buffer.from(chunk);
+            totalBytes += buffer.length;
+            if (totalBytes > 15 * 1024 * 1024) {
+                throw new Error('Dzen image is larger than 15 MB');
+            }
+            chunks.push(buffer);
+        }
+        const bytes = Buffer.concat(chunks);
+        if (bytes.length === 0) {
+            throw new Error('Dzen image must be between 1 byte and 15 MB');
+        }
+
+        const extension = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg';
+        const tempPath = path.join(process.cwd(), 'logs', `dzen-upload-${Date.now()}.${extension}`);
+        fs.mkdirSync(path.dirname(tempPath), { recursive: true });
+        fs.writeFileSync(tempPath, bytes);
+        try {
+            let input = await page.$('input[type="file"][accept*="image"], input[type="file"]');
+            if (!input) {
+                await page.evaluate(() => {
+                    const controls = Array.from(document.querySelectorAll('button, [role="button"]'));
+                    const imageControl = controls.find((element) => {
+                        const label = `${element.textContent || ''} ${element.getAttribute('aria-label') || ''} ${element.getAttribute('title') || ''}`;
+                        return /изображ|картин|фото|image|photo/i.test(label);
+                    });
+                    (imageControl as HTMLElement | undefined)?.click();
+                });
+                input = await page.waitForSelector('input[type="file"][accept*="image"], input[type="file"]', { timeout: 10_000 });
+            }
+            if (!input) throw new Error('Dzen image upload control was not found');
+            await input.uploadFile(tempPath);
+            await page.waitForFunction(
+                () => Boolean(document.querySelector('img[src^="blob:"], img[src*="avatars"], img[src*="dzeninfra"]')),
+                { timeout: 20_000 }
+            ).catch(() => undefined);
+        } finally {
+            fs.rmSync(tempPath, { force: true });
+        }
+    }
+
+    private isPrivateNetworkAddress(address: string) {
+        if (net.isIPv4(address)) {
+            const [a, b] = address.split('.').map(Number);
+            return a === 10
+                || a === 127
+                || a === 0
+                || (a === 169 && b === 254)
+                || (a === 172 && b >= 16 && b <= 31)
+                || (a === 192 && b === 168);
+        }
+        const normalized = address.toLowerCase();
+        return normalized === '::1'
+            || normalized === '::'
+            || normalized.startsWith('fc')
+            || normalized.startsWith('fd')
+            || normalized.startsWith('fe80:')
+            || normalized.startsWith('::ffff:127.')
+            || normalized.startsWith('::ffff:10.')
+            || normalized.startsWith('::ffff:192.168.');
+    }
+
+    private async listPublicDzenUrls(page: Page): Promise<string[]> {
+        return page.evaluate(() => Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href]')).map((link) => link.href));
+    }
+
+    private async findDzenPublishedUrl(page: Page, previousUrls: Set<string>): Promise<string | null> {
+        const current = page.url();
+        if (this.isPublicDzenUrl(current)) return current;
+
+        const candidate = await page.evaluate((excluded) => {
+            const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href]'));
+            return links.map((link) => link.href).find((href) => {
+                if (excluded.includes(href)) return false;
+                try {
+                    const url = new URL(href);
+                    return ['dzen.ru', 'www.dzen.ru'].includes(url.hostname)
+                        && !url.pathname.startsWith('/studio')
+                        && !url.pathname.includes('/editor/')
+                        && !/\bmock[-_/]/i.test(url.pathname)
+                        && (/\/(?:a|b)\//.test(url.pathname) || /\/media\/id\//.test(url.pathname));
+                } catch {
+                    return false;
+                }
+            }) || null;
+        }, Array.from(previousUrls));
+        return candidate && this.isPublicDzenUrl(candidate) ? candidate : null;
     }
 
     /**
@@ -215,7 +366,8 @@ class PuppeteerPublisherService {
         config: DzenPublishConfig,
         title: string,
         text: string,
-        imageUrl?: string
+        imageUrl?: string,
+        publicationType: DzenPublicationType = 'article'
     ): Promise<string> {
         console.log('[PuppeteerPublisher] Initializing Dzen publication...');
         const browser = await this.launchBrowser();
@@ -225,38 +377,37 @@ class PuppeteerPublisherService {
         await page.setViewport({ width: 1280, height: 800 });
 
         try {
-            // Apply cookies on dzen.ru and .dzen.ru domains
+            // Apply the authenticated session to Dzen and the Yandex passport domains.
             const cookiesMain = this.parseCookieString(config.cookies, 'dzen.ru');
             const cookiesDot = this.parseCookieString(config.cookies, '.dzen.ru');
+            const cookiesYandex = this.parseCookieString(config.cookies, '.yandex.ru');
             
             if (cookiesMain.length === 0) {
                 throw new Error('Dzen cookie string is empty or invalid');
             }
 
-            await page.setCookie(...cookiesMain, ...cookiesDot);
+            await page.setCookie(...cookiesMain, ...cookiesDot, ...cookiesYandex);
 
-            const studioUrl = 'https://dzen.ru/studio/editor/create/article';
+            const studioUrl = publicationType === 'article'
+                ? (config.article_editor_url || 'https://dzen.ru/studio/editor/create/article')
+                : (config.post_editor_url || 'https://dzen.ru/studio/editor/create/post');
             console.log(`[PuppeteerPublisher] Navigating to ${studioUrl}`);
             await page.goto(studioUrl, { waitUntil: 'networkidle2', timeout: 30000 });
 
-            // Check if authenticated
-            const currentUrl = page.url();
-            if (currentUrl.includes('/login') || currentUrl.includes('passport.yandex.ru')) {
-                throw new Error('Dzen authentication failed: Session cookies are invalid or expired.');
+            await this.assertDzenAuthenticated(page);
+
+            if (publicationType === 'article') {
+                console.log('[PuppeteerPublisher] Filling title...');
+                const titleSelector = '[placeholder="Заголовок"], div[data-placeholder="Заголовок"], .editor__title-input, h1[contenteditable="true"]';
+                const titleEl = await page.waitForSelector(titleSelector, { timeout: 15000 });
+                if (!titleEl) throw new Error('Could not find Dzen title input block');
+                await titleEl.focus();
+                await page.evaluate((el: any, t) => {
+                    el.focus();
+                    document.execCommand('selectAll', false, undefined);
+                    document.execCommand('insertText', false, t);
+                }, titleEl, title);
             }
-
-            // Dzen article layout uses custom editors. Let's wait for the title area.
-            console.log('[PuppeteerPublisher] Filling title...');
-            const titleSelector = '[placeholder="Заголовок"], div[data-placeholder="Заголовок"], .editor__title-input, h1[contenteditable="true"]';
-            const titleEl = await page.waitForSelector(titleSelector, { timeout: 15000 });
-            if (!titleEl) throw new Error('Could not find Dzen title input block');
-
-            await titleEl.focus();
-            await page.evaluate((el: any, t) => {
-                el.focus();
-                document.execCommand('selectAll', false, undefined);
-                document.execCommand('insertText', false, t);
-            }, titleEl, title);
 
             // Move to body editor
             console.log('[PuppeteerPublisher] Filling body text...');
@@ -272,6 +423,15 @@ class PuppeteerPublisherService {
             }, bodyEl, text);
 
             await new Promise((resolve) => setTimeout(resolve, 2000));
+
+            if (imageUrl) {
+                console.log('[PuppeteerPublisher] Uploading Dzen image...');
+                await this.uploadDzenImage(page, imageUrl);
+            }
+
+            const existingPublicUrls = new Set(
+                (await this.listPublicDzenUrls(page)).filter((url) => this.isPublicDzenUrl(url))
+            );
 
             // Click "Опубликовать" (Publish) button in editor header
             console.log('[PuppeteerPublisher] Triggering Dzen publication modal...');
@@ -317,24 +477,49 @@ class PuppeteerPublisherService {
                 throw new Error('Could not find confirmation Publish button in Dzen Settings panel');
             }
 
-            // Wait for publisher to execute and navigate back or load success
+            // Wait for publication and require an actual public permalink.
             console.log('[PuppeteerPublisher] Waiting for Dzen success response...');
-            await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 30000 }).catch(() => {});
-            
-            // Try to find the live URL or fall back to mock URL with live indicators
-            const publishedUrl = page.url();
-            console.log(`[PuppeteerPublisher] Dzen publication success! Editor url: ${publishedUrl}`);
+            await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 45_000 }).catch(() => {});
+            await this.assertDzenAuthenticated(page);
+            const publishedUrl = await this.findDzenPublishedUrl(page, existingPublicUrls);
+            if (!publishedUrl) {
+                throw new Error('Dzen publication could not be verified: no public permalink was found');
+            }
+            console.log(`[PuppeteerPublisher] Dzen publication success! URL: ${publishedUrl}`);
             await browser.close();
-            
-            // If the URL is just studio dashboard, fallback to studio mock link or the URL we ended up with
-            return publishedUrl.includes('dzen.ru/studio') 
-                ? `https://dzen.ru/media/zen-${Date.now()}`
-                : publishedUrl;
+            return publishedUrl;
 
         } catch (err: any) {
             const screenshotFile = await this.saveErrorScreenshot(page, 'dzen');
             await browser.close();
             throw new Error(`Dzen Puppeteer automation failed: ${err.message} (Diagnostic screenshot: logs/${screenshotFile})`);
+        }
+    }
+
+    async testDzenConnection(config: DzenPublishConfig) {
+        const browser = await this.launchBrowser();
+        const page = await browser.newPage();
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+        try {
+            const cookies = [
+                ...this.parseCookieString(config.cookies, 'dzen.ru'),
+                ...this.parseCookieString(config.cookies, '.dzen.ru'),
+                ...this.parseCookieString(config.cookies, '.yandex.ru')
+            ];
+            if (cookies.length === 0) throw new Error('Dzen cookie string is empty or invalid');
+            await page.setCookie(...cookies);
+            const editorUrl = config.article_editor_url || 'https://dzen.ru/studio/editor/create/article';
+            await page.goto(editorUrl, { waitUntil: 'networkidle2', timeout: 30_000 });
+            await this.assertDzenAuthenticated(page);
+            const editorFound = Boolean(await page.$('[contenteditable="true"], textarea, [data-placeholder="Заголовок"]'));
+            if (!editorFound) throw new Error('Dzen editor is unavailable or its interface has changed');
+            return {
+                authenticated: true,
+                editor_available: true,
+                checked_at: new Date().toISOString()
+            };
+        } finally {
+            await browser.close();
         }
     }
 }
