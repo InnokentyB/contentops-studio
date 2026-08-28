@@ -69,6 +69,13 @@ export function resolveChannelConfigSecrets(type: string, config: any): any {
     const resolved = { ...(config || {}) };
     if (!DZEN_TYPES.has(type)) return resolved;
 
+    if (resolved.raw_account && typeof resolved.raw_account === 'object') {
+        resolved.raw_account = resolveChannelConfigSecrets(type, resolved.raw_account);
+        if (!resolved.cookies && resolved.raw_account.cookies) {
+            resolved.cookies = resolved.raw_account.cookies;
+        }
+    }
+
     if (!resolved.cookies && typeof resolved.cookies_encrypted === 'string') {
         resolved.cookies = decryptChannelSecret(resolved.cookies_encrypted);
     }

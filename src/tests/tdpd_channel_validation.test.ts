@@ -132,6 +132,23 @@ test('Dzen credentials nested in raw_account are also encrypted and redacted', (
     }
 });
 
+test('Dzen credentials nested in raw_account are resolved for connection checks', () => {
+    const previousKey = process.env.CHANNEL_SECRETS_KEY;
+    process.env.CHANNEL_SECRETS_KEY = 'test-channel-secret-key';
+    try {
+        const stored = prepareChannelConfigForStorage('dzen', {
+            raw_account: { cookies: 'zen_session_id=nested-session' }
+        });
+        const resolved = resolveChannelConfigSecrets('dzen', stored);
+
+        assert.equal(resolved.cookies, 'zen_session_id=nested-session');
+        assert.equal(resolved.raw_account.cookies, 'zen_session_id=nested-session');
+    } finally {
+        if (previousKey === undefined) delete process.env.CHANNEL_SECRETS_KEY;
+        else process.env.CHANNEL_SECRETS_KEY = previousKey;
+    }
+});
+
 test('GET /api/projects/:id masks secrets', async () => {
     // 1. Mock auth checks
     const originalVerifyToken = authService.verifyToken;

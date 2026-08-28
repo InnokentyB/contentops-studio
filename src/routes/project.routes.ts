@@ -1005,9 +1005,8 @@ export default async function projectRoutes(fastify: FastifyInstance) {
         }
 
         try {
-            const storedConfig = (channel.config as any)?.raw_account || channel.config;
             const result = await dzenService.testConnection(
-                resolveChannelConfigSecrets(channel.type, storedConfig)
+                resolveChannelConfigSecrets(channel.type, channel.config)
             );
             return { success: true, result };
         } catch (error: any) {
