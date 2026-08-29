@@ -69,7 +69,7 @@ export default function PostEditor() {
     const [publishAt, setPublishAt] = useState('')
     const [selectedPresetId, setSelectedPresetId] = useState<number | ''>('')
     const [showPresetSelect, setShowPresetSelect] = useState(false)
-    const [imageTimestamp, setImageTimestamp] = useState(Date.now())
+    const [imageTimestamp, setImageTimestamp] = useState(() => Date.now())
     const [channelId, setChannelId] = useState<number | ''>('')
     const [aiPrompt, setAiPrompt] = useState('')
     const [dictionaryReport, setDictionaryReport] = useState<DictionaryValidationReport | null>(null)
@@ -443,7 +443,11 @@ export default function PostEditor() {
                         <div 
                             className="aspect-square w-full rounded-[2rem] bg-surface-container-low border-2 border-dashed border-outline-variant/20 overflow-hidden relative group"
                             onDragOver={(e) => e.preventDefault()}
-                            onDrop={(e) => { e.preventDefault(); e.dataTransfer.files?.[0] && uploadImage.mutate(e.dataTransfer.files[0]); }}
+                            onDrop={(e) => {
+                                e.preventDefault()
+                                const file = e.dataTransfer.files?.[0]
+                                if (file) uploadImage.mutate(file)
+                            }}
                         >
                             {post.image_url ? (
                                 <img src={post.image_url.startsWith('data:') ? post.image_url : `${post.image_url}?t=${imageTimestamp}`} className="w-full h-full object-cover" alt="Post" />
