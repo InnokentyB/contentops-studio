@@ -1312,7 +1312,7 @@ export function registerPlannerTools(server: McpServer) {
     });
 
     server.registerTool('ba_recover_delivery', {
-        description: 'Recover a failed delivery attempt manually or via retry worker.',
+        description: 'Legacy recovery entrypoint. Unsafe status-only recovery is disabled; retry the canonical publication task instead.',
         inputSchema: {
             projectId: z.number().int().positive(),
             actorId: z.string(),
@@ -1322,6 +1322,18 @@ export function registerPlannerTools(server: McpServer) {
         const result = await deliveryService.recoverDelivery(args);
         return asToolResult(result);
     });
+
+    server.registerTool('ba_invalidate_false_deliveries', {
+        description: 'Owner-only audited correction for legacy delivery attempts that claimed success without a canonical provider permalink or object identity. Does not modify publication content or facts.',
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string().min(1),
+            contentItemId: z.number().int().positive(),
+            attemptIds: z.array(z.number().int().positive()).min(1),
+            reason: z.string().min(1).max(1800),
+            idempotencyKey: z.string().min(1).max(500)
+        }
+    }, async (args) => asToolResult(await deliveryService.invalidateFalseDeliveries(args)));
 
     server.registerTool('ba_generate_image_asset', {
         description: 'Register a generated image candidate only after the weekly plan and current text revision are accepted and an active GENERATE art-direction decision exists. Requires the stored image URL and alt text; the asset remains blocked until visual review.',
