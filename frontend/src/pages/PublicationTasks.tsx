@@ -240,7 +240,11 @@ function taskMatchesStatusFilter(task: PublicationTask, status: string) {
     if (status === 'all') return true
     if (status === 'active') return task.is_active === true
     if (status === 'published') return taskContentState(task) === 'published'
-    if (status === 'blocked' || status === 'removed' || status === 'restricted') {
+    if (status === 'cancelled') return isCancelledPublicationTask(task)
+    if (status === 'removed') {
+        return task.publication_outcome === 'removed' && !isCancelledPublicationTask(task)
+    }
+    if (status === 'blocked' || status === 'restricted') {
         return task.publication_outcome === status
     }
     return task.status === status
@@ -255,9 +259,22 @@ function taskMatchesManualFilter(task: PublicationTask, manualOnly: boolean) {
 }
 
 function isTerminalPublicationTask(task: PublicationTask) {
-    return task.status === 'cancelled'
+    return isCancelledPublicationTask(task)
         || taskContentState(task) === 'published'
         || ['blocked', 'removed', 'restricted'].includes(task.publication_outcome || '')
+}
+
+function hasPublishedIdentity(task: PublicationTask) {
+    return Boolean(
+        task.published_link
+        || task.publication_fact?.public_url
+        || task.publication_fact?.provider_object_id
+    )
+}
+
+function isCancelledPublicationTask(task: PublicationTask) {
+    return task.status === 'cancelled'
+        || (task.publication_outcome === 'removed' && !hasPublishedIdentity(task))
 }
 
 function taskScheduleTime(task: PublicationTask) {
@@ -660,7 +677,7 @@ export default function PublicationTasks() {
         title: 'Задачи на публикацию', project: 'Проект', chooseProject: 'Выбери или импортируй проект с планом публикаций.', tasks: 'задач', importPlan: 'Импортировать или обновить план публикаций',
         searchPlaceholder: 'Номер #760, название или канал', searchLabel: 'Поиск по задачам', weekLabel: 'Неделя публикаций', allWeeks: 'Все недели / история', statusLabel: 'Статус задач',
         allStatuses: 'Все статусы', active: 'Активные', planned: 'Запланированные', awaitingManual: 'Ждут ручной публикации', ready: 'Готовы', browser: 'Нужна публикация через браузер', deferred: 'Отложенные', publishedPlural: 'Опубликованные', blockedPlural: 'Заблокированные', removedPlural: 'Удалённые с площадки', restricted: 'Ограниченные', cancelledPlural: 'Отменённые', failed: 'С ошибкой',
-        manualOnly: 'Только ручные', allModes: 'Все режимы', textReadiness: 'Готовность текста', packageState: 'Состояние пакета', noText: 'Без текста', textReady: 'Текст готов', published: 'Опубликовано', packageContents: 'Состав недельного пакета', blocked: 'Заблокировано', removed: 'Удалено', cancelled: 'Отменено',
+        manualOnly: 'Только ручные', allModes: 'Все режимы', textReadiness: 'Готовность текста', packageState: 'Состояние пакета', noText: 'Без текста', textReady: 'Текст готов', published: 'Опубликовано', packageContents: 'Состав недельного пакета', blocked: 'Заблокировано', removed: 'Удалено', cancelled: 'Отменено', publicationCancelled: 'Публикация отменена',
         noResults: 'По выбранным условиям задач не найдено.', reset: 'Сбросить фильтры', importFirst: 'Сначала импортируй план публикаций, а затем выбери проект для работы с очередью задач.',
         queueOverdue: 'Просроченные активные', queueUnscheduled: 'Активные без даты', queueInactive: 'Вне активной очереди', queueCompleted: 'Опубликованные и завершённые',
         taskMaterial: 'Рабочий материал задачи', publicationText: 'Текст публикации', resultPreview: 'Предпросмотр результата', publicationPreview: 'Предпросмотр публикации', executionContext: 'Контекст выполнения', publicationContext: 'Контекст публикации', resultLink: 'Ссылка на результат задачи', postLink: 'Ссылка на сам пост', buildTaskPackage: 'Собрать пакет задачи', prepareDraft: 'Подготовить черновик',
@@ -670,7 +687,7 @@ export default function PublicationTasks() {
         title: 'Publication tasks', project: 'Project', chooseProject: 'Choose or import a project with a publication plan.', tasks: 'tasks', importPlan: 'Import or update publication plan',
         searchPlaceholder: 'Task #760, title, or channel', searchLabel: 'Search tasks', weekLabel: 'Publication week', allWeeks: 'All weeks / history', statusLabel: 'Task status',
         allStatuses: 'All statuses', active: 'Active', planned: 'Planned', awaitingManual: 'Awaiting manual publication', ready: 'Ready', browser: 'Browser publication required', deferred: 'Deferred', publishedPlural: 'Published', blockedPlural: 'Blocked', removedPlural: 'Removed from channel', restricted: 'Restricted', cancelledPlural: 'Cancelled', failed: 'Failed',
-        manualOnly: 'Manual only', allModes: 'All modes', textReadiness: 'Content readiness', packageState: 'Package state', noText: 'No content', textReady: 'Content ready', published: 'Published', packageContents: 'Weekly package contents', blocked: 'Blocked', removed: 'Removed', cancelled: 'Cancelled',
+        manualOnly: 'Manual only', allModes: 'All modes', textReadiness: 'Content readiness', packageState: 'Package state', noText: 'No content', textReady: 'Content ready', published: 'Published', packageContents: 'Weekly package contents', blocked: 'Blocked', removed: 'Removed', cancelled: 'Cancelled', publicationCancelled: 'Publication cancelled',
         noResults: 'No tasks match the selected filters.', reset: 'Reset filters', importFirst: 'Import a publication plan, then choose a project to work with its task queue.',
         queueOverdue: 'Overdue active tasks', queueUnscheduled: 'Active tasks without a date', queueInactive: 'Outside the active queue', queueCompleted: 'Published and completed',
         taskMaterial: 'Task working material', publicationText: 'Publication content', resultPreview: 'Result preview', publicationPreview: 'Publication preview', executionContext: 'Execution context', publicationContext: 'Publication context', resultLink: 'Task result link', postLink: 'Live post link', buildTaskPackage: 'Build task package', prepareDraft: 'Prepare draft',
@@ -794,8 +811,8 @@ export default function PublicationTasks() {
         active: (tasks || []).filter((task) => task.is_active === true).length,
         published: (tasks || []).filter((task) => taskContentState(task) === 'published').length,
         blocked: (tasks || []).filter((task) => task.publication_outcome === 'blocked').length,
-        removed: (tasks || []).filter((task) => task.publication_outcome === 'removed').length,
-        cancelled: (tasks || []).filter((task) => task.status === 'cancelled').length
+        removed: (tasks || []).filter((task) => task.publication_outcome === 'removed' && !isCancelledPublicationTask(task)).length,
+        cancelled: (tasks || []).filter((task) => isCancelledPublicationTask(task)).length
     }), [tasks])
 
     const dateMismatchIds = useMemo(() => {
@@ -1188,6 +1205,7 @@ export default function PublicationTasks() {
     const publicationFact = activeTask?.publication_fact || null
     const metricCheckpoints = activeTask?.metric_checkpoints || []
     const isTaskOverdue = activeTask ? isOverduePublicationTask(activeTask) : false
+    const isActiveTaskCancelled = activeTask ? isCancelledPublicationTask(activeTask) : false
     const visualGateOpen = visualReadiness?.ready !== false
     const canGenerateVisual = visualReadiness?.text_state === 'accepted'
         && visualReadiness?.accepted_revision === visualReadiness?.content_revision
@@ -1233,7 +1251,7 @@ export default function PublicationTasks() {
         && (!requiresStoryEvidence || (providerObjectId.trim().length > 0 && evidenceRef.trim().length > 0))
 
     return (
-        <div className="flex-1 w-full p-4 sm:p-6 lg:p-10 space-y-8 overflow-y-auto">
+        <div className="flex-1 w-full p-4 sm:p-6 lg:px-8 lg:pb-8 lg:pt-4 space-y-8 overflow-y-auto">
             <section ref={workspaceRef} className="grid grid-cols-1 xl:grid-cols-[minmax(360px,400px)_minmax(0,1fr)] gap-6 items-start scroll-mt-4">
                     <div className={`${mobileTaskOpen ? 'hidden xl:block' : 'block'} -mx-4 sm:mx-0 bg-white rounded-none sm:rounded-[2rem] border-y sm:border border-outline-variant/10 shadow-sm overflow-hidden xl:sticky xl:top-6`}>
                         <div className="p-4 sm:p-5 border-b border-outline-variant/10 space-y-3">
@@ -1426,8 +1444,8 @@ export default function PublicationTasks() {
                                     ? 'browser_required'
                                     : task.quality_report?.execution_mode || 'manual'
                                 const contentState = taskContentState(task)
-                                const isCancelled = task.status === 'cancelled'
-                                const listStateLabel = isCancelled ? copy.cancelled : contentState === 'empty' ? copy.noText : contentState === 'ready' ? copy.textReady : copy.published
+                                const isCancelled = isCancelledPublicationTask(task)
+                                const listStateLabel = isCancelled ? copy.publicationCancelled : contentState === 'empty' ? copy.noText : contentState === 'ready' ? copy.textReady : copy.published
                                 const listStateIcon = isCancelled ? 'event_busy' : contentStateIcon(contentState)
                                 const listStateTone = isCancelled
                                     ? 'bg-surface-container-high text-on-surface-variant'
@@ -1562,9 +1580,9 @@ export default function PublicationTasks() {
                                                         {generationStageLabel(activeTask.generation_stage)}
                                                     </span>
                                                 )}
-                                                <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black ${contentStateTone(taskContentState(activeTask))}`}>
-                                                    <span className="material-symbols-outlined text-[14px]" aria-hidden="true">{contentStateIcon(taskContentState(activeTask))}</span>
-                                                    {contentStateLabel(taskContentState(activeTask))}
+                                                <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black ${isActiveTaskCancelled ? 'bg-surface-container-high text-on-surface-variant' : contentStateTone(taskContentState(activeTask))}`}>
+                                                    <span className="material-symbols-outlined text-[14px]" aria-hidden="true">{isActiveTaskCancelled ? 'event_busy' : contentStateIcon(taskContentState(activeTask))}</span>
+                                                    {isActiveTaskCancelled ? copy.publicationCancelled : contentStateLabel(taskContentState(activeTask))}
                                                 </span>
                                                 {isTaskOverdue && (
                                                     <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-error text-white">
