@@ -1,6 +1,9 @@
 export type McpCapabilityProfile = 'owner' | 'planner' | 'writer' | 'art_director';
 
 const WRITER_TOOLS = new Set([
+    'ba_get_agent_workspace_manifest',
+    'ba_get_agent_workspace_updates',
+    'ba_get_agent_chat_bootstrap',
     'ba_list_project_channels',
     'ba_list_publication_tasks',
     'ba_get_publication_task',
@@ -22,6 +25,9 @@ const WRITER_TOOLS = new Set([
 ]);
 
 const PLANNER_TOOLS = new Set([
+    'ba_get_agent_workspace_manifest',
+    'ba_get_agent_workspace_updates',
+    'ba_get_agent_chat_bootstrap',
     'ba_list_project_channels',
     'ba_list_publication_tasks',
     'ba_get_publication_task',
@@ -54,6 +60,9 @@ const PLANNER_TOOLS = new Set([
 ]);
 
 const ART_DIRECTOR_TOOLS = new Set([
+    'ba_get_agent_workspace_manifest',
+    'ba_get_agent_workspace_updates',
+    'ba_get_agent_chat_bootstrap',
     'ba_list_project_channels',
     'ba_list_publication_tasks',
     'ba_get_publication_task',
