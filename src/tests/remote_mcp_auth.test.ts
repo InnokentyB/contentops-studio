@@ -16,6 +16,17 @@ test('remote MCP replaces caller-controlled actor and user identities', () => {
     assert.equal(result.body.params.arguments.userId, 2);
 });
 
+test('remote MCP scopes agent workspace reads to the bound user and project', () => {
+    const body = {
+        method: 'tools/call',
+        params: { name: 'ba_get_agent_workspace_manifest', arguments: { userId: 999, projectId: 999 } }
+    };
+    const result = scopeRemoteMcpRequest(body, { userId: 2, actorId: 'user:2', projectId: 10, profile: 'writer' });
+    assert.equal(result.allowed, true);
+    assert.equal(result.body.params.arguments.userId, 2);
+    assert.equal(result.body.params.arguments.projectId, 10);
+});
+
 test('remote MCP denies cross-tenant administrative tools', () => {
     const result = scopeRemoteMcpRequest({
         jsonrpc: '2.0', id: 2, method: 'tools/call',
@@ -58,6 +69,9 @@ test('writer MCP discovery exposes content tools but not slot mutation tools', (
 
     assert.ok(tools.includes('ba_update_publication_content'));
     assert.ok(tools.includes('ba_list_publication_tasks'));
+    assert.ok(tools.includes('ba_get_agent_workspace_manifest'));
+    assert.ok(tools.includes('ba_get_agent_workspace_updates'));
+    assert.ok(tools.includes('ba_get_agent_chat_bootstrap'));
     assert.ok(!tools.includes('ba_import_operational_plan'));
     assert.ok(!tools.includes('ba_materialize_publication_task'));
     assert.ok(!tools.includes('ba_reschedule_work_item'));
@@ -76,6 +90,7 @@ test('planner MCP discovery exposes slot controls but not content mutation', () 
     assert.ok(tools.includes('ba_publish_publication_task'));
     assert.ok(!tools.includes('ba_publish_direct'));
     assert.ok(tools.includes('ba_reschedule_work_item'));
+    assert.ok(tools.includes('ba_get_agent_workspace_manifest'));
     assert.ok(!tools.includes('ba_update_publication_content'));
     assert.ok(!tools.includes('ba_recover_content_review'));
     assert.ok(!tools.includes('ba_recover_missing_content_review'));

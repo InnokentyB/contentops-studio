@@ -14,6 +14,7 @@ import weekPackageRepairService from '../services/week_package_repair.service';
 import weeklyThemePipelineService from '../services/weekly_theme_pipeline.service';
 import telegramTaskPublicationService from '../services/telegram_task_publication.service';
 import { filterMcpServerTools, McpCapabilityProfile } from './capabilities';
+import { getAgentChatBootstrap, getAgentWorkspaceUpdate, loadAgentWorkspaceManifest } from '../services/agent_workspace_manifest.service';
 
 
 
@@ -55,6 +56,32 @@ export function createPlannerMcpServer(options: { profile?: McpCapabilityProfile
 }
 
 export function registerPlannerTools(server: McpServer) {
+    server.registerTool('ba_get_agent_workspace_manifest', {
+        description: 'Return the canonical, versioned and secret-free chat topology for a planner project.',
+        annotations: { readOnlyHint: true },
+        inputSchema: { projectId: z.number().int().positive(), userId: z.number().int().positive() }
+    }, async ({ projectId, userId }) => asToolResult({ manifest: await loadAgentWorkspaceManifest(projectId, userId) }));
+
+    server.registerTool('ba_get_agent_workspace_updates', {
+        description: 'Compare a known workspace checksum with the current planner configuration and return a fresh snapshot only when it changed.',
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            userId: z.number().int().positive(),
+            knownChecksum: z.string().optional()
+        }
+    }, async ({ projectId, userId, knownChecksum }) => asToolResult(getAgentWorkspaceUpdate(await loadAgentWorkspaceManifest(projectId, userId), knownChecksum)));
+
+    server.registerTool('ba_get_agent_chat_bootstrap', {
+        description: 'Return role-scoped startup instructions, permissions and handoffs for one chat in the canonical agent workspace.',
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            userId: z.number().int().positive(),
+            chatId: z.string().min(1)
+        }
+    }, async ({ projectId, userId, chatId }) => asToolResult(await getAgentChatBootstrap(projectId, userId, chatId)));
+
     server.registerTool('ba_get_publication_plan_format', {
         description: 'Return the preferred machine-readable publication-plan contract for chat/MCP authoring.',
         annotations: {
