@@ -26,6 +26,8 @@ interface PublicationTask {
     draft_text?: string | null
     content_state?: 'empty' | 'ready' | 'published'
     content_revision?: number
+    accepted_revision?: number | null
+    text_state?: string | null
     generation_stage?: string
     publication_mode?: string | null
     visual_placement?: string | null
@@ -910,7 +912,12 @@ export default function PublicationTasks() {
     }, [filteredTasks, selectedTaskId, urlTaskId, isLoading])
 
     useEffect(() => {
-        const nextBody = ((selectedTask?.quality_report?.handoff_bundle as JsonRecord | undefined)?.publication?.body
+        const acceptedBody = selectedTask?.text_state === 'accepted'
+            && selectedTask?.accepted_revision === selectedTask?.content_revision
+            ? selectedTask?.draft_text
+            : null
+        const nextBody = (acceptedBody
+            || (selectedTask?.quality_report?.handoff_bundle as JsonRecord | undefined)?.publication?.body
             || selectedTask?.draft_text
             || selectedTask?.workspace_context?.source_content
             || '') as string
@@ -935,7 +942,16 @@ export default function PublicationTasks() {
         setCommentUrl('')
         setCommentText('')
         setTaskMessage(null)
-    }, [selectedTask?.id, selectedCheckpoint])
+    }, [
+        selectedTask?.id,
+        selectedTask?.content_revision,
+        selectedTask?.accepted_revision,
+        selectedTask?.text_state,
+        selectedTask?.draft_text,
+        selectedTask?.quality_report?.handoff_bundle?.publication?.body,
+        selectedTask?.workspace_context?.source_content,
+        selectedCheckpoint
+    ])
 
     const refreshTasks = () => {
         queryClient.invalidateQueries({ queryKey: ['publication_tasks'] })

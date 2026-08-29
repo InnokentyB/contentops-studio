@@ -231,6 +231,8 @@ function buildPublicationTaskDetailItem(item: any, options?: {
         draft_text: item.draft_text || null,
         content_state: derivePublicationContentState({ ...item, quality_report: { ...qualityReport, handoff_bundle: handoffBundle } }),
         content_revision: item.content_revision || 0,
+        accepted_revision: item.accepted_revision || null,
+        text_state: item.text_state || null,
         generation_stage: derivePublicationGenerationStage({
             status: item.status,
             draftText: item.draft_text,
