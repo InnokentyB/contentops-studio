@@ -105,6 +105,15 @@ type ContentEditHistoryEntry = {
 
 type PublicationOutcome = 'published' | 'blocked' | 'removed' | 'restricted'
 
+type TaskQueueGroupKind = 'overdue' | 'scheduled' | 'unscheduled' | 'inactive' | 'completed'
+
+type TaskQueueGroup = {
+    key: string
+    kind: TaskQueueGroupKind
+    date?: string
+    tasks: PublicationTask[]
+}
+
 type VkMetricSnapshot = {
     id: number
     logical_date: string
@@ -249,17 +258,30 @@ function isTerminalPublicationTask(task: PublicationTask) {
         || ['blocked', 'removed', 'restricted'].includes(task.publication_outcome || '')
 }
 
+function taskScheduleTime(task: PublicationTask) {
+    const parsed = task.schedule_at ? new Date(task.schedule_at).getTime() : Number.NaN
+    return Number.isFinite(parsed) ? parsed : Number.POSITIVE_INFINITY
+}
+
+function isActiveQueueTask(task: PublicationTask) {
+    return task.is_active === true && !isTerminalPublicationTask(task)
+}
+
+function isOverduePublicationTask(task: PublicationTask, now = Date.now()) {
+    return isActiveQueueTask(task) && taskScheduleTime(task) < now
+}
+
 function comparePublicationTasks(a: PublicationTask, b: PublicationTask, now: number) {
+    const aActive = isActiveQueueTask(a)
+    const bActive = isActiveQueueTask(b)
     const aTerminal = isTerminalPublicationTask(a)
     const bTerminal = isTerminalPublicationTask(b)
-    const parsedATime = a.schedule_at ? new Date(a.schedule_at).getTime() : Number.NaN
-    const parsedBTime = b.schedule_at ? new Date(b.schedule_at).getTime() : Number.NaN
-    const aTime = Number.isFinite(parsedATime) ? parsedATime : Number.POSITIVE_INFINITY
-    const bTime = Number.isFinite(parsedBTime) ? parsedBTime : Number.POSITIVE_INFINITY
-    const aOverdue = !aTerminal && aTime < now
-    const bOverdue = !bTerminal && bTime < now
-    const aRank = aOverdue ? 0 : aTerminal ? 2 : 1
-    const bRank = bOverdue ? 0 : bTerminal ? 2 : 1
+    const aTime = taskScheduleTime(a)
+    const bTime = taskScheduleTime(b)
+    const aOverdue = aActive && aTime < now
+    const bOverdue = bActive && bTime < now
+    const aRank = aOverdue ? 0 : aActive ? 1 : aTerminal ? 3 : 2
+    const bRank = bOverdue ? 0 : bActive ? 1 : bTerminal ? 3 : 2
 
     if (aRank !== bRank) return aRank - bRank
     if (Number.isFinite(aTime) !== Number.isFinite(bTime)) return Number.isFinite(aTime) ? -1 : 1
@@ -267,6 +289,53 @@ function comparePublicationTasks(a: PublicationTask, b: PublicationTask, now: nu
         return aTerminal && bTerminal ? bTime - aTime : aTime - bTime
     }
     return a.id - b.id
+}
+
+function groupPublicationTasks(tasks: PublicationTask[], now: number): TaskQueueGroup[] {
+    const overdue: PublicationTask[] = []
+    const scheduled = new Map<string, PublicationTask[]>()
+    const unscheduled: PublicationTask[] = []
+    const inactive: PublicationTask[] = []
+    const completed: PublicationTask[] = []
+
+    for (const task of tasks) {
+        if (isOverduePublicationTask(task, now)) {
+            overdue.push(task)
+            continue
+        }
+
+        if (isActiveQueueTask(task)) {
+            const scheduledDate = task.schedule_at?.slice(0, 10)
+            if (scheduledDate) {
+                const bucket = scheduled.get(scheduledDate) || []
+                bucket.push(task)
+                scheduled.set(scheduledDate, bucket)
+            } else {
+                unscheduled.push(task)
+            }
+            continue
+        }
+
+        if (isTerminalPublicationTask(task)) {
+            completed.push(task)
+        } else {
+            inactive.push(task)
+        }
+    }
+
+    const byScheduleAscending = (a: PublicationTask, b: PublicationTask) => taskScheduleTime(a) - taskScheduleTime(b) || a.id - b.id
+    const byScheduleDescending = (a: PublicationTask, b: PublicationTask) => taskScheduleTime(b) - taskScheduleTime(a) || b.id - a.id
+    const groups: TaskQueueGroup[] = []
+
+    if (overdue.length) groups.push({ key: 'overdue', kind: 'overdue', tasks: overdue.sort(byScheduleAscending) })
+    for (const [date, dateTasks] of Array.from(scheduled.entries()).sort(([a], [b]) => a.localeCompare(b))) {
+        groups.push({ key: `scheduled:${date}`, kind: 'scheduled', date, tasks: dateTasks.sort(byScheduleAscending) })
+    }
+    if (unscheduled.length) groups.push({ key: 'unscheduled', kind: 'unscheduled', tasks: unscheduled.sort((a, b) => a.id - b.id) })
+    if (inactive.length) groups.push({ key: 'inactive', kind: 'inactive', tasks: inactive.sort(byScheduleDescending) })
+    if (completed.length) groups.push({ key: 'completed', kind: 'completed', tasks: completed.sort(byScheduleDescending) })
+
+    return groups
 }
 
 function prettyJson(value: unknown) {
@@ -590,13 +659,21 @@ export default function PublicationTasks() {
         searchPlaceholder: 'Номер #760, название или канал', searchLabel: 'Поиск по задачам', weekLabel: 'Неделя публикаций', allWeeks: 'Все недели / история', statusLabel: 'Статус задач',
         allStatuses: 'Все статусы', active: 'Активные', planned: 'Запланированные', awaitingManual: 'Ждут ручной публикации', ready: 'Готовы', browser: 'Нужна публикация через браузер', deferred: 'Отложенные', publishedPlural: 'Опубликованные', blockedPlural: 'Заблокированные', removedPlural: 'Удалённые с площадки', restricted: 'Ограниченные', cancelledPlural: 'Отменённые', failed: 'С ошибкой',
         manualOnly: 'Только ручные', allModes: 'Все режимы', textReadiness: 'Готовность текста', packageState: 'Состояние пакета', noText: 'Без текста', textReady: 'Текст готов', published: 'Опубликовано', packageContents: 'Состав недельного пакета', blocked: 'Заблокировано', removed: 'Удалено', cancelled: 'Отменено',
-        noResults: 'По выбранным условиям задач не найдено.', reset: 'Сбросить фильтры', importFirst: 'Сначала импортируй план публикаций, а затем выбери проект для работы с очередью задач.'
+        noResults: 'По выбранным условиям задач не найдено.', reset: 'Сбросить фильтры', importFirst: 'Сначала импортируй план публикаций, а затем выбери проект для работы с очередью задач.',
+        queueOverdue: 'Просроченные активные', queueUnscheduled: 'Активные без даты', queueInactive: 'Вне активной очереди', queueCompleted: 'Опубликованные и завершённые',
+        taskMaterial: 'Рабочий материал задачи', publicationText: 'Текст публикации', resultPreview: 'Предпросмотр результата', publicationPreview: 'Предпросмотр публикации', executionContext: 'Контекст выполнения', publicationContext: 'Контекст публикации', resultLink: 'Ссылка на результат задачи', postLink: 'Ссылка на сам пост', buildTaskPackage: 'Собрать пакет задачи', prepareDraft: 'Подготовить черновик',
+        openWeekPlan: 'Открыть план недели', preparing: 'Собираем...', publishing: 'Публикуем...', publishChannel: 'Опубликовать в канал', publishNow: 'Опубликовать сейчас', publicationStages: 'Этапы публикации', slotCreated: 'Слот создан',
+        readerView: 'как увидит читатель', emptyPublication: 'Текст публикации пока пуст.', publication: 'Публикация', resultRecorded: 'Результат уже зафиксирован.', publishAndSave: 'Опубликуйте текст и сохраните ссылку на пост.', channel: 'Канал', mode: 'Режим', placementType: 'Тип размещения', post: 'Пост', article: 'Статья', story: 'Story без постоянной ссылки', email: 'Email-рассылка', comment: 'Комментарий', otherArtifact: 'Другой артефакт', publicLinkOptional: 'Публичная ссылка, если есть', permalinkRequired: 'Permalink обязателен для этого типа.', linkOptional: 'Для story и email ссылка может отсутствовать.', providerId: 'ID у площадки', placementEvidence: 'Доказательство размещения', targetLink: 'Целевая ссылка / UTM', publicationResult: 'Результат публикации', publishedNormally: 'Опубликовано нормально', blockedWithUrl: 'Заблокировано, но URL есть', removedWithUrl: 'Удалено, но URL есть', restrictedVisibility: 'Ограниченная видимость', publicationNote: 'Заметка о публикации', optionalNote: 'Необязательная заметка о публикации', saving: 'Сохраняем...', saveCorrection: 'Сохранить исправление факта', recordFact: 'Зафиксировать факт публикации', factConfirmed: 'Факт подтверждён', actor: 'Актор', materialsContext: 'Материалы и контекст', planItem: 'Пункт плана', sourceResource: 'Исходный ресурс', notLinked: 'Не привязано', notFound: 'Не найден', openResource: 'Открыть рабочий ресурс', metricSnapshots: 'Контрольные снимки', metricSnapshotsHelp: 'T+24h и T+7d хранятся раздельно; неизвестное значение не считается нулём.', collectedLate: 'Собран поздно', due: 'Срок', metricsJson: 'Метрики JSON v1', savingSnapshot: 'Сохраняем снимок...', saveSnapshot: 'Сохранить', postImage: 'Изображение к посту', visualGateHelp: 'Генерация откроется после утверждения недельных тем, принятия текущей версии текста и решения арт-директора «Создать визуал» с готовым alt-текстом.', generating: 'Генерируем...', draftEconomy: 'Черновик · экономно', preparingVisual: 'Подготовка...', finalStandard: 'Финал · стандарт', flagshipFull: 'Флагман · полный цикл', flagshipHelp: 'Полная агентная цепочка и повторная отрисовка — только для ключевых публикаций', imageCandidate: 'Кандидат изображения к публикации', noGeneratedImage: 'Сгенерированное изображение пока не добавлено.', technicalDetails: 'Технические детали', technicalDetailsHelp: 'Мониторинг и служебные поля спрятаны сюда, чтобы не занимать первый экран.'
     } : {
         title: 'Publication tasks', project: 'Project', chooseProject: 'Choose or import a project with a publication plan.', tasks: 'tasks', importPlan: 'Import or update publication plan',
         searchPlaceholder: 'Task #760, title, or channel', searchLabel: 'Search tasks', weekLabel: 'Publication week', allWeeks: 'All weeks / history', statusLabel: 'Task status',
         allStatuses: 'All statuses', active: 'Active', planned: 'Planned', awaitingManual: 'Awaiting manual publication', ready: 'Ready', browser: 'Browser publication required', deferred: 'Deferred', publishedPlural: 'Published', blockedPlural: 'Blocked', removedPlural: 'Removed from channel', restricted: 'Restricted', cancelledPlural: 'Cancelled', failed: 'Failed',
         manualOnly: 'Manual only', allModes: 'All modes', textReadiness: 'Content readiness', packageState: 'Package state', noText: 'No content', textReady: 'Content ready', published: 'Published', packageContents: 'Weekly package contents', blocked: 'Blocked', removed: 'Removed', cancelled: 'Cancelled',
-        noResults: 'No tasks match the selected filters.', reset: 'Reset filters', importFirst: 'Import a publication plan, then choose a project to work with its task queue.'
+        noResults: 'No tasks match the selected filters.', reset: 'Reset filters', importFirst: 'Import a publication plan, then choose a project to work with its task queue.',
+        queueOverdue: 'Overdue active tasks', queueUnscheduled: 'Active tasks without a date', queueInactive: 'Outside the active queue', queueCompleted: 'Published and completed',
+        taskMaterial: 'Task working material', publicationText: 'Publication content', resultPreview: 'Result preview', publicationPreview: 'Publication preview', executionContext: 'Execution context', publicationContext: 'Publication context', resultLink: 'Task result link', postLink: 'Live post link', buildTaskPackage: 'Build task package', prepareDraft: 'Prepare draft',
+        openWeekPlan: 'Open weekly plan', preparing: 'Preparing...', publishing: 'Publishing...', publishChannel: 'Publish to channel', publishNow: 'Publish now', publicationStages: 'Publication stages', slotCreated: 'Slot created',
+        readerView: 'reader view', emptyPublication: 'Publication content is empty.', publication: 'Publication', resultRecorded: 'The result has already been recorded.', publishAndSave: 'Publish the content and save its live link.', channel: 'Channel', mode: 'Mode', placementType: 'Placement type', post: 'Post', article: 'Article', story: 'Story without a permanent link', email: 'Email campaign', comment: 'Comment', otherArtifact: 'Other artifact', publicLinkOptional: 'Public link, if available', permalinkRequired: 'A permalink is required for this placement.', linkOptional: 'Stories and email campaigns may not have a public link.', providerId: 'Provider object ID', placementEvidence: 'Placement evidence', targetLink: 'Target link / UTM', publicationResult: 'Publication outcome', publishedNormally: 'Published successfully', blockedWithUrl: 'Blocked, URL available', removedWithUrl: 'Removed, URL available', restrictedVisibility: 'Restricted visibility', publicationNote: 'Publication note', optionalNote: 'Optional publication note', saving: 'Saving...', saveCorrection: 'Save fact correction', recordFact: 'Record publication fact', factConfirmed: 'Fact confirmed', actor: 'Actor', materialsContext: 'Materials and context', planItem: 'Plan item', sourceResource: 'Source resource', notLinked: 'Not linked', notFound: 'Not found', openResource: 'Open working resource', metricSnapshots: 'Metric checkpoints', metricSnapshotsHelp: 'T+24h and T+7d are stored separately; an unknown value is not treated as zero.', collectedLate: 'Collected late', due: 'Due', metricsJson: 'Metrics JSON v1', savingSnapshot: 'Saving snapshot...', saveSnapshot: 'Save', postImage: 'Publication image', visualGateHelp: 'Generation unlocks after weekly topics are approved, the current content revision is accepted, and the art director chooses “Generate visual” with approved alt text.', generating: 'Generating...', draftEconomy: 'Draft · economy', preparingVisual: 'Preparing...', finalStandard: 'Final · standard', flagshipFull: 'Flagship · full pipeline', flagshipHelp: 'Full agent pipeline and rerendering are reserved for key publications', imageCandidate: 'Publication image candidate', noGeneratedImage: 'No generated image has been added.', technicalDetails: 'Technical details', technicalDetailsHelp: 'Monitoring and system fields are collapsed so the main workspace stays focused.'
     }
     const queryClient = useQueryClient()
     const { currentProject, projects, createProject, setCurrentProject } = useAuth()
@@ -697,6 +774,19 @@ export default function PublicationTasks() {
         },
         [taskPool, statusFilter, manualOnly, contentStateFilter, taskSearch]
     )
+
+    const taskQueueGroups = useMemo(
+        () => groupPublicationTasks(filteredTasks, Date.now()),
+        [filteredTasks]
+    )
+
+    const taskQueueGroupLabel = (group: TaskQueueGroup) => {
+        if (group.kind === 'scheduled' && group.date) return formatDate(group.date)
+        if (group.kind === 'overdue') return copy.queueOverdue
+        if (group.kind === 'unscheduled') return copy.queueUnscheduled
+        if (group.kind === 'inactive') return copy.queueInactive
+        return copy.queueCompleted
+    }
 
     const statusCounts = useMemo(() => ({
         active: (tasks || []).filter((task) => task.is_active === true).length,
@@ -1081,9 +1171,7 @@ export default function PublicationTasks() {
     const activeOutcome = (activeTask?.publication_fact?.outcome || activeTask?.quality_report?.publication_outcome || activeTask?.metrics?.publication_outcome || 'published') as PublicationOutcome
     const publicationFact = activeTask?.publication_fact || null
     const metricCheckpoints = activeTask?.metric_checkpoints || []
-    const isTaskOverdue = !!activeTask?.schedule_at
-        && ['planned', 'ready_for_execution', 'browser_required', 'awaiting_manual_publication'].includes(activeTask.status)
-        && new Date(activeTask.schedule_at).getTime() < Date.now()
+    const isTaskOverdue = activeTask ? isOverduePublicationTask(activeTask) : false
     const visualGateOpen = visualReadiness?.ready !== false
     const canGenerateVisual = visualReadiness?.text_state === 'accepted'
         && visualReadiness?.accepted_revision === visualReadiness?.content_revision
@@ -1113,12 +1201,12 @@ export default function PublicationTasks() {
     const hasPublicationText = publicationBody.trim().length > 0
     const contentEditHistory = (((activeTask?.quality_report as JsonRecord | undefined)?.content_edit_history as ContentEditHistoryEntry[] | undefined) || [])
     const isOperationalTask = isOperationalWorkflowTask(activeTask)
-    const primaryBodyTitle = isOperationalTask ? 'Рабочий материал задачи' : 'Текст публикации'
-    const previewTitle = isOperationalTask ? 'Предпросмотр результата' : 'Предпросмотр публикации'
-    const sourceContextTitle = isOperationalTask ? 'Контекст выполнения' : 'Контекст публикации'
-    const sourceLinkLabel = isOperationalTask ? 'Ссылка на результат задачи' : 'Ссылка на сам пост'
+    const primaryBodyTitle = isOperationalTask ? copy.taskMaterial : copy.publicationText
+    const previewTitle = isOperationalTask ? copy.resultPreview : copy.publicationPreview
+    const sourceContextTitle = isOperationalTask ? copy.executionContext : copy.publicationContext
+    const sourceLinkLabel = isOperationalTask ? copy.resultLink : copy.postLink
     const sourceLinkPlaceholder = isOperationalTask ? 'https://... ссылка на документ, таблицу, пост или другой итоговый артефакт' : 'https://...'
-    const prepareButtonLabel = isOperationalTask ? 'Собрать пакет задачи' : 'Подготовить черновик'
+    const prepareButtonLabel = isOperationalTask ? copy.buildTaskPackage : copy.prepareDraft
     const publishButtonDisabled = publishTaskNow.isPending || prepareHandoff.isPending || isLoadingTask || (!isOperationalTask && !hasPublicationText)
     const publicationActionTitle = !hasPublicationText
         ? 'Сначала подготовьте текст публикации: нажмите «Подготовить черновик» или напишите текст вручную.'
@@ -1310,7 +1398,13 @@ export default function PublicationTasks() {
                                 </div>
                             )}
 
-                            {filteredTasks.map((task) => {
+                            {taskQueueGroups.map((group) => (
+                                <section key={group.key} aria-label={taskQueueGroupLabel(group)}>
+                                    <div className={`sticky top-0 z-10 flex min-h-10 items-center justify-between gap-3 border-b border-outline-variant/10 px-4 sm:px-5 py-2 text-xs font-black ${group.kind === 'overdue' ? 'bg-error-container/50 text-error' : group.kind === 'completed' ? 'bg-surface-container-low text-on-surface-variant' : 'bg-white text-on-surface-variant'}`}>
+                                        <span>{taskQueueGroupLabel(group)}</span>
+                                        <span className="rounded-full bg-white/70 px-2 py-0.5 tabular-nums text-[10px] text-on-surface-variant">{group.tasks.length}</span>
+                                    </div>
+                                    {group.tasks.map((task) => {
                                 const isSelected = task.id === activeTask?.id
                                 const mode = task.publication_mode === 'browser_required'
                                     ? 'browser_required'
@@ -1322,9 +1416,7 @@ export default function PublicationTasks() {
                                 const listStateTone = isCancelled
                                     ? 'bg-surface-container-high text-on-surface-variant'
                                     : contentStateTone(contentState)
-                                const isOverdue = !!task.schedule_at
-                                    && ['planned', 'ready_for_execution', 'browser_required', 'awaiting_manual_publication'].includes(task.status)
-                                    && new Date(task.schedule_at).getTime() < Date.now()
+                                const isOverdue = isOverduePublicationTask(task)
                                 const hasPackageDateMismatch = dateMismatchIds.has(task.id)
                                 const comesFromAnotherPackage = crossPackageIds.has(task.id)
 
@@ -1392,7 +1484,9 @@ export default function PublicationTasks() {
                                         </div>
                                     </button>
                                 )
-                            })}
+                                    })}
+                                </section>
+                            ))}
                         </div>
                     </div>
 
@@ -1509,7 +1603,7 @@ export default function PublicationTasks() {
                                                     onClick={() => navigate(`/channels/${activeTask.channel!.id}?weekPackageId=${activeTask.week_package_id}`)}
                                                     className="w-full border border-primary/20 bg-primary/5 text-primary font-black text-sm px-5 py-3 rounded-2xl hover:bg-primary/10 transition-all"
                                                 >
-                                                    Открыть план недели
+                                                    {copy.openWeekPlan}
                                                 </button>
                                             )}
                                             {canPrepareHandoff && (
@@ -1518,7 +1612,7 @@ export default function PublicationTasks() {
                                                     disabled={prepareHandoff.isPending || isLoadingTask || publishTaskNow.isPending}
                                                     className="w-full bg-primary text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
                                                 >
-                                                    {prepareHandoff.isPending ? 'Собираем...' : prepareButtonLabel}
+                                                    {prepareHandoff.isPending ? copy.preparing : prepareButtonLabel}
                                                 </button>
                                             )}
                                             {canPublishNow && (
@@ -1531,17 +1625,17 @@ export default function PublicationTasks() {
                                                         : 'Запустить публикацию через подключённый адаптер'}
                                                 >
                                                     <span className="material-symbols-outlined text-base">send</span>
-                                                    {publishTaskNow.isPending ? 'Публикуем...' : (executionMode === 'manual' ? 'Опубликовать в канал' : 'Опубликовать сейчас')}
+                                                    {publishTaskNow.isPending ? copy.publishing : (executionMode === 'manual' ? copy.publishChannel : copy.publishNow)}
                                                 </button>
                                             )}
                                         </div>
                                     </div>
 
-                                    <div className="mt-6 grid grid-cols-3 gap-2" aria-label="Этапы публикации">
+                                    <div className="mt-6 grid grid-cols-3 gap-2" aria-label={copy.publicationStages}>
                                         {([
-                                            ['empty', 'Слот создан', 'calendar_add_on'],
-                                            ['ready', 'Текст готов', 'draft'],
-                                            ['published', 'Опубликовано', 'check_circle']
+                                            ['empty', copy.slotCreated, 'calendar_add_on'],
+                                            ['ready', copy.textReady, 'draft'],
+                                            ['published', copy.published, 'check_circle']
                                         ] as const).map(([state, label, icon], index) => {
                                             const currentRank = { empty: 0, ready: 1, published: 2 }[taskContentState(activeTask)]
                                             const reached = index <= currentRank
@@ -1838,7 +1932,7 @@ export default function PublicationTasks() {
                                                     <summary className="list-none cursor-pointer flex min-h-14 items-center justify-between gap-3 px-5 py-4">
                                                         <div>
                                                             <span className="font-black text-on-surface">{previewTitle}</span>
-                                                            <span className="ml-2 text-xs text-on-surface-variant">как увидит читатель</span>
+                                                            <span className="ml-2 text-xs text-on-surface-variant">{copy.readerView}</span>
                                                         </div>
                                                         <span className="material-symbols-outlined text-on-surface-variant transition-transform group-open:rotate-180">expand_more</span>
                                                     </summary>
@@ -1846,7 +1940,7 @@ export default function PublicationTasks() {
                                                         <ContentMarkupRenderer
                                                             content={publicationBody}
                                                             title={`publication-task-preview-${activeTask.id}`}
-                                                            emptyMessage="Текст публикации пока пуст."
+                                                            emptyMessage={copy.emptyPublication}
                                                             platform={activeTask.channel?.type || activeTask.type}
                                                             postTitle={activeTask.title || undefined}
                                                             postTags={Array.isArray(activeTask.key_points) ? (activeTask.key_points as unknown as string[]) : undefined}
@@ -1860,33 +1954,33 @@ export default function PublicationTasks() {
                                             <aside className="space-y-4 2xl:sticky 2xl:top-6">
                                                 <div className="rounded-[1.5rem] bg-white p-5 space-y-4 border border-primary/15 shadow-sm">
                                                     <div>
-                                                        <h3 className="text-lg font-headline font-black text-on-surface">Публикация</h3>
+                                                        <h3 className="text-lg font-headline font-black text-on-surface">{copy.publication}</h3>
                                                         <p className="mt-1 text-xs text-on-surface-variant leading-5">
-                                                            {activeTask.published_link ? 'Результат уже зафиксирован.' : 'Опубликуйте текст и сохраните ссылку на пост.'}
+                                                            {activeTask.published_link ? copy.resultRecorded : copy.publishAndSave}
                                                         </p>
                                                     </div>
                                                     <dl className="grid grid-cols-2 gap-3 text-sm">
-                                                        <div><dt className="text-xs text-on-surface-variant">Канал</dt><dd className="mt-1 font-bold break-words">{activeTask.channel?.name || taskChannel(activeTask)}</dd></div>
-                                                        <div><dt className="text-xs text-on-surface-variant">Режим</dt><dd className="mt-1 font-bold">{executionMode}</dd></div>
+                                                        <div><dt className="text-xs text-on-surface-variant">{copy.channel}</dt><dd className="mt-1 font-bold break-words">{activeTask.channel?.name || taskChannel(activeTask)}</dd></div>
+                                                        <div><dt className="text-xs text-on-surface-variant">{copy.mode}</dt><dd className="mt-1 font-bold">{executionMode}</dd></div>
                                                     </dl>
                                                     <label className="block">
-                                                        <span className="text-sm font-bold text-on-surface">Тип размещения</span>
+                                                        <span className="text-sm font-bold text-on-surface">{copy.placementType}</span>
                                                         <select
                                                             value={artifactKind}
                                                             onChange={(event) => setArtifactKind(event.target.value as ArtifactKind)}
                                                             className="mt-2 w-full bg-surface-container-low border-none rounded-2xl px-4 py-3 text-base sm:text-sm focus:ring-2 focus:ring-primary/20 outline-none"
                                                         >
-                                                            <option value="post">Пост</option>
-                                                            <option value="article">Статья</option>
-                                                            <option value="story">Story без постоянной ссылки</option>
-                                                            <option value="email">Email-рассылка</option>
-                                                            <option value="comment">Комментарий</option>
-                                                            <option value="other">Другой артефакт</option>
+                                                            <option value="post">{copy.post}</option>
+                                                            <option value="article">{copy.article}</option>
+                                                            <option value="story">{copy.story}</option>
+                                                            <option value="email">{copy.email}</option>
+                                                            <option value="comment">{copy.comment}</option>
+                                                            <option value="other">{copy.otherArtifact}</option>
                                                         </select>
                                                     </label>
                                                     <label className="block">
                                                         <span className="text-sm font-bold text-on-surface">
-                                                            {artifactKind === 'story' || artifactKind === 'email' ? 'Публичная ссылка, если есть' : sourceLinkLabel}
+                                                            {artifactKind === 'story' || artifactKind === 'email' ? copy.publicLinkOptional : sourceLinkLabel}
                                                         </span>
                                                         <input
                                                             type="url"
@@ -1898,12 +1992,12 @@ export default function PublicationTasks() {
                                                             className="mt-2 w-full bg-surface-container-low border-none rounded-2xl px-4 py-3 text-base sm:text-sm focus:ring-2 focus:ring-primary/20 outline-none"
                                                         />
                                                         <span id="publication-link-hint" className="mt-2 block text-xs leading-5 text-on-surface-variant">
-                                                            {requiresPermalink ? 'Permalink обязателен для этого типа.' : 'Для story и email ссылка может отсутствовать.'}
+                                                            {requiresPermalink ? copy.permalinkRequired : copy.linkOptional}
                                                         </span>
                                                     </label>
                                                     {(artifactKind === 'story' || artifactKind === 'email') && (
                                                         <label className="block">
-                                                            <span className="text-sm font-bold text-on-surface">ID у площадки</span>
+                                                            <span className="text-sm font-bold text-on-surface">{copy.providerId}</span>
                                                             <input
                                                                 value={providerObjectId}
                                                                 onChange={(event) => setProviderObjectId(event.target.value)}
@@ -1914,7 +2008,7 @@ export default function PublicationTasks() {
                                                     )}
                                                     {artifactKind === 'story' && (
                                                         <label className="block">
-                                                            <span className="text-sm font-bold text-on-surface">Доказательство размещения</span>
+                                                            <span className="text-sm font-bold text-on-surface">{copy.placementEvidence}</span>
                                                             <input
                                                                 value={evidenceRef}
                                                                 onChange={(event) => setEvidenceRef(event.target.value)}
@@ -1924,7 +2018,7 @@ export default function PublicationTasks() {
                                                         </label>
                                                     )}
                                                     <label className="block">
-                                                        <span className="text-sm font-bold text-on-surface">Целевая ссылка / UTM</span>
+                                                        <span className="text-sm font-bold text-on-surface">{copy.targetLink}</span>
                                                         <input
                                                             type="url"
                                                             value={targetUrl}
@@ -1934,46 +2028,46 @@ export default function PublicationTasks() {
                                                         />
                                                     </label>
                                                     <select
-                                                        aria-label="Результат публикации"
+                                                        aria-label={copy.publicationResult}
                                                         value={publicationOutcome}
                                                         onChange={(event) => setPublicationOutcome(event.target.value as PublicationOutcome)}
                                                         className="w-full bg-surface-container-low border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
                                                     >
-                                                        <option value="published">Опубликовано нормально</option>
-                                                        <option value="blocked">Заблокировано, но URL есть</option>
-                                                        <option value="removed">Удалено, но URL есть</option>
-                                                        <option value="restricted">Ограниченная видимость</option>
+                                                        <option value="published">{copy.publishedNormally}</option>
+                                                        <option value="blocked">{copy.blockedWithUrl}</option>
+                                                        <option value="removed">{copy.removedWithUrl}</option>
+                                                        <option value="restricted">{copy.restrictedVisibility}</option>
                                                     </select>
                                                     <textarea
-                                                        aria-label="Заметка о публикации"
+                                                        aria-label={copy.publicationNote}
                                                         value={publicationNote}
                                                         onChange={(event) => setPublicationNote(event.target.value)}
                                                         rows={3}
                                                         className="w-full bg-surface-container-low border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
-                                                        placeholder="Необязательная заметка о публикации"
+                                                        placeholder={copy.optionalNote}
                                                     />
                                                     <button
                                                         onClick={() => confirmPublication.mutate()}
                                                         disabled={!publicationFactReady || confirmPublication.isPending}
                                                         className="w-full bg-primary text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
                                                     >
-                                                        {confirmPublication.isPending ? 'Сохраняем...' : publicationFact ? 'Сохранить исправление факта' : 'Зафиксировать факт публикации'}
+                                                        {confirmPublication.isPending ? copy.saving : publicationFact ? copy.saveCorrection : copy.recordFact}
                                                     </button>
                                                     {publicationFact && (
                                                         <div className="pt-4 border-t border-outline-variant/15 text-xs leading-5 text-on-surface-variant">
-                                                            <div className="font-bold text-on-surface">Факт подтверждён</div>
+                                                            <div className="font-bold text-on-surface">{copy.factConfirmed}</div>
                                                             <div>{formatDate(publicationFact.published_at)} · {publicationFact.confirmation_mode}</div>
                                                             <div>UTM: {publicationFact.utm_status || 'unknown'}</div>
-                                                            {publicationFact.confirmed_by && <div className="break-words">Актор: {publicationFact.confirmed_by}</div>}
+                                                            {publicationFact.confirmed_by && <div className="break-words">{copy.actor}: {publicationFact.confirmed_by}</div>}
                                                         </div>
                                                     )}
                                                 </div>
 
                                                 {publicationFact && (
-                                                    <section className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4 border border-outline-variant/10" aria-label="Контрольные снимки метрик">
+                                                    <section className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4 border border-outline-variant/10" aria-label={copy.metricSnapshots}>
                                                         <div>
-                                                            <h3 className="text-lg font-headline font-black text-on-surface">Контрольные снимки</h3>
-                                                            <p className="mt-1 text-xs leading-5 text-on-surface-variant">T+24h и T+7d хранятся раздельно; неизвестное значение не считается нулём.</p>
+                                                            <h3 className="text-lg font-headline font-black text-on-surface">{copy.metricSnapshots}</h3>
+                                                            <p className="mt-1 text-xs leading-5 text-on-surface-variant">{copy.metricSnapshotsHelp}</p>
                                                         </div>
                                                         <div className="grid grid-cols-2 gap-2">
                                                             {(['t24h', 't7d'] as const).map((checkpointName) => {
@@ -1988,16 +2082,16 @@ export default function PublicationTasks() {
                                                                     >
                                                                         <span className="block text-sm font-black">{checkpointLabel(checkpointName)}</span>
                                                                         <span className={`mt-1 block text-xs break-words ${selected ? 'text-white/80' : 'text-on-surface-variant'}`}>{checkpointStatusLabel(checkpoint?.collection_status)}</span>
-                                                                        {checkpoint?.late && <span className="mt-1 block text-xs font-black">Собран поздно</span>}
+                                                                        {checkpoint?.late && <span className="mt-1 block text-xs font-black">{copy.collectedLate}</span>}
                                                                     </button>
                                                                 )
                                                             })}
                                                         </div>
                                                         <div className="text-xs leading-5 text-on-surface-variant">
-                                                            Срок: {formatDate(metricCheckpoints.find((entry) => entry.checkpoint === selectedCheckpoint)?.scheduled_for)}
+                                                            {copy.due}: {formatDate(metricCheckpoints.find((entry) => entry.checkpoint === selectedCheckpoint)?.scheduled_for)}
                                                         </div>
                                                         <label className="block">
-                                                            <span className="text-sm font-bold text-on-surface">Метрики JSON v1</span>
+                                                            <span className="text-sm font-bold text-on-surface">{copy.metricsJson}</span>
                                                             <textarea
                                                                 value={metricsJson}
                                                                 onChange={(event) => setMetricsJson(event.target.value)}
@@ -2012,20 +2106,20 @@ export default function PublicationTasks() {
                                                             disabled={recordMetrics.isPending}
                                                             className="w-full rounded-2xl bg-on-surface px-5 py-3 text-sm font-black text-white transition-colors hover:bg-primary disabled:opacity-50"
                                                         >
-                                                            {recordMetrics.isPending ? 'Сохраняем снимок...' : `Сохранить ${checkpointLabel(selectedCheckpoint)}`}
+                                                            {recordMetrics.isPending ? copy.savingSnapshot : `${copy.saveSnapshot} ${checkpointLabel(selectedCheckpoint)}`}
                                                         </button>
                                                     </section>
                                                 )}
 
                                                 <details className="group rounded-[1.5rem] bg-surface-container-low border border-outline-variant/10">
                                                     <summary className="list-none cursor-pointer flex min-h-14 items-center justify-between gap-3 px-5 py-4">
-                                                        <span className="font-black text-on-surface">Изображение к посту</span>
+                                                        <span className="font-black text-on-surface">{copy.postImage}</span>
                                                         <span className="material-symbols-outlined text-on-surface-variant transition-transform group-open:rotate-180">expand_more</span>
                                                     </summary>
                                                     <div className="border-t border-outline-variant/10 p-5 space-y-4">
                                                     {!canGenerateVisual && (
                                                         <div className="rounded-2xl bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
-                                                            Генерация откроется после утверждения недельных тем, принятия текущей версии текста и решения арт-директора «Создать визуал» с готовым alt-текстом.
+                                                            {copy.visualGateHelp}
                                                         </div>
                                                     )}
                                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -2034,29 +2128,29 @@ export default function PublicationTasks() {
                                                             disabled={generateTaskImage.isPending || !canGenerateVisual}
                                                             className="w-full bg-primary text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
                                                         >
-                                                            {generateTaskImage.isPending ? 'Генерируем...' : 'Черновик · экономно'}
+                                                            {generateTaskImage.isPending ? copy.generating : copy.draftEconomy}
                                                         </button>
                                                         <button
                                                             onClick={() => generateTaskImage.mutate('final')}
                                                             disabled={generateTaskImage.isPending || !canGenerateVisual}
                                                             className="w-full bg-surface-container-highest text-on-surface font-black text-sm px-5 py-3 rounded-2xl hover:bg-primary/10 hover:text-primary transition-all disabled:opacity-50"
                                                         >
-                                                            {generateTaskImage.isPending ? 'Подготовка...' : 'Финал · стандарт'}
+                                                            {generateTaskImage.isPending ? copy.preparingVisual : copy.finalStandard}
                                                         </button>
                                                         <button
                                                             onClick={() => generateTaskImage.mutate('flagship')}
                                                             disabled={generateTaskImage.isPending || !canGenerateVisual}
                                                             className="w-full bg-on-surface text-white font-black text-sm px-5 py-3 rounded-2xl hover:bg-primary transition-all disabled:opacity-50"
-                                                            title="Полная агентная цепочка и повторная отрисовка — только для ключевых публикаций"
+                                                            title={copy.flagshipHelp}
                                                         >
-                                                            {generateTaskImage.isPending ? 'Подготовка...' : 'Флагман · полный цикл'}
+                                                            {generateTaskImage.isPending ? copy.preparingVisual : copy.flagshipFull}
                                                         </button>
                                                     </div>
                                                     {latestGeneratedImage?.url ? (
                                                         <div className="space-y-3">
                                                             <img
                                                                 src={String(latestGeneratedImage.url)}
-                                                                alt={String(latestGeneratedImage.alt_text || 'Кандидат изображения к публикации')}
+                                                                alt={String(latestGeneratedImage.alt_text || copy.imageCandidate)}
                                                                 className="w-full rounded-2xl border border-outline-variant/10 bg-white object-cover"
                                                             />
                                                             <div className="rounded-2xl bg-white px-4 py-3 text-xs leading-6 text-on-surface-variant">
@@ -2071,7 +2165,7 @@ export default function PublicationTasks() {
                                                         </div>
                                                     ) : (
                                                         <div className="rounded-2xl bg-white px-4 py-3 text-sm text-on-surface-variant shadow-sm">
-                                                            Сгенерированное изображение пока не добавлено.
+                                                            {copy.noGeneratedImage}
                                                         </div>
                                                     )}
                                                     </div>
@@ -2079,13 +2173,13 @@ export default function PublicationTasks() {
 
                                                 <details className="group rounded-[1.5rem] bg-surface-container-low border border-outline-variant/10">
                                                     <summary className="list-none cursor-pointer flex min-h-14 items-center justify-between gap-3 px-5 py-4">
-                                                        <span className="font-black text-on-surface">Материалы и контекст</span>
+                                                        <span className="font-black text-on-surface">{copy.materialsContext}</span>
                                                         <span className="material-symbols-outlined text-on-surface-variant transition-transform group-open:rotate-180">expand_more</span>
                                                     </summary>
                                                     <div className="border-t border-outline-variant/10 p-5 space-y-4 text-sm">
-                                                        <div><div className="text-xs text-on-surface-variant">Пункт плана</div><div className="mt-1 font-bold break-words">{planItemRef || 'Не привязано'}</div></div>
-                                                        <div><div className="text-xs text-on-surface-variant">Исходный ресурс</div><div className="mt-1 break-words">{activeTask?.workspace_context?.source_file_name || sourceFiles[0]?.file_name || sourceFiles[0]?.relative_path || 'Не найден'}</div></div>
-                                                        {targetResourceUrl && <a href={targetResourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 font-bold text-primary break-all hover:underline"><span className="material-symbols-outlined text-base">open_in_new</span>Открыть рабочий ресурс</a>}
+                                                        <div><div className="text-xs text-on-surface-variant">{copy.planItem}</div><div className="mt-1 font-bold break-words">{planItemRef || copy.notLinked}</div></div>
+                                                        <div><div className="text-xs text-on-surface-variant">{copy.sourceResource}</div><div className="mt-1 break-words">{activeTask?.workspace_context?.source_file_name || sourceFiles[0]?.file_name || sourceFiles[0]?.relative_path || copy.notFound}</div></div>
+                                                        {targetResourceUrl && <a href={targetResourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 font-bold text-primary break-all hover:underline"><span className="material-symbols-outlined text-base">open_in_new</span>{copy.openResource}</a>}
                                                     </div>
                                                 </details>
                                             </aside>
@@ -2096,9 +2190,9 @@ export default function PublicationTasks() {
                                         <details className="group">
                                             <summary className="list-none cursor-pointer flex items-center justify-between gap-3">
                                                 <div>
-                                                    <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Технические детали</div>
+                                                    <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{copy.technicalDetails}</div>
                                                     <div className="mt-1 text-sm text-on-surface-variant">
-                                                        Мониторинг и служебные поля спрятаны сюда, чтобы не занимать первый экран.
+                                                        {copy.technicalDetailsHelp}
                                                     </div>
                                                 </div>
                                                 <span className="material-symbols-outlined text-on-surface-variant transition-transform group-open:rotate-180">expand_more</span>
