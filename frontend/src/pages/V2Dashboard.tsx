@@ -5,6 +5,7 @@ import { format } from 'date-fns'
 import { api } from '../api'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/ToastContainer'
+import { useLocale } from '../i18n/LocaleContext'
 
 interface WeekPackage {
     id: number
@@ -41,6 +42,7 @@ interface ChatMessage {
 // ─── Strategy Assistant Chat Panel ──────────────────────────────────────────
 
 function StrategyChat() {
+    const { locale } = useLocale()
     const [messages, setMessages] = useState<ChatMessage[]>([])
     const [input, setInput] = useState('')
     const [isLoading, setIsLoading] = useState(false)
@@ -80,7 +82,7 @@ function StrategyChat() {
         } catch (e: any) {
             setMessages([...newMessages, {
                 role: 'assistant',
-                content: `⚠️ Ошибка: ${e.response?.data?.error || e.message}`
+                content: `⚠️ ${locale === 'ru' ? 'Ошибка' : 'Error'}: ${e.response?.data?.error || e.message}`
             }])
         } finally {
             setIsLoading(false)

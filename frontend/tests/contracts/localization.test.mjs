@@ -1,0 +1,37 @@
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, resolve } from 'node:path'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const locale = readFileSync(resolve(__dirname, '../../src/i18n/LocaleContext.tsx'), 'utf8')
+const layout = readFileSync(resolve(__dirname, '../../src/components/Layout.tsx'), 'utf8')
+const switcher = readFileSync(resolve(__dirname, '../../src/components/LanguageSwitcher.tsx'), 'utf8')
+const app = readFileSync(resolve(__dirname, '../../src/App.tsx'), 'utf8')
+const guide = readFileSync(resolve(__dirname, '../../src/pages/Guide.tsx'), 'utf8')
+const recipes = readFileSync(resolve(__dirname, '../../src/pages/SavedRecipesLibrary.tsx'), 'utf8')
+const channels = readFileSync(resolve(__dirname, '../../src/pages/ChannelWorkspace.tsx'), 'utf8')
+const analytics = readFileSync(resolve(__dirname, '../../src/pages/PostPublicationAnalytics.tsx'), 'utf8')
+const parsers = readFileSync(resolve(__dirname, '../../src/pages/Parsers.tsx'), 'utf8')
+const postEditor = readFileSync(resolve(__dirname, '../../src/pages/PostEditor.tsx'), 'utf8')
+const v2Dashboard = readFileSync(resolve(__dirname, '../../src/pages/V2Dashboard.tsx'), 'utf8')
+const v2Week = readFileSync(resolve(__dirname, '../../src/pages/V2WeekDetail.tsx'), 'utf8')
+
+assert.match(locale, /defaultLocale.*'en'/)
+assert.match(locale, /localStorage/)
+assert.match(locale, /document\.documentElement\.lang/)
+assert.match(layout, /LanguageSwitcher/)
+assert.match(switcher, /'en', 'ru'/)
+assert.match(switcher, /setLocale/)
+assert.match(app, /LocaleProvider/)
+for (const page of [guide, recipes, channels, analytics, parsers, postEditor, v2Dashboard, v2Week]) {
+    assert.match(page, /useLocale/)
+    assert.match(page, /locale === 'ru'/)
+}
+assert.match(guide, /Planner workflow guide/)
+assert.match(recipes, /Reusable research recipes/)
+assert.match(channels, /Channel workspace/)
+assert.match(analytics, /Post-publication metrics and outcomes/)
+assert.match(parsers, /Research, scoring, and source intelligence/)
+assert.match(postEditor, /Full pipeline for flagship content/)
+assert.match(v2Week, /APPROVE WEEK PACKAGE/)

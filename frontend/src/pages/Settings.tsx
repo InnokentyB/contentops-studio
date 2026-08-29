@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { api, presetsApi, keysApi, modelsApi, projectsApi, skillConnectionsApi, contentDictionaryApi, contentPolicyMatrixApi, atomaContextApi } from '../api'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/ToastContainer'
+import { useLocale } from '../i18n/LocaleContext'
 
 interface AgentConfig {
     role: string
@@ -320,6 +321,56 @@ export default function Settings() {
     const queryClient = useQueryClient()
     const { showToast } = useToast()
     const { currentProject, user } = useAuth()
+    const { locale } = useLocale()
+    const copy = locale === 'ru' ? {
+        title: 'Настройки проекта', intro: 'Управляйте рабочим контуром проекта', owner: 'Владелец', readOnly: 'Только просмотр',
+        ownerOnly: 'Изменять настройки может только владелец проекта. Вы можете посмотреть текущую конфигурацию без секретных значений.',
+        settingsSection: 'Раздел настроек', settingsSections: 'Разделы настроек', project: 'Проект', projectHelp: 'Основные данные и поведение планировщика для этого проекта.',
+        projectName: 'Название проекта', description: 'Описание', descriptionPlaceholder: 'Что производит этот проект и для какой аудитории', saving: 'Сохраняем…', save: 'Сохранить изменения',
+        scheduling: 'Планирование публикаций', nativeTelegram: 'Использовать отложенные сообщения Telegram', nativeTelegramHelp: 'Будущие публикации попадут в очередь Telegram и выйдут, даже если планировщик временно выключен.',
+        artDirection: 'Проверять визуальную необходимость до публикации', artDirectionHelp: 'Арт-директор решит, нужен ли визуал, запросит реальный источник или отправит изображение на ревью. До явного допуска handoff и публикация будут заблокированы.',
+        planningHq: 'Штаб планирования', planningHqHelp: 'Управляет слотами, каналами, темами и расписанием. Не редактирует текст публикации.',
+        contentAgent: 'Контент-агент', contentAgentHelp: 'Читает готовые слоты и заполняет только текст. Не может менять дату, канал, тему или статус.',
+        artDirector: 'Арт-директор', artDirectorHelp: 'Оценивает необходимость визуала, формирует brief, принимает источники и проводит визуальное ревью. Не может переписывать посты.',
+        mcpTitle: 'Подключение MCP', mcpHelp: 'Дайте Codex, Claude или другому агенту доступ к плану, очереди работ и публикациям проекта.',
+        mcpOnline: 'MCP работает', mcpOffline: 'MCP недоступен', checking: 'Проверяем MCP', check: 'Проверить', configured: 'Настроен', notConfigured: 'Не настроен',
+        copyConfig: 'Копировать конфигурацию', copied: 'Конфигурация скопирована', tokenHelp: 'Каждый агент получает отдельный endpoint и отдельный токен. Не передавайте токен одного профиля другому агенту и не храните токены в репозитории.',
+        actorId: 'Actor ID владельца', retryMcp: 'Запустите локальный MCP-сервис и повторите проверку.', bindingHelp: 'Project ID и пользователь фиксируются на сервере вместе с токеном. Агент не может подменить их в вызове инструмента.',
+        workspaceSync: 'Синхронизация структуры чатов', workspaceSyncHelp: 'Агент получает актуальные роли, handoff-связи и bootstrap конкретного чата. В начале сессии он сравнивает checksum и обновляет инструкции только при изменении проекта.',
+        workspaceRoles: 'Штаб · Автор · Главред · Арт-директор · Публикатор · Аналитик',
+        publicationChannels: 'Каналы публикации', publicationChannelsHelp: 'Подключайте площадки и выбирайте, сколько контроля оставлять владельцу перед публикацией.',
+        workflowMode: 'Режим работы', prepareOnly: 'Только подготовка', approvalRequired: 'Публикация после одобрения', autoPublish: 'Автопубликация',
+        prepareOnlyHelp: 'Агент готовит текст, публикация остаётся ручной.', approvalRequiredHelp: 'Агент ждёт решения владельца перед отправкой.', autoPublishHelp: 'Одобренный план может публиковаться без ручного шага.',
+        afterApproval: 'После одобрения', defaultPublicationType: 'Тип публикации по умолчанию', article: 'Статья', shortPost: 'Короткий пост', channelUrl: 'URL канала', authorizedSession: 'Авторизованная сессия',
+        modelCosts: 'Расходы моделей · 30 дней', calls: 'вызовов', knownCost: 'стоимость известна для', automaticTracking: 'Новые вызовы учитываются автоматически', model: 'Модель', errors: 'Ошибки', tokens: 'Токены', estimate: 'Оценка', unknownModel: 'Не зафиксирована', noRate: 'нет тарифа', noTelemetry: 'Телеметрия появится после первого вызова модели на новой версии.'
+    } : {
+        title: 'Project settings', intro: 'Manage the operating workspace for project', owner: 'Owner', readOnly: 'Read only',
+        ownerOnly: 'Only the project owner can change settings. You can inspect the current configuration without secret values.',
+        settingsSection: 'Settings section', settingsSections: 'Settings sections', project: 'Project', projectHelp: 'Core project data and planner behavior.',
+        projectName: 'Project name', description: 'Description', descriptionPlaceholder: 'What this project produces and who it serves', saving: 'Saving…', save: 'Save changes',
+        scheduling: 'Publication scheduling', nativeTelegram: 'Use Telegram scheduled messages', nativeTelegramHelp: 'Future publications are queued in Telegram and can go live while the planner is temporarily offline.',
+        artDirection: 'Review visual need before publication', artDirectionHelp: 'The art director decides whether a visual is needed, requests a real source or sends the image to review. Handoff and publication remain blocked until explicit clearance.',
+        planningHq: 'Planning HQ', planningHqHelp: 'Manages slots, channels, themes and schedule. Cannot edit publication copy.',
+        contentAgent: 'Content agent', contentAgentHelp: 'Reads ready slots and fills only the copy. Cannot change dates, channels, themes or status.',
+        artDirector: 'Art director', artDirectorHelp: 'Assesses visual need, creates briefs, accepts sources and reviews visuals. Cannot rewrite posts.',
+        mcpTitle: 'MCP connection', mcpHelp: 'Give Codex, Claude or another agent access to the project plan, work queue and publications.',
+        mcpOnline: 'MCP online', mcpOffline: 'MCP unavailable', checking: 'Checking MCP', check: 'Check', configured: 'Configured', notConfigured: 'Not configured',
+        copyConfig: 'Copy configuration', copied: 'Configuration copied', tokenHelp: 'Each agent receives a separate endpoint and token. Never share profile tokens between agents or commit them to the repository.',
+        actorId: 'Owner actor ID', retryMcp: 'Start the local MCP service and retry the check.', bindingHelp: 'Project ID and user identity are bound to the token on the server. Agents cannot override them in tool calls.',
+        workspaceSync: 'Chat workspace synchronization', workspaceSyncHelp: 'Agents receive current roles, handoff edges and chat-specific bootstrap instructions. At session start they compare the checksum and update only when project configuration changed.',
+        workspaceRoles: 'Planning HQ · Writer · Chief Editor · Art Director · Publisher · Analyst',
+        publicationChannels: 'Publishing channels', publicationChannelsHelp: 'Connect destinations and choose how much control the owner retains before publication.',
+        workflowMode: 'Workflow mode', prepareOnly: 'Prepare only', approvalRequired: 'Publish after approval', autoPublish: 'Auto-publish',
+        prepareOnlyHelp: 'The agent prepares content; publishing remains manual.', approvalRequiredHelp: 'The agent waits for owner approval before sending.', autoPublishHelp: 'An approved plan may be published without another manual step.',
+        afterApproval: 'After approval', defaultPublicationType: 'Default publication type', article: 'Article', shortPost: 'Short post', channelUrl: 'Channel URL', authorizedSession: 'Authorized session',
+        modelCosts: 'Model costs · 30 days', calls: 'calls', knownCost: 'cost known for', automaticTracking: 'New calls are tracked automatically', model: 'Model', errors: 'Errors', tokens: 'Tokens', estimate: 'Estimate', unknownModel: 'Not recorded', noRate: 'rate unavailable', noTelemetry: 'Telemetry will appear after the first model call on the new version.'
+    }
+    const settingsGroups = locale === 'ru' ? SETTINGS_GROUPS : [
+        { label: 'Workspace', tabs: [{ id: 'general' as const, label: 'Project', hint: 'Name and behavior', icon: 'tune' }, { id: 'channels' as const, label: 'Channels', hint: 'Platforms and modes', icon: 'campaign' }, { id: 'mcp' as const, label: 'MCP', hint: 'Agent connections', icon: 'hub' }] },
+        { label: 'Intelligence', tabs: [{ id: 'keys' as const, label: 'Model keys', hint: 'AI providers', icon: 'key' }, { id: 'agents' as const, label: 'Agents', hint: 'Roles and models', icon: 'smart_toy' }, { id: 'skills' as const, label: 'Skills', hint: 'Skill connections', icon: 'extension' }] },
+        { label: 'Content', tabs: [{ id: 'dictionary' as const, label: 'Rules', hint: 'Dictionary and ATOMA', icon: 'menu_book' }, { id: 'presets' as const, label: 'Presets', hint: 'Prompt templates', icon: 'text_snippet' }] },
+        { label: 'Governance', tabs: [{ id: 'team' as const, label: 'Team', hint: 'Members and roles', icon: 'group' }, { id: 'history' as const, label: 'History', hint: 'Runs and errors', icon: 'history' }] }
+    ]
     const queryParams = new URLSearchParams(window.location.search)
     const linkedinError = queryParams.get('error')
     const requestedTab = queryParams.get('tab')
@@ -905,32 +956,32 @@ export default function Settings() {
         <div className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8">
             <div className="mb-7 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <h1 className="text-3xl font-headline font-black tracking-tight text-on-surface">Настройки проекта</h1>
+                    <h1 className="text-3xl font-headline font-black tracking-tight text-on-surface">{copy.title}</h1>
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-on-surface-variant">
-                        Управляйте рабочим контуром проекта «{currentProject.name}»: каналами, агентами и правилами публикации.
+                        {copy.intro} “{currentProject.name}”.
                     </p>
                 </div>
                 <span className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-xs font-black ${isOwner ? 'bg-success/10 text-success' : 'bg-surface-container-high text-on-surface-variant'}`}>
                     <span className="material-symbols-outlined text-base" aria-hidden="true">{isOwner ? 'verified_user' : 'visibility'}</span>
-                    {isOwner ? 'Владелец' : 'Только просмотр'}
+                    {isOwner ? copy.owner : copy.readOnly}
                 </span>
             </div>
 
             {!isOwner && projectData && (
                 <div className="mb-5 rounded-2xl bg-surface-container-low px-4 py-3 text-sm leading-6 text-on-surface-variant">
-                    Изменять настройки может только владелец проекта. Вы можете посмотреть текущую конфигурацию без секретных значений.
+                    {copy.ownerOnly}
                 </div>
             )}
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:items-start">
                 <label className="block lg:hidden">
-                    <span className="mb-2 block text-sm font-bold text-on-surface">Раздел настроек</span>
+                    <span className="mb-2 block text-sm font-bold text-on-surface">{copy.settingsSection}</span>
                     <select className="w-full" value={activeTab} onChange={(event) => setActiveTab(event.target.value as SettingsTab)}>
-                        {SETTINGS_GROUPS.flatMap((group) => group.tabs).map((tab) => <option key={tab.id} value={tab.id}>{tab.label} — {tab.hint}</option>)}
+                        {settingsGroups.flatMap((group) => group.tabs).map((tab) => <option key={tab.id} value={tab.id}>{tab.label} — {tab.hint}</option>)}
                     </select>
                 </label>
-                <nav aria-label="Разделы настроек" className="hidden rounded-2xl bg-surface-container-low p-2 lg:sticky lg:top-6 lg:block">
-                    {SETTINGS_GROUPS.map((group) => (
+                <nav aria-label={copy.settingsSections} className="hidden rounded-2xl bg-surface-container-low p-2 lg:sticky lg:top-6 lg:block">
+                    {settingsGroups.map((group) => (
                         <div key={group.label} className="mb-3 last:mb-0">
                             <div className="px-3 pb-1 pt-2 text-[11px] font-black uppercase tracking-[0.16em] text-on-surface-variant">{group.label}</div>
                             {group.tabs.map((tab) => (
@@ -954,25 +1005,25 @@ export default function Settings() {
             {activeTab === 'general' && (
                 <div className="rounded-2xl bg-white p-5 shadow-sm sm:p-7">
                     <div className="mb-6">
-                        <h2 className="text-2xl font-headline font-black text-on-surface">Проект</h2>
-                        <p className="mt-2 text-sm leading-6 text-on-surface-variant">Основные данные и поведение планировщика для этого проекта.</p>
+                        <h2 className="text-2xl font-headline font-black text-on-surface">{copy.project}</h2>
+                        <p className="mt-2 text-sm leading-6 text-on-surface-variant">{copy.projectHelp}</p>
                     </div>
                     <div className="max-w-2xl space-y-5">
                         <label className="block">
-                            <span className="text-sm font-bold text-on-surface">Название проекта</span>
+                            <span className="text-sm font-bold text-on-surface">{copy.projectName}</span>
                             <input className="mt-2 w-full" value={projectName} onChange={e => setProjectName(e.target.value)} />
                         </label>
                         <label className="block">
-                            <span className="text-sm font-bold text-on-surface">Описание</span>
-                            <textarea className="mt-2 w-full" value={projectDesc} onChange={e => setProjectDesc(e.target.value)} rows={4} placeholder="Что производит этот проект и для какой аудитории" />
+                            <span className="text-sm font-bold text-on-surface">{copy.description}</span>
+                            <textarea className="mt-2 w-full" value={projectDesc} onChange={e => setProjectDesc(e.target.value)} rows={4} placeholder={copy.descriptionPlaceholder} />
                         </label>
                         <button className="btn-primary" onClick={() => updateProject.mutate({ name: projectName, description: projectDesc })} disabled={!projectName.trim() || updateProject.isPending}>
-                            {updateProject.isPending ? 'Сохраняем…' : 'Сохранить изменения'}
+                            {updateProject.isPending ? copy.saving : copy.save}
                         </button>
                     </div>
 
                     <div className="mt-8 border-t border-outline-variant/10 pt-6">
-                        <h3 className="text-lg font-black text-on-surface">Планирование публикаций</h3>
+                        <h3 className="text-lg font-black text-on-surface">{copy.scheduling}</h3>
                         <label htmlFor="nativeScheduling" className="mt-4 flex max-w-2xl cursor-pointer items-start gap-3 rounded-2xl bg-surface-container-low p-4">
                             <input
                                 type="checkbox"
@@ -985,9 +1036,9 @@ export default function Settings() {
                                 className="mt-1 h-5 w-5 accent-primary"
                             />
                             <span>
-                                <strong className="block text-sm text-on-surface">Использовать отложенные сообщения Telegram</strong>
+                                <strong className="block text-sm text-on-surface">{copy.nativeTelegram}</strong>
                                 <p className="mt-1 text-sm leading-6 text-on-surface-variant">
-                                    Будущие публикации попадут в очередь Telegram и выйдут, даже если планировщик временно выключен.
+                                    {copy.nativeTelegramHelp}
                                 </p>
                             </span>
                         </label>
@@ -1000,9 +1051,9 @@ export default function Settings() {
                                 className="mt-1 h-5 w-5 accent-primary"
                             />
                             <span>
-                                <strong className="block text-sm text-on-surface">Проверять визуальную необходимость до публикации</strong>
+                                <strong className="block text-sm text-on-surface">{copy.artDirection}</strong>
                                 <p className="mt-1 text-sm leading-6 text-on-surface-variant">
-                                    Арт-директор решит, нужен ли визуал, запросит реальный источник или отправит изображение на ревью. До явного допуска handoff и публикация будут заблокированы.
+                                    {copy.artDirectionHelp}
                                 </p>
                             </span>
                         </label>
@@ -1015,8 +1066,8 @@ export default function Settings() {
                 const capabilityCards = [
                     {
                         id: 'planner',
-                        title: 'Штаб планирования',
-                        description: 'Управляет слотами, каналами, темами и расписанием. Не редактирует текст публикации.',
+                        title: copy.planningHq,
+                        description: copy.planningHqHelp,
                         icon: 'calendar_month',
                         endpoint: mcpStatus?.capability_endpoints?.planner.endpoint || `${mcpUrl}/planner`,
                         configured: mcpStatus?.capability_endpoints?.planner.configured ?? false,
@@ -1024,8 +1075,8 @@ export default function Settings() {
                     },
                     {
                         id: 'writer',
-                        title: 'Контент-агент',
-                        description: 'Читает готовые слоты и заполняет только текст. Не может менять дату, канал, тему или статус.',
+                        title: copy.contentAgent,
+                        description: copy.contentAgentHelp,
                         icon: 'edit_note',
                         endpoint: mcpStatus?.capability_endpoints?.writer.endpoint || `${mcpUrl}/writer`,
                         configured: mcpStatus?.capability_endpoints?.writer.configured ?? false,
@@ -1033,8 +1084,8 @@ export default function Settings() {
                     },
                     {
                         id: 'art-director',
-                        title: 'Арт-директор',
-                        description: 'Оценивает необходимость визуала, формирует brief, принимает источники и проводит визуальное ревью. Не может переписывать посты.',
+                        title: copy.artDirector,
+                        description: copy.artDirectorHelp,
                         icon: 'art_track',
                         endpoint: mcpStatus?.capability_endpoints?.art_director?.endpoint || `${mcpUrl}/art-director`,
                         configured: mcpStatus?.capability_endpoints?.art_director?.configured ?? false,
@@ -1046,12 +1097,12 @@ export default function Settings() {
                     <div className="rounded-2xl bg-white p-5 shadow-sm sm:p-7">
                         <div className="flex flex-col gap-4 border-b border-outline-variant/10 pb-6 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                                <h2 className="text-2xl font-headline font-black text-on-surface">Подключение MCP</h2>
-                                <p className="mt-2 max-w-2xl text-sm leading-6 text-on-surface-variant">Дайте Codex, Claude или другому агенту доступ к плану, очереди работ и публикациям проекта.</p>
+                                <h2 className="text-2xl font-headline font-black text-on-surface">{copy.mcpTitle}</h2>
+                                <p className="mt-2 max-w-2xl text-sm leading-6 text-on-surface-variant">{copy.mcpHelp}</p>
                             </div>
                             <div className="flex items-center gap-2">
-                                <span className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-xs font-black ${isMcpOnline ? 'bg-success/10 text-success' : 'bg-error-container/40 text-error'}`}><span className={`h-2 w-2 rounded-full ${isMcpOnline ? 'bg-success' : 'bg-error'}`} />{isMcpOnline ? 'MCP работает' : mcpStatus ? 'MCP недоступен' : 'Проверяем MCP'}</span>
-                                <button type="button" className="btn-secondary" onClick={() => checkMcp()} disabled={isCheckingMcp}>{isCheckingMcp ? 'Проверяем…' : 'Проверить'}</button>
+                                <span className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-xs font-black ${isMcpOnline ? 'bg-success/10 text-success' : 'bg-error-container/40 text-error'}`}><span className={`h-2 w-2 rounded-full ${isMcpOnline ? 'bg-success' : 'bg-error'}`} />{isMcpOnline ? copy.mcpOnline : mcpStatus ? copy.mcpOffline : copy.checking}</span>
+                                <button type="button" className="btn-secondary" onClick={() => checkMcp()} disabled={isCheckingMcp}>{isCheckingMcp ? `${copy.checking}…` : copy.check}</button>
                             </div>
                         </div>
 
@@ -1077,23 +1128,38 @@ export default function Settings() {
                                                     </div>
                                                 </div>
                                                 <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black ${capability.configured ? 'bg-success/10 text-success' : 'bg-surface-container-high text-on-surface-variant'}`}>
-                                                    {capability.configured ? 'Настроен' : 'Не настроен'}
+                                                    {capability.configured ? copy.configured : copy.notConfigured}
                                                 </span>
                                             </div>
                                             <pre className="mt-4 max-h-52 overflow-auto rounded-xl bg-[#17181a] p-3 text-xs leading-5 text-white"><code>{config}</code></pre>
-                                            <button type="button" className="btn-secondary mt-3 w-full" onClick={() => navigator.clipboard.writeText(config).then(() => showToast(`Конфигурация «${capability.title}» скопирована`, 'success'))}>Копировать конфигурацию</button>
+                                            <button type="button" className="btn-secondary mt-3 w-full" onClick={() => navigator.clipboard.writeText(config).then(() => showToast(`${copy.copied}: ${capability.title}`, 'success'))}>{copy.copyConfig}</button>
                                         </section>
                                     )
                                 })}
-                                <p className="text-xs leading-5 text-on-surface-variant lg:col-span-2">Каждый агент получает отдельный endpoint и отдельный токен. Не передавайте токен одного профиля другому агенту и не храните токены в репозитории.</p>
+                                <p className="text-xs leading-5 text-on-surface-variant lg:col-span-2">{copy.tokenHelp}</p>
                             </div>
+                            <section className="rounded-2xl border border-primary/15 bg-primary/5 p-4 sm:p-5">
+                                <div className="flex items-start gap-3">
+                                    <span className="material-symbols-outlined text-primary" aria-hidden="true">account_tree</span>
+                                    <div>
+                                        <h3 className="font-black text-on-surface">{copy.workspaceSync}</h3>
+                                        <p className="mt-1 text-sm leading-6 text-on-surface-variant">{copy.workspaceSyncHelp}</p>
+                                        <p className="mt-3 text-xs font-bold text-primary">{copy.workspaceRoles}</p>
+                                    </div>
+                                </div>
+                                <div className="mt-4 grid gap-2 text-xs font-mono text-on-surface sm:grid-cols-3">
+                                    <code className="rounded-xl bg-white px-3 py-2">ba_get_agent_workspace_manifest</code>
+                                    <code className="rounded-xl bg-white px-3 py-2">ba_get_agent_workspace_updates</code>
+                                    <code className="rounded-xl bg-white px-3 py-2">ba_get_agent_chat_bootstrap</code>
+                                </div>
+                            </section>
                             <div className="grid grid-cols-1 gap-4 rounded-2xl bg-surface-container-low p-4 sm:grid-cols-2 xl:grid-cols-4">
-                                <div><div className="text-xs text-on-surface-variant">Проект</div><div className="mt-1 font-black text-on-surface">{currentProject.name}</div></div>
+                                <div><div className="text-xs text-on-surface-variant">{copy.project}</div><div className="mt-1 font-black text-on-surface">{currentProject.name}</div></div>
                                 <div><div className="text-xs text-on-surface-variant">Project ID</div><div className="mt-1 font-black tabular-nums text-on-surface">{currentProject.id}</div></div>
-                                <div><div className="text-xs text-on-surface-variant">Actor ID владельца</div><div className="mt-1 font-black text-on-surface">user:{user?.id}</div></div>
+                                <div><div className="text-xs text-on-surface-variant">{copy.actorId}</div><div className="mt-1 font-black text-on-surface">user:{user?.id}</div></div>
                                 <div><div className="text-xs text-on-surface-variant">Endpoint</div><div className="mt-1 break-all text-sm font-bold text-on-surface">{mcpUrl}</div></div>
-                                {mcpStatus?.message && <div className="rounded-xl bg-error-container/30 p-3 text-xs leading-5 text-error sm:col-span-2 xl:col-span-4">{mcpStatus.message}. Запустите локальный MCP-сервис и повторите проверку.</div>}
-                                <div className="border-t border-outline-variant/10 pt-4 text-xs leading-5 text-on-surface-variant sm:col-span-2 xl:col-span-4">Project ID и пользователь фиксируются на сервере вместе с токеном. Агент не может подменить их в вызове инструмента.</div>
+                                {mcpStatus?.message && <div className="rounded-xl bg-error-container/30 p-3 text-xs leading-5 text-error sm:col-span-2 xl:col-span-4">{mcpStatus.message}. {copy.retryMcp}</div>}
+                                <div className="border-t border-outline-variant/10 pt-4 text-xs leading-5 text-on-surface-variant sm:col-span-2 xl:col-span-4">{copy.bindingHelp}</div>
                             </div>
                         </div>
                     </div>
@@ -1102,8 +1168,8 @@ export default function Settings() {
 
             {activeTab === 'channels' && (
                 <div className="rounded-2xl bg-white p-5 shadow-sm sm:p-7">
-                    <h2 className="text-2xl font-headline font-black text-on-surface">Каналы публикации</h2>
-                    <p className="mb-6 mt-2 text-sm leading-6 text-on-surface-variant">Подключайте площадки и выбирайте, сколько контроля оставлять владельцу перед публикацией.</p>
+                    <h2 className="text-2xl font-headline font-black text-on-surface">{copy.publicationChannels}</h2>
+                    <p className="mb-6 mt-2 text-sm leading-6 text-on-surface-variant">{copy.publicationChannelsHelp}</p>
 
                     <div className="mb-3 p-2" style={{ border: '1px solid var(--border)', borderRadius: '8px' }}>
                         <div className="flex-between mb-3">
@@ -1130,14 +1196,14 @@ export default function Settings() {
                                 />
                             </div>
                             <div>
-                                <label>Режим работы</label>
+                                <label>{copy.workflowMode}</label>
                                 <select value={newChannelWorkflowMode} onChange={(e) => setNewChannelWorkflowMode(e.target.value as typeof newChannelWorkflowMode)}>
-                                    <option value="prepare_only">Только подготовка</option>
-                                    <option value="approval_required">Публикация после одобрения</option>
-                                    <option value="auto_publish">Автопубликация</option>
+                                    <option value="prepare_only">{copy.prepareOnly}</option>
+                                    <option value="approval_required">{copy.approvalRequired}</option>
+                                    <option value="auto_publish">{copy.autoPublish}</option>
                                 </select>
                                 <p className="mt-1 text-xs leading-5 text-on-surface-variant">
-                                    {newChannelWorkflowMode === 'prepare_only' ? 'Агент готовит текст, публикация остаётся ручной.' : newChannelWorkflowMode === 'approval_required' ? 'Агент ждёт решения владельца перед отправкой.' : 'Одобренный план может публиковаться без ручного шага.'}
+                                    {newChannelWorkflowMode === 'prepare_only' ? copy.prepareOnlyHelp : newChannelWorkflowMode === 'approval_required' ? copy.approvalRequiredHelp : copy.autoPublishHelp}
                                 </p>
                             </div>
 
@@ -1455,15 +1521,15 @@ export default function Settings() {
                                                 />
                                             </div>
                                             <div>
-                                                <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Режим работы</label>
+                                                <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>{copy.workflowMode}</label>
                                                 <select
                                                     className="w-full"
                                                     value={editingChannelConfig.workflow_mode || 'approval_required'}
                                                     onChange={e => setEditingChannelConfig({ ...editingChannelConfig, workflow_mode: e.target.value })}
                                                 >
-                                                    <option value="prepare_only">Только подготовка</option>
-                                                    <option value="approval_required">После одобрения</option>
-                                                    <option value="auto_publish">Автопубликация</option>
+                                                    <option value="prepare_only">{copy.prepareOnly}</option>
+                                                    <option value="approval_required">{copy.afterApproval}</option>
+                                                    <option value="auto_publish">{copy.autoPublish}</option>
                                                 </select>
                                             </div>
 
@@ -1701,14 +1767,18 @@ export default function Settings() {
                                                         />
                                                     </div>
                                                     <div>
-                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Тип публикации по умолчанию</label>
-                                                        <select className="w-full" value={editingChannelConfig.default_publication_type || 'article'} onChange={e => setEditingChannelConfig({ ...editingChannelConfig, default_publication_type: e.target.value })}>
-                                                            <option value="article">Статья</option>
-                                                            <option value="post">Короткий пост</option>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>{copy.defaultPublicationType}</label>
+                                                        <select
+                                                            className="w-full"
+                                                            value={editingChannelConfig.default_publication_type || 'article'}
+                                                            onChange={e => setEditingChannelConfig({ ...editingChannelConfig, default_publication_type: e.target.value })}
+                                                        >
+                                                            <option value="article">{copy.article}</option>
+                                                            <option value="post">{copy.shortPost}</option>
                                                         </select>
                                                     </div>
                                                     <div>
-                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>URL канала</label>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>{copy.channelUrl}</label>
                                                         <input
                                                             className="w-full"
                                                             value={editingChannelConfig.channel_url || ''}
@@ -1718,19 +1788,26 @@ export default function Settings() {
                                                         />
                                                     </div>
                                                     <div style={{ gridColumn: '1 / -1' }}>
-                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Авторизованная сессия</label>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>{copy.authorizedSession}</label>
                                                         <textarea
                                                             className="w-full"
                                                             value={editingChannelConfig.cookies || ''}
                                                             onChange={e => setEditingChannelConfig({ ...editingChannelConfig, cookies: e.target.value })}
-                                                            placeholder={editingChannelConfig.cookies_configured ? 'Сессия уже сохранена. Вставьте новое значение только для замены.' : 'Session_id=...; yandexuid=...'}
+                                                            placeholder="Сохранённая сессия скрыта. Вставьте новое значение только для замены."
                                                             rows={2}
                                                             style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
                                                         />
-                                                        <div className="text-xs text-on-surface-variant mt-1">Сначала сохраните изменения, затем запустите проверку подключения.</div>
+                                                        <div className="text-xs text-on-surface-variant mt-1">
+                                                            Сначала сохраните изменения, затем запустите проверку подключения.
+                                                        </div>
                                                     </div>
                                                     <div style={{ gridColumn: '1 / -1' }}>
-                                                        <button type="button" className="btn-secondary w-full" disabled={testChannelConnection.isPending} onClick={() => testChannelConnection.mutate(channel.id)}>
+                                                        <button
+                                                            type="button"
+                                                            className="btn-secondary w-full"
+                                                            disabled={testChannelConnection.isPending}
+                                                            onClick={() => testChannelConnection.mutate(channel.id)}
+                                                        >
                                                             {testChannelConnection.isPending ? 'Проверяем Дзен…' : 'Проверить подключение к Дзену'}
                                                         </button>
                                                     </div>
@@ -1773,7 +1850,7 @@ export default function Settings() {
                                             <strong>{channel.name}</strong>
                                             <span className="badge" style={{ fontSize: '0.7rem', textTransform: 'uppercase' }}>{channel.type}</span>
                                             <span className="badge" style={{ fontSize: '0.7rem' }}>
-                                                {channel.config?.workflow_mode === 'auto_publish' ? 'автопубликация' : channel.config?.workflow_mode === 'prepare_only' ? 'только подготовка' : 'после одобрения'}
+                                                {channel.config?.workflow_mode === 'auto_publish' ? copy.autoPublish : channel.config?.workflow_mode === 'prepare_only' ? copy.prepareOnly : copy.afterApproval}
                                             </span>
                                             {channel.type === 'linkedin' && (
                                                 <span className="badge ml-1" style={{ fontSize: '0.7rem', textTransform: 'uppercase' }}>
@@ -2223,39 +2300,39 @@ export default function Settings() {
                     <div className="card space-y-4">
                         <div className="flex flex-wrap items-start justify-between gap-4">
                             <div>
-                                <div className="text-[10px] font-black uppercase tracking-widest text-primary">Расходы моделей · 30 дней</div>
+                                <div className="text-[10px] font-black uppercase tracking-widest text-primary">{copy.modelCosts}</div>
                                 <h3 className="mt-2 text-2xl font-black text-on-surface">
                                     ${Number(modelUsage?.total_estimated_cost_usd || 0).toFixed(2)}
                                 </h3>
                                 <p className="mt-1 text-sm text-on-surface-variant">
-                                    {modelUsage?.total_calls || 0} вызовов · стоимость известна для {modelUsage?.exact_cost_coverage || 0}
+                                    {modelUsage?.total_calls || 0} {copy.calls} · {copy.knownCost} {modelUsage?.exact_cost_coverage || 0}
                                 </p>
                             </div>
                             <span className="rounded-full bg-surface-container-high px-3 py-1 text-xs font-bold text-on-surface-variant">
-                                Новые вызовы учитываются автоматически
+                                {copy.automaticTracking}
                             </span>
                         </div>
                         {modelUsage?.by_model?.length ? (
                             <div className="overflow-x-auto rounded-2xl border border-outline-variant/10">
                                 <table className="w-full min-w-[620px] text-left text-sm">
                                     <thead className="bg-surface-container-low text-xs uppercase tracking-wider text-on-surface-variant">
-                                        <tr><th className="p-3">Модель</th><th className="p-3">Вызовы</th><th className="p-3">Ошибки</th><th className="p-3">Токены</th><th className="p-3">Оценка</th></tr>
+                                        <tr><th className="p-3">{copy.model}</th><th className="p-3">{copy.calls}</th><th className="p-3">{copy.errors}</th><th className="p-3">{copy.tokens}</th><th className="p-3">{copy.estimate}</th></tr>
                                     </thead>
                                     <tbody className="divide-y divide-outline-variant/10">
                                         {modelUsage.by_model.map((row, index) => (
                                             <tr key={`${row.provider}-${row.model}-${index}`}>
-                                                <td className="p-3 font-bold">{row.model || 'Не зафиксирована'}<div className="text-xs font-normal text-on-surface-variant">{row.provider || 'n/a'}</div></td>
+                                                <td className="p-3 font-bold">{row.model || copy.unknownModel}<div className="text-xs font-normal text-on-surface-variant">{row.provider || 'n/a'}</div></td>
                                                 <td className="p-3">{row.calls}</td>
                                                 <td className={`p-3 ${row.failed_calls ? 'text-error font-bold' : ''}`}>{row.failed_calls}</td>
                                                 <td className="p-3">{(row.input_tokens + row.output_tokens).toLocaleString('ru-RU')}</td>
-                                                <td className="p-3 font-bold">{row.estimated_cost_usd === null ? 'нет тарифа' : `$${row.estimated_cost_usd.toFixed(4)}`}</td>
+                                                <td className="p-3 font-bold">{row.estimated_cost_usd === null ? copy.noRate : `$${row.estimated_cost_usd.toFixed(4)}`}</td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
                             </div>
                         ) : (
-                            <div className="rounded-2xl bg-surface-container-low p-4 text-sm text-on-surface-variant">Телеметрия появится после первого вызова модели на новой версии.</div>
+                            <div className="rounded-2xl bg-surface-container-low p-4 text-sm text-on-surface-variant">{copy.noTelemetry}</div>
                         )}
                     </div>
                     {AGENT_ROLES.map(group => (

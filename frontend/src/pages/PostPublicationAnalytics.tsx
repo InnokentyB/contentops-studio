@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { publicationTasksApi } from '../api'
 import { useAuth } from '../context/AuthContext'
+import { useLocale } from '../i18n/LocaleContext'
 
 type JsonRecord = Record<string, any>
 
@@ -33,6 +34,12 @@ function normalizeMetric(value: unknown) {
 
 export default function PostPublicationAnalytics() {
     const { currentProject } = useAuth()
+    const { locale } = useLocale()
+    const copy = locale === 'ru' ? {
+        unknownChannel: 'Неизвестный канал', eyebrow: 'Метрики проекта', title: 'Метрики и результаты после публикации', intro: 'Эта рабочая область собирает эффективность каналов, недостающие метрики и негативные исходы, чтобы проект сохранял операционную память после выхода контента.', publications: 'Открыть публикации', back: 'Назад к обзору', published: 'Опубликовано', views: 'Просмотры', clicks: 'Клики', comments: 'Комментарии', noMetrics: 'Нет метрик', byChannel: 'По каналам', performance: 'Карта эффективности', publishedLower: 'опубликовано', noData: 'Нет данных', empty: 'Здесь появится опубликованный контент с метриками, как только проект начнёт подтверждать live URL.', followUp: 'Требует follow-up', noFollowUp: 'Сейчас нет опубликованных задач без сохранённого снимка метрик.', negative: 'Негативные исходы', noNegative: 'Здесь будут появляться заблокированные, удалённые и ограниченные публикации для дальнейшей разборки.', loading: 'Загружаем метрики...'
+    } : {
+        unknownChannel: 'Unknown channel', eyebrow: 'Project metrics', title: 'Post-publication metrics and outcomes', intro: 'This workspace brings together channel performance, missing measurements, and negative outcomes so the project retains operational memory after content goes live.', publications: 'Open publications', back: 'Back to overview', published: 'Published', views: 'Views', clicks: 'Clicks', comments: 'Comments', noMetrics: 'Missing metrics', byChannel: 'By channel', performance: 'Performance map', publishedLower: 'published', noData: 'No data', empty: 'Published content and metrics will appear here after the project starts confirming live URLs.', followUp: 'Needs follow-up', noFollowUp: 'Every published task currently has a saved metric snapshot.', negative: 'Negative outcomes', noNegative: 'Blocked, removed, and restricted publications will appear here for follow-up.', loading: 'Loading metrics...'
+    }
 
     const { data: tasks, isLoading, error } = useQuery<PublicationTask[]>({
         queryKey: ['post_publication_analytics', currentProject?.id],
@@ -81,7 +88,7 @@ export default function PostPublicationAnalytics() {
             const key = String(task.channel?.id || task.channel?.name || task.type)
             const current = grouped.get(key) || {
                 key,
-                channelName: task.channel?.name || 'Неизвестный канал',
+                channelName: task.channel?.name || copy.unknownChannel,
                 channelType: task.channel?.type || 'unknown',
                 published: 0,
                 views: 0,
@@ -100,7 +107,7 @@ export default function PostPublicationAnalytics() {
         }
 
         return [...grouped.values()].sort((left, right) => right.published - left.published)
-    }, [publishedTasks])
+    }, [publishedTasks, copy.unknownChannel])
 
     const missingMetricsTasks = useMemo(() => {
         return publishedTasks.filter((task) => !task.metrics?.collected_metrics).slice(0, 6)
@@ -118,21 +125,21 @@ export default function PostPublicationAnalytics() {
                 <section className="rounded-[2rem] bg-white border border-outline-variant/10 shadow-sm p-8 lg:p-10">
                     <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-8">
                         <div className="max-w-4xl">
-                            <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">Метрики проекта</div>
+                            <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">{copy.eyebrow}</div>
                             <h1 className="mt-3 text-4xl lg:text-5xl font-headline font-black tracking-tight text-on-surface">
-                                Метрики и результаты после публикации
+                                {copy.title}
                             </h1>
                             <p className="mt-4 text-sm leading-7 text-on-surface-variant max-w-3xl">
-                                Эта рабочая область собирает эффективность каналов, недостающие метрики и негативные исходы, чтобы проект сохранял операционную память после выхода контента.
+                                {copy.intro}
                             </p>
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-[320px]">
                             <Link to="/publication-tasks" className="rounded-2xl ai-gradient text-white px-5 py-4 text-sm font-black text-center shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all">
-                                Открыть публикации
+                                {copy.publications}
                             </Link>
                             <Link to="/projects" className="rounded-2xl bg-surface-container-high px-5 py-4 text-sm font-black text-on-surface text-center hover:bg-primary/10 hover:text-primary transition-all">
-                                Назад к обзору
+                                {copy.back}
                             </Link>
                         </div>
                     </div>
@@ -140,11 +147,11 @@ export default function PostPublicationAnalytics() {
 
                 <section className="grid grid-cols-1 lg:grid-cols-5 gap-6">
                     {[
-                        { label: 'Опубликовано', value: publishedTasks.length },
-                        { label: 'Просмотры', value: totals.views },
-                        { label: 'Клики', value: totals.clicks },
-                        { label: 'Комментарии', value: totals.comments },
-                        { label: 'Нет метрик', value: totals.missingMetrics }
+                        { label: copy.published, value: publishedTasks.length },
+                        { label: copy.views, value: totals.views },
+                        { label: copy.clicks, value: totals.clicks },
+                        { label: copy.comments, value: totals.comments },
+                        { label: copy.noMetrics, value: totals.missingMetrics }
                     ].map((card) => (
                         <div key={card.label} className="rounded-[1.5rem] bg-white border border-outline-variant/10 shadow-sm p-6">
                             <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{card.label}</div>
@@ -156,8 +163,8 @@ export default function PostPublicationAnalytics() {
                 <section className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.5fr)_minmax(360px,1fr)] gap-6">
                     <div className="rounded-[2rem] bg-white border border-outline-variant/10 shadow-sm overflow-hidden">
                         <div className="p-6 border-b border-outline-variant/10">
-                            <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">По каналам</div>
-                            <h2 className="mt-2 text-2xl font-headline font-black text-on-surface">Карта эффективности</h2>
+                            <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">{copy.byChannel}</div>
+                            <h2 className="mt-2 text-2xl font-headline font-black text-on-surface">{copy.performance}</h2>
                         </div>
                         <div className="p-6 space-y-4">
                             {byChannel.length > 0 ? byChannel.map((row) => (
@@ -168,31 +175,31 @@ export default function PostPublicationAnalytics() {
                                             <div className="mt-2 text-xl font-headline font-black text-on-surface">{row.channelName}</div>
                                         </div>
                                         <span className="px-3 py-1 rounded-full bg-white text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
-                                            {row.published} опубликовано
+                                            {row.published} {copy.publishedLower}
                                         </span>
                                     </div>
                                     <div className="mt-5 grid grid-cols-2 lg:grid-cols-4 gap-3">
                                         <div className="rounded-2xl bg-white px-4 py-3">
-                                            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-primary/60">Просмотры</div>
+                                            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-primary/60">{copy.views}</div>
                                             <div className="mt-2 text-lg font-black text-on-surface">{row.views}</div>
                                         </div>
                                         <div className="rounded-2xl bg-white px-4 py-3">
-                                            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-primary/60">Клики</div>
+                                            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-primary/60">{copy.clicks}</div>
                                             <div className="mt-2 text-lg font-black text-on-surface">{row.clicks}</div>
                                         </div>
                                         <div className="rounded-2xl bg-white px-4 py-3">
-                                            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-primary/60">Комментарии</div>
+                                            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-primary/60">{copy.comments}</div>
                                             <div className="mt-2 text-lg font-black text-on-surface">{row.comments}</div>
                                         </div>
                                         <div className="rounded-2xl bg-white px-4 py-3">
-                                            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-primary/60">Нет данных</div>
+                                            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-primary/60">{copy.noData}</div>
                                             <div className="mt-2 text-lg font-black text-on-surface">{row.missingMetrics}</div>
                                         </div>
                                     </div>
                                 </div>
                             )) : (
                                 <div className="rounded-[1.5rem] bg-surface-container-low p-5 text-sm text-on-surface-variant">
-                                    Здесь появится опубликованный контент с метриками, как только проект начнёт подтверждать live URL.
+                                    {copy.empty}
                                 </div>
                             )}
                         </div>
@@ -200,23 +207,23 @@ export default function PostPublicationAnalytics() {
 
                     <div className="space-y-6">
                         <div className="rounded-[2rem] bg-white border border-outline-variant/10 shadow-sm p-6">
-                            <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">Требует follow-up</div>
+                            <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">{copy.followUp}</div>
                             <div className="mt-4 space-y-3">
                                 {missingMetricsTasks.length > 0 ? missingMetricsTasks.map((task) => (
                                     <div key={task.id} className="rounded-2xl bg-surface-container-low px-4 py-4">
                                         <div className="font-bold text-on-surface">{task.title || task.type}</div>
-                                        <div className="mt-2 text-sm text-on-surface-variant">{task.channel?.name || 'Неизвестный канал'}</div>
+                                        <div className="mt-2 text-sm text-on-surface-variant">{task.channel?.name || copy.unknownChannel}</div>
                                     </div>
                                 )) : (
                                     <div className="rounded-2xl bg-surface-container-low px-4 py-4 text-sm text-on-surface-variant">
-                                        Сейчас нет опубликованных задач без сохранённого снимка метрик.
+                                        {copy.noFollowUp}
                                     </div>
                                 )}
                             </div>
                         </div>
 
                         <div className="rounded-[2rem] bg-white border border-outline-variant/10 shadow-sm p-6">
-                            <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">Негативные исходы</div>
+                            <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">{copy.negative}</div>
                             <div className="mt-4 space-y-3">
                                 {negativeOutcomeTasks.length > 0 ? negativeOutcomeTasks.map((task) => (
                                     <div key={task.id} className="rounded-2xl bg-surface-container-low px-4 py-4">
@@ -227,7 +234,7 @@ export default function PostPublicationAnalytics() {
                                     </div>
                                 )) : (
                                     <div className="rounded-2xl bg-surface-container-low px-4 py-4 text-sm text-on-surface-variant">
-                                        Здесь будут появляться заблокированные, удалённые и ограниченные публикации для дальнейшей разборки.
+                                        {copy.noNegative}
                                     </div>
                                 )}
                             </div>
@@ -237,7 +244,7 @@ export default function PostPublicationAnalytics() {
 
                 {(isLoading || error) && (
                     <section className="rounded-[2rem] bg-white border border-outline-variant/10 shadow-sm p-6 text-sm text-on-surface-variant">
-                        {isLoading ? 'Загружаем метрики...' : (error as Error)?.message}
+                        {isLoading ? copy.loading : (error as Error)?.message}
                     </section>
                 )}
             </div>

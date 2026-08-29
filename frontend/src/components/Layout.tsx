@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLocale } from '../i18n/LocaleContext';
+import LanguageSwitcher from './LanguageSwitcher';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -8,6 +10,7 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user, projects, currentProject, setCurrentProject, logout } = useAuth();
+  const { t } = useLocale();
   const location = useLocation();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
@@ -24,14 +27,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   const navItems = [
-    { label: 'Обзор', path: '/projects', icon: 'folder_open' },
-    { label: 'Операционный план', path: '/calendar', icon: 'calendar_month' },
-    { label: 'Метрики', path: '/analytics', icon: 'monitoring' },
-    { label: 'Исследования', path: '/parsers', icon: 'hub' },
-    { label: 'Шаблоны', path: '/recipes', icon: 'book_2' },
-    { label: 'План публикаций', path: '/publication-tasks', icon: 'publish' },
-    { label: 'Справка', path: '/guide', icon: 'help_outline' },
-    { label: 'Настройки проекта', path: '/settings', icon: 'settings' },
+    { label: t('overview'), path: '/projects', icon: 'folder_open' },
+    { label: t('operationalPlan'), path: '/calendar', icon: 'calendar_month' },
+    { label: t('metrics'), path: '/analytics', icon: 'monitoring' },
+    { label: t('research'), path: '/parsers', icon: 'hub' },
+    { label: t('templates'), path: '/recipes', icon: 'book_2' },
+    { label: t('publicationPlan'), path: '/publication-tasks', icon: 'publish' },
+    { label: t('help'), path: '/guide', icon: 'help_outline' },
+    { label: t('projectSettings'), path: '/settings', icon: 'settings' },
   ];
 
   const renderSidebar = (isMobile = false) => (
@@ -42,13 +45,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <Link to="/projects" className="block hover:opacity-80 transition-opacity">
             <div className="text-[10px] font-black uppercase tracking-[0.22em] text-primary/60">Workspace</div>
             <h1 className="mt-2 text-2xl font-black text-primary tracking-tighter font-headline">Project Alpha</h1>
-            <p className="text-xs text-on-surface-variant font-label mt-1">Рабочая область контентных операций</p>
+            <p className="text-xs text-on-surface-variant font-label mt-1">{t('workspaceSubtitle')}</p>
           </Link>
           
           {/* Project Switcher */}
           {projects.length > 0 && (
             <div className="relative group">
-              <div className="mb-2 text-[10px] font-black uppercase tracking-[0.22em] text-on-surface-variant">Текущий проект</div>
+              <div className="mb-2 text-[10px] font-black uppercase tracking-[0.22em] text-on-surface-variant">{t('currentProject')}</div>
               <select
                 className="w-full appearance-none bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/10 rounded-xl py-3 pl-4 pr-10 text-sm font-bold text-on-surface cursor-pointer focus:ring-2 focus:ring-primary/20 transition-all outline-none shadow-sm group-hover:shadow-md"
                 value={currentProject?.id || ''}
@@ -94,7 +97,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             onClick={() => {/* TODO: Global New Post Trigger */}}
           >
             <span className="material-symbols-outlined">add</span>
-            <span className="font-headline tracking-tight">Новый пост</span>
+            <span className="font-headline tracking-tight">{t('newPost')}</span>
           </button>
 
           <button
@@ -102,7 +105,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:text-error hover:bg-error-container/10 transition-all duration-200"
           >
             <span className="material-symbols-outlined">logout</span>
-            <span className="font-label">Выйти</span>
+            <span className="font-label">{t('signOut')}</span>
           </button>
 
           <div className="mt-8 pt-6 border-t border-outline-variant/15 flex items-center gap-3 px-2">
@@ -110,8 +113,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               {user?.name?.[0] || user?.email?.[0] || 'U'}
             </div>
             <div className="overflow-hidden">
-              <p className="text-sm font-bold truncate">{user?.name || 'Пользователь'}</p>
-              <p className="text-xs text-on-surface-variant truncate">Рабочий доступ</p>
+              <p className="text-sm font-bold truncate">{user?.name || t('user')}</p>
+              <p className="text-xs text-on-surface-variant truncate">{t('workspaceAccess')}</p>
             </div>
           </div>
         </div>
@@ -157,12 +160,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               aria-expanded={mobileNavOpen}
               aria-controls="mobile-navigation"
               className="lg:hidden w-11 h-11 rounded-2xl bg-surface-container-low text-on-surface flex items-center justify-center shrink-0"
-              aria-label="Открыть навигацию"
+              aria-label={t('openNavigation')}
             >
               <span className="material-symbols-outlined">menu</span>
             </button>
             <div className="min-w-0">
-              <span className="block text-lg lg:text-xl font-bold text-primary font-headline truncate">Когнитивный помощник</span>
+              <span className="block text-lg lg:text-xl font-bold text-primary font-headline truncate">{t('assistant')}</span>
               {currentProject && (
                 <span className="block lg:hidden text-[11px] text-on-surface-variant truncate">{currentProject.name}</span>
               )}
@@ -171,26 +174,27 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
               <input 
                 className="bg-surface-container-low border-none rounded-full py-2 pl-10 pr-4 text-sm w-64 focus:ring-2 focus:ring-primary/20" 
-                placeholder="Поиск..." 
+                placeholder={t('search')}
                 type="text"
               />
             </div>
           </div>
           <nav className="flex items-center gap-3 lg:gap-8 h-full shrink-0">
             <div className="hidden xl:flex items-center gap-8 h-full">
-              <Link to="/projects" className="text-on-surface-variant hover:text-primary font-label text-sm transition-opacity">Обзор</Link>
-              <Link to="/publication-tasks" className="text-on-surface-variant hover:text-primary font-label text-sm transition-opacity">Публикации</Link>
-              <Link to="/analytics" className="text-on-surface-variant hover:text-primary font-label text-sm transition-opacity">Метрики</Link>
-              <Link to="/recipes" className="text-on-surface-variant hover:text-primary font-label text-sm transition-opacity">Шаблоны</Link>
-              <Link to="/calendar" className="text-on-surface-variant hover:text-primary font-label text-sm transition-opacity">Календарь</Link>
+              <Link to="/projects" className="text-on-surface-variant hover:text-primary font-label text-sm transition-opacity">{t('overview')}</Link>
+              <Link to="/publication-tasks" className="text-on-surface-variant hover:text-primary font-label text-sm transition-opacity">{t('publications')}</Link>
+              <Link to="/analytics" className="text-on-surface-variant hover:text-primary font-label text-sm transition-opacity">{t('metrics')}</Link>
+              <Link to="/recipes" className="text-on-surface-variant hover:text-primary font-label text-sm transition-opacity">{t('templates')}</Link>
+              <Link to="/calendar" className="text-on-surface-variant hover:text-primary font-label text-sm transition-opacity">{t('calendar')}</Link>
             </div>
             <div className="flex items-center gap-2 lg:gap-4 lg:ml-4">
+              <LanguageSwitcher compact />
               <button className="p-2 text-on-surface-variant hover:opacity-80 transition-opacity">
                 <span className="material-symbols-outlined">notifications_active</span>
               </button>
               <Link to="/projects" className="bg-primary text-white px-4 lg:px-5 py-2 rounded-full font-bold text-xs lg:text-sm shadow-sm hover:opacity-90 transition-opacity whitespace-nowrap">
-                <span className="hidden sm:inline">Открыть обзор</span>
-                <span className="sm:hidden">Обзор</span>
+                <span className="hidden sm:inline">{t('openOverview')}</span>
+                <span className="sm:hidden">{t('overview')}</span>
               </Link>
             </div>
           </nav>
