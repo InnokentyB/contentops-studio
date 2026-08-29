@@ -399,7 +399,7 @@ export default function WeekDetail() {
                                     <button 
                                         onClick={(e) => { e.stopPropagation(); generateImage.mutate({ postId: post.id, provider: 'preview' }); }}
                                         disabled={generatingPostId === post.id || post.status === 'generating'}
-                                        title="Создать экономный черновик изображения"
+                                        title="Create a low-cost image draft"
                                         className="w-12 h-12 bg-surface-container-low hover:bg-surface-container-high rounded-xl flex items-center justify-center text-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         {generatingPostId === post.id || post.status === 'generating' ? (

@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { api } from '../api'
 import { useToast } from '../components/ToastContainer'
+import { useLocale } from '../i18n/LocaleContext'
 
 interface ContentItem {
     id: number
@@ -31,6 +32,12 @@ interface WeekPackageDetail {
 }
 
 export default function V2WeekDetail() {
+    const { locale } = useLocale()
+    const copy = locale === 'ru' ? {
+        creatingV1: 'СОЗДАЁМ V1...', autoGeneration: 'АВТОГЕНЕРАЦИЯ (V1)', architecting: 'ПРОЕКТИРУЕМ...', architect: 'СПРОЕКТИРОВАТЬ ДИСТРИБУЦИЮ', deploying: 'ПУБЛИКУЕМ...', deploy: 'УТВЕРДИТЬ НЕДЕЛЬНЫЙ ПАКЕТ', audit: 'Проверить контент', sync: 'Синхронизировать узел'
+    } : {
+        creatingV1: 'CREATING V1...', autoGeneration: 'AUTO-GENERATE (V1)', architecting: 'ARCHITECTING...', architect: 'ARCHITECT DISTRIBUTION', deploying: 'DEPLOYING...', deploy: 'APPROVE WEEK PACKAGE', audit: 'Audit content', sync: 'Sync node'
+    }
     const { id } = useParams<{ id: string }>()
     const navigate = useNavigate()
     const queryClient = useQueryClient()
@@ -131,7 +138,7 @@ export default function V2WeekDetail() {
                         className="bg-primary/10 text-primary hover:bg-primary hover:text-white px-8 py-4 rounded-2xl font-black text-sm shadow-sm hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2"
                     >
                         <span className="material-symbols-outlined">auto_awesome</span>
-                        {convertToV1.isPending ? 'СОЗДАЕМ V1...' : 'АВТОГЕНЕРАЦИЯ (V1)'}
+                        {convertToV1.isPending ? copy.creatingV1 : copy.autoGeneration}
                     </button>
 
                     {week.content_items?.length === 0 && (
@@ -141,7 +148,7 @@ export default function V2WeekDetail() {
                             className="bg-primary text-white px-8 py-4 rounded-2xl font-black text-sm shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2"
                         >
                             <span className="material-symbols-outlined">architecture</span>
-                            {architectWeek.isPending ? 'ARCHITECTING...' : 'ARCHITECT DISTRIBUTION'}
+                            {architectWeek.isPending ? copy.architecting : copy.architect}
                         </button>
                     )}
                     {week.approval_status === 'draft' && week.content_items?.length > 0 && (
@@ -151,7 +158,7 @@ export default function V2WeekDetail() {
                             className="bg-success text-white px-8 py-4 rounded-2xl font-black text-sm shadow-lg shadow-success/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2"
                         >
                             <span className="material-symbols-outlined">verified</span>
-                            {approveWeek.isPending ? 'DEPLOYING...' : 'DEPOY WEEK PACKAGE'}
+                            {approveWeek.isPending ? copy.deploying : copy.deploy}
                         </button>
                     )}
                     <button className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-on-surface-variant hover:text-primary transition-all shadow-sm">
@@ -302,7 +309,7 @@ export default function V2WeekDetail() {
                                 onClick={() => navigate(`/publication-tasks?taskId=${item.id}`)}
                                 className="mt-8 flex items-center justify-center gap-2 w-full py-4 bg-surface-container-low hover:bg-primary hover:text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all"
                             >
-                                {item.status === 'generated' ? 'Audit content' : 'Sync node'}
+                                {item.status === 'generated' ? copy.audit : copy.sync}
                                 <span className="material-symbols-outlined text-sm">rocket_launch</span>
                             </button>
                         </div>

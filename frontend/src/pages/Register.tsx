@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLocale } from '../i18n/LocaleContext';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 
 export default function Register() {
     const [email, setEmail] = useState('');
@@ -8,6 +10,7 @@ export default function Register() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const { login } = useAuth();
+    const { t } = useLocale();
     const navigate = useNavigate();
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -23,7 +26,7 @@ export default function Register() {
             });
 
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Не удалось зарегистрироваться');
+            if (!res.ok) throw new Error(data.error || t('registerError'));
 
             login(data.token, data.user, data.projects);
             navigate('/orchestrator');
@@ -36,6 +39,7 @@ export default function Register() {
 
     return (
         <div className="min-h-screen bg-surface flex items-center justify-center p-4 relative overflow-hidden font-body">
+            <div className="absolute right-5 top-5 z-20"><LanguageSwitcher /></div>
             {/* Background elements */}
             <div className="absolute top-1/2 right-1/2 translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/20 rounded-full blur-[120px] pointer-events-none"></div>
             <div className="absolute bottom-0 right-0 w-96 h-96 bg-primary-fixed opacity-30 rounded-full blur-[100px] pointer-events-none"></div>
@@ -46,8 +50,8 @@ export default function Register() {
                     <div className="w-20 h-20 bg-surface-container-high text-primary rounded-3xl flex items-center justify-center mb-6 shadow-xl shadow-black/5 rotate-3 group hover:rotate-0 transition-transform duration-300">
                         <span className="material-symbols-outlined text-4xl">fingerprint</span>
                     </div>
-                    <h1 className="text-3xl font-headline font-black tracking-tight text-on-surface mb-2">Запрос доступа</h1>
-                    <p className="text-sm font-label uppercase tracking-widest text-on-surface-variant">Создание рабочей учётной записи</p>
+                    <h1 className="text-3xl font-headline font-black tracking-tight text-on-surface mb-2">{t('accessRequest')}</h1>
+                    <p className="text-sm font-label uppercase tracking-widest text-on-surface-variant">{t('accountSubtitle')}</p>
                 </div>
 
                 {error && (
@@ -59,7 +63,7 @@ export default function Register() {
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="space-y-2 relative group">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant ml-1 group-focus-within:text-primary transition-colors">Почта</label>
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant ml-1 group-focus-within:text-primary transition-colors">{t('email')}</label>
                         <div className="relative">
                             <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-primary transition-colors">mail</span>
                             <input
@@ -74,7 +78,7 @@ export default function Register() {
                     </div>
                     
                     <div className="space-y-2 relative group">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant ml-1 group-focus-within:text-primary transition-colors">Создать пароль</label>
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant ml-1 group-focus-within:text-primary transition-colors">{t('createPassword')}</label>
                         <div className="relative">
                             <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-primary transition-colors">enhanced_encryption</span>
                             <input
@@ -96,11 +100,11 @@ export default function Register() {
                         {loading ? (
                             <>
                                 <div className="w-5 h-5 border-2 border-surface/30 border-t-surface rounded-full animate-spin"></div>
-                                <span>Создаём учётную запись...</span>
+                                <span>{t('creatingAccount')}</span>
                             </>
                         ) : (
                             <>
-                                <span>Создать учётную запись</span>
+                                <span>{t('createAccount')}</span>
                                 <span className="material-symbols-outlined text-sm">login</span>
                             </>
                         )}
@@ -109,8 +113,8 @@ export default function Register() {
 
                 <div className="mt-10 text-center border-t border-outline-variant/10 pt-8">
                     <p className="text-xs font-bold text-on-surface-variant">
-                        Уже есть доступ?{' '}
-                        <Link to="/login" className="text-primary hover:underline underline-offset-4 font-black">Войти</Link>
+                        {t('alreadyHaveAccess')}{' '}
+                        <Link to="/login" className="text-primary hover:underline underline-offset-4 font-black">{t('signIn')}</Link>
                     </p>
                 </div>
             </div>

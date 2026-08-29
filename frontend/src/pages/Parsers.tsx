@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { parserApi } from '../api'
 import { useAuth } from '../context/AuthContext'
+import { useLocale } from '../i18n/LocaleContext'
 
 type JsonRecord = Record<string, any>
 
@@ -151,20 +152,20 @@ function parseInsights(payload: any): InsightRow[] {
     })
 }
 
-function formatRelativeDate(value: string | null) {
-    if (!value) return 'Без даты'
+function formatRelativeDate(value: string | null, locale: 'en' | 'ru') {
+    if (!value) return locale === 'ru' ? 'Без даты' : 'No date'
     const date = new Date(value)
     if (Number.isNaN(date.getTime())) return value
 
     const deltaMs = Date.now() - date.getTime()
     const deltaDays = Math.max(0, Math.floor(deltaMs / (1000 * 60 * 60 * 24)))
 
-    if (deltaDays === 0) return 'Сегодня'
-    if (deltaDays === 1) return '1 день назад'
-    if (deltaDays < 30) return `${deltaDays} дн. назад`
+    if (deltaDays === 0) return locale === 'ru' ? 'Сегодня' : 'Today'
+    if (deltaDays === 1) return locale === 'ru' ? '1 день назад' : '1 day ago'
+    if (deltaDays < 30) return locale === 'ru' ? `${deltaDays} дн. назад` : `${deltaDays} days ago`
     const deltaMonths = Math.floor(deltaDays / 30)
-    if (deltaMonths <= 1) return '1 месяц назад'
-    return `${deltaMonths} мес. назад`
+    if (deltaMonths <= 1) return locale === 'ru' ? '1 месяц назад' : '1 month ago'
+    return locale === 'ru' ? `${deltaMonths} мес. назад` : `${deltaMonths} months ago`
 }
 
 function computeResultScore(post: ParserPost, query: string, weights: ScoreWeights) {
@@ -207,6 +208,13 @@ function getResultTone(score: number) {
 }
 
 export default function Parsers() {
+    const { locale } = useLocale()
+    const copy = locale === 'ru' ? {
+        chooseProject: 'Сначала выбери проект', addQuery: 'Сначала добавь запрос для исследования', noActiveJob: 'Не выбрана активная исследовательская задача', lab: 'Исследовательская лаборатория', title: 'Исследования, скоринг и разведка источников для каждого канала проекта.', intro: 'Выбери источник, задай критерии включения и исключения, запусти исследование, а затем оцени сырые результаты и fit score со стороны планнера, прежде чем превращать находки в посты, брифы или задачи канала.', project: 'Проект', notSelected: 'не выбран', activeJob: 'Активная задача', rankedResults: 'результатов в ранжировании', operationalStatus: 'Операционный статус', integration: 'Состояние интеграции', problem: 'Проблема', ready: 'Готово', integrationError: 'Связка с исследовательским сервисом доступна из планнера, но верхний parser endpoint вернул ошибку.', integrationReady: 'Планнер может разговаривать со слоем исследовательских интеграций. Здесь удобно запускать discovery до того, как контент попадёт в каналы.', source: 'Источник', scoring: 'Скоринг', fitScore: 'Fit score планнера', threshold: 'Порог', criteria: 'Лаборатория критериев', criteriaTitle: 'Опиши исследованию, что именно искать', refreshing: 'Обновляем...', refresh: 'Обновить задачу', launching: 'Запускаем...', launch: 'Запустить исследование', searchQuery: 'Поисковый запрос', queryPlaceholder: 'Какой именно разговор или сигнал мы хотим поймать?', intent: 'Интент', cluster: 'Кластер', workspaceDoes: 'Что делает эта рабочая область', workspaceBullets: ['Задаёт source-specific критерии поиска и quality gates.', 'Показывает сырые результаты исследования до попадания в publishing network.', 'Применяет fit score со стороны планнера, чтобы ранжировать сильнейшие контентные сигналы.'], sourceEyebrows: ['Открытые обсуждения', 'Сообщества фаундеров'], sourceHints: ['Запускай discovery по нескольким сабреддитам, ранжируй треды и вытаскивай повторяющиеся боли и возражения.', 'Следи за группами, продуктовыми постами и разговорами фаундеров, где ссылки и самопромоушен требуют большей осторожности.'], communityLabels: ['Сабреддиты', 'Группы / ленты'], scoreLabels: ['Совпадение с запросом', 'Вовлечённость', 'Свежесть', 'Глубина обсуждения'], minimumFit: 'Минимальный fit score', communityHelp: 'Используй список сообществ или лент через запятую, чтобы сузить источник без правки parser config.', mustInclude: 'Должно содержать хотя бы одно', excludeContains: 'Исключить, если содержит', excludeRegex: 'Исключающие regex', limit: 'Лимит', minimumRaw: 'Минимальный raw score', includeComments: 'Включать комментарии', enrich: 'Обогащать метаданные', results: 'Результаты', rankedSignals: 'Ранжированные сигналы источников', visible: 'видимых', unknownSource: 'Неизвестный источник', noPreview: 'Сервис не вернул body-preview для этого результата.', comments: 'комментариев', openThread: 'Открыть исходный тред', copyCard: 'Скопировать research card', noResults: 'Запусти исследование или снизь порог fit score, чтобы здесь появились подходящие результаты.', runMonitoring: 'Мониторинг запуска', currentJob: 'Текущая parser-задача', status: 'Статус', jobId: 'ID задачи', noJob: 'Нет активной задачи', insights: 'Инсайты', groupedSignals: 'Сгруппированные сигналы', noInsights: 'Группы инсайтов появятся здесь после того, как у исследования будет достаточно сырого материала для summary.', templates: 'Шаблоны', savedRecipes: 'Сохранённые parser recipes', back: 'Назад к обзору', template: 'Исследовательский шаблон', run: 'Запустить', noTemplates: 'Для этого проекта пока не найдено исследовательских шаблонов.'
+    } : {
+        chooseProject: 'Choose a project first', addQuery: 'Add a research query first', noActiveJob: 'No active research job selected', lab: 'Research lab', title: 'Research, scoring, and source intelligence for every project channel.', intro: 'Choose a source, define inclusion and exclusion criteria, run the research job, then review raw results and planner fit scores before promoting findings into posts, briefs, or channel tasks.', project: 'Project', notSelected: 'not selected', activeJob: 'Active job', rankedResults: 'ranked results', operationalStatus: 'Operational status', integration: 'Integration status', problem: 'Issue', ready: 'Ready', integrationError: 'The planner can reach the research integration layer, but the upstream parser endpoint returned an error.', integrationReady: 'The planner is connected to the research integration layer. Run discovery here before content enters production channels.', source: 'Source', scoring: 'Scoring', fitScore: 'Planner fit score', threshold: 'Threshold', criteria: 'Criteria lab', criteriaTitle: 'Describe exactly what the research job should find', refreshing: 'Refreshing...', refresh: 'Refresh job', launching: 'Launching...', launch: 'Run research', searchQuery: 'Search query', queryPlaceholder: 'Which conversation or signal should this job capture?', intent: 'Intent', cluster: 'Cluster', workspaceDoes: 'What this workspace does', workspaceBullets: ['Defines source-specific search criteria and quality gates.', 'Shows raw research results before they enter the publishing network.', 'Applies planner-side fit scoring to rank the strongest content signals.'], sourceEyebrows: ['Open discussions', 'Founder communities'], sourceHints: ['Run discovery across several subreddits, rank threads, and extract recurring pains and objections.', 'Monitor groups, product posts, and founder conversations where links and self-promotion require extra care.'], communityLabels: ['Subreddits', 'Groups / feeds'], scoreLabels: ['Query relevance', 'Engagement', 'Freshness', 'Discussion depth'], minimumFit: 'Minimum fit score', communityHelp: 'Use a comma-separated list of communities or feeds to narrow the source without editing parser configuration.', mustInclude: 'Must include at least one', excludeContains: 'Exclude when containing', excludeRegex: 'Exclusion regex', limit: 'Limit', minimumRaw: 'Minimum raw score', includeComments: 'Include comments', enrich: 'Enrich metadata', results: 'Results', rankedSignals: 'Ranked source signals', visible: 'visible', unknownSource: 'Unknown source', noPreview: 'The service did not return a body preview for this result.', comments: 'comments', openThread: 'Open source thread', copyCard: 'Copy research card', noResults: 'Run research or lower the fit-score threshold to see matching results.', runMonitoring: 'Run monitoring', currentJob: 'Current parser job', status: 'Status', jobId: 'Job ID', noJob: 'No active job', insights: 'Insights', groupedSignals: 'Grouped signals', noInsights: 'Insight groups will appear after the research job has enough raw material to summarize.', templates: 'Templates', savedRecipes: 'Saved parser recipes', back: 'Back to overview', template: 'Research template', run: 'Run', noTemplates: 'No research templates have been found for this project.'
+    }
+    const sourceOptions = SOURCE_OPTIONS.map((option, index) => ({ ...option, eyebrow: copy.sourceEyebrows[index], hint: copy.sourceHints[index], communityLabel: copy.communityLabels[index] }))
     const queryClient = useQueryClient()
     const { currentProject } = useAuth()
 
@@ -227,7 +235,7 @@ export default function Parsers() {
     const [weights, setWeights] = useState<ScoreWeights>(DEFAULT_WEIGHTS)
     const [jobMessage, setJobMessage] = useState<string | null>(null)
 
-    const selectedSource = SOURCE_OPTIONS.find((option) => option.id === source) || SOURCE_OPTIONS[0]
+    const selectedSource = sourceOptions.find((option) => option.id === source) || sourceOptions[0]
     const deferredQuery = useDeferredValue(query)
 
     const parserHealth = useQuery({
@@ -277,10 +285,10 @@ export default function Parsers() {
     const createSearchJob = useMutation({
         mutationFn: () => {
             if (!currentProject?.id) {
-                throw new Error('Сначала выбери проект')
+                throw new Error(copy.chooseProject)
             }
             if (!query.trim()) {
-                throw new Error('Сначала добавь запрос для исследования')
+                throw new Error(copy.addQuery)
             }
 
             return parserApi.createSearchJob(currentProject.id, {
@@ -312,7 +320,7 @@ export default function Parsers() {
     const refreshJob = useMutation({
         mutationFn: () => {
             if (!currentProject?.id || !activeJobId) {
-            throw new Error('Не выбрана активная исследовательская задача')
+            throw new Error(copy.noActiveJob)
             }
             return parserApi.refreshSearchJob(currentProject.id, activeJobId)
         },
@@ -326,7 +334,7 @@ export default function Parsers() {
     const runTemplate = useMutation({
         mutationFn: (templateId: string) => {
             if (!currentProject?.id) {
-                throw new Error('Сначала выбери проект')
+                throw new Error(copy.chooseProject)
             }
             return parserApi.runTemplate(currentProject.id, templateId)
         },
@@ -359,25 +367,25 @@ export default function Parsers() {
                 <section className="overflow-hidden rounded-[2.25rem] border border-outline-variant/10 bg-white shadow-sm">
                     <div className="grid grid-cols-1 gap-0 xl:grid-cols-[minmax(0,1.15fr)_420px]">
                         <div className="px-8 py-9 lg:px-10 lg:py-10">
-                            <div className="text-[10px] font-black uppercase tracking-[0.32em] text-primary/60">Исследовательская лаборатория</div>
+                            <div className="text-[10px] font-black uppercase tracking-[0.32em] text-primary/60">{copy.lab}</div>
                             <h1 className="mt-3 max-w-4xl text-4xl font-headline font-black tracking-tight text-on-surface lg:text-5xl">
-                                Исследования, скоринг и разведка источников для каждого канала проекта.
+                                {copy.title}
                             </h1>
                             <p className="mt-4 max-w-3xl text-sm leading-7 text-on-surface-variant">
-                                Выбери источник, задай критерии включения и исключения, запусти исследование, а затем оцени сырые результаты и fit score со стороны планнера, прежде чем превращать находки в посты, брифы или задачи канала.
+                                {copy.intro}
                             </p>
 
                             <div className="mt-7 flex flex-wrap gap-3">
                                 <span className="rounded-full bg-surface-container-high px-3 py-1 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
-                                    Проект: {currentProject?.name || 'не выбран'}
+                                    {copy.project}: {currentProject?.name || copy.notSelected}
                                 </span>
                                 {activeJobId && (
                                     <span className="rounded-full bg-primary/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-primary">
-                                        Активная задача: {activeJobId}
+                                        {copy.activeJob}: {activeJobId}
                                     </span>
                                 )}
                                 <span className="rounded-full bg-surface-container-high px-3 py-1 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
-                                    {scoredResults.length} результатов в ранжировании
+                                    {scoredResults.length} {copy.rankedResults}
                                 </span>
                             </div>
 
@@ -394,28 +402,26 @@ export default function Parsers() {
                         </div>
 
                         <div className="border-t border-outline-variant/10 bg-[#f7f8fc] px-8 py-9 xl:border-l xl:border-t-0">
-                            <div className="text-[10px] font-black uppercase tracking-[0.32em] text-primary/60">Операционный статус</div>
+                            <div className="text-[10px] font-black uppercase tracking-[0.32em] text-primary/60">{copy.operationalStatus}</div>
                             <div className="mt-5 space-y-4">
                                 <div className="rounded-[1.5rem] bg-white px-5 py-5">
                                     <div className="flex items-center justify-between gap-3">
-                                        <span className="text-sm font-bold text-on-surface">Состояние интеграции</span>
+                                        <span className="text-sm font-bold text-on-surface">{copy.integration}</span>
                                         <span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${parserHealth.isError ? 'bg-error-container/40 text-error' : 'bg-success/10 text-success'}`}>
-                                            {parserHealth.isError ? 'Проблема' : 'Готово'}
+                                            {parserHealth.isError ? copy.problem : copy.ready}
                                         </span>
                                     </div>
                                     <p className="mt-3 text-sm leading-6 text-on-surface-variant">
                                         {parserHealth.isError
-                                            ? 'Связка с исследовательским сервисом доступна из планнера, но верхний parser endpoint вернул ошибку.'
-                                            : 'Планнер может разговаривать со слоем исследовательских интеграций. Здесь удобно запускать discovery до того, как контент попадёт в каналы.'}
+                                            ? copy.integrationError
+                                            : copy.integrationReady}
                                     </p>
                                 </div>
 
                                 <div className="rounded-[1.5rem] bg-white px-5 py-5">
-                                    <div className="text-sm font-bold text-on-surface">Что делает эта рабочая область</div>
+                                    <div className="text-sm font-bold text-on-surface">{copy.workspaceDoes}</div>
                                     <ul className="mt-3 space-y-2 text-sm leading-6 text-on-surface-variant">
-                                        <li>Задаёт source-specific критерии поиска и quality gates.</li>
-                                        <li>Показывает сырые результаты исследования до попадания в publishing network.</li>
-                                        <li>Применяет fit score со стороны планнера, чтобы ранжировать сильнейшие контентные сигналы.</li>
+                                        {copy.workspaceBullets.map((bullet) => <li key={bullet}>{bullet}</li>)}
                                     </ul>
                                 </div>
                             </div>
@@ -426,9 +432,9 @@ export default function Parsers() {
                 <section className="grid grid-cols-1 gap-6 xl:grid-cols-[420px_minmax(0,1fr)_380px]">
                     <div className="space-y-6">
                         <div className="rounded-[2rem] border border-outline-variant/10 bg-white p-6 shadow-sm">
-                            <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">Источник</div>
+                            <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">{copy.source}</div>
                             <div className="mt-4 space-y-3">
-                                {SOURCE_OPTIONS.map((option) => (
+                                {sourceOptions.map((option) => (
                                     <button
                                         key={option.id}
                                         onClick={() => setSource(option.id)}
@@ -449,20 +455,20 @@ export default function Parsers() {
                         <div className="rounded-[2rem] border border-outline-variant/10 bg-white p-6 shadow-sm">
                             <div className="flex items-center justify-between gap-3">
                                 <div>
-                                    <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">Скоринг</div>
-                                    <h2 className="mt-2 text-xl font-headline font-black text-on-surface">Fit score планнера</h2>
+                                    <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">{copy.scoring}</div>
+                                    <h2 className="mt-2 text-xl font-headline font-black text-on-surface">{copy.fitScore}</h2>
                                 </div>
                                 <span className="rounded-full bg-surface-container-high px-3 py-1 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
-                                    Порог {resultFloor}
+                                    {copy.threshold} {resultFloor}
                                 </span>
                             </div>
 
                             <div className="mt-5 space-y-4">
                                 {([
-                                    ['relevance', 'Совпадение с запросом'],
-                                    ['engagement', 'Вовлечённость'],
-                                    ['freshness', 'Свежесть'],
-                                    ['discussion', 'Глубина обсуждения']
+                                    ['relevance', copy.scoreLabels[0]],
+                                    ['engagement', copy.scoreLabels[1]],
+                                    ['freshness', copy.scoreLabels[2]],
+                                    ['discussion', copy.scoreLabels[3]]
                                 ] as const).map(([key, label]) => (
                                     <div key={key}>
                                         <div className="mb-2 flex items-center justify-between text-sm">
@@ -483,7 +489,7 @@ export default function Parsers() {
 
                                 <div>
                                     <div className="mb-2 flex items-center justify-between text-sm">
-                                        <span className="font-bold text-on-surface">Минимальный fit score</span>
+                                        <span className="font-bold text-on-surface">{copy.minimumFit}</span>
                                         <span className="text-on-surface-variant">{resultFloor}</span>
                                     </div>
                                     <input
@@ -504,8 +510,8 @@ export default function Parsers() {
                         <div className="rounded-[2rem] border border-outline-variant/10 bg-white p-7 shadow-sm">
                             <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
                                 <div>
-                                    <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">Лаборатория критериев</div>
-                                    <h2 className="mt-2 text-2xl font-headline font-black text-on-surface">Опиши исследованию, что именно искать</h2>
+                                    <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">{copy.criteria}</div>
+                                    <h2 className="mt-2 text-2xl font-headline font-black text-on-surface">{copy.criteriaTitle}</h2>
                                 </div>
                                 <div className="flex gap-3">
                                     <button
@@ -513,34 +519,34 @@ export default function Parsers() {
                                         disabled={!activeJobId || refreshJob.isPending}
                                         className="rounded-2xl bg-surface-container-high px-4 py-3 text-sm font-black text-on-surface transition-all hover:bg-primary/10 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
                                     >
-                                        {refreshJob.isPending ? 'Обновляем...' : 'Обновить задачу'}
+                                        {refreshJob.isPending ? copy.refreshing : copy.refresh}
                                     </button>
                                     <button
                                         onClick={() => createSearchJob.mutate()}
                                         disabled={createSearchJob.isPending || !currentProject}
                                         className="rounded-2xl ai-gradient px-5 py-3 text-sm font-black text-white shadow-lg shadow-primary/20 transition-all hover:scale-[1.01] active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
                                     >
-                                        {createSearchJob.isPending ? 'Запускаем...' : 'Запустить исследование'}
+                                        {createSearchJob.isPending ? copy.launching : copy.launch}
                                     </button>
                                 </div>
                             </div>
 
                             <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
                                 <label className="block">
-                                    <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.22em] text-primary/60">Поисковый запрос</span>
+                                    <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.22em] text-primary/60">{copy.searchQuery}</span>
                                     <textarea
                                         value={query}
                                         onChange={(event) => setQuery(event.target.value)}
                                         rows={4}
                                         className="w-full rounded-[1.35rem] border border-outline-variant/10 bg-surface-container-low px-4 py-3 text-sm leading-6 text-on-surface outline-none transition-all focus:border-primary/30 focus:bg-white"
-                                        placeholder="Какой именно разговор или сигнал мы хотим поймать?"
+                                        placeholder={copy.queryPlaceholder}
                                     />
                                 </label>
 
                                 <div className="rounded-[1.35rem] bg-surface-container-low px-5 py-5">
                                     <div className="text-[10px] font-black uppercase tracking-[0.22em] text-primary/60">{selectedSource.communityLabel}</div>
                                     <p className="mt-2 text-sm leading-6 text-on-surface-variant">
-                                        Используй список сообществ или лент через запятую, чтобы сузить источник без правки parser config.
+                                        {copy.communityHelp}
                                     </p>
                                     <input
                                         value={communityInput}
@@ -551,7 +557,7 @@ export default function Parsers() {
                                 </div>
 
                                 <label className="block">
-                                    <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.22em] text-primary/60">Интент</span>
+                                    <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.22em] text-primary/60">{copy.intent}</span>
                                     <input
                                         value={intent}
                                         onChange={(event) => setIntent(event.target.value)}
@@ -561,7 +567,7 @@ export default function Parsers() {
                                 </label>
 
                                 <label className="block">
-                                    <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.22em] text-primary/60">Кластер</span>
+                                    <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.22em] text-primary/60">{copy.cluster}</span>
                                     <input
                                         value={cluster}
                                         onChange={(event) => setCluster(event.target.value)}
@@ -571,7 +577,7 @@ export default function Parsers() {
                                 </label>
 
                                 <label className="block">
-                                    <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.22em] text-primary/60">Должно содержать хотя бы одно</span>
+                                    <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.22em] text-primary/60">{copy.mustInclude}</span>
                                     <input
                                         value={mustIncludeInput}
                                         onChange={(event) => setMustIncludeInput(event.target.value)}
@@ -581,7 +587,7 @@ export default function Parsers() {
                                 </label>
 
                                 <label className="block">
-                                    <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.22em] text-primary/60">Исключить, если содержит</span>
+                                    <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.22em] text-primary/60">{copy.excludeContains}</span>
                                     <input
                                         value={excludeInput}
                                         onChange={(event) => setExcludeInput(event.target.value)}
@@ -591,7 +597,7 @@ export default function Parsers() {
                                 </label>
 
                                 <label className="block lg:col-span-2">
-                                    <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.22em] text-primary/60">Исключающие regex</span>
+                                    <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.22em] text-primary/60">{copy.excludeRegex}</span>
                                     <input
                                         value={excludeRegexInput}
                                         onChange={(event) => setExcludeRegexInput(event.target.value)}
@@ -603,7 +609,7 @@ export default function Parsers() {
 
                             <div className="mt-6 grid grid-cols-2 gap-5 xl:grid-cols-4">
                                 <label className="block">
-                                    <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.22em] text-primary/60">Лимит</span>
+                                    <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.22em] text-primary/60">{copy.limit}</span>
                                     <input
                                         type="number"
                                         min="1"
@@ -615,7 +621,7 @@ export default function Parsers() {
                                 </label>
 
                                 <label className="block">
-                                    <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.22em] text-primary/60">Минимальный raw score</span>
+                                    <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.22em] text-primary/60">{copy.minimumRaw}</span>
                                     <input
                                         type="number"
                                         min="0"
@@ -632,7 +638,7 @@ export default function Parsers() {
                                         onChange={(event) => setIncludeComments(event.target.checked)}
                                         className="accent-primary"
                                     />
-                                    <span className="text-sm font-bold text-on-surface">Включать комментарии</span>
+                                    <span className="text-sm font-bold text-on-surface">{copy.includeComments}</span>
                                 </label>
 
                                 <label className="flex items-center gap-3 rounded-[1.35rem] bg-surface-container-low px-4 py-3">
@@ -642,7 +648,7 @@ export default function Parsers() {
                                         onChange={(event) => setEnrich(event.target.checked)}
                                         className="accent-primary"
                                     />
-                                    <span className="text-sm font-bold text-on-surface">Обогащать метаданные</span>
+                                    <span className="text-sm font-bold text-on-surface">{copy.enrich}</span>
                                 </label>
                             </div>
                         </div>
@@ -650,11 +656,11 @@ export default function Parsers() {
                         <div className="rounded-[2rem] border border-outline-variant/10 bg-white p-7 shadow-sm">
                             <div className="flex items-start justify-between gap-4">
                                 <div>
-                                    <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">Результаты</div>
-                                    <h2 className="mt-2 text-2xl font-headline font-black text-on-surface">Ранжированные сигналы источников</h2>
+                                    <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">{copy.results}</div>
+                                    <h2 className="mt-2 text-2xl font-headline font-black text-on-surface">{copy.rankedSignals}</h2>
                                 </div>
                                 <div className="rounded-full bg-surface-container-high px-3 py-1 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
-                                    {scoredResults.length} видимых
+                                    {scoredResults.length} {copy.visible}
                                 </div>
                             </div>
 
@@ -664,14 +670,14 @@ export default function Parsers() {
                                         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                                             <div className="min-w-0">
                                                 <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em] text-primary/60">
-                                                    <span>{post.community || 'Неизвестный источник'}</span>
-                                                    <span className="text-on-surface-variant">{formatRelativeDate(post.createdAt)}</span>
+                                                    <span>{post.community || copy.unknownSource}</span>
+                                                    <span className="text-on-surface-variant">{formatRelativeDate(post.createdAt, locale)}</span>
                                                 </div>
                                                 <h3 className="mt-3 text-xl font-headline font-black text-on-surface">
                                                     {post.title}
                                                 </h3>
                                                 <p className="mt-3 line-clamp-4 text-sm leading-7 text-on-surface-variant">
-                                                    {post.body || 'Сервис не вернул body-preview для этого результата.'}
+                                                    {post.body || copy.noPreview}
                                                 </p>
                                             </div>
 
@@ -681,7 +687,7 @@ export default function Parsers() {
                                                 </span>
                                                 <div className="text-right text-xs leading-5 text-on-surface-variant">
                                                     <div>raw {post.score}</div>
-                                                    <div>{post.comments} комментариев</div>
+                                                    <div>{post.comments} {copy.comments}</div>
                                                     <div>{post.author}</div>
                                                 </div>
                                             </div>
@@ -706,7 +712,7 @@ export default function Parsers() {
                                                     rel="noreferrer"
                                                     className="rounded-2xl bg-white px-4 py-3 text-sm font-bold text-primary transition-all hover:bg-primary hover:text-white"
                                                 >
-                                                    Открыть исходный тред
+                                                    {copy.openThread}
                                                 </a>
                                             )}
                                             <button
@@ -714,7 +720,7 @@ export default function Parsers() {
                                                 onClick={() => navigator.clipboard.writeText(`${post.title}\n${post.url}`.trim())}
                                                 className="rounded-2xl bg-white px-4 py-3 text-sm font-bold text-on-surface transition-all hover:bg-surface-container-high"
                                             >
-                                                Скопировать research card
+                                                {copy.copyCard}
                                             </button>
                                         </div>
                                     </article>
@@ -722,7 +728,7 @@ export default function Parsers() {
 
                                 {!scoredResults.length && (
                                     <div className="rounded-[1.5rem] bg-surface-container-low px-5 py-8 text-sm leading-7 text-on-surface-variant">
-                                        Запусти исследование или снизь порог fit score, чтобы здесь появились подходящие результаты.
+                                        {copy.noResults}
                                     </div>
                                 )}
                             </div>
@@ -731,17 +737,17 @@ export default function Parsers() {
 
                     <div className="space-y-6">
                         <div className="rounded-[2rem] border border-outline-variant/10 bg-white p-6 shadow-sm">
-                            <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">Мониторинг запуска</div>
-                            <h2 className="mt-2 text-xl font-headline font-black text-on-surface">Текущая parser-задача</h2>
+                            <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">{copy.runMonitoring}</div>
+                            <h2 className="mt-2 text-xl font-headline font-black text-on-surface">{copy.currentJob}</h2>
 
                             <div className="mt-5 space-y-3 text-sm leading-7 text-on-surface-variant">
                                 <div className="rounded-[1.35rem] bg-surface-container-low px-4 py-4">
-                                    <span className="font-bold text-on-surface">Статус:</span>{' '}
+                                    <span className="font-bold text-on-surface">{copy.status}:</span>{' '}
                                     {searchJobQuery.data?.parser_response?.status || searchJobQuery.data?.status || (activeJobId ? 'queued' : 'idle')}
                                 </div>
                                 <div className="rounded-[1.35rem] bg-surface-container-low px-4 py-4">
-                                    <span className="font-bold text-on-surface">ID задачи:</span>{' '}
-                                    {activeJobId || 'Нет активной задачи'}
+                                    <span className="font-bold text-on-surface">{copy.jobId}:</span>{' '}
+                                    {activeJobId || copy.noJob}
                                 </div>
                                 {summaryQuery.data && (
                                     <div className="rounded-[1.35rem] bg-surface-container-low px-4 py-4">
@@ -755,8 +761,8 @@ export default function Parsers() {
                         <div className="rounded-[2rem] border border-outline-variant/10 bg-white p-6 shadow-sm">
                             <div className="flex items-center justify-between gap-3">
                                 <div>
-                                    <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">Инсайты</div>
-                                    <h2 className="mt-2 text-xl font-headline font-black text-on-surface">Сгруппированные сигналы</h2>
+                                    <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">{copy.insights}</div>
+                                    <h2 className="mt-2 text-xl font-headline font-black text-on-surface">{copy.groupedSignals}</h2>
                                 </div>
                                 <span className="rounded-full bg-surface-container-high px-3 py-1 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
                                     {insights.length}
@@ -782,7 +788,7 @@ export default function Parsers() {
 
                                 {!insights.length && (
                                     <div className="rounded-[1.35rem] bg-surface-container-low px-4 py-5 text-sm leading-6 text-on-surface-variant">
-                                        Группы инсайтов появятся здесь после того, как у исследования будет достаточно сырого материала для summary.
+                                        {copy.noInsights}
                                     </div>
                                 )}
                             </div>
@@ -791,14 +797,14 @@ export default function Parsers() {
                         <div className="rounded-[2rem] border border-outline-variant/10 bg-white p-6 shadow-sm">
                             <div className="flex items-start justify-between gap-4">
                                 <div>
-                                    <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">Шаблоны</div>
-                                    <h2 className="mt-2 text-xl font-headline font-black text-on-surface">Сохранённые parser recipes</h2>
+                                    <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">{copy.templates}</div>
+                                    <h2 className="mt-2 text-xl font-headline font-black text-on-surface">{copy.savedRecipes}</h2>
                                 </div>
                                 <Link
                                     to="/projects"
                                     className="rounded-2xl bg-surface-container-high px-4 py-3 text-sm font-black text-on-surface transition-all hover:bg-primary/10 hover:text-primary"
                                 >
-                                    Назад к обзору
+                                    {copy.back}
                                 </Link>
                             </div>
 
@@ -806,7 +812,7 @@ export default function Parsers() {
                                 {templates.map((template: any, index: number) => {
                                     const templateId = String(template.id || template.template_id || `template-${index}`)
                                     const label = template.display_name || template.name || template.query || templateId
-                                    const detail = template.intent || template.cluster || template.source || 'Исследовательский шаблон'
+                                    const detail = template.intent || template.cluster || template.source || copy.template
 
                                     return (
                                         <div key={templateId} className="rounded-[1.35rem] bg-surface-container-low px-4 py-4">
@@ -820,7 +826,7 @@ export default function Parsers() {
                                                     disabled={runTemplate.isPending}
                                                     className="rounded-2xl bg-white px-4 py-3 text-sm font-bold text-primary transition-all hover:bg-primary hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
                                                 >
-                                                    Запустить
+                                                    {copy.run}
                                                 </button>
                                             </div>
                                         </div>
@@ -829,7 +835,7 @@ export default function Parsers() {
 
                                 {!templates.length && (
                                     <div className="rounded-[1.35rem] bg-surface-container-low px-4 py-5 text-sm leading-6 text-on-surface-variant">
-                                        Для этого проекта пока не найдено исследовательских шаблонов.
+                                        {copy.noTemplates}
                                     </div>
                                 )}
                             </div>

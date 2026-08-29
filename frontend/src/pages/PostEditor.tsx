@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { format } from 'date-fns'
 import { api, presetsApi, contentDictionaryApi } from '../api'
 import { useToast } from '../components/ToastContainer'
+import { useLocale } from '../i18n/LocaleContext'
 import CommentSection from '../components/CommentSection'
 import ContentMarkupRenderer from '../components/ContentMarkupRenderer'
 
@@ -51,6 +52,10 @@ interface DictionaryValidationReport {
 import { useAuth } from '../context/AuthContext'
 
 export default function PostEditor() {
+    const { locale } = useLocale()
+    const copy = locale === 'ru'
+        ? { back: 'Назад', draft: 'Черновик', final: 'Финал', flagship: 'Флагман', flagshipHelp: 'Полный цикл для флагманских материалов' }
+        : { back: 'Back', draft: 'Draft', final: 'Final', flagship: 'Flagship', flagshipHelp: 'Full pipeline for flagship content' }
     const { id } = useParams()
     const navigate = useNavigate()
     const queryClient = useQueryClient()
@@ -250,7 +255,7 @@ export default function PostEditor() {
                                 }
                             }}
                             className="text-on-surface-variant hover:text-primary"
-                            aria-label="Назад"
+                            aria-label={copy.back}
                         >
                             <span className="material-symbols-outlined text-xl">arrow_back</span>
                         </button>
@@ -468,7 +473,7 @@ export default function PostEditor() {
                                 className="flex-1 bg-surface-container border border-outline-variant/30 text-on-surface p-3 sm:p-4 rounded-xl text-xs sm:text-sm font-bold shadow-sm hover:bg-surface-container-high hover:border-primary/30 transition-all text-center flex flex-col items-center justify-center gap-1 sm:gap-2 disabled:opacity-50"
                             >
                                 <span className="material-symbols-rounded text-lg sm:text-xl text-primary">draw</span>
-                                Черновик
+                                {copy.draft}
                             </button>
                             <button 
                                 onClick={() => generateImage.mutate('final')}
@@ -476,16 +481,16 @@ export default function PostEditor() {
                                 className="flex items-center justify-center gap-2 py-3 bg-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:active:scale-100"
                             >
                                 <span className="material-symbols-outlined text-sm">check_circle</span>
-                                Финал
+                                {copy.final}
                             </button>
                             <button
                                 onClick={() => generateImage.mutate('flagship')}
                                 disabled={generateImage.isPending || post.status === 'generating'}
                                 className="flex items-center justify-center gap-2 py-3 bg-on-surface text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
-                                title="Полный цикл для флагманских материалов"
+                                title={copy.flagshipHelp}
                             >
                                 <span className="material-symbols-outlined text-sm">psychology</span>
-                                Флагман
+                                {copy.flagship}
                             </button>
                         </div>
                         {post.image_prompt && (

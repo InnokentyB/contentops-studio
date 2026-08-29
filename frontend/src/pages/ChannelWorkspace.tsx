@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, projectsApi, publicationTasksApi } from '../api'
 import { useAuth } from '../context/AuthContext'
 import ResourcePreviewCard from '../components/ResourcePreviewCard'
+import { useLocale } from '../i18n/LocaleContext'
 
 type JsonRecord = Record<string, any>
 
@@ -168,6 +169,12 @@ function mergeChannelResourceFiles(task: PublicationTask | null) {
 }
 
 export default function ChannelWorkspace() {
+    const { locale } = useLocale()
+    const copy = locale === 'ru' ? {
+        selectProject: 'Сначала выбери проект, чтобы открыть рабочую область канала.', workspace: 'Рабочая область канала', overview: 'Обзор', loadingChannel: 'Загружаем канал', intro: 'Этот канал — исполнительная поверхность, где перед публикацией сходятся файлы из плана, входы из исследований, ручные загрузки и сгенерированные черновики.', tasks: 'задач', published: 'опубликовано', overdue: 'просрочено', openPublications: 'Открыть публикации', openMetrics: 'Открыть метрики', research: 'Исследования', projectChannels: 'Каналы проекта', network: 'Сеть', networkHelp: 'Переключайся между соседними каналами, не теряя контекст проекта.', loadingWorkspace: 'Загружаем рабочую область канала...', workspaceHelp: 'Выбери, как контент попадает в этот канал, посмотри связанные плановые ресурсы и отправь готовый материал в публикации и аналитику.', planFiles: 'Файлы плана', manualUpload: 'Ручная загрузка', autoCanvas: 'Автоканва', generation: 'Генерация', parserMcp: 'Парсер / MCP', summary: 'Сводка канала', type: 'Тип', name: 'Название', linkedNetwork: 'Связанная сеть', nextActions: 'Следующие действия', openChannelTasks: 'Открыть задачи канала', viewMetrics: 'Посмотреть метрики'
+    } : {
+        selectProject: 'Choose a project to open its channel workspace.', workspace: 'Channel workspace', overview: 'Overview', loadingChannel: 'Loading channel', intro: 'This channel is the execution surface where plan files, research inputs, manual uploads, and generated drafts come together before publication.', tasks: 'tasks', published: 'published', overdue: 'overdue', openPublications: 'Open publications', openMetrics: 'Open metrics', research: 'Research', projectChannels: 'Project channels', network: 'Network', networkHelp: 'Switch between adjacent channels without losing project context.', loadingWorkspace: 'Loading channel workspace...', workspaceHelp: 'Choose how content enters this channel, inspect linked plan resources, and send ready material to publishing and analytics.', planFiles: 'Plan files', manualUpload: 'Manual upload', autoCanvas: 'Auto-canvas', generation: 'Generation', parserMcp: 'Parser / MCP', summary: 'Channel summary', type: 'Type', name: 'Name', linkedNetwork: 'Connected network', nextActions: 'Next actions', openChannelTasks: 'Open channel tasks', viewMetrics: 'View metrics'
+    }
     const { channelId } = useParams()
     const [searchParams] = useSearchParams()
     const navigate = useNavigate()
@@ -370,7 +377,7 @@ export default function ChannelWorkspace() {
         return (
             <div className="flex-1 w-full p-4 sm:p-6 lg:p-10">
                 <div className="max-w-5xl mx-auto rounded-[2rem] bg-white border border-outline-variant/10 shadow-sm p-8 text-on-surface-variant">
-                    Сначала выбери проект, чтобы открыть рабочую область канала.
+                    {copy.selectProject}
                 </div>
             </div>
         )
@@ -382,17 +389,17 @@ export default function ChannelWorkspace() {
                 <section className="rounded-[2rem] bg-white border border-outline-variant/10 shadow-sm p-5 sm:p-7 lg:p-10">
                     <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-8">
                         <div className="max-w-4xl">
-                            <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">Рабочая область канала</div>
+                            <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">{copy.workspace}</div>
                             <div className="mt-3 flex flex-wrap items-center gap-3 text-xs font-black uppercase tracking-[0.24em]">
-                                <Link to="/projects" className="text-primary/70 hover:text-primary transition-colors">Обзор</Link>
+                                <Link to="/projects" className="text-primary/70 hover:text-primary transition-colors">{copy.overview}</Link>
                                 <span className="text-on-surface-variant/50">/</span>
                                 <span className="text-on-surface-variant">{currentProject.name}</span>
                             </div>
                             <h1 className="mt-4 text-3xl sm:text-4xl lg:text-5xl font-headline font-black tracking-tight text-on-surface break-words">
-                                {selectedChannel?.name || 'Загружаем канал'}
+                                {selectedChannel?.name || copy.loadingChannel}
                             </h1>
                             <p className="mt-4 text-sm leading-7 text-on-surface-variant max-w-3xl">
-                                Этот канал — исполнительная поверхность, где перед публикацией сходятся файлы из плана, входы из исследований, ручные загрузки и сгенерированные черновики.
+                                {copy.intro}
                             </p>
                             {selectedChannel && (
                                 <div className="mt-6 flex flex-wrap gap-3">
@@ -400,14 +407,14 @@ export default function ChannelWorkspace() {
                                         {selectedChannel.type}
                                     </span>
                                     <span className="px-3 py-1 rounded-full bg-surface-container-high text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
-                                        {selectedChannelTasks.length} задач
+                                        {selectedChannelTasks.length} {copy.tasks}
                                     </span>
                                     <span className="px-3 py-1 rounded-full bg-surface-container-high text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
-                                        {publishedTasks} опубликовано
+                                        {publishedTasks} {copy.published}
                                     </span>
                                     {overdueTasks > 0 && (
                                         <span className="px-3 py-1 rounded-full bg-error-container/40 text-[10px] font-black uppercase tracking-widest text-error">
-                                            {overdueTasks} просрочено
+                                            {overdueTasks} {copy.overdue}
                                         </span>
                                     )}
                                 </div>
@@ -419,19 +426,19 @@ export default function ChannelWorkspace() {
                                 to="/publication-tasks"
                                 className="rounded-2xl ai-gradient text-white px-5 py-4 text-sm font-black text-center shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all"
                             >
-                                Открыть публикации
+                                {copy.openPublications}
                             </Link>
                             <Link
                                 to="/analytics"
                                 className="rounded-2xl bg-surface-container-high px-5 py-4 text-sm font-black text-on-surface text-center hover:bg-primary/10 hover:text-primary transition-all"
                             >
-                                Открыть метрики
+                                {copy.openMetrics}
                             </Link>
                             <Link
                                 to="/parsers"
                                 className="rounded-2xl bg-surface-container-high px-5 py-4 text-sm font-black text-on-surface text-center hover:bg-primary/10 hover:text-primary transition-all"
                             >
-                                Исследования
+                                {copy.research}
                             </Link>
                         </div>
                     </div>
@@ -440,10 +447,10 @@ export default function ChannelWorkspace() {
                 <section className="grid grid-cols-1 xl:grid-cols-[320px_minmax(0,1fr)] gap-6">
                     <div className="rounded-[2rem] bg-white border border-outline-variant/10 shadow-sm overflow-hidden">
                         <div className="p-6 border-b border-outline-variant/10">
-                            <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">Каналы проекта</div>
-                            <h2 className="mt-2 text-xl font-headline font-black text-on-surface">Сеть</h2>
+                            <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">{copy.projectChannels}</div>
+                            <h2 className="mt-2 text-xl font-headline font-black text-on-surface">{copy.network}</h2>
                             <p className="mt-2 text-sm text-on-surface-variant">
-                                Переключайся между соседними каналами, не теряя контекст проекта.
+                                {copy.networkHelp}
                             </p>
                         </div>
                         <div className="max-h-[900px] overflow-y-auto">
@@ -480,7 +487,7 @@ export default function ChannelWorkspace() {
                     <div className="rounded-[2rem] bg-white border border-outline-variant/10 shadow-sm overflow-hidden">
                         {!selectedChannel ? (
                             <div className="h-full min-h-[720px] flex items-center justify-center p-10 text-center text-on-surface-variant">
-                                Загружаем рабочую область канала...
+                                {copy.loadingWorkspace}
                             </div>
                         ) : (
                             <div className="h-full overflow-y-auto">
@@ -492,16 +499,16 @@ export default function ChannelWorkspace() {
                                             </div>
                                             <h2 className="mt-2 text-2xl sm:text-3xl font-headline font-black text-on-surface break-words">{selectedChannel.name}</h2>
                                             <p className="mt-3 text-sm leading-7 text-on-surface-variant max-w-3xl">
-                                                Выбери, как контент попадает в этот канал, посмотри связанные плановые ресурсы и отправь готовый материал в публикации и аналитику.
+                                                {copy.workspaceHelp}
                                             </p>
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-3 w-full sm:w-auto">
                                             {[
-                                                { id: 'plan', label: 'Файлы плана' },
-                                                { id: 'manual', label: 'Ручная загрузка' },
-                                                { id: 'generate', label: isAutoCanvasChannel ? 'Автоканва' : 'Генерация' },
-                                                { id: 'mcp', label: 'Парсер / MCP' }
+                                                { id: 'plan', label: copy.planFiles },
+                                                { id: 'manual', label: copy.manualUpload },
+                                                { id: 'generate', label: isAutoCanvasChannel ? copy.autoCanvas : copy.generation },
+                                                { id: 'mcp', label: copy.parserMcp }
                                             ].filter((mode) => !(isAutoCanvasChannel && mode.id === 'manual')).map((mode) => (
                                                 <button
                                                     key={mode.id}
@@ -518,29 +525,29 @@ export default function ChannelWorkspace() {
                                 <div className="p-5 sm:p-7 space-y-7">
                                     <section className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                                         <div className="rounded-[1.5rem] bg-surface-container-low p-5">
-                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Сводка канала</div>
+                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{copy.summary}</div>
                                             <div className="mt-4 space-y-3 text-sm text-on-surface-variant">
-                                                <div><span className="font-bold text-on-surface">Тип:</span> {selectedChannel.type}</div>
-                                                <div><span className="font-bold text-on-surface">Название:</span> {selectedChannel.name}</div>
-                                                <div><span className="font-bold text-on-surface">Задачи:</span> {selectedChannelTasks.length}</div>
+                                                <div><span className="font-bold text-on-surface">{copy.type}:</span> {selectedChannel.type}</div>
+                                                <div><span className="font-bold text-on-surface">{copy.name}:</span> {selectedChannel.name}</div>
+                                                <div><span className="font-bold text-on-surface">{copy.tasks}:</span> {selectedChannelTasks.length}</div>
                                             </div>
                                         </div>
 
                                         <div className="rounded-[1.5rem] bg-surface-container-low p-5">
-                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Связанная сеть</div>
+                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{copy.linkedNetwork}</div>
                                             <div className="mt-4 text-sm leading-7 text-on-surface-variant">
                                                 Этот канал остаётся связанным с остальным проектом через план публикаций, граф зависимостей, общие parser recipes и пост-публикационную аналитику.
                                             </div>
                                         </div>
 
                                         <div className="rounded-[1.5rem] bg-surface-container-low p-5">
-                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Следующие действия</div>
+                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{copy.nextActions}</div>
                                             <div className="mt-4 flex flex-col gap-3">
                                                 <Link to="/publication-tasks" className="rounded-2xl bg-white px-4 py-3 text-sm font-bold text-primary hover:bg-primary hover:text-white transition-all">
-                                                    Открыть задачи канала
+                                                    {copy.openChannelTasks}
                                                 </Link>
                                                 <Link to="/analytics" className="rounded-2xl bg-white px-4 py-3 text-sm font-bold text-primary hover:bg-primary hover:text-white transition-all">
-                                                    Посмотреть метрики
+                                                    {copy.viewMetrics}
                                                 </Link>
                                             </div>
                                         </div>
