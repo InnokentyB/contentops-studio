@@ -4,6 +4,7 @@ export type DzenPublicationType = 'article' | 'post';
 
 export interface DzenConfig {
     channel_id?: string;
+    channel_url?: string;
     cookies?: string;
     article_editor_url?: string;
     post_editor_url?: string;

@@ -12,6 +12,7 @@ interface HabrPublishConfig {
 interface DzenPublishConfig {
     cookies: string;
     channel_id?: string;
+    channel_url?: string;
     article_editor_url?: string;
     post_editor_url?: string;
 }
@@ -19,6 +20,27 @@ interface DzenPublishConfig {
 type DzenPublicationType = 'article' | 'post';
 
 class PuppeteerPublisherService {
+    private dzenChannelId(config: DzenPublishConfig): string | null {
+        const candidate = config.channel_id?.trim() || config.channel_url?.trim() || '';
+        if (!candidate) return null;
+        const directId = candidate.match(/^[a-zA-Z0-9_-]+$/)?.[0];
+        if (directId) return directId;
+        try {
+            const url = new URL(candidate);
+            if (!['dzen.ru', 'www.dzen.ru'].includes(url.hostname)) return null;
+            return url.pathname.match(/\/(?:id|profile\/editor\/id)\/([^/?#]+)/)?.[1] || null;
+        } catch {
+            return null;
+        }
+    }
+
+    private dzenChannelEditorUrl(config: DzenPublishConfig): string {
+        const channelId = this.dzenChannelId(config);
+        return channelId
+            ? `https://dzen.ru/profile/editor/id/${encodeURIComponent(channelId)}`
+            : (config.article_editor_url || 'https://dzen.ru/studio/editor/create/article');
+    }
+
     /**
      * Parse raw browser Cookie header string into Puppeteer-compliant cookies.
      */
@@ -508,14 +530,19 @@ class PuppeteerPublisherService {
             ];
             if (cookies.length === 0) throw new Error('Dzen cookie string is empty or invalid');
             await page.setCookie(...cookies);
-            const editorUrl = config.article_editor_url || 'https://dzen.ru/studio/editor/create/article';
+            const editorUrl = this.dzenChannelEditorUrl(config);
             await page.goto(editorUrl, { waitUntil: 'networkidle2', timeout: 30_000 });
             await this.assertDzenAuthenticated(page);
-            const editorFound = Boolean(await page.$('[contenteditable="true"], textarea, [data-placeholder="Заголовок"]'));
-            if (!editorFound) throw new Error('Dzen editor is unavailable or its interface has changed');
+            const currentUrl = page.url();
+            const editorRouteFound = /dzen\.ru\/profile\/editor\/id\//.test(currentUrl);
+            const editorControlFound = Boolean(await page.$('[contenteditable="true"], textarea, [data-placeholder="Заголовок"], button'));
+            if (!editorRouteFound || !editorControlFound) {
+                throw new Error(`Dzen channel editor is unavailable at ${currentUrl}. Verify the channel ID and account access.`);
+            }
             return {
                 authenticated: true,
                 editor_available: true,
+                editor_url: currentUrl,
                 checked_at: new Date().toISOString()
             };
         } finally {

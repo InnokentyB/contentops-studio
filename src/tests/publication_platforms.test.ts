@@ -4,6 +4,7 @@ import okService from '../services/ok.service';
 import habrService from '../services/habr.service';
 import vcService from '../services/vc.service';
 import dzenService, { isDzenPublishedUrl } from '../services/dzen.service';
+import puppeteerPublisherService from '../services/puppeteer_publisher.service';
 import publicationAdapterService from '../services/publication_adapter.service';
 
 test('Odnoklassniki signature helper handles request parameters correctly', () => {
@@ -122,6 +123,18 @@ test('Dzen permalink validation rejects editor and fabricated URLs', () => {
     assert.equal(isDzenPublishedUrl('https://example.com/a/real-looking-id'), false);
     assert.equal(isDzenPublishedUrl('https://dzen.ru/a/ZkExampleSlug'), true);
     assert.equal(isDzenPublishedUrl('https://dzen.ru/media/id/123456/example'), true);
+});
+
+test('Dzen connection supports current channel editor identifiers', () => {
+    const publisher = puppeteerPublisherService as any;
+    assert.equal(
+        publisher.dzenChannelEditorUrl({ cookies: 'x=1', channel_id: '6a8029aba055ec36033bf81c' }),
+        'https://dzen.ru/profile/editor/id/6a8029aba055ec36033bf81c'
+    );
+    assert.equal(
+        publisher.dzenChannelEditorUrl({ cookies: 'x=1', channel_url: 'https://dzen.ru/id/6a8029aba055ec36033bf81c' }),
+        'https://dzen.ru/profile/editor/id/6a8029aba055ec36033bf81c'
+    );
 });
 
 test('publicationAdapterService recognizes new platforms as direct-execution friendly', () => {
