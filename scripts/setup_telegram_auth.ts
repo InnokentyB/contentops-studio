@@ -3,17 +3,15 @@ import { TelegramClient } from "telegram";
 import { StringSession } from "telegram/sessions";
 import { PrismaClient } from "@prisma/client";
 import * as readline from "readline";
-import { config } from "dotenv";
 import { Writable } from "stream";
 import { encryptTelegramAccountSecrets } from "../src/utils/telegram_account_secrets";
+import "../src/bootstrap-env";
 
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 
-config();
-
-const connectionString = process.env.APP_DATABASE_URL || process.env.DATABASE_URL;
-if (!connectionString) throw new Error('APP_DATABASE_URL or DATABASE_URL is required');
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) throw new Error('Database connection is required');
 const pool = new Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
