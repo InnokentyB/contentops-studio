@@ -37,3 +37,8 @@ export function telegramAccountSecretsAreEncrypted(stored: StoredTelegramSecrets
     return isEncryptedChannelSecret(stored.api_hash)
         && isEncryptedChannelSecret(stored.session_string);
 }
+
+export function telegramPhoneHint(phoneNumber: string): string {
+    const digits = phoneNumber.replace(/\D/g, '');
+    return digits ? `***${digits.slice(-4)}` : '***';
+}

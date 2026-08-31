@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {
     decryptTelegramAccountSecrets,
     encryptTelegramAccountSecrets,
-    telegramAccountSecretsAreEncrypted
+    telegramAccountSecretsAreEncrypted,
+    telegramPhoneHint
 } from '../utils/telegram_account_secrets';
 
 test('Telegram API hash and session are encrypted at rest', () => {
@@ -44,4 +45,9 @@ test('Telegram secret encryption rejects a weak Railway key', () => {
         if (previousKey === undefined) delete process.env.CHANNEL_SECRETS_KEY;
         else process.env.CHANNEL_SECRETS_KEY = previousKey;
     }
+});
+
+test('Telegram phone hints never expose the full account number', () => {
+    assert.equal(telegramPhoneHint('+351 929 042 849'), '***2849');
+    assert.equal(telegramPhoneHint(''), '***');
 });
