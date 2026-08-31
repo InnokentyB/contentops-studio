@@ -3,7 +3,8 @@ import { Prisma } from '@prisma/client';
 import prisma from '../db';
 import artDirectionService from './art_direction.service';
 import { planContentReviewRecovery, planMissingContentReviewRecovery } from './publication_content_revision_lifecycle';
-import { planPublicationPlacementRepair } from './publication_metadata_repair';
+import { isPublicationPlacementMismatchEvidence, planPublicationPlacementRepair } from './publication_metadata_repair';
+import { assertCanonicalPublicationPlacement } from './publication_placement_contract';
 
 /**
  * Scopes for work queue operations.
@@ -109,11 +110,27 @@ export class WorkQueueService {
                     kind: 'art_direction'
                 }
             });
+            const blockedDecision = blockedItem ? await tx.artDirectionDecision.findFirst({
+                where: {
+                    project_id: params.projectId,
+                    content_item_id: params.taskId,
+                    work_item_id: blockedItem.id,
+                    decision: 'BLOCKED'
+                },
+                orderBy: { decision_version: 'desc' }
+            }) : null;
             if (!content) throw new Error(`Publication task ${params.taskId} not found for project ${params.projectId}`);
             if (!targetChannel) throw new Error(`Target channel ${params.targetChannelId} not found for project ${params.projectId}`);
-            if (!targetChannel.type.toLowerCase().includes('habr')) throw new Error('[TARGET_CHANNEL_MISMATCH] Target channel must be Habr');
-            if (!blockedItem || blockedItem.state !== 'blocked' || blockedItem.reason_code !== 'channel_placement_mismatch') {
-                throw new Error('[BLOCKED_INPUT_MISMATCH] Expected the original channel-placement mismatch work item to remain blocked');
+            assertCanonicalPublicationPlacement(targetChannel, params.targetPlacement);
+            if (!blockedItem || !isPublicationPlacementMismatchEvidence({
+                workItemState: blockedItem.state,
+                workItemReasonCode: blockedItem.reason_code,
+                workItemRevision: blockedItem.input_context_version,
+                expectedRevision: params.expectedContentRevision,
+                expectedPlacement: params.expectedPlacement,
+                decision: blockedDecision
+            })) {
+                throw new Error('[BLOCKED_INPUT_MISMATCH] Expected immutable channel-placement mismatch evidence');
             }
             if (content.status === 'published' || content.published_link || content.publication_fact?.outcome === 'published') {
                 throw new Error('[PUBLICATION_READ_ONLY] Published tasks cannot be repaired');

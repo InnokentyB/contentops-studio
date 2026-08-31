@@ -971,7 +971,7 @@ export function registerPlannerTools(server: McpServer) {
     });
 
     server.registerTool('ba_repair_publication_placement', {
-        description: 'Owner-only audited metadata repair for an unpublished accepted publication: atomically change only channel and visual placement and create a new revision-bound art-direction work item.',
+        description: 'Owner-only audited metadata repair for an unpublished accepted publication: atomically change only channel and canonical visual placement and create a new revision-bound art-direction work item. The target placement must match the configured channel contract.',
         inputSchema: {
             projectId: z.number().int().positive(),
             actorId: z.string(),
@@ -1351,7 +1351,11 @@ export function registerPlannerTools(server: McpServer) {
             ,decisionId: z.number().int().positive()
             ,contentRevision: z.number().int().positive().optional()
             ,placement: z.string().optional()
-            ,fileUrl: z.string().min(1)
+            ,fileUrl: z.string().min(1).optional()
+            ,fileDataBase64: z.string().min(1).optional()
+            ,fileName: z.string().min(1).optional()
+            ,mimeType: z.string().min(1).optional()
+            ,provenance: z.record(z.string(), z.unknown()).optional()
         }
     }, async (args) => {
         const result = await imageAssetService.generateImageAsset(args);
@@ -1427,10 +1431,12 @@ export function registerPlannerTools(server: McpServer) {
     }, async (args) => asToolResult(await artDirectionService.backfillProject(args.projectId, args.actorId)));
 
     server.registerTool('ba_attach_visual_source', {
-        description: 'Attach a real source or owner-provided visual with provenance to the current accepted revision.',
+        description: 'Attach a real source or owner-provided visual with provenance to the current accepted revision. Local files must be sent as base64 so Planner can ingest them into durable managed storage.',
         inputSchema: {
             projectId: z.number().int().positive(), actorId: z.string(), contentItemId: z.number().int().positive(),
-            fileUrl: z.string().url(), provenance: z.record(z.string(), z.unknown()), altText: z.string().optional()
+            fileUrl: z.string().url().optional(), fileDataBase64: z.string().min(1).optional(),
+            fileName: z.string().min(1).optional(), mimeType: z.string().min(1).optional(),
+            provenance: z.record(z.string(), z.unknown()), altText: z.string().optional()
         }
     }, async (args) => asToolResult(await artDirectionService.attachVisualSource(args)));
 

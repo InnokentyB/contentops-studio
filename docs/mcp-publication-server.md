@@ -238,3 +238,8 @@ Template-driven research is also supported through:
 - Direct publishes are logged into the `events` table as `mcp.direct_publication`
 - Parser actions are routed through the planner integration layer and logged in planner events
 - Unsupported channel types return a clear error instead of attempting a partial publish
+- Local visual files must be sent to `ba_attach_visual_source` or `ba_generate_image_asset` as `fileDataBase64` with `fileName` and `mimeType`. Planner uploads the bytes to managed storage and records SHA-256, MIME type, dimensions, color mode, and provenance. A `file://` URL can never make a handoff ready.
+- The remote MCP JSON request limit defaults to 14 MB (override with `MCP_JSON_BODY_LIMIT`); decoded visual binaries remain limited to 10 MB.
+- Storage quota or capacity errors persist a project-level `visual_storage_ingest_state` blocker and keep the affected task handoff blocked. A later successful managed upload clears the blocker; production never treats `/uploads` or `file://` as ready.
+- `ba_prepare_publication_task` binds `publication.body` to the current `accepted_revision` and returns the binding revision and body SHA-256.
+- `ba_repair_publication_placement` accepts only placements allowed by the target channel's `canonical_placement` or `canonical_placements` config; known platform types use the built-in canonical fallback.

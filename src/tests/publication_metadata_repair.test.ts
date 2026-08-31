@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { planPublicationPlacementRepair } from '../services/publication_metadata_repair';
+import { isPublicationPlacementMismatchEvidence, planPublicationPlacementRepair } from '../services/publication_metadata_repair';
 
 test('placement repair creates a new revision-bound art-direction input without changing content revision', () => {
     assert.deepEqual(planPublicationPlacementRepair({
@@ -21,6 +21,33 @@ test('placement repair creates a new revision-bound art-direction input without 
         dedupeKey: 'art-direction:726:2:article_cover',
         note: 'Assess visual fit for revision 2, placement article_cover'
     });
+});
+
+test('completed art-direction work with an immutable BLOCKED decision is valid mismatch evidence', () => {
+    assert.equal(isPublicationPlacementMismatchEvidence({
+        workItemState: 'completed',
+        workItemReasonCode: null,
+        workItemRevision: 1,
+        expectedRevision: 1,
+        expectedPlacement: 'feed',
+        decision: {
+            decision: 'BLOCKED',
+            placement: 'feed',
+            source_content_revision: 1
+        }
+    }), true);
+    assert.equal(isPublicationPlacementMismatchEvidence({
+        workItemState: 'completed',
+        workItemReasonCode: null,
+        workItemRevision: 1,
+        expectedRevision: 1,
+        expectedPlacement: 'article_cover',
+        decision: {
+            decision: 'BLOCKED',
+            placement: 'feed',
+            source_content_revision: 1
+        }
+    }), false);
 });
 
 test('placement repair refuses to operate on a stale accepted revision', () => {

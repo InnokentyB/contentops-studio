@@ -45,6 +45,8 @@ test('generated publication handoff uses accepted text and selected visual witho
         type: 'tg_post',
         title: 'Тема среды',
         draft_text: 'Полный готовый текст поста',
+        content_revision: 3,
+        text_state: 'accepted',
         publication_mode: 'automatic',
         accepted_revision: 3,
         schedule_at: new Date('2026-08-26T10:00:00.000Z'),
@@ -74,6 +76,8 @@ test('plan handoff preserves the approved visual bound to the accepted revision'
         id: 779,
         title: 'Accepted publication',
         draft_text: 'Accepted text',
+        content_revision: 4,
+        text_state: 'accepted',
         accepted_revision: 4,
         selected_asset_id: 91,
         selected_asset: {
@@ -81,7 +85,19 @@ test('plan handoff preserves the approved visual bound to the accepted revision'
             status: 'approved',
             content_revision: 4,
             file_url: ' https://cdn.example/approved.png ',
-            alt_text: 'Approved diagram'
+            alt_text: 'Approved diagram',
+            provenance: {
+                source: 'owner',
+                planner_storage: {
+                    sha256: 'abc123',
+                    mime_type: 'image/png',
+                    byte_size: 1234,
+                    width: 800,
+                    height: 600,
+                    color_mode: 'RGB',
+                    original_file_name: 'source.png'
+                }
+            }
         },
         assets: {
             account_ref: 'telegram_main',
@@ -99,14 +115,58 @@ test('plan handoff preserves the approved visual bound to the accepted revision'
         preview_url: 'https://cdn.example/approved.png',
         alt_text: 'Approved diagram',
         status: 'approved',
-        content_revision: 4
+        content_revision: 4,
+        checksum_sha256: 'abc123',
+        content_type: 'image/png',
+        width: 800,
+        height: 600,
+        provenance: {
+            source: 'owner',
+            planner_storage: {
+                sha256: 'abc123',
+                mime_type: 'image/png',
+                byte_size: 1234,
+                width: 800,
+                height: 600,
+                color_mode: 'RGB',
+                original_file_name: 'source.png'
+            }
+        }
     }]);
+    assert.equal(bundle.publication.content_binding!.accepted_revision, 4);
+    assert.equal(bundle.resource_files[0].checksum_sha256, 'abc123');
+    assert.equal(bundle.resource_files[0].width, 800);
+});
+
+test('plan handoff never substitutes a source brief for the accepted body', () => {
+    const bundle = publicationPlanService.buildHandoffBundle({
+        meta: { plan_id: 'plan-1' },
+        accounts: {},
+        assets: {
+            source_brief: { type: 'text', content: 'Source brief must not be published' }
+        },
+        actions: []
+    }, {
+        id: 868,
+        draft_text: 'Exact accepted revision two',
+        content_revision: 2,
+        accepted_revision: 2,
+        text_state: 'accepted',
+        assets: {
+            asset_refs: ['source_brief'],
+            action: { id: 'publish-868', channel: 'telegram', action_type: 'telegram:publish' }
+        }
+    });
+    assert.equal(bundle.publication.body, 'Exact accepted revision two');
+    assert.equal(bundle.publication.content_binding!.accepted_revision, 2);
 });
 
 test('handoff blocks a selected visual that cannot be resolved', () => {
     assert.throws(() => publicationPlanService.buildGeneratedContentItemHandoff({
         id: 779,
         draft_text: 'Accepted text',
+        content_revision: 4,
+        text_state: 'accepted',
         accepted_revision: 4,
         selected_asset_id: 91,
         selected_asset: null,
@@ -116,9 +176,11 @@ test('handoff blocks a selected visual that cannot be resolved', () => {
     assert.throws(() => publicationPlanService.buildGeneratedContentItemHandoff({
         id: 779,
         draft_text: 'Accepted text',
+        content_revision: 4,
+        text_state: 'accepted',
         accepted_revision: 4,
         selected_asset_id: 91,
         selected_asset: { id: 91, status: 'approved', content_revision: 4, file_url: '   ' },
         channel: { type: 'telegram' }
-    }), /APPROVED_VISUAL_UNRESOLVABLE/);
+    }), /APPROVED_VISUAL_NOT_SERVER_RESOLVABLE/);
 });

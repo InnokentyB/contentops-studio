@@ -1,6 +1,6 @@
 import '../bootstrap-env';
 import { randomUUID, timingSafeEqual } from 'crypto';
-import { createMcpExpressApp } from '@modelcontextprotocol/sdk/server/express.js';
+const express = require('express');
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createPlannerMcpServer, shutdownMcpResources } from './shared';
@@ -89,7 +89,8 @@ async function main() {
         throw new Error('Production remote MCP requires MCP_AUTH_TOKEN and MCP_PRINCIPAL_USER_ID');
     }
     const sessions = new Map<string, SessionEntry>();
-    const app = createMcpExpressApp({ host });
+    const app = express();
+    app.use(express.json({ limit: process.env.MCP_JSON_BODY_LIMIT || '14mb' }));
 
     function requireAuth(req: any, res: any, next: any) {
         if (!authToken) {

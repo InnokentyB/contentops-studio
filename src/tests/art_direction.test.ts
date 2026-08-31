@@ -65,7 +65,8 @@ test('B: generated is not publication-ready until visual review approves an asse
         contentRevision: 3,
         visualMode: 'required',
         visualState: 'APPROVED',
-        selectedAssetRevision: 3
+        selectedAssetRevision: 3,
+        selectedAssetUrl: 'https://cdn.example/asset.png'
     }).ready, true);
 });
 
@@ -92,8 +93,22 @@ test('E: a newer content revision makes an approved visual stale', () => {
         contentRevision: 4,
         visualMode: 'auto_assess',
         visualState: 'APPROVED',
-        selectedAssetRevision: 3
+        selectedAssetRevision: 3,
+        selectedAssetUrl: 'https://cdn.example/asset.png'
     }), { ready: false, reason: 'visual_stale' });
+});
+
+test('I: a local approved asset cannot make the handoff ready', () => {
+    assert.deepEqual(calculateVisualReadiness({
+        enabled: true,
+        textState: 'accepted',
+        acceptedRevision: 2,
+        contentRevision: 2,
+        visualMode: 'required',
+        visualState: 'APPROVED',
+        selectedAssetRevision: 2,
+        selectedAssetUrl: 'file:///Users/example/source.png'
+    }), { ready: false, reason: 'visual_not_server_resolvable' });
 });
 
 test('F: idempotency contract exposes only deterministic decisions', () => {

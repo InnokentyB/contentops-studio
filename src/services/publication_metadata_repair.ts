@@ -21,3 +21,23 @@ export function planPublicationPlacementRepair(input: {
         note: `Assess visual fit for revision ${input.contentRevision}, placement ${input.targetPlacement}`
     };
 }
+
+export function isPublicationPlacementMismatchEvidence(input: {
+    workItemState: string;
+    workItemReasonCode?: string | null;
+    workItemRevision: number;
+    expectedRevision: number;
+    expectedPlacement: string;
+    decision?: {
+        decision: string;
+        placement: string;
+        source_content_revision: number;
+    } | null;
+}) {
+    if (input.workItemRevision !== input.expectedRevision) return false;
+    if (input.workItemState === 'blocked' && input.workItemReasonCode === 'channel_placement_mismatch') return true;
+    return input.workItemState === 'completed'
+        && input.decision?.decision === 'BLOCKED'
+        && input.decision.placement === input.expectedPlacement
+        && input.decision.source_content_revision === input.expectedRevision;
+}

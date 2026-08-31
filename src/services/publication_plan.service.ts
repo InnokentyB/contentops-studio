@@ -6,6 +6,7 @@ import publicationAdapterService from './publication_adapter.service';
 import { mapActionStatus, resolveActionTitle } from './publication_runtime.helpers';
 import contentDictionaryService from './content_dictionary.service';
 import contentPolicyMatrixService from './content_policy_matrix.service';
+import { isServerResolvableVisualUrl, visualMetadataFromProvenance } from './visual_asset_binding.service';
 
 type PublicationPlan = {
     meta: {
@@ -1946,7 +1947,25 @@ class PublicationPlanService {
         return snapshots;
     }
 
-    buildHandoffBundle(plan: PublicationPlan, item: any) {
+    private resolveAcceptedPublicationBody(item: any, required = false) {
+        const accepted = item?.text_state === 'accepted'
+            && Boolean(item?.accepted_revision)
+            && item.accepted_revision === item.content_revision;
+        if (required && !accepted) {
+            throw new Error('[ACCEPTED_REVISION_REQUIRED] Handoff requires the current accepted text revision');
+        }
+        const body = typeof item.draft_text === 'string' ? item.draft_text : '';
+        if (required && !body.trim()) throw new Error('[ACCEPTED_BODY_REQUIRED] Accepted publication body is empty');
+        return {
+            body,
+            binding: accepted ? {
+                accepted_revision: item.accepted_revision,
+                body_sha256: createHash('sha256').update(body).digest('hex')
+            } : null
+        };
+    }
+
+    buildHandoffBundle(plan: PublicationPlan, item: any, options: { requireAcceptedContent?: boolean } = {}) {
         const action = item.assets?.action || {};
         const accountRef = item.assets?.account_ref || null;
         const account = accountRef ? plan.accounts[accountRef] : null;
@@ -1955,6 +1974,8 @@ class PublicationPlanService {
         const persistedKeyPoints = Array.isArray(item.key_points) ? item.key_points : [];
         const persistedAssetsByRef = new Map<string, any>();
         const selectedAsset = this.resolveApprovedSelectedAsset(item);
+        const acceptedContent = this.resolveAcceptedPublicationBody(item, options.requireAcceptedContent);
+        const selectedAssetMetadata = selectedAsset ? visualMetadataFromProvenance(selectedAsset.provenance) : {};
         const inferPersistedFileName = (runtimeFileName: string | null | undefined, persistedAsset: any) => {
             if (runtimeFileName) return runtimeFileName;
             if (typeof persistedAsset?.path === 'string' && persistedAsset.path.trim()) {
@@ -2078,10 +2099,31 @@ class PublicationPlanService {
             };
         });
 
-        const primaryTextAsset = [...resolvedContentFiles, ...resolvedAssets].find((entry: any) => typeof entry.content === 'string' && entry.content.trim());
         const linkUrl = resolveRef(plan, action.parameters?.link_url_ref || item.cta || null);
 
         const resourceFiles = dedupeResourceFiles([
+            ...(selectedAsset ? [{
+                ref: 'selected_asset',
+                type: 'image',
+                role: 'publication_image',
+                purpose: 'approved_visual',
+                file_name: (selectedAsset.provenance as any)?.planner_storage?.original_file_name || null,
+                relative_path: null,
+                full_path: null,
+                section_marker: null,
+                exists: isServerResolvableVisualUrl(selectedAsset.file_url),
+                url: selectedAsset.file_url,
+                preview_url: selectedAsset.file_url,
+                content: null,
+                content_type: selectedAssetMetadata.mime_type || null,
+                checksum_sha256: selectedAssetMetadata.sha256 || null,
+                byte_size: selectedAssetMetadata.byte_size || null,
+                width: selectedAssetMetadata.width || null,
+                height: selectedAssetMetadata.height || null,
+                color_mode: selectedAssetMetadata.color_mode || null,
+                provenance: selectedAsset.provenance || null,
+                content_source: 'selected_image_asset'
+            }] : []),
             ...resolvedContentFiles,
             ...resolvedAssets.map((entry: any) => ({
                 ref: entry.ref,
@@ -2116,7 +2158,8 @@ class PublicationPlanService {
                 time_window: action.scheduled_time_window || null
             },
             publication: {
-                body: primaryTextAsset?.content || item.draft_text || '',
+                body: acceptedContent.body,
+                content_binding: acceptedContent.binding,
                 html_bundle: resolvedAssets.filter((entry: any) => entry.asset?.type?.includes('html')),
                 link_url: linkUrl,
                 image_url: selectedAsset?.file_url || null,
@@ -2129,7 +2172,12 @@ class PublicationPlanService {
                         preview_url: selectedAsset.file_url,
                         alt_text: selectedAsset.alt_text || null,
                         status: selectedAsset.status,
-                        content_revision: selectedAsset.content_revision
+                        content_revision: selectedAsset.content_revision,
+                        checksum_sha256: selectedAssetMetadata.sha256 || null,
+                        content_type: selectedAssetMetadata.mime_type || null,
+                        width: selectedAssetMetadata.width || null,
+                        height: selectedAssetMetadata.height || null,
+                        provenance: selectedAsset.provenance || null
                     }]
                     : resolvedAssets.filter((entry: any) => entry.asset?.visual_style || entry.asset?.gamma_source)
             },
@@ -2144,13 +2192,15 @@ class PublicationPlanService {
         };
     }
 
-    buildGeneratedContentItemHandoff(item: any) {
+    buildGeneratedContentItemHandoff(item: any, options: { requireAcceptedContent?: boolean } = {}) {
         const channelType = item.channel?.type || item.layer || 'unknown';
-        const body = String(item.draft_text || '').trim();
+        const acceptedContent = this.resolveAcceptedPublicationBody(item, options.requireAcceptedContent);
+        const body = acceptedContent.body;
         const mode = ['manual', 'manual_handoff', 'browser_required'].includes(String(item.publication_mode || ''))
             ? 'manual'
             : 'automated';
         const selectedAsset = this.resolveApprovedSelectedAsset(item);
+        const selectedAssetMetadata = selectedAsset ? visualMetadataFromProvenance(selectedAsset.provenance) : {};
 
         return {
             task: {
@@ -2164,12 +2214,31 @@ class PublicationPlanService {
             mode: mode as 'manual' | 'automated',
             publication: {
                 body,
+                content_binding: acceptedContent.binding,
                 link_url: null,
                 html_bundle: [{ asset: { title: item.title || null, content: body } }],
                 image_url: selectedAsset?.file_url || null,
                 alt_text: selectedAsset?.alt_text || null
             },
-            resource_files: [],
+            resource_files: selectedAsset ? [{
+                ref: 'selected_asset',
+                type: 'image',
+                role: 'publication_image',
+                purpose: 'approved_visual',
+                file_name: (selectedAsset.provenance as any)?.planner_storage?.original_file_name || null,
+                exists: true,
+                url: selectedAsset.file_url,
+                preview_url: selectedAsset.file_url,
+                content: null,
+                content_type: selectedAssetMetadata.mime_type || null,
+                checksum_sha256: selectedAssetMetadata.sha256 || null,
+                byte_size: selectedAssetMetadata.byte_size || null,
+                width: selectedAssetMetadata.width || null,
+                height: selectedAssetMetadata.height || null,
+                color_mode: selectedAssetMetadata.color_mode || null,
+                provenance: selectedAsset.provenance || null,
+                content_source: 'selected_image_asset'
+            }] : [],
             checklist: publicationAdapterService.buildManualChecklist({
                 id: item.item_key || `content-item:${item.id}`,
                 channel: channelType,
@@ -2196,8 +2265,8 @@ class PublicationPlanService {
             || selectedAsset.content_revision !== item.accepted_revision) {
             throw new Error('[APPROVED_VISUAL_REQUIRED] Selected visual must be approved for the accepted content revision');
         }
-        if (typeof selectedAsset.file_url !== 'string' || !selectedAsset.file_url.trim()) {
-            throw new Error('[APPROVED_VISUAL_UNRESOLVABLE] Selected approved visual has no resolvable file URL');
+        if (!isServerResolvableVisualUrl(selectedAsset.file_url)) {
+            throw new Error('[APPROVED_VISUAL_NOT_SERVER_RESOLVABLE] Selected approved visual must use a durable HTTPS URL');
         }
         return { ...selectedAsset, file_url: selectedAsset.file_url.trim() };
     }

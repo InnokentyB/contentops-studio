@@ -769,6 +769,13 @@ class McpPublicationService {
                     exists: entry.exists === true,
                     url: entry.url || null,
                     content_source: entry.content_source || null,
+                    content_type: entry.content_type || null,
+                    checksum_sha256: entry.checksum_sha256 || null,
+                    byte_size: entry.byte_size || null,
+                    width: entry.width || null,
+                    height: entry.height || null,
+                    color_mode: entry.color_mode || null,
+                    provenance: entry.provenance || null,
                     snapshot_available: entry.snapshot_available === true,
                     truncated,
                     content: content ? (truncated ? `${content.slice(0, maxChars)}\n...[truncated]` : content) : null
@@ -1047,13 +1054,14 @@ class McpPublicationService {
         }
 
         this.assertPublicationTaskMutableForMcp(item, 'prepare_publication_task');
+        await artDirectionService.assertPublicationReady(projectId, taskId);
 
         const plan = await this.loadPublicationPlanContext(projectId);
         const action = (item.assets as any)?.action;
         if (plan) plan.actions = action ? [action] : [];
         const bundle = plan && action
-            ? publicationPlanService.buildHandoffBundle(plan as any, item)
-            : publicationPlanService.buildGeneratedContentItemHandoff(item);
+            ? publicationPlanService.buildHandoffBundle(plan as any, item, { requireAcceptedContent: true })
+            : publicationPlanService.buildGeneratedContentItemHandoff(item, { requireAcceptedContent: true });
         const channelConfig = (item.channel?.config as any) || {};
         const rawAccount = channelConfig.raw_account || channelConfig;
         const directExecutionSupported = publicationAdapterService.supportsDirectExecution({

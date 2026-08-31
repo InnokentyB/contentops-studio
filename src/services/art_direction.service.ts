@@ -1,5 +1,14 @@
 import { Prisma } from '@prisma/client';
 import prisma from '../db';
+import path from 'path';
+import storageService from './storage.service';
+import { decodeVisualBase64, inspectVisualBinary, isServerResolvableVisualUrl } from './visual_asset_binding.service';
+import { requireProjectActorAccess } from './project_access.service';
+import {
+    blockVisualStorageIngest,
+    clearVisualStorageIngestBlock,
+    getVisualStorageIngestState
+} from './visual_storage_incident.service';
 
 export const ART_DIRECTION_DECISIONS = [
     'NO_VISUAL_NEEDED',
@@ -44,6 +53,7 @@ export interface VisualReadinessInput {
     visualMode?: string | null;
     visualState?: string | null;
     selectedAssetRevision?: number | null;
+    selectedAssetUrl?: string | null;
 }
 
 export function defaultVisualMode(channel: string, placement: string): VisualMode {
@@ -105,6 +115,7 @@ export function calculateVisualReadiness(input: VisualReadinessInput): { ready: 
     if (input.visualState === 'NO_VISUAL_NEEDED') return { ready: true, reason: null };
     if (input.visualState === 'APPROVED') {
         if (input.selectedAssetRevision !== input.acceptedRevision) return { ready: false, reason: 'visual_stale' };
+        if (!isServerResolvableVisualUrl(input.selectedAssetUrl)) return { ready: false, reason: 'visual_not_server_resolvable' };
         return { ready: true, reason: null };
     }
     if (input.visualState === 'STALE') return { ready: false, reason: 'visual_stale' };
@@ -316,15 +327,21 @@ export class ArtDirectionService {
         });
         if (!item) throw new Error('Content item not found');
         const enabled = await this.isEnabled(projectId);
+        const storageState = await getVisualStorageIngestState(projectId);
+        const visualReadiness = calculateVisualReadiness({ enabled, textState: item.text_state, acceptedRevision: item.accepted_revision, contentRevision: item.content_revision, visualMode: item.visual_mode, visualState: item.visual_state, selectedAssetRevision: item.selected_asset?.content_revision, selectedAssetUrl: item.selected_asset?.file_url });
+        const effectiveReadiness = storageState.blocked
+            ? { ready: false, reason: storageState.reason || 'storage_ingest_blocked' }
+            : visualReadiness;
         return {
-            ...calculateVisualReadiness({ enabled, textState: item.text_state, acceptedRevision: item.accepted_revision, contentRevision: item.content_revision, visualMode: item.visual_mode, visualState: item.visual_state, selectedAssetRevision: item.selected_asset?.content_revision }),
+            ...effectiveReadiness,
             enabled,
             content_item_id: item.id,
             text_state: item.text_state,
             accepted_revision: item.accepted_revision,
             content_revision: item.content_revision,
             visual_state: item.visual_state,
-            handoff_state: item.handoff_state,
+            handoff_state: effectiveReadiness.ready ? 'ready' : 'blocked',
+            storage_ingest: storageState,
             visual_mode: item.visual_mode,
             placement: item.visual_placement,
             selected_asset: item.selected_asset,
@@ -332,8 +349,53 @@ export class ArtDirectionService {
         };
     }
 
-    async attachVisualSource(params: { projectId: number; actorId: string; contentItemId: number; fileUrl: string; provenance: Record<string, unknown>; altText?: string }) {
+    async attachVisualSource(params: { projectId: number; actorId: string; contentItemId: number; fileUrl?: string; fileDataBase64?: string; fileName?: string; mimeType?: string; provenance: Record<string, unknown>; altText?: string }) {
+        await requireProjectActorAccess(params.projectId, params.actorId);
         if (!Object.keys(params.provenance || {}).length) throw new Error('[PROVENANCE_REQUIRED] Visual source provenance is required');
+        const sourceTarget = await prisma.contentItem.findFirst({
+            where: { id: params.contentItemId, project_id: params.projectId },
+            include: { art_direction_decisions: { where: { status: 'active' }, orderBy: { decision_version: 'desc' }, take: 1 } }
+        });
+        if (!sourceTarget || !sourceTarget.accepted_revision || sourceTarget.accepted_revision !== sourceTarget.content_revision) {
+            throw new Error('[TEXT_NOT_ACCEPTED] Attach sources only to the current accepted revision');
+        }
+        if (!sourceTarget.art_direction_decisions[0]
+            || !['SOURCE_REQUIRED', 'MANUAL_ASSET_REQUIRED'].includes(sourceTarget.art_direction_decisions[0].decision)) {
+            throw new Error('[SOURCE_NOT_REQUESTED] Active decision does not request a source');
+        }
+        let fileUrl = params.fileUrl?.trim() || '';
+        let provenance = { ...params.provenance } as Record<string, unknown>;
+        if (params.fileDataBase64) {
+            const buffer = decodeVisualBase64(params.fileDataBase64);
+            const metadata = inspectVisualBinary(buffer, params.mimeType);
+            const extension = metadata.mime_type === 'image/jpeg' ? '.jpg' : `.${metadata.mime_type.split('/')[1]}`;
+            const originalName = params.fileName ? path.basename(params.fileName) : `source${extension}`;
+            const objectKey = `visual-sources/project-${params.projectId}/content-${params.contentItemId}/${metadata.sha256}${extension}`;
+            try {
+                fileUrl = await storageService.uploadFileFromBuffer(buffer, metadata.mime_type, objectKey);
+            } catch (error) {
+                await blockVisualStorageIngest(params.projectId, params.contentItemId, error);
+                throw error;
+            }
+            if (!isServerResolvableVisualUrl(fileUrl)) {
+                const error = new Error('[VISUAL_INGEST_NOT_DURABLE] Managed storage did not return a server-resolvable HTTPS URL');
+                await blockVisualStorageIngest(params.projectId, params.contentItemId, error);
+                throw error;
+            }
+            await clearVisualStorageIngestBlock(params.projectId);
+            provenance = {
+                ...provenance,
+                planner_storage: {
+                    managed: true,
+                    provider: storageService.getProvider(),
+                    object_key: objectKey,
+                    original_file_name: originalName,
+                    ...metadata
+                }
+            };
+        } else if (!isServerResolvableVisualUrl(fileUrl)) {
+            throw new Error('[VISUAL_SOURCE_BYTES_REQUIRED] Local visual sources must be attached with fileDataBase64 for durable ingestion');
+        }
         return prisma.$transaction(async (tx) => {
             const item = await tx.contentItem.findFirst({ where: { id: params.contentItemId, project_id: params.projectId }, include: { art_direction_decisions: { where: { status: 'active' }, orderBy: { decision_version: 'desc' }, take: 1 } } });
             if (!item || !item.accepted_revision || item.accepted_revision !== item.content_revision) throw new Error('[TEXT_NOT_ACCEPTED] Attach sources only to the current accepted revision');
@@ -343,8 +405,8 @@ export class ArtDirectionService {
             const asset = await tx.imageAsset.create({ data: {
                 project_id: item.project_id, content_item_id: item.id, decision_id: decision.id, content_revision: item.content_revision,
                 placement: decision.placement, asset_version: (latest?.asset_version || 0) + 1, prompt: 'Source-provided visual',
-                provider: 'source', alt_text: params.altText || decision.alt_text, file_url: params.fileUrl,
-                provenance: params.provenance as Prisma.InputJsonValue, status: 'candidate'
+                provider: 'source', alt_text: params.altText || decision.alt_text, file_url: fileUrl,
+                provenance: provenance as Prisma.InputJsonValue, status: 'candidate'
             } });
             const dedupeKey = `visual-review:${asset.id}:${asset.asset_version}`;
             await tx.workItem.upsert({ where: { dedupe_key: dedupeKey }, update: {}, create: {
