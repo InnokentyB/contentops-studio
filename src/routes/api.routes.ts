@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import plannerService from '../services/planner.service';
 import generatorService from '../services/generator.service';
 import multiAgentService from '../services/multi_agent.service';
+import { channelContentLanguage } from '../services/content_language.service';
 import publisherService from '../services/publisher.service';
 import initiativeService from '../services/initiative.service';
 import modelService from '../services/model.service';
@@ -318,6 +319,7 @@ async function runPublicationCriticReview(projectId: number, item: any, override
     }
 
     const platform = item.channel?.type || item.layer || item.type;
+    const contentLanguage = channelContentLanguage(item.channel);
     const voice = derivePublicationVoice(item);
     const dictionaryReport = contentDictionaryService.validateText(publicationBody, projectContext.glossaryYaml);
     const policyReport = contentPolicyMatrixService.validateText(publicationBody, projectContext.contentPolicyMatrixYaml, {
@@ -334,6 +336,7 @@ async function runPublicationCriticReview(projectId: number, item: any, override
             title: item.title,
             channel: item.channel?.name || item.layer || item.type,
             platform,
+            content_language: contentLanguage,
             voice_profile: voice,
             target_resource_url: bundle?.publication?.link_url || null,
             publication_body: publicationBody,
@@ -1792,6 +1795,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             title: item.title,
             channel: item.channel?.name || item.layer || item.type,
             platform: item.channel?.type || item.layer || item.type,
+            content_language: channelContentLanguage(item.channel),
             voice_profile: derivePublicationVoice(item),
             original_text: currentText,
             critic_review: initial.criticReview,
@@ -2917,26 +2921,27 @@ export default async function apiRoutes(fastify: FastifyInstance) {
 
     // ─── Strategy Assistant Chat ─────────────────────────────────────────────
 
-    const DEFAULT_STRATEGY_PROMPT = `Ты — Стратегический Ассистент по контенту.
+    const strategyLanguage = (value: unknown): 'ru' | 'en' => value === 'en' ? 'en' : 'ru';
+    const defaultStrategyPrompt = (language: 'ru' | 'en') => language === 'en'
+        ? `You are a content strategy assistant. Help the author build an effective content strategy for their channels.
+Consider platform-specific audiences, a sustainable publishing cadence, the Awareness → Authority → Conversion funnel, and the current quarterly plan.
+Ask focused follow-up questions and propose concrete decisions and post formats. Reply in English: concise, specific, and useful.`
+        : `Ты — Стратегический Ассистент по контенту.
 Твоя задача: помогать автору выстроить эффективную контентную стратегию для его каналов.
-Ты учитываешь:
-- Разные платформы (Telegram, VK, YouTube и т.д.) и их специфику аудитории
-- Принципы стабильного контентного потока (контент-план, ритм публикаций)
-- Воронку прогрева: Awareness → Authority → Conversion
-- Текущий квартальный план и месячные арки
-Ты задаёшь уточняющие вопросы, предлагаешь конкретные решения и форматы постов.
-Отвечай на русском языке. Будь кратким, конкретным и полезным.`;
+Ты учитываешь разные платформы, стабильный контентный поток, воронку Awareness → Authority → Conversion и текущий квартальный план.
+Задавай уточняющие вопросы, предлагай конкретные решения и форматы постов. Отвечай на русском языке: кратко, конкретно и полезно.`;
 
     /**
      * GET the current system prompt for the strategy assistant.
      */
     fastify.get('/api/v2/strategy-chat/settings', async (request, _reply) => {
         const projectId = (request as any).projectId;
+        const { language } = request.query as { language?: string };
         const setting = await prisma.projectSettings.findUnique({
             where: { project_id_key: { project_id: projectId, key: 'strategy_assistant_prompt' } }
         });
         return {
-            systemPrompt: setting?.value || DEFAULT_STRATEGY_PROMPT
+            systemPrompt: setting?.value || defaultStrategyPrompt(strategyLanguage(language))
         };
     });
 
@@ -2954,16 +2959,35 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         return { success: true };
     });
 
+    fastify.get('/api/v2/strategy-chat/history', async (request) => {
+        const projectId = (request as any).projectId;
+        const setting = await prisma.projectSettings.findUnique({
+            where: { project_id_key: { project_id: projectId, key: 'strategy_assistant_history' } }
+        });
+        try {
+            const messages = JSON.parse(setting?.value || '[]');
+            return { messages: Array.isArray(messages) ? messages.slice(-40) : [] };
+        } catch {
+            return { messages: [] };
+        }
+    });
+
+    fastify.delete('/api/v2/strategy-chat/history', async (request) => {
+        const projectId = (request as any).projectId;
+        await prisma.projectSettings.deleteMany({ where: { project_id: projectId, key: 'strategy_assistant_history' } });
+        return { success: true };
+    });
+
     /**
-     * POST a message to the strategy assistant. Accepts conversation history.
-     * Body: { message: string; history: { role: 'user'|'assistant'; content: string }[] }
+     * POST a message to the strategy assistant. Conversation history is owned by the project.
      */
     fastify.post('/api/v2/strategy-chat', async (request, reply) => {
         const projectId = (request as any).projectId;
-        const { message, history = [] } = request.body as {
+        const { message, language } = request.body as {
             message: string;
-            history: { role: 'user' | 'assistant'; content: string }[];
+            language?: string;
         };
+        const responseLanguage = strategyLanguage(language);
 
         if (!message?.trim()) return reply.code(400).send({ error: 'Message is required' });
 
@@ -2971,7 +2995,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         const setting = await prisma.projectSettings.findUnique({
             where: { project_id_key: { project_id: projectId, key: 'strategy_assistant_prompt' } }
         });
-        const systemPrompt = setting?.value || DEFAULT_STRATEGY_PROMPT;
+        const systemPrompt = setting?.value || defaultStrategyPrompt(responseLanguage);
 
         // Load current quarters for context
         const quarters = await prisma.quarterPlan.findMany({
@@ -2981,13 +3005,28 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             include: { month_arcs: true }
         });
         const contextStr = quarters.length > 0
-            ? `\n\nТекущий квартальный план:\nЦель: ${quarters[0].strategic_goal}\nПилар: ${quarters[0].primary_pillar}\nМесяцы: ${quarters[0].month_arcs.map(m => m.arc_theme).join(', ')}`
+            ? responseLanguage === 'en'
+                ? `\n\nCurrent quarterly plan:\nGoal: ${quarters[0].strategic_goal}\nPillar: ${quarters[0].primary_pillar}\nMonths: ${quarters[0].month_arcs.map(m => m.arc_theme).join(', ')}`
+                : `\n\nТекущий квартальный план:\nЦель: ${quarters[0].strategic_goal}\nПилар: ${quarters[0].primary_pillar}\nМесяцы: ${quarters[0].month_arcs.map(m => m.arc_theme).join(', ')}`
             : '';
+        const languageRule = responseLanguage === 'en'
+            ? '\n\nRespond in English, even if the source context contains another language.'
+            : '\n\nОтвечай по-русски, даже если исходный контекст содержит другой язык.';
 
         const openai = new (require('openai').default)({ apiKey: process.env.OPENAI_API_KEY });
+        const historySetting = await prisma.projectSettings.findUnique({
+            where: { project_id_key: { project_id: projectId, key: 'strategy_assistant_history' } }
+        });
+        let history: { role: 'user' | 'assistant'; content: string }[] = [];
+        try {
+            const parsed = JSON.parse(historySetting?.value || '[]');
+            history = Array.isArray(parsed)
+                ? parsed.filter((item) => item && (item.role === 'user' || item.role === 'assistant') && typeof item.content === 'string').slice(-20)
+                : [];
+        } catch { /* Ignore malformed legacy chat history. */ }
 
         const messages = [
-            { role: 'system' as const, content: systemPrompt + contextStr },
+            { role: 'system' as const, content: systemPrompt + contextStr + languageRule },
             ...history.slice(-10), // keep last 10 turns for context
             { role: 'user' as const, content: message }
         ];
@@ -2999,7 +3038,13 @@ export default async function apiRoutes(fastify: FastifyInstance) {
                 max_tokens: 1000
             });
             const reply_text = completion.choices[0]?.message.content || '';
-            return { reply: reply_text };
+            const nextHistory = [...history, { role: 'user' as const, content: message.trim() }, { role: 'assistant' as const, content: reply_text }].slice(-40);
+            await prisma.projectSettings.upsert({
+                where: { project_id_key: { project_id: projectId, key: 'strategy_assistant_history' } },
+                update: { value: JSON.stringify(nextHistory) },
+                create: { project_id: projectId, key: 'strategy_assistant_history', value: JSON.stringify(nextHistory) }
+            });
+            return { reply: reply_text, messages: nextHistory };
         } catch (e: any) {
             reply.code(500).send({ error: e.message || 'AI request failed' });
         }

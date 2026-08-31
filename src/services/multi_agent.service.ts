@@ -13,6 +13,7 @@ import {
     modelForRole,
     preflightInvocation
 } from './model_policy.service';
+import { contentLanguageInstruction, type ContentLanguage } from './content_language.service';
 
 config();
 
@@ -393,14 +394,16 @@ Output JSON Format (Strict):
      * Run Sequential Writer
      */
     async runSequentialWriter(projectId: number, context: any): Promise<any> {
-        return this.runJsonAgent(projectId, 'seq_writer', this.KEY_SEQ_WRITER_PROMPT, this.DEFAULT_SEQ_WRITER_PROMPT, JSON.stringify(context));
+        const language = context.content_language === 'en' ? 'en' : 'ru';
+        return this.runJsonAgent(projectId, 'seq_writer', this.KEY_SEQ_WRITER_PROMPT, this.DEFAULT_SEQ_WRITER_PROMPT, JSON.stringify(context), language);
     }
 
     /**
      * Run Content Critic
      */
     async runContentCritic(projectId: number, context: any): Promise<{ score: number, critique: string }> {
-        const result = await this.runJsonAgent(projectId, 'seq_critic', this.KEY_SEQ_CRITIC_PROMPT, this.DEFAULT_SEQ_CRITIC_PROMPT, JSON.stringify(context));
+        const language = context.content_language === 'en' ? 'en' : 'ru';
+        const result = await this.runJsonAgent(projectId, 'seq_critic', this.KEY_SEQ_CRITIC_PROMPT, this.DEFAULT_SEQ_CRITIC_PROMPT, JSON.stringify(context), language);
         return {
             score: result?.score || 0,
             critique: result?.critique || "Parsing error"
@@ -409,13 +412,14 @@ Output JSON Format (Strict):
 
     async runPublicationCritic(projectId: number, context: any): Promise<any> {
         const config = await this.getAgentConfig(projectId, 'post_critic');
+        const languageInstruction = contentLanguageInstruction(context.content_language === 'en' ? 'en' : 'ru');
         const systemPrompt = `${config.prompt || this.DEFAULT_POST_CRITIC_PROMPT}
 
 You are reviewing a publication task for a real channel.
 Return STRICT JSON with:
 {
   "score": 0-100,
-  "critique": "short summary in Russian",
+  "critique": "short editorial summary",
   "dimensions": {
     "platform_fit": 0-100,
     "voice_fit": 0-100,
@@ -427,7 +431,8 @@ Return STRICT JSON with:
   "rewrite_instructions": ["concrete edit instruction", "..."]
 }
 
-Use deterministic findings and policy matrix as hard constraints.`;
+Use deterministic findings and policy matrix as hard constraints.
+${languageInstruction}`;
 
         const parsed = await this.invokeStructuredAgent(config, systemPrompt, JSON.stringify(context), projectId, 'publication_critic');
         return {
@@ -444,22 +449,25 @@ Use deterministic findings and policy matrix as hard constraints.`;
      * Run Content Fixer
      */
     async runContentFixer(projectId: number, context: any): Promise<any> {
-        return this.runJsonAgent(projectId, 'seq_fixer', this.KEY_SEQ_FIXER_PROMPT, this.DEFAULT_SEQ_FIXER_PROMPT, JSON.stringify(context));
+        const language = context.content_language === 'en' ? 'en' : 'ru';
+        return this.runJsonAgent(projectId, 'seq_fixer', this.KEY_SEQ_FIXER_PROMPT, this.DEFAULT_SEQ_FIXER_PROMPT, JSON.stringify(context), language);
     }
 
     async runPublicationFixer(projectId: number, context: any): Promise<any> {
         const config = await this.getAgentConfig(projectId, 'post_fixer');
+        const languageInstruction = contentLanguageInstruction(context.content_language === 'en' ? 'en' : 'ru');
         const systemPrompt = `${config.prompt || this.DEFAULT_POST_FIXER_PROMPT}
 
 You are fixing a publication task after a structured critic review.
 Return STRICT JSON with:
 {
-  "updated_text": "final edited post text in Russian",
+  "updated_text": "final edited publication text",
   "summary": "what changed and why",
   "resolved_findings": ["..."]
 }
 
-Do not return markdown fences. Keep the original intent, but fully address platform, voice, glossary and policy issues.`;
+Do not return markdown fences. Keep the original intent, but fully address platform, voice, glossary and policy issues.
+${languageInstruction}`;
 
         const parsed = await this.invokeStructuredAgent(config, systemPrompt, JSON.stringify(context), projectId, 'publication_fixer');
         return {
@@ -476,9 +484,9 @@ Do not return markdown fences. Keep the original intent, but fully address platf
     /**
      * Generic JSON Agent Runner
      */
-    private async runJsonAgent(projectId: number, role: string, promptKey: string, defaultPrompt: string, input: string): Promise<any> {
+    private async runJsonAgent(projectId: number, role: string, promptKey: string, defaultPrompt: string, input: string, contentLanguage?: ContentLanguage): Promise<any> {
         const config = await this.getAgentConfig(projectId, role as any); // cast for now
-        const systemPrompt = config.prompt || defaultPrompt;
+        const systemPrompt = `${config.prompt || defaultPrompt}${contentLanguage ? `\n\n${contentLanguageInstruction(contentLanguage)}` : ''}`;
 
         try {
             const responseText = await this.invokeTextAgent(
@@ -934,6 +942,7 @@ Do not return markdown fences. Keep the original intent, but fully address platf
         channel_name: string;
         week_start: string;
         week_end: string;
+        content_language?: ContentLanguage;
     }): Promise<unknown> {
         const agentConfig = await this.getAgentConfig(projectId, 'topic_creator');
         if (!agentConfig.apiKey) {
@@ -947,13 +956,14 @@ Return JSON only in this exact shape:
 {
   "proposals": [
     {
-      "thesis": "specific substantive post thesis in Russian",
+      "thesis": "specific substantive post thesis",
       "function": "frame|diagnose|demonstrate|contrast|apply|reflect|synthesize",
       "difference_from_neighbors": "how this proposal differs from adjacent days"
     }
   ]
 }
-Do not return placeholders, day labels, generic "focus of the day" formulations, categories, or tags instead of theses.`;
+Do not return placeholders, day labels, generic "focus of the day" formulations, categories, or tags instead of theses.
+${contentLanguageInstruction(context.content_language === 'en' ? 'en' : 'ru')}`;
 
         return this.invokeStructuredAgent(
             agentConfig,
@@ -966,7 +976,7 @@ Do not return placeholders, day labels, generic "focus of the day" formulations,
 
     // --- Post Generation Loop (New) ---
 
-    async runPostGeneration(projectId: number, theme: string, topic: string, postId: number, promptOverride?: string, withImage: boolean = false): Promise<MultiAgentResult & { category?: string, tags?: string[] }> {
+    async runPostGeneration(projectId: number, theme: string, topic: string, postId: number, promptOverride?: string, withImage: boolean = false, contentLanguage: ContentLanguage = 'ru'): Promise<MultiAgentResult & { category?: string, tags?: string[] }> {
         console.log(`[MultiAgent Post] Starting generation for: "${topic}"(Image: ${withImage})`);
 
         // Fetch comments for context
@@ -1031,6 +1041,9 @@ Do not return placeholders, day labels, generic "focus of the day" formulations,
                 creatorConfig.prompt = promptOverride;
                 console.log('[MultiAgent Post] Using prompt override');
             }
+            creatorConfig.prompt = `${creatorConfig.prompt || this.DEFAULT_POST_CREATOR_PROMPT}\n\n${contentLanguageInstruction(contentLanguage)}`;
+            criticConfig.prompt = `${criticConfig.prompt || this.DEFAULT_POST_CRITIC_PROMPT}\n\n${contentLanguageInstruction(contentLanguage)}`;
+            fixerConfig.prompt = `${fixerConfig.prompt || this.DEFAULT_POST_FIXER_PROMPT}\n\n${contentLanguageInstruction(contentLanguage)}`;
 
             currentText = await this.postCreator(projectId, theme, topic, creatorConfig, runLogId, commentsContext);
 
@@ -1286,7 +1299,7 @@ Do not return placeholders, day labels, generic "focus of the day" formulations,
 
     // --- Topic List Generation ---
 
-    async refineTopics(projectId: number, theme: string, weekId: number, promptOverride?: string, count: number = 2, existingTopics: string[] = []): Promise<{ topics: { topic: string, category: string, tags: string[] }[], score: number }> {
+    async refineTopics(projectId: number, theme: string, weekId: number, promptOverride?: string, count: number = 2, existingTopics: string[] = [], contentLanguage: ContentLanguage = 'ru'): Promise<{ topics: { topic: string, category: string, tags: string[] }[], score: number }> {
         const fs = require('fs');
         fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [MultiAgent] Starting topic generation for theme: "${theme}", count: ${count}\n`);
         console.log(`[MultiAgent] Starting topic generation for theme: "${theme}", count: ${count}`);
@@ -1341,7 +1354,7 @@ Do not return placeholders, day labels, generic "focus of the day" formulations,
             const criticConfig = await this.getAgentConfig(projectId, 'topic_critic');
             const fixerConfig = await this.getAgentConfig(projectId, 'topic_fixer');
             [creatorConfig, criticConfig, fixerConfig].forEach(preflightInvocation);
-            creatorConfig.prompt = creatorPrompt;
+            creatorConfig.prompt = `${creatorPrompt}\n\n${contentLanguageInstruction(contentLanguage)}`;
             currentTopicsJSON = await this.topicCreator(projectId, theme, creatorConfig, runLogId, fullContext);
 
             // Ensure it's valid JSON structure from the start
@@ -1358,8 +1371,8 @@ Do not return placeholders, day labels, generic "focus of the day" formulations,
                 fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [MultiAgent Topics] Iteration ${iterations} starting...\n`);
                 console.log(`[MultiAgent Topics] Iteration ${iterations} starting...`);
 
-                criticConfig.prompt = await this.getPrompt(projectId, this.KEY_TOPIC_CRITIC, this.DEFAULT_TOPIC_CRITIC_PROMPT);
-                fixerConfig.prompt = await this.getPrompt(projectId, this.KEY_TOPIC_FIXER, this.DEFAULT_TOPIC_FIXER_PROMPT);
+                criticConfig.prompt = `${await this.getPrompt(projectId, this.KEY_TOPIC_CRITIC, this.DEFAULT_TOPIC_CRITIC_PROMPT)}\n\n${contentLanguageInstruction(contentLanguage)}`;
+                fixerConfig.prompt = `${await this.getPrompt(projectId, this.KEY_TOPIC_FIXER, this.DEFAULT_TOPIC_FIXER_PROMPT)}\n\n${contentLanguageInstruction(contentLanguage)}`;
 
                 // Critic
                 const critiqueResult = await this.topicCritic(projectId, currentTopicsJSON, theme, criticConfig, runLogId, iterations);

@@ -21,6 +21,7 @@ model User {
 
   memberships      ProjectMember[]
   sent_invitations ProjectInvitation[]
+  mcp_access_tokens McpAccessToken[]
 
   @@map("users")
   @@schema("planner")
@@ -68,6 +69,7 @@ model Project {
   metric_snapshots          MetricSnapshot[]
   publication_facts         PublicationFact[]
   service_identity_bindings ServiceIdentityBinding[]
+  mcp_access_tokens         McpAccessToken[]
 
   prompt_presets    PromptPreset[]
   comments          Comment[]
@@ -108,6 +110,27 @@ model ServiceIdentityBinding {
   @@unique([project_id, actor_id])
   @@index([actor_id, is_active])
   @@map("service_identity_bindings")
+  @@schema("planner")
+}
+
+model McpAccessToken {
+  id          Int       @id @default(autoincrement())
+  project_id  Int
+  user_id     Int
+  profile     String
+  token_hash  String    @unique
+  label       String
+  expires_at  DateTime? @db.Timestamptz(6)
+  revoked_at  DateTime? @db.Timestamptz(6)
+  last_used_at DateTime? @db.Timestamptz(6)
+  created_at  DateTime  @default(now())
+
+  project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([project_id, profile])
+  @@index([user_id, revoked_at])
+  @@map("mcp_access_tokens")
   @@schema("planner")
 }
 

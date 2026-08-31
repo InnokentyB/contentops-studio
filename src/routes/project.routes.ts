@@ -22,6 +22,7 @@ import {
 import dzenService from '../services/dzen.service';
 import initiativeService from '../services/initiative.service';
 import workQueueService from '../services/work_queue.service';
+import mcpAccessTokenService, { isManagedMcpProfile } from '../services/mcp_access_token.service';
 
 import { prisma } from '../services/planner.service';
 
@@ -723,6 +724,44 @@ export default async function projectRoutes(fastify: FastifyInstance) {
             };
         } finally {
             clearTimeout(timeout);
+        }
+    });
+
+    fastify.get('/api/projects/:id/mcp/access-tokens', async (request, reply) => {
+        const user = (request as any).user;
+        const projectId = parseInt((request.params as { id: string }).id, 10);
+        if (!await authService.hasProjectAccess(user.id, projectId, 'owner')) return reply.code(403).send({ error: 'Owner access required' });
+        const accesses = await mcpAccessTokenService.list(projectId);
+        return {
+            accesses: accesses.map(({ token_hash: _tokenHash, ...access }) => access)
+        };
+    });
+
+    fastify.post('/api/projects/:id/mcp/access-tokens', async (request, reply) => {
+        const owner = (request as any).user;
+        const projectId = parseInt((request.params as { id: string }).id, 10);
+        if (!await authService.hasProjectAccess(owner.id, projectId, 'owner')) return reply.code(403).send({ error: 'Owner access required' });
+        const { userId, profile, label, expiresAt } = request.body as { userId: number; profile: unknown; label?: string; expiresAt?: string | null };
+        if (!Number.isInteger(userId) || !isManagedMcpProfile(profile)) return reply.code(400).send({ error: 'Valid user and MCP profile are required' });
+        const expiry = expiresAt ? new Date(expiresAt) : null;
+        if (expiry && (Number.isNaN(expiry.getTime()) || expiry <= new Date())) return reply.code(400).send({ error: 'Expiry must be in the future' });
+        try {
+            return await mcpAccessTokenService.create(projectId, userId, profile, label || '', expiry);
+        } catch (error: any) {
+            return reply.code(400).send({ error: error.message || 'Unable to create MCP access' });
+        }
+    });
+
+    fastify.delete('/api/projects/:id/mcp/access-tokens/:tokenId', async (request, reply) => {
+        const owner = (request as any).user;
+        const { id, tokenId } = request.params as { id: string; tokenId: string };
+        const projectId = parseInt(id, 10);
+        if (!await authService.hasProjectAccess(owner.id, projectId, 'owner')) return reply.code(403).send({ error: 'Owner access required' });
+        try {
+            await mcpAccessTokenService.revoke(projectId, parseInt(tokenId, 10));
+            return { success: true };
+        } catch (error: any) {
+            return reply.code(404).send({ error: error.message || 'MCP access was not found' });
         }
     });
 

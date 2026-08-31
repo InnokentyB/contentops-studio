@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import multiAgentService from './multi_agent.service';
 import publisherService from './publisher.service';
 import prisma from '../db';
+import { channelContentLanguage } from './content_language.service';
 
 interface sequentialParams {
     projectId: number;
@@ -16,7 +17,7 @@ class SequentialWriterService {
 
         const week = await prisma.week.findUnique({
             where: { id: weekId },
-            include: { posts: { orderBy: { slot_index: 'asc' } } }
+            include: { posts: { orderBy: { slot_index: 'asc' }, include: { channel: true } } }
         });
 
         if (!week) throw new Error("Week not found");
@@ -53,6 +54,7 @@ class SequentialWriterService {
             const context = {
                 week_theme: week.theme,
                 topic: post.topic || "General Industry Update",
+                content_language: channelContentLanguage(post.channel),
                 week_memory: {
                     core_summary: memory!.week_core_summary,
                     covered_angles: memory!.covered_angles,
@@ -78,6 +80,7 @@ class SequentialWriterService {
             while (attempts <= maxAttempts && !approved) {
                 const criticResult = await multiAgentService.runContentCritic(projectId, {
                     content: currentContent,
+                    content_language: context.content_language,
                     week_memory: context.week_memory
                 });
 
@@ -91,6 +94,7 @@ class SequentialWriterService {
                     const fixedContent = await multiAgentService.runContentFixer(projectId, {
                         content: currentContent,
                         critique: criticResult.critique,
+                        content_language: context.content_language,
                         week_memory: context.week_memory
                     });
 
