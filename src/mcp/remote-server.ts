@@ -7,12 +7,14 @@ import { createPlannerMcpServer, shutdownMcpResources } from './shared';
 import schemaPlanService from '../services/schema_plan.service';
 import { scopeRemoteMcpRequest } from './remote-auth';
 import { McpCapabilityProfile } from './capabilities';
+import mcpAccessTokenService from '../services/mcp_access_token.service';
 
 type SessionEntry = {
     transport: StreamableHTTPServerTransport;
     server: ReturnType<typeof createPlannerMcpServer>;
     endpoint: string;
     profile: McpCapabilityProfile;
+    credentialFingerprint?: string;
 };
 
 type ScopedCredential = {
@@ -50,6 +52,11 @@ function safeTokenEquals(expected: string, actual: string) {
         return false;
     }
     return timingSafeEqual(expectedBuffer, actualBuffer);
+}
+
+function credentialFingerprint(token: string) {
+    // The token itself never enters session state or logs.
+    return require('crypto').createHash('sha256').update(token).digest('hex');
 }
 
 async function main() {
@@ -121,11 +128,12 @@ async function main() {
         body: unknown,
         res: any,
         endpoint = '/mcp',
-        profile: McpCapabilityProfile = 'owner'
+        profile: McpCapabilityProfile = 'owner',
+        credentialId?: string
     ) {
         if (sessionId && sessions.has(sessionId)) {
             const entry = sessions.get(sessionId)!;
-            if (entry.endpoint !== endpoint || entry.profile !== profile) {
+            if (entry.endpoint !== endpoint || entry.profile !== profile || entry.credentialFingerprint !== credentialId) {
                 res.status(403).json({ error: 'MCP session capability mismatch' });
                 return null;
             }
@@ -162,7 +170,7 @@ async function main() {
             sessionIdGenerator: () => randomUUID(),
             enableJsonResponse: true,
             onsessioninitialized: (newSessionId) => {
-                sessions.set(newSessionId, { transport, server, endpoint, profile });
+                sessions.set(newSessionId, { transport, server, endpoint, profile, credentialFingerprint: credentialId });
             }
         });
 
@@ -181,7 +189,8 @@ async function main() {
         return { transport, server };
     }
 
-    app.get('/health', (_req: any, res: any) => {
+    app.get('/health', async (_req: any, res: any) => {
+        const managedProfiles = await mcpAccessTokenService.configuredProfiles();
         res.json({
             status: 'ok',
             ts: new Date().toISOString(),
@@ -196,17 +205,17 @@ async function main() {
                     configured: true,
                     project_id: plannerCredential.principal.projectId,
                     user_id: plannerCredential.principal.userId
-                } : { configured: false },
+                } : { configured: managedProfiles.has('planner') },
                 writer: writerCredential ? {
                     configured: true,
                     project_id: writerCredential.principal.projectId,
                     user_id: writerCredential.principal.userId
-                } : { configured: false },
+                } : { configured: managedProfiles.has('writer') },
                 art_director: artDirectorCredential ? {
                     configured: true,
                     project_id: artDirectorCredential.principal.projectId,
                     user_id: artDirectorCredential.principal.userId
-                } : { configured: false }
+                } : { configured: managedProfiles.has('art_director') }
             },
             active_sessions: sessions.size,
             schema_plan: schemaPlanService.getPlan(),
@@ -288,17 +297,24 @@ async function main() {
         await entry.transport.handleRequest(req, res, req.body);
     });
 
-    function registerScopedEndpoint(endpoint: string, credential: ScopedCredential | null) {
-        const requireScopedAuth = (req: any, res: any, next: any) => {
-            if (!credential) {
-                res.status(503).json({ error: 'Capability endpoint is not configured' });
-                return;
-            }
+    function registerScopedEndpoint(endpoint: string, profile: 'planner' | 'writer' | 'art_director', credential: ScopedCredential | null) {
+        const requireScopedAuth = async (req: any, res: any, next: any) => {
             const token = getBearerToken(req.headers.authorization);
-            if (!token || !safeTokenEquals(credential.token, token)) {
+            if (!token) {
                 res.status(401).json({ error: 'Unauthorized', message: 'Missing or invalid bearer token' });
                 return;
             }
+            if (credential && safeTokenEquals(credential.token, token)) {
+                req.mcpCredential = { principal: credential.principal, credentialId: credentialFingerprint(token) };
+                next();
+                return;
+            }
+            const managed = await mcpAccessTokenService.authenticate(token, profile);
+            if (!managed) {
+                res.status(401).json({ error: 'Unauthorized', message: 'Missing or invalid bearer token' });
+                return;
+            }
+            req.mcpCredential = managed;
             next();
         };
 
@@ -306,7 +322,8 @@ async function main() {
             const sessionIdHeader = req.headers['mcp-session-id'];
             const sessionId = Array.isArray(sessionIdHeader) ? sessionIdHeader[0] : sessionIdHeader;
             const entry = sessionId ? sessions.get(sessionId) : null;
-            if (!entry || entry.endpoint !== endpoint || entry.profile !== credential?.principal.profile) {
+            const token = getBearerToken(req.headers.authorization)!;
+            if (!entry || entry.endpoint !== endpoint || entry.profile !== profile || entry.credentialFingerprint !== req.mcpCredential.credentialId) {
                 res.status(400).send('Invalid or missing session ID');
                 return;
             }
@@ -315,7 +332,9 @@ async function main() {
 
         app.post(endpoint, requireScopedAuth, async (req: any, res: any) => {
             try {
-                const scopedRequest = scopeRemoteMcpRequest(req.body, credential!.principal);
+                const credentialId = req.mcpCredential.credentialId;
+                const principal = req.mcpCredential.principal;
+                const scopedRequest = scopeRemoteMcpRequest(req.body, principal);
                 if (!scopedRequest.allowed) {
                     res.status(403).json({
                         jsonrpc: '2.0',
@@ -332,7 +351,8 @@ async function main() {
                     req.body,
                     res,
                     endpoint,
-                    credential!.principal.profile
+                    profile,
+                    credentialId
                 );
                 if (!entry) return;
                 await entry.transport.handleRequest(req, res, req.body);
@@ -352,7 +372,8 @@ async function main() {
             const sessionIdHeader = req.headers['mcp-session-id'];
             const sessionId = Array.isArray(sessionIdHeader) ? sessionIdHeader[0] : sessionIdHeader;
             const entry = sessionId ? sessions.get(sessionId) : null;
-            if (!entry || entry.endpoint !== endpoint || entry.profile !== credential?.principal.profile) {
+            const token = getBearerToken(req.headers.authorization)!;
+            if (!entry || entry.endpoint !== endpoint || entry.profile !== profile || entry.credentialFingerprint !== req.mcpCredential.credentialId) {
                 res.status(400).json({ error: 'Invalid or missing session ID' });
                 return;
             }
@@ -360,9 +381,9 @@ async function main() {
         });
     }
 
-    registerScopedEndpoint('/mcp/planner', plannerCredential);
-    registerScopedEndpoint('/mcp/writer', writerCredential);
-    registerScopedEndpoint('/mcp/art-director', artDirectorCredential);
+    registerScopedEndpoint('/mcp/planner', 'planner', plannerCredential);
+    registerScopedEndpoint('/mcp/writer', 'writer', writerCredential);
+    registerScopedEndpoint('/mcp/art-director', 'art_director', artDirectorCredential);
 
     const server = app.listen(port, host, () => {
         console.log(`[MCP Remote] listening on http://${host}:${port} (auth required: ${Boolean(authToken)})`);

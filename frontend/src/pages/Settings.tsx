@@ -96,6 +96,16 @@ interface McpStatus {
     }
 }
 
+interface McpAccess {
+    id: number
+    profile: 'planner' | 'writer' | 'art_director'
+    label: string
+    expires_at: string | null
+    revoked_at: string | null
+    last_used_at: string | null
+    user: { id: number; name: string; email: string }
+}
+
 const AGENT_ROLES = [
     {
         group: 'Content Creation',
@@ -334,12 +344,13 @@ export default function Settings() {
         artDirector: 'Арт-директор', artDirectorHelp: 'Оценивает необходимость визуала, формирует brief, принимает источники и проводит визуальное ревью. Не может переписывать посты.',
         mcpTitle: 'Подключение MCP', mcpHelp: 'Дайте Codex, Claude или другому агенту доступ к плану, очереди работ и публикациям проекта.',
         mcpOnline: 'MCP работает', mcpOffline: 'MCP недоступен', checking: 'Проверяем MCP', check: 'Проверить', configured: 'Настроен', notConfigured: 'Не настроен',
-        copyConfig: 'Копировать конфигурацию', copied: 'Конфигурация скопирована', tokenHelp: 'Каждый агент получает отдельный endpoint и отдельный токен. Не передавайте токен одного профиля другому агенту и не храните токены в репозитории.',
+        copyConfig: 'Копировать конфигурацию', copied: 'Конфигурация скопирована', tokenHelp: 'Каждый агент получает отдельный endpoint и отдельный токен. В конфигурации ниже показан безопасный шаблон, а не настоящий секрет. Вставьте токен из Railway или запросите его у владельца проекта.',
         actorId: 'Actor ID владельца', retryMcp: 'Запустите локальный MCP-сервис и повторите проверку.', bindingHelp: 'Project ID и пользователь фиксируются на сервере вместе с токеном. Агент не может подменить их в вызове инструмента.',
         workspaceSync: 'Синхронизация структуры чатов', workspaceSyncHelp: 'Агент получает актуальные роли, handoff-связи и bootstrap конкретного чата. В начале сессии он сравнивает checksum и обновляет инструкции только при изменении проекта.',
         workspaceRoles: 'Штаб · Автор · Главред · Арт-директор · Публикатор · Аналитик',
+        mcpSetup: 'Как подключить Claude', mcpSetupFirst: 'Выберите профиль: «Штаб» для планирования, «Контент-агент» для текста или «Арт-директор» для визуала.', mcpSetupSecond: 'Скопируйте конфигурацию нужного профиля и вставьте настоящий токен вместо безопасного шаблона.', mcpSetupThird: 'В Claude откройте Settings → Connectors → Add custom connector, вставьте URL и токен. После подключения попросите агента прочитать workspace bootstrap.', mcpStarter: 'Первое сообщение агенту',
         publicationChannels: 'Каналы публикации', publicationChannelsHelp: 'Подключайте площадки и выбирайте, сколько контроля оставлять владельцу перед публикацией.',
-        workflowMode: 'Режим работы', prepareOnly: 'Только подготовка', approvalRequired: 'Публикация после одобрения', autoPublish: 'Автопубликация',
+        workflowMode: 'Режим работы', contentLanguage: 'Язык контента', russian: 'Русский', english: 'English', contentLanguageHelp: 'Язык применяется к генерации, редакторской проверке и исправлению публикаций этого канала.', prepareOnly: 'Только подготовка', approvalRequired: 'Публикация после одобрения', autoPublish: 'Автопубликация',
         prepareOnlyHelp: 'Агент готовит текст, публикация остаётся ручной.', approvalRequiredHelp: 'Агент ждёт решения владельца перед отправкой.', autoPublishHelp: 'Одобренный план может публиковаться без ручного шага.',
         afterApproval: 'После одобрения', defaultPublicationType: 'Тип публикации по умолчанию', article: 'Статья', shortPost: 'Короткий пост', channelUrl: 'URL канала', authorizedSession: 'Авторизованная сессия',
         modelCosts: 'Расходы моделей · 30 дней', calls: 'вызовов', knownCost: 'стоимость известна для', automaticTracking: 'Новые вызовы учитываются автоматически', model: 'Модель', errors: 'Ошибки', tokens: 'Токены', estimate: 'Оценка', unknownModel: 'Не зафиксирована', noRate: 'нет тарифа', noTelemetry: 'Телеметрия появится после первого вызова модели на новой версии.'
@@ -355,12 +366,13 @@ export default function Settings() {
         artDirector: 'Art director', artDirectorHelp: 'Assesses visual need, creates briefs, accepts sources and reviews visuals. Cannot rewrite posts.',
         mcpTitle: 'MCP connection', mcpHelp: 'Give Codex, Claude or another agent access to the project plan, work queue and publications.',
         mcpOnline: 'MCP online', mcpOffline: 'MCP unavailable', checking: 'Checking MCP', check: 'Check', configured: 'Configured', notConfigured: 'Not configured',
-        copyConfig: 'Copy configuration', copied: 'Configuration copied', tokenHelp: 'Each agent receives a separate endpoint and token. Never share profile tokens between agents or commit them to the repository.',
+        copyConfig: 'Copy configuration', copied: 'Configuration copied', tokenHelp: 'Each agent receives a separate endpoint and token. The configuration below is a safe template, not a real secret. Insert a Railway token or ask the project owner for it.',
         actorId: 'Owner actor ID', retryMcp: 'Start the local MCP service and retry the check.', bindingHelp: 'Project ID and user identity are bound to the token on the server. Agents cannot override them in tool calls.',
         workspaceSync: 'Chat workspace synchronization', workspaceSyncHelp: 'Agents receive current roles, handoff edges and chat-specific bootstrap instructions. At session start they compare the checksum and update only when project configuration changed.',
         workspaceRoles: 'Planning HQ · Writer · Chief Editor · Art Director · Publisher · Analyst',
+        mcpSetup: 'Connect Claude', mcpSetupFirst: 'Choose a profile: Planning HQ for planning, Content agent for copy, or Art director for visuals.', mcpSetupSecond: 'Copy the configuration for that profile and replace the safe template with the real token.', mcpSetupThird: 'In Claude open Settings → Connectors → Add custom connector, then provide the URL and token. After connecting, ask the agent to read the workspace bootstrap.', mcpStarter: 'First message to the agent',
         publicationChannels: 'Publishing channels', publicationChannelsHelp: 'Connect destinations and choose how much control the owner retains before publication.',
-        workflowMode: 'Workflow mode', prepareOnly: 'Prepare only', approvalRequired: 'Publish after approval', autoPublish: 'Auto-publish',
+        workflowMode: 'Workflow mode', contentLanguage: 'Content language', russian: 'Russian', english: 'English', contentLanguageHelp: 'This language is used for generation, editorial review, and publication fixes for this channel.', prepareOnly: 'Prepare only', approvalRequired: 'Publish after approval', autoPublish: 'Auto-publish',
         prepareOnlyHelp: 'The agent prepares content; publishing remains manual.', approvalRequiredHelp: 'The agent waits for owner approval before sending.', autoPublishHelp: 'An approved plan may be published without another manual step.',
         afterApproval: 'After approval', defaultPublicationType: 'Default publication type', article: 'Article', shortPost: 'Short post', channelUrl: 'Channel URL', authorizedSession: 'Authorized session',
         modelCosts: 'Model costs · 30 days', calls: 'calls', knownCost: 'cost known for', automaticTracking: 'New calls are tracked automatically', model: 'Model', errors: 'Errors', tokens: 'Tokens', estimate: 'Estimate', unknownModel: 'Not recorded', noRate: 'rate unavailable', noTelemetry: 'Telemetry will appear after the first model call on the new version.'
@@ -394,6 +406,7 @@ export default function Settings() {
     const [newChannelUsername, setNewChannelUsername] = useState('')
     const [newChannelApiKey, setNewChannelApiKey] = useState('')
     const [newChannelWorkflowMode, setNewChannelWorkflowMode] = useState<'prepare_only' | 'approval_required' | 'auto_publish'>('approval_required')
+    const [newChannelContentLanguage, setNewChannelContentLanguage] = useState<'ru' | 'en'>('ru')
     const [newVkStatsToken, setNewVkStatsToken] = useState('')
     const [okAppKey, setOkAppKey] = useState('')
     const [okAppSecret, setOkAppSecret] = useState('')
@@ -426,6 +439,10 @@ export default function Settings() {
     // Member State
     const [inviteEmail, setInviteEmail] = useState('')
     const [inviteRole, setInviteRole] = useState('viewer')
+    const [mcpAccessUserId, setMcpAccessUserId] = useState('')
+    const [mcpAccessProfile, setMcpAccessProfile] = useState<'planner' | 'writer' | 'art_director'>('writer')
+    const [mcpAccessLabel, setMcpAccessLabel] = useState('')
+    const [issuedMcpToken, setIssuedMcpToken] = useState('')
 
     // Preset State
     const [presetName, setPresetName] = useState('')
@@ -500,6 +517,27 @@ export default function Settings() {
         refetchInterval: activeTab === 'mcp' ? 15000 : false
     })
 
+    const { data: mcpAccesses } = useQuery<{ accesses: McpAccess[] }>({
+        queryKey: ['mcp-accesses', currentProject?.id],
+        queryFn: () => api.get(`/api/projects/${currentProject!.id}/mcp/access-tokens`),
+        enabled: !!currentProject && activeTab === 'mcp' && isOwner
+    })
+
+    const createMcpAccess = useMutation({
+        mutationFn: () => api.post(`/api/projects/${currentProject!.id}/mcp/access-tokens`, {
+            userId: Number(mcpAccessUserId), profile: mcpAccessProfile, label: mcpAccessLabel
+        }),
+        onSuccess: (result: any) => {
+            setIssuedMcpToken(result.token)
+            queryClient.invalidateQueries({ queryKey: ['mcp-accesses', currentProject?.id] })
+        }
+    })
+
+    const revokeMcpAccess = useMutation({
+        mutationFn: (tokenId: number) => api.delete(`/api/projects/${currentProject!.id}/mcp/access-tokens/${tokenId}`),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['mcp-accesses', currentProject?.id] })
+    })
+
     // Mutations
     const updateProject = useMutation({
         mutationFn: (data: { name: string; description: string }) => projectsApi.update(currentProject!.id, data),
@@ -531,6 +569,7 @@ export default function Settings() {
         setOkAppKey('')
         setOkAppSecret('')
         setNewChannelWorkflowMode('approval_required')
+        setNewChannelContentLanguage('ru')
     }
 
     const addChannel = useMutation({
@@ -761,7 +800,7 @@ export default function Settings() {
         if (!newChannelName) return showToast('Channel Name is required', 'warning');
         if (newChannelType !== 'habr' && !newChannelId) return showToast('Channel ID is required', 'warning');
 
-        const config: any = { workflow_mode: newChannelWorkflowMode };
+        const config: any = { workflow_mode: newChannelWorkflowMode, content_language: newChannelContentLanguage };
         if (newChannelType === 'telegram') {
             config.telegram_channel_id = newChannelId;
             if (newChannelUsername) {
@@ -1107,6 +1146,44 @@ export default function Settings() {
                         </div>
 
                         <div className="mt-6 space-y-6">
+                            {isOwner && (
+                                <section className="rounded-2xl bg-surface-container-low p-4 sm:p-5">
+                                    <h3 className="font-black text-on-surface">{locale === 'ru' ? 'Персональные доступы' : 'Personal access'}</h3>
+                                    <p className="mt-1 text-sm text-on-surface-variant">{locale === 'ru' ? 'Выдавайте и отзывайте доступ без изменения Railway.' : 'Issue and revoke access without changing Railway.'}</p>
+                                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                                        <select value={mcpAccessUserId} onChange={event => setMcpAccessUserId(event.target.value)}>
+                                            <option value="">{locale === 'ru' ? 'Участник проекта' : 'Project member'}</option>
+                                            {(projectData as any)?.members?.map((member: any) => <option key={member.user_id} value={member.user_id}>{member.user?.name || member.user?.email}</option>)}
+                                        </select>
+                                        <select value={mcpAccessProfile} onChange={event => setMcpAccessProfile(event.target.value as typeof mcpAccessProfile)}>
+                                            <option value="planner">Planner</option><option value="writer">Writer</option><option value="art_director">Art director</option>
+                                        </select>
+                                        <input value={mcpAccessLabel} onChange={event => setMcpAccessLabel(event.target.value)} placeholder={locale === 'ru' ? 'Например: Claude на ноутбуке' : 'For example: Claude on laptop'} />
+                                    </div>
+                                    <button type="button" className="btn-primary mt-3" disabled={!mcpAccessUserId || createMcpAccess.isPending} onClick={() => createMcpAccess.mutate()}>{locale === 'ru' ? 'Создать доступ' : 'Create access'}</button>
+                                    {issuedMcpToken && <div className="mt-4 rounded-xl border border-warning/30 bg-white p-3"><div className="text-xs font-black text-warning">{locale === 'ru' ? 'Скопируйте сейчас: повторно токен не показывается' : 'Copy now: this token will not be shown again'}</div><code className="mt-2 block break-all text-xs">{issuedMcpToken}</code><button className="btn-secondary mt-2" onClick={() => navigator.clipboard.writeText(issuedMcpToken)}>{copy.copyConfig}</button></div>}
+                                    <div className="mt-4 space-y-2">
+                                        {(mcpAccesses?.accesses || []).map(access => <div key={access.id} className="flex items-center justify-between gap-3 rounded-xl bg-white p-3"><div><div className="text-sm font-bold">{access.label} · {access.profile}</div><div className="text-xs text-on-surface-variant">{access.user.name || access.user.email}{access.revoked_at ? ` · ${locale === 'ru' ? 'отозван' : 'revoked'}` : ''}</div></div>{!access.revoked_at && <button className="text-xs font-bold text-error" onClick={() => revokeMcpAccess.mutate(access.id)}>{locale === 'ru' ? 'Отозвать' : 'Revoke'}</button>}</div>)}
+                                    </div>
+                                </section>
+                            )}
+                            <section className="rounded-2xl border border-primary/15 bg-primary/5 p-4 sm:p-5">
+                                <div className="flex items-start gap-3">
+                                    <span className="material-symbols-outlined text-primary" aria-hidden="true">rocket_launch</span>
+                                    <div>
+                                        <h3 className="font-black text-on-surface">{copy.mcpSetup}</h3>
+                                        <ol className="mt-3 space-y-2 text-sm leading-6 text-on-surface-variant">
+                                            <li>1. {copy.mcpSetupFirst}</li>
+                                            <li>2. {copy.mcpSetupSecond}</li>
+                                            <li>3. {copy.mcpSetupThird}</li>
+                                        </ol>
+                                        <div className="mt-4 rounded-xl bg-white p-3">
+                                            <div className="text-xs font-black uppercase tracking-wider text-primary">{copy.mcpStarter}</div>
+                                            <p className="mt-1 text-sm leading-6 text-on-surface-variant">{locale === 'ru' ? 'Прочитай bootstrap рабочей области, назови доступные инструменты и предложи следующий безопасный шаг для проекта.' : 'Read the workspace bootstrap, list your available tools, and propose the next safe step for this project.'}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
                             <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
                                 {capabilityCards.map((capability) => {
                                     const config = JSON.stringify({
@@ -1205,6 +1282,14 @@ export default function Settings() {
                                 <p className="mt-1 text-xs leading-5 text-on-surface-variant">
                                     {newChannelWorkflowMode === 'prepare_only' ? copy.prepareOnlyHelp : newChannelWorkflowMode === 'approval_required' ? copy.approvalRequiredHelp : copy.autoPublishHelp}
                                 </p>
+                            </div>
+                            <div>
+                                <label>{copy.contentLanguage}</label>
+                                <select value={newChannelContentLanguage} onChange={(e) => setNewChannelContentLanguage(e.target.value as 'ru' | 'en')}>
+                                    <option value="ru">{copy.russian}</option>
+                                    <option value="en">{copy.english}</option>
+                                </select>
+                                <p className="mt-1 text-xs leading-5 text-on-surface-variant">{copy.contentLanguageHelp}</p>
                             </div>
 
                             {newChannelType === 'telegram' ? (
@@ -1531,6 +1616,18 @@ export default function Settings() {
                                                     <option value="approval_required">{copy.afterApproval}</option>
                                                     <option value="auto_publish">{copy.autoPublish}</option>
                                                 </select>
+                                            </div>
+                                            <div>
+                                                <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>{copy.contentLanguage}</label>
+                                                <select
+                                                    className="w-full"
+                                                    value={editingChannelConfig.content_language || 'ru'}
+                                                    onChange={e => setEditingChannelConfig({ ...editingChannelConfig, content_language: e.target.value })}
+                                                >
+                                                    <option value="ru">{copy.russian}</option>
+                                                    <option value="en">{copy.english}</option>
+                                                </select>
+                                                <p className="mt-1 text-xs leading-5 text-on-surface-variant">{copy.contentLanguageHelp}</p>
                                             </div>
 
                                             {channel.type === 'telegram' && (

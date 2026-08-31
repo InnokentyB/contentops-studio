@@ -5,6 +5,7 @@ import workQueueService from './work_queue.service';
 import multiAgentService from './multi_agent.service';
 import { deriveWeekAutomationState } from './week_autogeneration_state';
 import { derivePublicationGenerationStage } from './publication_generation_stage';
+import { channelContentLanguage } from './content_language.service';
 
 type ThemeState = 'draft' | 'accepted';
 
@@ -267,7 +268,13 @@ class WeeklyThemePipelineService {
                 throw new Error('[INVALID_SCHEDULE_TEMPLATE] Preview requires seven unique day positions');
             }
 
-            return { weekPackage, theme };
+            const channel = await tx.socialChannel.findFirst({
+                where: { id: input.channelId, project_id: input.projectId },
+                select: { config: true }
+            });
+            if (!channel) throw new Error('[CHANNEL_NOT_FOUND] Target channel was not found in the requested project');
+
+            return { weekPackage, theme, contentLanguage: channelContentLanguage(channel) };
         });
 
         if ('cached' in prepared) return prepared.cached as Record<string, unknown>;
@@ -293,7 +300,8 @@ class WeeklyThemePipelineService {
                 theme_body: prepared.theme.brief || '',
                 channel_name: String(input.channelId),
                 week_start: dateOnly(prepared.weekPackage.week_start),
-                week_end: dateOnly(prepared.weekPackage.week_end)
+                week_end: dateOnly(prepared.weekPackage.week_end),
+                content_language: prepared.contentLanguage
             });
             generated = validateGeneratedProposals(providerResult);
         } else {

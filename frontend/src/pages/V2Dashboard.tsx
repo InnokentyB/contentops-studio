@@ -52,13 +52,22 @@ function StrategyChat() {
     const messagesEndRef = useRef<HTMLDivElement>(null)
 
     const { data: settings } = useQuery<{ systemPrompt: string }>({
-        queryKey: ['strategy_chat_settings'],
-        queryFn: () => api.get('/api/v2/strategy-chat/settings'),
+        queryKey: ['strategy_chat_settings', locale],
+        queryFn: () => api.get(`/api/v2/strategy-chat/settings?language=${locale}`),
+    })
+
+    const { data: savedHistory, refetch: refetchHistory } = useQuery<{ messages: ChatMessage[] }>({
+        queryKey: ['strategy_chat_history'],
+        queryFn: () => api.get('/api/v2/strategy-chat/history'),
     })
 
     useEffect(() => {
         if (settings?.systemPrompt) setSystemPrompt(settings.systemPrompt)
     }, [settings])
+
+    useEffect(() => {
+        if (savedHistory?.messages) setMessages(savedHistory.messages)
+    }, [savedHistory])
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -76,9 +85,10 @@ function StrategyChat() {
         try {
             const res = await api.post('/api/v2/strategy-chat', {
                 message: trimmed,
-                history: messages.slice(-10)
+                language: locale
             })
-            setMessages([...newMessages, { role: 'assistant', content: res.data.reply }])
+            setMessages(res.data.messages || [...newMessages, { role: 'assistant', content: res.data.reply }])
+            refetchHistory()
         } catch (e: any) {
             setMessages([...newMessages, {
                 role: 'assistant',
@@ -115,7 +125,11 @@ function StrategyChat() {
                 <div className="flex gap-2">
                     {messages.length > 0 && (
                         <button 
-                            onClick={() => setMessages([])}
+                            onClick={async () => {
+                                await api.delete('/api/v2/strategy-chat/history')
+                                setMessages([])
+                                refetchHistory()
+                            }}
                             className="p-2 hover:bg-white/20 rounded-full transition-colors text-on-surface-variant"
                         >
                             <span className="material-symbols-outlined text-lg">delete_sweep</span>

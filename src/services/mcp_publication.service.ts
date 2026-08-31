@@ -14,6 +14,7 @@ import path from 'path';
 import { normalizeProjectKind, slugifyProjectName } from '../utils/project.utils';
 import { derivePublicationContentState } from './publication_content_state';
 import publicationFactService from './publication_fact.service';
+import { channelContentLanguage } from './content_language.service';
 import { isPublicationTaskActive } from './publication_task_activity';
 import publicationAdapterService from './publication_adapter.service';
 import { derivePublicationGenerationStage } from './publication_generation_stage';
@@ -1059,7 +1060,11 @@ class McpPublicationService {
             ...rawAccount,
             platform: rawAccount.platform || item.channel?.type
         });
-        const browserRequired = bundle.mode === 'manual' || !directExecutionSupported;
+        const bundleWithLanguage = {
+            ...bundle,
+            content_language: channelContentLanguage(item.channel)
+        };
+        const browserRequired = bundleWithLanguage.mode === 'manual' || !directExecutionSupported;
 
         const updated = await prisma.contentItem.update({
             where: { id: item.id },
@@ -1068,7 +1073,7 @@ class McpPublicationService {
                 publication_mode: browserRequired ? 'browser_required' : 'connector_auto',
                 quality_report: {
                     ...((item.quality_report as any) || {}),
-                    handoff_bundle: bundle,
+                    handoff_bundle: bundleWithLanguage,
                     execution_mode: browserRequired ? 'browser' : 'automatic',
                     publication_route: browserRequired ? 'browser_required' : 'connector_auto',
                     prepared_at: new Date().toISOString()
@@ -1081,7 +1086,7 @@ class McpPublicationService {
                 ...updated,
                 schedule_at: resolveTaskScheduleAt(updated)
             },
-            bundle,
+            bundle: bundleWithLanguage,
             reused: false
         };
     }

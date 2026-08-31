@@ -6,6 +6,7 @@ import { config } from 'dotenv';
 import { POST_SYSTEM_PROMPT } from '../config/prompts';
 import multiAgentService from './multi_agent.service';
 import { estimateImageCostUsd, modelForRole } from './model_policy.service';
+import { channelContentLanguage, contentLanguageInstruction } from './content_language.service';
 
 config();
 
@@ -151,11 +152,34 @@ class GeneratorService {
     }
 
     async generateTopics(projectId: number, theme: string, weekId: number, promptOverride?: string, count: number = 5, existingTopics: string[] = []): Promise<{ topics: { topic: string, category: string, tags: string[] }[], score: number }> {
-        return await multiAgentService.refineTopics(projectId, theme, weekId, promptOverride, count, existingTopics);
+        // Week plans inherit language from their target channel's existing slots.
+        const slot = await prisma.post.findFirst({
+            where: { project_id: projectId, week_id: weekId },
+            orderBy: { slot_index: 'asc' },
+            include: { channel: true }
+        });
+        const contentLanguage = channelContentLanguage(slot?.channel);
+
+        return await multiAgentService.refineTopics(
+            projectId,
+            theme,
+            weekId,
+            promptOverride,
+            count,
+            existingTopics,
+            contentLanguage
+        );
     }
 
     async generatePostText(projectId: number, theme: string, topic: string, postId: number, promptOverride?: string, withImage: boolean = false) {
-        const result = await multiAgentService.runPostGeneration(projectId, theme, topic, postId, promptOverride, withImage);
+        const post = postId > 0
+            ? await prisma.post.findFirst({
+                where: { id: postId, project_id: projectId },
+                include: { channel: true }
+            })
+            : null;
+        const contentLanguage = channelContentLanguage(post?.channel);
+        const result = await multiAgentService.runPostGeneration(projectId, theme, topic, postId, promptOverride, withImage, contentLanguage);
         return {
             text: result.finalText,
             category: result.category,
@@ -166,29 +190,31 @@ class GeneratorService {
     async generateContentItemText(contentItemId: number) {
         const item = await prisma.contentItem.findUnique({
             where: { id: contentItemId },
-            include: { week_package: true }
+            include: { week_package: true, channel: true }
         });
 
         if (!item || !item.week_package) throw new Error("ContentItem or WeekPackage not found");
 
         const theme = item.week_package.week_theme || '';
         const topic = item.title || item.brief || 'Unknown topic';
+        const contentLanguage = channelContentLanguage(item.channel);
 
         // For MVP, reuse the existing runPostGeneration logic but point it to this ContentItem's topic
         // A more advanced integration would pass the ContentItem's specific requirements (layer, CTA) 
         // to a dedicated v2 prompt.
-        const promptOverride = `Ты — Автор контента. Тема недели: ${theme}. Тезис: ${item.week_package.core_thesis}.
-Твоя задача — написать черновик:
-Формат: ${item.type} (Слой: ${item.layer || 'общий'})
-Заголовок: ${item.title}
-Детали: ${item.brief}
-Ключевые пункты: ${(item.key_points as string[] || []).join(', ')}
-CTA: ${item.cta || 'Нет'}
+        const promptOverride = `You are a content writer. Weekly theme: ${theme}. Core thesis: ${item.week_package.core_thesis}.
+Write a publication draft:
+Format: ${item.type} (layer: ${item.layer || 'general'})
+Title: ${item.title}
+Details: ${item.brief}
+Key points: ${(item.key_points as string[] || []).join(', ')}
+CTA: ${item.cta || 'None'}
 
-Пиши сразу текст, без мета-комментариев.`;
+${contentLanguageInstruction(contentLanguage)}
+Return the publication text only, without meta-commentary.`;
 
         // Mocking postId as 0 since we capture the output directly and will save it to ContentItem manually
-        const result = await multiAgentService.runPostGeneration(item.project_id, theme, topic, 0, promptOverride, false);
+        const result = await multiAgentService.runPostGeneration(item.project_id, theme, topic, 0, promptOverride, false, contentLanguage);
 
         await prisma.contentItem.update({
             where: { id: item.id },
