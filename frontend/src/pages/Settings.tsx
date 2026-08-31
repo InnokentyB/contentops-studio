@@ -603,8 +603,8 @@ export default function Settings() {
 
     const testChannelConnection = useMutation({
         mutationFn: (channelId: number) => projectsApi.testChannelConnection(currentProject!.id, channelId),
-        onSuccess: () => showToast('Сессия Дзена активна, редактор доступен', 'success'),
-        onError: (err: any) => showToast('Не удалось подключиться к Дзену', 'error', err.message)
+        onSuccess: () => showToast(locale === 'ru' ? 'Сессия Дзена активна, редактор доступен' : 'Zen session is active and the editor is available', 'success'),
+        onError: (err: any) => showToast(locale === 'ru' ? 'Не удалось подключиться к Дзену' : 'Could not connect to Zen', 'error', err.message)
     })
 
     // Note: Delete channel endpoint might need to be added or we just hide it?
@@ -1346,19 +1346,19 @@ export default function Settings() {
                                             onChange={e => setNewChannelApiKey(e.target.value)}
                                         />
                                         <div className="text-xs text-on-surface-variant mt-1">
-                                            Используется для публикации и чтения публичных счётчиков записи.
+                                            {locale === 'ru' ? 'Используется для публикации и чтения публичных счётчиков записи.' : 'Used for publishing and reading public post counters.'}
                                         </div>
                                     </div>
                                     <div style={{ gridColumn: '1 / -1' }}>
                                         <label>User statistics token (Optional)</label>
                                         <input
                                             type="password"
-                                            placeholder="Токен пользователя с доступом к статистике сообщества"
+                                            placeholder={locale === 'ru' ? 'Токен пользователя с доступом к статистике сообщества' : 'User token with access to community statistics'}
                                             value={newVkStatsToken}
                                             onChange={e => setNewVkStatsToken(e.target.value)}
                                         />
                                         <div className="text-xs text-on-surface-variant mt-1">
-                                            Нужен для охватов, переходов, вступлений, скрытий, жалоб и отписок через stats.getPostReach.
+                                            {locale === 'ru' ? 'Нужен для охватов, переходов, вступлений, скрытий, жалоб и отписок через stats.getPostReach.' : 'Required for reach, clicks, joins, hides, reports, and unfollows through stats.getPostReach.'}
                                         </div>
                                     </div>
                                 </>
@@ -1429,7 +1429,7 @@ export default function Settings() {
                                     <div style={{ gridColumn: '1 / -1' }}>
                                         <label>Session Cookies (for automated Puppeteer publishing)</label>
                                         <p style={{ fontSize: '0.75rem', color: 'var(--text-muted, #8a8fa8)', margin: '0 0 6px' }}>
-                                            Войдите в Habr в браузере, откройте DevTools → Network → скопируйте значение заголовка <code>Cookie</code> из любого запроса к habr.com и вставьте сюда.
+                                            {locale === 'ru' ? <>Войдите в Habr в браузере, откройте DevTools → Network → скопируйте значение заголовка <code>Cookie</code> из любого запроса к habr.com и вставьте сюда.</> : <>Sign in to Habr, open DevTools → Network, copy the <code>Cookie</code> header from any habr.com request, and paste it here.</>}
                                         </p>
                                         <textarea
                                             rows={3}
@@ -1471,7 +1471,7 @@ export default function Settings() {
                             ) : newChannelType === 'zen' ? (
                                 <>
                                     <div>
-                                        <label>ID или slug канала в Дзене</label>
+                                        <label>{locale === 'ru' ? 'ID или slug канала в Дзене' : 'Zen channel ID or slug'}</label>
                                         <input
                                             placeholder="e.g. channel_id..."
                                             value={newChannelId}
@@ -1479,9 +1479,9 @@ export default function Settings() {
                                         />
                                     </div>
                                     <div style={{ gridColumn: '1 / -1' }}>
-                                        <label>Авторизованная сессия Дзена</label>
+                                        <label>{locale === 'ru' ? 'Авторизованная сессия Дзена' : 'Authorized Zen session'}</label>
                                         <p style={{ fontSize: '0.75rem', color: 'var(--text-muted, #8a8fa8)', margin: '0 0 6px' }}>
-                                            После сохранения сессия шифруется и больше не показывается. Заполним её после настройки Railway.
+                                            {locale === 'ru' ? 'После сохранения сессия шифруется и больше не показывается. Заполним её после настройки Railway.' : 'After saving, the session is encrypted and no longer displayed. Add it after Railway is configured.'}
                                         </p>
                                         <textarea
                                             rows={3}
@@ -1709,7 +1709,7 @@ export default function Settings() {
                                                             style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
                                                         />
                                                         <div className="text-xs text-on-surface-variant mt-1">
-                                                            Отдельный пользовательский токен для stats.getPostReach. Существующее значение остаётся сохранённым, пока поле замаскировано.
+                                                            {locale === 'ru' ? 'Отдельный пользовательский токен для stats.getPostReach. Существующее значение остаётся сохранённым, пока поле замаскировано.' : 'A separate user token for stats.getPostReach. The existing value remains saved while the field is masked.'}
                                                         </div>
                                                     </div>
                                                 </>
@@ -1890,12 +1890,12 @@ export default function Settings() {
                                                             className="w-full"
                                                             value={editingChannelConfig.cookies || ''}
                                                             onChange={e => setEditingChannelConfig({ ...editingChannelConfig, cookies: e.target.value })}
-                                                            placeholder="Сохранённая сессия скрыта. Вставьте новое значение только для замены."
+                                                            placeholder={locale === 'ru' ? 'Сохранённая сессия скрыта. Вставьте новое значение только для замены.' : 'The saved session is hidden. Paste a new value only to replace it.'}
                                                             rows={2}
                                                             style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
                                                         />
                                                         <div className="text-xs text-on-surface-variant mt-1">
-                                                            Сначала сохраните изменения, затем запустите проверку подключения.
+                                                            {locale === 'ru' ? 'Сначала сохраните изменения, затем запустите проверку подключения.' : 'Save changes first, then test the connection.'}
                                                         </div>
                                                     </div>
                                                     <div style={{ gridColumn: '1 / -1' }}>
@@ -1905,7 +1905,7 @@ export default function Settings() {
                                                             disabled={testChannelConnection.isPending}
                                                             onClick={() => testChannelConnection.mutate(channel.id)}
                                                         >
-                                                            {testChannelConnection.isPending ? 'Проверяем Дзен…' : 'Проверить подключение к Дзену'}
+                                                            {testChannelConnection.isPending ? (locale === 'ru' ? 'Проверяем Дзен…' : 'Checking Zen...') : (locale === 'ru' ? 'Проверить подключение к Дзену' : 'Test Zen connection')}
                                                         </button>
                                                     </div>
                                                 </>
@@ -2146,7 +2146,9 @@ export default function Settings() {
                                         rows={18}
                                         spellCheck={false}
                                         style={{ fontFamily: 'monospace' }}
-                                        placeholder={'voices:\n  founder:\n    preferred_traits:\n      - "позиция"\nplatforms:\n  telegram:\n    min_chars: 700\nmatrix:\n  telegram:\n    founder:\n      preferred_traits:\n        - "живой конфликт"'}
+                                        placeholder={locale === 'ru'
+                                            ? 'voices:\n  founder:\n    preferred_traits:\n      - "позиция"\nplatforms:\n  telegram:\n    min_chars: 700\nmatrix:\n  telegram:\n    founder:\n      preferred_traits:\n        - "живой конфликт"'
+                                            : 'voices:\n  founder:\n    preferred_traits:\n      - "clear position"\nplatforms:\n  telegram:\n    min_chars: 700\nmatrix:\n  telegram:\n    founder:\n      preferred_traits:\n        - "real conflict"'}
                                     />
                                 </div>
 

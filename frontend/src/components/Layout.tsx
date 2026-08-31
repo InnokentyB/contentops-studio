@@ -10,7 +10,7 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user, projects, currentProject, setCurrentProject, logout } = useAuth();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const location = useLocation();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -162,7 +162,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         className="fixed inset-0 z-50 lg:hidden opacity-100"
       >
         <button
-          aria-label="Закрыть навигацию"
+          aria-label={locale === 'ru' ? 'Закрыть навигацию' : 'Close navigation'}
           className="absolute inset-0 bg-black/35 backdrop-blur-sm"
           onClick={() => setMobileNavOpen(false)}
         />
@@ -171,7 +171,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <button
               onClick={() => setMobileNavOpen(false)}
               className="absolute right-4 top-4 z-10 w-10 h-10 rounded-2xl bg-white/90 text-on-surface flex items-center justify-center shadow-sm"
-              aria-label="Закрыть меню"
+              aria-label={locale === 'ru' ? 'Закрыть меню' : 'Close menu'}
             >
               <span className="material-symbols-outlined">close</span>
             </button>

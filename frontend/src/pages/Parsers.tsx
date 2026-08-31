@@ -209,6 +209,7 @@ function getResultTone(score: number) {
 
 export default function Parsers() {
     const { locale } = useLocale()
+    const tr = (ru: string, en: string) => locale === 'ru' ? ru : en
     const copy = locale === 'ru' ? {
         chooseProject: 'Сначала выбери проект', addQuery: 'Сначала добавь запрос для исследования', noActiveJob: 'Не выбрана активная исследовательская задача', lab: 'Исследовательская лаборатория', title: 'Исследования, скоринг и разведка источников для каждого канала проекта.', intro: 'Выбери источник, задай критерии включения и исключения, запусти исследование, а затем оцени сырые результаты и fit score со стороны планнера, прежде чем превращать находки в посты, брифы или задачи канала.', project: 'Проект', notSelected: 'не выбран', activeJob: 'Активная задача', rankedResults: 'результатов в ранжировании', operationalStatus: 'Операционный статус', integration: 'Состояние интеграции', problem: 'Проблема', ready: 'Готово', integrationError: 'Связка с исследовательским сервисом доступна из планнера, но верхний parser endpoint вернул ошибку.', integrationReady: 'Планнер может разговаривать со слоем исследовательских интеграций. Здесь удобно запускать discovery до того, как контент попадёт в каналы.', source: 'Источник', scoring: 'Скоринг', fitScore: 'Fit score планнера', threshold: 'Порог', criteria: 'Лаборатория критериев', criteriaTitle: 'Опиши исследованию, что именно искать', refreshing: 'Обновляем...', refresh: 'Обновить задачу', launching: 'Запускаем...', launch: 'Запустить исследование', searchQuery: 'Поисковый запрос', queryPlaceholder: 'Какой именно разговор или сигнал мы хотим поймать?', intent: 'Интент', cluster: 'Кластер', workspaceDoes: 'Что делает эта рабочая область', workspaceBullets: ['Задаёт source-specific критерии поиска и quality gates.', 'Показывает сырые результаты исследования до попадания в publishing network.', 'Применяет fit score со стороны планнера, чтобы ранжировать сильнейшие контентные сигналы.'], sourceEyebrows: ['Открытые обсуждения', 'Сообщества фаундеров'], sourceHints: ['Запускай discovery по нескольким сабреддитам, ранжируй треды и вытаскивай повторяющиеся боли и возражения.', 'Следи за группами, продуктовыми постами и разговорами фаундеров, где ссылки и самопромоушен требуют большей осторожности.'], communityLabels: ['Сабреддиты', 'Группы / ленты'], scoreLabels: ['Совпадение с запросом', 'Вовлечённость', 'Свежесть', 'Глубина обсуждения'], minimumFit: 'Минимальный fit score', communityHelp: 'Используй список сообществ или лент через запятую, чтобы сузить источник без правки parser config.', mustInclude: 'Должно содержать хотя бы одно', excludeContains: 'Исключить, если содержит', excludeRegex: 'Исключающие regex', limit: 'Лимит', minimumRaw: 'Минимальный raw score', includeComments: 'Включать комментарии', enrich: 'Обогащать метаданные', results: 'Результаты', rankedSignals: 'Ранжированные сигналы источников', visible: 'видимых', unknownSource: 'Неизвестный источник', noPreview: 'Сервис не вернул body-preview для этого результата.', comments: 'комментариев', openThread: 'Открыть исходный тред', copyCard: 'Скопировать research card', noResults: 'Запусти исследование или снизь порог fit score, чтобы здесь появились подходящие результаты.', runMonitoring: 'Мониторинг запуска', currentJob: 'Текущая parser-задача', status: 'Статус', jobId: 'ID задачи', noJob: 'Нет активной задачи', insights: 'Инсайты', groupedSignals: 'Сгруппированные сигналы', noInsights: 'Группы инсайтов появятся здесь после того, как у исследования будет достаточно сырого материала для summary.', templates: 'Шаблоны', savedRecipes: 'Сохранённые parser recipes', back: 'Назад к обзору', template: 'Исследовательский шаблон', run: 'Запустить', noTemplates: 'Для этого проекта пока не найдено исследовательских шаблонов.'
     } : {
@@ -311,7 +312,9 @@ export default function Parsers() {
             const jobId = result?.parser_response?.job_id || result?.job_id
             const runId = result?.parser_response?.run_id || result?.run_id
             setActiveJobId(jobId || null)
-            setJobMessage(`Поиск поставлен в очередь${jobId ? ` как ${jobId}` : ''}${runId ? ` • запуск ${runId}` : ''}.`)
+            setJobMessage(locale === 'ru'
+                ? `Поиск поставлен в очередь${jobId ? ` как ${jobId}` : ''}${runId ? ` • запуск ${runId}` : ''}.`
+                : `Research queued${jobId ? ` as ${jobId}` : ''}${runId ? ` • run ${runId}` : ''}.`)
             queryClient.invalidateQueries({ queryKey: ['parser_posts', currentProject?.id] })
             queryClient.invalidateQueries({ queryKey: ['parser_insights', currentProject?.id] })
         }
@@ -341,7 +344,9 @@ export default function Parsers() {
         onSuccess: (result: any) => {
             const jobId = result?.parser_response?.job_id || result?.job_id
             setActiveJobId(jobId || null)
-            setJobMessage(`Запуск шаблона начат${jobId ? ` • задача ${jobId}` : ''}.`)
+            setJobMessage(locale === 'ru'
+                ? `Запуск шаблона начат${jobId ? ` • задача ${jobId}` : ''}.`
+                : `Template run started${jobId ? ` • job ${jobId}` : ''}.`)
         }
     })
 
@@ -751,8 +756,8 @@ export default function Parsers() {
                                 </div>
                                 {summaryQuery.data && (
                                     <div className="rounded-[1.35rem] bg-surface-container-low px-4 py-4">
-                                        <span className="font-bold text-on-surface">Снимок summary:</span>{' '}
-                                        {(summaryQuery.data?.parser_response?.generated_from_posts || summaryQuery.data?.generated_from_posts || 0)} постов синтезировано
+                                        <span className="font-bold text-on-surface">{tr('Снимок summary', 'Summary snapshot')}:</span>{' '}
+                                        {(summaryQuery.data?.parser_response?.generated_from_posts || summaryQuery.data?.generated_from_posts || 0)} {tr('постов синтезировано', 'posts synthesized')}
                                     </div>
                                 )}
                             </div>
@@ -843,10 +848,10 @@ export default function Parsers() {
 
                         {topResult && (
                             <div className="rounded-[2rem] border border-outline-variant/10 bg-white p-6 shadow-sm">
-                                <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">Лучший текущий сигнал</div>
+                                <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">{tr('Лучший текущий сигнал', 'Strongest current signal')}</div>
                                 <h2 className="mt-2 text-xl font-headline font-black text-on-surface">{topResult.title}</h2>
                                 <p className="mt-4 text-sm leading-7 text-on-surface-variant">
-                                    Сейчас это результат с самым высоким score по твоей модели fit. Это самый безопасный кандидат, чтобы следующим шагом превратить его в brief, черновик поста или задачу канала.
+                                    {tr('Сейчас это результат с самым высоким score по твоей модели fit. Это самый безопасный кандидат, чтобы следующим шагом превратить его в brief, черновик поста или задачу канала.', 'This result currently has the highest score under your fit model. It is the safest candidate to turn into a brief, post draft, or channel task next.')}
                                 </p>
                             </div>
                         )}

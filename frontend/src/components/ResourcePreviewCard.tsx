@@ -1,4 +1,5 @@
 import ContentMarkupRenderer from './ContentMarkupRenderer'
+import { useLocale } from '../i18n/LocaleContext'
 
 type JsonRecord = Record<string, any>
 
@@ -35,14 +36,14 @@ function resolveUrl(entry?: JsonRecord | null) {
     return ''
 }
 
-function resolveName(entry?: JsonRecord | null) {
-    if (!entry) return 'Ресурс'
+function resolveName(entry: JsonRecord | null | undefined, fallback: string) {
+    if (!entry) return fallback
     return entry.file_name
         || entry.asset?.path?.split('/')?.pop()
         || entry.relative_path
         || entry.url
         || entry.ref
-        || 'Ресурс'
+        || fallback
 }
 
 function inferContentType(entry?: JsonRecord | null) {
@@ -95,17 +96,19 @@ export default function ResourcePreviewCard({
     entry,
     title,
     className = '',
-    emptyMessage = 'Ресурс пока недоступен.'
+    emptyMessage
 }: ResourcePreviewCardProps) {
+    const { locale } = useLocale()
+    const resolvedEmptyMessage = emptyMessage || (locale === 'ru' ? 'Ресурс пока недоступен.' : 'Resource is currently unavailable.')
     const content = resolveContent(entry)
     const url = resolveUrl(entry)
     const contentType = inferContentType(entry)
-    const name = title || resolveName(entry)
+    const name = title || resolveName(entry, locale === 'ru' ? 'Ресурс' : 'Resource')
 
     if (!entry) {
         return (
             <div className={`rounded-2xl bg-white px-4 py-4 text-sm text-on-surface-variant ${className}`}>
-                {emptyMessage}
+                {resolvedEmptyMessage}
             </div>
         )
     }
@@ -122,7 +125,7 @@ export default function ResourcePreviewCard({
                     {url && (
                         <a href={url} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-2 text-primary hover:underline break-all">
                             <span className="material-symbols-outlined text-sm">open_in_new</span>
-                            Открыть изображение
+                            {locale === 'ru' ? 'Открыть изображение' : 'Open image'}
                         </a>
                     )}
                 </div>
@@ -147,7 +150,7 @@ export default function ResourcePreviewCard({
             <div className={`rounded-2xl bg-white px-4 py-4 text-sm space-y-3 ${className}`}>
                 <div className="font-bold text-on-surface">{name}</div>
                 <div className="text-xs text-on-surface-variant">
-                    Тип: {contentType}
+                    {locale === 'ru' ? 'Тип' : 'Type'}: {contentType}
                 </div>
                 <a
                     href={url}
@@ -156,7 +159,7 @@ export default function ResourcePreviewCard({
                     className="inline-flex items-center gap-2 text-sm font-bold text-primary hover:underline break-all"
                 >
                     <span className="material-symbols-outlined text-base">open_in_new</span>
-                    Открыть файл
+                    {locale === 'ru' ? 'Открыть файл' : 'Open file'}
                 </a>
             </div>
         )

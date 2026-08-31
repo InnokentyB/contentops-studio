@@ -1,4 +1,5 @@
 import Markdown from 'markdown-to-jsx';
+import { useLocale } from '../i18n/LocaleContext';
 
 type ContentMarkupRendererProps = {
     content?: string | null;
@@ -149,6 +150,7 @@ export default function ContentMarkupRenderer({
     imageUrl,
     authorName
 }: ContentMarkupRendererProps) {
+    const { locale } = useLocale();
     const safeContent = content?.trim() || '';
 
     if (!safeContent) {
@@ -198,15 +200,15 @@ export default function ContentMarkupRenderer({
                         <div>
                             <span className="font-bold text-[#4e729a] hover:underline cursor-pointer">{authorName || 'habr_author'}</span>
                             <span className="mx-2">•</span>
-                            <span>сегодня в 12:34</span>
+                            <span>{locale === 'ru' ? 'сегодня в 12:34' : 'today at 12:34'}</span>
                         </div>
-                        <span className="ml-auto bg-[#f0f0f0] px-2 py-0.5 rounded text-[10px] whitespace-nowrap">{readTime} мин на чтение</span>
+                        <span className="ml-auto bg-[#f0f0f0] px-2 py-0.5 rounded text-[10px] whitespace-nowrap">{readTime} {locale === 'ru' ? 'мин на чтение' : 'min read'}</span>
                     </div>
                     
                     {postTitle && <h1 className="text-xl sm:text-2xl font-bold leading-tight text-[#111]">{postTitle}</h1>}
                     
                     <div className="flex flex-wrap gap-1.5">
-                        {(postTags && postTags.length > 0 ? postTags : ['Системный анализ', 'Управление разработкой', 'IT-карьера']).map((tag, idx) => (
+                        {(postTags && postTags.length > 0 ? postTags : locale === 'ru' ? ['Системный анализ', 'Управление разработкой', 'IT-карьера'] : ['System analysis', 'Software delivery', 'IT career']).map((tag, idx) => (
                             <span key={idx} className="text-[10px] sm:text-xs bg-[#f4f7fa] text-[#4c6680] px-2 py-0.5 rounded-full font-medium hover:bg-[#e4ebf2] cursor-pointer">
                                 {tag}
                             </span>
@@ -254,10 +256,10 @@ export default function ContentMarkupRenderer({
                         <div className="w-8 h-8 rounded-full bg-[#e30613] text-white flex items-center justify-center font-bold text-xs shrink-0">vc</div>
                         <div>
                             <div className="flex items-center gap-1">
-                                <span className="font-bold text-[#000] hover:underline cursor-pointer">{authorName || 'Блог компании'}</span>
-                                <span className="bg-[#f0f0f0] text-[9px] px-1 py-0.5 rounded text-[#888] font-bold">БЛОГ</span>
+                                <span className="font-bold text-[#000] hover:underline cursor-pointer">{authorName || (locale === 'ru' ? 'Блог компании' : 'Company blog')}</span>
+                                <span className="bg-[#f0f0f0] text-[9px] px-1 py-0.5 rounded text-[#888] font-bold">{locale === 'ru' ? 'БЛОГ' : 'BLOG'}</span>
                             </div>
-                            <div className="text-[10px] text-[#888] mt-0.5">сегодня • {readTime} мин</div>
+                            <div className="text-[10px] text-[#888] mt-0.5">{locale === 'ru' ? 'сегодня' : 'today'} • {readTime} {locale === 'ru' ? 'мин' : 'min'}</div>
                         </div>
                     </div>
                     
@@ -300,10 +302,10 @@ export default function ContentMarkupRenderer({
             <div className={`bg-[#fafafa] p-3 sm:p-5 rounded-[1.5rem] border border-outline-variant/10 ${className}`}>
                 <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm space-y-4 font-sans text-[#222] text-left max-w-xl mx-auto">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-[#111] text-white flex items-center justify-center font-serif text-lg font-black shrink-0">Д</div>
+                        <div className="w-10 h-10 rounded-full bg-[#111] text-white flex items-center justify-center font-serif text-lg font-black shrink-0">D</div>
                         <div>
-                            <div className="font-bold text-[#111] hover:underline cursor-pointer">{authorName || 'Дзен Блог'}</div>
-                            <div className="text-[11px] text-[#8e8e8e]">1.2k подписчиков • сегодня</div>
+                            <div className="font-bold text-[#111] hover:underline cursor-pointer">{authorName || (locale === 'ru' ? 'Дзен Блог' : 'Dzen Blog')}</div>
+                            <div className="text-[11px] text-[#8e8e8e]">1.2k {locale === 'ru' ? 'подписчиков • сегодня' : 'followers • today'}</div>
                         </div>
                     </div>
 
@@ -332,7 +334,7 @@ export default function ContentMarkupRenderer({
                         </div>
                         <div className="flex items-center gap-1">
                             <span>👁️</span>
-                            <span>1.8k просмотров • {readTime} мин</span>
+                            <span>1.8k {locale === 'ru' ? 'просмотров' : 'views'} • {readTime} {locale === 'ru' ? 'мин' : 'min'}</span>
                         </div>
                     </div>
                 </div>

@@ -119,9 +119,9 @@ function topicDetail(item: AutoCanvasStatus['items'][number], field: 'function' 
     return typeof value === 'string' ? value.trim() : ''
 }
 
-function compactSchedule(value?: string | null) {
-    if (!value) return 'Без даты'
-    return new Intl.DateTimeFormat('ru-RU', {
+function compactSchedule(value: string | null | undefined, locale: 'ru' | 'en') {
+    if (!value) return locale === 'ru' ? 'Без даты' : 'No date'
+    return new Intl.DateTimeFormat(locale === 'ru' ? 'ru-RU' : 'en-US', {
         weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
     }).format(new Date(value))
 }
@@ -170,6 +170,7 @@ function mergeChannelResourceFiles(task: PublicationTask | null) {
 
 export default function ChannelWorkspace() {
     const { locale } = useLocale()
+    const tr = (ru: string, en: string) => locale === 'ru' ? ru : en
     const copy = locale === 'ru' ? {
         selectProject: 'Сначала выбери проект, чтобы открыть рабочую область канала.', workspace: 'Рабочая область канала', overview: 'Обзор', loadingChannel: 'Загружаем канал', intro: 'Этот канал — исполнительная поверхность, где перед публикацией сходятся файлы из плана, входы из исследований, ручные загрузки и сгенерированные черновики.', tasks: 'задач', published: 'опубликовано', overdue: 'просрочено', openPublications: 'Открыть публикации', openMetrics: 'Открыть метрики', research: 'Исследования', projectChannels: 'Каналы проекта', network: 'Сеть', networkHelp: 'Переключайся между соседними каналами, не теряя контекст проекта.', loadingWorkspace: 'Загружаем рабочую область канала...', workspaceHelp: 'Выбери, как контент попадает в этот канал, посмотри связанные плановые ресурсы и отправь готовый материал в публикации и аналитику.', planFiles: 'Файлы плана', manualUpload: 'Ручная загрузка', autoCanvas: 'Автоканва', generation: 'Генерация', parserMcp: 'Парсер / MCP', summary: 'Сводка канала', type: 'Тип', name: 'Название', linkedNetwork: 'Связанная сеть', nextActions: 'Следующие действия', openChannelTasks: 'Открыть задачи канала', viewMetrics: 'Посмотреть метрики'
     } : {
@@ -276,10 +277,10 @@ export default function ChannelWorkspace() {
     const saveManualContent = useMutation({
         mutationFn: () => {
             if (!currentProject?.id || !selectedChannel?.id) {
-                throw new Error('Сначала выбери канал проекта')
+                throw new Error(tr('Сначала выбери канал проекта', 'Choose a project channel first'))
             }
             if (!manualUploadFile && !manualFileContent.trim()) {
-                throw new Error('Сначала загрузи файл')
+                throw new Error(tr('Сначала загрузи файл', 'Upload a file first'))
             }
             if (manualUploadFile && !manualFileContent.trim()) {
                 return projectsApi.uploadManualChannelContent(currentProject.id, selectedChannel.id, manualUploadFile, {
@@ -301,8 +302,8 @@ export default function ChannelWorkspace() {
         },
         onSuccess: () => {
             setManualMessage(manualPublishNow
-                ? `Сохранено в канал ${selectedChannel?.name} и связано с уже опубликованным материалом.`
-                : `Сохранено в канал ${selectedChannel?.name}.`)
+                ? tr(`Сохранено в канал ${selectedChannel?.name} и связано с уже опубликованным материалом.`, `Saved to ${selectedChannel?.name} and linked to the published item.`)
+                : tr(`Сохранено в канал ${selectedChannel?.name}.`, `Saved to ${selectedChannel?.name}.`))
             queryClient.invalidateQueries({ queryKey: ['channel_workspace_tasks'] })
             queryClient.invalidateQueries({ queryKey: ['publication_tasks'] })
         }
@@ -311,12 +312,12 @@ export default function ChannelWorkspace() {
     const runAutoCanvasGeneration = useMutation({
         mutationFn: () => {
             if (!currentProject?.id || !selectedChannel?.id) {
-                throw new Error('Сначала выбери канал проекта')
+                throw new Error(tr('Сначала выбери канал проекта', 'Choose a project channel first'))
             }
             return projectsApi.runAutoCanvasGeneration(currentProject.id, selectedChannel.id, 20)
         },
         onSuccess: (result: any) => {
-            setAutoCanvasMessage(`Автогенерация завершена: обработано ${result?.processed || 0} элементов.`)
+            setAutoCanvasMessage(tr(`Автогенерация завершена: обработано ${result?.processed || 0} элементов.`, `Automatic generation completed: ${result?.processed || 0} items processed.`))
             queryClient.invalidateQueries({ queryKey: ['channel_workspace_tasks'] })
             queryClient.invalidateQueries({ queryKey: ['channel_workspace_task_detail'] })
             queryClient.invalidateQueries({ queryKey: ['publication_tasks'] })
@@ -327,7 +328,7 @@ export default function ChannelWorkspace() {
     const decideWeekPlan = useMutation({
         mutationFn: (decision: 'approved' | 'rejected') => {
             if (!currentProject?.id || !selectedChannel?.id || !autoCanvasStatus?.week_package?.id) {
-                throw new Error('Недельный план не выбран')
+                throw new Error(tr('Недельный план не выбран', 'No weekly plan selected'))
             }
             return projectsApi.decideWeekPlan(
                 currentProject.id,
@@ -338,8 +339,8 @@ export default function ChannelWorkspace() {
         },
         onSuccess: (_result, decision) => {
             setAutoCanvasMessage(decision === 'approved'
-                ? 'Семь тем утверждены. Задания на тексты открыты для контентного агента.'
-                : 'План отклонён и возвращён на пересборку.')
+                ? tr('Семь тем утверждены. Задания на тексты открыты для контентного агента.', 'Seven topics approved. Content tasks are now open to the content agent.')
+                : tr('План отклонён и возвращён на пересборку.', 'The plan was rejected and returned for rebuilding.'))
             queryClient.invalidateQueries({ queryKey: ['channel_auto_canvas_status'] })
             queryClient.invalidateQueries({ queryKey: ['publication_tasks'] })
         }
@@ -536,7 +537,7 @@ export default function ChannelWorkspace() {
                                         <div className="rounded-[1.5rem] bg-surface-container-low p-5">
                                             <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{copy.linkedNetwork}</div>
                                             <div className="mt-4 text-sm leading-7 text-on-surface-variant">
-                                                Этот канал остаётся связанным с остальным проектом через план публикаций, граф зависимостей, общие parser recipes и пост-публикационную аналитику.
+                                                {tr('Этот канал остаётся связанным с остальным проектом через план публикаций, граф зависимостей, общие parser recipes и пост-публикационную аналитику.', 'This channel remains connected to the rest of the project through the publication plan, dependency graph, shared parser recipes, and post-publication analytics.')}
                                             </div>
                                         </div>
 
@@ -556,7 +557,7 @@ export default function ChannelWorkspace() {
                                     {sourceMode === 'plan' && (
                                         <section className="grid grid-cols-1 xl:grid-cols-[380px_minmax(0,1fr)] gap-6">
                                             <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
-                                                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Источники из плана</div>
+                                                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{tr('Источники из плана', 'Plan sources')}</div>
                                                 {selectedChannelTasks.length > 0 ? selectedChannelTasks.map((task) => (
                                                     <div key={task.id} className="rounded-2xl bg-white px-4 py-4 space-y-2">
                                                         <div className="flex items-start justify-between gap-3">
@@ -577,19 +578,19 @@ export default function ChannelWorkspace() {
                                                                 rel="noreferrer"
                                                                 className="text-xs font-bold text-primary hover:underline"
                                                             >
-                                                                Открыть live URL
+                                                                {tr('Открыть live URL', 'Open live URL')}
                                                             </a>
                                                         )}
                                                     </div>
                                                 )) : (
                                                     <div className="rounded-2xl bg-white px-4 py-4 text-sm text-on-surface-variant">
-                                                        С этим каналом пока не связаны задачи из плана публикаций.
+                                                        {tr('С этим каналом пока не связаны задачи из плана публикаций.', 'No publication-plan tasks are linked to this channel yet.')}
                                                     </div>
                                                 )}
                                             </div>
 
                                             <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
-                                                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Разрешённые ресурсные файлы</div>
+                                                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{tr('Разрешённые ресурсные файлы', 'Allowed resource files')}</div>
                                                 {resourceFiles.length > 0 ? (
                                                     <div className="space-y-4">
                                                         {resourceFiles.map((file, index) => (
@@ -599,14 +600,14 @@ export default function ChannelWorkspace() {
                                                                     const isMissing = file.exists === false && !inlineContent
                                                                     return (
                                                                         <>
-                                                                <div className="font-bold text-sm text-on-surface">{file.file_name || file.url || file.ref || 'Ресурс'}</div>
-                                                                {file.role && <div className="text-xs text-on-surface-variant">Роль: {file.role}</div>}
+                                                                <div className="font-bold text-sm text-on-surface">{file.file_name || file.url || file.ref || tr('Ресурс', 'Resource')}</div>
+                                                                {file.role && <div className="text-xs text-on-surface-variant">{tr('Роль', 'Role')}: {file.role}</div>}
                                                                 {file.relative_path && <div className="text-xs text-on-surface-variant break-all">{file.relative_path}</div>}
-                                                                {file.section_marker && <div className="text-xs text-on-surface-variant">Секция: {file.section_marker}</div>}
+                                                                {file.section_marker && <div className="text-xs text-on-surface-variant">{tr('Секция', 'Section')}: {file.section_marker}</div>}
                                                                 {file.url && <div className="text-xs text-on-surface-variant break-all">{file.url}</div>}
                                                                 {file.purpose && <div className="text-xs leading-6 text-on-surface-variant">{file.purpose}</div>}
                                                                 <div className={`text-xs font-bold ${isMissing ? 'text-error' : 'text-success'}`}>
-                                                                    {isMissing ? 'Недоступно в текущем runtime-пути' : 'Доступно'}
+                                                                    {isMissing ? tr('Недоступно в текущем runtime-пути', 'Unavailable at the current runtime path') : tr('Доступно', 'Available')}
                                                                 </div>
                                                                 {(inlineContent || file.url) && (
                                                                     <ResourcePreviewCard
@@ -623,7 +624,7 @@ export default function ChannelWorkspace() {
                                                     </div>
                                                 ) : (
                                                     <div className="rounded-2xl bg-white px-4 py-4 text-sm text-on-surface-variant">
-                                                        Подготовь handoff публикационной задачи, чтобы здесь появились связанные исходные файлы.
+                                                        {tr('Подготовь handoff публикационной задачи, чтобы здесь появились связанные исходные файлы.', 'Prepare the publication-task handoff to load linked source files here.')}
                                                     </div>
                                                 )}
                                             </div>
@@ -641,16 +642,16 @@ export default function ChannelWorkspace() {
                                                     if (file) handleManualFile(file)
                                                 }}
                                             >
-                                                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Ручная загрузка</div>
-                                                <h3 className="mt-3 text-xl font-headline font-black text-on-surface">Перетащи `.md` или `.html`</h3>
+                                                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{tr('Ручная загрузка', 'Manual upload')}</div>
+                                                <h3 className="mt-3 text-xl font-headline font-black text-on-surface">{tr('Перетащи `.md` или `.html`', 'Drop a `.md` or `.html` file')}</h3>
                                                 <p className="mt-3 text-sm leading-7 text-on-surface-variant">
-                                                    Используй этот режим, когда контент канала не приходит из плана публикаций. Можно загрузить markdown, HTML или изображение, а затем показать его в интерфейсе и сохранить в рабочую область канала.
+                                                    {tr('Используй этот режим, когда контент канала не приходит из плана публикаций. Можно загрузить markdown, HTML или изображение, а затем показать его в интерфейсе и сохранить в рабочую область канала.', 'Use this mode when channel content does not come from the publication plan. Upload Markdown, HTML, or an image, preview it, and save it to the channel workspace.')}
                                                 </p>
                                                 <button
                                                     onClick={() => document.getElementById('manual-content-file')?.click()}
                                                     className="mt-6 rounded-2xl bg-primary text-white px-5 py-4 text-sm font-black shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all"
                                                 >
-                                                    Выбрать файл
+                                                    {tr('Выбрать файл', 'Choose file')}
                                                 </button>
                                                 <input
                                                     id="manual-content-file"
@@ -673,7 +674,7 @@ export default function ChannelWorkspace() {
                                                     onChange={(event) => setManualNote(event.target.value)}
                                                     rows={4}
                                                     className="mt-4 w-full bg-white border-none rounded-2xl p-4 text-sm leading-6 focus:ring-2 focus:ring-primary/20 outline-none"
-                                                    placeholder="Необязательная заметка для этого элемента контента"
+                                                    placeholder={tr('Необязательная заметка для этого элемента контента', 'Optional note for this content item')}
                                                 />
                                                 <label className="mt-4 flex items-center gap-3 rounded-2xl bg-white px-4 py-3 text-sm font-medium text-on-surface">
                                                     <input
@@ -682,7 +683,7 @@ export default function ChannelWorkspace() {
                                                         onChange={(event) => setManualPublishNow(event.target.checked)}
                                                         className="w-4 h-4 rounded border-outline-variant/20 text-primary focus:ring-primary/20"
                                                     />
-                                                    Этот контент уже опубликован
+                                                    {tr('Этот контент уже опубликован', 'This content is already published')}
                                                 </label>
                                                 {manualPublishNow && (
                                                     <div className="mt-4 space-y-4">
@@ -698,10 +699,10 @@ export default function ChannelWorkspace() {
                                                             onChange={(event) => setManualOutcome(event.target.value as PublicationOutcome)}
                                                             className="w-full bg-white border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
                                                         >
-                                                            <option value="published">Опубликовано нормально</option>
-                                                            <option value="blocked">Заблокировано, но URL есть</option>
-                                                            <option value="removed">Удалено, но URL есть</option>
-                                                            <option value="restricted">Ограниченная видимость</option>
+                                                            <option value="published">{tr('Опубликовано нормально', 'Published')}</option>
+                                                            <option value="blocked">{tr('Заблокировано, но URL есть', 'Blocked, URL available')}</option>
+                                                            <option value="removed">{tr('Удалено, но URL есть', 'Removed, URL available')}</option>
+                                                            <option value="restricted">{tr('Ограниченная видимость', 'Restricted visibility')}</option>
                                                         </select>
                                                     </div>
                                                 )}
@@ -710,7 +711,7 @@ export default function ChannelWorkspace() {
                                                     disabled={saveManualContent.isPending || (!manualUploadFile && !manualFileContent.trim()) || (manualPublishNow && !manualPublishedLink.trim())}
                                                     className="mt-4 w-full rounded-2xl bg-primary text-white px-5 py-4 text-sm font-black shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
                                                 >
-                                                    {saveManualContent.isPending ? 'Сохраняем в канал...' : 'Сохранить в канал'}
+                                                    {saveManualContent.isPending ? tr('Сохраняем в канал...', 'Saving to channel...') : tr('Сохранить в канал', 'Save to channel')}
                                                 </button>
                                                 {manualMessage && (
                                                     <div className="mt-4 rounded-2xl bg-success/10 text-success px-4 py-3 text-sm font-medium">
@@ -726,7 +727,7 @@ export default function ChannelWorkspace() {
 
                                             <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
                                                 <div className="flex items-center justify-between gap-3">
-                                                    <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Предпросмотр контента</div>
+                                                    <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{tr('Предпросмотр контента', 'Content preview')}</div>
                                                     {manualFileName && (
                                                         <span className="text-xs text-on-surface-variant">{manualFileName}</span>
                                                     )}
@@ -739,7 +740,7 @@ export default function ChannelWorkspace() {
                                                         preview_url: manualPreviewUrl || null,
                                                         url: manualPreviewUrl || null
                                                     }}
-                                                    emptyMessage="Загрузи markdown, HTML или изображение, чтобы увидеть здесь предпросмотр контента канала."
+                                                    emptyMessage={tr('Загрузи markdown, HTML или изображение, чтобы увидеть здесь предпросмотр контента канала.', 'Upload Markdown, HTML, or an image to preview channel content here.')}
                                                 />
                                             </div>
                                         </section>
@@ -749,34 +750,34 @@ export default function ChannelWorkspace() {
                                         isAutoCanvasChannel ? (
                                             <section className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.1fr)_380px] gap-6">
                                                 <div className="rounded-[1.5rem] bg-surface-container-low p-6 border border-outline-variant/10">
-                                                    <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Автоматическая канва канала</div>
+                                                    <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{tr('Автоматическая канва канала', 'Automated channel canvas')}</div>
                                                     <h3 className="mt-3 text-2xl font-headline font-black text-on-surface">
-                                                        {autoCanvasStatus?.week_package?.week_theme || 'Тема недели пока не пришла из плана'}
+                                                        {autoCanvasStatus?.week_package?.week_theme || tr('Тема недели пока не пришла из плана', 'The weekly theme has not arrived from the plan yet')}
                                                     </h3>
                                                     <p className="mt-4 text-sm leading-7 text-on-surface-variant max-w-3xl">
-                                                        Для этого канала из плана приходит только канва: тема недели и темы постов. Дальше планер сам генерирует черновики, не требуя ручной загрузки исходного текста.
+                                                        {tr('Для этого канала из плана приходит только канва: тема недели и темы постов. Дальше планер сам генерирует черновики, не требуя ручной загрузки исходного текста.', 'Only the canvas comes from the plan for this channel: the weekly theme and post topics. The planner then generates drafts without requiring a manual source-text upload.')}
                                                     </p>
                                                     {autoCanvasStatus?.week_package?.core_thesis && (
                                                         <div className="mt-4 rounded-2xl bg-white px-4 py-4 text-sm leading-7 text-on-surface-variant">
-                                                            <span className="font-bold text-on-surface">Опорный тезис:</span> {autoCanvasStatus.week_package.core_thesis}
+                                                            <span className="font-bold text-on-surface">{tr('Опорный тезис', 'Core thesis')}:</span> {autoCanvasStatus.week_package.core_thesis}
                                                         </div>
                                                     )}
 
                                                     <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3">
                                                         <div className="rounded-2xl bg-white px-4 py-4">
-                                                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Всего тем</div>
+                                                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">{tr('Всего тем', 'Total topics')}</div>
                                                             <div className="mt-2 text-2xl font-black text-on-surface">{autoCanvasStatus?.stats.total || 0}</div>
                                                         </div>
                                                         <div className="rounded-2xl bg-white px-4 py-4">
-                                                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">В очереди</div>
+                                                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">{tr('В очереди', 'Queued')}</div>
                                                             <div className="mt-2 text-2xl font-black text-on-surface">{autoCanvasStatus?.stats.planned || 0}</div>
                                                         </div>
                                                         <div className="rounded-2xl bg-white px-4 py-4">
-                                                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Черновики</div>
+                                                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">{tr('Черновики', 'Drafts')}</div>
                                                             <div className="mt-2 text-2xl font-black text-on-surface">{autoCanvasStatus?.stats.drafted || 0}</div>
                                                         </div>
                                                         <div className="rounded-2xl bg-white px-4 py-4">
-                                                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Ошибки</div>
+                                                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">{tr('Ошибки', 'Errors')}</div>
                                                             <div className="mt-2 text-2xl font-black text-on-surface">{autoCanvasStatus?.stats.failed || 0}</div>
                                                         </div>
                                                     </div>
@@ -795,32 +796,32 @@ export default function ChannelWorkspace() {
 
                                                     <div className="mt-6 space-y-3">
                                                         {isAutoCanvasLoading && (
-                                                            <div role="status" className="rounded-2xl bg-white px-4 py-5 text-sm text-on-surface-variant">Загружаем семь тем…</div>
+                                                            <div role="status" className="rounded-2xl bg-white px-4 py-5 text-sm text-on-surface-variant">{tr('Загружаем семь тем…', 'Loading seven topics...')}</div>
                                                         )}
                                                         {autoCanvasError instanceof Error && (
                                                             <div role="alert" className="rounded-2xl bg-error-container/30 px-4 py-5 text-sm text-error">{autoCanvasError.message}</div>
                                                         )}
                                                         {!isAutoCanvasLoading && !autoCanvasError && (autoCanvasStatus?.items.length || 0) === 0 && (
-                                                            <div className="rounded-2xl bg-white px-4 py-5 text-sm leading-6 text-on-surface-variant">В этом пакете пока нет тем для проверки.</div>
+                                                            <div className="rounded-2xl bg-white px-4 py-5 text-sm leading-6 text-on-surface-variant">{tr('В этом пакете пока нет тем для проверки.', 'This package has no topics to review yet.')}</div>
                                                         )}
                                                         {(autoCanvasStatus?.items || []).map((item, index) => (
                                                             <div key={item.id} className="rounded-2xl bg-white px-4 py-4">
                                                                 <div className="flex items-start justify-between gap-3">
                                                                     <div className="min-w-0">
                                                                         <div className="mb-2 flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-primary/60">
-                                                                            <span>День {index + 1}</span>
+                                                                            <span>{tr('День', 'Day')} {index + 1}</span>
                                                                             <span aria-hidden="true">·</span>
-                                                                            <span>{compactSchedule(item.schedule_at)}</span>
+                                                                            <span>{compactSchedule(item.schedule_at, locale)}</span>
                                                                         </div>
-                                                                        <div className="font-bold text-sm text-on-surface">{item.title || `Тема ${item.id}`}</div>
+                                                                        <div className="font-bold text-sm text-on-surface">{item.title || `${tr('Тема', 'Topic')} ${item.id}`}</div>
                                                                         {topicDetail(item, 'function') && (
                                                                             <div className="mt-3 text-xs leading-6 text-on-surface-variant">
-                                                                                <span className="font-bold text-on-surface">Роль в неделе:</span> {topicDetail(item, 'function')}
+                                                                                <span className="font-bold text-on-surface">{tr('Роль в неделе', 'Role in the week')}:</span> {topicDetail(item, 'function')}
                                                                             </div>
                                                                         )}
                                                                         {topicDetail(item, 'difference_from_neighbors') && (
                                                                             <div className="mt-1 text-xs leading-6 text-on-surface-variant">
-                                                                                <span className="font-bold text-on-surface">Чем отличается:</span> {topicDetail(item, 'difference_from_neighbors')}
+                                                                                <span className="font-bold text-on-surface">{tr('Чем отличается', 'What makes it different')}:</span> {topicDetail(item, 'difference_from_neighbors')}
                                                                             </div>
                                                                         )}
                                                                     </div>
@@ -835,10 +836,10 @@ export default function ChannelWorkspace() {
                                                     <div className="mt-8 border-t border-outline-variant/10 pt-7">
                                                         <div className="flex flex-wrap items-end justify-between gap-3">
                                                             <div>
-                                                                <h4 className="text-xl font-headline font-black text-on-surface">Остальной план недели</h4>
-                                                                <p className="mt-2 text-sm text-on-surface-variant">Все другие публикации пакета №{autoCanvasStatus?.week_package?.id} по каналам.</p>
+                                                                <h4 className="text-xl font-headline font-black text-on-surface">{tr('Остальной план недели', 'Rest of the weekly plan')}</h4>
+                                                                <p className="mt-2 text-sm text-on-surface-variant">{tr('Все другие публикации пакета', 'All other publications in package')} #{autoCanvasStatus?.week_package?.id} {tr('по каналам.', 'across channels.')}</p>
                                                             </div>
-                                                            <span className="text-sm font-black text-primary">{otherPlanItems.length} пунктов</span>
+                                                            <span className="text-sm font-black text-primary">{otherPlanItems.length} {tr('пунктов', 'items')}</span>
                                                         </div>
                                                         <div className="mt-5 divide-y divide-outline-variant/10 rounded-2xl bg-white px-4">
                                                             {otherPlanItems.map((item) => (
@@ -850,7 +851,7 @@ export default function ChannelWorkspace() {
                                                                 >
                                                                     <span className="min-w-0">
                                                                         <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-primary/60">
-                                                                            {item.channel?.name || 'Канал не указан'} · {compactSchedule(item.publish_at || item.schedule_at)}
+                                                                            {item.channel?.name || tr('Канал не указан', 'Channel not specified')} · {compactSchedule(item.publish_at || item.schedule_at, locale)}
                                                                         </span>
                                                                         <span className="mt-1 block text-sm font-bold leading-5 text-on-surface">{item.title || item.type}</span>
                                                                     </span>
@@ -860,7 +861,7 @@ export default function ChannelWorkspace() {
                                                                 </button>
                                                             ))}
                                                             {otherPlanItems.length === 0 && (
-                                                                <div className="py-5 text-sm text-on-surface-variant">Других публикаций в пакете нет.</div>
+                                                                <div className="py-5 text-sm text-on-surface-variant">{tr('Других публикаций в пакете нет.', 'There are no other publications in this package.')}</div>
                                                             )}
                                                         </div>
                                                     </div>
@@ -869,10 +870,10 @@ export default function ChannelWorkspace() {
                                                 <div className="space-y-4">
                                                     {autoCanvasStatus?.week_package?.approval_status === 'needs_review' && (
                                                         <div className="rounded-[1.5rem] bg-primary text-white p-6 shadow-lg shadow-primary/20">
-                                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-white/70">Решение штаба</div>
-                                                            <h3 className="mt-3 text-2xl font-headline font-black">Проверить и утвердить семь тем</h3>
+                                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-white/70">{tr('Решение штаба', 'Editorial decision')}</div>
+                                                            <h3 className="mt-3 text-2xl font-headline font-black">{tr('Проверить и утвердить семь тем', 'Review and approve seven topics')}</h3>
                                                             <p className="mt-4 text-sm leading-7 text-white/80">
-                                                                Утверждение откроет задания на тексты. Даты и сами слоты останутся под управлением планера.
+                                                                {tr('Утверждение откроет задания на тексты. Даты и сами слоты останутся под управлением планера.', 'Approval opens content assignments. Dates and slots remain under planner control.')}
                                                             </p>
                                                             {decideWeekPlan.error instanceof Error && (
                                                                 <div role="alert" className="mt-4 rounded-2xl bg-white/15 px-4 py-3 text-sm">{decideWeekPlan.error.message}</div>
@@ -883,52 +884,52 @@ export default function ChannelWorkspace() {
                                                                     disabled={decideWeekPlan.isPending}
                                                                     className="rounded-2xl border border-white/40 px-4 py-4 text-sm font-black disabled:opacity-50"
                                                                 >
-                                                                    Вернуть
+                                                                    {tr('Вернуть', 'Return')}
                                                                 </button>
                                                                 <button
                                                                     onClick={() => decideWeekPlan.mutate('approved')}
                                                                     disabled={decideWeekPlan.isPending || autoCanvasStatus.items.length !== 7}
                                                                     className="rounded-2xl bg-white px-4 py-4 text-sm font-black text-primary disabled:opacity-50"
                                                                 >
-                                                                    {decideWeekPlan.isPending ? 'Сохраняем…' : 'Утвердить план'}
+                                                                    {decideWeekPlan.isPending ? tr('Сохраняем…', 'Saving...') : tr('Утвердить план', 'Approve plan')}
                                                                 </button>
                                                             </div>
                                                         </div>
                                                     )}
                                                     {autoCanvasStatus?.week_package?.approval_status === 'approved' && (
                                                         <div className="rounded-[1.5rem] bg-success/10 p-6 text-success">
-                                                            <div className="text-[10px] font-black uppercase tracking-[0.25em]">План утверждён</div>
-                                                            <p className="mt-3 text-sm leading-6">Контентный агент уже может брать задания на тексты.</p>
+                                                            <div className="text-[10px] font-black uppercase tracking-[0.25em]">{tr('План утверждён', 'Plan approved')}</div>
+                                                            <p className="mt-3 text-sm leading-6">{tr('Контентный агент уже может брать задания на тексты.', 'The content agent can now take content assignments.')}</p>
                                                         </div>
                                                     )}
                                                     <div className="rounded-[1.5rem] ai-gradient text-white p-6 shadow-lg shadow-primary/20">
-                                                        <div className="text-[10px] font-black uppercase tracking-[0.25em] text-white/70">Автогенерация</div>
-                                                        <h3 className="mt-3 text-2xl font-headline font-black">Прогнать всю очередь тем</h3>
+                                                        <div className="text-[10px] font-black uppercase tracking-[0.25em] text-white/70">{tr('Автогенерация', 'Automatic generation')}</div>
+                                                        <h3 className="mt-3 text-2xl font-headline font-black">{tr('Прогнать всю очередь тем', 'Generate the full topic queue')}</h3>
                                                         <p className="mt-4 text-sm leading-7 text-white/80">
-                                                            Планер возьмёт темы постов из канвы и сам соберёт черновики для этого канала, используя недельную тему и настройки агентов проекта.
+                                                            {tr('Планер возьмёт темы постов из канвы и сам соберёт черновики для этого канала, используя недельную тему и настройки агентов проекта.', 'The planner will take post topics from the canvas and build channel drafts using the weekly theme and project agent settings.')}
                                                         </p>
                                                         <button
                                                             onClick={() => runAutoCanvasGeneration.mutate()}
                                                             disabled={runAutoCanvasGeneration.isPending || (autoCanvasStatus?.stats.planned || 0) === 0}
                                                             className="mt-6 w-full rounded-2xl bg-white text-primary px-5 py-4 text-sm font-black shadow-lg hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
                                                         >
-                                                            {runAutoCanvasGeneration.isPending ? 'Генерируем черновики...' : 'Сгенерировать все темы'}
+                                                            {runAutoCanvasGeneration.isPending ? tr('Генерируем черновики...', 'Generating drafts...') : tr('Сгенерировать все темы', 'Generate all topics')}
                                                         </button>
                                                     </div>
 
                                                     <Link to="/publication-tasks" className="block rounded-[1.5rem] bg-surface-container-low p-6 border border-outline-variant/10 hover:bg-primary/5 transition-all">
-                                                        <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Очередь исполнения</div>
-                                                        <h3 className="mt-3 text-xl font-headline font-black text-on-surface">Открыть публикации</h3>
+                                                        <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{tr('Очередь исполнения', 'Execution queue')}</div>
+                                                        <h3 className="mt-3 text-xl font-headline font-black text-on-surface">{tr('Открыть публикации', 'Open publications')}</h3>
                                                         <p className="mt-3 text-sm leading-7 text-on-surface-variant">
-                                                            После генерации переходи в публикации, чтобы проверить черновики, визуалы и исполнение по каналам.
+                                                            {tr('После генерации переходи в публикации, чтобы проверить черновики, визуалы и исполнение по каналам.', 'After generation, open publications to review drafts, visuals, and channel execution.')}
                                                         </p>
                                                     </Link>
 
                                                     <Link to="/settings" className="block rounded-[1.5rem] bg-surface-container-low p-6 border border-outline-variant/10 hover:bg-primary/5 transition-all">
-                                                        <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Настройки агентов</div>
-                                                        <h3 className="mt-3 text-xl font-headline font-black text-on-surface">Промпты и модели</h3>
+                                                        <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{tr('Настройки агентов', 'Agent settings')}</div>
+                                                        <h3 className="mt-3 text-xl font-headline font-black text-on-surface">{tr('Промпты и модели', 'Prompts and models')}</h3>
                                                         <p className="mt-3 text-sm leading-7 text-on-surface-variant">
-                                                            Подкрути автора, критика и фиксер, если хочешь изменить стиль автогенерации для этого канала.
+                                                            {tr('Подкрути автора, критика и фиксер, если хочешь изменить стиль автогенерации для этого канала.', 'Adjust the writer, critic, and fixer to change the automatic generation style for this channel.')}
                                                         </p>
                                                     </Link>
                                                 </div>
@@ -937,18 +938,18 @@ export default function ChannelWorkspace() {
                                             <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                                                 {[
                                                     {
-                                                        title: 'Сгенерировать новый пост',
-                                                        body: 'Используй существующие сценарии генерации постов, циклы критики и генерацию изображений прямо внутри проекта.',
+                                                        title: tr('Сгенерировать новый пост', 'Generate a new post'),
+                                                        body: tr('Используй существующие сценарии генерации постов, циклы критики и генерацию изображений прямо внутри проекта.', 'Use the existing post-generation workflows, critic cycles, and image generation directly inside the project.'),
                                                         href: '/'
                                                     },
                                                     {
-                                                        title: 'Очередь публикаций',
-                                                        body: 'Переходи в очередь исполнения после подготовки контента и не теряй связь канала с планом.',
+                                                        title: tr('Очередь публикаций', 'Publication queue'),
+                                                        body: tr('Переходи в очередь исполнения после подготовки контента и не теряй связь канала с планом.', 'Move to the execution queue after preparing content without losing the channel link to the plan.'),
                                                         href: '/publication-tasks'
                                                     },
                                                     {
-                                                        title: 'Настройки агентов',
-                                                        body: 'Настраивай промпты, модели, skill connections и словарь под поведение генерации в этом проекте.',
+                                                        title: tr('Настройки агентов', 'Agent settings'),
+                                                        body: tr('Настраивай промпты, модели, skill connections и словарь под поведение генерации в этом проекте.', 'Configure prompts, models, skill connections, and the glossary for this project generation workflow.'),
                                                         href: '/settings'
                                                     }
                                                 ].map((card) => (
@@ -967,25 +968,25 @@ export default function ChannelWorkspace() {
                                     {sourceMode === 'mcp' && (
                                         <section className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6">
                                             <div className="rounded-[1.5rem] bg-surface-container-low p-6">
-                                                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Исследования и MCP</div>
-                                                <h3 className="mt-3 text-2xl font-headline font-black text-on-surface">Поверхность исследования и intake</h3>
+                                                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{tr('Исследования и MCP', 'Research and MCP')}</div>
+                                                <h3 className="mt-3 text-2xl font-headline font-black text-on-surface">{tr('Поверхность исследования и intake', 'Research and intake workspace')}</h3>
                                                 <p className="mt-4 text-sm leading-7 text-on-surface-variant max-w-3xl">
-                                                    Переводи внешние исследования в материал для канала: запускай parser jobs, смотри результаты, переиспользуй шаблоны и передавай сильнейшие сигналы в контентный поток.
+                                                    {tr('Переводи внешние исследования в материал для канала: запускай parser jobs, смотри результаты, переиспользуй шаблоны и передавай сильнейшие сигналы в контентный поток.', 'Turn external research into channel material: run parser jobs, review results, reuse templates, and promote the strongest signals into the content flow.')}
                                                 </p>
                                             </div>
                                             <div className="space-y-4">
                                                 <Link to="/parsers" className="block rounded-[1.5rem] ai-gradient text-white p-6 shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all">
-                                                    <div className="text-[10px] font-black uppercase tracking-[0.25em] text-white/70">Исследовательская лаборатория</div>
-                                                    <h3 className="mt-3 text-2xl font-headline font-black">Открыть исследования</h3>
+                                                    <div className="text-[10px] font-black uppercase tracking-[0.25em] text-white/70">{tr('Исследовательская лаборатория', 'Research lab')}</div>
+                                                    <h3 className="mt-3 text-2xl font-headline font-black">{tr('Открыть исследования', 'Open research')}</h3>
                                                     <p className="mt-4 text-sm leading-7 text-white/80">
-                                                        Перейди в интерфейс исследований для discovery, скоринга и работы с источниками через MCP.
+                                                        {tr('Перейди в интерфейс исследований для discovery, скоринга и работы с источниками через MCP.', 'Open the research interface for discovery, scoring, and MCP-powered source work.')}
                                                     </p>
                                                 </Link>
                                                 <Link to="/recipes" className="block rounded-[1.5rem] bg-surface-container-low p-6 border border-outline-variant/10 hover:bg-primary/5 transition-all">
-                                                    <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Переиспользуемые активы</div>
-                                                    <h3 className="mt-3 text-xl font-headline font-black text-on-surface">Сохранённые шаблоны</h3>
+                                                    <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{tr('Переиспользуемые активы', 'Reusable assets')}</div>
+                                                    <h3 className="mt-3 text-xl font-headline font-black text-on-surface">{tr('Сохранённые шаблоны', 'Saved templates')}</h3>
                                                     <p className="mt-3 text-sm leading-7 text-on-surface-variant">
-                                                        Просматривай исследовательские шаблоны и заново запускай те, что подходят под discovery-паттерн этого канала.
+                                                        {tr('Просматривай исследовательские шаблоны и заново запускай те, что подходят под discovery-паттерн этого канала.', 'Browse research templates and rerun those that match this channel discovery pattern.')}
                                                     </p>
                                                 </Link>
                                             </div>
