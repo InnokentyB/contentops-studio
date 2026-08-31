@@ -2,10 +2,17 @@ import crypto from 'crypto';
 
 const PREFIX = 'enc:v1';
 
+export function isEncryptedChannelSecret(value: string): boolean {
+    return value.startsWith(`${PREFIX}:`);
+}
+
 function encryptionKey(): Buffer {
     const secret = process.env.CHANNEL_SECRETS_KEY?.trim();
     if (!secret) {
         throw new Error('CHANNEL_SECRETS_KEY is required to store authenticated channel sessions');
+    }
+    if (secret.length < 32) {
+        throw new Error('CHANNEL_SECRETS_KEY must contain at least 32 characters');
     }
     return crypto.createHash('sha256').update(secret, 'utf8').digest();
 }

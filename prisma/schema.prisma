@@ -417,9 +417,9 @@ model TelegramAccount {
   project_id     Int
   project        Project  @relation(fields: [project_id], references: [id])
   phone_number   String
-  session_string String   @db.Text
+  session_string String   @db.Text // AES-256-GCM ciphertext; key is stored in Railway
   api_id         Int
-  api_hash       String
+  api_hash       String   // AES-256-GCM ciphertext; key is stored in Railway
   is_active      Boolean  @default(true)
   created_at     DateTime @default(now())
   updated_at     DateTime @updatedAt

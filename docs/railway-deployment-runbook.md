@@ -79,6 +79,8 @@ Likely required based on current codebase:
 - `LINKEDIN_CLIENT_SECRET`
 - channel/provider secrets already stored in DB where applicable
 
+Telegram MTProto credentials are project-scoped and encrypted in `planner.telegram_accounts`; do not add `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`, or `TELEGRAM_SESSION_STRING` as global service variables. Setup instructions: [`telegram-mtproto-setup-ru.md`](./telegram-mtproto-setup-ru.md).
+
 Parser integration:
 - `PARSER_API_BASE_URL`
 - `PARSER_SERVICE_TOKEN`
