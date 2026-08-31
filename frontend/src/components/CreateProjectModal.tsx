@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
+import type { ApiJson } from '../types/api-json'
 import { projectsApi } from '../api';
-import { useLocale } from '../i18n/LocaleContext';
+import { useLocale } from '../i18n/locale';
 
 interface CreateProjectModalProps {
     onClose: () => void;
-    onSuccess: (project: any) => void;
+    onSuccess: (project: ApiJson) => void;
 }
 
 const PROJECT_CONFIG_TEMPLATE_RU = `project:
@@ -196,7 +197,7 @@ export default function CreateProjectModal({ onClose, onSuccess }: CreateProject
 
             onSuccess(project);
             onClose();
-        } catch (err: any) {
+        } catch (err: ApiJson) {
             setError(err.message || 'Failed to create project');
         } finally {
             setIsLoading(false);

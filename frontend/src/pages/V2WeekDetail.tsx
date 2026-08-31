@@ -1,10 +1,11 @@
 import { useParams, useNavigate } from 'react-router-dom'
+import type { ApiJson } from '../types/api-json'
 import { useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { api } from '../api'
-import { useToast } from '../components/ToastContainer'
-import { useLocale } from '../i18n/LocaleContext'
+import { useToast } from '../components/toast'
+import { useLocale } from '../i18n/locale'
 
 interface ContentItem {
     id: number
@@ -61,7 +62,7 @@ export default function V2WeekDetail() {
             queryClient.invalidateQueries({ queryKey: ['v2_weeks'] })
             showToast('Week package approved successfully!', 'success')
         },
-        onError: (err: any) => showToast('Failed to approve week package', 'error', err.message)
+        onError: (err: ApiJson) => showToast('Failed to approve week package', 'error', err.message)
     })
 
     const architectWeek = useMutation({
@@ -70,7 +71,7 @@ export default function V2WeekDetail() {
             queryClient.invalidateQueries({ queryKey: ['v2_week', id] })
             showToast('Week architecture generated successfully', 'success')
         },
-        onError: (err: any) => showToast('Architecture failed', 'error', err.message)
+        onError: (err: ApiJson) => showToast('Architecture failed', 'error', err.message)
     })
 
     const convertToV1 = useMutation({
@@ -79,7 +80,7 @@ export default function V2WeekDetail() {
             showToast('Converted to V1 successfully', 'success')
             navigate(`/weeks/${data.weekId}`)
         },
-        onError: (err: any) => showToast('Failed to convert', 'error', err.message)
+        onError: (err: ApiJson) => showToast('Failed to convert', 'error', err.message)
     })
 
     if (isLoading) return (

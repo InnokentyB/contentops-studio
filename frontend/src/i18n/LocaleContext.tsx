@@ -1,6 +1,5 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
-
-export type Locale = 'en' | 'ru'
+import { useEffect, useMemo, useState } from 'react'
+import { defaultLocale, LocaleContext, type Locale } from './locale'
 type Messages = Record<string, string>
 
 const messages: Record<Locale, Messages> = {
@@ -32,10 +31,6 @@ const messages: Record<Locale, Messages> = {
   }
 }
 
-type LocaleContextValue = { locale: Locale; setLocale: (locale: Locale) => void; t: (key: string) => string }
-const LocaleContext = createContext<LocaleContextValue | null>(null)
-export const defaultLocale: Locale = 'en'
-
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(() => {
     const stored = localStorage.getItem('planner-locale')
@@ -48,10 +43,4 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { document.documentElement.lang = locale }, [locale])
   const value = useMemo(() => ({ locale, setLocale, t: (key: string) => messages[locale][key] || messages.en[key] || key }), [locale])
   return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>
-}
-
-export function useLocale() {
-  const value = useContext(LocaleContext)
-  if (!value) throw new Error('useLocale must be used inside LocaleProvider')
-  return value
 }

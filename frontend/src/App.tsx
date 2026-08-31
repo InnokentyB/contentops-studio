@@ -1,7 +1,8 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { AuthProvider, useAuth } from './context/AuthContext'
+import { AuthProvider } from './context/AuthContext'
+import { useAuth } from './context/auth'
 import WeekDetail from './pages/WeekDetail'
 import PostEditor from './pages/PostEditor'
 import Settings from './pages/Settings'
@@ -20,7 +21,7 @@ import './index.css'
 
 import Layout from './components/Layout'
 import { LocaleProvider } from './i18n/LocaleContext'
-import { useLocale } from './i18n/LocaleContext'
+import { useLocale } from './i18n/locale'
 
 const queryClient = new QueryClient()
 const OperationalCalendar = lazy(() => import('./pages/OperationalCalendar'))

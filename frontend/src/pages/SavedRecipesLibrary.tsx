@@ -1,17 +1,18 @@
 import { useMemo, useState } from 'react'
+import type { ApiJson } from '../types/api-json'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { parserApi } from '../api'
-import { useAuth } from '../context/AuthContext'
-import { useLocale } from '../i18n/LocaleContext'
+import { useAuth } from '../context/auth'
+import { useLocale } from '../i18n/locale'
 
-type JsonRecord = Record<string, any>
+type JsonRecord = Record<string, ApiJson>
 
 function normalizeText(value: unknown) {
     return typeof value === 'string' ? value.trim() : ''
 }
 
-function parseTemplates(payload: any) {
+function parseTemplates(payload: ApiJson) {
     const templates = payload?.parser_response?.templates
         || payload?.parser_response?.data
         || payload?.templates
@@ -46,7 +47,7 @@ export default function SavedRecipesLibrary() {
             }
             return parserApi.runTemplate(currentProject.id, templateId)
         },
-        onSuccess: (result: any, templateId: string) => {
+        onSuccess: (result: ApiJson, templateId: string) => {
             const jobId = result?.parser_response?.job_id || result?.job_id
             setMessage(`${copy.templates} ${templateId} ${copy.queued}${jobId ? ` ${copy.as} ${jobId}` : ''}.`)
             queryClient.invalidateQueries({ queryKey: ['parser_job', currentProject?.id] })

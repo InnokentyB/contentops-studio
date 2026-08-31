@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { ApiJson } from '../types/api-json'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, projectsApi, publicationTasksApi } from '../api'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/auth'
 import ResourcePreviewCard from '../components/ResourcePreviewCard'
-import { useLocale } from '../i18n/LocaleContext'
+import { useLocale } from '../i18n/locale'
+import { useCurrentTime } from '../hooks/useCurrentTime'
 
-type JsonRecord = Record<string, any>
+type JsonRecord = Record<string, ApiJson>
 
 type SocialChannel = {
     id: number
@@ -181,6 +183,7 @@ export default function ChannelWorkspace() {
     const navigate = useNavigate()
     const queryClient = useQueryClient()
     const { currentProject } = useAuth()
+    const now = useCurrentTime()
 
     const [sourceMode, setSourceMode] = useState<'plan' | 'manual' | 'generate' | 'mcp'>('plan')
     const [manualMessage, setManualMessage] = useState<string | null>(null)
@@ -211,10 +214,9 @@ export default function ChannelWorkspace() {
         enabled: !!currentProject
     })
 
-    const selectedChannel = useMemo(() => {
-        if (!projectData?.channels?.length || Number.isNaN(channelIdNumber)) return null
-        return projectData.channels.find((channel) => channel.id === channelIdNumber) || null
-    }, [projectData?.channels, channelIdNumber])
+    const selectedChannel = !projectData?.channels?.length || Number.isNaN(channelIdNumber)
+        ? null
+        : projectData.channels.find((channel) => channel.id === channelIdNumber) || null
 
     const isAutoCanvasChannel = Boolean(
         selectedChannel?.config?.workflow_mode === 'auto_canvas'
@@ -237,8 +239,10 @@ export default function ChannelWorkspace() {
         }
     }, [channelId, channelIdNumber, currentProject, navigate, projectData?.channels, selectedChannel])
 
+    // The selected channel is external route/query state; keep the editor mode aligned with it.
     useEffect(() => {
         if (isAutoCanvasChannel) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronizes local controls with the selected channel capability
             setSourceMode('generate')
         }
     }, [isAutoCanvasChannel, selectedChannel?.id])
@@ -267,7 +271,7 @@ export default function ChannelWorkspace() {
     const overdueTasks = selectedChannelTasks.filter((task) => {
         if (!task.schedule_at) return false
         return ['planned', 'ready_for_execution', 'awaiting_manual_publication'].includes(task.status)
-            && new Date(task.schedule_at).getTime() < Date.now()
+            && new Date(task.schedule_at).getTime() < now
     }).length
     const otherPlanItems = useMemo(
         () => (autoCanvasStatus?.plan_items || []).filter((item) => !item.is_week_topic),
@@ -316,7 +320,7 @@ export default function ChannelWorkspace() {
             }
             return projectsApi.runAutoCanvasGeneration(currentProject.id, selectedChannel.id, 20)
         },
-        onSuccess: (result: any) => {
+        onSuccess: (result: ApiJson) => {
             setAutoCanvasMessage(tr(`Автогенерация завершена: обработано ${result?.processed || 0} элементов.`, `Automatic generation completed: ${result?.processed || 0} items processed.`))
             queryClient.invalidateQueries({ queryKey: ['channel_workspace_tasks'] })
             queryClient.invalidateQueries({ queryKey: ['channel_workspace_task_detail'] })

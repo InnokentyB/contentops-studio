@@ -1,4 +1,4 @@
-import { useLocale } from '../i18n/LocaleContext'
+import { useLocale } from '../i18n/locale'
 
 export default function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
   const { locale, setLocale } = useLocale()

@@ -1,10 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import type { ApiJson } from '../types/api-json'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import { format } from 'date-fns'
 import { api, presetsApi, contentDictionaryApi } from '../api'
-import { useToast } from '../components/ToastContainer'
-import { useLocale } from '../i18n/LocaleContext'
+import { useToast } from '../components/toast'
+import { useLocale } from '../i18n/locale'
 import CommentSection from '../components/CommentSection'
 import ContentMarkupRenderer from '../components/ContentMarkupRenderer'
 
@@ -22,7 +23,7 @@ interface Post {
     image_url?: string | null
     image_prompt?: string | null
     channel_id?: number | null
-    metrics?: any | null
+    metrics?: ApiJson | null
 }
 
 interface PromptPreset {
@@ -49,7 +50,7 @@ interface DictionaryValidationReport {
     }>
 }
 
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/auth'
 
 export default function PostEditor() {
     const { locale } = useLocale()
@@ -104,6 +105,7 @@ export default function PostEditor() {
 
     useEffect(() => {
         if (post) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate the editable draft when the fetched post changes
             setTopic(post.topic || '')
             setCategory(post.category || '')
             setTags(post.tags.join(', '))
@@ -133,12 +135,12 @@ export default function PostEditor() {
             queryClient.invalidateQueries({ queryKey: ['post', id] })
             showToast('Post published successfully!', 'success')
         },
-        onError: (err: any) => showToast('Failed to publish', 'error', err.response?.data?.error || err.message)
+        onError: (err: ApiJson) => showToast('Failed to publish', 'error', err.response?.data?.error || err.message)
     })
 
     const regenerate = useMutation({
         mutationFn: () => {
-            const body: any = {}
+            const body: ApiJson = {}
             if (selectedPresetId) body.promptPresetId = selectedPresetId
             return api.post(`/api/posts/${id}/generate`, body)
         },
@@ -146,7 +148,7 @@ export default function PostEditor() {
             queryClient.invalidateQueries({ queryKey: ['post', id] })
             showToast('Post content regenerated successfully', 'success')
         },
-        onError: (err: any) => showToast('Failed to regenerate content', 'error', err.message)
+        onError: (err: ApiJson) => showToast('Failed to regenerate content', 'error', err.message)
     })
 
     const generateImage = useMutation({
@@ -156,7 +158,7 @@ export default function PostEditor() {
             setImageTimestamp(Date.now())
             showToast('Image generated successfully!', 'success')
         },
-        onError: (err: any) => showToast('Failed to generate image', 'error', err.response?.data?.error || err.message)
+        onError: (err: ApiJson) => showToast('Failed to generate image', 'error', err.response?.data?.error || err.message)
     })
 
     const uploadImage = useMutation({
@@ -166,7 +168,7 @@ export default function PostEditor() {
             setImageTimestamp(Date.now())
             showToast('Image uploaded successfully!', 'success')
         },
-        onError: (err: any) => showToast('Failed to upload image', 'error', err.message)
+        onError: (err: ApiJson) => showToast('Failed to upload image', 'error', err.message)
     })
 
     const validateDictionary = useMutation({
@@ -179,7 +181,7 @@ export default function PostEditor() {
                 showToast('Dictionary validation found issues', 'warning')
             }
         },
-        onError: (err: any) => showToast('Failed to validate content', 'error', err.message)
+        onError: (err: ApiJson) => showToast('Failed to validate content', 'error', err.message)
     })
 
     useEffect(() => {
@@ -527,7 +529,7 @@ export default function PostEditor() {
                                     className="block w-full bg-transparent border-none p-0 text-sm font-bold focus:ring-0"
                                 >
                                     <option value="">Default Node</option>
-                                    {(projectData as any)?.channels?.map((c: SocialChannel) => (
+                                    {(projectData as ApiJson)?.channels?.map((c: SocialChannel) => (
                                         <option key={c.id} value={c.id}>{c.name}</option>
                                     ))}
                                 </select>

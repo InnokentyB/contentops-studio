@@ -1,9 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import type { ApiJson } from '../types/api-json'
 import { useState, useEffect, useRef } from 'react'
 import { api, presetsApi, keysApi, modelsApi, projectsApi, skillConnectionsApi, contentDictionaryApi, contentPolicyMatrixApi, atomaContextApi } from '../api'
-import { useAuth } from '../context/AuthContext'
-import { useToast } from '../components/ToastContainer'
-import { useLocale } from '../i18n/LocaleContext'
+import { useAuth } from '../context/auth'
+import { useToast } from '../components/toast'
+import { useLocale } from '../i18n/locale'
 
 interface AgentConfig {
     role: string
@@ -63,20 +64,20 @@ interface SocialChannel {
     id: number;
     type: string;
     name: string;
-    config: any;
+    config: ApiJson;
     is_active: boolean;
 }
 
 interface AtomaContextResponse {
     description: string
-    payload: any
+    payload: ApiJson
     payload_text: string
     updated_at: string | null
 }
 
 interface ContentPolicyMatrixResponse {
     yaml: string
-    parsed: any
+    parsed: ApiJson
     updated_at: string | null
 }
 
@@ -156,7 +157,7 @@ function AgentSettingsRow({
     icon: string, 
     config?: AgentConfig, 
     keys?: ProviderKey[], 
-    onSave: (data: any) => void,
+    onSave: (data: ApiJson) => void,
     isUpdating: boolean,
     loadModels: (apiKey: string) => Promise<string[]>
 }) {
@@ -174,7 +175,7 @@ function AgentSettingsRow({
             setApiKey(config.apiKey)
             setModel(config.model)
         }
-    }, [config?.prompt, config?.apiKey, config?.model])
+    }, [config])
 
     const handleLoadModels = async () => {
         if (!apiKey) return
@@ -182,7 +183,7 @@ function AgentSettingsRow({
         try {
             const models = await loadModels(apiKey)
             setAvailableModels(models)
-        } catch (e: any) {
+        } catch (e: ApiJson) {
             showToast('Failed to load models', 'error', e.message)
         } finally {
             setIsLoadingModels(false)
@@ -399,7 +400,7 @@ export default function Settings() {
     // Channel State
     const [editingChannelId, setEditingChannelId] = useState<number | null>(null)
     const [editingChannelName, setEditingChannelName] = useState('')
-    const [editingChannelConfig, setEditingChannelConfig] = useState<any>({})
+    const [editingChannelConfig, setEditingChannelConfig] = useState<ApiJson>({})
     const [newChannelType, setNewChannelType] = useState<'telegram' | 'vk' | 'linkedin' | 'ok' | 'habr' | 'vc' | 'zen' | 'threads'>('telegram')
     const [newChannelName, setNewChannelName] = useState('')
     const [newChannelId, setNewChannelId] = useState('')
@@ -457,9 +458,9 @@ export default function Settings() {
         enabled: !!currentProject
     })
 
-    const defaultChannelId = (projectData as any)?.settings?.find((s: any) => s.key === 'default_channel_id')?.value;
-    const artDirectionEnabled = (projectData as any)?.settings?.find((s: any) => s.key === 'art_direction_pipeline_enabled')?.value === 'true'
-    const currentMembership = (projectData as any)?.members?.find((member: any) => member.user_id === user?.id || member.user?.id === user?.id)
+    const defaultChannelId = (projectData as ApiJson)?.settings?.find((s: ApiJson) => s.key === 'default_channel_id')?.value;
+    const artDirectionEnabled = (projectData as ApiJson)?.settings?.find((s: ApiJson) => s.key === 'art_direction_pipeline_enabled')?.value === 'true'
+    const currentMembership = (projectData as ApiJson)?.members?.find((member: ApiJson) => member.user_id === user?.id || member.user?.id === user?.id)
     const isOwner = currentMembership?.role === 'owner'
 
     const { data: agents } = useQuery<AgentConfig[]>({
@@ -486,7 +487,7 @@ export default function Settings() {
         enabled: !!currentProject && activeTab === 'skills'
     })
 
-    const { data: contentDictionary } = useQuery<{ yaml: string; parsed: any; updated_at: string | null }>({
+    const { data: contentDictionary } = useQuery<{ yaml: string; parsed: ApiJson; updated_at: string | null }>({
         queryKey: ['content-dictionary', currentProject?.id],
         queryFn: () => contentDictionaryApi.get(),
         enabled: !!currentProject && activeTab === 'dictionary'
@@ -527,7 +528,7 @@ export default function Settings() {
         mutationFn: () => api.post(`/api/projects/${currentProject!.id}/mcp/access-tokens`, {
             userId: Number(mcpAccessUserId), profile: mcpAccessProfile, label: mcpAccessLabel
         }),
-        onSuccess: (result: any) => {
+        onSuccess: (result: ApiJson) => {
             setIssuedMcpToken(result.token)
             queryClient.invalidateQueries({ queryKey: ['mcp-accesses', currentProject?.id] })
         }
@@ -573,23 +574,23 @@ export default function Settings() {
     }
 
     const addChannel = useMutation({
-        mutationFn: (data: { type: string, name: string, config: any }) => api.post(`/api/projects/${currentProject!.id}/channels`, data),
+        mutationFn: (data: { type: string, name: string, config: ApiJson }) => api.post(`/api/projects/${currentProject!.id}/channels`, data),
         onSuccess: () => {
             resetChannelForm()
             queryClient.invalidateQueries({ queryKey: ['project'] })
             showToast('Channel added successfully', 'success')
         },
-        onError: (err: any) => showToast('Failed to add channel', 'error', err.message)
+        onError: (err: ApiJson) => showToast('Failed to add channel', 'error', err.message)
     })
 
     const editChannel = useMutation({
-        mutationFn: (data: { id: number, name: string, config: any }) => api.put(`/api/projects/${currentProject!.id}/channels/${data.id}`, { name: data.name, config: data.config }),
+        mutationFn: (data: { id: number, name: string, config: ApiJson }) => api.put(`/api/projects/${currentProject!.id}/channels/${data.id}`, { name: data.name, config: data.config }),
         onSuccess: () => {
             resetChannelForm()
             queryClient.invalidateQueries({ queryKey: ['project'] })
             showToast('Channel updated successfully', 'success')
         },
-        onError: (err: any) => showToast('Failed to update channel', 'error', err.message)
+        onError: (err: ApiJson) => showToast('Failed to update channel', 'error', err.message)
     })
 
     const deleteChannel = useMutation({
@@ -598,13 +599,13 @@ export default function Settings() {
             queryClient.invalidateQueries({ queryKey: ['project'] })
             showToast('Channel deleted successfully', 'success')
         },
-        onError: (err: any) => showToast('Failed to delete channel', 'error', err.message)
+        onError: (err: ApiJson) => showToast('Failed to delete channel', 'error', err.message)
     })
 
     const testChannelConnection = useMutation({
         mutationFn: (channelId: number) => projectsApi.testChannelConnection(currentProject!.id, channelId),
         onSuccess: () => showToast(locale === 'ru' ? 'Сессия Дзена активна, редактор доступен' : 'Zen session is active and the editor is available', 'success'),
-        onError: (err: any) => showToast(locale === 'ru' ? 'Не удалось подключиться к Дзену' : 'Could not connect to Zen', 'error', err.message)
+        onError: (err: ApiJson) => showToast(locale === 'ru' ? 'Не удалось подключиться к Дзену' : 'Could not connect to Zen', 'error', err.message)
     })
 
     // Note: Delete channel endpoint might need to be added or we just hide it?
@@ -635,27 +636,27 @@ export default function Settings() {
             queryClient.invalidateQueries({ queryKey: ['skill-connections'] })
             showToast('Skill connections saved successfully', 'success')
         },
-        onError: (err: any) => showToast('Failed to save skill connections', 'error', err.message)
+        onError: (err: ApiJson) => showToast('Failed to save skill connections', 'error', err.message)
     })
 
     const saveContentDictionary = useMutation({
         mutationFn: (yaml: string) => contentDictionaryApi.save(yaml),
-        onSuccess: (result: any) => {
+        onSuccess: (result: ApiJson) => {
             setDictionaryYaml(result.yaml)
             queryClient.invalidateQueries({ queryKey: ['content-dictionary'] })
             showToast('Content dictionary saved successfully', 'success')
         },
-        onError: (err: any) => showToast('Failed to save content dictionary', 'error', err.message)
+        onError: (err: ApiJson) => showToast('Failed to save content dictionary', 'error', err.message)
     })
 
     const saveContentPolicyMatrix = useMutation({
         mutationFn: (yaml: string) => contentPolicyMatrixApi.save(yaml),
-        onSuccess: (result: any) => {
+        onSuccess: (result: ApiJson) => {
             setContentPolicyMatrixYaml(result.yaml)
             queryClient.invalidateQueries({ queryKey: ['content-policy-matrix'] })
             showToast('Content policy matrix saved successfully', 'success')
         },
-        onError: (err: any) => showToast('Failed to save content policy matrix', 'error', err.message)
+        onError: (err: ApiJson) => showToast('Failed to save content policy matrix', 'error', err.message)
     })
 
     const saveAtomaContext = useMutation({
@@ -666,7 +667,7 @@ export default function Settings() {
             queryClient.invalidateQueries({ queryKey: ['atoma-context'] })
             showToast('ATOMA context saved successfully', 'success')
         },
-        onError: (err: any) => showToast('Failed to save ATOMA context', 'error', err.message)
+        onError: (err: ApiJson) => showToast('Failed to save ATOMA context', 'error', err.message)
     })
 
     const updateAgent = useMutation({
@@ -685,7 +686,7 @@ export default function Settings() {
             queryClient.invalidateQueries({ queryKey: ['project'] })
             showToast('Member added successfully', 'success')
         },
-        onError: (err: any) => showToast('Failed to add member', 'error', err.message)
+        onError: (err: ApiJson) => showToast('Failed to add member', 'error', err.message)
     })
 
     const removeMember = useMutation({
@@ -726,8 +727,8 @@ export default function Settings() {
         if (projectData && activeTab === 'general') {
             setProjectName(projectData.name)
             setProjectDesc(projectData.description || '')
-            const settings = (projectData as any).settings || []
-            const native = settings.find((s: any) => s.key === 'telegram_native_scheduling')
+            const settings = (projectData as ApiJson).settings || []
+            const native = settings.find((s: ApiJson) => s.key === 'telegram_native_scheduling')
             setNativeScheduling(native?.value === 'true')
         }
     }, [projectData, activeTab])
@@ -800,7 +801,7 @@ export default function Settings() {
         if (!newChannelName) return showToast('Channel Name is required', 'warning');
         if (newChannelType !== 'habr' && !newChannelId) return showToast('Channel ID is required', 'warning');
 
-        const config: any = { workflow_mode: newChannelWorkflowMode, content_language: newChannelContentLanguage };
+        const config: ApiJson = { workflow_mode: newChannelWorkflowMode, content_language: newChannelContentLanguage };
         if (newChannelType === 'telegram') {
             config.telegram_channel_id = newChannelId;
             if (newChannelUsername) {
@@ -852,7 +853,7 @@ export default function Settings() {
         });
     }
 
-    const handleStartEditChannel = (channel: any) => {
+    const handleStartEditChannel = (channel: ApiJson) => {
         setEditingChannelId(channel.id);
         setEditingChannelName(channel.name);
         setEditingChannelConfig(channel.config ? JSON.parse(JSON.stringify(channel.config)) : {});
@@ -920,13 +921,13 @@ export default function Settings() {
         saveSkillConnections.mutate(nextConnections)
     }
 
-    const { data: runs } = useQuery<any[]>({
+    const { data: runs } = useQuery<ApiJson[]>({
         queryKey: ['runs', currentProject?.id],
         queryFn: () => api.get('/api/settings/runs'),
         enabled: !!currentProject && activeTab === 'history'
     })
 
-    const RunRow = ({ run }: { run: any }) => {
+    const RunRow = ({ run }: { run: ApiJson }) => {
         const [expanded, setExpanded] = useState(false)
         return (
             <div style={{ borderBottom: '1px solid var(--border)', padding: '1rem 0' }}>
@@ -1153,7 +1154,7 @@ export default function Settings() {
                                     <div className="mt-4 grid gap-3 sm:grid-cols-3">
                                         <select value={mcpAccessUserId} onChange={event => setMcpAccessUserId(event.target.value)}>
                                             <option value="">{locale === 'ru' ? 'Участник проекта' : 'Project member'}</option>
-                                            {(projectData as any)?.members?.map((member: any) => <option key={member.user_id} value={member.user_id}>{member.user?.name || member.user?.email}</option>)}
+                                            {(projectData as ApiJson)?.members?.map((member: ApiJson) => <option key={member.user_id} value={member.user_id}>{member.user?.name || member.user?.email}</option>)}
                                         </select>
                                         <select value={mcpAccessProfile} onChange={event => setMcpAccessProfile(event.target.value as typeof mcpAccessProfile)}>
                                             <option value="planner">Planner</option><option value="writer">Writer</option><option value="art_director">Art director</option>
@@ -1251,7 +1252,7 @@ export default function Settings() {
                     <div className="mb-3 p-2" style={{ border: '1px solid var(--border)', borderRadius: '8px' }}>
                         <div className="flex-between mb-3">
                             <h3 style={{ margin: 0 }}>Add Channel</h3>
-                            <select value={newChannelType} onChange={(e: any) => setNewChannelType(e.target.value)}>
+                            <select value={newChannelType} onChange={(e: ApiJson) => setNewChannelType(e.target.value)}>
                                 <option value="telegram">Telegram</option>
                                 <option value="vk">VKontakte (VK)</option>
                                 <option value="linkedin">LinkedIn</option>
@@ -1554,7 +1555,7 @@ export default function Settings() {
                     </div>
 
                     <div className="grid">
-                        {(projectData as any)?.channels?.map((channel: SocialChannel) => {
+                        {(projectData as ApiJson)?.channels?.map((channel: SocialChannel) => {
                             if (editingChannelId === channel.id) {
                                 return (
                                     <div key={channel.id} className="mb-3 p-3 border rounded-xl bg-surface-container-low" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', gridColumn: '1 / -1' }}>
@@ -2005,7 +2006,7 @@ export default function Settings() {
                                 </div>
                             );
                         })}
-                        {(!projectData || !(projectData as any).channels?.length) && (
+                        {(!projectData || !(projectData as ApiJson).channels?.length) && (
                             <p className="text-muted">No channels connected.</p>
                         )}
                     </div>
@@ -2171,7 +2172,7 @@ export default function Settings() {
                                             {' • '}
                                             Platforms: {Object.keys(contentPolicyMatrix.parsed.platforms || {}).length}
                                             {' • '}
-                                            Matrix pairs: {Object.values(contentPolicyMatrix.parsed.matrix || {}).reduce((total: number, entry: any) => total + Object.keys(entry || {}).length, 0)}
+                                            Matrix pairs: {Object.values(contentPolicyMatrix.parsed.matrix || {}).reduce((total: number, entry: ApiJson) => total + Object.keys(entry || {}).length, 0)}
                                         </div>
                                     </div>
                                 )}
@@ -2378,7 +2379,7 @@ export default function Settings() {
                     </div>
 
                     <div className="grid">
-                        {(projectData as any)?.members?.map((m: any) => (
+                        {(projectData as ApiJson)?.members?.map((m: ApiJson) => (
                             <div key={m.id} className="flex-between p-2" style={{ background: 'var(--bg-tertiary)', borderRadius: '6px', marginBottom: '0.5rem' }}>
                                 <div>
                                     <strong>{m.user?.name || m.user?.email || 'Unknown'}</strong>
@@ -2389,7 +2390,7 @@ export default function Settings() {
                                 )}
                             </div>
                         ))}
-                        {!(projectData as any)?.members && <p>Loading members...</p>}
+                        {!(projectData as ApiJson)?.members && <p>Loading members...</p>}
                     </div>
                 </div>
             )}
@@ -2451,7 +2452,7 @@ export default function Settings() {
                                         onSave={(data) => updateAgent.mutate(data)}
                                         isUpdating={updateAgent.isPending && updateAgent.variables?.role === role.id}
                                         loadModels={async (key) => {
-                                            let params: any = {}
+                                            const params: ApiJson = {}
                                             if (key.startsWith('pk_')) params.keyId = key.substring(3)
                                             else params.key = key
                                             const res = await modelsApi.fetch(params)

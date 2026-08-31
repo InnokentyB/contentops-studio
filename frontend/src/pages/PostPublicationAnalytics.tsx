@@ -1,11 +1,12 @@
 import { useMemo } from 'react'
+import type { ApiJson } from '../types/api-json'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { publicationTasksApi } from '../api'
-import { useAuth } from '../context/AuthContext'
-import { useLocale } from '../i18n/LocaleContext'
+import { useAuth } from '../context/auth'
+import { useLocale } from '../i18n/locale'
 
-type JsonRecord = Record<string, any>
+type JsonRecord = Record<string, ApiJson>
 
 type PublicationTask = {
     id: number

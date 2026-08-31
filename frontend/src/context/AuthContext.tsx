@@ -1,30 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-
-interface User {
-    id: number;
-    email: string;
-    name?: string;
-}
-
-interface Project {
-    id: number;
-    name: string;
-}
-
-interface AuthContextType {
-    user: User | null;
-    currentProject: Project | null;
-    projects: Project[];
-    token: string | null;
-    login: (token: string, user: User, projects: Project[]) => void;
-    logout: () => void;
-    setCurrentProject: (project: Project) => void;
-    isAuthenticated: boolean;
-    isLoading: boolean;
-    createProject: (project: Project) => void;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+import React, { useState, useEffect } from 'react';
+import { AuthContext, type Project, type User } from './auth';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
@@ -181,12 +156,4 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             {children}
         </AuthContext.Provider>
     );
-};
-
-export const useAuth = () => {
-    const context = useContext(AuthContext);
-    if (context === undefined) {
-        throw new Error('useAuth must be used within an AuthProvider');
-    }
-    return context;
 };
