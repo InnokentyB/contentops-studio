@@ -1,17 +1,15 @@
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
-import { config } from 'dotenv';
+import '../src/bootstrap-env';
 import {
     encryptTelegramAccountSecrets,
     telegramAccountSecretsAreEncrypted
 } from '../src/utils/telegram_account_secrets';
 
-config();
-
 async function main() {
-    const connectionString = process.env.APP_DATABASE_URL || process.env.DATABASE_URL;
-    if (!connectionString) throw new Error('APP_DATABASE_URL or DATABASE_URL is required');
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) throw new Error('Database connection is required');
     if (!process.env.CHANNEL_SECRETS_KEY?.trim()) throw new Error('CHANNEL_SECRETS_KEY is required');
 
     const pool = new Pool({ connectionString });
