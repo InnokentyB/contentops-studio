@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { projectsApi } from '../api';
+import { useLocale } from '../i18n/LocaleContext';
 
 interface CreateProjectModalProps {
     onClose: () => void;
     onSuccess: (project: any) => void;
 }
 
-const PROJECT_CONFIG_TEMPLATE = `project:
+const PROJECT_CONFIG_TEMPLATE_RU = `project:
   name: BA Content System
   slug: ba-content-system
   description: >
@@ -120,12 +121,66 @@ presets:
     prompt_text: >
       Не предлагай очевидные beginner-темы. Нужны реальные конфликты, trade-offs и ошибки.`;
 
+const PROJECT_CONFIG_TEMPLATE_EN = `project:
+  name: BA Content System
+  slug: ba-content-system
+  description: >
+    A content operating system for system and business analysis:
+    strategy, channels, agents, and reusable presets.
+
+settings:
+  telegram_native_scheduling: "true"
+  strategy_assistant_prompt: >
+    You are the project's strategy assistant. Build weekly themes,
+    protect positioning, and keep the content system focused.
+
+content_dictionary:
+  terms:
+    - canonical: "system analysis"
+      aliases: ["systems analysis"]
+      forbidden: []
+      notes: "Use the canonical term in public content."
+  style_rules:
+    required_phrases: []
+    forbidden_phrases: ["best practice without context"]
+    preferred_tone: "direct, practical, non-generic"
+
+channels:
+  - type: telegram
+    name: Main Channel
+    config:
+      channelId: "-1001234567890"
+      username: "ba_channel"
+      content_language: "en"
+
+agents:
+  post_creator:
+    model: gpt-4o
+    prompt: >
+      You are a senior content writer. Write strong posts with conflict,
+      observations from practice, and a clear conclusion.
+  post_critic:
+    model: gpt-4o-mini
+    prompt: >
+      You are a strict editor. Find generic claims, weak hooks, and loss of focus.
+  topic_creator:
+    model: gpt-4o
+    prompt: >
+      Generate post topics with clear tension and practical value.
+
+presets:
+  - name: Sharp Telegram
+    role: post_creator
+    prompt_text: >
+      Use short paragraphs, open with a hook, and end with a practical conclusion.`;
+
 export default function CreateProjectModal({ onClose, onSuccess }: CreateProjectModalProps) {
+    const { locale } = useLocale();
     const [mode, setMode] = useState<'manual' | 'import'>('manual');
     const [name, setName] = useState('');
     const [slug, setSlug] = useState('');
     const [description, setDescription] = useState('');
-    const [configText, setConfigText] = useState(PROJECT_CONFIG_TEMPLATE);
+    const [configText, setConfigText] = useState(locale === 'ru' ? PROJECT_CONFIG_TEMPLATE_RU : PROJECT_CONFIG_TEMPLATE_EN);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 

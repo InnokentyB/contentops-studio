@@ -78,9 +78,9 @@ class MultiAgentService {
     public readonly KEY_TOPIC_FIXER_MODEL = 'multi_agent_topic_fixer_model';
 
     // Default Propmts for Post Generation (similar to legacy but split)
-    private readonly DEFAULT_POST_CREATOR_PROMPT = `You are an expert content creator. Write an engaging, insightful, and professionally formatted Telegram post about the given topic. Use Markdown. Focus on value. Max 4000 chars. Language: Russian.`;
-    private readonly DEFAULT_POST_CRITIC_PROMPT = `You are a strict editor. Evaluate the post based on relevance, insight, clarity, engagement, and formatting. Output JSON with "score" (0-100) and "critique" (in Russian).`;
-    private readonly DEFAULT_POST_FIXER_PROMPT = `You are an expert editor. Rewrite the post to address the critique while keeping the original meaning. Language: Russian. 
+    private readonly DEFAULT_POST_CREATOR_PROMPT = `You are an expert content creator. Write an engaging, insightful, and professionally formatted Telegram post about the given topic. Use Markdown. Focus on value. Max 4000 chars. Follow the language instruction supplied with the request.`;
+    private readonly DEFAULT_POST_CRITIC_PROMPT = `You are a strict editor. Evaluate the post based on relevance, insight, clarity, engagement, and formatting. Output JSON with "score" (0-100) and "critique". Write the critique in the requested content language.`;
+    private readonly DEFAULT_POST_FIXER_PROMPT = `You are an expert editor. Rewrite the post to address the critique while keeping the original meaning. Follow the language instruction supplied with the request.
 
 CRITICAL: Return ONLY the improved post text itself. Do NOT include:
 - Any meta-commentary about what you changed
@@ -129,7 +129,7 @@ Start directly with the post content.`;
 Верни ТОЛЬКО JSON:
 {
     "score": <number 0-100>,
-    "critique": "<detailed feedback in Russian>"
+    "critique": "<detailed feedback in the requested content language>"
 }`;
 
     private readonly DEFAULT_TOPIC_FIXER_PROMPT = `Ты — TopicFixerAgent, автоматический редактор контент-плана.
@@ -356,7 +356,7 @@ Definitions:
 - tool_used: checklist / 3 questions / framework / case study / personal story / rant.
 - angle: contrarian / analytical / emotional / educational.
 
-Language: Russian (text), English (keys in JSON).`;
+Language: follow the request language for text and use English keys in JSON.`;
 
     private readonly DEFAULT_SEQ_CRITIC_PROMPT = `You are a strict Content Critic.
 Review the provided post against the "Week Memory".
@@ -370,7 +370,7 @@ Criteria:
 Output JSON Format:
 {
   "score": 0-100,
-  "critique": "Specific feedback in Russian..."
+  "critique": "Specific feedback in the requested content language..."
 }`;
 
     private readonly DEFAULT_SEQ_FIXER_PROMPT = `You are a Content Editor (Fixer).

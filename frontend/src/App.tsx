@@ -20,6 +20,7 @@ import './index.css'
 
 import Layout from './components/Layout'
 import { LocaleProvider } from './i18n/LocaleContext'
+import { useLocale } from './i18n/LocaleContext'
 
 const queryClient = new QueryClient()
 const OperationalCalendar = lazy(() => import('./pages/OperationalCalendar'))
@@ -27,6 +28,7 @@ const OperationalCalendar = lazy(() => import('./pages/OperationalCalendar'))
 
 function AppContent() {
   const { isAuthenticated } = useAuth();
+  const { locale } = useLocale();
 
   if (!isAuthenticated) {
     return (
@@ -59,7 +61,7 @@ function AppContent() {
         <Route path="/settings" element={<Settings />} />
         <Route path="/publication-tasks" element={<PublicationTasks />} />
         <Route path="/guide" element={<Guide />} />
-        <Route path="/calendar" element={<Suspense fallback={<div role="status" className="p-6 text-on-surface-variant">Загрузка операционного плана…</div>}><OperationalCalendar /></Suspense>} />
+        <Route path="/calendar" element={<Suspense fallback={<div role="status" className="p-6 text-on-surface-variant">{locale === 'ru' ? 'Загрузка операционного плана…' : 'Loading operational plan…'}</div>}><OperationalCalendar /></Suspense>} />
         <Route path="/weeks" element={<Navigate to="/publication-tasks" replace />} />
         <Route path="*" element={<Navigate to="/projects" />} />
       </Routes>

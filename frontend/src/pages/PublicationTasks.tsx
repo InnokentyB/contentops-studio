@@ -368,28 +368,21 @@ function prettyJson(value: unknown) {
     return JSON.stringify(value, null, 2)
 }
 
-function formatMetricValue(value: number | null | undefined) {
-    return typeof value === 'number' ? new Intl.NumberFormat('ru-RU').format(value) : 'Нет доступа'
+function formatMetricValue(value: number | null | undefined, locale: 'ru' | 'en') {
+    return typeof value === 'number' ? new Intl.NumberFormat(locale === 'ru' ? 'ru-RU' : 'en-US').format(value) : (locale === 'ru' ? 'Нет доступа' : 'Unavailable')
 }
 
-const VK_PUBLIC_METRICS: Array<[keyof VkMetricSnapshot, string]> = [
-    ['views', 'Просмотры'],
-    ['likes', 'Лайки'],
-    ['comments', 'Комментарии'],
-    ['reposts', 'Репосты']
+const vkPublicMetrics = (locale: 'ru' | 'en'): Array<[keyof VkMetricSnapshot, string]> => [
+    ['views', locale === 'ru' ? 'Просмотры' : 'Views'], ['likes', locale === 'ru' ? 'Лайки' : 'Likes'],
+    ['comments', locale === 'ru' ? 'Комментарии' : 'Comments'], ['reposts', locale === 'ru' ? 'Репосты' : 'Reposts']
 ]
 
-const VK_REACH_METRICS: Array<[keyof VkMetricSnapshot, string]> = [
-    ['reach_total', 'Общий охват'],
-    ['reach_subscribers', 'Охват подписчиков'],
-    ['reach_viral', 'Вирусный охват'],
-    ['reach_ads', 'Рекламный охват'],
-    ['link_clicks', 'Переходы по ссылкам'],
-    ['group_clicks', 'Переходы в сообщество'],
-    ['group_joins', 'Вступления'],
-    ['hides', 'Скрытия'],
-    ['reports', 'Жалобы'],
-    ['unsubscribes', 'Отписки']
+const vkReachMetrics = (locale: 'ru' | 'en'): Array<[keyof VkMetricSnapshot, string]> => [
+    ['reach_total', locale === 'ru' ? 'Общий охват' : 'Total reach'], ['reach_subscribers', locale === 'ru' ? 'Охват подписчиков' : 'Subscriber reach'],
+    ['reach_viral', locale === 'ru' ? 'Вирусный охват' : 'Viral reach'], ['reach_ads', locale === 'ru' ? 'Рекламный охват' : 'Paid reach'],
+    ['link_clicks', locale === 'ru' ? 'Переходы по ссылкам' : 'Link clicks'], ['group_clicks', locale === 'ru' ? 'Переходы в сообщество' : 'Community clicks'],
+    ['group_joins', locale === 'ru' ? 'Вступления' : 'Joins'], ['hides', locale === 'ru' ? 'Скрытия' : 'Hides'],
+    ['reports', locale === 'ru' ? 'Жалобы' : 'Reports'], ['unsubscribes', locale === 'ru' ? 'Отписки' : 'Unsubscribes']
 ]
 
 function summarizeAtomaContext(description?: string | null, payload?: unknown) {
@@ -425,10 +418,10 @@ function summarizeAtomaContext(description?: string | null, payload?: unknown) {
     return summary.join('\n\n')
 }
 
-function executionModeLabel(mode: string) {
-    if (mode === 'manual') return 'Вручную'
-    if (mode === 'browser' || mode === 'browser_required') return 'Через браузер'
-    if (mode === 'automatic' || mode === 'auto') return 'Автоматически'
+function executionModeLabel(mode: string, locale: 'ru' | 'en') {
+    if (mode === 'manual') return locale === 'ru' ? 'Вручную' : 'Manual'
+    if (mode === 'browser' || mode === 'browser_required') return locale === 'ru' ? 'Через браузер' : 'Browser'
+    if (mode === 'automatic' || mode === 'auto') return locale === 'ru' ? 'Автоматически' : 'Automatic'
     return mode.replaceAll('_', ' ')
 }
 
@@ -440,10 +433,10 @@ function taskContentState(task: PublicationTask | null | undefined): 'empty' | '
     return 'empty'
 }
 
-function contentStateLabel(state: 'empty' | 'ready' | 'published') {
-    if (state === 'published') return 'Опубликовано'
-    if (state === 'ready') return 'Текст готов'
-    return 'Нужен текст'
+function contentStateLabel(state: 'empty' | 'ready' | 'published', locale: 'ru' | 'en') {
+    if (state === 'published') return locale === 'ru' ? 'Опубликовано' : 'Published'
+    if (state === 'ready') return locale === 'ru' ? 'Текст готов' : 'Content ready'
+    return locale === 'ru' ? 'Нужен текст' : 'Content needed'
 }
 
 function contentStateTone(state: 'empty' | 'ready' | 'published') {
@@ -458,7 +451,7 @@ function contentStateIcon(state: 'empty' | 'ready' | 'published') {
     return 'edit_note'
 }
 
-function generationStageLabel(stage?: string) {
+function generationStageLabel(stage: string | undefined, locale: 'ru' | 'en') {
     const labels: Record<string, string> = {
         topic_approval: 'Тема на утверждении',
         writing: 'Генерация текста',
@@ -470,7 +463,8 @@ function generationStageLabel(stage?: string) {
         published: 'Опубликовано',
         failed: 'Ошибка'
     }
-    return labels[stage || ''] || stage || ''
+    const english: Record<string, string> = { topic_approval: 'Topic approval', writing: 'Content generation', content_review: 'Content review', visual_production: 'Visual production', ready_for_publication: 'Ready to publish', publishing: 'Publishing', browser_required: 'Browser required', published: 'Published', failed: 'Failed' }
+    return (locale === 'ru' ? labels : english)[stage || ''] || stage || ''
 }
 
 function taskChannel(task: PublicationTask) {
@@ -487,18 +481,19 @@ function inferArtifactKind(task: PublicationTask | null | undefined): ArtifactKi
     return 'other'
 }
 
-function checkpointLabel(value: string) {
-    if (value === 't24h') return 'T+24 часа'
-    if (value === 't7d') return 'T+7 дней'
+function checkpointLabel(value: string, locale: 'ru' | 'en') {
+    if (value === 't24h') return locale === 'ru' ? 'T+24 часа' : 'T+24 hours'
+    if (value === 't7d') return locale === 'ru' ? 'T+7 дней' : 'T+7 days'
     return value
 }
 
-function checkpointStatusLabel(value?: string) {
+function checkpointStatusLabel(value: string | undefined, locale: 'ru' | 'en') {
     const labels: Record<string, string> = {
         pending: 'Ожидает сбора', collected: 'Собран', partial: 'Частично', unknown: 'Нет данных',
         not_supported: 'Не поддерживается', failed: 'Ошибка', overdue: 'Просрочен'
     }
-    return labels[value || ''] || value || 'Ожидает'
+    const english: Record<string, string> = { pending: 'Pending', collected: 'Collected', partial: 'Partial', unknown: 'No data', not_supported: 'Not supported', failed: 'Failed', overdue: 'Overdue' }
+    return (locale === 'ru' ? labels : english)[value || ''] || value || (locale === 'ru' ? 'Ожидает' : 'Pending')
 }
 
 function taskPlanReference(task: PublicationTask | null | undefined) {
@@ -582,14 +577,14 @@ function isOperationalWorkflowTask(task: PublicationTask | null | undefined) {
         || channelName.includes('growth')
 }
 
-function formatUiError(error: unknown, fallback: string) {
+function formatUiError(error: unknown, fallback: string, locale: 'ru' | 'en') {
     if (!(error instanceof Error)) return fallback
 
     const message = error.message?.trim()
     if (!message) return fallback
 
     if (message === 'Bad Request') {
-        return `${fallback} Сервер вернул 400 — проверь настройки канала, доступ адаптера и обязательные поля публикации.`
+        return `${fallback} ${locale === 'ru' ? 'Сервер вернул 400 — проверь настройки канала, доступ адаптера и обязательные поля публикации.' : 'The server returned 400. Check channel settings, adapter access, and required publication fields.'}`
     }
 
     return message
@@ -679,6 +674,7 @@ function resolvePrimarySourceEntry(task: PublicationTask | null | undefined, sou
 
 export default function PublicationTasks() {
     const { locale } = useLocale()
+    const tr = (ru: string, en: string) => locale === 'ru' ? ru : en
     const copy = locale === 'ru' ? {
         title: 'Задачи на публикацию', project: 'Проект', chooseProject: 'Выбери или импортируй проект с планом публикаций.', tasks: 'задач', importPlan: 'Импортировать или обновить план публикаций',
         searchPlaceholder: 'Номер #760, название или канал', searchLabel: 'Поиск по задачам', weekLabel: 'Неделя публикаций', allWeeks: 'Все недели / история', statusLabel: 'Статус задач',
@@ -1012,7 +1008,7 @@ export default function PublicationTasks() {
     const prepareHandoff = useMutation({
         mutationFn: (taskId: number) => publicationTasksApi.prepareHandoff(taskId),
         onSuccess: () => {
-            setTaskMessage('Handoff-пакет подготовлен.')
+            setTaskMessage(tr('Handoff-пакет подготовлен.', 'Handoff package prepared.'))
             refreshTasks()
         }
     })
@@ -1033,20 +1029,20 @@ export default function PublicationTasks() {
 
     const saveTaskContent = useMutation({
         mutationFn: () => {
-            if (!activeTaskId) throw new Error('Задача не выбрана')
+            if (!activeTaskId) throw new Error(tr('Задача не выбрана', 'No task selected'))
             return publicationTasksApi.saveContent(activeTaskId, {
                 body: publicationBody
             })
         },
         onSuccess: () => {
-            setTaskMessage('Текст публикации сохранён.')
+            setTaskMessage(tr('Текст публикации сохранён.', 'Publication content saved.'))
             refreshTasks()
         }
     })
 
     const confirmPublication = useMutation({
         mutationFn: () => {
-            if (!activeTaskId) throw new Error('Задача не выбрана')
+            if (!activeTaskId) throw new Error(tr('Задача не выбрана', 'No task selected'))
             return publicationTasksApi.recordPublicationFact(activeTaskId, {
                 artifactKind,
                 outcome: publicationOutcome,
@@ -1061,28 +1057,28 @@ export default function PublicationTasks() {
                         : null,
                 targetUrl: targetUrl.trim() || null,
                 note: publicationNote || undefined,
-                correctionReason: activeTask?.publication_fact ? publicationNote || 'Исправление оператором' : undefined
+                correctionReason: activeTask?.publication_fact ? publicationNote || tr('Исправление оператором', 'Operator correction') : undefined
             })
         },
         onSuccess: () => {
             setTaskMessage(publicationOutcome === 'published'
-                ? 'Публикация подтверждена. Теперь можно подтянуть метрики из канала или сохранить их вручную.'
-                : `Ссылка на публикацию сохранена с исходом: ${publicationOutcome}. Задача остаётся подтверждённой, даже если пост заблокирован или ограничен.`)
+                ? tr('Публикация подтверждена. Теперь можно подтянуть метрики из канала или сохранить их вручную.', 'Publication confirmed. You can now collect channel metrics or save them manually.')
+                : tr(`Ссылка на публикацию сохранена с исходом: ${publicationOutcome}. Задача остаётся подтверждённой, даже если пост заблокирован или ограничен.`, `Publication link saved with outcome: ${publicationOutcome}. The task remains confirmed even if the post is blocked or restricted.`))
             refreshTasks()
         }
     })
 
     const publishTaskNow = useMutation({
         mutationFn: () => {
-            if (!activeTaskId) throw new Error('Задача не выбрана')
+            if (!activeTaskId) throw new Error(tr('Задача не выбрана', 'No task selected'))
             return publicationTasksApi.publishNow(activeTaskId)
         },
         onSuccess: (result: any) => {
             const outcome = result?.result
             if (outcome?.manualFallback) {
-                setTaskMessage(`Автопубликация потребовала ручного шага${outcome?.reason ? `. ${outcome.reason}` : '.'}`)
+                setTaskMessage(tr(`Автопубликация потребовала ручного шага${outcome?.reason ? `. ${outcome.reason}` : '.'}`, `Automatic publication requires a manual step${outcome?.reason ? `. ${outcome.reason}` : '.'}`))
             } else {
-                setTaskMessage(`Публикация запущена через адаптер${outcome?.adapter ? `: ${outcome.adapter}` : ''}.`)
+                setTaskMessage(tr(`Публикация запущена через адаптер${outcome?.adapter ? `: ${outcome.adapter}` : ''}.`, `Publication started through adapter${outcome?.adapter ? `: ${outcome.adapter}` : ''}.`))
             }
             refreshTasks()
             queryClient.invalidateQueries({ queryKey: ['vk_metrics_history', currentProject?.id, activeTaskId] })
@@ -1091,7 +1087,7 @@ export default function PublicationTasks() {
 
     const runCriticCheck = useMutation({
         mutationFn: () => {
-            if (!activeTaskId) throw new Error('Задача не выбрана')
+            if (!activeTaskId) throw new Error(tr('Задача не выбрана', 'No task selected'))
             const reviewText = (selectedTask?.quality_report?.handoff_bundle as JsonRecord | undefined)?.publication?.body
                 || selectedTask?.workspace_context?.source_content
                 || ''
@@ -1099,14 +1095,14 @@ export default function PublicationTasks() {
         },
         onSuccess: (result: CriticReview) => {
             setCriticReport(result)
-            setTaskMessage('Проверка критиком завершена. Отчёт обновлён.')
+            setTaskMessage(tr('Проверка критиком завершена. Отчёт обновлён.', 'Critic review completed. Report updated.'))
             refreshTasks()
         }
     })
 
     const runCriticFixer = useMutation({
         mutationFn: () => {
-            if (!activeTaskId) throw new Error('Задача не выбрана')
+            if (!activeTaskId) throw new Error(tr('Задача не выбрана', 'No task selected'))
             const reviewText = publicationBody || selectedTask?.workspace_context?.source_content || ''
             return publicationTasksApi.fixWithCritic(activeTaskId, { text: reviewText })
         },
@@ -1117,18 +1113,18 @@ export default function PublicationTasks() {
             if (result?.critic_review) {
                 setCriticReport(result.critic_review)
             }
-            setTaskMessage('Фиксер применил замечания критика и обновил текст публикации.')
+            setTaskMessage(tr('Фиксер применил замечания критика и обновил текст публикации.', 'The fixer applied the critic feedback and updated the publication content.'))
             refreshTasks()
         }
     })
 
     const generateTaskImage = useMutation({
         mutationFn: (provider: 'preview' | 'final' | 'flagship' = 'preview') => {
-            if (!activeTaskId) throw new Error('Задача не выбрана')
+            if (!activeTaskId) throw new Error(tr('Задача не выбрана', 'No task selected'))
             return publicationTasksApi.generateImage(activeTaskId, { provider })
         },
         onSuccess: () => {
-            setTaskMessage('Кандидат изображения создан и передан на визуальное ревью.')
+            setTaskMessage(tr('Кандидат изображения создан и передан на визуальное ревью.', 'Image candidate created and sent for visual review.'))
             refreshTasks()
         },
         onError: (error: Error) => {
@@ -1150,13 +1146,13 @@ export default function PublicationTasks() {
 
     const collectMetrics = useMutation({
         mutationFn: () => {
-            if (!activeTaskId) throw new Error('Задача не выбрана')
+            if (!activeTaskId) throw new Error(tr('Задача не выбрана', 'No task selected'))
             return publicationTasksApi.collectMetrics(activeTaskId)
         },
         onSuccess: (result: any) => {
             setTaskMessage(result?.updated
-                ? `Метрики получены из канала${result?.reason ? `. ${result.reason}` : '.'}`
-                : (result?.reason || 'Метрики не были обновлены.'))
+                ? tr(`Метрики получены из канала${result?.reason ? `. ${result.reason}` : '.'}`, `Metrics collected from the channel${result?.reason ? `. ${result.reason}` : '.'}`)
+                : (result?.reason || tr('Метрики не были обновлены.', 'Metrics were not updated.')))
             refreshTasks()
             queryClient.invalidateQueries({ queryKey: ['vk_metrics_history', currentProject?.id, activeTaskId] })
         }
@@ -1164,9 +1160,9 @@ export default function PublicationTasks() {
 
     const recordMetrics = useMutation({
         mutationFn: () => {
-            if (!activeTaskId) throw new Error('Задача не выбрана')
+            if (!activeTaskId) throw new Error(tr('Задача не выбрана', 'No task selected'))
             const checkpoint = activeTask?.metric_checkpoints?.find((entry) => entry.checkpoint === selectedCheckpoint)
-            if (!activeTask?.channel?.id) throw new Error('У задачи не указан канал')
+            if (!activeTask?.channel?.id) throw new Error(tr('У задачи не указан канал', 'The task has no channel'))
             return publicationTasksApi.recordMetricCheckpoint(activeTaskId, selectedCheckpoint, {
                 channelId: activeTask.channel.id,
                 metrics: JSON.parse(metricsJson),
@@ -1179,14 +1175,14 @@ export default function PublicationTasks() {
             })
         },
         onSuccess: () => {
-            setTaskMessage('Снимок метрик сохранён вручную.')
+            setTaskMessage(tr('Снимок метрик сохранён вручную.', 'Metric snapshot saved manually.'))
             refreshTasks()
         }
     })
 
     const sendCommentAlert = useMutation({
         mutationFn: () => {
-            if (!activeTaskId) throw new Error('Задача не выбрана')
+            if (!activeTaskId) throw new Error(tr('Задача не выбрана', 'No task selected'))
             return publicationTasksApi.externalCommentAlert(activeTaskId, {
                 author: commentAuthor || undefined,
                 commentUrl: commentUrl || undefined,
@@ -1197,7 +1193,7 @@ export default function PublicationTasks() {
             setCommentAuthor('')
             setCommentUrl('')
             setCommentText('')
-            setTaskMessage('Внешний алерт по комментарию сохранён.')
+            setTaskMessage(tr('Внешний алерт по комментарию сохранён.', 'External comment alert saved.'))
             refreshTasks()
         }
     })
@@ -1260,12 +1256,12 @@ export default function PublicationTasks() {
     const previewTitle = isOperationalTask ? copy.resultPreview : copy.publicationPreview
     const sourceContextTitle = isOperationalTask ? copy.executionContext : copy.publicationContext
     const sourceLinkLabel = isOperationalTask ? copy.resultLink : copy.postLink
-    const sourceLinkPlaceholder = isOperationalTask ? 'https://... ссылка на документ, таблицу, пост или другой итоговый артефакт' : 'https://...'
+    const sourceLinkPlaceholder = isOperationalTask ? tr('https://... ссылка на документ, таблицу, пост или другой итоговый артефакт', 'https://... link to a document, sheet, post, or another final artifact') : 'https://...'
     const prepareButtonLabel = isOperationalTask ? copy.buildTaskPackage : copy.prepareDraft
     const publishButtonDisabled = publishTaskNow.isPending || prepareHandoff.isPending || isLoadingTask || (!isOperationalTask && !hasPublicationText)
     const publicationActionTitle = !hasPublicationText
-        ? 'Сначала подготовьте текст публикации: нажмите «Подготовить черновик» или напишите текст вручную.'
-        : 'Опубликуйте текст в подключённый канал, затем вставьте ссылку на пост справа.'
+        ? tr('Сначала подготовьте текст публикации: нажмите «Подготовить черновик» или напишите текст вручную.', 'Prepare publication content first: select “Prepare draft” or write it manually.')
+        : tr('Опубликуйте текст в подключённый канал, затем вставьте ссылку на пост справа.', 'Publish the content to the connected channel, then add the live post link on the right.')
     const requiresPermalink = publicationOutcome === 'published' && ['post', 'article', 'comment'].includes(artifactKind)
     const requiresStoryEvidence = publicationOutcome === 'published' && artifactKind === 'story'
     const publicationFactReady = (!requiresPermalink || publishedLink.trim().length > 0)
@@ -1412,13 +1408,13 @@ export default function PublicationTasks() {
                             {typeof weekPackageId === 'number' && (nonPublicationRecordCount > 0 || dateMismatchIds.size > 0 || crossPackageTasks.length > 0) && (
                                 <div className="border-b border-outline-variant/10 bg-surface-container-low px-4 py-4 text-xs leading-relaxed text-on-surface-variant" role="status">
                                     {nonPublicationRecordCount > 0 && (
-                                        <p>В селекторе учтено <strong className="text-on-surface">{packageRecordCount}</strong> записей: публикационных задач — <strong className="text-on-surface">{tasks?.length || 0}</strong>, служебных — {nonPublicationRecordCount}.</p>
+                                        <p>{tr('В селекторе учтено', 'The selector includes')} <strong className="text-on-surface">{packageRecordCount}</strong> {tr('записей: публикационных задач', 'records: publication tasks')} — <strong className="text-on-surface">{tasks?.length || 0}</strong>, {tr('служебных', 'service records')} — {nonPublicationRecordCount}.</p>
                                     )}
                                     {dateMismatchIds.size > 0 && (
-                                        <p className={nonPublicationRecordCount > 0 ? 'mt-1' : ''}><strong className="text-on-surface">{dateMismatchIds.size}</strong> задач в пакете имеют дату за пределами выбранной недели.</p>
+                                        <p className={nonPublicationRecordCount > 0 ? 'mt-1' : ''}><strong className="text-on-surface">{dateMismatchIds.size}</strong> {tr('задач в пакете имеют дату за пределами выбранной недели.', 'tasks in the package fall outside the selected week.')}</p>
                                     )}
                                     {crossPackageTasks.length > 0 && (
-                                        <p className={nonPublicationRecordCount > 0 || dateMismatchIds.size > 0 ? 'mt-1' : ''}><strong className="text-on-surface">{crossPackageTasks.length}</strong> задач датированы этой неделей, но привязаны к другому пакету. Они добавлены в список с отметкой.</p>
+                                        <p className={nonPublicationRecordCount > 0 || dateMismatchIds.size > 0 ? 'mt-1' : ''}><strong className="text-on-surface">{crossPackageTasks.length}</strong> {tr('задач датированы этой неделей, но привязаны к другому пакету. Они добавлены в список с отметкой.', 'tasks are dated this week but belong to another package. They are marked in the list.')}</p>
                                     )}
                                 </div>
                             )}
@@ -1480,7 +1476,7 @@ export default function PublicationTasks() {
                                         key={task.id}
                                         type="button"
                                         onClick={() => openTask(task.id)}
-                                        aria-label={`Открыть задачу #${task.id}: ${task.title || task.type}`}
+                                        aria-label={tr(`Открыть задачу #${task.id}: ${task.title || task.type}`, `Open task #${task.id}: ${task.title || task.type}`)}
                                         className={`group w-full min-h-24 touch-manipulation text-left px-4 sm:px-5 py-4 border-b transition-colors focus-visible:relative focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40 active:bg-primary/10 ${
                                             isOverdue
                                                 ? isSelected
@@ -1494,7 +1490,7 @@ export default function PublicationTasks() {
                                         <div className="min-w-0">
                                             <div className="flex items-center justify-between gap-3">
                                                 <div className="flex min-w-0 items-center gap-2">
-                                                    <span className="inline-flex shrink-0 select-all items-center rounded-lg bg-primary/10 px-2 py-1 text-xs font-black tabular-nums text-primary" title={`Номер задачи ${task.id}`}>
+                                                    <span className="inline-flex shrink-0 select-all items-center rounded-lg bg-primary/10 px-2 py-1 text-xs font-black tabular-nums text-primary" title={tr(`Номер задачи ${task.id}`, `Task number ${task.id}`)}>
                                                         #{task.id}
                                                     </span>
                                                     <span className="truncate text-[10px] font-black uppercase tracking-[0.18em] text-primary/60" title={taskChannel(task)}>
@@ -1511,29 +1507,29 @@ export default function PublicationTasks() {
                                             </div>
                                             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-on-surface-variant mt-2">
                                                 <span>{formatDate(task.schedule_at)}</span>
-                                                <span>{executionModeLabel(mode)}</span>
+                                                <span>{executionModeLabel(mode, locale)}</span>
                                                 {task.generation_stage && (
-                                                    <span className="font-bold text-primary">{generationStageLabel(task.generation_stage)}</span>
+                                                    <span className="font-bold text-primary">{generationStageLabel(task.generation_stage, locale)}</span>
                                                 )}
                                                 {isOverdue && (
                                                     <span className="font-black text-error">
-                                                        Просрочено
+                                                        {tr('Просрочено', 'Overdue')}
                                                     </span>
                                                 )}
                                                 {hasPackageDateMismatch && (
-                                                    <span className="font-black text-error" title="Дата задачи находится за пределами выбранного недельного пакета">
-                                                        Дата вне недели
+                                                    <span className="font-black text-error" title={tr('Дата задачи находится за пределами выбранного недельного пакета', 'Task date is outside the selected weekly package')}>
+                                                        {tr('Дата вне недели', 'Outside week')}
                                                     </span>
                                                 )}
                                                 {comesFromAnotherPackage && (
-                                                    <span className="font-black text-primary" title={`Задача привязана к пакету №${task.week_package_id || '—'}`}>
-                                                        Из пакета №{task.week_package_id || '—'}
+                                                    <span className="font-black text-primary" title={tr(`Задача привязана к пакету №${task.week_package_id || '—'}`, `Task belongs to package #${task.week_package_id || '—'}`)}>
+                                                        {tr('Из пакета №', 'From package #')}{task.week_package_id || '—'}
                                                     </span>
                                                 )}
                                             </div>
                                             {taskPlanReference(task) && (
                                                 <div className="mt-2 truncate text-xs font-medium text-on-surface-variant/80" title={taskPlanReference(task)}>
-                                                    План: {taskPlanReference(task)}
+                                                    {tr('План', 'Plan')}: {taskPlanReference(task)}
                                                 </div>
                                             )}
                                         </div>
@@ -1554,7 +1550,7 @@ export default function PublicationTasks() {
                                     className="min-h-11 inline-flex items-center gap-2 rounded-xl px-3 text-sm font-black text-primary active:bg-primary/10 touch-manipulation"
                                 >
                                     <span className="material-symbols-outlined text-xl" aria-hidden="true">arrow_back</span>
-                                    Ко всем задачам
+                                    {tr('Ко всем задачам', 'All tasks')}
                                 </button>
                             </div>
                         )}
@@ -1585,7 +1581,7 @@ export default function PublicationTasks() {
                                                     type="button"
                                                     onClick={() => navigator.clipboard?.writeText(taskPlanReference(activeTask) || String(activeTask.id))}
                                                     className="inline-flex min-h-8 items-center gap-1.5 rounded-lg bg-surface-container-high px-2.5 text-[11px] font-black text-on-surface-variant hover:text-primary"
-                                                    title="Скопировать идентификатор задачи"
+                                                    title={tr('Скопировать идентификатор задачи', 'Copy task identifier')}
                                                 >
                                                     <span className="material-symbols-outlined text-sm" aria-hidden="true">content_copy</span>
                                                     {taskIdentifierLabel(activeTask)}
@@ -1598,12 +1594,12 @@ export default function PublicationTasks() {
                                                 {activeTask.generation_stage && (
                                                     <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black bg-primary/10 text-primary">
                                                         <span className="material-symbols-outlined text-[14px]" aria-hidden="true">account_tree</span>
-                                                        {generationStageLabel(activeTask.generation_stage)}
+                                                        {generationStageLabel(activeTask.generation_stage, locale)}
                                                     </span>
                                                 )}
                                                 <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black ${isActiveTaskCancelled ? 'bg-surface-container-high text-on-surface-variant' : contentStateTone(taskContentState(activeTask))}`}>
                                                     <span className="material-symbols-outlined text-[14px]" aria-hidden="true">{isActiveTaskCancelled ? 'event_busy' : contentStateIcon(taskContentState(activeTask))}</span>
-                                                    {isActiveTaskCancelled ? copy.publicationCancelled : contentStateLabel(taskContentState(activeTask))}
+                                                    {isActiveTaskCancelled ? copy.publicationCancelled : contentStateLabel(taskContentState(activeTask), locale)}
                                                 </span>
                                                 {isTaskOverdue && (
                                                     <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-error text-white">
@@ -1630,22 +1626,22 @@ export default function PublicationTasks() {
                                             {activeTask.published_link && (
                                                 <a href={activeTask.published_link} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary/5 px-3 text-sm font-bold text-primary hover:underline">
                                                     <span className="material-symbols-outlined text-base" aria-hidden="true">open_in_new</span>
-                                                    Открыть опубликованный пост
+                                                    {tr('Открыть опубликованный пост', 'Open published post')}
                                                 </a>
                                             )}
                                             {visualReadiness?.enabled && (
                                                 <div className={`rounded-2xl px-4 py-3 text-sm ${visualGateOpen ? 'bg-emerald-50 text-emerald-900' : 'bg-amber-50 text-amber-950'}`}>
-                                                    <div className="font-black">Визуальный допуск: {visualReadiness.visual_state}</div>
+                                                    <div className="font-black">{tr('Визуальный допуск', 'Visual gate')}: {visualReadiness.visual_state}</div>
                                                     <div className="mt-1 text-xs opacity-80">
                                                         {visualGateOpen
-                                                            ? (visualReadiness.visual_state === 'NO_VISUAL_NEEDED' ? 'Арт-директор подтвердил, что визуал не нужен.' : 'Одобренный визуал соответствует текущей версии текста.')
+                                                            ? (visualReadiness.visual_state === 'NO_VISUAL_NEEDED' ? tr('Арт-директор подтвердил, что визуал не нужен.', 'The art director confirmed that no visual is needed.') : tr('Одобренный визуал соответствует текущей версии текста.', 'The approved visual matches the current content revision.'))
                                                             : visualReadiness.reason === 'visual_stale'
-                                                                ? 'Текст изменился: визуал нужно проверить заново.'
+                                                                ? tr('Текст изменился: визуал нужно проверить заново.', 'The content changed: the visual needs another review.')
                                                                 : visualReadiness.visual_state === 'SOURCE_REQUIRED'
-                                                                    ? 'Нужен реальный источник или доказательный материал.'
+                                                                    ? tr('Нужен реальный источник или доказательный материал.', 'A real source or supporting material is required.')
                                                                     : visualReadiness.visual_state === 'MANUAL_ASSET_REQUIRED'
-                                                                        ? 'Нужно вручную приложить исходный визуал.'
-                                                                        : 'Публикация ждёт решения арт-директора или ревью визуала.'}
+                                                                        ? tr('Нужно вручную приложить исходный визуал.', 'Attach the source visual manually.')
+                                                                        : tr('Публикация ждёт решения арт-директора или ревью визуала.', 'The publication is waiting for an art direction decision or visual review.')}
                                                     </div>
                                                 </div>
                                             )}
@@ -1677,7 +1673,7 @@ export default function PublicationTasks() {
                                                     className="w-full ai-gradient text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 inline-flex items-center justify-center gap-2"
                                                     title={executionMode === 'manual'
                                                         ? publicationActionTitle
-                                                        : 'Запустить публикацию через подключённый адаптер'}
+                                                        : tr('Запустить публикацию через подключённый адаптер', 'Publish through the connected adapter')}
                                                 >
                                                     <span className="material-symbols-outlined text-base">send</span>
                                                     {publishTaskNow.isPending ? copy.publishing : (executionMode === 'manual' ? copy.publishChannel : copy.publishNow)}
@@ -1712,14 +1708,14 @@ export default function PublicationTasks() {
 
                                     {(prepareHandoff.error || publishTaskNow.error || saveTaskContent.error || confirmPublication.error || collectMetrics.error || recordMetrics.error || sendCommentAlert.error) && (
                                         <div className="mt-4 rounded-2xl bg-error-container/30 text-error px-4 py-3 text-sm font-medium">
-                                            {prepareHandoff.error ? formatUiError(prepareHandoff.error, 'Не удалось подготовить handoff.') :
-                                                publishTaskNow.error ? formatUiError(publishTaskNow.error, 'Не удалось отправить публикацию в канал.') :
-                                                    saveTaskContent.error ? formatUiError(saveTaskContent.error, 'Не удалось сохранить текст публикации.') :
-                                                        confirmPublication.error ? formatUiError(confirmPublication.error, 'Не удалось подтвердить публикацию.') :
-                                                            collectMetrics.error ? formatUiError(collectMetrics.error, 'Не удалось получить метрики.') :
-                                                                recordMetrics.error ? formatUiError(recordMetrics.error, 'Не удалось сохранить метрики.') :
-                                                                    sendCommentAlert.error ? formatUiError(sendCommentAlert.error, 'Не удалось сохранить комментарий.') :
-                                                                        'Произошла ошибка.'}
+                                            {prepareHandoff.error ? formatUiError(prepareHandoff.error, locale === 'ru' ? 'Не удалось подготовить handoff.' : 'Failed to prepare handoff.', locale) :
+                                                publishTaskNow.error ? formatUiError(publishTaskNow.error, locale === 'ru' ? 'Не удалось отправить публикацию в канал.' : 'Failed to publish to the channel.', locale) :
+                                                    saveTaskContent.error ? formatUiError(saveTaskContent.error, locale === 'ru' ? 'Не удалось сохранить текст публикации.' : 'Failed to save publication content.', locale) :
+                                                        confirmPublication.error ? formatUiError(confirmPublication.error, locale === 'ru' ? 'Не удалось подтвердить публикацию.' : 'Failed to confirm publication.', locale) :
+                                                            collectMetrics.error ? formatUiError(collectMetrics.error, locale === 'ru' ? 'Не удалось получить метрики.' : 'Failed to collect metrics.', locale) :
+                                                                recordMetrics.error ? formatUiError(recordMetrics.error, locale === 'ru' ? 'Не удалось сохранить метрики.' : 'Failed to save metrics.', locale) :
+                                                                    sendCommentAlert.error ? formatUiError(sendCommentAlert.error, locale === 'ru' ? 'Не удалось сохранить комментарий.' : 'Failed to save comment.', locale) :
+                                                                        tr('Произошла ошибка.', 'An error occurred.')}
                                         </div>
                                     )}
                                 </div>
@@ -1729,23 +1725,23 @@ export default function PublicationTasks() {
                                         <section className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.1fr)_420px] gap-6 items-start">
                                             <div className="space-y-6">
                                                 <div className="rounded-[1.5rem] bg-surface-container-low p-5 border border-outline-variant/10">
-                                                    <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Операционная задача</div>
-                                                    <h3 className="mt-3 text-2xl font-headline font-black text-on-surface">Не публикация, а рабочий контур выполнения</h3>
+                                                    <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{tr('Операционная задача', 'Operational task')}</div>
+                                                    <h3 className="mt-3 text-2xl font-headline font-black text-on-surface">{tr('Не публикация, а рабочий контур выполнения', 'A workstream, not a publication')}</h3>
                                                     <p className="mt-3 text-sm leading-7 text-on-surface-variant max-w-3xl">
-                                                        Для таких задач важнее чеклист, рабочий материал, ссылка на итоговый артефакт и заметки по результату. Поэтому экран собран как операционная рабочая зона, а не как форма публикации поста.
+                                                        {tr('Для таких задач важнее чеклист, рабочий материал, ссылка на итоговый артефакт и заметки по результату. Поэтому экран собран как операционная рабочая зона, а не как форма публикации поста.', 'For these tasks, the checklist, working material, final artifact link, and outcome notes matter most. This screen is an operational workspace rather than a post publication form.')}
                                                     </p>
                                                     <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-3">
                                                         <div className="rounded-2xl bg-white px-4 py-4">
-                                                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Плановый пункт</div>
-                                                            <div className="mt-2 text-sm font-bold text-on-surface break-words">{planItemRef || 'Не привязано'}</div>
+                                                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">{tr('Плановый пункт', 'Plan item')}</div>
+                                                            <div className="mt-2 text-sm font-bold text-on-surface break-words">{planItemRef || tr('Не привязано', 'Not linked')}</div>
                                                         </div>
                                                         <div className="rounded-2xl bg-white px-4 py-4">
-                                                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Исходный ресурс</div>
-                                                            <div className="mt-2 text-sm font-bold text-on-surface break-words">{activeTask?.workspace_context?.source_file_name || sourceFiles[0]?.file_name || sourceFiles[0]?.relative_path || 'Не найден'}</div>
+                                                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">{tr('Исходный ресурс', 'Source resource')}</div>
+                                                            <div className="mt-2 text-sm font-bold text-on-surface break-words">{activeTask?.workspace_context?.source_file_name || sourceFiles[0]?.file_name || sourceFiles[0]?.relative_path || tr('Не найден', 'Not found')}</div>
                                                         </div>
                                                         <div className="rounded-2xl bg-white px-4 py-4">
-                                                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Формат результата</div>
-                                                            <div className="mt-2 text-sm font-bold text-on-surface">{activeTask.published_link ? 'Результат зафиксирован' : 'Нужен итоговый артефакт'}</div>
+                                                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">{tr('Формат результата', 'Result format')}</div>
+                                                            <div className="mt-2 text-sm font-bold text-on-surface">{activeTask.published_link ? tr('Результат зафиксирован', 'Result recorded') : tr('Нужен итоговый артефакт', 'Final artifact required')}</div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1763,7 +1759,7 @@ export default function PublicationTasks() {
                                                     />
                                                     <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center justify-between gap-3">
                                                         <div className="text-xs text-on-surface-variant">
-                                                            Здесь можно вести чеклист, заметки, гипотезы и промежуточные выводы. Этот текст сохраняется в задачу и остаётся частью handoff и проверки.
+                                                            {tr('Здесь можно вести чеклист, заметки, гипотезы и промежуточные выводы. Этот текст сохраняется в задачу и остаётся частью handoff и проверки.', 'Use this area for checklists, notes, hypotheses, and interim findings. The text is saved with the task and remains part of the handoff and review.')}
                                                         </div>
                                                         <div className="flex w-full sm:w-auto items-center gap-3">
                                                             <button
@@ -1771,14 +1767,14 @@ export default function PublicationTasks() {
                                                                 disabled={!isPublicationBodyDirty || saveTaskContent.isPending}
                                                                 className="flex-1 sm:flex-none rounded-2xl bg-surface-container-highest text-on-surface font-black text-xs px-4 py-3 hover:bg-primary/10 hover:text-primary transition-all disabled:opacity-50"
                                                             >
-                                                                Сбросить
+                                                                {tr('Сбросить', 'Reset')}
                                                             </button>
                                                             <button
                                                                 onClick={() => saveTaskContent.mutate()}
                                                                 disabled={!isPublicationBodyDirty || saveTaskContent.isPending}
                                                                 className="flex-1 sm:flex-none rounded-2xl bg-primary text-white font-black text-xs px-4 py-3 shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
                                                             >
-                                                                {saveTaskContent.isPending ? 'Сохраняем...' : 'Сохранить материал'}
+                                                                {saveTaskContent.isPending ? tr('Сохраняем...', 'Saving...') : tr('Сохранить материал', 'Save material')}
                                                             </button>
                                                         </div>
                                                     </div>
@@ -1792,7 +1788,7 @@ export default function PublicationTasks() {
                                                     <ContentMarkupRenderer
                                                         content={publicationBody}
                                                         title={`publication-task-preview-${activeTask.id}`}
-                                                        emptyMessage="Рабочий материал пока пуст."
+                                                        emptyMessage={tr('Рабочий материал пока пуст.', 'Working material is empty.')}
                                                         className="min-h-[18rem]"
                                                         platform={activeTask.channel?.type || activeTask.type}
                                                         postTitle={activeTask.title || undefined}
@@ -1803,9 +1799,9 @@ export default function PublicationTasks() {
 
                                                 <section className="grid grid-cols-1 xl:grid-cols-[minmax(320px,0.78fr)_minmax(0,1.22fr)] gap-6 items-start">
                                                     <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
-                                                        <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Чеклист выполнения</div>
+                                                        <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{tr('Чеклист выполнения', 'Completion checklist')}</div>
                                                         <div className="space-y-3">
-                                                            {(handoffBundle?.manual_checklist || ['Собери пакет задачи, чтобы увидеть чеклист по этому workflow.']).map((item: string, index: number) => (
+                                                            {(handoffBundle?.manual_checklist || [tr('Собери пакет задачи, чтобы увидеть чеклист по этому workflow.', 'Build the task package to view the checklist for this workflow.')]).map((item: string, index: number) => (
                                                                 <div key={`${item}-${index}`} className="flex items-start gap-3 text-sm text-on-surface-variant">
                                                                     <span className="w-6 h-6 rounded-full bg-white text-primary flex items-center justify-center font-black text-xs shrink-0">{index + 1}</span>
                                                                     <span className="leading-6">{item}</span>
@@ -1815,13 +1811,13 @@ export default function PublicationTasks() {
                                                     </div>
 
                                                     <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
-                                                        <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Исходные файлы и контекст</div>
+                                                        <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{tr('Исходные файлы и контекст', 'Source files and context')}</div>
                                                         <ResourcePreviewCard
                                                             entry={primarySourceEntry}
                                                             title={activeTask?.workspace_context?.source_file_name || 'source-content'}
                                                             emptyMessage={handoffBundle
-                                                                ? 'Не нашли читаемый текст или предпросматриваемый ресурс в связанных файлах.'
-                                                                : 'Собери пакет задачи, чтобы подтянуть связанный текст, файл или превью артефакта.'}
+                                                                ? tr('Не нашли читаемый текст или предпросматриваемый ресурс в связанных файлах.', 'No readable text or previewable resource was found in the linked files.')
+                                                                : tr('Собери пакет задачи, чтобы подтянуть связанный текст, файл или превью артефакта.', 'Build the task package to load the linked text, file, or artifact preview.')}
                                                         />
                                                     </div>
                                                 </section>
@@ -1833,7 +1829,7 @@ export default function PublicationTasks() {
                                                         <div>
                                                             <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{sourceContextTitle}</div>
                                                             <div className="mt-1 text-xs text-on-surface-variant leading-5">
-                                                                Здесь зафиксированы рабочая ссылка, целевой ресурс и то, куда должен лечь финальный результат этой задачи.
+                                                                {tr('Здесь зафиксированы рабочая ссылка, целевой ресурс и то, куда должен лечь финальный результат этой задачи.', 'This section records the working link, target resource, and destination for the final result.')}
                                                             </div>
                                                         </div>
                                                         <div className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant shadow-sm">
@@ -1842,17 +1838,17 @@ export default function PublicationTasks() {
                                                     </div>
                                                     <div className="flex flex-wrap gap-2">
                                                         <span className="rounded-full bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-on-surface-variant shadow-sm">
-                                                            Канал: {activeTask.channel?.name || activeTask.channel?.type || activeTask.layer || 'не указан'}
+                                                            {tr('Канал', 'Channel')}: {activeTask.channel?.name || activeTask.channel?.type || activeTask.layer || tr('не указан', 'not specified')}
                                                         </span>
                                                         {activeTask.visual_placement && (
                                                             <span className="rounded-full bg-primary/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-primary">
-                                                                Размещение: {activeTask.visual_placement === 'article_cover' ? 'обложка статьи' : activeTask.visual_placement}
+                                                                {tr('Размещение', 'Placement')}: {activeTask.visual_placement === 'article_cover' ? tr('обложка статьи', 'article cover') : activeTask.visual_placement}
                                                             </span>
                                                         )}
                                                     </div>
                                                     <div className="space-y-4">
                                                         <div>
-                                                            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Ресурс для выполнения</div>
+                                                            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant">{tr('Ресурс для выполнения', 'Execution resource')}</div>
                                                             {targetResourceUrl ? (
                                                                 <a
                                                                     href={targetResourceUrl}
@@ -1864,21 +1860,21 @@ export default function PublicationTasks() {
                                                                     {targetResourceUrl}
                                                                 </a>
                                                             ) : (
-                                                                <div className="mt-2 text-sm text-on-surface-variant">Не указан в плане.</div>
+                                                                <div className="mt-2 text-sm text-on-surface-variant">{tr('Не указан в плане.', 'Not specified in the plan.')}</div>
                                                             )}
                                                         </div>
 
                                                         <div>
-                                                            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Ссылка на пункт плана</div>
+                                                            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant">{tr('Ссылка на пункт плана', 'Plan item reference')}</div>
                                                             <div className="mt-2 rounded-2xl bg-white px-4 py-3 text-sm font-bold text-on-surface shadow-sm">
-                                                                {planItemRef || 'Не привязано'}
+                                                                {planItemRef || tr('Не привязано', 'Not linked')}
                                                             </div>
                                                         </div>
 
                                                         <div>
-                                                            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Исходный ресурс</div>
+                                                            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant">{tr('Исходный ресурс', 'Source resource')}</div>
                                                             <div className="mt-2 rounded-2xl bg-white px-4 py-3 text-sm text-on-surface shadow-sm">
-                                                                {activeTask?.workspace_context?.source_file_name || sourceFiles[0]?.file_name || sourceFiles[0]?.relative_path || 'Не найден'}
+                                                                {activeTask?.workspace_context?.source_file_name || sourceFiles[0]?.file_name || sourceFiles[0]?.relative_path || tr('Не найден', 'Not found')}
                                                             </div>
                                                         </div>
                                                     </div>
@@ -1887,15 +1883,15 @@ export default function PublicationTasks() {
                                                 <div className="rounded-[1.5rem] bg-white p-5 space-y-4 border border-primary/10 shadow-sm">
                                                     <div className="flex items-start justify-between gap-3">
                                                         <div>
-                                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Фиксация результата</div>
+                                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{tr('Фиксация результата', 'Record result')}</div>
                                                             <div className="mt-1 text-xs text-on-surface-variant leading-5">
-                                                                Сохрани ссылку на итоговый артефакт и коротко опиши, чем закончилась задача.
+                                                                {tr('Сохрани ссылку на итоговый артефакт и коротко опиши, чем закончилась задача.', 'Save the final artifact link and briefly describe the outcome.')}
                                                             </div>
                                                         </div>
                                                         <span className="material-symbols-outlined text-primary">task_alt</span>
                                                     </div>
                                                     <div className="rounded-2xl bg-surface-container-low px-4 py-3 text-xs leading-6 text-on-surface-variant">
-                                                        Это может быть пост, страница, таблица, документ, отчёт или любой другой результат. Главное — оставить рабочий permalink, чтобы потом было легко вернуться к итогу.
+                                                        {tr('Это может быть пост, страница, таблица, документ, отчёт или любой другой результат. Главное — оставить рабочий permalink, чтобы потом было легко вернуться к итогу.', 'This can be a post, page, spreadsheet, document, report, or any other result. Leave a working permalink so the outcome remains easy to find.')}
                                                     </div>
                                                     <div>
                                                         <div className="text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant">{sourceLinkLabel}</div>
@@ -1912,24 +1908,24 @@ export default function PublicationTasks() {
                                                         onChange={(event) => setPublicationOutcome(event.target.value as PublicationOutcome)}
                                                         className="w-full bg-surface-container-low border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
                                                     >
-                                                        <option value="published">Выполнено нормально</option>
-                                                        <option value="blocked">Заблокировано / упёрлось в ограничение</option>
-                                                        <option value="removed">Отменено / убрано после выполнения</option>
-                                                        <option value="restricted">Ограниченный результат</option>
+                                                        <option value="published">{tr('Выполнено нормально', 'Completed')}</option>
+                                                        <option value="blocked">{tr('Заблокировано / упёрлось в ограничение', 'Blocked by a constraint')}</option>
+                                                        <option value="removed">{tr('Отменено / убрано после выполнения', 'Cancelled or removed')}</option>
+                                                        <option value="restricted">{tr('Ограниченный результат', 'Restricted result')}</option>
                                                     </select>
                                                     <textarea
                                                         value={publicationNote}
                                                         onChange={(event) => setPublicationNote(event.target.value)}
                                                         rows={4}
                                                         className="w-full bg-surface-container-low border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
-                                                        placeholder="Короткая заметка: что проверили, что изменили, что решили оставить на следующую неделю"
+                                                        placeholder={tr('Короткая заметка: что проверили, что изменили, что решили оставить на следующую неделю', 'Brief note: what was checked, changed, or deferred to next week')}
                                                     />
                                                     <button
                                                         onClick={() => confirmPublication.mutate()}
                                                         disabled={!publishedLink.trim() || confirmPublication.isPending}
                                                         className="w-full bg-primary text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
                                                     >
-                                                        {confirmPublication.isPending ? 'Сохраняем...' : 'Зафиксировать результат задачи'}
+                                                        {confirmPublication.isPending ? tr('Сохраняем...', 'Saving...') : tr('Зафиксировать результат задачи', 'Record task result')}
                                                     </button>
                                                 </div>
                                             </aside>
@@ -1943,26 +1939,26 @@ export default function PublicationTasks() {
                                                     </span>
                                                     <p className="leading-6">
                                                         {hasPublicationText
-                                                            ? 'Проверьте текст. Затем опубликуйте его и сохраните ссылку в правой колонке.'
-                                                            : 'Подготовьте черновик или напишите текст вручную — после этого станет доступна публикация.'}
+                                                            ? tr('Проверьте текст. Затем опубликуйте его и сохраните ссылку в правой колонке.', 'Review the content, publish it, then save the link in the right column.')
+                                                            : tr('Подготовьте черновик или напишите текст вручную — после этого станет доступна публикация.', 'Prepare a draft or write the content manually to enable publication.')}
                                                     </p>
                                                 </div>
 
                                                 <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4 border border-outline-variant/10">
                                                     <div className="flex items-center justify-between gap-3">
                                                         <h3 className="text-lg font-headline font-black text-on-surface">{primaryBodyTitle}</h3>
-                                                        <span className="text-xs tabular-nums text-on-surface-variant">{publicationBody.length} знаков</span>
+                                                        <span className="text-xs tabular-nums text-on-surface-variant">{publicationBody.length} {tr('знаков', 'characters')}</span>
                                                     </div>
                                                     <textarea
                                                         value={publicationBody}
                                                         onChange={(event) => setPublicationBody(event.target.value)}
                                                         rows={16}
-                                                        placeholder="Соберите черновик из контекста задачи или напишите пост вручную."
+                                                        placeholder={tr('Соберите черновик из контекста задачи или напишите пост вручную.', 'Build a draft from the task context or write the post manually.')}
                                                         className="w-full bg-white border-none rounded-2xl p-4 text-sm leading-6 focus:ring-2 focus:ring-primary/20 outline-none resize-y min-h-[22rem]"
                                                     />
                                                     <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center justify-between gap-3">
                                                         <div className="text-xs text-on-surface-variant">
-                                                            Правки сохраняются в задачу и используются для проверки и публикации.
+                                                            {tr('Правки сохраняются в задачу и используются для проверки и публикации.', 'Edits are saved with the task and used for review and publication.')}
                                                         </div>
                                                         <div className="flex w-full sm:w-auto items-center gap-3">
                                                             <button
@@ -1970,14 +1966,14 @@ export default function PublicationTasks() {
                                                                 disabled={!isPublicationBodyDirty || saveTaskContent.isPending}
                                                                 className="flex-1 sm:flex-none rounded-2xl bg-surface-container-highest text-on-surface font-black text-xs px-4 py-3 hover:bg-primary/10 hover:text-primary transition-all disabled:opacity-50"
                                                             >
-                                                                Сбросить
+                                                                {tr('Сбросить', 'Reset')}
                                                             </button>
                                                             <button
                                                                 onClick={() => saveTaskContent.mutate()}
                                                                 disabled={!isPublicationBodyDirty || saveTaskContent.isPending}
                                                                 className="flex-1 sm:flex-none rounded-2xl bg-primary text-white font-black text-xs px-4 py-3 shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
                                                             >
-                                                                {saveTaskContent.isPending ? 'Сохраняем текст...' : 'Сохранить текст'}
+                                                                {saveTaskContent.isPending ? tr('Сохраняем текст...', 'Saving content...') : tr('Сохранить текст', 'Save content')}
                                                             </button>
                                                         </div>
                                                     </div>
@@ -2067,7 +2063,7 @@ export default function PublicationTasks() {
                                                             <input
                                                                 value={evidenceRef}
                                                                 onChange={(event) => setEvidenceRef(event.target.value)}
-                                                                placeholder="asset://... или ссылка на скриншот"
+                                                                placeholder={tr('asset://... или ссылка на скриншот', 'asset://... or screenshot link')}
                                                                 className="mt-2 w-full bg-surface-container-low border-none rounded-2xl px-4 py-3 text-base sm:text-sm focus:ring-2 focus:ring-primary/20 outline-none"
                                                             />
                                                         </label>
@@ -2135,8 +2131,8 @@ export default function PublicationTasks() {
                                                                         onClick={() => setSelectedCheckpoint(checkpointName)}
                                                                         className={`min-w-0 rounded-2xl px-3 py-3 text-start transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${selected ? 'bg-primary text-white' : 'bg-white text-on-surface hover:bg-primary/5'}`}
                                                                     >
-                                                                        <span className="block text-sm font-black">{checkpointLabel(checkpointName)}</span>
-                                                                        <span className={`mt-1 block text-xs break-words ${selected ? 'text-white/80' : 'text-on-surface-variant'}`}>{checkpointStatusLabel(checkpoint?.collection_status)}</span>
+                                                                        <span className="block text-sm font-black">{checkpointLabel(checkpointName, locale)}</span>
+                                                                        <span className={`mt-1 block text-xs break-words ${selected ? 'text-white/80' : 'text-on-surface-variant'}`}>{checkpointStatusLabel(checkpoint?.collection_status, locale)}</span>
                                                                         {checkpoint?.late && <span className="mt-1 block text-xs font-black">{copy.collectedLate}</span>}
                                                                     </button>
                                                                 )
@@ -2161,7 +2157,7 @@ export default function PublicationTasks() {
                                                             disabled={recordMetrics.isPending}
                                                             className="w-full rounded-2xl bg-on-surface px-5 py-3 text-sm font-black text-white transition-colors hover:bg-primary disabled:opacity-50"
                                                         >
-                                                            {recordMetrics.isPending ? copy.savingSnapshot : `${copy.saveSnapshot} ${checkpointLabel(selectedCheckpoint)}`}
+                                                            {recordMetrics.isPending ? copy.savingSnapshot : `${copy.saveSnapshot} ${checkpointLabel(selectedCheckpoint, locale)}`}
                                                         </button>
                                                     </section>
                                                 )}
@@ -2299,12 +2295,12 @@ export default function PublicationTasks() {
 
                                     <section className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
                                         <div className="flex items-center justify-between gap-3">
-                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">История правок текста</div>
+                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{tr('История правок текста', 'Content edit history')}</div>
                                             <span className="text-xs text-on-surface-variant">{contentEditHistory.length} saved revisions</span>
                                         </div>
                                         {contentEditHistory.length === 0 ? (
                                             <div className="rounded-2xl bg-white px-4 py-3 text-sm text-on-surface-variant">
-                                                После первого сохранения здесь появятся предыдущие версии текста.
+                                                {tr('После первого сохранения здесь появятся предыдущие версии текста.', 'Previous versions will appear here after the first save.')}
                                             </div>
                                         ) : (
                                             <div className="space-y-3">
@@ -2315,7 +2311,7 @@ export default function PublicationTasks() {
                                                         </div>
                                                         <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
                                                             <div className="space-y-2">
-                                                                <div className="text-[11px] font-black uppercase tracking-[0.16em] text-on-surface-variant">Было</div>
+                                                                <div className="text-[11px] font-black uppercase tracking-[0.16em] text-on-surface-variant">{tr('Было', 'Before')}</div>
                                                                 <textarea
                                                                     readOnly
                                                                     value={entry.previous_body || ''}
@@ -2324,7 +2320,7 @@ export default function PublicationTasks() {
                                                                 />
                                                             </div>
                                                             <div className="space-y-2">
-                                                                <div className="text-[11px] font-black uppercase tracking-[0.16em] text-on-surface-variant">Стало</div>
+                                                                <div className="text-[11px] font-black uppercase tracking-[0.16em] text-on-surface-variant">{tr('Стало', 'After')}</div>
                                                                 <textarea
                                                                     readOnly
                                                                     value={entry.next_body || ''}
@@ -2342,9 +2338,9 @@ export default function PublicationTasks() {
                                     {!isOperationalTask && (
                                     <section className="grid grid-cols-1 xl:grid-cols-[minmax(320px,0.72fr)_minmax(0,1.28fr)] gap-6 items-start">
                                         <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
-                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Чеклист публикации</div>
+                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{tr('Чеклист публикации', 'Publication checklist')}</div>
                                             <div className="space-y-3">
-                                                {(handoffBundle?.manual_checklist || ['Подготовьте черновик, чтобы увидеть чеклист для этого канала.']).map((item: string, index: number) => (
+                                                {(handoffBundle?.manual_checklist || [tr('Подготовьте черновик, чтобы увидеть чеклист для этого канала.', 'Prepare a draft to view the checklist for this channel.')]).map((item: string, index: number) => (
                                                     <div key={`${item}-${index}`} className="flex items-start gap-3 text-sm text-on-surface-variant">
                                                         <span className="w-6 h-6 rounded-full bg-white text-primary flex items-center justify-center font-black text-xs shrink-0">{index + 1}</span>
                                                         <span className="leading-6">{item}</span>
@@ -2354,7 +2350,7 @@ export default function PublicationTasks() {
                                         </div>
 
                                         <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
-                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Исходные файлы</div>
+                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{tr('Исходные файлы', 'Source files')}</div>
                                             <div className="space-y-3">
                                                 {sourceFiles.length > 0 ? sourceFiles.map((entry, index) => {
                                                     const fileName = entry.file_name || entry.asset?.path?.split('/').pop() || entry.ref || `asset-${index + 1}`
@@ -2398,7 +2394,7 @@ export default function PublicationTasks() {
                                                     )
                                                 }) : (
                                                     <div className="rounded-2xl bg-white px-4 py-3 text-sm text-on-surface-variant">
-                                                        К этой задаче не прикреплены исходные файлы.
+                                                        {tr('К этой задаче не прикреплены исходные файлы.', 'No source files are attached to this task.')}
                                                     </div>
                                                 )}
                                             </div>
@@ -2406,17 +2402,17 @@ export default function PublicationTasks() {
 
                                         <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4 xl:col-start-2 xl:row-span-2">
                                             <div className="flex items-center justify-between gap-3">
-                                                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Исходный контент</div>
+                                                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{tr('Исходный контент', 'Source content')}</div>
                                                 {!primarySourceEntry && !handoffBundle && (
-                                                    <span className="text-xs text-on-surface-variant">Подготовьте черновик, чтобы загрузить контент</span>
+                                                    <span className="text-xs text-on-surface-variant">{tr('Подготовьте черновик, чтобы загрузить контент', 'Prepare a draft to load content')}</span>
                                                 )}
                                             </div>
                                             <ResourcePreviewCard
                                                 entry={primarySourceEntry}
                                                 title={activeTask?.workspace_context?.source_file_name || 'source-content'}
                                                 emptyMessage={handoffBundle
-                                                    ? 'В связанных файлах не найден читаемый текст или ресурс для предпросмотра.'
-                                                    : 'Подготовьте черновик, чтобы подтянуть текст или предпросмотр связанного ресурса.'}
+                                                    ? tr('В связанных файлах не найден читаемый текст или ресурс для предпросмотра.', 'No readable text or previewable resource was found in the linked files.')
+                                                    : tr('Подготовьте черновик, чтобы подтянуть текст или предпросмотр связанного ресурса.', 'Prepare a draft to load linked text or a resource preview.')}
                                             />
                                         </div>
                                     </section>
@@ -2425,40 +2421,40 @@ export default function PublicationTasks() {
                                     <section className="grid grid-cols-1 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] gap-6 items-start">
                                         <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
                                             <div className="flex items-center justify-between gap-3">
-                                                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Критик и правила</div>
+                                                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{tr('Критик и правила', 'Critic and rules')}</div>
                                                 <div className="flex items-center gap-2">
                                                     <button
                                                         onClick={() => runCriticCheck.mutate()}
                                                         disabled={runCriticCheck.isPending}
                                                         className="bg-primary text-white font-black text-xs px-4 py-2 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
                                                     >
-                                                        {runCriticCheck.isPending ? 'Проверяем...' : 'Проверить критиком'}
+                                                        {runCriticCheck.isPending ? tr('Проверяем...', 'Reviewing...') : tr('Проверить критиком', 'Run critic review')}
                                                     </button>
                                                     <button
                                                         onClick={() => runCriticFixer.mutate()}
                                                         disabled={runCriticFixer.isPending || !publicationBody.trim()}
                                                         className="bg-white text-primary font-black text-xs px-4 py-2 rounded-2xl border border-primary/15 shadow-sm hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
                                                     >
-                                                        {runCriticFixer.isPending ? 'Исправляем...' : 'Исправить по отчёту'}
+                                                        {runCriticFixer.isPending ? tr('Исправляем...', 'Fixing...') : tr('Исправить по отчёту', 'Fix from report')}
                                                     </button>
                                                 </div>
                                             </div>
 
                                             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                                                 <div className="rounded-2xl bg-white px-4 py-3">
-                                                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Глоссарий</div>
-                                                    <div className="mt-2 text-sm font-bold text-on-surface">{glossaryAvailable ? 'Подключён' : 'Не загружен'}</div>
+                                                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">{tr('Глоссарий', 'Glossary')}</div>
+                                                    <div className="mt-2 text-sm font-bold text-on-surface">{glossaryAvailable ? tr('Подключён', 'Connected') : tr('Не загружен', 'Not uploaded')}</div>
                                                 </div>
                                                 <div className="rounded-2xl bg-white px-4 py-3">
                                                     <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Policy Matrix</div>
-                                                    <div className="mt-2 text-sm font-bold text-on-surface">{criticReport?.content_policy_matrix_available ? 'Подключена' : 'Не загружена'}</div>
+                                                    <div className="mt-2 text-sm font-bold text-on-surface">{criticReport?.content_policy_matrix_available ? tr('Подключена', 'Connected') : tr('Не загружена', 'Not uploaded')}</div>
                                                 </div>
                                                 <div className="rounded-2xl bg-white px-4 py-3">
                                                     <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Atoma</div>
-                                                    <div className="mt-2 text-sm font-bold text-on-surface">{atomaDescription ? 'Контекст есть' : 'Не загружен'}</div>
+                                                    <div className="mt-2 text-sm font-bold text-on-surface">{atomaDescription ? tr('Контекст есть', 'Context available') : tr('Не загружен', 'Not uploaded')}</div>
                                                 </div>
                                                 <div className="rounded-2xl bg-white px-4 py-3">
-                                                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Итоговый score</div>
+                                                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">{tr('Итоговый score', 'Overall score')}</div>
                                                     <div className="mt-2 text-sm font-bold text-on-surface">{criticReport?.overall_score ?? '—'}</div>
                                                 </div>
                                             </div>
@@ -2474,7 +2470,7 @@ export default function PublicationTasks() {
                                                             <div className="mt-1"><span className="font-bold text-on-surface">LLM critic score:</span> {criticReport.llm_critic.score}</div>
                                                         )}
                                                         {criticReport.checked_at && (
-                                                            <div className="mt-1"><span className="font-bold text-on-surface">Проверено:</span> {formatDate(criticReport.checked_at)}</div>
+                                                            <div className="mt-1"><span className="font-bold text-on-surface">{tr('Проверено', 'Checked')}:</span> {formatDate(criticReport.checked_at)}</div>
                                                         )}
                                                     </div>
 
@@ -2497,7 +2493,7 @@ export default function PublicationTasks() {
 
                                                     {Array.isArray(criticReport.llm_critic?.rewrite_instructions) && criticReport.llm_critic?.rewrite_instructions?.length > 0 && (
                                                         <div className="rounded-2xl bg-white px-4 py-3 text-sm text-on-surface">
-                                                            <div className="font-bold">Инструкции для фикса</div>
+                                                            <div className="font-bold">{tr('Инструкции для фикса', 'Fix instructions')}</div>
                                                             <div className="mt-2 space-y-2">
                                                                 {criticReport.llm_critic.rewrite_instructions.map((instruction, index) => (
                                                                     <div key={`${instruction}-${index}`} className="text-on-surface-variant">{index + 1}. {instruction}</div>
@@ -2515,7 +2511,7 @@ export default function PublicationTasks() {
                                                     <div className="space-y-2">
                                                         {[...(criticReport.dictionary?.findings || []), ...(criticReport.policy_matrix?.findings || [])].length === 0 ? (
                                                             <div className="rounded-2xl bg-white px-4 py-3 text-sm text-on-surface-variant">
-                                                                По словарю, policy matrix и обязательным правилам замечаний нет.
+                                                                {tr('По словарю, policy matrix и обязательным правилам замечаний нет.', 'No issues were found against the glossary, policy matrix, or mandatory rules.')}
                                                             </div>
                                                         ) : (
                                                             [...(criticReport.dictionary?.findings || []), ...(criticReport.policy_matrix?.findings || [])].map((finding, index) => (
@@ -2523,9 +2519,9 @@ export default function PublicationTasks() {
                                                                     <div className="font-bold text-on-surface">{finding.message}</div>
                                                                     {(finding.matched || finding.suggestion) && (
                                                                         <div className="mt-2 text-xs text-on-surface-variant">
-                                                                            {finding.matched && <div>Найдено: {finding.matched}</div>}
-                                                                            {finding.suggestion && <div>Предлагается: {finding.suggestion}</div>}
-                                                                            {('source' in finding && (finding as any).source) && <div>Источник правила: {(finding as any).source}</div>}
+                                                                            {finding.matched && <div>{tr('Найдено', 'Matched')}: {finding.matched}</div>}
+                                                                            {finding.suggestion && <div>{tr('Предлагается', 'Suggested')}: {finding.suggestion}</div>}
+                                                                            {('source' in finding && (finding as any).source) && <div>{tr('Источник правила', 'Rule source')}: {(finding as any).source}</div>}
                                                                         </div>
                                                                     )}
                                                                 </div>
@@ -2535,14 +2531,14 @@ export default function PublicationTasks() {
                                                 </div>
                                             ) : (
                                                 <div className="rounded-2xl bg-white px-4 py-3 text-sm text-on-surface-variant">
-                                                    Запусти критика, чтобы проверить текст по глоссарию, atoma-контексту и агентной критике.
+                                                    {tr('Запусти критика, чтобы проверить текст по глоссарию, atoma-контексту и агентной критике.', 'Run the critic to review the content against the glossary, Atoma context, and agent critique.')}
                                                 </div>
                                             )}
                                         </div>
 
                                         <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
                                             <div className="flex items-center justify-between gap-3">
-                                                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Глоссарий и atoma-контекст</div>
+                                                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{tr('Глоссарий и atoma-контекст', 'Glossary and Atoma context')}</div>
                                                 <button
                                                     type="button"
                                                     onClick={() => navigate('/settings?tab=dictionary')}
@@ -2554,10 +2550,10 @@ export default function PublicationTasks() {
                                             </div>
                                             <div className="grid grid-cols-1 gap-4">
                                                 <div>
-                                                    <div className="text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Глоссарий проекта</div>
+                                                    <div className="text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant">{tr('Глоссарий проекта', 'Project glossary')}</div>
                                                     <textarea
                                                         readOnly
-                                                        value={glossaryYaml || 'Глоссарий не загружен вместе с планом или через настройки проекта.'}
+                                                        value={glossaryYaml || tr('Глоссарий не загружен вместе с планом или через настройки проекта.', 'The glossary was not uploaded with the plan or through project settings.')}
                                                         rows={8}
                                                         className="mt-2 w-full bg-white border-none rounded-2xl p-4 text-xs leading-6 focus:outline-none resize-none"
                                                     />
@@ -2579,7 +2575,7 @@ export default function PublicationTasks() {
                                             </div>
 
                                             <div>
-                                                <div className="text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Что это значит</div>
+                                                <div className="text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant">{tr('Что это значит', 'What this means')}</div>
                                                 <textarea
                                                     readOnly
                                                     value={atomaSummary}
@@ -2590,10 +2586,10 @@ export default function PublicationTasks() {
 
                                             <div className="grid grid-cols-1 gap-4">
                                                 <div>
-                                                    <div className="text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Описание atoma files</div>
+                                                    <div className="text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant">{tr('Описание atoma files', 'Atoma files description')}</div>
                                                     <textarea
                                                         readOnly
-                                                        value={atomaDescription || 'Описание atoma files не загружено.'}
+                                                        value={atomaDescription || tr('Описание atoma files не загружено.', 'The Atoma files description has not been uploaded.')}
                                                         rows={4}
                                                         className="mt-2 w-full bg-white border-none rounded-2xl p-4 text-xs leading-6 focus:outline-none resize-none"
                                                     />
@@ -2627,7 +2623,7 @@ export default function PublicationTasks() {
                                         </div>
 
                                         <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-3">
-                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Ассеты и визуалы</div>
+                                            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{tr('Ассеты и визуалы', 'Assets and visuals')}</div>
                                             <pre className="text-xs font-mono whitespace-pre-wrap break-words text-on-surface-variant leading-6">
                                                 {prettyJson({
                                                     visuals: handoffBundle?.publication?.visuals || [],
@@ -2639,58 +2635,58 @@ export default function PublicationTasks() {
 
                                     <section>
                                         <div className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
-                                            <h3 className="text-lg font-headline font-black text-on-surface">Автоматические метрики канала</h3>
+                                            <h3 className="text-lg font-headline font-black text-on-surface">{tr('Автоматические метрики канала', 'Automated channel metrics')}</h3>
                                             <div className="rounded-2xl bg-white px-4 py-3 text-xs leading-6 text-on-surface-variant">
                                                 {activeTask.channel?.type === 'linkedin'
-                                                    ? 'Для LinkedIn мы подтягиваем аналитику из подключённого канала. Если токен был выдан до нового analytics scope, сначала переподключи LinkedIn.'
+                                                    ? tr('Для LinkedIn мы подтягиваем аналитику из подключённого канала. Если токен был выдан до нового analytics scope, сначала переподключи LinkedIn.', 'LinkedIn analytics are loaded from the connected channel. If the token predates the analytics scope, reconnect LinkedIn first.')
                                                     : activeTask.channel?.type === 'tilda'
-                                                        ? 'Tilda не отдаёт постовую аналитику напрямую через этот интерфейс. Автоматический сбор сработает только если у проекта также привязана Google Search Console property для опубликованного URL.'
-                                                    : 'Используй сбор из канала, если адаптер поддерживает аналитику, или сохраняй ручной снимок, если площадка работает только вручную.'}
+                                                        ? tr('Tilda не отдаёт постовую аналитику напрямую через этот интерфейс. Автоматический сбор сработает только если у проекта также привязана Google Search Console property для опубликованного URL.', 'Tilda does not expose post analytics through this interface. Automated collection works only when the project also has a Google Search Console property linked to the published URL.')
+                                                    : tr('Используй сбор из канала, если адаптер поддерживает аналитику, или сохраняй ручной снимок, если площадка работает только вручную.', 'Collect metrics from the channel when its adapter supports analytics, or save a manual snapshot for manual-only platforms.')}
                                             </div>
                                             {isVkTask && (
                                                 <div className="space-y-4">
                                                     <div className="flex flex-wrap items-center justify-between gap-3">
                                                         <div className="flex flex-wrap gap-2 text-[11px] font-bold">
                                                             <span className={`rounded-full px-3 py-1.5 ${latestVkSnapshot?.wall_status === 'collected' ? 'bg-success/15 text-success' : 'bg-surface-container-high text-on-surface-variant'}`}>
-                                                                Публичные метрики: {latestVkSnapshot?.wall_status === 'collected' ? 'получены' : 'нет снимка'}
+                                                                {tr('Публичные метрики', 'Public metrics')}: {latestVkSnapshot?.wall_status === 'collected' ? tr('получены', 'collected') : tr('нет снимка', 'no snapshot')}
                                                             </span>
                                                             <span className={`rounded-full px-3 py-1.5 ${latestVkSnapshot?.reach_status === 'collected' ? 'bg-success/15 text-success' : 'bg-yellow-100 text-yellow-900'}`}>
-                                                                Расширенная статистика: {latestVkSnapshot?.reach_status === 'collected' ? 'получена' : 'нет доступа'}
+                                                                {tr('Расширенная статистика', 'Extended analytics')}: {latestVkSnapshot?.reach_status === 'collected' ? tr('получена', 'collected') : tr('нет доступа', 'unavailable')}
                                                             </span>
                                                         </div>
                                                         <span className="text-xs text-on-surface-variant">
                                                             {isLoadingVkMetrics
-                                                                ? 'Обновляем историю...'
+                                                                ? tr('Обновляем историю...', 'Refreshing history...')
                                                                 : latestVkSnapshot
-                                                                    ? `Снимок: ${formatDate(latestVkSnapshot.captured_at)}`
-                                                                    : 'Снимков пока нет'}
+                                                                    ? `${tr('Снимок', 'Snapshot')}: ${formatDate(latestVkSnapshot.captured_at)}`
+                                                                    : tr('Снимков пока нет', 'No snapshots yet')}
                                                         </span>
                                                     </div>
 
                                                     {latestVkSnapshot && (
                                                         <>
                                                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                                                {VK_PUBLIC_METRICS.map(([field, label]) => (
+                                                                {vkPublicMetrics(locale).map(([field, label]) => (
                                                                     <div key={field} className="rounded-2xl bg-white p-4">
                                                                         <div className="text-[10px] font-black uppercase tracking-[0.14em] text-on-surface-variant">{label}</div>
-                                                                        <div className="mt-2 text-xl font-black text-on-surface">{formatMetricValue(latestVkSnapshot[field] as number | null)}</div>
+                                                                        <div className="mt-2 text-xl font-black text-on-surface">{formatMetricValue(latestVkSnapshot[field] as number | null, locale)}</div>
                                                                     </div>
                                                                 ))}
                                                             </div>
                                                             <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
-                                                                {VK_REACH_METRICS.map(([field, label]) => (
+                                                                {vkReachMetrics(locale).map(([field, label]) => (
                                                                     <div key={field} className="rounded-2xl bg-white p-3">
                                                                         <div className="text-[10px] font-bold text-on-surface-variant">{label}</div>
-                                                                        <div className="mt-1 text-base font-black text-on-surface">{formatMetricValue(latestVkSnapshot[field] as number | null)}</div>
+                                                                        <div className="mt-1 text-base font-black text-on-surface">{formatMetricValue(latestVkSnapshot[field] as number | null, locale)}</div>
                                                                     </div>
                                                                 ))}
                                                             </div>
                                                             <div className="rounded-2xl bg-white p-4">
-                                                                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">Последние замеры</div>
+                                                                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant">{tr('Последние замеры', 'Recent measurements')}</div>
                                                                 <div className="mt-3 flex flex-wrap gap-2">
                                                                     {vkSnapshots.slice(-7).reverse().map((snapshot) => (
                                                                         <span key={snapshot.id} className="rounded-xl bg-surface-container-low px-3 py-2 text-xs text-on-surface-variant">
-                                                                            {formatDate(snapshot.logical_date)} · {formatMetricValue(snapshot.views)} просмотров · {formatMetricValue(snapshot.reach_total)} охват
+                                                                            {formatDate(snapshot.logical_date)} · {formatMetricValue(snapshot.views, locale)} {locale === 'ru' ? 'просмотров' : 'views'} · {formatMetricValue(snapshot.reach_total, locale)} {locale === 'ru' ? 'охват' : 'reach'}
                                                                         </span>
                                                                     ))}
                                                                 </div>
@@ -2705,27 +2701,27 @@ export default function PublicationTasks() {
                                                     disabled={collectMetrics.isPending || !canFetchMetrics}
                                                     className="w-full sm:w-auto bg-primary text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
                                                 >
-                                                    {collectMetrics.isPending ? 'Получаем...' : 'Получить из канала'}
+                                                    {collectMetrics.isPending ? tr('Получаем...', 'Collecting...') : tr('Получить из канала', 'Collect from channel')}
                                                 </button>
                                             </div>
                                         </div>
                                     </section>
 
                                     <section className="rounded-[1.5rem] bg-surface-container-low p-5 space-y-4">
-                                        <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">Внешний алерт по комментарию</div>
+                                        <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60">{tr('Внешний алерт по комментарию', 'External comment alert')}</div>
                                         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
                                             <input
                                                 type="text"
                                                 value={commentAuthor}
                                                 onChange={(event) => setCommentAuthor(event.target.value)}
-                                                placeholder="Автор"
+                                                placeholder={tr('Автор', 'Author')}
                                                 className="w-full bg-white border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
                                             />
                                             <input
                                                 type="url"
                                                 value={commentUrl}
                                                 onChange={(event) => setCommentUrl(event.target.value)}
-                                                placeholder="URL комментария"
+                                                placeholder={tr('URL комментария', 'Comment URL')}
                                                 className="w-full bg-white border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
                                             />
                                             <button
@@ -2733,7 +2729,7 @@ export default function PublicationTasks() {
                                                 disabled={sendCommentAlert.isPending || !commentText.trim()}
                                                 className="bg-primary text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50"
                                             >
-                                                {sendCommentAlert.isPending ? 'Сохраняем...' : 'Записать алерт по комментарию'}
+                                                {sendCommentAlert.isPending ? tr('Сохраняем...', 'Saving...') : tr('Записать алерт по комментарию', 'Record comment alert')}
                                             </button>
                                         </div>
                                         <textarea
@@ -2741,7 +2737,7 @@ export default function PublicationTasks() {
                                             onChange={(event) => setCommentText(event.target.value)}
                                             rows={4}
                                             className="w-full bg-white border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
-                                            placeholder="Вставь текст комментария или заметку модерации"
+                                            placeholder={tr('Вставь текст комментария или заметку модерации', 'Paste the comment text or moderation note')}
                                         />
                                     </section>
                                 </div>
@@ -2755,10 +2751,10 @@ export default function PublicationTasks() {
                     <div className="w-full max-w-4xl bg-white rounded-[2rem] border border-outline-variant/10 shadow-2xl overflow-hidden">
                         <div className="p-6 border-b border-outline-variant/10 flex items-start justify-between gap-4">
                             <div>
-                                <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">Импорт плана</div>
-                                <h2 className="text-2xl font-headline font-black tracking-tight text-on-surface mt-2">Синхронизировать план публикаций</h2>
+                                <div className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">{tr('Импорт плана', 'Plan import')}</div>
+                                <h2 className="text-2xl font-headline font-black tracking-tight text-on-surface mt-2">{tr('Синхронизировать план публикаций', 'Sync publication plan')}</h2>
                                 <p className="text-sm text-on-surface-variant mt-2 leading-relaxed">
-                                    Загрузи или обнови внешний `publication-plan.json`, не занимая место на основной рабочей странице.
+                                    {tr('Загрузи или обнови внешний `publication-plan.json`, не занимая место на основной рабочей странице.', 'Upload or update an external `publication-plan.json` without taking space on the main workspace.')}
                                 </p>
                             </div>
                             <button
@@ -2776,7 +2772,7 @@ export default function PublicationTasks() {
                                 rows={18}
                                 spellCheck={false}
                                 className="w-full bg-surface-container-low border-none rounded-[1.5rem] p-5 text-xs font-mono leading-6 focus:ring-4 focus:ring-primary/10 transition-all outline-none"
-                                placeholder="Вставь сюда publication-plan.json"
+                                placeholder={tr('Вставь сюда publication-plan.json', 'Paste publication-plan.json here')}
                             />
 
                             {planMessage && (
@@ -2793,14 +2789,14 @@ export default function PublicationTasks() {
 
                             <div className="flex flex-wrap gap-3 justify-between items-center">
                                 <div className="text-xs text-on-surface-variant">
-                                    {currentProject ? `Текущий проект: ${currentProject.name}` : 'Импорт создаст или обновит связанный проект.'}
+                                    {currentProject ? `${tr('Текущий проект', 'Current project')}: ${currentProject.name}` : tr('Импорт создаст или обновит связанный проект.', 'The import will create or update the linked project.')}
                                 </div>
                                 <div className="flex gap-3">
                                     <button
                                         onClick={() => setShowPlanModal(false)}
                                         className="bg-surface-container-high text-on-surface font-black text-sm px-5 py-3 rounded-2xl hover:bg-surface-container-highest transition-all"
                                     >
-                                        Закрыть
+                                        {tr('Закрыть', 'Close')}
                                     </button>
                                     <button
                                         onClick={() => {
@@ -2810,7 +2806,7 @@ export default function PublicationTasks() {
                                         disabled={!planJson.trim() || importPlan.isPending}
                                         className="bg-primary text-white font-black text-sm px-6 py-3 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
                                     >
-                                        {importPlan.isPending ? 'Синхронизируем план...' : 'Синхронизировать план публикаций'}
+                                        {importPlan.isPending ? tr('Синхронизируем план...', 'Syncing plan...') : tr('Синхронизировать план публикаций', 'Sync publication plan')}
                                     </button>
                                 </div>
                             </div>
