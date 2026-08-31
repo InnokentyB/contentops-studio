@@ -734,21 +734,14 @@ class McpPublicationService {
             throw new Error(`Publication task ${taskId} not found for project ${projectId}`);
         }
 
-        const plan = await this.loadPublicationPlanContext(projectId);
-        if (!plan) {
+        const action = (item.assets as any)?.action;
+        const plan = action ? await this.loadPublicationPlanContext(projectId) : null;
+        if (action && !plan) {
             throw new Error(`No imported publication plan found for project ${projectId}`);
         }
-
-        const action = (item.assets as any)?.action;
-        if (!action) {
-            return {
-                project_id: projectId,
-                task_id: taskId,
-                resources: []
-            };
-        }
-
-        const bundle = publicationPlanService.buildHandoffBundle({ ...plan, actions: [action] } as any, item);
+        const bundle = action
+            ? publicationPlanService.buildHandoffBundle({ ...plan!, actions: [action] } as any, item)
+            : publicationPlanService.buildGeneratedContentItemHandoff(item);
         const resources = Array.isArray(bundle.resource_files) ? bundle.resource_files : [];
 
         return {

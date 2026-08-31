@@ -64,6 +64,8 @@ test('generated publication handoff uses accepted text and selected visual witho
     assert.equal(bundle.publication.body, 'Полный готовый текст поста');
     assert.equal(bundle.publication.image_url, 'https://cdn.example/post.png');
     assert.equal(bundle.task.content_item_id, 42);
+    assert.equal(bundle.resource_files[0].ref, 'selected_asset');
+    assert.equal(bundle.resource_files[0].url, 'https://cdn.example/post.png');
 });
 
 test('plan handoff preserves the approved visual bound to the accepted revision', () => {
