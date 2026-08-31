@@ -46,9 +46,10 @@ function extractVkConfig(channel: any) {
     };
 }
 
-function prepareTaskPayload(task: any) {
+function prepareTaskPayload(task: any, allowUnsupportedDryRun = false) {
     const channelType = task.channel?.type;
-    if (!['telegram', 'vk'].includes(channelType)) {
+    const directSupported = ['telegram', 'vk'].includes(channelType);
+    if (!directSupported && !allowUnsupportedDryRun) {
         throw new Error('[SUPPORTED_PUBLICATION_TASK_REQUIRED] Task must target Telegram or VK');
     }
     if (!task.accepted_revision || task.accepted_revision !== task.content_revision || task.text_state !== 'accepted') {
@@ -69,7 +70,7 @@ function prepareTaskPayload(task: any) {
     const payload = channelType === 'telegram'
         ? normalizeTelegramDeliveryPayload({ text, imageUrl: selectedAsset?.file_url })
         : { text, imageUrl: selectedAsset?.file_url || null };
-    return { channelType, payload, selectedAsset };
+    return { channelType, payload, selectedAsset, directSupported };
 }
 
 export class TelegramTaskPublicationService {
@@ -111,14 +112,16 @@ export class TelegramTaskPublicationService {
             };
         }
 
-        const prepared = prepareTaskPayload(task);
+        const prepared = prepareTaskPayload(task, args.dryRun === true);
         const { payload, selectedAsset } = prepared;
         const preview = { text: payload.text, image_url: payload.imageUrl, has_image: Boolean(payload.imageUrl) };
         if (args.dryRun) {
             return {
                 mode: 'dry_run', task_id: task.id, project_id: args.projectId, channel_id: task.channel.id,
                 accepted_revision: task.accepted_revision, selected_asset_id: selectedAsset?.id || null,
-                delivery, payload_preview: preview
+                delivery: delivery || 'validated_handoff',
+                direct_execution_supported: prepared.directSupported,
+                payload_preview: preview
             };
         }
 

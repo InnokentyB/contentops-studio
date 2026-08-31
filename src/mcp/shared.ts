@@ -696,7 +696,7 @@ export function registerPlannerTools(server: McpServer) {
     });
 
     server.registerTool('ba_publish_publication_task', {
-        description: 'Publish one canonical Telegram or VK task through its configured provider API. The server resolves accepted text and the selected approved durable visual; no browser fallback or silent visual downgrade is used.',
+        description: 'Dry-run any canonical publication task using its accepted text and approved durable visual. Live publication remains limited to Telegram and VK provider APIs; no browser fallback or silent visual downgrade is used.',
         inputSchema: {
             projectId: z.number().int().positive(),
             taskId: z.number().int().positive(),

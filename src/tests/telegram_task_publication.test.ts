@@ -125,6 +125,22 @@ test('dry-run resolves accepted text and the approved durable asset without a pr
     assert.equal(calls.facts.length, 0);
 });
 
+test('dry-run validates a browser-only channel without dispatch', async () => {
+    const task = approvedTask({
+        id: 865,
+        channel: { id: 116, type: 'dzen', name: 'analystcraft_dzen', config: {} }
+    });
+    const { service, calls } = harness(task);
+    const result = await service.execute({ projectId: 10, taskId: 865, dryRun: true });
+
+    assert.equal(result.delivery, 'validated_handoff');
+    assert.equal(result.direct_execution_supported, false);
+    assert.equal(result.payload_preview.image_url, 'https://cdn.example/approved.png');
+    assert.equal(calls.provider.length, 0);
+    assert.equal(calls.updates.length, 0);
+    assert.equal(calls.facts.length, 0);
+});
+
 test('text-only task uses the same normalized payload for dry-run and live publication', async () => {
     const textOnly = approvedTask({
         visual_state: 'NOT_REQUIRED',
