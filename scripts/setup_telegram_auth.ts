@@ -4,7 +4,7 @@ import { StringSession } from "telegram/sessions";
 import { PrismaClient } from "@prisma/client";
 import * as readline from "readline";
 import { Writable } from "stream";
-import { encryptTelegramAccountSecrets } from "../src/utils/telegram_account_secrets";
+import { encryptTelegramAccountSecrets, telegramPhoneHint } from "../src/utils/telegram_account_secrets";
 import "../src/bootstrap-env";
 
 import { Pool } from 'pg';
@@ -98,7 +98,7 @@ async function main() {
             is_active: true
         }
     });
-    console.log(`Successfully saved account for ${phoneNumber} in Project ${projectId}.`);
+    console.log(`Successfully saved account ${telegramPhoneHint(phoneNumber)} in Project ${projectId}.`);
 
     await client.disconnect();
     rl.close();

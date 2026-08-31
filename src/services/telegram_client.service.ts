@@ -10,7 +10,11 @@ import { config } from 'dotenv';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as net from 'net';
-import { decryptTelegramAccountSecrets, telegramAccountSecretsAreEncrypted } from '../utils/telegram_account_secrets';
+import {
+    decryptTelegramAccountSecrets,
+    telegramAccountSecretsAreEncrypted,
+    telegramPhoneHint
+} from '../utils/telegram_account_secrets';
 
 config();
 
@@ -136,7 +140,7 @@ export class TelegramClientService {
             // Actually connect() does not trigger interactive login if session is present.
             await this.client.connect();
             this.activeProjectId = projectId;
-            console.log(`[TelegramClient] Connected as ${this.phoneNumber}`);
+            console.log(`[TelegramClient] Connected as ${telegramPhoneHint(this.phoneNumber)}`);
             return true;
         } catch (e) {
             console.error(`[TelegramClient] Failed to connect:`, e);
