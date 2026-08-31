@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { useLocale } from '../i18n/LocaleContext';
+import { useAuth } from '../context/auth';
+import { useLocale } from '../i18n/locale';
 import LanguageSwitcher from './LanguageSwitcher';
 
 interface LayoutProps {

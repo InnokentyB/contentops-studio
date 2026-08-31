@@ -1,11 +1,12 @@
 import { useDeferredValue, useMemo, useState } from 'react'
+import type { ApiJson } from '../types/api-json'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { parserApi } from '../api'
-import { useAuth } from '../context/AuthContext'
-import { useLocale } from '../i18n/LocaleContext'
+import { useAuth } from '../context/auth'
+import { useLocale } from '../i18n/locale'
 
-type JsonRecord = Record<string, any>
+type JsonRecord = Record<string, ApiJson>
 
 type ParserSource = 'reddit' | 'indie_hackers'
 
@@ -89,7 +90,7 @@ function normalizeNumber(value: unknown) {
     return 0
 }
 
-function parsePostRecords(payload: any): ParserPost[] {
+function parsePostRecords(payload: ApiJson): ParserPost[] {
     const records = payload?.parser_response?.data
         || payload?.parser_response?.posts
         || payload?.data
@@ -120,7 +121,7 @@ function parsePostRecords(payload: any): ParserPost[] {
     }))
 }
 
-function parseTemplates(payload: any) {
+function parseTemplates(payload: ApiJson) {
     const templates = payload?.parser_response?.templates
         || payload?.parser_response?.data
         || payload?.templates
@@ -130,17 +131,17 @@ function parseTemplates(payload: any) {
     return Array.isArray(templates) ? templates : []
 }
 
-function parseInsights(payload: any): InsightRow[] {
+function parseInsights(payload: ApiJson): InsightRow[] {
     const groups = payload?.parser_response?.groups || payload?.groups || {}
     if (!groups || typeof groups !== 'object') {
         return []
     }
 
-    return Object.entries(groups).map(([key, value]: [string, any]) => {
+    return Object.entries(groups).map(([key, value]: [string, ApiJson]) => {
         const items = Array.isArray(value) ? value : Array.isArray(value?.items) ? value.items : []
         const examples = items
             .slice(0, 3)
-            .map((entry: any) => normalizeText(entry.label || entry.title || entry.text || entry.example || entry.name))
+            .map((entry: ApiJson) => normalizeText(entry.label || entry.title || entry.text || entry.example || entry.name))
             .filter(Boolean)
 
         return {
@@ -308,7 +309,7 @@ export default function Parsers() {
                 enrich
             })
         },
-        onSuccess: (result: any) => {
+        onSuccess: (result: ApiJson) => {
             const jobId = result?.parser_response?.job_id || result?.job_id
             const runId = result?.parser_response?.run_id || result?.run_id
             setActiveJobId(jobId || null)
@@ -341,7 +342,7 @@ export default function Parsers() {
             }
             return parserApi.runTemplate(currentProject.id, templateId)
         },
-        onSuccess: (result: any) => {
+        onSuccess: (result: ApiJson) => {
             const jobId = result?.parser_response?.job_id || result?.job_id
             setActiveJobId(jobId || null)
             setJobMessage(locale === 'ru'
@@ -814,7 +815,7 @@ export default function Parsers() {
                             </div>
 
                             <div className="mt-5 space-y-3">
-                                {templates.map((template: any, index: number) => {
+                                {templates.map((template: ApiJson, index: number) => {
                                     const templateId = String(template.id || template.template_id || `template-${index}`)
                                     const label = template.display_name || template.name || template.query || templateId
                                     const detail = template.intent || template.cluster || template.source || copy.template

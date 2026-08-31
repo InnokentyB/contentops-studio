@@ -1,11 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import type { ApiJson } from '../types/api-json'
 import { Link } from 'react-router-dom'
 import { useState, useRef, useEffect } from 'react'
 import { format } from 'date-fns'
 import { api } from '../api'
-import { useAuth } from '../context/AuthContext'
-import { useToast } from '../components/ToastContainer'
-import { useLocale } from '../i18n/LocaleContext'
+import { useAuth } from '../context/auth'
+import { useToast } from '../components/toast'
+import { useLocale } from '../i18n/locale'
 
 interface WeekPackage {
     id: number
@@ -89,7 +90,7 @@ function StrategyChat() {
             })
             setMessages(res.data.messages || [...newMessages, { role: 'assistant', content: res.data.reply }])
             refetchHistory()
-        } catch (e: any) {
+        } catch (e: ApiJson) {
             setMessages([...newMessages, {
                 role: 'assistant',
                 content: `⚠️ ${locale === 'ru' ? 'Ошибка' : 'Error'}: ${e.response?.data?.error || e.message}`
@@ -288,11 +289,11 @@ export default function V2Dashboard() {
             setStartDate('')
             showToast('Week planned successfully', 'success')
         },
-        onError: (err: any) => showToast('Planning failed', 'error', err.message)
+        onError: (err: ApiJson) => showToast('Planning failed', 'error', err.message)
     })
 
     const createQuarter = useMutation({
-        mutationFn: (data: { goalHint: string; startDate?: string; plannedChannels?: any }) =>
+        mutationFn: (data: { goalHint: string; startDate?: string; plannedChannels?: ApiJson }) =>
             api.post('/api/v2/plan-quarter', data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['v2_quarters'] })
@@ -302,13 +303,13 @@ export default function V2Dashboard() {
             setSelectedChannels({})
             showToast('Quarter planned successfully', 'success')
         },
-        onError: (err: any) => showToast('Quarter Planning failed', 'error', err.message)
+        onError: (err: ApiJson) => showToast('Quarter Planning failed', 'error', err.message)
     })
 
     const runSweep = useMutation({
         mutationFn: () => api.post('/api/v2/factory-sweep', {}),
-        onSuccess: (data: any) => showToast('Sweep completed successfully', 'success', `Processed: ${data.processed} items.`),
-        onError: (err: any) => showToast('Sweep failed', 'error', err.message)
+        onSuccess: (data: ApiJson) => showToast('Sweep completed successfully', 'success', `Processed: ${data.processed} items.`),
+        onError: (err: ApiJson) => showToast('Sweep failed', 'error', err.message)
     })
 
     if (!currentProject) {
@@ -351,7 +352,7 @@ export default function V2Dashboard() {
                     </div>
                     <h2 className="text-2xl font-headline font-black text-on-surface mb-2">Synchronization Failed</h2>
                     <p className="text-on-surface-variant mb-10 leading-relaxed font-body text-sm">
-                        {(activeError as any)?.message || 'Unable to connect to the intelligence layer. Please try again later.'}
+                        {(activeError as ApiJson)?.message || 'Unable to connect to the intelligence layer. Please try again later.'}
                     </p>
                     <button 
                         onClick={() => window.location.reload()}
@@ -458,7 +459,7 @@ export default function V2Dashboard() {
                         <div className="space-y-4">
                             <label className="text-xs font-bold uppercase tracking-widest text-primary ml-1">Plan for Channels</label>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                {projectData?.channels?.map((ch: any) => (
+                                {projectData?.channels?.map((ch: ApiJson) => (
                                     <div key={ch.id} className="flex items-center gap-3 p-3 bg-white rounded-xl shadow-sm border border-outline-variant/10">
                                         <input
                                             type="checkbox"

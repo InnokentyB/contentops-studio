@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { useLocale } from '../i18n/LocaleContext';
+import { useAuth } from '../context/auth';
+import { useLocale } from '../i18n/locale';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 
 export default function Register() {
@@ -30,8 +30,8 @@ export default function Register() {
 
             login(data.token, data.user, data.projects);
             navigate('/orchestrator');
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : t('registerError'));
         } finally {
             setLoading(false);
         }

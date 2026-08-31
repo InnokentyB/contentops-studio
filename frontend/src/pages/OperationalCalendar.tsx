@@ -3,8 +3,8 @@ import { addDays, format, startOfDay } from 'date-fns'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
-import { useAuth } from '../context/AuthContext'
-import { useLocale } from '../i18n/LocaleContext'
+import { useAuth } from '../context/auth'
+import { useLocale } from '../i18n/locale'
 
 type InitiativeKind = 'publication' | 'event' | 'campaign' | 'infrastructure'
 

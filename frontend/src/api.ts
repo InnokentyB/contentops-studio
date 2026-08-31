@@ -1,6 +1,8 @@
-export interface ApiOptions extends RequestInit {
-    body?: any;
+export type ApiOptions = Omit<RequestInit, 'body'> & {
+    body?: unknown;
 }
+
+type ApiErrorPayload = { error?: string }
 
 const getHeaders = () => {
     const token = localStorage.getItem('token');
@@ -50,7 +52,7 @@ export const api = {
         }
 
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
+            const errorData = await response.json().catch(() => ({})) as ApiErrorPayload;
             throw new Error(errorData.error || 'API Request Failed');
         }
 
@@ -61,11 +63,11 @@ export const api = {
         return this.request(endpoint, { ...options, method: 'GET' });
     },
 
-    post(endpoint: string, body?: any, options?: ApiOptions) {
+    post(endpoint: string, body?: unknown, options?: ApiOptions) {
         return this.request(endpoint, { ...options, method: 'POST', body });
     },
 
-    put(endpoint: string, body?: any, options?: ApiOptions) {
+    put(endpoint: string, body?: unknown, options?: ApiOptions) {
         return this.request(endpoint, { ...options, method: 'PUT', body });
     },
 
@@ -98,7 +100,7 @@ export const api = {
                 throw new Error('Unauthorized');
             }
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
+                const errorData = await response.json().catch(() => ({})) as ApiErrorPayload;
                 throw new Error(errorData.error || 'Upload Failed');
             }
             return response.json();
@@ -128,7 +130,7 @@ export const keysApi = {
 
 export const skillConnectionsApi = {
     getAll: () => api.get('/api/settings/skill-connections'),
-    saveAll: (connections: any[]) => api.put('/api/settings/skill-connections', { connections })
+    saveAll: (connections: unknown[]) => api.put('/api/settings/skill-connections', { connections })
 };
 
 export const contentDictionaryApi = {
@@ -149,7 +151,9 @@ export const atomaContextApi = {
 
 export const modelsApi = {
     fetch: (params: { provider?: string; keyId?: string; key?: string }) => {
-        const query = new URLSearchParams(params as any).toString();
+        const query = new URLSearchParams(
+            Object.entries(params).filter((entry): entry is [string, string] => typeof entry[1] === 'string')
+        ).toString();
         return api.get(`/api/settings/models?${query}`);
     }
 };
@@ -230,7 +234,7 @@ export const publicationTasksApi = {
     publishNow: (id: number) => api.post(`/api/publication-tasks/${id}/publish-now`),
     confirmPublication: (id: number, data: { publishedLink: string; note?: string; outcome?: 'published' | 'blocked' | 'removed' | 'restricted' }) =>
         api.post(`/api/publication-tasks/${id}/confirm-publication`, data),
-    recordPublicationFact: (id: number, data: Record<string, any>) =>
+    recordPublicationFact: (id: number, data: Record<string, unknown>) =>
         api.post(`/api/publication-tasks/${id}/publication-fact`, data),
     getPublicationFact: (id: number) => api.get(`/api/publication-tasks/${id}/publication-fact`),
     listMetricCheckpoints: (params?: { status?: string; dueBefore?: string; channelId?: number }) => {
@@ -241,7 +245,7 @@ export const publicationTasksApi = {
         const suffix = query.toString() ? `?${query.toString()}` : '';
         return api.get(`/api/metric-checkpoints${suffix}`);
     },
-    recordMetricCheckpoint: (id: number, checkpoint: string, data: Record<string, any>) =>
+    recordMetricCheckpoint: (id: number, checkpoint: string, data: Record<string, unknown>) =>
         api.put(`/api/publication-tasks/${id}/metric-checkpoints/${checkpoint}`, data),
     criticCheck: (id: number, data?: { text?: string }) =>
         api.post(`/api/publication-tasks/${id}/critic-check`, data || {}),
@@ -261,7 +265,7 @@ export const publicationTasksApi = {
     },
     getWeeklyMetrics: (id: number, from: string, to: string) =>
         api.get(`/api/publication-tasks/${id}/metrics-weekly?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
-    recordMetrics: (id: number, metrics: Record<string, any>) =>
+    recordMetrics: (id: number, metrics: Record<string, unknown>) =>
         api.post(`/api/publication-tasks/${id}/record-metrics`, { metrics }),
     externalCommentAlert: (id: number, data: { text?: string; commentUrl?: string; author?: string }) =>
         api.post(`/api/publication-tasks/${id}/external-comment-alert`, data)

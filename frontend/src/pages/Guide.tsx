@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { useLocale } from '../i18n/LocaleContext'
+import { useLocale } from '../i18n/locale'
 
 export default function Guide() {
     const navigate = useNavigate()

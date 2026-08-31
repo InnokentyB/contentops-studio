@@ -5,6 +5,7 @@ import { dirname, resolve } from 'node:path'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const locale = readFileSync(resolve(__dirname, '../../src/i18n/LocaleContext.tsx'), 'utf8')
+const localeHook = readFileSync(resolve(__dirname, '../../src/i18n/locale.ts'), 'utf8')
 const layout = readFileSync(resolve(__dirname, '../../src/components/Layout.tsx'), 'utf8')
 const switcher = readFileSync(resolve(__dirname, '../../src/components/LanguageSwitcher.tsx'), 'utf8')
 const app = readFileSync(resolve(__dirname, '../../src/App.tsx'), 'utf8')
@@ -22,7 +23,7 @@ const contentRenderer = readFileSync(resolve(__dirname, '../../src/components/Co
 const resourcePreview = readFileSync(resolve(__dirname, '../../src/components/ResourcePreviewCard.tsx'), 'utf8')
 const createProject = readFileSync(resolve(__dirname, '../../src/components/CreateProjectModal.tsx'), 'utf8')
 
-assert.match(locale, /defaultLocale.*'en'/)
+assert.match(localeHook, /defaultLocale.*'en'/)
 assert.match(locale, /localStorage/)
 assert.match(locale, /document\.documentElement\.lang/)
 assert.match(layout, /LanguageSwitcher/)

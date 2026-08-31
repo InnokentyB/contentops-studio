@@ -1,11 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import type { ApiJson } from '../types/api-json'
 import { useParams, useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
 import { useState } from 'react'
 import { api, presetsApi } from '../api' // Mock/real api
-import { useToast } from '../components/ToastContainer'
+import { useToast } from '../components/toast'
 import CommentSection from '../components/CommentSection'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/auth'
 
 interface Post {
     id: number
@@ -18,7 +19,7 @@ interface Post {
     published_link?: string | null
     image_url?: string | null
     image_prompt?: string | null
-    metrics?: any | null
+    metrics?: ApiJson | null
 }
 
 interface Week {
@@ -69,7 +70,7 @@ export default function WeekDetail() {
     const generateTopics = useMutation({
         mutationFn: async ({ overwrite }: { overwrite?: boolean } = {}) => {
             setIsGeneratingTopics(true)
-            const body: any = { overwrite }
+            const body: ApiJson = { overwrite }
             if (selectedPresetId) body.promptPresetId = selectedPresetId
             return api.post(`/api/weeks/${id}/generate-topics`, body)
         },
@@ -109,7 +110,7 @@ export default function WeekDetail() {
             }
             queryClient.invalidateQueries({ queryKey: ['week', id] })
         },
-        onError: (err: any) => showToast('Failed to publish', 'error', err.response?.data?.error || err.message)
+        onError: (err: ApiJson) => showToast('Failed to publish', 'error', err.response?.data?.error || err.message)
     })
 
     const generateImage = useMutation({
@@ -122,7 +123,7 @@ export default function WeekDetail() {
             setGeneratingPostId(null);
             showToast('Image generated successfully!', 'success');
         },
-        onError: (err: any) => {
+        onError: (err: ApiJson) => {
             showToast('Failed to generate image', 'error', err.response?.data?.error || err.message);
             setGeneratingPostId(null);
         }
@@ -135,7 +136,7 @@ export default function WeekDetail() {
             queryClient.invalidateQueries({ queryKey: ['week', id] })
             showToast('Schedule updated successfully', 'success')
         },
-        onError: (err: any) => showToast('Failed to update schedule', 'error', err.response?.data?.error || err.message)
+        onError: (err: ApiJson) => showToast('Failed to update schedule', 'error', err.response?.data?.error || err.message)
     });
 
     const isImageFailure = (p: Post) => p.status === 'failed' && Boolean(p.image_prompt?.includes('[Image Gen Failed]'));

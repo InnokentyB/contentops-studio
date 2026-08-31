@@ -1,7 +1,8 @@
 import ContentMarkupRenderer from './ContentMarkupRenderer'
-import { useLocale } from '../i18n/LocaleContext'
+import type { ApiJson } from '../types/api-json'
+import { useLocale } from '../i18n/locale'
 
-type JsonRecord = Record<string, any>
+type JsonRecord = Record<string, ApiJson>
 
 type ResourcePreviewCardProps = {
     entry?: JsonRecord | null

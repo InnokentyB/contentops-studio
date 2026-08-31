@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { ApiJson } from '../types/api-json'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { projectsApi, publicationTasksApi } from '../api'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/auth'
 import ContentMarkupRenderer from '../components/ContentMarkupRenderer'
 import ResourcePreviewCard from '../components/ResourcePreviewCard'
-import { useLocale } from '../i18n/LocaleContext'
+import { useLocale } from '../i18n/locale'
+import { useCurrentTime } from '../hooks/useCurrentTime'
 
-type JsonRecord = Record<string, any>
+type JsonRecord = Record<string, ApiJson>
 
 interface PublicationTask {
     id: number
@@ -698,6 +700,7 @@ export default function PublicationTasks() {
     }
     const queryClient = useQueryClient()
     const { currentProject, projects, createProject, setCurrentProject } = useAuth()
+    const now = useCurrentTime()
     const navigate = useNavigate()
     const [searchParams] = useSearchParams()
     const urlTaskId = searchParams.get('taskId')
@@ -743,6 +746,7 @@ export default function PublicationTasks() {
         if (!currentProject || !weekPackages) return
         if (initializedWeekProjectIdRef.current === currentProject.id && weekPackageId !== null) return
 
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- initialize the selector from asynchronous week data
         setWeekPackageId(urlTaskId ? 'all' : resolveCurrentWeekPackageId(weekPackages))
         initializedWeekProjectIdRef.current = currentProject.id
     }, [currentProject, urlTaskId, weekPackageId, weekPackages])
@@ -786,7 +790,6 @@ export default function PublicationTasks() {
 
     const filteredTasks = useMemo(
         () => {
-            const now = Date.now()
             return taskPool
                 .filter((task) => taskMatchesStatusFilter(task, statusFilter))
                 .filter((task) => taskMatchesManualFilter(task, manualOnly))
@@ -794,12 +797,12 @@ export default function PublicationTasks() {
                 .filter((task) => taskMatchesSearch(task, taskSearch))
                 .sort((a, b) => comparePublicationTasks(a, b, now))
         },
-        [taskPool, statusFilter, manualOnly, contentStateFilter, taskSearch]
+        [taskPool, statusFilter, manualOnly, contentStateFilter, taskSearch, now]
     )
 
     const taskQueueGroups = useMemo(
-        () => groupPublicationTasks(filteredTasks, Date.now()),
-        [filteredTasks]
+        () => groupPublicationTasks(filteredTasks, now),
+        [filteredTasks, now]
     )
 
     const taskQueueGroupLabel = (group: TaskQueueGroup) => {
@@ -877,6 +880,7 @@ export default function PublicationTasks() {
 
     useEffect(() => {
         if (urlTaskId && selectedTask?.status === 'published') {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- reveal a published task opened from a deep link
             setStatusFilter('published')
             setContentStateFilter('published')
         }
@@ -886,11 +890,12 @@ export default function PublicationTasks() {
         if (urlTaskId) {
             const idNum = parseInt(urlTaskId)
             if (!isNaN(idNum)) {
+                // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronize task selection with the route
                 setSelectedTaskId(idNum)
                 setMobileTaskOpen(true)
             }
         } else {
-            setSelectedTaskId(null)
+                setSelectedTaskId(null)
             setMobileTaskOpen(false)
         }
     }, [urlTaskId, currentProject?.id])
@@ -913,6 +918,7 @@ export default function PublicationTasks() {
     useEffect(() => {
         if (!filteredTasks.length) {
             if (!isLoading && !urlTaskId) {
+                // eslint-disable-next-line react-hooks/set-state-in-effect -- clear stale selection after an empty query result
                 setSelectedTaskId(null)
             }
             return
@@ -941,6 +947,7 @@ export default function PublicationTasks() {
             || selectedTask?.draft_text
             || selectedTask?.workspace_context?.source_content
             || '') as string
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate the task workspace from the selected server record
         setPublicationBody(nextBody)
         setPublishedLink(selectedTask?.published_link || '')
         setPublicationNote(selectedTask?.quality_report?.manual_publication_note || '')
@@ -963,13 +970,7 @@ export default function PublicationTasks() {
         setCommentText('')
         setTaskMessage(null)
     }, [
-        selectedTask?.id,
-        selectedTask?.content_revision,
-        selectedTask?.accepted_revision,
-        selectedTask?.text_state,
-        selectedTask?.draft_text,
-        selectedTask?.quality_report?.handoff_bundle?.publication?.body,
-        selectedTask?.workspace_context?.source_content,
+        selectedTask,
         selectedCheckpoint
     ])
 
@@ -980,7 +981,7 @@ export default function PublicationTasks() {
 
     const importPlan = useMutation({
         mutationFn: () => projectsApi.importPublicationPlan(planJson),
-        onSuccess: (result: any) => {
+        onSuccess: (result: ApiJson) => {
             const project = result?.project
             const imported = result?.imported
             setPlanMessage(`Plan synced: ${imported?.actions || 0} actions, ${imported?.accounts || 0} adapters, ${imported?.updatedExistingProject ? 'existing project updated' : 'new project created'}.`)
@@ -1015,7 +1016,7 @@ export default function PublicationTasks() {
 
     const activeTask = selectedTask || selectedFromList
     const activeTaskId = activeTask?.id ?? selectedTaskId
-    const { data: visualReadiness } = useQuery<any>({
+    const { data: visualReadiness } = useQuery<ApiJson>({
         queryKey: ['publication_task_visual_readiness', currentProject?.id, activeTaskId],
         queryFn: () => publicationTasksApi.getVisualReadiness(activeTaskId as number),
         enabled: !!activeTaskId && !!currentProject
@@ -1073,7 +1074,7 @@ export default function PublicationTasks() {
             if (!activeTaskId) throw new Error(tr('Задача не выбрана', 'No task selected'))
             return publicationTasksApi.publishNow(activeTaskId)
         },
-        onSuccess: (result: any) => {
+        onSuccess: (result: ApiJson) => {
             const outcome = result?.result
             if (outcome?.manualFallback) {
                 setTaskMessage(tr(`Автопубликация потребовала ручного шага${outcome?.reason ? `. ${outcome.reason}` : '.'}`, `Automatic publication requires a manual step${outcome?.reason ? `. ${outcome.reason}` : '.'}`))
@@ -1106,7 +1107,7 @@ export default function PublicationTasks() {
             const reviewText = publicationBody || selectedTask?.workspace_context?.source_content || ''
             return publicationTasksApi.fixWithCritic(activeTaskId, { text: reviewText })
         },
-        onSuccess: (result: any) => {
+        onSuccess: (result: ApiJson) => {
             if (typeof result?.updated_text === 'string') {
                 setPublicationBody(result.updated_text)
             }
@@ -1149,7 +1150,7 @@ export default function PublicationTasks() {
             if (!activeTaskId) throw new Error(tr('Задача не выбрана', 'No task selected'))
             return publicationTasksApi.collectMetrics(activeTaskId)
         },
-        onSuccess: (result: any) => {
+        onSuccess: (result: ApiJson) => {
             setTaskMessage(result?.updated
                 ? tr(`Метрики получены из канала${result?.reason ? `. ${result.reason}` : '.'}`, `Metrics collected from the channel${result?.reason ? `. ${result.reason}` : '.'}`)
                 : (result?.reason || tr('Метрики не были обновлены.', 'Metrics were not updated.')))
@@ -1198,18 +1199,42 @@ export default function PublicationTasks() {
         }
     })
 
+    const resetPrepareHandoff = prepareHandoff.reset
+    const resetSaveTaskContent = saveTaskContent.reset
+    const resetConfirmPublication = confirmPublication.reset
+    const resetPublishTaskNow = publishTaskNow.reset
+    const resetRunCriticCheck = runCriticCheck.reset
+    const resetGenerateTaskImage = generateTaskImage.reset
+    const resetUploadTaskImage = uploadTaskImage.reset
+    const resetCollectMetrics = collectMetrics.reset
+    const resetRecordMetrics = recordMetrics.reset
+    const resetSendCommentAlert = sendCommentAlert.reset
+
     useEffect(() => {
-        prepareHandoff.reset()
-        saveTaskContent.reset()
-        confirmPublication.reset()
-        publishTaskNow.reset()
-        runCriticCheck.reset()
-        generateTaskImage.reset()
-        uploadTaskImage.reset()
-        collectMetrics.reset()
-        recordMetrics.reset()
-        sendCommentAlert.reset()
-    }, [activeTaskId, currentProject?.id])
+        resetPrepareHandoff()
+        resetSaveTaskContent()
+        resetConfirmPublication()
+        resetPublishTaskNow()
+        resetRunCriticCheck()
+        resetGenerateTaskImage()
+        resetUploadTaskImage()
+        resetCollectMetrics()
+        resetRecordMetrics()
+        resetSendCommentAlert()
+    }, [
+        activeTaskId,
+        currentProject?.id,
+        resetCollectMetrics,
+        resetConfirmPublication,
+        resetGenerateTaskImage,
+        resetUploadTaskImage,
+        resetPrepareHandoff,
+        resetPublishTaskNow,
+        resetRecordMetrics,
+        resetRunCriticCheck,
+        resetSaveTaskContent,
+        resetSendCommentAlert
+    ])
 
     const handoffBundle = activeTask?.quality_report?.handoff_bundle as JsonRecord | undefined
     const sourceFiles = mergeSourceFiles(activeTask)
@@ -2521,7 +2546,7 @@ export default function PublicationTasks() {
                                                                         <div className="mt-2 text-xs text-on-surface-variant">
                                                                             {finding.matched && <div>{tr('Найдено', 'Matched')}: {finding.matched}</div>}
                                                                             {finding.suggestion && <div>{tr('Предлагается', 'Suggested')}: {finding.suggestion}</div>}
-                                                                            {('source' in finding && (finding as any).source) && <div>{tr('Источник правила', 'Rule source')}: {(finding as any).source}</div>}
+                                                                            {('source' in finding && (finding as ApiJson).source) && <div>{tr('Источник правила', 'Rule source')}: {(finding as ApiJson).source}</div>}
                                                                         </div>
                                                                     )}
                                                                 </div>

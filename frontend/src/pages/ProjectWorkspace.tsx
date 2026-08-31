@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react'
+import type { ApiJson } from '../types/api-json'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, projectsApi, publicationTasksApi } from '../api'
-import { useAuth } from '../context/AuthContext'
-import { useLocale } from '../i18n/LocaleContext'
+import { useAuth } from '../context/auth'
+import { useLocale } from '../i18n/locale'
+import { useCurrentTime } from '../hooks/useCurrentTime'
 
-type JsonRecord = Record<string, any>
+type JsonRecord = Record<string, ApiJson>
 
 type SocialChannel = {
     id: number
@@ -72,6 +74,7 @@ function statusLabel(status: string) {
 export default function ProjectWorkspace() {
     const queryClient = useQueryClient()
     const { currentProject, projects, createProject, setCurrentProject } = useAuth()
+    const now = useCurrentTime()
     const { locale } = useLocale()
     const copy = locale === 'ru' ? {
         selectProject: 'Сначала выбери проект, чтобы открыть рабочую область.', projectOverview: 'Обзор проекта',
@@ -135,7 +138,7 @@ export default function ProjectWorkspace() {
 
     const importPlan = useMutation({
         mutationFn: () => projectsApi.importPublicationPlan(planJson),
-        onSuccess: (result: any) => {
+        onSuccess: (result: ApiJson) => {
             const project = result?.project
             const imported = result?.imported
             setPlanMessage(`${locale === 'ru' ? 'План синхронизирован' : 'Plan synced'}: ${copy.actions} ${imported?.actions || 0}, ${copy.channels} ${imported?.accounts || 0}, ${imported?.updatedExistingProject ? copy.existingProject : copy.newProject}.`)
@@ -157,8 +160,6 @@ export default function ProjectWorkspace() {
 
     const taskTotals = useMemo(() => {
         const tasks = publicationTasks || []
-        const now = Date.now()
-
         return {
             total: tasks.length,
             published: tasks.filter((task) => task.status === 'published').length,
@@ -173,7 +174,7 @@ export default function ProjectWorkspace() {
                 return acc
             }, {})
         }
-    }, [publicationTasks])
+    }, [publicationTasks, now])
 
     const channelCards = useMemo(() => {
         const tasks = publicationTasks || []
@@ -183,7 +184,7 @@ export default function ProjectWorkspace() {
             const overdue = channelTasks.filter((task) => {
                 if (!task.schedule_at) return false
                 return ['planned', 'ready_for_execution', 'awaiting_manual_publication'].includes(task.status)
-                    && new Date(task.schedule_at).getTime() < Date.now()
+                    && new Date(task.schedule_at).getTime() < now
             }).length
 
             return {
@@ -194,7 +195,7 @@ export default function ProjectWorkspace() {
                 nextTask: channelTasks.find((task) => task.status !== 'published') || channelTasks[0] || null
             }
         })
-    }, [projectData?.channels, publicationTasks])
+    }, [projectData?.channels, publicationTasks, now])
 
     const upcomingTasks = useMemo(() => {
         return [...(publicationTasks || [])]

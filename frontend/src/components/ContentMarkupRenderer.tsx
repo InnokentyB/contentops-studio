@@ -1,5 +1,5 @@
 import Markdown from 'markdown-to-jsx';
-import { useLocale } from '../i18n/LocaleContext';
+import { useLocale } from '../i18n/locale';
 
 type ContentMarkupRendererProps = {
     content?: string | null;
