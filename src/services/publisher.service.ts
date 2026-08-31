@@ -2347,6 +2347,12 @@ class PublisherService {
         }
 
         if (['zen', 'zen_article', 'dzen'].includes(channelType)) {
+            if (imageUrl && !/^https:\/\//i.test(imageUrl)) {
+                throw new Error(
+                    '[DZEN_VISUAL_NOT_REMOTE] The approved Dzen image is not available to Railway. '
+                    + 'Upload it to public HTTPS storage or mark the publication as not requiring an image.'
+                );
+            }
             const rawDzenConfig = channelConfig.raw_account || channelConfig;
             const dzenConfig = resolveChannelConfigSecrets(channelType, rawDzenConfig);
             const title = bundle.publication?.html_bundle?.[0]?.asset?.title || task.title || 'Zen article';

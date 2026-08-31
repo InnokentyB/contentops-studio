@@ -18,7 +18,12 @@ test('ready API-capable publication is routed to connector scheduler', () => {
 
 test('missing API or manual execution is routed to browser publication', () => {
     assert.equal(resolvePublicationExecutionRoute({ ...ready, directExecutionSupported: false }), 'browser_required');
-    assert.equal(resolvePublicationExecutionRoute({ ...ready, executionMode: 'manual' }), 'browser_required');
+    assert.equal(resolvePublicationExecutionRoute({ ...ready, executionMode: 'manual' }), 'connector_auto');
+    assert.equal(resolvePublicationExecutionRoute({
+        ...ready,
+        executionMode: 'manual',
+        publicationMode: 'manual_handoff'
+    }), 'browser_required');
 });
 
 test('content and visual gates block both execution routes', () => {

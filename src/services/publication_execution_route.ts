@@ -14,6 +14,9 @@ export function resolvePublicationExecutionRoute(input: PublicationExecutionRout
     if (input.published) return 'published';
     if (!input.contentReady || !input.visualReady || !input.due) return 'waiting';
     if (input.publicationMode === 'browser_required') return 'browser_required';
+    // A task can originate from a human-review action and still be approved for
+    // connector execution once the current revision has passed its review gate.
+    if (input.publicationMode === 'connector_auto' && input.directExecutionSupported) return 'connector_auto';
     if (input.executionMode === 'manual' || !input.directExecutionSupported) return 'browser_required';
     return 'connector_auto';
 }
