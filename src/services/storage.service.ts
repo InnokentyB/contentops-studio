@@ -45,6 +45,8 @@ export class StorageService {
     }
 
     private r2Config(): R2Config | null {
+        if (this.env.R2_ENABLED?.trim().toLowerCase() !== 'true') return null;
+
         const accountId = this.env.R2_ACCOUNT_ID?.trim();
         const accessKeyId = this.env.R2_ACCESS_KEY_ID?.trim();
         const secretAccessKey = this.env.R2_SECRET_ACCESS_KEY?.trim();

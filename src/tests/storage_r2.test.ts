@@ -7,6 +7,7 @@ function r2Harness() {
     const commands: any[] = [];
     const service = new StorageService({
         env: {
+            R2_ENABLED: 'true',
             R2_ACCOUNT_ID: 'account-id',
             R2_ACCESS_KEY_ID: 'access-key',
             R2_SECRET_ACCESS_KEY: 'secret-key',
@@ -39,7 +40,21 @@ test('R2 health and deletion use the configured bucket', async () => {
 });
 
 test('incomplete R2 configuration keeps Supabase as the provider', () => {
-    const service = new StorageService({ env: { R2_ACCOUNT_ID: 'account-id' } });
+    const service = new StorageService({ env: { R2_ENABLED: 'true', R2_ACCOUNT_ID: 'account-id' } });
+    assert.equal(service.getProvider(), 'supabase');
+});
+
+test('disabled R2 configuration keeps Supabase as the provider', () => {
+    const service = new StorageService({
+        env: {
+            R2_ENABLED: 'false',
+            R2_ACCOUNT_ID: 'REPLACE_ME',
+            R2_ACCESS_KEY_ID: 'REPLACE_ME',
+            R2_SECRET_ACCESS_KEY: 'REPLACE_ME',
+            R2_BUCKET: 'planner-media',
+            R2_PUBLIC_BASE_URL: 'https://media.example.com'
+        }
+    });
     assert.equal(service.getProvider(), 'supabase');
 });
 
