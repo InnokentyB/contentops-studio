@@ -2052,6 +2052,12 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         const imageUrl = await storageService.uploadFileFromBuffer(buffer, data.mimetype, objectPath);
 
         const taskAssets = (item.assets as any) || {};
+        const qualityReport = (item.quality_report as any) || {};
+        const browserReasonCode = qualityReport.browser_handoff?.reason?.code;
+        const reopenApprovedConnectorTask = item.status === 'browser_required'
+            && browserReasonCode === 'MANUAL_EXECUTION_REQUIRED'
+            && item.text_state === 'accepted'
+            && item.accepted_revision === item.content_revision;
         const generatedVisuals = Array.isArray(taskAssets.generated_visuals)
             ? taskAssets.generated_visuals.map((visual: any) => Number(visual?.asset_id) === item.selected_asset!.id
                 ? { ...visual, url: imageUrl, image_url: imageUrl, uploaded_at: new Date().toISOString() }
@@ -2062,9 +2068,18 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             prisma.contentItem.update({
                 where: { id: item.id },
                 data: {
+                    ...(reopenApprovedConnectorTask ? {
+                        status: 'ready_for_execution',
+                        publication_mode: 'connector_auto'
+                    } : {}),
                     assets: { ...taskAssets, generated_visuals: generatedVisuals } as any,
                     quality_report: {
-                        ...((item.quality_report as any) || {}),
+                        ...qualityReport,
+                        ...(reopenApprovedConnectorTask ? {
+                            browser_handoff: null,
+                            publication_route: 'connector_auto',
+                            publication_outcome: null
+                        } : {}),
                         visual_storage: { provider: storageService.getProvider(), url: imageUrl, uploaded_at: new Date().toISOString() }
                     } as any
                 }
