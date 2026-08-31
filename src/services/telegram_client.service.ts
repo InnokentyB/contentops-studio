@@ -10,6 +10,7 @@ import { config } from 'dotenv';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as net from 'net';
+import { decryptTelegramAccountSecrets, telegramAccountSecretsAreEncrypted } from '../utils/telegram_account_secrets';
 
 config();
 
@@ -112,9 +113,13 @@ export class TelegramClientService {
             return false;
         }
 
-        this.sessionString = account.session_string;
+        if (!telegramAccountSecretsAreEncrypted(account)) {
+            console.warn(`[TelegramClient] Legacy plaintext credentials detected for project ${projectId}; run telegram:encrypt-existing`);
+        }
+        const secrets = decryptTelegramAccountSecrets(account);
+        this.sessionString = secrets.session_string;
         this.apiId = account.api_id;
-        this.apiHash = account.api_hash;
+        this.apiHash = secrets.api_hash;
         this.phoneNumber = account.phone_number;
         this.client = null;
         this.activeProjectId = null;

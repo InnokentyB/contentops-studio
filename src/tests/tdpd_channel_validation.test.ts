@@ -89,7 +89,7 @@ test('mergeChannelConfig updates secrets when incoming has actual new values', (
 
 test('Dzen session cookies are encrypted at rest and masked in API responses', () => {
     const previousKey = process.env.CHANNEL_SECRETS_KEY;
-    process.env.CHANNEL_SECRETS_KEY = 'test-only-channel-secret-key';
+    process.env.CHANNEL_SECRETS_KEY = 'test-only-channel-secret-key-at-least-32-chars';
     try {
         const stored = prepareChannelConfigForStorage('zen', {
             channel_id: 'channel-1',
@@ -115,7 +115,7 @@ test('Dzen session cookies are encrypted at rest and masked in API responses', (
 
 test('Dzen credentials nested in raw_account are also encrypted and redacted', () => {
     const previousKey = process.env.CHANNEL_SECRETS_KEY;
-    process.env.CHANNEL_SECRETS_KEY = 'test-only-channel-secret-key';
+    process.env.CHANNEL_SECRETS_KEY = 'test-only-channel-secret-key-at-least-32-chars';
     try {
         const stored = prepareChannelConfigForStorage('dzen', {
             platform: 'dzen',
@@ -134,7 +134,7 @@ test('Dzen credentials nested in raw_account are also encrypted and redacted', (
 
 test('Dzen credentials nested in raw_account are resolved for connection checks', () => {
     const previousKey = process.env.CHANNEL_SECRETS_KEY;
-    process.env.CHANNEL_SECRETS_KEY = 'test-channel-secret-key';
+    process.env.CHANNEL_SECRETS_KEY = 'test-channel-secret-key-at-least-32-chars';
     try {
         const stored = prepareChannelConfigForStorage('dzen', {
             raw_account: { cookies: 'zen_session_id=nested-session' }

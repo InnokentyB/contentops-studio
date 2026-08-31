@@ -64,7 +64,7 @@ This schema belongs to the `Ba_post_planner` repository.
 - `project_settings`
 - `social_channels`
 - `provider_keys`
-- `telegram_accounts`
+- `telegram_accounts` — project-scoped MTProto account; `api_hash` and `session_string` contain AES-256-GCM ciphertext, while the encryption key exists only in Railway Variables
 
 ### Legacy planning flow
 - `weeks`
