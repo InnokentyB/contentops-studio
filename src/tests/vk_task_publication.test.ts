@@ -105,15 +105,19 @@ test('VK dry-run and live use the same accepted text and approved durable visual
     assert.match(live.calls.facts[0].correctionReason, /removed/i);
 });
 
-test('VK task preflight rejects missing provider configuration before dry-run succeeds', async () => {
+test('VK dry-run validates payload while reporting missing provider configuration', async () => {
     const task = approvedVkTask({
         channel: { ...approvedVkTask().channel, config: { platform: 'vk' } }
     });
     const { service, calls } = harness(task);
-    await assert.rejects(
-        service.execute({ projectId: 10, taskId: 900, dryRun: true }),
-        /VK_CONNECTOR_NOT_READY/
-    );
+    const preview = await service.execute({ projectId: 10, taskId: 900, dryRun: true });
+    assert.equal(preview.connector_ready, false);
+    assert.equal(preview.connector_reason, 'vk_credentials_missing');
+    await assert.rejects(service.execute({
+        projectId: 10,
+        taskId: 900,
+        idempotencyKey: 'publish:vk:missing-credentials'
+    }), /VK_CONNECTOR_NOT_READY/);
     assert.equal(calls.provider.length, 0);
 });
 
