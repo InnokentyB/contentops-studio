@@ -37,6 +37,12 @@ interface PublicationTask {
     quality_report?: JsonRecord | null
     metrics?: JsonRecord | null
     assets?: JsonRecord | null
+    selected_asset?: {
+        id: number
+        file_url?: string | null
+        alt_text?: string | null
+        status?: string | null
+    } | null
     channel?: {
         id: number
         name: string
@@ -682,7 +688,7 @@ export default function PublicationTasks() {
         queueOverdue: 'Просроченные активные', queueUnscheduled: 'Активные без даты', queueInactive: 'Вне активной очереди', queueCompleted: 'Опубликованные и завершённые',
         taskMaterial: 'Рабочий материал задачи', publicationText: 'Текст публикации', resultPreview: 'Предпросмотр результата', publicationPreview: 'Предпросмотр публикации', executionContext: 'Контекст выполнения', publicationContext: 'Контекст публикации', resultLink: 'Ссылка на результат задачи', postLink: 'Ссылка на сам пост', buildTaskPackage: 'Собрать пакет задачи', prepareDraft: 'Подготовить черновик',
         openWeekPlan: 'Открыть план недели', preparing: 'Собираем...', publishing: 'Публикуем...', publishChannel: 'Опубликовать в канал', publishNow: 'Опубликовать сейчас', publicationStages: 'Этапы публикации', slotCreated: 'Слот создан',
-        readerView: 'как увидит читатель', emptyPublication: 'Текст публикации пока пуст.', publication: 'Публикация', resultRecorded: 'Результат уже зафиксирован.', publishAndSave: 'Опубликуйте текст и сохраните ссылку на пост.', channel: 'Канал', mode: 'Режим', placementType: 'Тип размещения', post: 'Пост', article: 'Статья', story: 'Story без постоянной ссылки', email: 'Email-рассылка', comment: 'Комментарий', otherArtifact: 'Другой артефакт', publicLinkOptional: 'Публичная ссылка, если есть', permalinkRequired: 'Permalink обязателен для этого типа.', linkOptional: 'Для story и email ссылка может отсутствовать.', providerId: 'ID у площадки', placementEvidence: 'Доказательство размещения', targetLink: 'Целевая ссылка / UTM', publicationResult: 'Результат публикации', publishedNormally: 'Опубликовано нормально', blockedWithUrl: 'Заблокировано, но URL есть', removedWithUrl: 'Удалено, но URL есть', restrictedVisibility: 'Ограниченная видимость', publicationNote: 'Заметка о публикации', optionalNote: 'Необязательная заметка о публикации', saving: 'Сохраняем...', saveCorrection: 'Сохранить исправление факта', recordFact: 'Зафиксировать факт публикации', factConfirmed: 'Факт подтверждён', actor: 'Актор', materialsContext: 'Материалы и контекст', planItem: 'Пункт плана', sourceResource: 'Исходный ресурс', notLinked: 'Не привязано', notFound: 'Не найден', openResource: 'Открыть рабочий ресурс', metricSnapshots: 'Контрольные снимки', metricSnapshotsHelp: 'T+24h и T+7d хранятся раздельно; неизвестное значение не считается нулём.', collectedLate: 'Собран поздно', due: 'Срок', metricsJson: 'Метрики JSON v1', savingSnapshot: 'Сохраняем снимок...', saveSnapshot: 'Сохранить', postImage: 'Изображение к посту', visualGateHelp: 'Генерация откроется после утверждения недельных тем, принятия текущей версии текста и решения арт-директора «Создать визуал» с готовым alt-текстом.', generating: 'Генерируем...', draftEconomy: 'Черновик · экономно', preparingVisual: 'Подготовка...', finalStandard: 'Финал · стандарт', flagshipFull: 'Флагман · полный цикл', flagshipHelp: 'Полная агентная цепочка и повторная отрисовка — только для ключевых публикаций', imageCandidate: 'Кандидат изображения к публикации', noGeneratedImage: 'Сгенерированное изображение пока не добавлено.', technicalDetails: 'Технические детали', technicalDetailsHelp: 'Мониторинг и служебные поля спрятаны сюда, чтобы не занимать первый экран.'
+        readerView: 'как увидит читатель', emptyPublication: 'Текст публикации пока пуст.', publication: 'Публикация', resultRecorded: 'Результат уже зафиксирован.', publishAndSave: 'Опубликуйте текст и сохраните ссылку на пост.', channel: 'Канал', mode: 'Режим', placementType: 'Тип размещения', post: 'Пост', article: 'Статья', story: 'Story без постоянной ссылки', email: 'Email-рассылка', comment: 'Комментарий', otherArtifact: 'Другой артефакт', publicLinkOptional: 'Публичная ссылка, если есть', permalinkRequired: 'Permalink обязателен для этого типа.', linkOptional: 'Для story и email ссылка может отсутствовать.', providerId: 'ID у площадки', placementEvidence: 'Доказательство размещения', targetLink: 'Целевая ссылка / UTM', publicationResult: 'Результат публикации', publishedNormally: 'Опубликовано нормально', blockedWithUrl: 'Заблокировано, но URL есть', removedWithUrl: 'Удалено, но URL есть', restrictedVisibility: 'Ограниченная видимость', publicationNote: 'Заметка о публикации', optionalNote: 'Необязательная заметка о публикации', saving: 'Сохраняем...', saveCorrection: 'Сохранить исправление факта', recordFact: 'Зафиксировать факт публикации', factConfirmed: 'Факт подтверждён', actor: 'Актор', materialsContext: 'Материалы и контекст', planItem: 'Пункт плана', sourceResource: 'Исходный ресурс', notLinked: 'Не привязано', notFound: 'Не найден', openResource: 'Открыть рабочий ресурс', metricSnapshots: 'Контрольные снимки', metricSnapshotsHelp: 'T+24h и T+7d хранятся раздельно; неизвестное значение не считается нулём.', collectedLate: 'Собран поздно', due: 'Срок', metricsJson: 'Метрики JSON v1', savingSnapshot: 'Сохраняем снимок...', saveSnapshot: 'Сохранить', postImage: 'Изображение к посту', uploadImage: 'Загрузить изображение', uploadingImage: 'Загружаем...', visualGateHelp: 'Генерация откроется после утверждения недельных тем, принятия текущей версии текста и решения арт-директора «Создать визуал» с готовым alt-текстом.', generating: 'Генерируем...', draftEconomy: 'Черновик · экономно', preparingVisual: 'Подготовка...', finalStandard: 'Финал · стандарт', flagshipFull: 'Флагман · полный цикл', flagshipHelp: 'Полная агентная цепочка и повторная отрисовка — только для ключевых публикаций', imageCandidate: 'Кандидат изображения к публикации', noGeneratedImage: 'Сгенерированное изображение пока не добавлено.', technicalDetails: 'Технические детали', technicalDetailsHelp: 'Мониторинг и служебные поля спрятаны сюда, чтобы не занимать первый экран.'
     } : {
         title: 'Publication tasks', project: 'Project', chooseProject: 'Choose or import a project with a publication plan.', tasks: 'tasks', importPlan: 'Import or update publication plan',
         searchPlaceholder: 'Task #760, title, or channel', searchLabel: 'Search tasks', weekLabel: 'Publication week', allWeeks: 'All weeks / history', statusLabel: 'Task status',
@@ -692,7 +698,7 @@ export default function PublicationTasks() {
         queueOverdue: 'Overdue active tasks', queueUnscheduled: 'Active tasks without a date', queueInactive: 'Outside the active queue', queueCompleted: 'Published and completed',
         taskMaterial: 'Task working material', publicationText: 'Publication content', resultPreview: 'Result preview', publicationPreview: 'Publication preview', executionContext: 'Execution context', publicationContext: 'Publication context', resultLink: 'Task result link', postLink: 'Live post link', buildTaskPackage: 'Build task package', prepareDraft: 'Prepare draft',
         openWeekPlan: 'Open weekly plan', preparing: 'Preparing...', publishing: 'Publishing...', publishChannel: 'Publish to channel', publishNow: 'Publish now', publicationStages: 'Publication stages', slotCreated: 'Slot created',
-        readerView: 'reader view', emptyPublication: 'Publication content is empty.', publication: 'Publication', resultRecorded: 'The result has already been recorded.', publishAndSave: 'Publish the content and save its live link.', channel: 'Channel', mode: 'Mode', placementType: 'Placement type', post: 'Post', article: 'Article', story: 'Story without a permanent link', email: 'Email campaign', comment: 'Comment', otherArtifact: 'Other artifact', publicLinkOptional: 'Public link, if available', permalinkRequired: 'A permalink is required for this placement.', linkOptional: 'Stories and email campaigns may not have a public link.', providerId: 'Provider object ID', placementEvidence: 'Placement evidence', targetLink: 'Target link / UTM', publicationResult: 'Publication outcome', publishedNormally: 'Published successfully', blockedWithUrl: 'Blocked, URL available', removedWithUrl: 'Removed, URL available', restrictedVisibility: 'Restricted visibility', publicationNote: 'Publication note', optionalNote: 'Optional publication note', saving: 'Saving...', saveCorrection: 'Save fact correction', recordFact: 'Record publication fact', factConfirmed: 'Fact confirmed', actor: 'Actor', materialsContext: 'Materials and context', planItem: 'Plan item', sourceResource: 'Source resource', notLinked: 'Not linked', notFound: 'Not found', openResource: 'Open working resource', metricSnapshots: 'Metric checkpoints', metricSnapshotsHelp: 'T+24h and T+7d are stored separately; an unknown value is not treated as zero.', collectedLate: 'Collected late', due: 'Due', metricsJson: 'Metrics JSON v1', savingSnapshot: 'Saving snapshot...', saveSnapshot: 'Save', postImage: 'Publication image', visualGateHelp: 'Generation unlocks after weekly topics are approved, the current content revision is accepted, and the art director chooses “Generate visual” with approved alt text.', generating: 'Generating...', draftEconomy: 'Draft · economy', preparingVisual: 'Preparing...', finalStandard: 'Final · standard', flagshipFull: 'Flagship · full pipeline', flagshipHelp: 'Full agent pipeline and rerendering are reserved for key publications', imageCandidate: 'Publication image candidate', noGeneratedImage: 'No generated image has been added.', technicalDetails: 'Technical details', technicalDetailsHelp: 'Monitoring and system fields are collapsed so the main workspace stays focused.'
+        readerView: 'reader view', emptyPublication: 'Publication content is empty.', publication: 'Publication', resultRecorded: 'The result has already been recorded.', publishAndSave: 'Publish the content and save its live link.', channel: 'Channel', mode: 'Mode', placementType: 'Placement type', post: 'Post', article: 'Article', story: 'Story without a permanent link', email: 'Email campaign', comment: 'Comment', otherArtifact: 'Other artifact', publicLinkOptional: 'Public link, if available', permalinkRequired: 'A permalink is required for this placement.', linkOptional: 'Stories and email campaigns may not have a public link.', providerId: 'Provider object ID', placementEvidence: 'Placement evidence', targetLink: 'Target link / UTM', publicationResult: 'Publication outcome', publishedNormally: 'Published successfully', blockedWithUrl: 'Blocked, URL available', removedWithUrl: 'Removed, URL available', restrictedVisibility: 'Restricted visibility', publicationNote: 'Publication note', optionalNote: 'Optional publication note', saving: 'Saving...', saveCorrection: 'Save fact correction', recordFact: 'Record publication fact', factConfirmed: 'Fact confirmed', actor: 'Actor', materialsContext: 'Materials and context', planItem: 'Plan item', sourceResource: 'Source resource', notLinked: 'Not linked', notFound: 'Not found', openResource: 'Open working resource', metricSnapshots: 'Metric checkpoints', metricSnapshotsHelp: 'T+24h and T+7d are stored separately; an unknown value is not treated as zero.', collectedLate: 'Collected late', due: 'Due', metricsJson: 'Metrics JSON v1', savingSnapshot: 'Saving snapshot...', saveSnapshot: 'Save', postImage: 'Publication image', uploadImage: 'Upload image', uploadingImage: 'Uploading...', visualGateHelp: 'Generation unlocks after weekly topics are approved, the current content revision is accepted, and the art director chooses “Generate visual” with approved alt text.', generating: 'Generating...', draftEconomy: 'Draft · economy', preparingVisual: 'Preparing...', finalStandard: 'Final · standard', flagshipFull: 'Flagship · full pipeline', flagshipHelp: 'Full agent pipeline and rerendering are reserved for key publications', imageCandidate: 'Publication image candidate', noGeneratedImage: 'No generated image has been added.', technicalDetails: 'Technical details', technicalDetailsHelp: 'Monitoring and system fields are collapsed so the main workspace stays focused.'
     }
     const queryClient = useQueryClient()
     const { currentProject, projects, createProject, setCurrentProject } = useAuth()
@@ -728,6 +734,7 @@ export default function PublicationTasks() {
     const [commentText, setCommentText] = useState('')
     const [criticReport, setCriticReport] = useState<CriticReview | null>(null)
     const workspaceRef = useRef<HTMLElement | null>(null)
+    const imageUploadRef = useRef<HTMLInputElement | null>(null)
     const initializedWeekProjectIdRef = useRef<number | null>(null)
 
     const { data: weekPackages } = useQuery<WeekPackageOption[]>({
@@ -1129,6 +1136,18 @@ export default function PublicationTasks() {
         }
     })
 
+    const uploadTaskImage = useMutation({
+        mutationFn: (file: File) => {
+            if (!activeTaskId) throw new Error('Задача не выбрана')
+            return publicationTasksApi.uploadImage(activeTaskId, file)
+        },
+        onSuccess: () => {
+            setTaskMessage('Изображение загружено в медиахранилище и привязано к публикации.')
+            refreshTasks()
+        },
+        onError: (error: Error) => setTaskMessage(error.message)
+    })
+
     const collectMetrics = useMutation({
         mutationFn: () => {
             if (!activeTaskId) throw new Error('Задача не выбрана')
@@ -1190,6 +1209,7 @@ export default function PublicationTasks() {
         publishTaskNow.reset()
         runCriticCheck.reset()
         generateTaskImage.reset()
+        uploadTaskImage.reset()
         collectMetrics.reset()
         recordMetrics.reset()
         sendCommentAlert.reset()
@@ -1230,6 +1250,7 @@ export default function PublicationTasks() {
     const atomaSummary = summarizeAtomaContext(atomaDescription, atomaPayload)
     const generatedVisualCandidates = ((activeTask?.assets as JsonRecord | undefined)?.generated_visuals as JsonRecord[] | undefined) || []
     const latestGeneratedImage = generatedVisualCandidates.find((entry) => Boolean(entry?.asset_id))
+    const displayImageUrl = latestGeneratedImage?.url || activeTask?.selected_asset?.file_url || ''
     const currentPublicationBody = (handoffBundle?.publication?.body || '') as string
     const isPublicationBodyDirty = publicationBody !== currentPublicationBody
     const hasPublicationText = publicationBody.trim().length > 0
@@ -2151,6 +2172,17 @@ export default function PublicationTasks() {
                                                         <span className="material-symbols-outlined text-on-surface-variant transition-transform group-open:rotate-180">expand_more</span>
                                                     </summary>
                                                     <div className="border-t border-outline-variant/10 p-5 space-y-4">
+                                                    <input
+                                                        ref={imageUploadRef}
+                                                        type="file"
+                                                        accept="image/png,image/jpeg,image/webp,image/gif"
+                                                        className="hidden"
+                                                        onChange={(event) => {
+                                                            const file = event.target.files?.[0]
+                                                            if (file) uploadTaskImage.mutate(file)
+                                                            event.target.value = ''
+                                                        }}
+                                                    />
                                                     {!canGenerateVisual && (
                                                         <div className="rounded-2xl bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
                                                             {copy.visualGateHelp}
@@ -2180,20 +2212,30 @@ export default function PublicationTasks() {
                                                             {generateTaskImage.isPending ? copy.preparingVisual : copy.flagshipFull}
                                                         </button>
                                                     </div>
-                                                    {latestGeneratedImage?.url ? (
+                                                    {activeTask?.selected_asset && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => imageUploadRef.current?.click()}
+                                                            disabled={uploadTaskImage.isPending}
+                                                            className="w-full rounded-2xl border border-primary/20 bg-white px-5 py-3 text-sm font-black text-primary transition-colors hover:bg-primary/5 disabled:opacity-50"
+                                                        >
+                                                            {uploadTaskImage.isPending ? copy.uploadingImage : copy.uploadImage}
+                                                        </button>
+                                                    )}
+                                                    {displayImageUrl ? (
                                                         <div className="space-y-3">
                                                             <img
-                                                                src={String(latestGeneratedImage.url)}
-                                                                alt={String(latestGeneratedImage.alt_text || copy.imageCandidate)}
+                                                                src={String(displayImageUrl)}
+                                                                alt={String(latestGeneratedImage?.alt_text || activeTask?.selected_asset?.alt_text || copy.imageCandidate)}
                                                                 className="w-full rounded-2xl border border-outline-variant/10 bg-white object-cover"
                                                             />
                                                             <div className="rounded-2xl bg-white px-4 py-3 text-xs leading-6 text-on-surface-variant">
-                                                                <div><span className="font-bold text-on-surface">Provider:</span> {String(latestGeneratedImage.provider || 'n/a')}</div>
-                                                                {latestGeneratedImage.alt_text && (
-                                                                    <div className="mt-2"><span className="font-bold text-on-surface">Alt:</span> {String(latestGeneratedImage.alt_text)}</div>
+                                                                <div><span className="font-bold text-on-surface">Provider:</span> {String(latestGeneratedImage?.provider || 'upload')}</div>
+                                                                {(latestGeneratedImage?.alt_text || activeTask?.selected_asset?.alt_text) && (
+                                                                    <div className="mt-2"><span className="font-bold text-on-surface">Alt:</span> {String(latestGeneratedImage?.alt_text || activeTask?.selected_asset?.alt_text)}</div>
                                                                 )}
-                                                                {latestGeneratedImage.prompt && (
-                                                                    <div className="mt-2 whitespace-pre-wrap break-words">{String(latestGeneratedImage.prompt)}</div>
+                                                                {latestGeneratedImage?.prompt && (
+                                                                    <div className="mt-2 whitespace-pre-wrap break-words">{String(latestGeneratedImage?.prompt)}</div>
                                                                 )}
                                                             </div>
                                                         </div>

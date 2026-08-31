@@ -177,6 +177,12 @@ function buildPublicationTaskListItem(item: any) {
             workItems: item.work_items
         }),
         publication_mode: item.publication_mode || null,
+        selected_asset: item.selected_asset ? {
+            id: item.selected_asset.id,
+            file_url: item.selected_asset.file_url || null,
+            alt_text: item.selected_asset.alt_text || null,
+            status: item.selected_asset.status || null
+        } : null,
         week_package_id: item.week_package_id || null,
         publication_fact: item.publication_fact || null,
         metrics: {
@@ -1180,6 +1186,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             where: { id: parseInt(id), project_id: projectId },
             include: {
                 channel: true,
+                selected_asset: true,
                 publication_fact: true,
                 metric_snapshots: { orderBy: { scheduled_for: 'asc' } },
                 work_items: { select: { id: true, kind: true, state: true, assignee_role: true } }
@@ -2010,6 +2017,61 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         });
 
         return { ...generatedImage, asset_id: imageAsset.asset_id, asset_status: imageAsset.status };
+    });
+
+    fastify.post('/api/publication-tasks/:id/upload-image', async (request, reply) => {
+        const projectId = (request as any).projectId;
+        const userId = (request as any).user?.id;
+        if (!projectId || !userId) return reply.code(400).send({ error: 'Project and user are required' });
+
+        const taskId = Number((request.params as { id: string }).id);
+        if (!Number.isInteger(taskId)) return reply.code(400).send({ error: 'Invalid publication task ID' });
+        const data = await (request as any).file();
+        if (!data) return reply.code(400).send({ error: 'No image uploaded' });
+        if (!['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(data.mimetype)) {
+            return reply.code(415).send({ error: 'Only PNG, JPEG, WebP, and GIF images are supported' });
+        }
+
+        const item = await prisma.contentItem.findFirst({
+            where: { id: taskId, project_id: projectId },
+            include: { selected_asset: true }
+        });
+        if (!item) return reply.code(404).send({ error: 'Publication task not found' });
+        if (!item.selected_asset) {
+            return reply.code(409).send({ error: 'Select and approve a visual asset before replacing its file' });
+        }
+
+        const buffer = await data.toBuffer();
+        if (buffer.length === 0 || buffer.length > 15 * 1024 * 1024) {
+            return reply.code(413).send({ error: 'Image must be between 1 byte and 15 MB' });
+        }
+        const extension = data.mimetype === 'image/jpeg' ? 'jpg'
+            : data.mimetype === 'image/webp' ? 'webp'
+                : data.mimetype === 'image/gif' ? 'gif' : 'png';
+        const objectPath = `publication-tasks/${projectId}/${taskId}/asset-${item.selected_asset.id}-${Date.now()}.${extension}`;
+        const imageUrl = await storageService.uploadFileFromBuffer(buffer, data.mimetype, objectPath);
+
+        const taskAssets = (item.assets as any) || {};
+        const generatedVisuals = Array.isArray(taskAssets.generated_visuals)
+            ? taskAssets.generated_visuals.map((visual: any) => Number(visual?.asset_id) === item.selected_asset!.id
+                ? { ...visual, url: imageUrl, image_url: imageUrl, uploaded_at: new Date().toISOString() }
+                : visual)
+            : [];
+        await prisma.$transaction([
+            prisma.imageAsset.update({ where: { id: item.selected_asset.id }, data: { file_url: imageUrl } }),
+            prisma.contentItem.update({
+                where: { id: item.id },
+                data: {
+                    assets: { ...taskAssets, generated_visuals: generatedVisuals } as any,
+                    quality_report: {
+                        ...((item.quality_report as any) || {}),
+                        visual_storage: { provider: storageService.getProvider(), url: imageUrl, uploaded_at: new Date().toISOString() }
+                    } as any
+                }
+            })
+        ]);
+
+        return { success: true, imageUrl, assetId: item.selected_asset.id, storageProvider: storageService.getProvider() };
     });
 
     // Settings

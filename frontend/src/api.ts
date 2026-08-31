@@ -249,6 +249,8 @@ export const publicationTasksApi = {
         api.post(`/api/publication-tasks/${id}/fix-with-critic`, data || {}),
     generateImage: (id: number, data?: { provider?: 'preview' | 'final' | 'flagship' }) =>
         api.post(`/api/publication-tasks/${id}/generate-image`, data || {}),
+    uploadImage: (id: number, file: File) =>
+        api.upload(`/api/publication-tasks/${id}/upload-image`, file),
     collectMetrics: (id: number) => api.post(`/api/publication-tasks/${id}/collect-metrics`),
     getMetricsHistory: (id: number, params?: { from?: string; to?: string }) => {
         const query = new URLSearchParams();

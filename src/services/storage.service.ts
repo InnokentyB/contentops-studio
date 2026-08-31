@@ -1,127 +1,195 @@
-import { supabase } from './supabase';
+import { DeleteObjectCommand, HeadBucketCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import fs from 'fs';
 import path from 'path';
 
-const BUCKET_NAME = 'post-images';
+const SUPABASE_BUCKET = 'post-images';
+
+type StorageProvider = 'r2' | 'supabase';
+
+type StorageServiceDependencies = {
+    env?: NodeJS.ProcessEnv;
+    r2Client?: Pick<S3Client, 'send'>;
+    supabaseClient?: any;
+};
+
+type R2Config = {
+    accessKeyId: string;
+    secretAccessKey: string;
+    bucket: string;
+    publicBaseUrl: string;
+    endpoint: string;
+};
+
+function trimSlash(value: string) {
+    return value.replace(/\/+$/, '');
+}
+
+function normalizeObjectKey(value: string) {
+    const normalized = value.replace(/\\/g, '/').replace(/^\/+/, '');
+    if (!normalized || normalized.split('/').includes('..')) {
+        throw new Error('[STORAGE_INVALID_PATH] Object path must be a non-empty relative path');
+    }
+    return normalized;
+}
 
 export class StorageService {
-    /**
-     * Ensures the bucket exists. If not, logs a warning (creating buckets programmatically requires service role key).
-     */
-    async ensureBucketExists() {
-        const { data, error } = await supabase.storage.getBucket(BUCKET_NAME);
-        if (error) {
-            console.warn(`[Storage] Bucket '${BUCKET_NAME}' not found or not accessible. Ensure it exists in Supabase Dashboard.`);
-            console.warn(`[Storage] Error details:`, error);
-            // Attempt to create if we have permissions (likely fails with anon key, but worth a try if using service role)
-            const { data: createData, error: createError } = await supabase.storage.createBucket(BUCKET_NAME, {
-                public: true,
-                fileSizeLimit: 10485760, // 10MB
-                allowedMimeTypes: ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
-            });
-            if (createError) {
-                console.error(`[Storage] Failed to create bucket '${BUCKET_NAME}':`, createError);
-            } else {
-                console.log(`[Storage] Created bucket '${BUCKET_NAME}'`);
-            }
-        } else {
-            console.log(`[Storage] Bucket '${BUCKET_NAME}' exists.`);
-        }
+    private readonly env: NodeJS.ProcessEnv;
+    private supabaseClient?: any;
+    private readonly injectedR2Client?: Pick<S3Client, 'send'>;
+    private r2Client?: Pick<S3Client, 'send'>;
+
+    constructor(deps: StorageServiceDependencies = {}) {
+        this.env = deps.env || process.env;
+        this.supabaseClient = deps.supabaseClient;
+        this.injectedR2Client = deps.r2Client;
     }
 
-    /**
-   * Uploads a file from a buffer to Supabase Storage.
-   * @param buffer File buffer
-   * @param mimeType Mime type of the file
-   * @param destinationPath Path in the bucket
-   * @returns Public URL of the uploaded file
-   */
+    private r2Config(): R2Config | null {
+        const accountId = this.env.R2_ACCOUNT_ID?.trim();
+        const accessKeyId = this.env.R2_ACCESS_KEY_ID?.trim();
+        const secretAccessKey = this.env.R2_SECRET_ACCESS_KEY?.trim();
+        const bucket = this.env.R2_BUCKET?.trim();
+        const publicBaseUrl = this.env.R2_PUBLIC_BASE_URL?.trim();
+        if (!accountId || !accessKeyId || !secretAccessKey || !bucket || !publicBaseUrl) return null;
+
+        const jurisdiction = this.env.R2_JURISDICTION?.trim().toLowerCase();
+        const jurisdictionPart = jurisdiction && jurisdiction !== 'default' ? `.${jurisdiction}` : '';
+        const endpoint = this.env.R2_ENDPOINT?.trim()
+            || `https://${accountId}${jurisdictionPart}.r2.cloudflarestorage.com`;
+        return {
+            accessKeyId,
+            secretAccessKey,
+            bucket,
+            publicBaseUrl: trimSlash(publicBaseUrl),
+            endpoint: trimSlash(endpoint)
+        };
+    }
+
+    private getR2Client(config: R2Config) {
+        if (this.injectedR2Client) return this.injectedR2Client;
+        if (!this.r2Client) {
+            this.r2Client = new S3Client({
+                region: 'auto',
+                endpoint: config.endpoint,
+                credentials: {
+                    accessKeyId: config.accessKeyId,
+                    secretAccessKey: config.secretAccessKey
+                }
+            });
+        }
+        return this.r2Client;
+    }
+
+    private getSupabaseClient() {
+        if (!this.supabaseClient) {
+            this.supabaseClient = require('./supabase').supabase;
+        }
+        return this.supabaseClient;
+    }
+
+    getProvider(): StorageProvider {
+        return this.r2Config() ? 'r2' : 'supabase';
+    }
+
+    async ensureBucketExists() {
+        const r2 = this.r2Config();
+        if (r2) {
+            await this.getR2Client(r2).send(new HeadBucketCommand({ Bucket: r2.bucket }));
+            console.log(`[Storage] R2 bucket '${r2.bucket}' is reachable.`);
+            return;
+        }
+
+        const supabaseClient = this.getSupabaseClient();
+        const { error } = await supabaseClient.storage.getBucket(SUPABASE_BUCKET);
+        if (!error) {
+            console.log(`[Storage] Supabase bucket '${SUPABASE_BUCKET}' exists.`);
+            return;
+        }
+
+        console.warn(`[Storage] Bucket '${SUPABASE_BUCKET}' not found or not accessible. Ensure it exists in Supabase Dashboard.`);
+        const { error: createError } = await supabaseClient.storage.createBucket(SUPABASE_BUCKET, {
+            public: true,
+            fileSizeLimit: 10485760,
+            allowedMimeTypes: ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
+        });
+        if (createError) throw createError;
+    }
+
+    async checkHealth() {
+        const r2 = this.r2Config();
+        if (r2) {
+            await this.getR2Client(r2).send(new HeadBucketCommand({ Bucket: r2.bucket }));
+            return { provider: 'r2', bucket: r2.bucket, public_base_url: r2.publicBaseUrl };
+        }
+
+        const { data, error } = await this.getSupabaseClient().storage.listBuckets();
+        if (error) throw error;
+        return {
+            provider: 'supabase',
+            bucket: SUPABASE_BUCKET,
+            bucket_count: Array.isArray(data) ? data.length : 0,
+            bucket_exists: Array.isArray(data) && data.some((bucket: any) => bucket.name === SUPABASE_BUCKET)
+        };
+    }
 
     async uploadFileFromBuffer(buffer: Buffer, mimeType: string, destinationPath: string): Promise<string> {
+        const objectKey = normalizeObjectKey(destinationPath);
+        const r2 = this.r2Config();
+        if (r2) {
+            await this.getR2Client(r2).send(new PutObjectCommand({
+                Bucket: r2.bucket,
+                Key: objectKey,
+                Body: buffer,
+                ContentType: mimeType,
+                CacheControl: 'public, max-age=31536000, immutable'
+            }));
+            return `${r2.publicBaseUrl}/${objectKey.split('/').map(encodeURIComponent).join('/')}`;
+        }
+
         try {
-            const { data, error } = await supabase.storage
-                .from(BUCKET_NAME)
-                .upload(destinationPath, buffer, {
-                    upsert: true,
-                    contentType: mimeType
-                });
-
-            if (error) {
-                throw error;
-            }
-
-            const { data: publicData } = supabase.storage
-                .from(BUCKET_NAME)
-                .getPublicUrl(destinationPath);
-
-            return publicData.publicUrl;
+            const supabaseClient = this.getSupabaseClient();
+            const { error } = await supabaseClient.storage
+                .from(SUPABASE_BUCKET)
+                .upload(objectKey, buffer, { upsert: true, contentType: mimeType });
+            if (error) throw error;
+            return supabaseClient.storage.from(SUPABASE_BUCKET).getPublicUrl(objectKey).data.publicUrl;
         } catch (error) {
-            console.error(`[Storage] Error uploading buffer to Supabase, attempting local fallback:`, error);
-            try {
-                const uploadsDir = path.join(process.cwd(), 'uploads');
-                if (!fs.existsSync(uploadsDir)) {
-                    fs.mkdirSync(uploadsDir, { recursive: true });
-                }
-                const filename = destinationPath.split('/').pop() || `file-${Date.now()}.png`;
-                const localFilePath = path.join(uploadsDir, filename);
-                fs.writeFileSync(localFilePath, buffer);
-                
-                console.log(`[Storage] Successfully saved file locally to fallback path: ${localFilePath}`);
-                return `/uploads/${filename}`;
-            } catch (fallbackErr: any) {
-                console.error(`[Storage] Local fallback failed:`, fallbackErr);
-                throw error;
-            }
+            if (this.env.NODE_ENV === 'production') throw error;
+            console.warn('[Storage] Cloud upload failed; using local development fallback.', error);
+            const uploadsDir = path.join(process.cwd(), 'uploads');
+            fs.mkdirSync(uploadsDir, { recursive: true });
+            const filename = path.basename(objectKey) || `file-${Date.now()}.png`;
+            fs.writeFileSync(path.join(uploadsDir, filename), buffer);
+            return `/uploads/${filename}`;
         }
     }
 
-    /**
-     * Uploads a file from the local filesystem to Supabase Storage.
-     * @param localPath Absolute path to the local file
-     * @param destinationPath Path in the bucket (e.g., 'uploads/image.png')
-     * @returns Public URL of the uploaded file
-     */
     async uploadFile(localPath: string, destinationPath: string): Promise<string> {
-        try {
-            const fileContent = fs.readFileSync(localPath);
-            return await this.uploadFileFromBuffer(fileContent, this.getContentType(localPath), destinationPath);
-        } catch (error) {
-            console.error(`[Storage] Error uploading file ${localPath}:`, error);
-            throw error;
-        }
+        const fileContent = fs.readFileSync(localPath);
+        return this.uploadFileFromBuffer(fileContent, this.getContentType(localPath), destinationPath);
     }
 
-    /**
-     * Deletes a file from Supabase Storage.
-     * @param url Public URL or path of the file
-     */
     async deleteFile(url: string): Promise<void> {
         try {
-            // Extract path from URL if needed. 
-            // URL format: https://<project>.supabase.co/storage/v1/object/public/<bucket>/<path>
-            let pathToRemove = url;
-            if (url.includes(`/storage/v1/object/public/${BUCKET_NAME}/`)) {
-                pathToRemove = url.split(`/storage/v1/object/public/${BUCKET_NAME}/`)[1];
+            const r2 = this.r2Config();
+            if (r2 && url.startsWith(`${r2.publicBaseUrl}/`)) {
+                const key = decodeURIComponent(url.slice(r2.publicBaseUrl.length + 1));
+                await this.getR2Client(r2).send(new DeleteObjectCommand({ Bucket: r2.bucket, Key: key }));
+                return;
             }
 
-            const { error } = await supabase.storage
-                .from(BUCKET_NAME)
-                .remove([pathToRemove]);
-
-            if (error) {
-                console.error(`[Storage] Failed to delete file '${pathToRemove}':`, error);
-                // Don't throw, just log. Cleanup failures shouldn't crash the app.
-            } else {
-                console.log(`[Storage] Deleted file '${pathToRemove}'`);
-            }
+            let objectKey = url;
+            const marker = `/storage/v1/object/public/${SUPABASE_BUCKET}/`;
+            if (url.includes(marker)) objectKey = url.split(marker)[1];
+            const { error } = await this.getSupabaseClient().storage.from(SUPABASE_BUCKET).remove([objectKey]);
+            if (error) console.error(`[Storage] Failed to delete file '${objectKey}':`, error);
         } catch (error) {
             console.error(`[Storage] Error deleting file ${url}:`, error);
         }
     }
 
     private getContentType(filePath: string): string {
-        const ext = path.extname(filePath).toLowerCase();
-        switch (ext) {
+        switch (path.extname(filePath).toLowerCase()) {
             case '.png': return 'image/png';
             case '.jpg':
             case '.jpeg': return 'image/jpeg';

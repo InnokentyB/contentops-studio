@@ -1,8 +1,8 @@
 import '../bootstrap-env';
 import prisma from '../db';
 import { connection as redisConnection } from '../queue';
-import { supabase } from './supabase';
 import { getDatabaseRuntimeInfo } from '../bootstrap-env';
+import storageService from './storage.service';
 
 type HealthStatus = 'ok' | 'degraded' | 'error';
 
@@ -73,24 +73,18 @@ class HealthService {
     async checkStorage(): Promise<ComponentHealth> {
         const started = nowMs();
         try {
-            const { data, error } = await withTimeout(supabase.storage.listBuckets(), 5000, 'storage');
-            if (error) {
-                throw error;
-            }
+            const details = await withTimeout(storageService.checkHealth(), 5000, 'storage');
 
             return {
                 status: 'ok',
                 latency_ms: nowMs() - started,
-                details: {
-                    bucket_count: Array.isArray(data) ? data.length : 0,
-                    has_post_images_bucket: Array.isArray(data) ? data.some((bucket: any) => bucket.name === 'post-images') : false
-                }
+                details
             };
         } catch (error: any) {
             return {
                 status: 'error',
                 latency_ms: nowMs() - started,
-                message: error?.message || 'Supabase storage check failed'
+                message: error?.message || 'Media storage check failed'
             };
         }
     }
