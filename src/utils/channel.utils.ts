@@ -84,6 +84,24 @@ export function resolveChannelConfigSecrets(type: string, config: any): any {
 }
 
 /**
+ * Return the executable channel configuration from both legacy raw_account
+ * payloads and current top-level settings. Current settings win so an owner
+ * can rotate credentials without leaving workers on a stale nested snapshot.
+ */
+export function resolveEffectiveChannelConfig(type: string, config: any): any {
+    const topLevel = config && typeof config === 'object' ? config : {};
+    const rawAccount = topLevel.raw_account && typeof topLevel.raw_account === 'object'
+        ? topLevel.raw_account
+        : {};
+    const { raw_account: _rawAccount, ...currentSettings } = topLevel;
+
+    return resolveChannelConfigSecrets(type, {
+        ...rawAccount,
+        ...currentSettings
+    });
+}
+
+/**
  * Clean up, format, and append hashtags to a post text, ensuring no duplicates or double hashes.
  */
 export function cleanAndFormatHashtags(text: string, tags: string[], category?: string): string {

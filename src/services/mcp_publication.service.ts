@@ -23,7 +23,7 @@ import artDirectionService from './art_direction.service';
 import { planAcceptedContentEdit } from './publication_content_revision_lifecycle';
 import { Prisma } from '@prisma/client';
 import { buildTelegramDeliveryPreview, normalizeTelegramDeliveryPayload } from './telegram_delivery_payload';
-import { resolveChannelConfigSecrets } from '../utils/channel.utils';
+import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
 
 type PublicationOutcome = 'published' | 'blocked' | 'removed' | 'restricted';
 
@@ -1253,7 +1253,7 @@ class McpPublicationService {
                 webhook_url: config?.webhook_url
             }, params.text, params.imageUrl, params.title);
         } else if (['zen', 'zen_article', 'dzen'].includes(channel.type)) {
-            const dzenConfig = resolveChannelConfigSecrets(channel.type, config);
+            const dzenConfig = resolveEffectiveChannelConfig(channel.type, channel.config);
             publishedLink = await dzenService.publishPost({
                 channel_id: dzenConfig?.channel_id || dzenConfig?.vk_id,
                 cookies: dzenConfig?.cookies,

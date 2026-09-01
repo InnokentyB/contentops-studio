@@ -193,6 +193,37 @@ test('Dzen defaults to owner-approved connector auto after a successful cookie p
     assert.equal(h.accessChecks.length, 2);
 });
 
+test('Dzen delivery preflight uses the rotated top-level session instead of a legacy raw_account snapshot', async () => {
+    let preflightConfig: any = null;
+    const h = createHarness({
+        preflightDzen: async (config: any) => {
+            preflightConfig = config;
+            return { connected: true };
+        },
+        publishTask: async () => {
+            h.task.status = 'published';
+            h.task.publication_fact = { outcome: 'published', public_url: 'https://dzen.ru/a/confirmed', provider_object_id: null };
+            return { success: true, status: 'published', publishedLink: 'https://dzen.ru/a/confirmed' };
+        }
+    });
+    h.task.status = 'browser_required';
+    h.task.publication_mode = 'browser_required';
+    h.task.channel.config = {
+        workflow_mode: 'auto_publish',
+        channel_id: 'current-channel',
+        cookies: 'Session_id=current-session; sessionid2=current-session-2',
+        raw_account: { platform: 'dzen' }
+    };
+
+    await h.service.executeDelivery({
+        projectId: 10, actorId: 'user:1', contentItemId: 815, channelId: 116,
+        idempotencyKey: 'dzen-rotated-session-v1'
+    });
+
+    assert.equal(preflightConfig.channel_id, 'current-channel');
+    assert.equal(preflightConfig.cookies, 'Session_id=current-session; sessionid2=current-session-2');
+});
+
 test('Dzen preflight failure leaves browser mode unchanged and creates no delivery attempt', async () => {
     const h = createHarness({ preflightDzen: async () => { throw new Error('Dzen authentication failed'); } });
     h.task.status = 'browser_required';
