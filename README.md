@@ -6,11 +6,15 @@ ContentOps Studio is a governed content operations workspace for teams that need
 
 > The hosted demo uses synthetic content and a server-enforced read-only account. Credentials are shared separately and are never stored in this repository.
 
+![ContentOps Studio project overview](docs/assets/contentops-studio-overview.png)
+
 ## The problem
 
 Content teams often split research, briefs, drafts, approvals, publishing credentials, and analytics across unrelated tools. The result is difficult to audit: nobody can reliably answer which source informed a claim, which revision was approved, why a task was blocked, or whether a publication changed the next decision.
 
 ContentOps Studio makes that operating chain explicit.
+
+![ContentOps Studio publication workflow](docs/assets/contentops-studio-publication-workflow.png)
 
 ## Product workflow
 

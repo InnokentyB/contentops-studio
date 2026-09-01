@@ -8,6 +8,8 @@
 
 The server blocks changes, uploads, agent runs, connector tests, and live publishing for the demo account. You can navigate through every read surface without affecting production workspaces.
 
+![ContentOps Studio project overview](assets/contentops-studio-overview.png)
+
 ## Suggested 5-minute walkthrough
 
 1. **Project overview**
@@ -15,6 +17,8 @@ The server blocks changes, uploads, agent runs, connector tests, and live publis
 
 2. **Publication plan**
    Open **Publication plan** and inspect tasks across published, ready, planned, and cancelled states. Select a task to review its accepted copy, execution context, handoff state, and publication evidence.
+
+   ![ContentOps Studio publication workflow](assets/contentops-studio-publication-workflow.png)
 
 3. **Operational plan**
    Open **Operational plan** to see dated initiatives, dependencies, and decision gates behind the editorial week.
