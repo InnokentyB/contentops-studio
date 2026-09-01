@@ -149,6 +149,7 @@ test('Dzen editor automation uses the current studio entrypoint and semantic Dra
     assert.equal(DZEN_EDITOR_SELECTORS.imageInsertIconFragment, 'add_gallery');
     assert.match(DZEN_EDITOR_SELECTORS.helpClose, /help-popup/);
     assert.equal(DZEN_EDITOR_SELECTORS.articlePublish, '[data-testid="article-publish-btn"]');
+    assert.equal(DZEN_EDITOR_SELECTORS.publicationConfirm, '[data-testid="publish-btn"]');
 });
 
 test('Dzen Draft.js input uses native element typing without document selection', async () => {

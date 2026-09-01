@@ -27,7 +27,8 @@ export const DZEN_EDITOR_SELECTORS = {
     articleBody: '[contenteditable="true"][role="textbox"]:has(.zen-editor-block)',
     imageInsertIconFragment: 'add_gallery',
     helpClose: '[class*="help-popup"] [aria-label="Закрыть"]',
-    articlePublish: '[data-testid="article-publish-btn"]'
+    articlePublish: '[data-testid="article-publish-btn"]',
+    publicationConfirm: '[data-testid="publish-btn"]'
 } as const;
 
 export async function typeDzenContentEditableText(element: any, text: string): Promise<void> {
@@ -533,7 +534,10 @@ class PuppeteerPublisherService {
 
             // Optional: Click the final publish confirmation inside the settings drawer
             console.log('[PuppeteerPublisher] Confirming publication in drawer settings...');
-            const clickedConfirm = await page.evaluate(() => {
+            const clickedConfirm = Boolean(await page.$eval(DZEN_EDITOR_SELECTORS.publicationConfirm, (button: any) => {
+                button.click();
+                return true;
+            }).catch(() => false)) || await page.evaluate(() => {
                 // Find all buttons inside the sidebar/drawer.
                 // Yandex Dzen studio sidebar has button elements for final submit.
                 const buttons = Array.from(document.querySelectorAll('button'));
