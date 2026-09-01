@@ -1056,15 +1056,18 @@ class McpPublicationService {
             : publicationPlanService.buildGeneratedContentItemHandoff(item);
         const channelConfig = (item.channel?.config as any) || {};
         const rawAccount = channelConfig.raw_account || channelConfig;
-        const directExecutionSupported = publicationAdapterService.supportsDirectExecution({
+        const effectiveAccount = {
             ...rawAccount,
+            workflow_mode: channelConfig.workflow_mode || rawAccount.workflow_mode,
             platform: rawAccount.platform || item.channel?.type
-        });
+        };
+        const directExecutionSupported = publicationAdapterService.supportsDirectExecution(effectiveAccount);
         const bundleWithLanguage = {
             ...bundle,
             content_language: channelContentLanguage(item.channel)
         };
-        const browserRequired = bundleWithLanguage.mode === 'manual' || !directExecutionSupported;
+        const browserRequired = !directExecutionSupported
+            || (bundleWithLanguage.mode === 'manual' && !publicationAdapterService.prefersAutomaticExecution(effectiveAccount));
 
         const updated = await prisma.contentItem.update({
             where: { id: item.id },

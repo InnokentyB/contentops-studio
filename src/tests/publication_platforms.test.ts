@@ -150,3 +150,9 @@ test('publicationAdapterService recognizes new platforms as direct-execution fri
     assert.equal(publicationAdapterService.supportsDirectExecution(dzenAccount), true);
     assert.equal(publicationAdapterService.supportsDirectExecution(unconfiguredDzenAccount), false);
 });
+
+test('configured Dzen channels prefer connector auto when workflow mode is not explicitly overridden', () => {
+    assert.equal(publicationAdapterService.prefersAutomaticExecution({ platform: 'dzen', cookies_encrypted: 'enc:v1:test' }), true);
+    assert.equal(publicationAdapterService.prefersAutomaticExecution({ platform: 'dzen', cookies_encrypted: 'enc:v1:test', workflow_mode: 'approval_required' }), false);
+    assert.equal(publicationAdapterService.prefersAutomaticExecution({ platform: 'dzen' }), false);
+});

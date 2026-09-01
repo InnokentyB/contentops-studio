@@ -13,12 +13,22 @@ function createHarness(overrides: Record<string, any> = {}) {
         accepted_revision: 1,
         text_state: 'accepted',
         status: 'ready_for_execution',
+        publication_mode: 'connector_auto',
+        quality_report: {},
+        channel: { id: 116, type: 'dzen', config: { workflow_mode: 'auto_publish', cookies: 'session=valid' } },
         publication_fact: null as any
     };
     const db: any = {
         contentItem: {
             findFirst: async () => ({ ...task }),
-            findUnique: async () => ({ ...task })
+            findUnique: async () => ({ ...task }),
+            updateMany: async ({ where, data }: any) => {
+                if (task.id !== where.id || task.project_id !== where.project_id || task.channel_id !== where.channel_id
+                    || task.content_revision !== where.content_revision || task.accepted_revision !== where.accepted_revision
+                    || task.publication_mode !== where.publication_mode) return { count: 0 };
+                Object.assign(task, data);
+                return { count: 1 };
+            }
         },
         deliveryAttempt: {
             findFirst: async ({ where }: any) => Array.from(attempts.values()).find((row) =>
@@ -60,6 +70,7 @@ function createHarness(overrides: Record<string, any> = {}) {
         now: () => new Date('2026-08-29T15:00:00Z'),
         requireAccess: async (projectId: number, actorId: string) => { accessChecks.push({ projectId, actorId }); },
         requireOwner: async (projectId: number, actorId: string) => { accessChecks.push({ projectId, actorId }); },
+        preflightDzen: overrides.preflightDzen || (async () => ({ connected: true })),
         publishTask: overrides.publishTask || (async () => ({ success: true, status: 'published', publishedLink: 'https://dzen.ru/a/real-permalink' }))
     });
     return { service, db, task, attempts, accessChecks };
@@ -154,4 +165,43 @@ test('legacy recovery cannot turn a failed attempt into delivered without provid
         /UNSAFE_RECOVERY_DISABLED/
     );
     assert.equal(h.attempts.get(1).status, 'failed');
+});
+
+test('Dzen defaults to owner-approved connector auto after a successful cookie preflight', async () => {
+    let publishCalls = 0;
+    const h = createHarness({
+        preflightDzen: async () => ({ connected: true, editor_url: 'https://dzen.ru/profile/editor/id/channel' }),
+        publishTask: async () => {
+            publishCalls += 1;
+            assert.equal(h.task.publication_mode, 'connector_auto');
+            assert.equal(h.task.status, 'ready_for_execution');
+            h.task.status = 'published';
+            h.task.publication_fact = { outcome: 'published', public_url: 'https://dzen.ru/a/confirmed', provider_object_id: null };
+            return { success: true, status: 'published', publishedLink: 'https://dzen.ru/a/confirmed' };
+        }
+    });
+    h.task.status = 'browser_required';
+    h.task.publication_mode = 'browser_required';
+
+    const result = await h.service.executeDelivery({
+        projectId: 10, actorId: 'user:1', contentItemId: 815, channelId: 116,
+        idempotencyKey: 'dzen-default-auto-v1'
+    });
+
+    assert.equal(result.status, 'delivered');
+    assert.equal(publishCalls, 1);
+    assert.equal(h.accessChecks.length, 2);
+});
+
+test('Dzen preflight failure leaves browser mode unchanged and creates no delivery attempt', async () => {
+    const h = createHarness({ preflightDzen: async () => { throw new Error('Dzen authentication failed'); } });
+    h.task.status = 'browser_required';
+    h.task.publication_mode = 'browser_required';
+
+    await assert.rejects(h.service.executeDelivery({
+        projectId: 10, actorId: 'user:1', contentItemId: 815, channelId: 116,
+        idempotencyKey: 'dzen-preflight-fails-v1'
+    }), /Dzen authentication failed/);
+    assert.equal(h.task.publication_mode, 'browser_required');
+    assert.equal(h.attempts.size, 0);
 });
