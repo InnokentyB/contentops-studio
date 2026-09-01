@@ -236,7 +236,8 @@ class PuppeteerPublisherService {
                         return reference.includes(iconFragment);
                     });
                     const iconControl = iconUse?.closest('button, [role="button"], [class*="side-button"]');
-                    ((imageControl || iconControl) as HTMLElement | null)?.click();
+                    const control = imageControl || iconControl;
+                    control?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
                 }, DZEN_EDITOR_SELECTORS.imageInsertIconFragment);
                 input = await page.waitForSelector('input[type="file"][accept*="image"], input[type="file"]', { timeout: 10_000 });
             }
