@@ -26,6 +26,7 @@ export const DZEN_EDITOR_SELECTORS = {
     articleTitle: '[contenteditable="true"][role="textbox"]:has(h1[data-block="true"])',
     articleBody: '[contenteditable="true"][role="textbox"]:has(.zen-editor-block)',
     imageInsertIconFragment: 'add_gallery',
+    helpClose: '[class*="help-popup"] [aria-label="Закрыть"]',
     articlePublish: '[data-testid="article-publish-btn"]'
 } as const;
 
@@ -87,6 +88,12 @@ class PuppeteerPublisherService {
             () => /\/profile\/editor\/id\/[^/]+\/[^/]+\/edit(?:[/?#]|$)/.test(window.location.href),
             { timeout: 15_000 }
         );
+
+        const helpClose = await page.$(DZEN_EDITOR_SELECTORS.helpClose);
+        if (helpClose) {
+            await helpClose.click();
+            await page.waitForSelector(DZEN_EDITOR_SELECTORS.helpClose, { hidden: true, timeout: 5_000 });
+        }
     }
 
     /**

@@ -147,6 +147,7 @@ test('Dzen editor automation uses the current studio entrypoint and semantic Dra
     assert.match(DZEN_EDITOR_SELECTORS.articleTitle, /role="textbox".*:has\(h1/);
     assert.match(DZEN_EDITOR_SELECTORS.articleBody, /role="textbox".*zen-editor-block/);
     assert.equal(DZEN_EDITOR_SELECTORS.imageInsertIconFragment, 'add_gallery');
+    assert.match(DZEN_EDITOR_SELECTORS.helpClose, /help-popup/);
     assert.equal(DZEN_EDITOR_SELECTORS.articlePublish, '[data-testid="article-publish-btn"]');
 });
 
