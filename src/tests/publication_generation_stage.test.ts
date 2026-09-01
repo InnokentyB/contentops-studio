@@ -68,6 +68,59 @@ test('generated publication handoff uses accepted text and selected visual witho
     assert.equal(bundle.resource_files[0].url, 'https://cdn.example/post.png');
 });
 
+test('Telegram story handoff stays distinct from feed and cannot acquire connector authority', () => {
+    const bundle = publicationPlanService.buildGeneratedContentItemHandoff({
+        id: 853,
+        type: 'growth_ops:manual_handoff',
+        title: 'TG story',
+        draft_text: 'Accepted story copy',
+        content_revision: 1,
+        accepted_revision: 1,
+        text_state: 'accepted',
+        publication_mode: 'connector_auto',
+        visual_placement: 'story',
+        channel: { name: 'spherical_analyst_tg', type: 'telegram' }
+    }, { requireAcceptedContent: true });
+
+    assert.equal(bundle.mode, 'manual');
+    assert.equal(bundle.task.placement, 'story');
+    assert.equal(bundle.task.action_type, 'telegram_story:publish');
+    assert.equal(bundle.transport.materialization, 'story');
+    assert.equal(bundle.transport.connector_authority, 'manual_only');
+    assert.equal(bundle.placement_contract.dimensions?.aspect_ratio, '9:16');
+    assert.equal(bundle.publication.body, 'Accepted story copy');
+});
+
+test('imported VK story plan is materialized as a manual story bundle, not a feed post', () => {
+    const bundle = publicationPlanService.buildHandoffBundle({
+        meta: { plan_id: 'story-plan' },
+        accounts: { analystcraft_vk_group: { platform: 'vk', access_token: 'configured' } },
+        assets: {},
+        actions: []
+    }, {
+        id: 854,
+        draft_text: 'Accepted VK story copy',
+        content_revision: 1,
+        accepted_revision: 1,
+        text_state: 'accepted',
+        publication_mode: 'connector_auto',
+        visual_placement: 'story',
+        channel: { name: 'analystcraft_vk_group', type: 'vk' },
+        assets: {
+            account_ref: 'analystcraft_vk_group',
+            asset_refs: [],
+            action: { id: 'vk-story-854', channel: 'vk', action_type: 'manual_handoff' }
+        }
+    });
+
+    assert.equal(bundle.mode, 'manual');
+    assert.equal(bundle.task.placement, 'story');
+    assert.equal(bundle.transport.materialization, 'story');
+    assert.equal(bundle.transport.connector_authority, 'manual_only');
+    assert.equal(bundle.placement_contract.poll.configuration_mode, 'native_manual');
+    assert.equal(bundle.publication.body, 'Accepted VK story copy');
+});
+
 test('plan handoff preserves the approved visual bound to the accepted revision', () => {
     const bundle = publicationPlanService.buildHandoffBundle({
         meta: { plan_id: 'plan-1' },

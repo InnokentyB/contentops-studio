@@ -7,6 +7,7 @@ import { mapActionStatus, resolveActionTitle } from './publication_runtime.helpe
 import contentDictionaryService from './content_dictionary.service';
 import contentPolicyMatrixService from './content_policy_matrix.service';
 import { isServerResolvableVisualUrl, visualMetadataFromProvenance } from './visual_asset_binding.service';
+import { publicationPlacementAssetContract } from './publication_placement_contract';
 
 type PublicationPlan = {
     meta: {
@@ -2142,8 +2143,16 @@ class PublicationPlanService {
             }))
         ]);
 
+        const placement = item.visual_placement || 'feed';
+        const placementContract = publicationPlacementAssetContract(
+            { type: item.channel?.type || action.channel || item.layer || 'unknown', config: item.channel?.config },
+            placement
+        );
+
         return {
-            mode: publicationAdapterService.inferExecutionMode(account || {}, action),
+            mode: placementContract.transport.connector_authority === 'manual_only'
+                ? 'manual'
+                : publicationAdapterService.inferExecutionMode(account || {}, action),
             account: {
                 ref: accountRef,
                 details: account
@@ -2155,8 +2164,11 @@ class PublicationPlanService {
                 action_type: action.action_type || item.type,
                 schedule_at: action.scheduled_at || item.schedule_at?.toISOString?.() || item.schedule_at || null,
                 scheduled_date: action.scheduled_date || item.schedule_at,
-                time_window: action.scheduled_time_window || null
+                time_window: action.scheduled_time_window || null,
+                placement
             },
+            placement_contract: placementContract,
+            transport: placementContract.transport,
             publication: {
                 body: acceptedContent.body,
                 content_binding: acceptedContent.binding,
@@ -2194,9 +2206,15 @@ class PublicationPlanService {
 
     buildGeneratedContentItemHandoff(item: any, options: { requireAcceptedContent?: boolean } = {}) {
         const channelType = item.channel?.type || item.layer || 'unknown';
+        const placement = item.visual_placement || 'feed';
+        const placementContract = publicationPlacementAssetContract(
+            { type: channelType, config: item.channel?.config },
+            placement
+        );
         const acceptedContent = this.resolveAcceptedPublicationBody(item, options.requireAcceptedContent);
         const body = acceptedContent.body;
-        const mode = ['manual', 'manual_handoff', 'browser_required'].includes(String(item.publication_mode || ''))
+        const mode = placementContract.transport.connector_authority === 'manual_only'
+            || ['manual', 'manual_handoff', 'browser_required'].includes(String(item.publication_mode || ''))
             ? 'manual'
             : 'automated';
         const selectedAsset = this.resolveApprovedSelectedAsset(item);
@@ -2206,12 +2224,15 @@ class PublicationPlanService {
             task: {
                 id: item.item_key || `content-item:${item.id}`,
                 content_item_id: item.id,
-                action_type: `${channelType}_post:publish`,
+                action_type: `${channelType}_${placement}:publish`,
                 channel: channelType,
+                placement,
                 account_ref: item.channel?.name || null,
                 schedule_at: item.schedule_at?.toISOString?.() || item.schedule_at || null
             },
             mode: mode as 'manual' | 'automated',
+            placement_contract: placementContract,
+            transport: placementContract.transport,
             publication: {
                 body,
                 content_binding: acceptedContent.binding,

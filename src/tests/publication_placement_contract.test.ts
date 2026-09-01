@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
     assertCanonicalPublicationPlacement,
-    canonicalPlacementsForChannel
+    canonicalPlacementsForChannel,
+    publicationPlacementAssetContract
 } from '../services/publication_placement_contract';
 
 test('article channels share the canonical article-cover placement', () => {
@@ -14,6 +15,17 @@ test('article channels share the canonical article-cover placement', () => {
         () => assertCanonicalPublicationPlacement({ type: 'vc' }, 'feed'),
         /TARGET_PLACEMENT_MISMATCH/
     );
+});
+
+test('Telegram and VK stories use a vertical manual-only asset contract', () => {
+    for (const type of ['telegram', 'telegram_chat', 'vk']) {
+        assert.ok(canonicalPlacementsForChannel({ type }).includes('story'));
+        const contract = publicationPlacementAssetContract({ type }, 'story');
+        assert.deepEqual(contract.dimensions, { width: 1080, height: 1920, aspect_ratio: '9:16' });
+        assert.deepEqual(contract.safe_area, { unit: 'px', top: 250, right: 80, bottom: 320, left: 80 });
+        assert.deepEqual(contract.poll, { supported: true, configuration_mode: 'native_manual', render_in_asset: false });
+        assert.deepEqual(contract.transport, { materialization: 'story', connector_authority: 'manual_only' });
+    }
 });
 
 test('configured channel placement overrides the type fallback', () => {

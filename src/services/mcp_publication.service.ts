@@ -1063,7 +1063,8 @@ class McpPublicationService {
             workflow_mode: channelConfig.workflow_mode || rawAccount.workflow_mode,
             platform: rawAccount.platform || item.channel?.type
         };
-        const directExecutionSupported = publicationAdapterService.supportsDirectExecution(effectiveAccount);
+        const directExecutionSupported = bundle.transport?.connector_authority !== 'manual_only'
+            && publicationAdapterService.supportsDirectExecution(effectiveAccount);
         const bundleWithLanguage = {
             ...bundle,
             content_language: channelContentLanguage(item.channel)

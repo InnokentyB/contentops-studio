@@ -1784,7 +1784,8 @@ class PublisherService {
         const channelConfig: any = task.channel?.config || {};
         const executionMode = bundle.mode;
         const rawAccount = channelConfig.raw_account || channelConfig || {};
-        const directExecutionSupported = publicationAdapterService.supportsDirectExecution({
+        const directExecutionSupported = bundle.transport?.connector_authority !== 'manual_only'
+            && publicationAdapterService.supportsDirectExecution({
             ...channelConfig,
             ...rawAccount,
             platform: rawAccount.platform || task.channel?.type

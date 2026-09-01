@@ -234,6 +234,10 @@ Template-driven research is also supported through:
 - `ba_parser_run_template`
 
 ## Safety notes
+
+### Story placement contract
+
+Telegram and VK stories use the canonical `story` placement. Their handoff bundle includes a 1080×1920 (`9:16`) asset contract, safe-area offsets, and a native/manual poll contract. Story bundles are always manual-only until a channel connector explicitly supports story transport; they must never be materialized as ordinary feed posts.
 - Channel secrets are redacted in list tools
 - Direct publishes are logged into the `events` table as `mcp.direct_publication`
 - Parser actions are routed through the planner integration layer and logged in planner events
