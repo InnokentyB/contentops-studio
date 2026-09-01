@@ -303,74 +303,131 @@ function AgentSettingsRow({
     )
 }
 
-function VkConnectionGuide({
-    locale,
-    vkId,
-    publicationToken
+function ChannelConnectionGuide({
+    title,
+    fieldsComplete,
+    completeLabel,
+    missingLabel,
+    steps,
+    note
 }: {
-    locale: 'ru' | 'en'
-    vkId: unknown
-    publicationToken: unknown
+    title: string
+    fieldsComplete: boolean
+    completeLabel: string
+    missingLabel: string
+    steps: string[]
+    note: string
 }) {
-    const hasVkId = Boolean(String(vkId || '').trim())
-    const hasPublicationToken = Boolean(String(publicationToken || '').trim())
-    const fieldsComplete = hasVkId && hasPublicationToken
-    const missing = [
-        !hasVkId ? (locale === 'ru' ? 'ID сообщества' : 'community ID') : null,
-        !hasPublicationToken ? (locale === 'ru' ? 'токен публикации' : 'publication token') : null
-    ].filter(Boolean).join(locale === 'ru' ? ' и ' : ' and ')
-
     return (
         <details
             open={!fieldsComplete}
             className="rounded-xl border border-primary/20 bg-primary/5"
             style={{ gridColumn: '1 / -1' }}
         >
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
+            <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-4 py-3">
                 <span className="flex min-w-0 items-center gap-2 font-black text-on-surface">
                     <span className="material-symbols-outlined text-xl text-primary" aria-hidden="true">link</span>
-                    {locale === 'ru' ? 'Как подключить VK' : 'How to connect VK'}
+                    {title}
                 </span>
                 <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${fieldsComplete ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>
-                    {fieldsComplete
-                        ? (locale === 'ru' ? 'Поля заполнены' : 'Fields filled')
-                        : (locale === 'ru' ? `Не хватает: ${missing}` : `Missing: ${missing}`)}
+                    {fieldsComplete ? completeLabel : missingLabel}
                 </span>
             </summary>
             <div className="border-t border-primary/15 px-4 pb-4 pt-3 text-sm leading-6 text-on-surface-variant">
                 <ol className="m-0 grid gap-2 pl-5">
-                    <li>
-                        {locale === 'ru'
-                            ? 'Откройте нужное сообщество VK под аккаунтом администратора: Управление → Работа с API → Ключи доступа.'
-                            : 'Open the VK community as an administrator: Manage → API access → Access tokens.'}
-                    </li>
-                    <li>
-                        {locale === 'ru'
-                            ? 'Скопируйте числовой ID сообщества. В Планнере укажите его со знаком минус, например −123456789.'
-                            : 'Copy the numeric community ID. In Planner, enter it with a minus sign, for example −123456789.'}
-                    </li>
-                    <li>
-                        {locale === 'ru'
-                            ? 'Создайте ключ доступа для публикации. Разрешите управление сообществом и доступ к фотографиям, чтобы Планнер мог отправлять текст и визуал.'
-                            : 'Create an access token for publishing. Allow community management and photo access so Planner can send both copy and visuals.'}
-                    </li>
-                    <li>
-                        {locale === 'ru'
-                            ? 'Вставьте ключ в поле «Токен публикации» и сохраните канал. Токен статистики нужен только для расширенных охватов и не обязателен для публикации.'
-                            : 'Paste the key into Publication token and save the channel. The statistics token is only needed for extended reach metrics and is not required for publishing.'}
-                    </li>
+                    {steps.map((step, index) => <li key={`${title}-${index}`}>{step}</li>)}
                 </ol>
                 <div className="mt-3 flex gap-2 rounded-lg bg-white/70 px-3 py-2 text-xs leading-5">
                     <span className="material-symbols-outlined mt-0.5 text-base text-primary" aria-hidden="true">shield_lock</span>
-                    <span>
-                        {locale === 'ru'
-                            ? 'Планнер не показывает сохранённый токен повторно. Не отправляйте его в чат и не добавляйте в репозиторий. Подготовка черновика может работать без коннекта, но реальная публикация останется заблокированной, пока оба обязательных поля не заполнены.'
-                            : 'Planner never reveals a saved token again. Do not send it in chat or commit it to the repository. Draft preparation can work without a connector, but live publishing remains blocked until both required fields are filled.'}
-                    </span>
+                    <span>{note}</span>
                 </div>
             </div>
         </details>
     )
+}
+
+function VkConnectionGuide({ locale, vkId, publicationToken }: { locale: 'ru' | 'en'; vkId: unknown; publicationToken: unknown }) {
+    const hasVkId = Boolean(String(vkId || '').trim())
+    const hasPublicationToken = Boolean(String(publicationToken || '').trim())
+    const missing = [
+        !hasVkId ? (locale === 'ru' ? 'ID сообщества' : 'community ID') : null,
+        !hasPublicationToken ? (locale === 'ru' ? 'токен публикации' : 'publication token') : null
+    ].filter(Boolean).join(locale === 'ru' ? ' и ' : ' and ')
+
+    return <ChannelConnectionGuide
+        title={locale === 'ru' ? 'Как подключить VK' : 'How to connect VK'}
+        fieldsComplete={hasVkId && hasPublicationToken}
+        completeLabel={locale === 'ru' ? 'Поля заполнены' : 'Fields filled'}
+        missingLabel={locale === 'ru' ? `Не хватает: ${missing}` : `Missing: ${missing}`}
+        steps={locale === 'ru' ? [
+            'Откройте нужное сообщество VK под аккаунтом администратора: Управление → Работа с API → Ключи доступа.',
+            'Скопируйте числовой ID сообщества. В Планнере укажите его со знаком минус, например −123456789.',
+            'Создайте ключ доступа для публикации. Разрешите управление сообществом и доступ к фотографиям, чтобы Планнер мог отправлять текст и визуал.',
+            'Вставьте ключ в поле «Токен публикации» и сохраните канал. Токен статистики нужен только для расширенных охватов и не обязателен для публикации.'
+        ] : [
+            'Open the VK community as an administrator: Manage → API access → Access tokens.',
+            'Copy the numeric community ID. In Planner, enter it with a minus sign, for example −123456789.',
+            'Create an access token for publishing. Allow community management and photo access so Planner can send both copy and visuals.',
+            'Paste the key into Publication token and save the channel. The statistics token is only needed for extended reach metrics and is not required for publishing.'
+        ]}
+        note={locale === 'ru'
+            ? 'Планнер не показывает сохранённый токен повторно. Не отправляйте его в чат и не добавляйте в репозиторий. Подготовка черновика может работать без коннекта, но реальная публикация останется заблокированной, пока оба обязательных поля не заполнены.'
+            : 'Planner never reveals a saved token again. Do not send it in chat or commit it to the repository. Draft preparation can work without a connector, but live publishing remains blocked until both required fields are filled.'}
+    />
+}
+
+function TelegramConnectionGuide({ locale, channelId }: { locale: 'ru' | 'en'; channelId: unknown }) {
+    const hasChannelId = Boolean(String(channelId || '').trim())
+    return <ChannelConnectionGuide
+        title={locale === 'ru' ? 'Как подключить Telegram' : 'How to connect Telegram'}
+        fieldsComplete={hasChannelId}
+        completeLabel={locale === 'ru' ? 'ID указан' : 'ID filled'}
+        missingLabel={locale === 'ru' ? 'Не хватает: ID канала' : 'Missing: channel ID'}
+        steps={locale === 'ru' ? [
+            'Создайте бота через @BotFather командой /newbot или используйте уже подключённого к Планнеру бота.',
+            'Добавьте бота администраторам нужного канала и разрешите ему публиковать сообщения. Для последующего редактирования публикаций дайте также право редактировать сообщения.',
+            'Укажите числовой ID канала в формате −100…, а для публичного канала дополнительно заполните @username, чтобы Планнер формировал прямые ссылки на публикации.',
+            'Bot Token задаётся один раз на сервере как TELEGRAM_BOT_TOKEN для planner-app и planner-mcp. В карточку канала токен вставлять не нужно.'
+        ] : [
+            'Create a bot with the /newbot command in @BotFather, or use the bot already connected to Planner.',
+            'Add the bot as an administrator of the target channel and allow it to post messages. Also grant edit-message permission if Planner should edit posts later.',
+            'Enter the numeric channel ID in the −100… format. For a public channel, also add its @username so Planner can build direct publication links.',
+            'The Bot Token is configured once on the server as TELEGRAM_BOT_TOKEN for planner-app and planner-mcp. Do not paste it into the channel card.'
+        ]}
+        note={locale === 'ru'
+            ? 'Bot Token является паролем от бота: не отправляйте его в чат и не храните в репозитории. Статус «ID указан» подтверждает только заполнение карточки; публикация заработает, когда серверный токен настроен, а бот остаётся администратором канала.'
+            : 'The Bot Token is the bot password: never send it in chat or commit it to the repository. “ID filled” only confirms the channel card; publishing works when the server token is configured and the bot remains a channel administrator.'}
+    />
+}
+
+function DzenConnectionGuide({ locale, channelId, session }: { locale: 'ru' | 'en'; channelId: unknown; session: unknown }) {
+    const hasChannelId = Boolean(String(channelId || '').trim())
+    const hasSession = Boolean(String(session || '').trim())
+    const missing = [
+        !hasChannelId ? (locale === 'ru' ? 'ID канала' : 'channel ID') : null,
+        !hasSession ? (locale === 'ru' ? 'авторизованная сессия' : 'authorized session') : null
+    ].filter(Boolean).join(locale === 'ru' ? ' и ' : ' and ')
+
+    return <ChannelConnectionGuide
+        title={locale === 'ru' ? 'Как подключить Дзен' : 'How to connect Zen'}
+        fieldsComplete={hasChannelId && hasSession}
+        completeLabel={locale === 'ru' ? 'Поля заполнены' : 'Fields filled'}
+        missingLabel={locale === 'ru' ? `Не хватает: ${missing}` : `Missing: ${missing}`}
+        steps={locale === 'ru' ? [
+            'Войдите в dzen.ru под аккаунтом, который может публиковать в нужном канале, и откройте редактор этого канала.',
+            'Скопируйте ID из адреса канала или редактора: часть после /id/ либо /profile/editor/id/.',
+            'Откройте инструменты разработчика браузера → Network, обновите страницу Дзена, выберите запрос к dzen.ru и скопируйте только значение заголовка Cookie.',
+            'Вставьте значение в «Авторизованная сессия», сохраните канал и нажмите «Проверить подключение к Дзену». Успешная проверка должна подтвердить доступ к редактору.'
+        ] : [
+            'Sign in to dzen.ru with an account that can publish to the target channel, then open that channel’s editor.',
+            'Copy the ID from the channel or editor URL: the part after /id/ or /profile/editor/id/.',
+            'Open browser developer tools → Network, reload Zen, select a request to dzen.ru, and copy only the Cookie request-header value.',
+            'Paste it into Authorized session, save the channel, and click Test Zen connection. A successful check must confirm editor access.'
+        ]}
+        note={locale === 'ru'
+            ? 'Сессия даёт доступ к аккаунту Дзена. Планнер шифрует её и после сохранения показывает только маску. Не отправляйте Cookie в чат; если проверка перестала проходить, войдите в Дзен заново и замените сессию.'
+            : 'The session grants access to the Zen account. Planner encrypts it and only shows a mask after saving. Never send the Cookie in chat; if the check stops passing, sign in to Zen again and replace the session.'}
+    />
 }
 
 type SettingsTab = 'general' | 'channels' | 'mcp' | 'keys' | 'agents' | 'skills' | 'dictionary' | 'presets' | 'team' | 'history'
@@ -1391,6 +1448,7 @@ export default function Settings() {
                                             </div>
                                         )}
                                     </div>
+                                    <TelegramConnectionGuide locale={locale} channelId={newChannelId} />
                                 </>
                             ) : newChannelType === 'vk' ? (
                                 <>
@@ -1557,7 +1615,7 @@ export default function Settings() {
                                     <div style={{ gridColumn: '1 / -1' }}>
                                         <label>{locale === 'ru' ? 'Авторизованная сессия Дзена' : 'Authorized Zen session'}</label>
                                         <p style={{ fontSize: '0.75rem', color: 'var(--text-muted, #8a8fa8)', margin: '0 0 6px' }}>
-                                            {locale === 'ru' ? 'После сохранения сессия шифруется и больше не показывается. Заполним её после настройки Railway.' : 'After saving, the session is encrypted and no longer displayed. Add it after Railway is configured.'}
+                                            {locale === 'ru' ? 'После сохранения сессия шифруется и больше не показывается.' : 'After saving, the session is encrypted and no longer displayed.'}
                                         </p>
                                         <textarea
                                             rows={3}
@@ -1567,6 +1625,7 @@ export default function Settings() {
                                             style={{ fontFamily: 'monospace', fontSize: '0.75rem', resize: 'vertical' }}
                                         />
                                     </div>
+                                    <DzenConnectionGuide locale={locale} channelId={newChannelId} session={sessionCookies} />
                                 </>
                             ) : newChannelType === 'threads' ? (
                                 <>
@@ -1738,6 +1797,10 @@ export default function Settings() {
                                                             </div>
                                                         )}
                                                     </div>
+                                                    <TelegramConnectionGuide
+                                                        locale={locale}
+                                                        channelId={editingChannelConfig.telegram_channel_id}
+                                                    />
                                                 </>
                                             )}
 
@@ -1979,6 +2042,11 @@ export default function Settings() {
                                                             {locale === 'ru' ? 'Сначала сохраните изменения, затем запустите проверку подключения.' : 'Save changes first, then test the connection.'}
                                                         </div>
                                                     </div>
+                                                    <DzenConnectionGuide
+                                                        locale={locale}
+                                                        channelId={editingChannelConfig.channel_id || editingChannelConfig.channel_url}
+                                                        session={editingChannelConfig.cookies}
+                                                    />
                                                     <div style={{ gridColumn: '1 / -1' }}>
                                                         <button
                                                             type="button"
