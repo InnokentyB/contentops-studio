@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isPublicationPlacementMismatchEvidence, planPublicationPlacementRepair } from '../services/publication_metadata_repair';
+import { isPublicationPlacementMismatchEvidence, placementRepairProvenance, planPublicationPlacementRepair } from '../services/publication_metadata_repair';
 
 test('placement repair creates a new revision-bound art-direction input without changing content revision', () => {
     assert.deepEqual(planPublicationPlacementRepair({
@@ -60,4 +60,21 @@ test('placement repair refuses to operate on a stale accepted revision', () => {
         currentPlacement: 'feed',
         targetPlacement: 'article_cover'
     }), /CURRENT_REVISION_NOT_ACCEPTED/);
+});
+
+test('new art-direction input references the immutable blocker only as provenance', () => {
+    assert.deepEqual(placementRepairProvenance({
+        blockedWorkItemId: 399,
+        blockedDecisionId: 42,
+        fromChannelId: 139,
+        fromPlacement: 'feed'
+    }), {
+        superseded_blocker: {
+            work_item_id: 399,
+            decision_id: 42,
+            channel_id: 139,
+            placement: 'feed',
+            immutable: true
+        }
+    });
 });

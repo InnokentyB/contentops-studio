@@ -41,3 +41,20 @@ export function isPublicationPlacementMismatchEvidence(input: {
         && input.decision.placement === input.expectedPlacement
         && input.decision.source_content_revision === input.expectedRevision;
 }
+
+export function placementRepairProvenance(input: {
+    blockedWorkItemId: number;
+    blockedDecisionId: number | null;
+    fromChannelId: number | null;
+    fromPlacement: string | null;
+}) {
+    return {
+        superseded_blocker: {
+            work_item_id: input.blockedWorkItemId,
+            decision_id: input.blockedDecisionId,
+            channel_id: input.fromChannelId,
+            placement: input.fromPlacement,
+            immutable: true
+        }
+    };
+}

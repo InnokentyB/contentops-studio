@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import prisma from '../db';
 import artDirectionService from './art_direction.service';
 import { planContentReviewRecovery, planMissingContentReviewRecovery } from './publication_content_revision_lifecycle';
-import { isPublicationPlacementMismatchEvidence, planPublicationPlacementRepair } from './publication_metadata_repair';
+import { isPublicationPlacementMismatchEvidence, placementRepairProvenance, planPublicationPlacementRepair } from './publication_metadata_repair';
 import { assertCanonicalPublicationPlacement } from './publication_placement_contract';
 
 /**
@@ -190,7 +190,13 @@ export class WorkQueueService {
                     input_context_version: plan.inputContextVersion,
                     result_version: 0,
                     dedupe_key: plan.dedupeKey,
-                    note: plan.note
+                    note: `${plan.note}; supersedes immutable blocker decision ${blockedDecision?.id || 'unknown'}`,
+                    result_payload: placementRepairProvenance({
+                        blockedWorkItemId: blockedItem.id,
+                        blockedDecisionId: blockedDecision?.id || null,
+                        fromChannelId: content.channel_id,
+                        fromPlacement: content.visual_placement
+                    }) as Prisma.InputJsonValue
                 }
             });
             const afterState = {
@@ -203,6 +209,7 @@ export class WorkQueueService {
                 accepted_revision: plan.acceptedRevision,
                 old_work_item_id: blockedItem.id,
                 old_work_item_state: blockedItem.state,
+                old_decision_id: blockedDecision?.id || null,
                 art_direction_work_item_id: artDirectionItem.id,
                 art_direction_state: artDirectionItem.state,
                 art_direction_dedupe_key: artDirectionItem.dedupe_key,
