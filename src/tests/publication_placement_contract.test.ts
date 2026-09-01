@@ -40,3 +40,12 @@ test('unknown channels cannot be repaired without an explicit contract', () => {
         /CHANNEL_PLACEMENT_CONTRACT_MISSING/
     );
 });
+
+test('asset contract can describe legacy placement metadata without weakening repair validation', () => {
+    const legacy = publicationPlacementAssetContract({ type: 'dzen' }, 'feed');
+    assert.equal(legacy.artifact_kind, 'feed');
+    assert.throws(
+        () => assertCanonicalPublicationPlacement({ type: 'dzen' }, 'feed'),
+        /TARGET_PLACEMENT_MISMATCH/
+    );
+});

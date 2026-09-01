@@ -30,7 +30,6 @@ export function publicationPlacementAssetContract(
     channel: { type: string; config?: unknown },
     placement: string
 ): PublicationPlacementAssetContract {
-    assertCanonicalPublicationPlacement(channel, placement);
     const normalizedType = channel.type.trim().toLowerCase();
     if (placement === 'story') {
         return {
