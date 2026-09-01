@@ -8,7 +8,8 @@ import {
     mergeChannelConfig,
     cleanAndFormatHashtags,
     prepareChannelConfigForStorage,
-    resolveChannelConfigSecrets
+    resolveChannelConfigSecrets,
+    resolveEffectiveChannelConfig
 } from '../utils/channel.utils';
 import projectRoutes from '../routes/project.routes';
 import authService from '../services/auth.service';
@@ -143,6 +144,33 @@ test('Dzen credentials nested in raw_account are resolved for connection checks'
 
         assert.equal(resolved.cookies, 'zen_session_id=nested-session');
         assert.equal(resolved.raw_account.cookies, 'zen_session_id=nested-session');
+    } finally {
+        if (previousKey === undefined) delete process.env.CHANNEL_SECRETS_KEY;
+        else process.env.CHANNEL_SECRETS_KEY = previousKey;
+    }
+});
+
+test('effective Dzen config keeps legacy raw_account fields but prefers rotated top-level session', () => {
+    const previousKey = process.env.CHANNEL_SECRETS_KEY;
+    process.env.CHANNEL_SECRETS_KEY = 'test-channel-secret-key-at-least-32-chars';
+    try {
+        const stored = prepareChannelConfigForStorage('dzen', {
+            channel_id: 'current-channel',
+            cookies: 'Session_id=current-session; sessionid2=current-session-2',
+            workflow_mode: 'auto_publish',
+            raw_account: {
+                platform: 'dzen',
+                channel_id: 'legacy-channel'
+            }
+        });
+
+        const resolved = resolveEffectiveChannelConfig('dzen', stored);
+
+        assert.equal(resolved.platform, 'dzen');
+        assert.equal(resolved.channel_id, 'current-channel');
+        assert.equal(resolved.cookies, 'Session_id=current-session; sessionid2=current-session-2');
+        assert.equal(resolved.workflow_mode, 'auto_publish');
+        assert.equal(resolved.raw_account, undefined);
     } finally {
         if (previousKey === undefined) delete process.env.CHANNEL_SECRETS_KEY;
         else process.env.CHANNEL_SECRETS_KEY = previousKey;

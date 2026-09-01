@@ -3,7 +3,7 @@ import publisherService from './publisher.service';
 import { requireProjectActorAccess } from './project_access.service';
 import dzenService from './dzen.service';
 import publicationAdapterService from './publication_adapter.service';
-import { resolveChannelConfigSecrets } from '../utils/channel.utils';
+import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
 
 export interface ExecuteDeliveryArgs {
     projectId: number; actorId: string; contentItemId: number; channelId: number;
@@ -69,10 +69,11 @@ export class DeliveryService {
         }
 
         const channelType = String(task.channel?.type || '').toLowerCase();
-        const rawChannelConfig = task.channel?.config?.raw_account || task.channel?.config || {};
+        const storedChannelConfig = task.channel?.config || {};
+        const rawChannelConfig = resolveEffectiveChannelConfig(channelType, storedChannelConfig);
         const effectiveChannelConfig = {
             ...rawChannelConfig,
-            workflow_mode: task.channel?.config?.workflow_mode || rawChannelConfig.workflow_mode,
+            workflow_mode: rawChannelConfig.workflow_mode,
             platform: rawChannelConfig.platform || channelType
         };
         const dzenAutomaticByDefault = publicationAdapterService.prefersAutomaticExecution(effectiveChannelConfig);
@@ -83,7 +84,7 @@ export class DeliveryService {
                 throw new Error('[AUTOMATIC_ROUTE_NOT_ALLOWED] Only configured Dzen tasks support owner promotion from browser mode');
             }
             await this.requireOwner(projectId, actorId);
-            const dzenConfig = resolveChannelConfigSecrets(channelType, rawChannelConfig);
+            const dzenConfig = rawChannelConfig;
             await this.preflightDzen({
                 channel_id: dzenConfig.channel_id || dzenConfig.vk_id,
                 channel_url: dzenConfig.channel_url,

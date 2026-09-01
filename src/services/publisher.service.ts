@@ -20,7 +20,7 @@ import artDirectionService from './art_direction.service';
 import { parseRecurringTrigger } from './publication_runtime.helpers';
 import { browserFallbackReason, resolvePublicationExecutionRoute } from './publication_execution_route';
 import { derivePublicationContentState } from './publication_content_state';
-import { resolveChannelConfigSecrets } from '../utils/channel.utils';
+import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
 import publicationFactService from './publication_fact.service';
 import { normalizeTelegramDeliveryPayload } from './telegram_delivery_payload';
 import telegramClientService from './telegram_client.service';
@@ -2159,8 +2159,7 @@ class PublisherService {
         }
 
         if (['zen', 'zen_article', 'dzen'].includes(channelType)) {
-            const rawDzenConfig = channelConfig.raw_account || channelConfig;
-            const dzenConfig = resolveChannelConfigSecrets(channelType, rawDzenConfig);
+            const dzenConfig = resolveEffectiveChannelConfig(channelType, channelConfig);
             const title = bundle.publication?.html_bundle?.[0]?.asset?.title || task.title || 'Zen article';
             const actionType = String((task.assets as any)?.action?.action_type || task.type || '').toLowerCase();
             const publicationType = actionType.includes('article') || channelType === 'zen_article'
