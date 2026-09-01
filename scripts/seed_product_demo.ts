@@ -10,6 +10,7 @@ if (!databaseUrl) throw new Error('DATABASE_URL is required');
 const email = process.env.DEMO_USER_EMAIL?.trim().toLowerCase();
 const password = process.env.DEMO_USER_PASSWORD || '';
 if (!email || !email.includes('@')) throw new Error('DEMO_USER_EMAIL is required');
+const demoEmail = email;
 if (password.length < 16) throw new Error('DEMO_USER_PASSWORD must contain at least 16 characters');
 if (process.env.DEMO_SEED_CONFIRM !== 'CONTENTOPS_STUDIO_PRODUCT_DEMO') {
     throw new Error('Set DEMO_SEED_CONFIRM=CONTENTOPS_STUDIO_PRODUCT_DEMO to seed the product demo');
@@ -36,7 +37,7 @@ function currentWeek() {
 }
 
 async function main() {
-    const existingUser = await prisma.user.findUnique({ where: { email } });
+    const existingUser = await prisma.user.findUnique({ where: { email: demoEmail } });
     if (existingUser && !existingUser.is_demo) {
         throw new Error('Refusing to convert an existing regular account into a demo account');
     }
@@ -48,7 +49,7 @@ async function main() {
             data: { name: 'ContentOps Studio Demo', password_hash: passwordHash, is_demo: true }
         })
         : await prisma.user.create({
-            data: { email, name: 'ContentOps Studio Demo', password_hash: passwordHash, is_demo: true }
+            data: { email: demoEmail, name: 'ContentOps Studio Demo', password_hash: passwordHash, is_demo: true }
         });
 
     const existingProject = await prisma.project.findUnique({ where: { slug: projectSlug } });
