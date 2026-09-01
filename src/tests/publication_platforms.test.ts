@@ -4,6 +4,7 @@ import okService from '../services/ok.service';
 import habrService from '../services/habr.service';
 import vcService from '../services/vc.service';
 import dzenService, { isDzenPublishedUrl } from '../services/dzen.service';
+import { DZEN_EDITOR_SELECTORS } from '../services/puppeteer_publisher.service';
 import puppeteerPublisherService from '../services/puppeteer_publisher.service';
 import publicationAdapterService from '../services/publication_adapter.service';
 
@@ -135,6 +136,14 @@ test('Dzen connection supports current channel editor identifiers', () => {
         publisher.dzenChannelEditorUrl({ cookies: 'x=1', channel_url: 'https://dzen.ru/id/6a8029aba055ec36033bf81c' }),
         'https://dzen.ru/profile/editor/id/6a8029aba055ec36033bf81c'
     );
+});
+
+test('Dzen editor automation uses the current studio entrypoint and semantic Draft.js fields', () => {
+    assert.equal(DZEN_EDITOR_SELECTORS.addPublication, '[data-testid="add-publication-button"]');
+    assert.match(DZEN_EDITOR_SELECTORS.articleMenuItem, /Написать статью/);
+    assert.match(DZEN_EDITOR_SELECTORS.articleTitle, /role="textbox".*:has\(h1/);
+    assert.match(DZEN_EDITOR_SELECTORS.articleBody, /role="textbox".*zen-editor-block/);
+    assert.equal(DZEN_EDITOR_SELECTORS.articlePublish, '[data-testid="article-publish-btn"]');
 });
 
 test('publicationAdapterService recognizes new platforms as direct-execution friendly', () => {

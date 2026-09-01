@@ -19,6 +19,15 @@ interface DzenPublishConfig {
 
 type DzenPublicationType = 'article' | 'post';
 
+export const DZEN_EDITOR_SELECTORS = {
+    addPublication: '[data-testid="add-publication-button"]',
+    articleMenuItem: '[role="button"][aria-label="Написать статью"]',
+    postMenuItem: '[role="button"][aria-label="Написать пост"]',
+    articleTitle: '[contenteditable="true"][role="textbox"]:has(h1[data-block="true"])',
+    articleBody: '[contenteditable="true"][role="textbox"]:has(.zen-editor-block)',
+    articlePublish: '[data-testid="article-publish-btn"]'
+} as const;
+
 class PuppeteerPublisherService {
     private dzenChannelId(config: DzenPublishConfig): string | null {
         const candidate = config.channel_id?.trim() || config.channel_url?.trim() || '';
@@ -39,6 +48,39 @@ class PuppeteerPublisherService {
         return channelId
             ? `https://dzen.ru/profile/editor/id/${encodeURIComponent(channelId)}`
             : (config.article_editor_url || 'https://dzen.ru/studio/editor/create/article');
+    }
+
+    private async openDzenComposer(page: Page, config: DzenPublishConfig, publicationType: DzenPublicationType) {
+        const channelId = this.dzenChannelId(config);
+        if (!channelId) {
+            const configuredUrl = publicationType === 'article'
+                ? config.article_editor_url
+                : config.post_editor_url;
+            if (!configuredUrl) {
+                throw new Error('Dzen channel ID is required to open the current publication editor');
+            }
+            await page.goto(configuredUrl, { waitUntil: 'networkidle2', timeout: 30_000 });
+            return;
+        }
+
+        const publicationsUrl = `https://dzen.ru/profile/editor/id/${encodeURIComponent(channelId)}/publications`;
+        await page.goto(publicationsUrl, { waitUntil: 'networkidle2', timeout: 30_000 });
+        await this.assertDzenAuthenticated(page);
+        await page.waitForSelector(DZEN_EDITOR_SELECTORS.addPublication, { timeout: 15_000 });
+        await page.click(DZEN_EDITOR_SELECTORS.addPublication);
+
+        const menuSelector = publicationType === 'article'
+            ? DZEN_EDITOR_SELECTORS.articleMenuItem
+            : DZEN_EDITOR_SELECTORS.postMenuItem;
+        await page.waitForSelector(menuSelector, { timeout: 10_000 });
+        await Promise.all([
+            page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30_000 }).catch(() => undefined),
+            page.click(menuSelector)
+        ]);
+        await page.waitForFunction(
+            () => /\/profile\/editor\/id\/[^/]+\/[^/]+\/edit(?:[/?#]|$)/.test(window.location.href),
+            { timeout: 15_000 }
+        );
     }
 
     /**
@@ -410,18 +452,14 @@ class PuppeteerPublisherService {
 
             await page.setCookie(...cookiesMain, ...cookiesDot, ...cookiesYandex);
 
-            const studioUrl = publicationType === 'article'
-                ? (config.article_editor_url || 'https://dzen.ru/studio/editor/create/article')
-                : (config.post_editor_url || 'https://dzen.ru/studio/editor/create/post');
-            console.log(`[PuppeteerPublisher] Navigating to ${studioUrl}`);
-            await page.goto(studioUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+            console.log('[PuppeteerPublisher] Opening Dzen composer from the channel publications page...');
+            await this.openDzenComposer(page, config, publicationType);
 
             await this.assertDzenAuthenticated(page);
 
             if (publicationType === 'article') {
                 console.log('[PuppeteerPublisher] Filling title...');
-                const titleSelector = '[placeholder="Заголовок"], div[data-placeholder="Заголовок"], .editor__title-input, h1[contenteditable="true"]';
-                const titleEl = await page.waitForSelector(titleSelector, { timeout: 15000 });
+                const titleEl = await page.waitForSelector(DZEN_EDITOR_SELECTORS.articleTitle, { timeout: 15000 });
                 if (!titleEl) throw new Error('Could not find Dzen title input block');
                 await titleEl.focus();
                 await page.evaluate((el: any, t) => {
@@ -433,7 +471,9 @@ class PuppeteerPublisherService {
 
             // Move to body editor
             console.log('[PuppeteerPublisher] Filling body text...');
-            const bodySelector = '[contenteditable="true"]:not([placeholder="Заголовок"]):not(h1), .editor__body [contenteditable="true"], .editor__content';
+            const bodySelector = publicationType === 'article'
+                ? DZEN_EDITOR_SELECTORS.articleBody
+                : '[contenteditable="true"][role="textbox"]';
             const bodyEl = await page.waitForSelector(bodySelector, { timeout: 15000 });
             if (!bodyEl) throw new Error('Could not find Dzen content body editor block');
 
@@ -457,7 +497,12 @@ class PuppeteerPublisherService {
 
             // Click "Опубликовать" (Publish) button in editor header
             console.log('[PuppeteerPublisher] Triggering Dzen publication modal...');
-            const clickedPubHeader = await page.evaluate(() => {
+            const clickedPubHeader = publicationType === 'article'
+                ? Boolean(await page.$eval(DZEN_EDITOR_SELECTORS.articlePublish, (button: any) => {
+                    button.click();
+                    return true;
+                }).catch(() => false))
+                : await page.evaluate(() => {
                 const buttons = Array.from(document.querySelectorAll('button'));
                 const btn = buttons.find((b) => {
                     const txt = b.textContent?.trim() || '';
