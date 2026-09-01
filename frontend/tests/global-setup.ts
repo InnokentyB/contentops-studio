@@ -9,7 +9,7 @@
 import { request } from '@playwright/test';
 
 const API_URL = 'http://localhost:3003';
-const TEST_EMAIL = process.env.TEST_EMAIL || 'e2e@ba-planner.test';
+const TEST_EMAIL = process.env.TEST_EMAIL || 'e2e@contentops-studio.test';
 const TEST_PASS = process.env.TEST_PASS || 'e2e-test-password-123';
 const TEST_NAME = 'E2E Test User';
 

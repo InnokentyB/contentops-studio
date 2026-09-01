@@ -4,7 +4,7 @@ const BASE_URL = 'http://localhost:5173';
 const API_URL = 'http://localhost:3003';
 
 // Default credentials for the auto-created E2E test user (see global-setup.ts)
-const DEFAULT_EMAIL = process.env.TEST_EMAIL || 'e2e@ba-planner.test';
+const DEFAULT_EMAIL = process.env.TEST_EMAIL || 'e2e@contentops-studio.test';
 const DEFAULT_PASS = process.env.TEST_PASS || 'e2e-test-password-123';
 
 // ------------------------------------------------------------

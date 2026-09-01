@@ -84,7 +84,7 @@ test('VCService successfully publishes to Osnova API and validates User-Agent', 
     assert.equal(publishedUrl, 'https://vc.ru/published-real-123');
     assert.equal(capturedUrl, 'https://api.vc.ru/v1.9/entry/create');
     assert.equal(capturedHeaders['X-Device-Token'], 'valid_vc_token');
-    assert.equal(capturedHeaders['User-Agent'], 'ba-post-planner-app/1.0.0 (Desktop; macOS/15.0; ru; 1920x1080)');
+    assert.equal(capturedHeaders['User-Agent'], 'contentops-studio-app/1.0.0 (Desktop; macOS/15.0; ru; 1920x1080)');
     assert.ok(capturedBody.includes('title=%D0%A2%D0%B5%D1%81%D1%82%D0%BE%D0%B2%D0%B0%D1%8F+%D1%81%D1%82%D0%B0%D1%82%D1%8C%D1%8F+VC'));
 });
 

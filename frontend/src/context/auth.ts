@@ -4,11 +4,13 @@ export interface User {
     id: number
     email: string
     name?: string
+    is_demo?: boolean
 }
 
 export interface Project {
     id: number
     name: string
+    role?: 'owner' | 'editor' | 'viewer'
 }
 
 export interface AuthContextType {

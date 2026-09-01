@@ -4,7 +4,7 @@ class RedditService {
         const clientSecret = config.client_secret || process.env.REDDIT_CLIENT_SECRET;
         const username = config.username || process.env.REDDIT_USERNAME;
         const password = config.password || process.env.REDDIT_PASSWORD;
-        const userAgent = config.user_agent || process.env.REDDIT_USER_AGENT || 'ba-post-planner/1.0';
+        const userAgent = config.user_agent || process.env.REDDIT_USER_AGENT || 'contentops-studio/1.0';
 
         if (!clientId || !clientSecret || !username || !password) {
             throw new Error('Missing Reddit credentials');
@@ -45,7 +45,7 @@ class RedditService {
         text: string;
     }) {
         const token = await this.getAccessToken(config);
-        const userAgent = config.user_agent || process.env.REDDIT_USER_AGENT || 'ba-post-planner/1.0';
+        const userAgent = config.user_agent || process.env.REDDIT_USER_AGENT || 'contentops-studio/1.0';
 
         const body = new URLSearchParams({
             api_type: 'json',
@@ -88,7 +88,7 @@ class RedditService {
         const normalizedUrl = postUrl.endsWith('.json') ? postUrl : `${postUrl.replace(/\/$/, '')}.json`;
         const response = await fetch(normalizedUrl, {
             headers: {
-                'User-Agent': process.env.REDDIT_USER_AGENT || 'ba-post-planner/1.0'
+                'User-Agent': process.env.REDDIT_USER_AGENT || 'contentops-studio/1.0'
             }
         });
 

@@ -58,15 +58,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <Link
             to="/projects"
             className={`${compact ? 'w-11 h-11 rounded-2xl bg-primary-fixed text-primary flex items-center justify-center' : 'block hover:opacity-80'} transition-opacity`}
-            aria-label={compact ? 'Project Alpha' : undefined}
-            title={compact ? 'Project Alpha' : undefined}
+            aria-label={compact ? 'ContentOps Studio' : undefined}
+            title={compact ? 'ContentOps Studio' : undefined}
           >
             {compact ? (
-              <span className="material-symbols-outlined" aria-hidden="true">dashboard</span>
+              <img src="/contentops-studio-mark.svg" alt="" className="h-11 w-11 rounded-2xl" />
             ) : (
               <>
-                <div className="text-[10px] font-black uppercase tracking-[0.22em] text-primary/60">Workspace</div>
-                <h1 className="mt-2 text-2xl font-black text-primary tracking-tighter font-headline">Project Alpha</h1>
+                <div className="text-[10px] font-black uppercase tracking-[0.22em] text-primary/60">Content operations</div>
+                <h1 className="mt-2 text-2xl font-black text-primary tracking-tighter font-headline">ContentOps Studio</h1>
                 <p className="text-xs text-on-surface-variant font-label mt-1">{t('workspaceSubtitle')}</p>
               </>
             )}
@@ -242,6 +242,18 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
           </nav>
         </header>
+
+        {user?.is_demo && (
+          <div className="mx-4 mt-3 flex items-center gap-3 rounded-2xl border border-primary/20 bg-primary-fixed px-4 py-3 text-sm text-on-primary-fixed lg:mx-8" role="status">
+            <span className="material-symbols-outlined text-xl" aria-hidden="true">visibility</span>
+            <div className="min-w-0">
+              <span className="font-black">{locale === 'ru' ? 'Демонстрационный режим' : 'Product demo'}</span>
+              <span className="ml-2 text-on-primary-fixed/75">
+                {locale === 'ru' ? 'Можно свободно изучать продукт, но изменения и публикации отключены.' : 'Explore the full workspace safely. Changes and live publishing are disabled.'}
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Dynamic Content */}
         <div className="flex-1 w-full flex flex-col overflow-hidden">

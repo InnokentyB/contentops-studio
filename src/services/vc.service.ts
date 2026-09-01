@@ -82,7 +82,7 @@ class VCService {
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                         'X-Device-Token': config.access_token,
-                        'User-Agent': 'ba-post-planner-app/1.0.0 (Desktop; macOS/15.0; ru; 1920x1080)'
+                        'User-Agent': 'contentops-studio-app/1.0.0 (Desktop; macOS/15.0; ru; 1920x1080)'
                     },
                     body: new URLSearchParams({
                         title: postTitle,

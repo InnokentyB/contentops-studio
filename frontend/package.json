@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "test:ui-contract": "node tests/contracts/publication-tasks-copy.test.mjs && node tests/contracts/operational-calendar.test.mjs && node tests/contracts/project-settings.test.mjs && node tests/contracts/localization.test.mjs",
+    "test:ui-contract": "node tests/contracts/publication-tasks-copy.test.mjs && node tests/contracts/operational-calendar.test.mjs && node tests/contracts/project-settings.test.mjs && node tests/contracts/localization.test.mjs && node tests/contracts/branding.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

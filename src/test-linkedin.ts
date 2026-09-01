@@ -7,7 +7,7 @@ async function main() {
     console.log('Testing LinkedIn Service initialized...');
     
     // 1. Test Auth URL Generation
-    const authUrl = linkedinService.getAuthUrl(1);
+    const authUrl = linkedinService.getAuthUrl('signed-test-state');
     console.log('Generated Auth URL:', authUrl);
     
     if (!authUrl.includes('response_type=code') || !authUrl.includes('client_id=')) {

@@ -115,7 +115,7 @@ async function main() {
     });
   }
 
-  const client = new Client({ name: 'ba-post-planner-smoke-test', version: '1.0.0' });
+  const client = new Client({ name: 'contentops-studio-smoke-test', version: '1.0.0' });
 
   try {
     await client.connect(transport);

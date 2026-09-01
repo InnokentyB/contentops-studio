@@ -458,7 +458,7 @@ const SETTINGS_GROUPS: Array<{ label: string; tabs: Array<{ id: SettingsTab; lab
 export default function Settings() {
     const queryClient = useQueryClient()
     const { showToast } = useToast()
-    const { currentProject, user } = useAuth()
+    const { currentProject, user, token } = useAuth()
     const { locale } = useLocale()
     const copy = locale === 'ru' ? {
         title: 'Настройки проекта', intro: 'Управляйте рабочим контуром проекта', owner: 'Владелец', readOnly: 'Только просмотр',
@@ -535,6 +535,7 @@ export default function Settings() {
     const [newChannelApiKey, setNewChannelApiKey] = useState('')
     const [newChannelWorkflowMode, setNewChannelWorkflowMode] = useState<'prepare_only' | 'approval_required' | 'auto_publish'>('approval_required')
     const [newChannelContentLanguage, setNewChannelContentLanguage] = useState<'ru' | 'en'>('ru')
+    const [linkedinConnecting, setLinkedinConnecting] = useState(false)
     const [newVkStatsToken, setNewVkStatsToken] = useState('')
     const [okAppKey, setOkAppKey] = useState('')
     const [okAppSecret, setOkAppSecret] = useState('')
@@ -923,6 +924,27 @@ export default function Settings() {
         reader.readAsText(file)
     }
 
+
+    const handleLinkedInConnect = async () => {
+        if (!currentProject?.id || !token) return showToast('Authentication required', 'error')
+        setLinkedinConnecting(true)
+        try {
+            const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3003'
+            const response = await fetch(`${apiBase}/api/auth/linkedin/connect?projectId=${currentProject.id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+            const result = await response.json()
+            if (!response.ok || !result.url) throw new Error(result.error || 'LinkedIn connection failed')
+            window.location.assign(result.url)
+        } catch (error) {
+            showToast(
+                locale === 'ru' ? 'Не удалось начать подключение LinkedIn' : 'Could not start LinkedIn connection',
+                'error',
+                error instanceof Error ? error.message : undefined
+            )
+            setLinkedinConnecting(false)
+        }
+    }
 
     const handleAddChannel = () => {
         if (!newChannelName) return showToast('Channel Name is required', 'warning');
@@ -1316,7 +1338,7 @@ export default function Settings() {
                                 {capabilityCards.map((capability) => {
                                     const config = JSON.stringify({
                                         mcpServers: {
-                                            [`ba-post-planner-${capability.id}`]: {
+                                            [`contentops-studio-${capability.id}`]: {
                                                 url: capability.endpoint,
                                                 headers: { Authorization: `Bearer ${capability.token}` }
                                             }
@@ -1664,10 +1686,11 @@ export default function Settings() {
                                     )}
                                     <button
                                         className="btn-secondary"
-                                        onClick={() => window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:3003'}/api/auth/linkedin/connect?projectId=${currentProject?.id}`}
+                                        onClick={handleLinkedInConnect}
+                                        disabled={linkedinConnecting || currentProject?.role !== 'owner' || user?.is_demo}
                                         style={{ width: '100%' }}
                                     >
-                                        🔗 Connect / Reconnect LinkedIn
+                                        {linkedinConnecting ? 'Connecting…' : 'Connect / Reconnect LinkedIn'}
                                     </button>
                                 </div>
                             )}

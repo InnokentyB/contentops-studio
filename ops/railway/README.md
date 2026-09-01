@@ -2,8 +2,8 @@
 
 This repository deploys multiple Railway services from the same codebase.
 
-- `planner-app` must use [`planner-app.railway.json`](/Users/innokentyb/Ba_post_planner/ops/railway/planner-app.railway.json)
-- `planner-mcp` must use [`planner-mcp.railway.json`](/Users/innokentyb/Ba_post_planner/ops/railway/planner-mcp.railway.json)
+- `planner-app` must use [`planner-app.railway.json`](./planner-app.railway.json)
+- `planner-mcp` must use [`planner-mcp.railway.json`](./planner-mcp.railway.json)
 
 Do not use a shared root-level `railway.json` for both services.
 

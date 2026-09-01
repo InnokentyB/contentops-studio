@@ -13,6 +13,8 @@ import projectRoutes from './routes/project.routes';
 import linkedinRoutes from './routes/linkedin.routes';
 import path from 'path';
 import healthService from './services/health.service';
+import authService from './services/auth.service';
+import { isDemoMutationBlocked } from './utils/demo_access';
 
 
 // Crash Logging
@@ -43,6 +45,25 @@ server.addHook('onRequest', (request, reply, done) => {
         console.log(`[Server] Incoming request: ${request.method} ${request.url}`);
     }
     done();
+});
+
+// Demo credentials are intentionally shareable. Enforce read-only behavior on
+// the server so a modified client cannot mutate data or trigger publications.
+server.addHook('preHandler', async (request, reply) => {
+    const token = request.headers.authorization?.split(' ')[1];
+    if (!token) return;
+
+    try {
+        const user = authService.verifyToken(token);
+        if (isDemoMutationBlocked(user, request.method, request.url)) {
+            return reply.code(403).send({
+                error: 'Demo access is read-only. Sign in with a regular account to make changes.',
+                code: 'DEMO_READ_ONLY'
+            });
+        }
+    } catch {
+        // Route-level authentication returns the canonical invalid-token response.
+    }
 });
 
 server.register(require('@fastify/cors'), {

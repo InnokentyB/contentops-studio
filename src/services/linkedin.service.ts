@@ -21,17 +21,18 @@ class LinkedInService {
 
     /**
      * Generates the OAuth 2.0 Authorization URL for LinkedIn.
-     * @param projectId The project ID to pass in state parameter
+     * @param state A short-lived signed state bound to the owner and project
      */
-    getAuthUrl(projectId: number): string {
+    getAuthUrl(state: string): string {
         const clientId = this.getClientId();
-        const redirectUri = encodeURIComponent(this.getRedirectUri());
-        const state = encodeURIComponent(JSON.stringify({ projectId }));
-        
-        // Request both publishing and member post analytics permissions.
-        const scope = encodeURIComponent('w_member_social r_member_postAnalytics openid profile email');
-        
-        return `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&state=${state}&scope=${scope}`;
+        const params = new URLSearchParams({
+            response_type: 'code',
+            client_id: clientId,
+            redirect_uri: this.getRedirectUri(),
+            state,
+            scope: 'w_member_social r_member_postAnalytics openid profile email'
+        });
+        return `https://www.linkedin.com/oauth/v2/authorization?${params.toString()}`;
     }
 
     /**

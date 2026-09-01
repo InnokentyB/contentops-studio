@@ -14,17 +14,31 @@ export default async function linkedinRoutes(fastify: FastifyInstance) {
     
     // GET /api/auth/linkedin/connect?projectId=123
     fastify.get('/api/auth/linkedin/connect', async (request, reply) => {
-        // Here we ideally verify if the user has auth/token in query or cookies to check rights,
-        // but since this is OAuth redirect, we often pass it via a UI click.
         const { projectId } = request.query as any;
-
-        if (!projectId) {
+        const parsedProjectId = Number(projectId);
+        const token = request.headers.authorization?.split(' ')[1];
+        if (!token) return reply.code(401).send({ error: 'Authentication required' });
+        if (!Number.isInteger(parsedProjectId)) {
             return reply.code(400).send({ error: 'projectId is required' });
         }
 
-        const url = linkedinService.getAuthUrl(Number(projectId));
-        // Redirect browser to LinkedIn
-        reply.redirect(url);
+        try {
+            const user = authService.verifyToken(token);
+            if (user.is_demo) {
+                return reply.code(403).send({ error: 'Demo access is read-only', code: 'DEMO_READ_ONLY' });
+            }
+            const membership = await prisma.projectMember.findUnique({
+                where: { project_id_user_id: { project_id: parsedProjectId, user_id: user.id } }
+            });
+            if (membership?.role !== 'owner') {
+                return reply.code(403).send({ error: 'Project owner access required' });
+            }
+
+            const state = authService.createLinkedInOAuthState(user.id, parsedProjectId);
+            return { url: linkedinService.getAuthUrl(state) };
+        } catch {
+            return reply.code(401).send({ error: 'Invalid token' });
+        }
     });
 
     // GET /api/auth/linkedin/callback
@@ -42,11 +56,15 @@ export default async function linkedinRoutes(fastify: FastifyInstance) {
         }
 
         try {
-            // Parse state to get project ID
-            const decodedState = JSON.parse(decodeURIComponent(state));
-            const projectId = Number(decodedState.projectId);
-
-            if (!projectId || isNaN(projectId)) throw new Error('Invalid state payload');
+            const binding = authService.verifyLinkedInOAuthState(state);
+            const projectId = binding.project_id;
+            const membership = await prisma.projectMember.findUnique({
+                where: { project_id_user_id: { project_id: projectId, user_id: binding.user_id } },
+                include: { user: true }
+            });
+            if (membership?.role !== 'owner' || membership.user.is_demo) {
+                throw new Error('LinkedIn OAuth owner binding is no longer valid');
+            }
 
             // 1. Exchange code for access token
             const token = await linkedinService.exchangeCodeToToken(code);

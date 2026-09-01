@@ -47,11 +47,13 @@ export default function Login() {
 
             <div className="w-full max-w-md glass-panel p-10 md:p-14 rounded-[3rem] border border-outline-variant/20 shadow-2xl relative z-10 animate-in fade-in zoom-in-95 duration-500">
                 <div className="flex flex-col items-center mb-10 text-center">
-                    <div className="w-20 h-20 ai-gradient text-white rounded-3xl flex items-center justify-center mb-6 shadow-xl shadow-primary/20 rotate-3 group hover:rotate-0 transition-transform duration-300">
-                        <span className="material-symbols-outlined text-4xl">rocket_launch</span>
-                    </div>
-                    <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60 mb-2">Workspace</div>
-                    <h1 className="text-3xl font-headline font-black tracking-tight text-on-surface mb-2">Project Alpha</h1>
+                    <img
+                        src="/contentops-studio-mark.svg"
+                        alt=""
+                        className="w-20 h-20 mb-6 rounded-3xl shadow-xl shadow-primary/20"
+                    />
+                    <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/60 mb-2">Governed content operations</div>
+                    <h1 className="text-3xl font-headline font-black tracking-tight text-on-surface mb-2">ContentOps Studio</h1>
                     <p className="text-sm font-label uppercase tracking-widest text-primary font-bold">{t('workspaceSubtitle')}</p>
                 </div>
 

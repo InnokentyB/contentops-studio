@@ -3,7 +3,7 @@ import { test, expect, request } from '@playwright/test';
 const BASE_URL = 'http://localhost:5173';
 const API_URL = 'http://localhost:3003';
 
-const DEFAULT_EMAIL = process.env.TEST_EMAIL || 'e2e@ba-planner.test';
+const DEFAULT_EMAIL = process.env.TEST_EMAIL || 'e2e@contentops-studio.test';
 const DEFAULT_PASS = process.env.TEST_PASS || 'e2e-test-password-123';
 
 async function getAuthData(): Promise<{ token: string; user: object; projects: object[] }> {

@@ -47,7 +47,7 @@ export function asTelegramRouteToolError(error: any) {
 
 export function createPlannerMcpServer(options: { profile?: McpCapabilityProfile } = {}) {
     const server = new McpServer({
-        name: 'ba-post-planner-publication',
+        name: 'contentops-studio-publication',
         version: '1.0.0'
     });
 

@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f7f9fb"/>
+      <stop offset="1" stop-color="#e8eaff"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="1080" cy="90" r="250" fill="#c0c1ff" opacity=".42"/>
+  <circle cx="1080" cy="610" r="320" fill="#47d6ff" opacity=".12"/>
+  <g transform="translate(82 82)">
+    <rect width="92" height="92" rx="25" fill="#333697"/>
+    <path d="M25 25 46 46 67 25M46 46 67 67M46 46 25 67" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="25" cy="25" r="7" fill="#fff"/>
+    <circle cx="67" cy="25" r="7" fill="#fff"/>
+    <circle cx="25" cy="67" r="7" fill="#fff"/>
+    <circle cx="67" cy="67" r="7" fill="#fff"/>
+    <circle cx="46" cy="46" r="9" fill="#47d6ff" stroke="#333697" stroke-width="3"/>
+  </g>
+  <text x="82" y="270" fill="#191c1e" font-family="Manrope, Arial, sans-serif" font-size="76" font-weight="800" letter-spacing="-3">ContentOps Studio</text>
+  <text x="86" y="345" fill="#454652" font-family="Manrope, Arial, sans-serif" font-size="32" font-weight="500">Governed content operations for human and AI teams</text>
+  <g transform="translate(86 428)" fill="#333697" font-family="Manrope, Arial, sans-serif" font-size="22" font-weight="700">
+    <text x="0" y="0">RESEARCH</text>
+    <text x="190" y="0">PLAN</text>
+    <text x="310" y="0">APPROVE</text>
+    <text x="485" y="0">PUBLISH</text>
+    <text x="660" y="0">MEASURE</text>
+  </g>
+  <path d="M86 472H865" stroke="#c5c5d4" stroke-width="2"/>
+  <circle cx="86" cy="472" r="7" fill="#333697"/>
+  <circle cx="282" cy="472" r="7" fill="#333697"/>
+  <circle cx="408" cy="472" r="7" fill="#333697"/>
+  <circle cx="584" cy="472" r="7" fill="#333697"/>
+  <circle cx="755" cy="472" r="7" fill="#333697"/>
+  <circle cx="865" cy="472" r="9" fill="#47d6ff" stroke="#333697" stroke-width="3"/>
+</svg>
