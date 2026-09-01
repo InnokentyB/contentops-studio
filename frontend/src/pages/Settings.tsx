@@ -303,6 +303,76 @@ function AgentSettingsRow({
     )
 }
 
+function VkConnectionGuide({
+    locale,
+    vkId,
+    publicationToken
+}: {
+    locale: 'ru' | 'en'
+    vkId: unknown
+    publicationToken: unknown
+}) {
+    const hasVkId = Boolean(String(vkId || '').trim())
+    const hasPublicationToken = Boolean(String(publicationToken || '').trim())
+    const fieldsComplete = hasVkId && hasPublicationToken
+    const missing = [
+        !hasVkId ? (locale === 'ru' ? 'ID сообщества' : 'community ID') : null,
+        !hasPublicationToken ? (locale === 'ru' ? 'токен публикации' : 'publication token') : null
+    ].filter(Boolean).join(locale === 'ru' ? ' и ' : ' and ')
+
+    return (
+        <details
+            open={!fieldsComplete}
+            className="rounded-xl border border-primary/20 bg-primary/5"
+            style={{ gridColumn: '1 / -1' }}
+        >
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
+                <span className="flex min-w-0 items-center gap-2 font-black text-on-surface">
+                    <span className="material-symbols-outlined text-xl text-primary" aria-hidden="true">link</span>
+                    {locale === 'ru' ? 'Как подключить VK' : 'How to connect VK'}
+                </span>
+                <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${fieldsComplete ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>
+                    {fieldsComplete
+                        ? (locale === 'ru' ? 'Поля заполнены' : 'Fields filled')
+                        : (locale === 'ru' ? `Не хватает: ${missing}` : `Missing: ${missing}`)}
+                </span>
+            </summary>
+            <div className="border-t border-primary/15 px-4 pb-4 pt-3 text-sm leading-6 text-on-surface-variant">
+                <ol className="m-0 grid gap-2 pl-5">
+                    <li>
+                        {locale === 'ru'
+                            ? 'Откройте нужное сообщество VK под аккаунтом администратора: Управление → Работа с API → Ключи доступа.'
+                            : 'Open the VK community as an administrator: Manage → API access → Access tokens.'}
+                    </li>
+                    <li>
+                        {locale === 'ru'
+                            ? 'Скопируйте числовой ID сообщества. В Планнере укажите его со знаком минус, например −123456789.'
+                            : 'Copy the numeric community ID. In Planner, enter it with a minus sign, for example −123456789.'}
+                    </li>
+                    <li>
+                        {locale === 'ru'
+                            ? 'Создайте ключ доступа для публикации. Разрешите управление сообществом и доступ к фотографиям, чтобы Планнер мог отправлять текст и визуал.'
+                            : 'Create an access token for publishing. Allow community management and photo access so Planner can send both copy and visuals.'}
+                    </li>
+                    <li>
+                        {locale === 'ru'
+                            ? 'Вставьте ключ в поле «Токен публикации» и сохраните канал. Токен статистики нужен только для расширенных охватов и не обязателен для публикации.'
+                            : 'Paste the key into Publication token and save the channel. The statistics token is only needed for extended reach metrics and is not required for publishing.'}
+                    </li>
+                </ol>
+                <div className="mt-3 flex gap-2 rounded-lg bg-white/70 px-3 py-2 text-xs leading-5">
+                    <span className="material-symbols-outlined mt-0.5 text-base text-primary" aria-hidden="true">shield_lock</span>
+                    <span>
+                        {locale === 'ru'
+                            ? 'Планнер не показывает сохранённый токен повторно. Не отправляйте его в чат и не добавляйте в репозиторий. Подготовка черновика может работать без коннекта, но реальная публикация останется заблокированной, пока оба обязательных поля не заполнены.'
+                            : 'Planner never reveals a saved token again. Do not send it in chat or commit it to the repository. Draft preparation can work without a connector, but live publishing remains blocked until both required fields are filled.'}
+                    </span>
+                </div>
+            </div>
+        </details>
+    )
+}
+
 type SettingsTab = 'general' | 'channels' | 'mcp' | 'keys' | 'agents' | 'skills' | 'dictionary' | 'presets' | 'team' | 'history'
 
 const SETTINGS_TABS: SettingsTab[] = ['general', 'channels', 'mcp', 'keys', 'agents', 'skills', 'dictionary', 'presets', 'team', 'history']
@@ -1362,6 +1432,11 @@ export default function Settings() {
                                             {locale === 'ru' ? 'Нужен для охватов, переходов, вступлений, скрытий, жалоб и отписок через stats.getPostReach.' : 'Required for reach, clicks, joins, hides, reports, and unfollows through stats.getPostReach.'}
                                         </div>
                                     </div>
+                                    <VkConnectionGuide
+                                        locale={locale}
+                                        vkId={newChannelId}
+                                        publicationToken={newChannelApiKey}
+                                    />
                                 </>
                             ) : newChannelType === 'ok' ? (
                                 <>
@@ -1713,6 +1788,11 @@ export default function Settings() {
                                                             {locale === 'ru' ? 'Отдельный пользовательский токен для stats.getPostReach. Существующее значение остаётся сохранённым, пока поле замаскировано.' : 'A separate user token for stats.getPostReach. The existing value remains saved while the field is masked.'}
                                                         </div>
                                                     </div>
+                                                    <VkConnectionGuide
+                                                        locale={locale}
+                                                        vkId={editingChannelConfig.vk_id}
+                                                        publicationToken={editingChannelConfig.publish_access_token || editingChannelConfig.api_key}
+                                                    />
                                                 </>
                                             )}
 
