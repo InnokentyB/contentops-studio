@@ -100,6 +100,75 @@ export class TelegramPublicationRouteError extends Error {
 }
 
 class PublisherService {
+    private ongoingRulePlanCache: {
+        expiresAt: number;
+        plans: Array<{
+            projectId: number;
+            meta: any;
+            ongoing_rules: any[];
+            measurement: any;
+        }>;
+    } | null = null;
+
+    private ongoingRuleCacheTtlMs() {
+        const configured = Number(process.env.PUBLICATION_RULES_CACHE_TTL_MS || 300000);
+        return Number.isFinite(configured) && configured >= 1000 ? configured : 300000;
+    }
+
+    private async loadOngoingRulePlans() {
+        const now = Date.now();
+        if (this.ongoingRulePlanCache && this.ongoingRulePlanCache.expiresAt > now) {
+            return this.ongoingRulePlanCache.plans;
+        }
+
+        const ruleSettings = await prisma.projectSettings.findMany({
+            where: { key: 'publication_plan_ongoing_rules' },
+            select: { project_id: true, value: true }
+        });
+        const projectIds = ruleSettings.map((setting) => setting.project_id);
+        if (projectIds.length === 0) {
+            this.ongoingRulePlanCache = {
+                expiresAt: now + this.ongoingRuleCacheTtlMs(),
+                plans: []
+            };
+            return [];
+        }
+
+        const supportingSettings = await prisma.projectSettings.findMany({
+            where: {
+                project_id: { in: projectIds },
+                key: { in: ['publication_plan_meta', 'publication_plan_measurement'] }
+            },
+            select: { project_id: true, key: true, value: true }
+        });
+        const settingsByProject = new Map<number, Map<string, string>>();
+        for (const setting of supportingSettings) {
+            const projectSettings = settingsByProject.get(setting.project_id) || new Map<string, string>();
+            projectSettings.set(setting.key, setting.value);
+            settingsByProject.set(setting.project_id, projectSettings);
+        }
+
+        const plans = ruleSettings.flatMap((ruleSetting) => {
+            const projectSettings = settingsByProject.get(ruleSetting.project_id);
+            const metaValue = projectSettings?.get('publication_plan_meta');
+            if (!metaValue) return [];
+
+            const measurementValue = projectSettings?.get('publication_plan_measurement');
+            return [{
+                projectId: ruleSetting.project_id,
+                meta: JSON.parse(metaValue),
+                ongoing_rules: JSON.parse(ruleSetting.value || '[]'),
+                measurement: measurementValue ? JSON.parse(measurementValue) : {}
+            }];
+        });
+
+        this.ongoingRulePlanCache = {
+            expiresAt: now + this.ongoingRuleCacheTtlMs(),
+            plans
+        };
+        return plans;
+    }
+
     async closeConnections() {
         await prisma.$disconnect();
         await pool.end();
@@ -906,14 +975,10 @@ class PublisherService {
 
     async processPublicationOngoingRules() {
         let createdCount = 0;
-        const ruleSettings = await prisma.projectSettings.findMany({
-            where: { key: 'publication_plan_ongoing_rules' }
-        });
+        const plans = await this.loadOngoingRulePlans();
 
-        for (const ruleSetting of ruleSettings) {
-            const projectId = ruleSetting.project_id;
-            const plan = await this.loadPublicationPlanContext(projectId);
-            if (!plan) continue;
+        for (const plan of plans) {
+            const projectId = plan.projectId;
 
             const timezone = plan.meta.timezone_default || 'UTC';
             const rules = Array.isArray(plan.ongoing_rules) ? plan.ongoing_rules : [];
