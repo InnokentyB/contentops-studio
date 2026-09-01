@@ -160,3 +160,9 @@ test('VK direct execution is available only with a provider target and publish c
         publish_access_token: 'token'
     }), true);
 });
+
+test('configured Dzen channels prefer connector auto when workflow mode is not explicitly overridden', () => {
+    assert.equal(publicationAdapterService.prefersAutomaticExecution({ platform: 'dzen', cookies_encrypted: 'enc:v1:test' }), true);
+    assert.equal(publicationAdapterService.prefersAutomaticExecution({ platform: 'dzen', cookies_encrypted: 'enc:v1:test', workflow_mode: 'approval_required' }), false);
+    assert.equal(publicationAdapterService.prefersAutomaticExecution({ platform: 'dzen' }), false);
+});

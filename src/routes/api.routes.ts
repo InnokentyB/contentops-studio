@@ -1344,12 +1344,15 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             : publicationPlanService.buildGeneratedContentItemHandoff(item);
         const channelConfig = (item.channel?.config as any) || {};
         const rawAccount = channelConfig.raw_account || channelConfig;
-        const directExecutionSupported = publicationAdapterService.supportsDirectExecution({
+        const effectiveAccount = {
             ...channelConfig,
             ...rawAccount,
+            workflow_mode: channelConfig.workflow_mode || rawAccount.workflow_mode,
             platform: rawAccount.platform || item.channel?.type
-        });
-        const browserRequired = bundle.mode === 'manual' || !directExecutionSupported;
+        };
+        const directExecutionSupported = publicationAdapterService.supportsDirectExecution(effectiveAccount);
+        const browserRequired = !directExecutionSupported
+            || (bundle.mode === 'manual' && !publicationAdapterService.prefersAutomaticExecution(effectiveAccount));
 
         const updated = await prisma.contentItem.update({
             where: { id: item.id },

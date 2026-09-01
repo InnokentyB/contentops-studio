@@ -1379,7 +1379,11 @@ export default function Settings() {
                     <div className="mb-3 p-2" style={{ border: '1px solid var(--border)', borderRadius: '8px' }}>
                         <div className="flex-between mb-3">
                             <h3 style={{ margin: 0 }}>Add Channel</h3>
-                            <select value={newChannelType} onChange={(e: ApiJson) => setNewChannelType(e.target.value)}>
+                            <select value={newChannelType} onChange={(e: ApiJson) => {
+                                const nextType = e.target.value;
+                                setNewChannelType(nextType);
+                                if (nextType === 'zen') setNewChannelWorkflowMode('auto_publish');
+                            }}>
                                 <option value="telegram">Telegram</option>
                                 <option value="vk">VKontakte (VK)</option>
                                 <option value="linkedin">LinkedIn</option>

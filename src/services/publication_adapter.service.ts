@@ -29,6 +29,18 @@ class PublicationAdapterService {
         return ['telegram', 'vk', 'linkedin', 'reddit', 'tilda', 'ok', 'odnoklassniki', 'habr', 'habr_article', 'vc', 'vc_article', 'threads'].includes(account.platform);
     }
 
+    prefersAutomaticExecution(account: PublicationAccount) {
+        const platform = String(account.platform || '').toLowerCase();
+        if (!['zen', 'zen_article', 'dzen'].includes(platform) || !this.supportsDirectExecution(account)) {
+            return false;
+        }
+        const workflowMode = String(account.workflow_mode || account.planner_generation_mode || 'standard').toLowerCase();
+        if (['prepare_only', 'approval_required', 'manual', 'manual_handoff', 'browser_required'].includes(workflowMode)) {
+            return false;
+        }
+        return true;
+    }
+
     inferExecutionMode(account: PublicationAccount, action: PublicationAction): 'manual' | 'automated' {
         if (action.human_review) {
             return 'manual';

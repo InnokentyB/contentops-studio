@@ -1,6 +1,9 @@
 import prisma from '../db';
 import publisherService from './publisher.service';
 import { requireProjectActorAccess } from './project_access.service';
+import dzenService from './dzen.service';
+import publicationAdapterService from './publication_adapter.service';
+import { resolveChannelConfigSecrets } from '../utils/channel.utils';
 
 export interface ExecuteDeliveryArgs {
     projectId: number; actorId: string; contentItemId: number; channelId: number;
@@ -13,6 +16,7 @@ interface DeliveryServiceDependencies {
     publishTask?: (taskId: number) => Promise<any>;
     requireAccess?: (projectId: number, actorId: string) => Promise<void>;
     requireOwner?: (projectId: number, actorId: string) => Promise<void>;
+    preflightDzen?: (config: any) => Promise<any>;
     now?: () => Date;
 }
 const iso = (value: Date | null | undefined) => value ? value.toISOString() : null;
@@ -22,6 +26,7 @@ export class DeliveryService {
     private readonly publishTask: (taskId: number) => Promise<any>;
     private readonly requireAccess: (projectId: number, actorId: string) => Promise<void>;
     private readonly requireOwner: (projectId: number, actorId: string) => Promise<void>;
+    private readonly preflightDzen: (config: any) => Promise<any>;
     private readonly now: () => Date;
 
     constructor(deps: DeliveryServiceDependencies = {}) {
@@ -38,6 +43,7 @@ export class DeliveryService {
             });
             if (membership?.role !== 'owner') throw new Error('[Security] Access denied: Project owner is required');
         });
+        this.preflightDzen = deps.preflightDzen || ((config) => dzenService.testConnection(config));
         this.now = deps.now || (() => new Date());
     }
 
@@ -54,12 +60,72 @@ export class DeliveryService {
         const { projectId, actorId, contentItemId, channelId, forceAutomatic, unapproved, simulateFailure, idempotencyKey, scheduledAt } = args;
         await this.requireAccess(projectId, actorId);
         const task = await this.db.contentItem.findFirst({
-            where: { id: contentItemId, project_id: projectId }, include: { publication_fact: true }
+            where: { id: contentItemId, project_id: projectId }, include: { publication_fact: true, channel: true }
         });
         if (!task) throw new Error(`[PUBLICATION_TASK_NOT_FOUND] Task ${contentItemId} does not belong to project ${projectId}`);
         if (task.channel_id !== channelId) throw new Error('[CHANNEL_MISMATCH] Delivery channel does not match the publication task');
         if (unapproved || !task.content_revision || task.accepted_revision !== task.content_revision || task.text_state !== 'accepted') {
             throw new Error('[APPROVAL_REQUIRED] Automatic posting requires the current content revision to be accepted');
+        }
+
+        const channelType = String(task.channel?.type || '').toLowerCase();
+        const rawChannelConfig = task.channel?.config?.raw_account || task.channel?.config || {};
+        const effectiveChannelConfig = {
+            ...rawChannelConfig,
+            workflow_mode: task.channel?.config?.workflow_mode || rawChannelConfig.workflow_mode,
+            platform: rawChannelConfig.platform || channelType
+        };
+        const dzenAutomaticByDefault = publicationAdapterService.prefersAutomaticExecution(effectiveChannelConfig);
+        const automaticRequested = forceAutomatic === true || (forceAutomatic === undefined && dzenAutomaticByDefault);
+
+        if (task.publication_mode === 'browser_required' && automaticRequested) {
+            if (!['zen', 'zen_article', 'dzen'].includes(channelType)) {
+                throw new Error('[AUTOMATIC_ROUTE_NOT_ALLOWED] Only configured Dzen tasks support owner promotion from browser mode');
+            }
+            await this.requireOwner(projectId, actorId);
+            const dzenConfig = resolveChannelConfigSecrets(channelType, rawChannelConfig);
+            await this.preflightDzen({
+                channel_id: dzenConfig.channel_id || dzenConfig.vk_id,
+                channel_url: dzenConfig.channel_url,
+                cookies: dzenConfig.cookies,
+                article_editor_url: dzenConfig.article_editor_url,
+                post_editor_url: dzenConfig.post_editor_url
+            });
+            const promote = async (tx: any) => {
+                const updated = await tx.contentItem.updateMany({
+                    where: {
+                        id: task.id,
+                        project_id: projectId,
+                        channel_id: channelId,
+                        content_revision: task.content_revision,
+                        accepted_revision: task.accepted_revision,
+                        publication_mode: 'browser_required'
+                    },
+                    data: {
+                        status: 'ready_for_execution',
+                        publication_mode: 'connector_auto',
+                        quality_report: {
+                            ...((task.quality_report as any) || {}),
+                            execution_mode: 'automatic',
+                            publication_route: 'connector_auto',
+                            dzen_preflight_passed_at: this.now().toISOString(),
+                            dzen_auto_promoted_by: actorId
+                        }
+                    }
+                });
+                if (updated.count !== 1) throw new Error('[DELIVERY_ROUTE_CONFLICT] Task changed during Dzen preflight');
+                await tx.event.create({ data: {
+                    entity_type: 'content_item', entity_id: task.id, event_type: 'delivery.dzen_auto_promoted',
+                    payload: { project_id: projectId, actor_id: actorId, channel_id: channelId,
+                        content_revision: task.content_revision, from: 'browser_required', to: 'connector_auto' }
+                } });
+            };
+            if (typeof this.db.$transaction === 'function') await this.db.$transaction(promote);
+            else await promote(this.db);
+            task.status = 'ready_for_execution';
+            task.publication_mode = 'connector_auto';
+        } else if (task.publication_mode === 'browser_required') {
+            throw new Error('[AUTOMATIC_ROUTE_NOT_ALLOWED] Browser-required task was not promoted to connector auto');
         }
 
         const now = this.now();
@@ -84,7 +150,7 @@ export class DeliveryService {
             }
         }
 
-        const mode = forceAutomatic ? 'automatic' : 'assisted';
+        const mode = automaticRequested ? 'automatic' : 'assisted';
         const attempt = await this.db.deliveryAttempt.create({
             data: { project_id: projectId, content_item_id: contentItemId, channel_id: channelId, mode, status: 'pending',
                 idempotency_key: idempotencyKey || null, scheduled_at: scheduledDate, actual_published_at: null,
