@@ -25,6 +25,7 @@ export const DZEN_EDITOR_SELECTORS = {
     postMenuItem: '[role="button"][aria-label="Написать пост"]',
     articleTitle: '[contenteditable="true"][role="textbox"]:has(h1[data-block="true"])',
     articleBody: '[contenteditable="true"][role="textbox"]:has(.zen-editor-block)',
+    imageInsertIconFragment: 'add_gallery',
     articlePublish: '[data-testid="article-publish-btn"]'
 } as const;
 
@@ -224,14 +225,19 @@ class PuppeteerPublisherService {
         try {
             let input = await page.$('input[type="file"][accept*="image"], input[type="file"]');
             if (!input) {
-                await page.evaluate(() => {
+                await page.evaluate((iconFragment) => {
                     const controls = Array.from(document.querySelectorAll('button, [role="button"]'));
                     const imageControl = controls.find((element) => {
                         const label = `${element.textContent || ''} ${element.getAttribute('aria-label') || ''} ${element.getAttribute('title') || ''}`;
                         return /изображ|картин|фото|image|photo/i.test(label);
                     });
-                    (imageControl as HTMLElement | undefined)?.click();
-                });
+                    const iconUse = Array.from(document.querySelectorAll('svg use')).find((element) => {
+                        const reference = element.getAttribute('href') || element.getAttribute('xlink:href') || '';
+                        return reference.includes(iconFragment);
+                    });
+                    const iconControl = iconUse?.closest('button, [role="button"], [class*="side-button"]');
+                    ((imageControl || iconControl) as HTMLElement | null)?.click();
+                }, DZEN_EDITOR_SELECTORS.imageInsertIconFragment);
                 input = await page.waitForSelector('input[type="file"][accept*="image"], input[type="file"]', { timeout: 10_000 });
             }
             if (!input) throw new Error('Dzen image upload control was not found');
