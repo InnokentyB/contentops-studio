@@ -4,7 +4,10 @@ import okService from '../services/ok.service';
 import habrService from '../services/habr.service';
 import vcService from '../services/vc.service';
 import dzenService, { isDzenPublishedUrl } from '../services/dzen.service';
-import { DZEN_EDITOR_SELECTORS } from '../services/puppeteer_publisher.service';
+import {
+    DZEN_EDITOR_SELECTORS,
+    typeDzenContentEditableText
+} from '../services/puppeteer_publisher.service';
 import puppeteerPublisherService from '../services/puppeteer_publisher.service';
 import publicationAdapterService from '../services/publication_adapter.service';
 
@@ -144,6 +147,21 @@ test('Dzen editor automation uses the current studio entrypoint and semantic Dra
     assert.match(DZEN_EDITOR_SELECTORS.articleTitle, /role="textbox".*:has\(h1/);
     assert.match(DZEN_EDITOR_SELECTORS.articleBody, /role="textbox".*zen-editor-block/);
     assert.equal(DZEN_EDITOR_SELECTORS.articlePublish, '[data-testid="article-publish-btn"]');
+});
+
+test('Dzen Draft.js input uses native element typing without document selection', async () => {
+    const calls: any[] = [];
+    const element = {
+        focus: async () => calls.push(['focus']),
+        type: async (...args: any[]) => calls.push(['type', ...args])
+    };
+
+    await typeDzenContentEditableText(element, 'Scoped text');
+    assert.deepEqual(calls, [
+        ['focus'],
+        ['type', 'Scoped text', { delay: 1 }]
+    ]);
+    assert.equal(calls.some((call) => call.includes('execCommand') || call.includes('selectAll')), false);
 });
 
 test('publicationAdapterService recognizes new platforms as direct-execution friendly', () => {

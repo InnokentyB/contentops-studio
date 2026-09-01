@@ -28,6 +28,11 @@ export const DZEN_EDITOR_SELECTORS = {
     articlePublish: '[data-testid="article-publish-btn"]'
 } as const;
 
+export async function typeDzenContentEditableText(element: any, text: string): Promise<void> {
+    await element.focus();
+    await element.type(text, { delay: 1 });
+}
+
 class PuppeteerPublisherService {
     private dzenChannelId(config: DzenPublishConfig): string | null {
         const candidate = config.channel_id?.trim() || config.channel_url?.trim() || '';
@@ -461,12 +466,7 @@ class PuppeteerPublisherService {
                 console.log('[PuppeteerPublisher] Filling title...');
                 const titleEl = await page.waitForSelector(DZEN_EDITOR_SELECTORS.articleTitle, { timeout: 15000 });
                 if (!titleEl) throw new Error('Could not find Dzen title input block');
-                await titleEl.focus();
-                await page.evaluate((el: any, t) => {
-                    el.focus();
-                    document.execCommand('selectAll', false, undefined);
-                    document.execCommand('insertText', false, t);
-                }, titleEl, title);
+                await typeDzenContentEditableText(titleEl, title);
             }
 
             // Move to body editor
@@ -477,12 +477,7 @@ class PuppeteerPublisherService {
             const bodyEl = await page.waitForSelector(bodySelector, { timeout: 15000 });
             if (!bodyEl) throw new Error('Could not find Dzen content body editor block');
 
-            await bodyEl.focus();
-            await page.evaluate((el: any, markdownText: string) => {
-                el.focus();
-                document.execCommand('selectAll', false, undefined);
-                document.execCommand('insertText', false, markdownText);
-            }, bodyEl, text);
+            await typeDzenContentEditableText(bodyEl, text);
 
             await new Promise((resolve) => setTimeout(resolve, 2000));
 
