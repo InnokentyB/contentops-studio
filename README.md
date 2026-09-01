@@ -2,7 +2,7 @@
 
 ContentOps Studio is a governed content operations workspace for teams that need to turn research into an approved cross-channel plan, coordinate human and AI contributors, publish safely, and learn from outcomes.
 
-[Open the product demo](https://publishplanner-production.up.railway.app) | [5-minute walkthrough](docs/PRODUCT_DEMO.md) | [Architecture](docs/ARCHITECTURE.md)
+[Open the product demo](https://publishplanner-production.up.railway.app) | [5-minute walkthrough](docs/PRODUCT_DEMO.md) | [Connect an MCP agent](docs/MCP_SETUP.md) | [Architecture](docs/ARCHITECTURE.md)
 
 > The hosted demo uses synthetic content and a server-enforced read-only account. Credentials are shared separately and are never stored in this repository.
 
@@ -98,7 +98,7 @@ The web app runs through Vite in development. Production builds serve the fronte
 npm run mcp:remote:dev
 ```
 
-Configure a project-bound MCP token in the ContentOps Studio settings UI before connecting an external agent. Do not put production credentials in local configuration files or Git.
+Configure a project-bound MCP token in the ContentOps Studio settings UI before connecting an external agent. See the [MCP setup guide](docs/MCP_SETUP.md). Do not put production credentials in local configuration files or Git.
 
 ### Seed a read-only product demo
 
