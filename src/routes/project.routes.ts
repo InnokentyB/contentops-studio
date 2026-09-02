@@ -688,7 +688,7 @@ export default async function projectRoutes(fastify: FastifyInstance) {
             const response = await fetch(healthUrl, { signal: controller.signal });
             const health = response.ok ? await response.json() as any : null;
             const capabilityEndpoints = health?.capability_endpoints || {};
-            const capabilityStatus = (profile: 'planner' | 'writer' | 'art_director') => {
+            const capabilityStatus = (profile: 'planner' | 'writer' | 'art_director' | 'strategist') => {
                 const remote = capabilityEndpoints[profile];
                 const configured = remote === true || remote?.configured === true;
                 const boundProjectId = Number(remote?.project_id || 0) || null;
@@ -709,7 +709,8 @@ export default async function projectRoutes(fastify: FastifyInstance) {
                 capability_endpoints: {
                     planner: capabilityStatus('planner'),
                     writer: capabilityStatus('writer'),
-                    art_director: capabilityStatus('art_director')
+                    art_director: capabilityStatus('art_director'),
+                    strategist: capabilityStatus('strategist')
                 },
                 checked_at: new Date().toISOString()
             };
