@@ -662,7 +662,13 @@ export default function Settings() {
         onSuccess: (result: ApiJson) => {
             setIssuedMcpToken(result.token)
             queryClient.invalidateQueries({ queryKey: ['mcp-accesses', currentProject?.id] })
-        }
+            showToast(locale === 'ru' ? 'Доступ создан. Скопируйте токен сейчас.' : 'Access created. Copy the token now.', 'success')
+        },
+        onError: (error: Error) => showToast(
+            locale === 'ru' ? 'Не удалось создать MCP-доступ' : 'Could not create MCP access',
+            'error',
+            error.message
+        )
     })
 
     const revokeMcpAccess = useMutation({

@@ -1,10 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { isToolAllowedForProfile } from '../mcp/capabilities';
 import { isManagedMcpProfile } from '../services/mcp_access_token.service';
 
 test('strategist is a managed profile that can be issued as an access token', () => {
     assert.equal(isManagedMcpProfile('strategist'), true);
+});
+
+test('database constraint permits strategist access tokens', () => {
+    const migration = readFileSync(join(
+        process.cwd(),
+        'prisma/migrations/20260902173000_allow_strategist_mcp_profile/migration.sql'
+    ), 'utf8');
+
+    assert.match(migration, /DROP CONSTRAINT IF EXISTS "mcp_access_tokens_profile_check"/);
+    assert.match(migration, /'planner', 'writer', 'art_director', 'strategist'/);
 });
 
 test('strategist cannot publish and cannot spend the deployment owner provider key', () => {
