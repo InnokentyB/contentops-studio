@@ -68,7 +68,7 @@ async function main() {
         ? { userId: principalUserId, actorId: `user:${principalUserId}`, profile: 'owner' as const }
         : null;
     const defaultProjectId = Number(process.env.MCP_PROJECT_ID || 0);
-    const buildScopedCredential = (profile: 'planner' | 'writer' | 'art_director'): ScopedCredential | null => {
+    const buildScopedCredential = (profile: 'planner' | 'writer' | 'art_director' | 'strategist'): ScopedCredential | null => {
         const upper = profile.toUpperCase();
         const token = String(process.env[`MCP_${upper}_AUTH_TOKEN`] || '').trim();
         const userId = Number(process.env[`MCP_${upper}_USER_ID`] || principalUserId || 0);
@@ -84,6 +84,7 @@ async function main() {
     const plannerCredential = buildScopedCredential('planner');
     const writerCredential = buildScopedCredential('writer');
     const artDirectorCredential = buildScopedCredential('art_director');
+    const strategistCredential = buildScopedCredential('strategist');
     const isProduction = Boolean(process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production');
     if (isProduction && (!authToken || !principal)) {
         throw new Error('Production remote MCP requires MCP_AUTH_TOKEN and MCP_PRINCIPAL_USER_ID');
@@ -216,7 +217,12 @@ async function main() {
                     configured: true,
                     project_id: artDirectorCredential.principal.projectId,
                     user_id: artDirectorCredential.principal.userId
-                } : { configured: managedProfiles.has('art_director') }
+                } : { configured: managedProfiles.has('art_director') },
+                strategist: strategistCredential ? {
+                    configured: true,
+                    project_id: strategistCredential.principal.projectId,
+                    user_id: strategistCredential.principal.userId
+                } : { configured: managedProfiles.has('strategist') }
             },
             active_sessions: sessions.size,
             schema_plan: schemaPlanService.getPlan(),
@@ -298,7 +304,7 @@ async function main() {
         await entry.transport.handleRequest(req, res, req.body);
     });
 
-    function registerScopedEndpoint(endpoint: string, profile: 'planner' | 'writer' | 'art_director', credential: ScopedCredential | null) {
+    function registerScopedEndpoint(endpoint: string, profile: 'planner' | 'writer' | 'art_director' | 'strategist', credential: ScopedCredential | null) {
         const requireScopedAuth = async (req: any, res: any, next: any) => {
             const token = getBearerToken(req.headers.authorization);
             if (!token) {
@@ -385,6 +391,7 @@ async function main() {
     registerScopedEndpoint('/mcp/planner', 'planner', plannerCredential);
     registerScopedEndpoint('/mcp/writer', 'writer', writerCredential);
     registerScopedEndpoint('/mcp/art-director', 'art_director', artDirectorCredential);
+    registerScopedEndpoint('/mcp/strategist', 'strategist', strategistCredential);
 
     const server = app.listen(port, host, () => {
         console.log(`[MCP Remote] listening on http://${host}:${port} (auth required: ${Boolean(authToken)})`);

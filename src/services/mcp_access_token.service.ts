@@ -2,7 +2,7 @@ import { createHash, randomBytes } from 'crypto';
 import prisma from '../db';
 import type { McpCapabilityProfile } from '../mcp/capabilities';
 
-const MANAGED_PROFILES = new Set<McpCapabilityProfile>(['planner', 'writer', 'art_director']);
+const MANAGED_PROFILES = new Set<McpCapabilityProfile>(['planner', 'writer', 'art_director', 'strategist']);
 
 export function hashMcpToken(token: string) {
     return createHash('sha256').update(token).digest('hex');
