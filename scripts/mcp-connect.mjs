@@ -45,10 +45,12 @@ const CLIENTS = [
         title: 'opencode',
         file: join(HOME, '.config', 'opencode', 'opencode.json'),
         detect: () => existsSync(join(HOME, '.config', 'opencode')),
-        entry: s => ({ type: 'remote', url: s.url, enabled: true, headers: { Authorization: `Bearer ${s.token}` } }),
+        // timeout по умолчанию у opencode 5000 мс. tools/list этого сервера великоват,
+        // и на холодном старте в пять секунд не укладывается — отсюда обрывы загрузки.
+        entry: s => ({ type: 'remote', url: s.url, enabled: true, timeout: 30000, headers: { Authorization: `Bearer ${s.token}` } }),
         root: 'mcp',
         seed: { $schema: 'https://opencode.ai/config.json' },
-        note: 'сверьте форму с https://opencode.ai/docs/mcp-servers/ — схема opencode менялась'
+        note: 'timeout поднят до 30 с — у opencode по умолчанию 5 с'
     },
     {
         id: 'cline',
