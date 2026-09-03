@@ -81,7 +81,11 @@ class McpAccessTokenService {
         }));
 
         const records = await prisma.$transaction(async (transaction) => {
-            await transaction.$queryRawUnsafe('SELECT pg_advisory_xact_lock($1, $2)', projectId, userId);
+            await transaction.$queryRawUnsafe(
+                'SELECT pg_advisory_xact_lock($1::int, $2::int)::text AS locked',
+                projectId,
+                userId
+            );
             const activeBundle = await transaction.mcpAccessToken.findFirst({
                 where: {
                     project_id: projectId,
