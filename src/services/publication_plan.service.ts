@@ -1979,6 +1979,8 @@ class PublicationPlanService {
                 channel: canonicalChannelType,
                 action_type: placement === 'story'
                     ? canonicalStoryActionType(canonicalChannelType, placement)
+                    : canonicalChannelType === 'vk' && placement === 'article_cover'
+                        ? 'vk_article:publish'
                     : importedAction.action_type
             } : {})
         };
@@ -2239,7 +2241,9 @@ class PublicationPlanService {
             task: {
                 id: item.item_key || `content-item:${item.id}`,
                 content_item_id: item.id,
-                action_type: `${channelType}_${placement}:publish`,
+                action_type: channelType === 'vk' && placement === 'article_cover'
+                    ? 'vk_article:publish'
+                    : `${channelType}_${placement}:publish`,
                 channel: channelType,
                 placement,
                 account_ref: item.channel?.name || null,

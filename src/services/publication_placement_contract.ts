@@ -5,7 +5,7 @@ const DEFAULT_PLACEMENTS: Record<string, string[]> = {
     site: ['article_cover'],
     telegram: ['feed', 'story'],
     telegram_chat: ['feed', 'story'],
-    vk: ['feed', 'story'],
+    vk: ['feed', 'story', 'article_cover'],
     linkedin: ['feed', 'carousel'],
     threads: ['feed'],
     x: ['feed'],
@@ -23,7 +23,7 @@ export type PublicationPlacementAssetContract = {
     dimensions: { width: number; height: number; aspect_ratio: string } | null;
     safe_area: { unit: 'px'; top: number; right: number; bottom: number; left: number } | null;
     poll: { supported: boolean; configuration_mode: 'native_manual' | 'not_applicable'; render_in_asset: boolean };
-    transport: { materialization: 'feed_post' | 'story' | 'asset'; connector_authority: 'configured' | 'manual_only' };
+    transport: { materialization: 'feed_post' | 'story' | 'article' | 'asset'; connector_authority: 'configured' | 'manual_only' };
 };
 
 export function publicationPlacementAssetContract(
@@ -43,6 +43,16 @@ export function publicationPlacementAssetContract(
                 render_in_asset: false
             },
             transport: { materialization: 'story', connector_authority: 'manual_only' }
+        };
+    }
+    if (normalizedType === 'vk' && placement === 'article_cover') {
+        return {
+            placement,
+            artifact_kind: 'article_cover',
+            dimensions: { width: 1200, height: 675, aspect_ratio: '16:9' },
+            safe_area: { unit: 'px', top: 72, right: 96, bottom: 72, left: 96 },
+            poll: { supported: false, configuration_mode: 'not_applicable', render_in_asset: false },
+            transport: { materialization: 'article', connector_authority: 'manual_only' }
         };
     }
     return {

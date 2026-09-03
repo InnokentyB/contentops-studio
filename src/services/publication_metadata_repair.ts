@@ -1,3 +1,5 @@
+import { publicationPlacementAssetContract } from './publication_placement_contract';
+
 export function planPublicationPlacementRepair(input: {
     contentItemId: number;
     contentRevision: number;
@@ -89,6 +91,8 @@ export function repairMaterializedPublicationProjection(input: {
         : null;
     const actionType = input.placement === 'story'
         ? canonicalStoryActionType(input.channel.type, input.placement)
+        : input.channel.type === 'vk' && input.placement === 'article_cover'
+            ? 'vk_article:publish'
         : (action.action_type || handoffBundle?.task?.action_type || null);
 
     assets.account_ref = input.channel.name;
@@ -100,6 +104,7 @@ export function repairMaterializedPublicationProjection(input: {
     };
 
     if (handoffBundle) {
+        const placementContract = publicationPlacementAssetContract(input.channel, input.placement);
         const currentChecklist = Array.isArray(handoffBundle.manual_checklist)
             ? [...handoffBundle.manual_checklist]
             : [];
@@ -120,6 +125,11 @@ export function repairMaterializedPublicationProjection(input: {
             action_type: actionType,
             placement: input.placement
         };
+        handoffBundle.mode = placementContract.transport.connector_authority === 'manual_only'
+            ? 'manual'
+            : handoffBundle.mode;
+        handoffBundle.placement_contract = placementContract;
+        handoffBundle.transport = placementContract.transport;
         handoffBundle.manual_checklist = manualChecklist;
         qualityReport.handoff_bundle = handoffBundle;
     }

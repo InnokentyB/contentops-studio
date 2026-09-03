@@ -28,6 +28,16 @@ test('Telegram and VK stories use a vertical manual-only asset contract', () => 
     }
 });
 
+test('VK longread uses a distinct manual article-cover contract', () => {
+    assert.ok(canonicalPlacementsForChannel({ type: 'vk' }).includes('article_cover'));
+    assert.equal(assertCanonicalPublicationPlacement({ type: 'vk' }, 'article_cover'), 'article_cover');
+    const contract = publicationPlacementAssetContract({ type: 'vk' }, 'article_cover');
+    assert.equal(contract.artifact_kind, 'article_cover');
+    assert.deepEqual(contract.dimensions, { width: 1200, height: 675, aspect_ratio: '16:9' });
+    assert.deepEqual(contract.safe_area, { unit: 'px', top: 72, right: 96, bottom: 72, left: 96 });
+    assert.deepEqual(contract.transport, { materialization: 'article', connector_authority: 'manual_only' });
+});
+
 test('configured channel placement overrides the type fallback', () => {
     const channel = { type: 'custom', config: { canonical_placements: ['article_cover', 'inline'] } };
     assert.deepEqual(canonicalPlacementsForChannel(channel), ['article_cover', 'inline']);

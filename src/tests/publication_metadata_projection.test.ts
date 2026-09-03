@@ -74,3 +74,27 @@ test('non-story projection repair preserves its established action type', () => 
 
     assert.equal(result.assets.action.action_type, 'manual_handoff');
 });
+
+test('VK article projection rebuilds article routing and contract from canonical binding', () => {
+    const result = repairMaterializedPublicationProjection({
+        assets: { action: { action_type: 'vk_post:publish', channel: 'vk' } },
+        qualityReport: {
+            handoff_bundle: {
+                mode: 'automatic',
+                task: { action_type: 'vk_post:publish', placement: 'feed' },
+                transport: { materialization: 'feed_post', connector_authority: 'configured' },
+                placement_contract: { placement: 'feed' }
+            }
+        },
+        metrics: {},
+        channel: { id: 117, name: 'analystcraft_vk_group', type: 'vk' },
+        placement: 'article_cover'
+    });
+
+    assert.equal(result.assets.action.action_type, 'vk_article:publish');
+    assert.equal(result.qualityReport.handoff_bundle.task.action_type, 'vk_article:publish');
+    assert.equal(result.qualityReport.handoff_bundle.task.placement, 'article_cover');
+    assert.equal(result.qualityReport.handoff_bundle.mode, 'manual');
+    assert.equal(result.qualityReport.handoff_bundle.transport.materialization, 'article');
+    assert.equal(result.qualityReport.handoff_bundle.placement_contract.artifact_kind, 'article_cover');
+});

@@ -121,6 +121,31 @@ test('imported VK story plan is materialized as a manual story bundle, not a fee
     assert.equal(bundle.publication.body, 'Accepted VK story copy');
 });
 
+test('VK article cover is materialized as a manual article bundle, not a feed post', () => {
+    const item: any = {
+        id: 886,
+        item_key: 'vk-longread-886',
+        title: 'VK longread',
+        draft_text: 'Accepted VK article body',
+        text_state: 'accepted',
+        content_revision: 1,
+        accepted_revision: 1,
+        publication_mode: 'browser_required',
+        visual_placement: 'article_cover',
+        channel: { id: 117, name: 'analystcraft_vk_group', type: 'vk', config: {} },
+        assets: { action: { id: 'vk-longread-886', channel: 'vk', action_type: 'vk_post:publish' } }
+    };
+    const bundle = publicationPlanService.buildGeneratedContentItemHandoff(item, { requireAcceptedContent: true });
+    assert.equal(bundle.mode, 'manual');
+    assert.equal(bundle.task.channel, 'vk');
+    assert.equal(bundle.task.placement, 'article_cover');
+    assert.equal(bundle.task.action_type, 'vk_article:publish');
+    assert.equal(bundle.transport.materialization, 'article');
+    assert.equal(bundle.transport.connector_authority, 'manual_only');
+    assert.equal(bundle.placement_contract.artifact_kind, 'article_cover');
+    assert.equal(bundle.publication.body, 'Accepted VK article body');
+});
+
 test('imported story handoff derives account and channel from the current top-level binding', () => {
     const bundle = publicationPlanService.buildHandoffBundle({
         meta: { plan_id: 'story-plan' },
