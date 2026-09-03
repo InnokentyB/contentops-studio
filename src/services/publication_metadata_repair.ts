@@ -87,7 +87,9 @@ export function repairMaterializedPublicationProjection(input: {
     const handoffBundle = qualityReport.handoff_bundle
         ? { ...qualityReport.handoff_bundle }
         : null;
-    const actionType = canonicalStoryActionType(input.channel.type, input.placement);
+    const actionType = input.placement === 'story'
+        ? canonicalStoryActionType(input.channel.type, input.placement)
+        : (action.action_type || handoffBundle?.task?.action_type || null);
 
     assets.account_ref = input.channel.name;
     assets.action = {

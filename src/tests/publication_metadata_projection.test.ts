@@ -62,3 +62,15 @@ test('owner-only projection recovery is guarded, audited and does not mutate con
     assert.doesNotMatch(repairMethod, /selected_asset:\s*\{/);
     assert.match(mcpServer, /registerTool\('ba_repair_publication_projection'/);
 });
+
+test('non-story projection repair preserves its established action type', () => {
+    const result = repairMaterializedPublicationProjection({
+        assets: { action: { action_type: 'manual_handoff' } },
+        qualityReport: {},
+        metrics: {},
+        channel: { id: 113, name: 'analystcraft_habr', type: 'habr' },
+        placement: 'article_cover'
+    });
+
+    assert.equal(result.assets.action.action_type, 'manual_handoff');
+});
