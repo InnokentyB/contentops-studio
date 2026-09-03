@@ -1,0 +1,27 @@
+{
+  "name": "contentops-workspace",
+  "version": "0.1.0",
+  "description": "Connect a ContentOps Studio project to governed strategist, planning, production, publishing, and growth roles.",
+  "author": {
+    "name": "AnalystCraft"
+  },
+  "homepage": "https://publishplanner-production.up.railway.app/guide",
+  "keywords": ["content-operations", "marketing", "publishing", "mcp"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "ContentOps Workspace",
+    "shortDescription": "Connect your governed Planner project.",
+    "longDescription": "Connect one ContentOps Studio project and operate it through seven governed roles, from strategy and planning to approved publishing and growth analysis.",
+    "developerName": "AnalystCraft",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://publishplanner-production.up.railway.app",
+    "defaultPrompt": [
+      "Connect my Planner project and prepare its role workspace.",
+      "Show the current ContentOps workspace manifest.",
+      "Open the Planning HQ handoff for my project."
+    ],
+    "brandColor": "#5B5BD6"
+  },
+  "mcpServers": "./.mcp.json"
+}

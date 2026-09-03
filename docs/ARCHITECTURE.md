@@ -9,6 +9,7 @@ flowchart TB
     subgraph Clients
         UI[React web application]
         AGENT[Claude, Codex, MCP clients]
+        PLUGIN[ContentOps Codex plugin]
     end
 
     subgraph Railway
@@ -23,7 +24,9 @@ flowchart TB
     CHANNELS[Publishing platforms]
 
     UI --> APP
+    PLUGIN --> AGENT
     AGENT --> MCP
+    AGENT -->|OAuth code + PKCE| APP
     MCP --> APP
     APP --> DB
     MCP --> DB
@@ -63,6 +66,8 @@ Publication facts identify the external artifact. Metric snapshots capture sched
 ### MCP
 
 The remote MCP service exposes capability profiles for planning, writing, art direction, and owner operations. Each token is bound to a project and user. Caller-supplied identity fields are replaced by the credential binding before tools run.
+
+External plugin connections use OAuth 2.1 authorization code + PKCE. `planner-app` is the authorization server and consent surface; `planner-mcp` is the protected resource. Opaque access and rotating refresh tokens are stored only as SHA-256 hashes. Every MCP request rechecks audience, expiry, workspace scope, project membership, and owner role before attaching the project-scoped principal. Legacy one-time bearer bundles remain available for clients that do not support OAuth.
 
 ## Deployment
 

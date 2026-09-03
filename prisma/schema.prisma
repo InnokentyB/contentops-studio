@@ -20,9 +20,11 @@ model User {
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
 
-  memberships      ProjectMember[]
-  sent_invitations ProjectInvitation[]
-  mcp_access_tokens McpAccessToken[]
+  memberships                   ProjectMember[]
+  sent_invitations              ProjectInvitation[]
+  mcp_access_tokens             McpAccessToken[]
+  mcp_oauth_authorization_codes McpOAuthAuthorizationCode[]
+  mcp_oauth_tokens              McpOAuthToken[]
 
   @@map("users")
   @@schema("planner")
@@ -52,25 +54,27 @@ model Project {
   runs        AgentRun[]
 
   // v2 Media Orchestrator Relations
-  quarter_plans             QuarterPlan[]
-  month_arcs                MonthArc[]
-  week_packages             WeekPackage[]
-  content_items             ContentItem[]
-  feedbacks                 FeedbackPackage[]
-  work_items                WorkItem[]
-  workflow_events           WorkflowEvent[]
-  initiatives               Initiative[]
-  initiative_dependencies   InitiativeDependency[]
-  vk_metric_snapshots       VkMetricSnapshot[]
-  outbox_events             OutboxEvent[]
-  webhook_inbox             WebhookInbox[]
-  delivery_attempts         DeliveryAttempt[]
-  image_assets              ImageAsset[]
-  art_direction_decisions   ArtDirectionDecision[]
-  metric_snapshots          MetricSnapshot[]
-  publication_facts         PublicationFact[]
-  service_identity_bindings ServiceIdentityBinding[]
-  mcp_access_tokens         McpAccessToken[]
+  quarter_plans                 QuarterPlan[]
+  month_arcs                    MonthArc[]
+  week_packages                 WeekPackage[]
+  content_items                 ContentItem[]
+  feedbacks                     FeedbackPackage[]
+  work_items                    WorkItem[]
+  workflow_events               WorkflowEvent[]
+  initiatives                   Initiative[]
+  initiative_dependencies       InitiativeDependency[]
+  vk_metric_snapshots           VkMetricSnapshot[]
+  outbox_events                 OutboxEvent[]
+  webhook_inbox                 WebhookInbox[]
+  delivery_attempts             DeliveryAttempt[]
+  image_assets                  ImageAsset[]
+  art_direction_decisions       ArtDirectionDecision[]
+  metric_snapshots              MetricSnapshot[]
+  publication_facts             PublicationFact[]
+  service_identity_bindings     ServiceIdentityBinding[]
+  mcp_access_tokens             McpAccessToken[]
+  mcp_oauth_authorization_codes McpOAuthAuthorizationCode[]
+  mcp_oauth_tokens              McpOAuthToken[]
 
   prompt_presets    PromptPreset[]
   comments          Comment[]
@@ -115,17 +119,17 @@ model ServiceIdentityBinding {
 }
 
 model McpAccessToken {
-  id          Int       @id @default(autoincrement())
-  project_id  Int
-  user_id     Int
-  profile     String
-  bundle_id   String?
-  token_hash  String    @unique
-  label       String
-  expires_at  DateTime? @db.Timestamptz(6)
-  revoked_at  DateTime? @db.Timestamptz(6)
+  id           Int       @id @default(autoincrement())
+  project_id   Int
+  user_id      Int
+  profile      String
+  bundle_id    String?
+  token_hash   String    @unique
+  label        String
+  expires_at   DateTime? @db.Timestamptz(6)
+  revoked_at   DateTime? @db.Timestamptz(6)
   last_used_at DateTime? @db.Timestamptz(6)
-  created_at  DateTime  @default(now())
+  created_at   DateTime  @default(now())
 
   project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
@@ -134,6 +138,72 @@ model McpAccessToken {
   @@index([project_id, user_id, bundle_id])
   @@index([user_id, revoked_at])
   @@map("mcp_access_tokens")
+  @@schema("planner")
+}
+
+model McpOAuthClient {
+  id            Int      @id @default(autoincrement())
+  client_id     String   @unique
+  client_name   String
+  redirect_uris Json
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  authorization_codes McpOAuthAuthorizationCode[]
+  tokens              McpOAuthToken[]
+
+  @@map("mcp_oauth_clients")
+  @@schema("planner")
+}
+
+model McpOAuthAuthorizationCode {
+  id             Int       @id @default(autoincrement())
+  code_hash      String    @unique
+  client_id      String
+  project_id     Int
+  user_id        Int
+  redirect_uri   String
+  resource       String
+  scope          String
+  code_challenge String
+  expires_at     DateTime  @db.Timestamptz(6)
+  consumed_at    DateTime? @db.Timestamptz(6)
+  created_at     DateTime  @default(now())
+
+  client  McpOAuthClient @relation(fields: [client_id], references: [client_id], onDelete: Cascade)
+  project Project        @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  user    User           @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([client_id, expires_at])
+  @@index([project_id, user_id])
+  @@map("mcp_oauth_authorization_codes")
+  @@schema("planner")
+}
+
+model McpOAuthToken {
+  id                 Int       @id @default(autoincrement())
+  family_id          String
+  access_token_hash  String    @unique
+  refresh_token_hash String    @unique
+  client_id          String
+  project_id         Int
+  user_id            Int
+  resource           String
+  scope              String
+  expires_at         DateTime  @db.Timestamptz(6)
+  refresh_expires_at DateTime  @db.Timestamptz(6)
+  revoked_at         DateTime? @db.Timestamptz(6)
+  last_used_at       DateTime? @db.Timestamptz(6)
+  created_at         DateTime  @default(now())
+
+  client  McpOAuthClient @relation(fields: [client_id], references: [client_id], onDelete: Cascade)
+  project Project        @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  user    User           @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([client_id, revoked_at])
+  @@index([family_id, revoked_at])
+  @@index([project_id, user_id, revoked_at])
+  @@map("mcp_oauth_tokens")
   @@schema("planner")
 }
 

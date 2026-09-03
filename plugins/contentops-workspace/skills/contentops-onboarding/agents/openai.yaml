@@ -1,0 +1,4 @@
+interface:
+  display_name: "ContentOps onboarding"
+  short_description: "Connect a Planner project and set up governed role chats"
+  default_prompt: "Connect my Planner project and prepare its governed role workspace."

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/auth';
 import { useLocale } from '../i18n/locale';
 import LanguageSwitcher from '../components/LanguageSwitcher';
@@ -12,6 +12,9 @@ export default function Register() {
     const { login } = useAuth();
     const { t } = useLocale();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const requestedReturnTo = searchParams.get('returnTo') || '';
+    const returnTo = requestedReturnTo.startsWith('/') && !requestedReturnTo.startsWith('//') ? requestedReturnTo : '/orchestrator';
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -29,7 +32,7 @@ export default function Register() {
             if (!res.ok) throw new Error(data.error || t('registerError'));
 
             login(data.token, data.user, data.projects);
-            navigate('/orchestrator');
+            navigate(returnTo);
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : t('registerError'));
         } finally {
@@ -114,7 +117,7 @@ export default function Register() {
                 <div className="mt-10 text-center border-t border-outline-variant/10 pt-8">
                     <p className="text-xs font-bold text-on-surface-variant">
                         {t('alreadyHaveAccess')}{' '}
-                        <Link to="/login" className="text-primary hover:underline underline-offset-4 font-black">{t('signIn')}</Link>
+                        <Link to={`/login?returnTo=${encodeURIComponent(returnTo)}`} className="text-primary hover:underline underline-offset-4 font-black">{t('signIn')}</Link>
                     </p>
                 </div>
             </div>

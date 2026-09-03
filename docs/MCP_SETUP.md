@@ -33,6 +33,18 @@ Profiles are enforced by the server and bound to one project member and project.
 
 ## Deploy the complete workspace
 
+### Codex plugin and OAuth
+
+The repository includes `plugins/contentops-workspace`, an installable Codex plugin with the seven hosted role endpoints and an onboarding skill. It contains no user token. Codex discovers OAuth from the MCP gateway, opens Planner sign-in, and asks the signed-in owner to choose a project and approve the workspace connection.
+
+The OAuth flow uses authorization code + PKCE (`S256`). Authorization codes are one-time and expire after five minutes. Access tokens expire after one hour; refresh tokens expire after 90 days and rotate on every refresh. Tokens are bound to the canonical MCP resource, project, user, and workspace scope. Removing owner membership immediately makes an existing workspace token unusable.
+
+For local plugin testing, install the repo marketplace and plugin, then start a new Codex task so the MCP servers and onboarding skill are reloaded. Public-directory release is a separate operation and requires final public privacy-policy and terms URLs plus OpenAI review.
+
+Current host limitation: a plugin can install and authorize the MCP servers, but a third-party service cannot create seven separate Codex Cloud tasks and attach one server to each task through a public production API. The onboarding skill creates tasks only when the active host exposes that capability; otherwise it returns seven task names and starter prompts. Because all plugin MCP servers can be visible in one task, the skill also preserves the active manifest-role boundary explicitly.
+
+### Manual bearer bundle
+
 For a new external user, use the complete workspace flow:
 
 1. Add the user as a member of the project and ask them to sign in once.
@@ -98,6 +110,8 @@ Open **Project settings → MCP → Personal access** and select **Revoke** next
 ## Troubleshooting
 
 - `401 Unauthorized`: the token is missing, malformed, expired, or revoked.
+- OAuth page does not open: verify `MCP_PUBLIC_RESOURCE` on the MCP service and `OAUTH_ISSUER_URL` on both services, then inspect both well-known metadata endpoints.
+- OAuth callback reports `invalid_grant`: restart linking; the code may have expired, already been used, or failed its PKCE/resource check.
 - `403 capability mismatch`: the token was used with a different profile endpoint.
 - Expected project is missing: confirm that the selected user remains a project member, then issue a new token for the correct project.
 - MCP status is offline: verify `MCP_REMOTE_URL`, Railway service health, and the gateway database connection.

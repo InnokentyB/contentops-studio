@@ -23,6 +23,7 @@ import dzenService from '../services/dzen.service';
 import initiativeService from '../services/initiative.service';
 import workQueueService from '../services/work_queue.service';
 import mcpAccessTokenService, { ActiveMcpWorkspaceBundleError, isManagedMcpProfile } from '../services/mcp_access_token.service';
+import mcpOAuthService from '../services/mcp_oauth.service';
 
 import { prisma } from '../services/planner.service';
 
@@ -800,6 +801,27 @@ export default async function projectRoutes(fastify: FastifyInstance) {
             return { success: true };
         } catch (error: any) {
             return reply.code(404).send({ error: error.message || 'MCP access was not found' });
+        }
+    });
+
+    fastify.get('/api/projects/:id/mcp/oauth-grants', async (request, reply) => {
+        const owner = (request as any).user;
+        const projectId = parseInt((request.params as { id: string }).id, 10);
+        if (!await authService.hasProjectAccess(owner.id, projectId, 'owner')) return reply.code(403).send({ error: 'Owner access required' });
+        return { grants: await mcpOAuthService.listProjectGrants(projectId) };
+    });
+
+    fastify.delete('/api/projects/:id/mcp/oauth-grants/:grantId', async (request, reply) => {
+        const owner = (request as any).user;
+        const { id, grantId } = request.params as { id: string; grantId: string };
+        const projectId = parseInt(id, 10);
+        const parsedGrantId = parseInt(grantId, 10);
+        if (!await authService.hasProjectAccess(owner.id, projectId, 'owner')) return reply.code(403).send({ error: 'Owner access required' });
+        if (!Number.isInteger(parsedGrantId) || parsedGrantId <= 0) return reply.code(400).send({ error: 'Valid OAuth grant ID is required' });
+        try {
+            return await mcpOAuthService.revokeProjectGrant(projectId, parsedGrantId);
+        } catch (error: any) {
+            return reply.code(404).send({ error: error.message || 'OAuth workspace connection was not found' });
         }
     });
 

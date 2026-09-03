@@ -8,6 +8,7 @@ import PostEditor from './pages/PostEditor'
 import Settings from './pages/Settings'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import OAuthAuthorize from './pages/OAuthAuthorize'
 import V2Dashboard from './pages/V2Dashboard'
 import V2WeekDetail from './pages/V2WeekDetail'
 import Guide from './pages/Guide'
@@ -32,10 +33,12 @@ function AppContent() {
   const { locale } = useLocale();
 
   if (!isAuthenticated) {
+    const oauthReturnTo = `${window.location.pathname}${window.location.search}`
     return (
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/oauth/authorize" element={<Navigate to={`/login?returnTo=${encodeURIComponent(oauthReturnTo)}`} replace />} />
         <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
     );
@@ -60,6 +63,7 @@ function AppContent() {
         <Route path="/posts/:id" element={<PostEditor />} />
 
         <Route path="/settings" element={<Settings />} />
+        <Route path="/oauth/authorize" element={<OAuthAuthorize />} />
         <Route path="/publication-tasks" element={<PublicationTasks />} />
         <Route path="/guide" element={<Guide />} />
         <Route path="/calendar" element={<Suspense fallback={<div role="status" className="p-6 text-on-surface-variant">{locale === 'ru' ? 'Загрузка операционного плана…' : 'Loading operational plan…'}</div>}><OperationalCalendar /></Suspense>} />

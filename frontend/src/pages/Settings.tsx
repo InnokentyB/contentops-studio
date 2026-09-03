@@ -112,6 +112,17 @@ interface McpAccess {
     user: { id: number; name: string; email: string }
 }
 
+interface McpOAuthGrant {
+    id: number
+    scope: string
+    expires_at: string
+    refresh_expires_at: string
+    last_used_at: string | null
+    created_at: string
+    client: { client_name: string }
+    user: { id: number; name: string; email: string }
+}
+
 interface McpWorkspaceBundle {
     schema_version: string
     bundle_id: string
@@ -677,6 +688,12 @@ export default function Settings() {
         enabled: !!currentProject && activeTab === 'mcp' && isOwner
     })
 
+    const { data: mcpOAuthGrants } = useQuery<{ grants: McpOAuthGrant[] }>({
+        queryKey: ['mcp-oauth-grants', currentProject?.id],
+        queryFn: () => api.get(`/api/projects/${currentProject!.id}/mcp/oauth-grants`),
+        enabled: !!currentProject && activeTab === 'mcp' && isOwner
+    })
+
     const activeWorkspaceBundle = (mcpAccesses?.accesses || []).find(access =>
         access.user.id === Number(mcpAccessUserId)
         && Boolean(access.bundle_id)
@@ -734,6 +751,15 @@ export default function Settings() {
     const revokeMcpAccess = useMutation({
         mutationFn: (tokenId: number) => api.delete(`/api/projects/${currentProject!.id}/mcp/access-tokens/${tokenId}`),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['mcp-accesses', currentProject?.id] })
+    })
+
+    const revokeMcpOAuthGrant = useMutation({
+        mutationFn: (grantId: number) => api.delete(`/api/projects/${currentProject!.id}/mcp/oauth-grants/${grantId}`),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['mcp-oauth-grants', currentProject?.id] })
+            showToast(locale === 'ru' ? 'OAuth-подключение отключено' : 'OAuth connection revoked', 'success')
+        },
+        onError: (error: Error) => showToast(locale === 'ru' ? 'Не удалось отключить OAuth' : 'Could not revoke OAuth connection', 'error', error.message)
     })
 
     // Mutations
@@ -1401,6 +1427,18 @@ export default function Settings() {
                         </div>
 
                         <div className="mt-6 space-y-6">
+                            {isOwner && (
+                                <section className="rounded-2xl border border-primary/15 bg-primary/5 p-4 sm:p-5">
+                                    <h3 className="font-black text-on-surface">{locale === 'ru' ? 'Подключения Codex по OAuth' : 'Codex OAuth connections'}</h3>
+                                    <p className="mt-1 text-sm text-on-surface-variant">{locale === 'ru' ? 'Внешний пользователь входит в Planner, выбирает свой проект и не копирует токены вручную.' : 'External users sign in to Planner, choose their project, and never copy tokens manually.'}</p>
+                                    <div className="mt-4 space-y-2">
+                                        {(mcpOAuthGrants?.grants || []).map(grant => <div key={grant.id} className="flex items-center justify-between gap-3 rounded-xl bg-white p-3"><div><div className="text-sm font-bold">{grant.client.client_name}</div><div className="text-xs text-on-surface-variant">{grant.user.name || grant.user.email} · {locale === 'ru' ? 'до' : 'until'} {new Date(grant.refresh_expires_at).toLocaleDateString()}</div></div><button className="text-xs font-bold text-error" disabled={revokeMcpOAuthGrant.isPending} onClick={() => {
+                                            if (window.confirm(locale === 'ru' ? 'Отключить этот Codex-клиент от проекта?' : 'Disconnect this Codex client from the project?')) revokeMcpOAuthGrant.mutate(grant.id)
+                                        }}>{locale === 'ru' ? 'Отключить' : 'Disconnect'}</button></div>)}
+                                        {!mcpOAuthGrants?.grants?.length && <div className="rounded-xl bg-white p-3 text-sm text-on-surface-variant">{locale === 'ru' ? 'Активных OAuth-подключений пока нет.' : 'No active OAuth connections yet.'}</div>}
+                                    </div>
+                                </section>
+                            )}
                             {isOwner && (
                                 <section className="rounded-2xl bg-surface-container-low p-4 sm:p-5">
                                     <h3 className="font-black text-on-surface">{locale === 'ru' ? 'Персональные доступы' : 'Personal access'}</h3>

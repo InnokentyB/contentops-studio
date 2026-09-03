@@ -8,6 +8,7 @@ import schemaPlanService from '../services/schema_plan.service';
 import { scopeRemoteMcpRequest } from './remote-auth';
 import { McpCapabilityProfile } from './capabilities';
 import mcpAccessTokenService from '../services/mcp_access_token.service';
+import mcpOAuthService, { MCP_WORKSPACE_SCOPE } from '../services/mcp_oauth.service';
 
 type SessionEntry = {
     transport: StreamableHTTPServerTransport;
@@ -68,6 +69,9 @@ async function main() {
         ? { userId: principalUserId, actorId: `user:${principalUserId}`, profile: 'owner' as const }
         : null;
     const defaultProjectId = Number(process.env.MCP_PROJECT_ID || 0);
+    const mcpResource = (process.env.MCP_PUBLIC_RESOURCE || process.env.MCP_REMOTE_URL || `http://${host}:${port}/mcp`).replace(/\/+$/, '');
+    const oauthIssuer = (process.env.OAUTH_ISSUER_URL || process.env.APP_PUBLIC_URL || 'http://127.0.0.1:3003').replace(/\/+$/, '');
+    const resourceMetadataUrl = `${new URL(mcpResource).origin}/.well-known/oauth-protected-resource`;
     const buildScopedCredential = (profile: Exclude<McpCapabilityProfile, 'owner'>): ScopedCredential | null => {
         const upper = profile.toUpperCase();
         const token = String(process.env[`MCP_${upper}_AUTH_TOKEN`] || '').trim();
@@ -203,7 +207,9 @@ async function main() {
             transport: 'streamable-http',
             auth: {
                 bearer_required: Boolean(authToken),
-                principal_scoped: Boolean(principal)
+                principal_scoped: Boolean(principal),
+                oauth_issuer: oauthIssuer,
+                oauth_resource: mcpResource
             },
             capability_endpoints: {
                 planner: plannerCredential ? {
@@ -247,6 +253,15 @@ async function main() {
             parser: {
                 api_base_url_configured: Boolean(process.env.PARSER_API_BASE_URL)
             }
+        });
+    });
+
+    app.get('/.well-known/oauth-protected-resource', (_req: any, res: any) => {
+        res.json({
+            resource: mcpResource,
+            authorization_servers: [oauthIssuer],
+            scopes_supported: [MCP_WORKSPACE_SCOPE],
+            resource_documentation: `${oauthIssuer}/docs/mcp`
         });
     });
 
@@ -326,6 +341,7 @@ async function main() {
         const requireScopedAuth = async (req: any, res: any, next: any) => {
             const token = getBearerToken(req.headers.authorization);
             if (!token) {
+                res.set('WWW-Authenticate', `Bearer resource_metadata="${resourceMetadataUrl}", scope="${MCP_WORKSPACE_SCOPE}"`);
                 res.status(401).json({ error: 'Unauthorized', message: 'Missing or invalid bearer token' });
                 return;
             }
@@ -335,11 +351,14 @@ async function main() {
                 return;
             }
             const managed = await mcpAccessTokenService.authenticate(token, profile);
-            if (!managed) {
+            const oauth = managed ? null : await mcpOAuthService.authenticate(token, profile, mcpResource);
+            const authenticated = managed || oauth;
+            if (!authenticated) {
+                res.set('WWW-Authenticate', `Bearer resource_metadata="${resourceMetadataUrl}", scope="${MCP_WORKSPACE_SCOPE}"`);
                 res.status(401).json({ error: 'Unauthorized', message: 'Missing or invalid bearer token' });
                 return;
             }
-            req.mcpCredential = managed;
+            req.mcpCredential = authenticated;
             next();
         };
 

@@ -1,0 +1,39 @@
+{
+  "mcpServers": {
+    "contentops-strategist": {
+      "type": "http",
+      "url": "https://planner-mcp-production.up.railway.app/mcp/strategist",
+      "scopes": ["contentops:workspace"]
+    },
+    "contentops-planner": {
+      "type": "http",
+      "url": "https://planner-mcp-production.up.railway.app/mcp/planner",
+      "scopes": ["contentops:workspace"]
+    },
+    "contentops-writer": {
+      "type": "http",
+      "url": "https://planner-mcp-production.up.railway.app/mcp/writer",
+      "scopes": ["contentops:workspace"]
+    },
+    "contentops-editor": {
+      "type": "http",
+      "url": "https://planner-mcp-production.up.railway.app/mcp/editor",
+      "scopes": ["contentops:workspace"]
+    },
+    "contentops-art-director": {
+      "type": "http",
+      "url": "https://planner-mcp-production.up.railway.app/mcp/art-director",
+      "scopes": ["contentops:workspace"]
+    },
+    "contentops-publisher": {
+      "type": "http",
+      "url": "https://planner-mcp-production.up.railway.app/mcp/publisher",
+      "scopes": ["contentops:workspace"]
+    },
+    "contentops-growth-analyst": {
+      "type": "http",
+      "url": "https://planner-mcp-production.up.railway.app/mcp/growth-analyst",
+      "scopes": ["contentops:workspace"]
+    }
+  }
+}
