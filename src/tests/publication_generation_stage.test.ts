@@ -121,6 +121,42 @@ test('imported VK story plan is materialized as a manual story bundle, not a fee
     assert.equal(bundle.publication.body, 'Accepted VK story copy');
 });
 
+test('imported story handoff derives account and channel from the current top-level binding', () => {
+    const bundle = publicationPlanService.buildHandoffBundle({
+        meta: { plan_id: 'story-plan' },
+        accounts: {
+            analystcraft_growth: { platform: 'growth_ops' },
+            spherical_analyst_tg: { platform: 'telegram' }
+        },
+        assets: {},
+        actions: []
+    }, {
+        id: 853,
+        draft_text: 'Accepted story copy',
+        content_revision: 1,
+        accepted_revision: 1,
+        text_state: 'accepted',
+        visual_placement: 'story',
+        channel: { name: 'spherical_analyst_tg', type: 'telegram', config: {} },
+        assets: {
+            account_ref: 'analystcraft_growth',
+            asset_refs: [],
+            action: {
+                id: 'story-853',
+                account_ref: 'analystcraft_growth',
+                channel: 'growth_ops',
+                action_type: 'manual_handoff'
+            }
+        }
+    });
+
+    assert.equal(bundle.account.ref, 'spherical_analyst_tg');
+    assert.equal(bundle.account.details.platform, 'telegram');
+    assert.equal(bundle.task.channel, 'telegram');
+    assert.equal(bundle.task.action_type, 'telegram_story:publish');
+    assert.equal(bundle.manual_checklist[0], 'Post from account: spherical_analyst_tg');
+});
+
 test('plan handoff preserves the approved visual bound to the accepted revision', () => {
     const bundle = publicationPlanService.buildHandoffBundle({
         meta: { plan_id: 'plan-1' },

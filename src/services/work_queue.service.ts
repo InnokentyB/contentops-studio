@@ -1,9 +1,9 @@
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { Prisma } from '@prisma/client';
 import prisma from '../db';
 import artDirectionService from './art_direction.service';
 import { planContentReviewRecovery, planMissingContentReviewRecovery } from './publication_content_revision_lifecycle';
-import { isPublicationPlacementMismatchEvidence, placementRepairProvenance, planPublicationPlacementRepair } from './publication_metadata_repair';
+import { isPublicationPlacementMismatchEvidence, placementRepairProvenance, planPublicationPlacementRepair, repairMaterializedPublicationProjection } from './publication_metadata_repair';
 import { assertCanonicalPublicationPlacement } from './publication_placement_contract';
 
 /**
@@ -160,6 +160,13 @@ export class WorkQueueService {
                 blocked_work_item_id: blockedItem.id,
                 blocked_work_item_state: blockedItem.state
             };
+            const repairedProjection = repairMaterializedPublicationProjection({
+                assets: content.assets,
+                qualityReport: content.quality_report,
+                metrics: content.metrics,
+                channel: targetChannel,
+                placement: plan.placement
+            });
             const update = await tx.contentItem.updateMany({
                 where: {
                     id: content.id,
@@ -171,7 +178,10 @@ export class WorkQueueService {
                 },
                 data: {
                     channel_id: plan.channelId,
-                    visual_placement: plan.placement
+                    visual_placement: plan.placement,
+                    assets: repairedProjection.assets as Prisma.InputJsonValue,
+                    quality_report: repairedProjection.qualityReport as Prisma.InputJsonValue,
+                    metrics: repairedProjection.metrics as Prisma.InputJsonValue
                 }
             });
             if (update.count !== 1) throw new Error('[PLACEMENT_CONFLICT] Metadata changed concurrently');
@@ -218,6 +228,136 @@ export class WorkQueueService {
             await this.recordWorkflowEvent(tx, {
                 projectId: params.projectId,
                 workItemId: artDirectionItem.id,
+                weekPackageId: content.week_package_id || undefined,
+                contentItemId: content.id,
+                actorId: params.actorId,
+                command,
+                beforeState,
+                afterState,
+                idempotencyKey: params.idempotencyKey
+            });
+            return afterState;
+        });
+    }
+
+    async repairPublicationProjection(params: {
+        projectId: number;
+        actorId: string;
+        taskId: number;
+        expectedContentRevision: number;
+        expectedAcceptedRevision: number;
+        expectedChannelId: number;
+        expectedPlacement: string;
+        expectedSelectedAssetId: number;
+        idempotencyKey: string;
+    }): Promise<Record<string, unknown>> {
+        return prisma.$transaction(async (tx) => {
+            await this.requireProjectOwner(tx, params.projectId, params.actorId);
+            const command = 'ba_repair_publication_projection';
+            const cached = await this.checkIdempotency(tx, {
+                projectId: params.projectId,
+                actorId: params.actorId,
+                command,
+                idempotencyKey: params.idempotencyKey
+            });
+            if (cached) return cached as Record<string, unknown>;
+
+            const content = await tx.contentItem.findFirst({
+                where: { id: params.taskId, project_id: params.projectId },
+                include: { channel: true, selected_asset: true, publication_fact: true }
+            });
+            if (!content) throw new Error(`Publication task ${params.taskId} not found for project ${params.projectId}`);
+            if (!content.channel) throw new Error('[CHANNEL_BINDING_MISSING] Publication task has no current channel');
+            if (content.status === 'published' || content.published_link || content.publication_fact?.outcome === 'published') {
+                throw new Error('[PUBLICATION_READ_ONLY] Published tasks cannot be repaired');
+            }
+            if (content.content_revision !== params.expectedContentRevision
+                || content.accepted_revision !== params.expectedAcceptedRevision
+                || content.accepted_revision !== content.content_revision
+                || content.text_state !== 'accepted') {
+                throw new Error('[CONTENT_REVISION_CONFLICT] Current accepted revision changed');
+            }
+            if (content.channel_id !== params.expectedChannelId || content.visual_placement !== params.expectedPlacement) {
+                throw new Error('[PROJECTION_BINDING_CONFLICT] Channel or placement changed since inspection');
+            }
+            if (content.selected_asset_id !== params.expectedSelectedAssetId
+                || !content.selected_asset
+                || content.selected_asset.status !== 'approved'
+                || content.selected_asset.content_revision !== content.accepted_revision) {
+                throw new Error('[VISUAL_BINDING_CONFLICT] Approved selected asset changed');
+            }
+            assertCanonicalPublicationPlacement(content.channel, params.expectedPlacement);
+
+            const beforeAssets = (content.assets || {}) as Record<string, any>;
+            const beforeQuality = (content.quality_report || {}) as Record<string, any>;
+            const beforeMetrics = (content.metrics || {}) as Record<string, any>;
+            const projection = repairMaterializedPublicationProjection({
+                assets: beforeAssets,
+                qualityReport: beforeQuality,
+                metrics: beforeMetrics,
+                channel: content.channel,
+                placement: params.expectedPlacement
+            });
+            const bodySha256 = createHash('sha256').update(content.draft_text || '').digest('hex');
+            const assetChecksum = ((content.selected_asset.provenance as any)?.planner_storage?.sha256)
+                || (content.selected_asset.provenance as any)?.sha256
+                || null;
+            const beforeState = {
+                task_id: content.id,
+                channel_id: content.channel_id,
+                channel_name: content.channel.name,
+                channel_type: content.channel.type,
+                visual_placement: content.visual_placement,
+                content_revision: content.content_revision,
+                accepted_revision: content.accepted_revision,
+                body_sha256: bodySha256,
+                selected_asset_id: content.selected_asset_id,
+                selected_asset_checksum: assetChecksum,
+                materialized_account_ref: beforeAssets.account_ref || null,
+                handoff_account_ref: beforeQuality.handoff_bundle?.account?.ref || null,
+                handoff_channel: beforeQuality.handoff_bundle?.task?.channel || null,
+                metrics_account_ref: beforeMetrics.account_ref || null
+            };
+
+            const update = await tx.contentItem.updateMany({
+                where: {
+                    id: content.id,
+                    project_id: params.projectId,
+                    content_revision: params.expectedContentRevision,
+                    accepted_revision: params.expectedAcceptedRevision,
+                    channel_id: params.expectedChannelId,
+                    visual_placement: params.expectedPlacement,
+                    selected_asset_id: params.expectedSelectedAssetId
+                },
+                data: {
+                    assets: projection.assets as Prisma.InputJsonValue,
+                    quality_report: projection.qualityReport as Prisma.InputJsonValue,
+                    metrics: projection.metrics as Prisma.InputJsonValue
+                }
+            });
+            if (update.count !== 1) throw new Error('[PROJECTION_CONFLICT] Publication metadata changed concurrently');
+
+            const afterState = {
+                repaired: true,
+                task_id: content.id,
+                channel_id: content.channel_id,
+                channel_name: content.channel.name,
+                channel_type: content.channel.type,
+                visual_placement: content.visual_placement,
+                content_revision: content.content_revision,
+                accepted_revision: content.accepted_revision,
+                body_sha256: bodySha256,
+                selected_asset_id: content.selected_asset_id,
+                selected_asset_checksum: assetChecksum,
+                materialized_account_ref: projection.assets.account_ref,
+                handoff_account_ref: projection.qualityReport.handoff_bundle?.account?.ref || null,
+                handoff_channel: projection.qualityReport.handoff_bundle?.task?.channel || null,
+                handoff_action_type: projection.qualityReport.handoff_bundle?.task?.action_type || null,
+                metrics_account_ref: projection.metrics.account_ref,
+                poll_configuration_mode: projection.qualityReport.handoff_bundle?.placement_contract?.poll?.configuration_mode || null
+            };
+            await this.recordWorkflowEvent(tx, {
+                projectId: params.projectId,
                 weekPackageId: content.week_package_id || undefined,
                 contentItemId: content.id,
                 actorId: params.actorId,

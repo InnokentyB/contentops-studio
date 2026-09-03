@@ -990,6 +990,24 @@ export function registerPlannerTools(server: McpServer) {
         return asToolResult(result);
     });
 
+    server.registerTool('ba_repair_publication_projection', {
+        description: 'Owner-only audited metadata repair for an unpublished accepted publication: rebuild stored action, handoff and metrics routing fields from the current top-level channel and placement without changing content, schedule, revisions, visual decisions or assets.',
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string(),
+            taskId: z.number().int().positive(),
+            expectedContentRevision: z.number().int().positive(),
+            expectedAcceptedRevision: z.number().int().positive(),
+            expectedChannelId: z.number().int().positive(),
+            expectedPlacement: z.string(),
+            expectedSelectedAssetId: z.number().int().positive(),
+            idempotencyKey: z.string()
+        }
+    }, async (args) => {
+        const result = await workQueueService.repairPublicationProjection(args);
+        return asToolResult(result);
+    });
+
     server.registerTool('ba_list_schedule_exceptions', {
         description: 'List schedule exceptions (overdue content, missed publication slots, unavailable sources).',
         inputSchema: {

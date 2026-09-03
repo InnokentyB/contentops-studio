@@ -58,3 +58,76 @@ export function placementRepairProvenance(input: {
         }
     };
 }
+
+type CanonicalPublicationChannel = {
+    id: number;
+    name: string;
+    type: string;
+};
+
+export function canonicalStoryActionType(channelType: string, placement: string) {
+    return `${String(channelType || 'unknown').toLowerCase()}_${String(placement || 'feed').toLowerCase()}:publish`;
+}
+
+/**
+ * Rebuilds denormalized routing metadata from the durable ContentItem channel
+ * binding. Content, schedule, visual decisions and asset records are deliberately
+ * outside this projection and cannot be changed by this helper.
+ */
+export function repairMaterializedPublicationProjection(input: {
+    assets?: any;
+    qualityReport?: any;
+    metrics?: any;
+    channel: CanonicalPublicationChannel;
+    placement: string;
+}) {
+    const assets = { ...(input.assets || {}) };
+    const action = { ...(assets.action || {}) };
+    const qualityReport = { ...(input.qualityReport || {}) };
+    const handoffBundle = qualityReport.handoff_bundle
+        ? { ...qualityReport.handoff_bundle }
+        : null;
+    const actionType = canonicalStoryActionType(input.channel.type, input.placement);
+
+    assets.account_ref = input.channel.name;
+    assets.action = {
+        ...action,
+        account_ref: input.channel.name,
+        channel: input.channel.type,
+        action_type: actionType
+    };
+
+    if (handoffBundle) {
+        const currentChecklist = Array.isArray(handoffBundle.manual_checklist)
+            ? [...handoffBundle.manual_checklist]
+            : [];
+        const manualChecklist = currentChecklist.length > 0
+            ? [`Post from account: ${input.channel.name}`, ...currentChecklist.slice(1)]
+            : [`Post from account: ${input.channel.name}`];
+        handoffBundle.account = {
+            ...(handoffBundle.account || {}),
+            ref: input.channel.name,
+            details: {
+                ...(handoffBundle.account?.details || {}),
+                platform: input.channel.type
+            }
+        };
+        handoffBundle.task = {
+            ...(handoffBundle.task || {}),
+            channel: input.channel.type,
+            action_type: actionType,
+            placement: input.placement
+        };
+        handoffBundle.manual_checklist = manualChecklist;
+        qualityReport.handoff_bundle = handoffBundle;
+    }
+
+    return {
+        assets,
+        qualityReport,
+        metrics: {
+            ...(input.metrics || {}),
+            account_ref: input.channel.name
+        }
+    };
+}

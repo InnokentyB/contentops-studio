@@ -3,6 +3,7 @@ import * as path from 'path';
 import { createHash } from 'crypto';
 import prisma from '../db';
 import publicationAdapterService from './publication_adapter.service';
+import { canonicalStoryActionType } from './publication_metadata_repair';
 import { mapActionStatus, resolveActionTitle } from './publication_runtime.helpers';
 import contentDictionaryService from './content_dictionary.service';
 import contentPolicyMatrixService from './content_policy_matrix.service';
@@ -1967,9 +1968,24 @@ class PublicationPlanService {
     }
 
     buildHandoffBundle(plan: PublicationPlan, item: any, options: { requireAcceptedContent?: boolean } = {}) {
-        const action = item.assets?.action || {};
-        const accountRef = item.assets?.account_ref || null;
-        const account = accountRef ? plan.accounts[accountRef] : null;
+        const importedAction = item.assets?.action || {};
+        const placement = item.visual_placement || 'feed';
+        const canonicalChannelType = item.channel?.type || importedAction.channel || item.layer || 'unknown';
+        const accountRef = item.channel?.name || item.assets?.account_ref || null;
+        const action = {
+            ...importedAction,
+            ...(item.channel ? {
+                account_ref: accountRef,
+                channel: canonicalChannelType,
+                action_type: placement === 'story'
+                    ? canonicalStoryActionType(canonicalChannelType, placement)
+                    : importedAction.action_type
+            } : {})
+        };
+        const channelConfig = item.channel?.config || {};
+        const account = (accountRef ? plan.accounts[accountRef] : null)
+            || channelConfig.raw_account
+            || (item.channel ? { platform: canonicalChannelType } : null);
         const assetRefs = item.assets?.asset_refs || [];
         const persistedResolvedAssets = Array.isArray(item.assets?.resolved_assets) ? item.assets.resolved_assets : [];
         const persistedKeyPoints = Array.isArray(item.key_points) ? item.key_points : [];
@@ -2143,9 +2159,8 @@ class PublicationPlanService {
             }))
         ]);
 
-        const placement = item.visual_placement || 'feed';
         const placementContract = publicationPlacementAssetContract(
-            { type: item.channel?.type || action.channel || item.layer || 'unknown', config: item.channel?.config },
+            { type: canonicalChannelType, config: item.channel?.config },
             placement
         );
 
@@ -2160,7 +2175,7 @@ class PublicationPlanService {
             task: {
                 id: action.id || item.id,
                 display_name: action.display_name || item.title || null,
-                channel: action.channel || item.layer,
+                channel: canonicalChannelType,
                 action_type: action.action_type || item.type,
                 schedule_at: action.scheduled_at || item.schedule_at?.toISOString?.() || item.schedule_at || null,
                 scheduled_date: action.scheduled_date || item.schedule_at,

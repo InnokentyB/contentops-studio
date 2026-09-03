@@ -79,6 +79,7 @@ test('writer MCP discovery exposes content tools but not slot mutation tools', (
     assert.ok(!tools.includes('ba_recover_content_review'));
     assert.ok(!tools.includes('ba_recover_missing_content_review'));
     assert.ok(!tools.includes('ba_repair_publication_placement'));
+    assert.ok(!tools.includes('ba_repair_publication_projection'));
 });
 
 test('planner MCP discovery exposes slot controls but not content mutation', () => {
@@ -95,6 +96,7 @@ test('planner MCP discovery exposes slot controls but not content mutation', () 
     assert.ok(!tools.includes('ba_recover_content_review'));
     assert.ok(!tools.includes('ba_recover_missing_content_review'));
     assert.ok(!tools.includes('ba_repair_publication_placement'));
+    assert.ok(!tools.includes('ba_repair_publication_projection'));
 });
 
 test('only the owner MCP profile discovers audited content review recovery', () => {
@@ -103,4 +105,5 @@ test('only the owner MCP profile discovers audited content review recovery', () 
     assert.ok(tools.includes('ba_recover_content_review'));
     assert.ok(tools.includes('ba_recover_missing_content_review'));
     assert.ok(tools.includes('ba_repair_publication_placement'));
+    assert.ok(tools.includes('ba_repair_publication_projection'));
 });
