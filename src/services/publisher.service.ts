@@ -225,6 +225,32 @@ class PublisherService {
         };
     }
 
+    async publishTelegramPersonalStoryMtproto(params: {
+        projectId: number;
+        taskId: number;
+        caption: string;
+        imageUrl: string;
+        idempotencyKey: string;
+    }) {
+        const initialized = await telegramClientService.init(params.projectId);
+        if (!initialized) {
+            throw new Error('[MTPROTO_UNAVAILABLE] No active Telegram MTProto session is available for the project');
+        }
+        const story = await telegramClientService.publishPersonalStory({
+            projectId: params.projectId,
+            caption: params.caption,
+            imageUrl: params.imageUrl,
+            idempotencyKey: params.idempotencyKey
+        });
+        return {
+            adapter: 'telegram_story',
+            deliveryMethod: 'mtproto_personal_story',
+            publishedLink: story.publicLink,
+            evidenceRef: story.publicLink || `telegram-story:self:${story.storyId}`,
+            metrics: { telegram_story_id: story.storyId }
+        };
+    }
+
     private async routeToBrowserPublication(task: any, bundle: any, reason: Record<string, unknown>) {
         const now = new Date().toISOString();
         const qualityReport = {
@@ -1668,7 +1694,8 @@ class PublisherService {
             }
             if (task.channel?.type === 'telegram'
                 && !automatedResult.publishedLink
-                && !automatedResult.metrics?.telegram_message_id) {
+                && !automatedResult.metrics?.telegram_message_id
+                && !automatedResult.metrics?.telegram_story_id) {
                 throw new Error('[PUBLICATION_IDENTITY_MISSING] Telegram provider did not confirm a message ID or permalink');
             }
         } catch (error) {
@@ -1698,7 +1725,12 @@ class PublisherService {
             }
         });
 
-        if (automatedResult.publishedLink) {
+        const providerObjectId = automatedResult.metrics?.telegram_story_id
+            || automatedResult.metrics?.telegram_message_id
+            || null;
+        const isStory = String(task.type || '').toLowerCase().includes('story')
+            || String(task.visual_placement || '').toLowerCase() === 'story';
+        if (automatedResult.publishedLink || (isStory && providerObjectId && automatedResult.evidenceRef)) {
             try {
                 const owner = await prisma.projectMember.findFirst({
                     where: { project_id: task.project_id, role: 'owner' },
@@ -1719,8 +1751,12 @@ class PublisherService {
                         outcome: 'published',
                         publishedAt: new Date().toISOString(),
                         publicUrl: automatedResult.publishedLink,
+                        providerObjectId: providerObjectId ? String(providerObjectId) : undefined,
                         confirmationMode: 'automatic',
-                        evidence: { type: 'api', ref: automatedResult.publishedLink },
+                        evidence: {
+                            type: 'api',
+                            ref: automatedResult.evidenceRef || automatedResult.publishedLink
+                        },
                         note: `Published automatically via ${automatedResult.adapter || task.channel?.type || 'connector'}`
                     });
                 }
@@ -1948,6 +1984,29 @@ class PublisherService {
         }
 
         if (channelType === 'telegram') {
+            const isPersonalStory = String(task.type || '').toLowerCase().includes('story')
+                || String(task.visual_placement || '').toLowerCase() === 'story';
+            if (isPersonalStory) {
+                const handoffBundle = (task.quality_report as any)?.handoff_bundle;
+                const poll = handoffBundle?.placement_contract?.poll || handoffBundle?.poll;
+                if (poll?.supported === true && poll?.configuration_mode === 'native_manual') {
+                    throw new Error('[TELEGRAM_STORY_NATIVE_POLL_MANUAL] Native poll setup requires manual handoff');
+                }
+                if (!imageUrl) throw new Error('[TELEGRAM_STORY_MEDIA_REQUIRED] Personal Telegram story requires approved media');
+                const story = await telegramClientService.publishPersonalStory({
+                    projectId: task.project_id,
+                    caption: text,
+                    imageUrl,
+                    idempotencyKey: `scheduled-personal-story:${task.id}:r${task.accepted_revision || task.content_revision}`
+                });
+                return {
+                    adapter: 'telegram_story',
+                    deliveryMethod: 'mtproto_personal_story',
+                    publishedLink: story.publicLink,
+                    evidenceRef: story.publicLink || `telegram-story:self:${story.storyId}`,
+                    metrics: { telegram_story_id: story.storyId }
+                };
+            }
             const resolvedTelegram = await this.resolveTelegramDeliveryConfig(task, channelConfig);
             const rawChannelId = resolvedTelegram.rawChannelId;
             const normalizedHandle = resolvedTelegram.normalizedHandle;

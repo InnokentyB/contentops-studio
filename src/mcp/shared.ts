@@ -678,7 +678,7 @@ export function registerPlannerTools(server: McpServer) {
     });
 
     server.registerTool('ba_publish_publication_task', {
-        description: 'Publish one canonical Telegram publication task through the project MTProto session. The server resolves the accepted text and selected approved durable visual; no Bot API or browser fallback is used.',
+        description: 'Publish one canonical Telegram task through the project MTProto session. Feed tasks target their configured channel; story tasks target the authorized user personal profile and require approved media. Native-poll stories remain manual. No Bot API or browser fallback is used.',
         inputSchema: {
             projectId: z.number().int().positive(),
             taskId: z.number().int().positive(),

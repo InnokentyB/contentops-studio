@@ -43,4 +43,6 @@ railway run --service planner-app npm run telegram:setup
 
 Повторный setup для того же сочетания `project_id + phone_number` заменяет сессию, не создавая дубликат. После настройки выполните dry-run Telegram-публикации из задачи; live-публикацию запускайте только после успешного dry-run.
 
+Задача Telegram с `visual_placement=story` публикуется в личный профиль этого авторизованного аккаунта, а не в привязанный редакционный канал. Перед отправкой сервис проверяет `stories.canSendStory`, использует детерминированный `random_id`, затем подтверждает результат через `stories.getStoriesByID`. Публикация считается успешной только при наличии `story_id` и API-evidence. Story требует утверждённое HTTPS-изображение; вариант с нативным poll остаётся ручным.
+
 Если сервис сообщает `Unable to decrypt channel session`, проверьте, что `CHANNEL_SECRETS_KEY` в Railway не менялся.
