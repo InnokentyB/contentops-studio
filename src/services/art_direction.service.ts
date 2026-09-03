@@ -9,6 +9,7 @@ import {
     clearVisualStorageIngestBlock,
     getVisualStorageIngestState
 } from './visual_storage_incident.service';
+import { publicationPlacementAssetContract } from './publication_placement_contract';
 
 export const ART_DIRECTION_DECISIONS = [
     'NO_VISUAL_NEEDED',
@@ -63,6 +64,10 @@ export function defaultVisualMode(channel: string, placement: string): VisualMod
     if (normalizedPlacement.includes('story') || normalizedPlacement.includes('reel')) return 'required';
     if (normalizedChannel === 'linkedin' && normalizedPlacement.includes('carousel')) return 'required';
     return 'auto_assess';
+}
+
+export function buildArtDirectionPlacementContext(channel: string, placement: string, config?: unknown) {
+    return publicationPlacementAssetContract({ type: channel, config }, placement);
 }
 
 export function validateArtDirectionDecision(input: ArtDirectionDecisionInput, visualMode: string): ArtDirectionDecisionInput {
@@ -200,14 +205,17 @@ export class ArtDirectionService {
         });
         if (!workItem?.content_item) throw new Error('Art-direction work item not found');
         const item = workItem.content_item;
+        const channelType = item.channel?.type || item.type;
+        const placement = item.visual_placement || 'feed';
         return {
             work_item: workItem,
             content: {
                 id: item.id,
                 accepted_text: item.draft_text,
                 source_content_revision: item.accepted_revision,
-                channel: item.channel?.type || item.type,
-                placement: item.visual_placement || 'feed',
+                channel: channelType,
+                placement,
+                placement_contract: buildArtDirectionPlacementContext(channelType, placement, item.channel?.config),
                 visual_mode: item.visual_mode
             },
             recent_assets: item.image_assets

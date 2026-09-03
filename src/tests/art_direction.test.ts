@@ -1,11 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+    buildArtDirectionPlacementContext,
     ART_DIRECTION_DECISIONS,
     calculateVisualReadiness,
     defaultVisualMode,
     validateArtDirectionDecision
 } from '../services/art_direction.service';
+
+test('VK article art context exposes cover dimensions and safe area', () => {
+    const contract = buildArtDirectionPlacementContext('vk', 'article_cover');
+    assert.deepEqual(contract.dimensions, { width: 1200, height: 675, aspect_ratio: '16:9' });
+    assert.deepEqual(contract.safe_area, { unit: 'px', top: 72, right: 96, bottom: 72, left: 96 });
+    assert.equal(contract.transport.materialization, 'article');
+});
 import { isToolAllowedForProfile } from '../mcp/capabilities';
 
 const baseDecision = {
