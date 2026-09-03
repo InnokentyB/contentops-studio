@@ -13,12 +13,25 @@ const input = {
 
 test('workspace manifest exposes the governed chat topology without secrets', () => {
     const manifest = buildAgentWorkspaceManifest(input);
-    assert.equal(manifest.schema_version, '1.0');
+    assert.equal(manifest.schema_version, '1.1');
     assert.equal(manifest.project.id, 10);
     assert.ok(manifest.chats.some((chat) => chat.id === 'planning_hq'));
     assert.ok(manifest.chats.some((chat) => chat.id === 'content_writer'));
     assert.ok(manifest.chats.some((chat) => chat.id === 'chief_editor'));
     assert.ok(manifest.chats.some((chat) => chat.id === 'art_director'));
+    assert.deepEqual(
+        manifest.chats.map((chat) => [chat.id, chat.mcp_profile]),
+        [
+            ['strategist', 'strategist'],
+            ['planning_hq', 'planner'],
+            ['content_writer', 'writer'],
+            ['chief_editor', 'editor'],
+            ['art_director', 'art_director'],
+            ['publisher', 'publisher'],
+            ['growth_analyst', 'growth_analyst']
+        ]
+    );
+    assert.ok(manifest.handoffs.some((edge) => edge.from === 'strategist' && edge.to === 'planning_hq'));
     assert.ok(manifest.handoffs.some((edge) => edge.from === 'planning_hq' && edge.to === 'content_writer'));
     assert.match(manifest.checksum, /^sha256:[a-f0-9]{64}$/);
     assert.doesNotMatch(JSON.stringify(manifest), /token|api[_-]?key|authorization/i);

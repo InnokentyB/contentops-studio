@@ -688,12 +688,12 @@ export default async function projectRoutes(fastify: FastifyInstance) {
             const response = await fetch(healthUrl, { signal: controller.signal });
             const health = response.ok ? await response.json() as any : null;
             const capabilityEndpoints = health?.capability_endpoints || {};
-            const capabilityStatus = (profile: 'planner' | 'writer' | 'art_director' | 'strategist') => {
+            const capabilityStatus = (profile: Exclude<import('../mcp/capabilities').McpCapabilityProfile, 'owner'>) => {
                 const remote = capabilityEndpoints[profile];
                 const configured = remote === true || remote?.configured === true;
                 const boundProjectId = Number(remote?.project_id || 0) || null;
                 return {
-                    endpoint: `${endpoint}/${profile.replace('_', '-')}`,
+                    endpoint: `${endpoint}/${profile.replace(/_/g, '-')}`,
                     configured: configured && (!boundProjectId || boundProjectId === projectId),
                     bound_project_id: boundProjectId
                 };
@@ -710,7 +710,10 @@ export default async function projectRoutes(fastify: FastifyInstance) {
                     planner: capabilityStatus('planner'),
                     writer: capabilityStatus('writer'),
                     art_director: capabilityStatus('art_director'),
-                    strategist: capabilityStatus('strategist')
+                    strategist: capabilityStatus('strategist'),
+                    editor: capabilityStatus('editor'),
+                    publisher: capabilityStatus('publisher'),
+                    growth_analyst: capabilityStatus('growth_analyst')
                 },
                 checked_at: new Date().toISOString()
             };
@@ -747,9 +750,25 @@ export default async function projectRoutes(fastify: FastifyInstance) {
         const expiry = expiresAt ? new Date(expiresAt) : null;
         if (expiry && (Number.isNaN(expiry.getTime()) || expiry <= new Date())) return reply.code(400).send({ error: 'Expiry must be in the future' });
         try {
+            reply.header('Cache-Control', 'no-store');
             return await mcpAccessTokenService.create(projectId, userId, profile, label || '', expiry);
         } catch (error: any) {
             return reply.code(400).send({ error: error.message || 'Unable to create MCP access' });
+        }
+    });
+
+    fastify.post('/api/projects/:id/mcp/workspace-access', async (request, reply) => {
+        const owner = (request as any).user;
+        const projectId = parseInt((request.params as { id: string }).id, 10);
+        if (!await authService.hasProjectAccess(owner.id, projectId, 'owner')) return reply.code(403).send({ error: 'Owner access required' });
+        const { userId, label } = request.body as { userId: number; label?: string };
+        if (!Number.isInteger(userId)) return reply.code(400).send({ error: 'Valid project member is required' });
+        const endpoint = (process.env.MCP_REMOTE_URL || 'http://127.0.0.1:8080/mcp').replace(/\/+$/, '');
+        try {
+            reply.header('Cache-Control', 'no-store');
+            return await mcpAccessTokenService.createWorkspaceBundle(projectId, userId, label || '', endpoint);
+        } catch (error: any) {
+            return reply.code(400).send({ error: error.message || 'Unable to create agent workspace access' });
         }
     });
 

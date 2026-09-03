@@ -5,14 +5,14 @@ export type AgentWorkspaceChat = {
     id: string;
     name: string;
     purpose: string;
-    mcp_profile: 'owner' | 'planner' | 'writer' | 'art_director';
+    mcp_profile: 'strategist' | 'planner' | 'writer' | 'editor' | 'art_director' | 'publisher' | 'growth_analyst';
     responsibilities: string[];
     permissions: string[];
     startup_instructions: string[];
 };
 
 export type AgentWorkspaceManifest = {
-    schema_version: '1.0';
+    schema_version: '1.1';
     revision: string;
     checksum: string;
     project: { id: number; name: string; slug: string };
@@ -30,6 +30,15 @@ type ManifestInput = {
 };
 
 const chats: AgentWorkspaceChat[] = [
+    {
+        id: 'strategist',
+        name: 'Strategist',
+        purpose: 'Turn project goals and evidence into initiatives, themes and planning constraints.',
+        mcp_profile: 'strategist',
+        responsibilities: ['Maintain strategic initiatives', 'Set measurable priorities and constraints', 'Hand an accepted direction to planning'],
+        permissions: ['read_workspace', 'manage_initiatives', 'propose_week_theme'],
+        startup_instructions: ['Load the latest workspace manifest', 'Ground recommendations in project evidence', 'Never publish or use deployment-owner provider keys']
+    },
     {
         id: 'planning_hq',
         name: 'Planning HQ',
@@ -52,7 +61,7 @@ const chats: AgentWorkspaceChat[] = [
         id: 'chief_editor',
         name: 'Chief Editor',
         purpose: 'Review revision-bound copy and accept or return it with actionable feedback.',
-        mcp_profile: 'owner',
+        mcp_profile: 'editor',
         responsibilities: ['Review content quality and evidence', 'Accept the exact reviewed revision', 'Return blocked copy with a reason'],
         permissions: ['read_plan', 'read_sources', 'review_content', 'decide_content'],
         startup_instructions: ['Load the latest workspace manifest', 'Verify the current content revision', 'Never accept a stale result version']
@@ -70,7 +79,7 @@ const chats: AgentWorkspaceChat[] = [
         id: 'publisher',
         name: 'Publisher / SMM',
         purpose: 'Execute an approved manual handoff or automated delivery and record the publication fact.',
-        mcp_profile: 'owner',
+        mcp_profile: 'publisher',
         responsibilities: ['Verify release readiness', 'Publish through the configured delivery mode', 'Record the live URL and outcome'],
         permissions: ['read_plan', 'read_content', 'execute_delivery', 'record_publication_fact'],
         startup_instructions: ['Load the latest workspace manifest', 'Require accepted content and visual readiness', 'Never infer publication from an attempted delivery']
@@ -79,7 +88,7 @@ const chats: AgentWorkspaceChat[] = [
         id: 'growth_analyst',
         name: 'Growth Analyst',
         purpose: 'Collect channel and campaign checkpoints after confirmed publication.',
-        mcp_profile: 'owner',
+        mcp_profile: 'growth_analyst',
         responsibilities: ['Collect scheduled metric checkpoints', 'Roll up campaign performance', 'Surface missing or late measurements'],
         permissions: ['read_publication_facts', 'record_metrics', 'read_campaigns'],
         startup_instructions: ['Load the latest workspace manifest', 'Measure only confirmed publication facts', 'Preserve source and collection mode']
@@ -87,6 +96,7 @@ const chats: AgentWorkspaceChat[] = [
 ];
 
 const handoffs = [
+    { from: 'strategist', to: 'planning_hq', when: 'direction_accepted', artifact: 'initiative_brief' },
     { from: 'planning_hq', to: 'content_writer', when: 'slot_ready', artifact: 'publication_slot' },
     { from: 'content_writer', to: 'chief_editor', when: 'content_submitted', artifact: 'content_revision' },
     { from: 'chief_editor', to: 'art_director', when: 'content_accepted', artifact: 'accepted_revision' },
@@ -109,7 +119,7 @@ export function buildAgentWorkspaceManifest(input: ManifestInput): AgentWorkspac
     const timestamps = [input.project.updatedAt, ...input.channels.map((channel) => channel.updatedAt), ...input.settings.map((setting) => setting.updatedAt)];
     const revision = new Date(Math.max(...timestamps.map((value) => value.getTime()))).toISOString();
     const unsigned = {
-        schema_version: '1.0' as const,
+        schema_version: '1.1' as const,
         revision,
         project: { id: input.project.id, name: input.project.name, slug: input.project.slug },
         chats,

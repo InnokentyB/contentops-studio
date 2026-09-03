@@ -36,8 +36,8 @@ export function scopeRemoteMcpRequest(body: any, principal: RemotePrincipal | nu
 
     const scopedArguments = { ...currentArguments };
     if ('actorId' in scopedArguments) scopedArguments.actorId = principal.actorId;
-    if ('userId' in scopedArguments) scopedArguments.userId = principal.userId;
-    if (principal.projectId && 'projectId' in scopedArguments) scopedArguments.projectId = principal.projectId;
+    if ('userId' in scopedArguments || toolName?.startsWith('ba_get_agent_')) scopedArguments.userId = principal.userId;
+    if (principal.projectId && ('projectId' in scopedArguments || toolName?.startsWith('ba_get_agent_'))) scopedArguments.projectId = principal.projectId;
 
     return {
         allowed: true,

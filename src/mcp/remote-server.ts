@@ -68,7 +68,7 @@ async function main() {
         ? { userId: principalUserId, actorId: `user:${principalUserId}`, profile: 'owner' as const }
         : null;
     const defaultProjectId = Number(process.env.MCP_PROJECT_ID || 0);
-    const buildScopedCredential = (profile: 'planner' | 'writer' | 'art_director' | 'strategist'): ScopedCredential | null => {
+    const buildScopedCredential = (profile: Exclude<McpCapabilityProfile, 'owner'>): ScopedCredential | null => {
         const upper = profile.toUpperCase();
         const token = String(process.env[`MCP_${upper}_AUTH_TOKEN`] || '').trim();
         const userId = Number(process.env[`MCP_${upper}_USER_ID`] || principalUserId || 0);
@@ -85,6 +85,9 @@ async function main() {
     const writerCredential = buildScopedCredential('writer');
     const artDirectorCredential = buildScopedCredential('art_director');
     const strategistCredential = buildScopedCredential('strategist');
+    const editorCredential = buildScopedCredential('editor');
+    const publisherCredential = buildScopedCredential('publisher');
+    const growthAnalystCredential = buildScopedCredential('growth_analyst');
     const isProduction = Boolean(process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production');
     if (isProduction && (!authToken || !principal)) {
         throw new Error('Production remote MCP requires MCP_AUTH_TOKEN and MCP_PRINCIPAL_USER_ID');
@@ -222,7 +225,22 @@ async function main() {
                     configured: true,
                     project_id: strategistCredential.principal.projectId,
                     user_id: strategistCredential.principal.userId
-                } : { configured: managedProfiles.has('strategist') }
+                } : { configured: managedProfiles.has('strategist') },
+                editor: editorCredential ? {
+                    configured: true,
+                    project_id: editorCredential.principal.projectId,
+                    user_id: editorCredential.principal.userId
+                } : { configured: managedProfiles.has('editor') },
+                publisher: publisherCredential ? {
+                    configured: true,
+                    project_id: publisherCredential.principal.projectId,
+                    user_id: publisherCredential.principal.userId
+                } : { configured: managedProfiles.has('publisher') },
+                growth_analyst: growthAnalystCredential ? {
+                    configured: true,
+                    project_id: growthAnalystCredential.principal.projectId,
+                    user_id: growthAnalystCredential.principal.userId
+                } : { configured: managedProfiles.has('growth_analyst') }
             },
             active_sessions: sessions.size,
             schema_plan: schemaPlanService.getPlan(),
@@ -304,7 +322,7 @@ async function main() {
         await entry.transport.handleRequest(req, res, req.body);
     });
 
-    function registerScopedEndpoint(endpoint: string, profile: 'planner' | 'writer' | 'art_director' | 'strategist', credential: ScopedCredential | null) {
+    function registerScopedEndpoint(endpoint: string, profile: Exclude<McpCapabilityProfile, 'owner'>, credential: ScopedCredential | null) {
         const requireScopedAuth = async (req: any, res: any, next: any) => {
             const token = getBearerToken(req.headers.authorization);
             if (!token) {
@@ -392,6 +410,9 @@ async function main() {
     registerScopedEndpoint('/mcp/writer', 'writer', writerCredential);
     registerScopedEndpoint('/mcp/art-director', 'art_director', artDirectorCredential);
     registerScopedEndpoint('/mcp/strategist', 'strategist', strategistCredential);
+    registerScopedEndpoint('/mcp/editor', 'editor', editorCredential);
+    registerScopedEndpoint('/mcp/publisher', 'publisher', publisherCredential);
+    registerScopedEndpoint('/mcp/growth-analyst', 'growth_analyst', growthAnalystCredential);
 
     const server = app.listen(port, host, () => {
         console.log(`[MCP Remote] listening on http://${host}:${port} (auth required: ${Boolean(authToken)})`);

@@ -27,6 +27,17 @@ test('remote MCP scopes agent workspace reads to the bound user and project', ()
     assert.equal(result.body.params.arguments.projectId, 10);
 });
 
+test('remote MCP injects the token-bound identity into bootstrap calls', () => {
+    const body = {
+        method: 'tools/call',
+        params: { name: 'ba_get_agent_workspace_manifest', arguments: {} }
+    };
+    const result = scopeRemoteMcpRequest(body, { userId: 2, actorId: 'user:2', projectId: 10, profile: 'writer' });
+    assert.equal(result.allowed, true);
+    assert.equal(result.body.params.arguments.userId, 2);
+    assert.equal(result.body.params.arguments.projectId, 10);
+});
+
 test('remote MCP denies cross-tenant administrative tools', () => {
     const result = scopeRemoteMcpRequest({
         jsonrpc: '2.0', id: 2, method: 'tools/call',
@@ -106,4 +117,26 @@ test('only the owner MCP profile discovers audited content review recovery', () 
     assert.ok(tools.includes('ba_recover_missing_content_review'));
     assert.ok(tools.includes('ba_repair_publication_placement'));
     assert.ok(tools.includes('ba_repair_publication_projection'));
+});
+
+test('editor, publisher and growth profiles expose only their governed lifecycle tools', () => {
+    const editorTools = Object.keys((createPlannerMcpServer({ profile: 'editor' } as any) as any)._registeredTools || {});
+    assert.ok(editorTools.includes('ba_decide_approval'));
+    assert.ok(!editorTools.includes('ba_update_publication_content'));
+    assert.ok(!editorTools.includes('ba_complete_work_item'));
+    assert.ok(!editorTools.includes('ba_publish_publication_task'));
+
+    const publisherTools = Object.keys((createPlannerMcpServer({ profile: 'publisher' } as any) as any)._registeredTools || {});
+    assert.ok(publisherTools.includes('ba_prepare_publication_task'));
+    assert.ok(publisherTools.includes('ba_publish_publication_task'));
+    assert.ok(publisherTools.includes('ba_confirm_publication'));
+    assert.ok(!publisherTools.includes('ba_publish_direct'));
+    assert.ok(!publisherTools.includes('ba_repair_publication_placement'));
+
+    const growthTools = Object.keys((createPlannerMcpServer({ profile: 'growth_analyst' } as any) as any)._registeredTools || {});
+    assert.ok(growthTools.includes('ba_get_content_metrics'));
+    assert.ok(growthTools.includes('ba_record_metric_snapshot'));
+    assert.ok(growthTools.includes('ba_rollup_campaign_metrics'));
+    assert.ok(!growthTools.includes('ba_publish_publication_task'));
+    assert.ok(!growthTools.includes('ba_decide_approval'));
 });

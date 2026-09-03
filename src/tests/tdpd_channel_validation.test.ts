@@ -15,6 +15,7 @@ import projectRoutes from '../routes/project.routes';
 import authService from '../services/auth.service';
 import { prisma } from '../services/planner.service';
 import plannerService from '../services/planner.service';
+import mcpAccessTokenService from '../services/mcp_access_token.service';
 
 test('sanitizeChannelConfig masks sensitive fields', () => {
     const config = {
@@ -365,7 +366,8 @@ test('GET /api/projects/:id/mcp/status reports the configured MCP health', async
         status: 'ok', transport: 'streamable-http', auth: { bearer_required: false }, uptime_s: 12, active_sessions: 1,
         capability_endpoints: {
             planner: { configured: true, project_id: 1, user_id: 1 },
-            writer: { configured: true, project_id: 1, user_id: 1 }
+            writer: { configured: true, project_id: 1, user_id: 1 },
+            editor: { configured: true }, publisher: { configured: true }, growth_analyst: { configured: true }
         }
     }), { status: 200, headers: { 'content-type': 'application/json' } });
 
@@ -381,10 +383,44 @@ test('GET /api/projects/:id/mcp/status reports the configured MCP health', async
         assert.equal(body.capability_endpoints.planner.configured, true);
         assert.match(body.capability_endpoints.planner.endpoint, /\/mcp\/planner$/);
         assert.equal(body.capability_endpoints.writer.configured, true);
+        assert.equal(body.capability_endpoints.editor.configured, true);
+        assert.match(body.capability_endpoints.growth_analyst.endpoint, /\/mcp\/growth-analyst$/);
     } finally {
         authService.verifyToken = originalVerifyToken;
         authService.hasProjectAccess = originalHasAccess;
         global.fetch = originalFetch;
+    }
+});
+
+test('POST /api/projects/:id/mcp/workspace-access issues the seven-role bundle only for an owner', async () => {
+    const originalVerifyToken = authService.verifyToken;
+    const originalHasAccess = authService.hasProjectAccess;
+    const originalCreateWorkspaceBundle = mcpAccessTokenService.createWorkspaceBundle;
+    authService.verifyToken = () => ({ id: 1, email: 'owner@example.com', name: 'Owner' });
+    authService.hasProjectAccess = async (_userId, _projectId, role) => role === 'owner';
+    let received: unknown[] = [];
+    mcpAccessTokenService.createWorkspaceBundle = async (...args: any[]) => {
+        received = args;
+        return { accesses: new Array(7).fill(null), config: { mcpServers: {} }, bootstrap_prompt: 'bootstrap' } as any;
+    };
+
+    const app = Fastify();
+    app.register(projectRoutes);
+    try {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/projects/10/mcp/workspace-access',
+            headers: { authorization: 'Bearer mock-token' },
+            payload: { userId: 22, label: 'Codex Cloud' }
+        });
+        assert.equal(response.statusCode, 200);
+        assert.equal(response.headers['cache-control'], 'no-store');
+        assert.deepEqual(received.slice(0, 3), [10, 22, 'Codex Cloud']);
+        assert.equal(JSON.parse(response.body).accesses.length, 7);
+    } finally {
+        authService.verifyToken = originalVerifyToken;
+        authService.hasProjectAccess = originalHasAccess;
+        mcpAccessTokenService.createWorkspaceBundle = originalCreateWorkspaceBundle;
     }
 });
 

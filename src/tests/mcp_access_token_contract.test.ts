@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { hashMcpToken, isManagedMcpProfile } from '../services/mcp_access_token.service';
+import mcpAccessTokenService, { MANAGED_MCP_PROFILES, hashMcpToken, isManagedMcpProfile } from '../services/mcp_access_token.service';
+import prisma from '../db';
 
 test('personal MCP tokens are stored as deterministic hashes, not plaintext', () => {
     const token = 'mcp_example-secret';
@@ -10,8 +11,46 @@ test('personal MCP tokens are stored as deterministic hashes, not plaintext', ()
 });
 
 test('only scoped agent profiles can receive personal MCP access', () => {
-    assert.equal(isManagedMcpProfile('planner'), true);
-    assert.equal(isManagedMcpProfile('writer'), true);
-    assert.equal(isManagedMcpProfile('art_director'), true);
+    assert.deepEqual(MANAGED_MCP_PROFILES, [
+        'strategist', 'planner', 'writer', 'editor', 'art_director', 'publisher', 'growth_analyst'
+    ]);
+    for (const profile of MANAGED_MCP_PROFILES) assert.equal(isManagedMcpProfile(profile), true);
     assert.equal(isManagedMcpProfile('owner'), false);
+});
+
+test('workspace bundle creates all seven hashed credentials in one transaction and returns plaintext once', async () => {
+    const originalFindUnique = prisma.projectMember.findUnique;
+    const originalTransaction = prisma.$transaction;
+    const stored: Array<Record<string, unknown>> = [];
+    (prisma.projectMember as any).findUnique = async () => ({
+        project: { id: 10, name: 'Customer project', slug: 'customer-project' },
+        user: { id: 22, name: 'External User', email: 'external@example.com' }
+    });
+    (prisma as any).$transaction = async (callback: any) => callback({
+        mcpAccessToken: {
+            create: async ({ data }: any) => {
+                stored.push(data);
+                return { id: stored.length, ...data };
+            }
+        }
+    });
+
+    try {
+        const bundle = await mcpAccessTokenService.createWorkspaceBundle(10, 22, 'Codex Cloud', 'https://planner.example/mcp/');
+        assert.equal(bundle.accesses.length, 7);
+        assert.equal(stored.length, 7);
+        assert.deepEqual(stored.map((row) => row.profile), MANAGED_MCP_PROFILES);
+        for (const row of stored) {
+            assert.match(String(row.token_hash), /^[a-f0-9]{64}$/);
+            assert.equal('token' in row, false);
+            assert.equal(row.project_id, 10);
+            assert.equal(row.user_id, 22);
+        }
+        assert.equal(bundle.accesses.find((access) => access.profile === 'growth_analyst')?.endpoint, 'https://planner.example/mcp/growth-analyst');
+        assert.match(bundle.config.mcpServers['contentops-publisher'].headers.Authorization, /^Bearer mcp_/);
+        assert.doesNotMatch(bundle.bootstrap_prompt, /Bearer mcp_|external@example\.com/);
+    } finally {
+        (prisma.projectMember as any).findUnique = originalFindUnique;
+        (prisma as any).$transaction = originalTransaction;
+    }
 });

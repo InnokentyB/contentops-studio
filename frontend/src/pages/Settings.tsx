@@ -95,17 +95,29 @@ interface McpStatus {
         writer: { endpoint: string; configured: boolean; bound_project_id?: number | null }
         art_director?: { endpoint: string; configured: boolean; bound_project_id?: number | null }
         strategist?: { endpoint: string; configured: boolean; bound_project_id?: number | null }
+        editor?: { endpoint: string; configured: boolean; bound_project_id?: number | null }
+        publisher?: { endpoint: string; configured: boolean; bound_project_id?: number | null }
+        growth_analyst?: { endpoint: string; configured: boolean; bound_project_id?: number | null }
     }
 }
 
 interface McpAccess {
     id: number
-    profile: 'planner' | 'writer' | 'art_director' | 'strategist'
+    profile: 'strategist' | 'planner' | 'writer' | 'editor' | 'art_director' | 'publisher' | 'growth_analyst'
     label: string
     expires_at: string | null
     revoked_at: string | null
     last_used_at: string | null
     user: { id: number; name: string; email: string }
+}
+
+interface McpWorkspaceBundle {
+    schema_version: string
+    project: { id: number; name: string; slug: string }
+    user: { id: number; name: string; email: string }
+    accesses: Array<{ id: number; profile: McpAccess['profile']; token: string; endpoint: string }>
+    config: { mcpServers: Record<string, { url: string; headers: { Authorization: string } }> }
+    bootstrap_prompt: string
 }
 
 const AGENT_ROLES = [
@@ -470,14 +482,17 @@ export default function Settings() {
         artDirection: 'Проверять визуальную необходимость до публикации', artDirectionHelp: 'Арт-директор решит, нужен ли визуал, запросит реальный источник или отправит изображение на ревью. До явного допуска handoff и публикация будут заблокированы.',
         planningHq: 'Штаб планирования', planningHqHelp: 'Управляет слотами, каналами, темами и расписанием. Не редактирует текст публикации.',
         contentAgent: 'Контент-агент', contentAgentHelp: 'Читает готовые слоты и заполняет только текст. Не может менять дату, канал, тему или статус.',
+        chiefEditor: 'Главный редактор', chiefEditorHelp: 'Проверяет точную ревизию текста и принимает либо возвращает её. Не переписывает план и не публикует.',
         artDirector: 'Арт-директор', artDirectorHelp: 'Оценивает необходимость визуала, формирует brief, принимает источники и проводит визуальное ревью. Не может переписывать посты.',
+        publisher: 'Публикатор', publisherHelp: 'Проверяет готовность и доставляет только принятый release bundle через управляемый путь. Не обходит approval-gates.',
+        growthAnalyst: 'Аналитик роста', growthAnalystHelp: 'Собирает метрики только по подтверждённым фактам публикации и сводит результаты кампаний.',
         strategist: 'Стратег', strategistHelp: 'Читает рабочую область, ведёт инициативы и темы, раскладывает неделю. Не публикует и не тратит ключи владельца установки. Профиль для подключения своего агента.',
         mcpTitle: 'Подключение MCP', mcpHelp: 'Дайте Codex, Claude или другому агенту доступ к плану, очереди работ и публикациям проекта.',
         mcpOnline: 'MCP работает', mcpOffline: 'MCP недоступен', checking: 'Проверяем MCP', check: 'Проверить', configured: 'Настроен', notConfigured: 'Не настроен',
         copyConfig: 'Копировать конфигурацию', copied: 'Конфигурация скопирована', tokenHelp: 'Каждый агент получает отдельный endpoint и отдельный токен. В конфигурации ниже показан безопасный шаблон, а не настоящий секрет. Вставьте токен, который владелец проекта только что выпустил для этого пользователя и профиля.',
         actorId: 'Actor ID владельца', retryMcp: 'Запустите локальный MCP-сервис и повторите проверку.', bindingHelp: 'Project ID и пользователь фиксируются на сервере вместе с токеном. Агент не может подменить их в вызове инструмента.',
         workspaceSync: 'Синхронизация структуры чатов', workspaceSyncHelp: 'Агент получает актуальные роли, handoff-связи и bootstrap конкретного чата. В начале сессии он сравнивает checksum и обновляет инструкции только при изменении проекта.',
-        workspaceRoles: 'Штаб · Автор · Главред · Арт-директор · Публикатор · Аналитик',
+        workspaceRoles: 'Стратег · Штаб · Автор · Главред · Арт-директор · Публикатор · Аналитик',
         mcpSetup: 'Как подключить Claude', mcpSetupFirst: 'Выберите профиль: «Штаб» для планирования, «Контент-агент» для текста или «Арт-директор» для визуала.', mcpSetupSecond: 'Скопируйте конфигурацию нужного профиля и вставьте настоящий токен вместо безопасного шаблона.', mcpSetupThird: 'В Claude откройте Settings → Connectors → Add custom connector, вставьте URL и токен. После подключения попросите агента прочитать workspace bootstrap.', mcpStarter: 'Первое сообщение агенту',
         publicationChannels: 'Каналы публикации', publicationChannelsHelp: 'Подключайте площадки и выбирайте, сколько контроля оставлять владельцу перед публикацией.',
         workflowMode: 'Режим работы', contentLanguage: 'Язык контента', russian: 'Русский', english: 'English', contentLanguageHelp: 'Язык применяется к генерации, редакторской проверке и исправлению публикаций этого канала.', prepareOnly: 'Только подготовка', approvalRequired: 'Публикация после одобрения', autoPublish: 'Автопубликация',
@@ -493,14 +508,17 @@ export default function Settings() {
         artDirection: 'Review visual need before publication', artDirectionHelp: 'The art director decides whether a visual is needed, requests a real source or sends the image to review. Handoff and publication remain blocked until explicit clearance.',
         planningHq: 'Planning HQ', planningHqHelp: 'Manages slots, channels, themes and schedule. Cannot edit publication copy.',
         contentAgent: 'Content agent', contentAgentHelp: 'Reads ready slots and fills only the copy. Cannot change dates, channels, themes or status.',
+        chiefEditor: 'Chief Editor', chiefEditorHelp: 'Reviews the exact content revision and accepts or returns it. Cannot rewrite the plan or publish.',
         artDirector: 'Art director', artDirectorHelp: 'Assesses visual need, creates briefs, accepts sources and reviews visuals. Cannot rewrite posts.',
+        publisher: 'Publisher', publisherHelp: 'Checks readiness and delivers only an accepted release bundle through the governed path. Cannot bypass approval gates.',
+        growthAnalyst: 'Growth Analyst', growthAnalystHelp: 'Collects metrics only for confirmed publication facts and rolls up campaign outcomes.',
         strategist: 'Strategist', strategistHelp: 'Reads the workspace, drives initiatives and themes, lays out the week. Cannot publish and never spends the deployment owner keys. The profile for bringing your own agent.',
         mcpTitle: 'MCP connection', mcpHelp: 'Give Codex, Claude or another agent access to the project plan, work queue and publications.',
         mcpOnline: 'MCP online', mcpOffline: 'MCP unavailable', checking: 'Checking MCP', check: 'Check', configured: 'Configured', notConfigured: 'Not configured',
         copyConfig: 'Copy configuration', copied: 'Configuration copied', tokenHelp: 'Each agent receives a separate endpoint and token. The configuration below is a safe template, not a real secret. Insert the token the project owner just issued for this user and profile.',
         actorId: 'Owner actor ID', retryMcp: 'Start the local MCP service and retry the check.', bindingHelp: 'Project ID and user identity are bound to the token on the server. Agents cannot override them in tool calls.',
         workspaceSync: 'Chat workspace synchronization', workspaceSyncHelp: 'Agents receive current roles, handoff edges and chat-specific bootstrap instructions. At session start they compare the checksum and update only when project configuration changed.',
-        workspaceRoles: 'Planning HQ · Writer · Chief Editor · Art Director · Publisher · Analyst',
+        workspaceRoles: 'Strategist · Planning HQ · Writer · Chief Editor · Art Director · Publisher · Growth Analyst',
         mcpSetup: 'Connect Claude', mcpSetupFirst: 'Choose a profile: Planning HQ for planning, Content agent for copy, or Art director for visuals.', mcpSetupSecond: 'Copy the configuration for that profile and replace the safe template with the real token.', mcpSetupThird: 'In Claude open Settings → Connectors → Add custom connector, then provide the URL and token. After connecting, ask the agent to read the workspace bootstrap.', mcpStarter: 'First message to the agent',
         publicationChannels: 'Publishing channels', publicationChannelsHelp: 'Connect destinations and choose how much control the owner retains before publication.',
         workflowMode: 'Workflow mode', contentLanguage: 'Content language', russian: 'Russian', english: 'English', contentLanguageHelp: 'This language is used for generation, editorial review, and publication fixes for this channel.', prepareOnly: 'Prepare only', approvalRequired: 'Publish after approval', autoPublish: 'Auto-publish',
@@ -572,9 +590,10 @@ export default function Settings() {
     const [inviteEmail, setInviteEmail] = useState('')
     const [inviteRole, setInviteRole] = useState('viewer')
     const [mcpAccessUserId, setMcpAccessUserId] = useState('')
-    const [mcpAccessProfile, setMcpAccessProfile] = useState<'planner' | 'writer' | 'art_director' | 'strategist'>('writer')
+    const [mcpAccessProfile, setMcpAccessProfile] = useState<McpAccess['profile']>('writer')
     const [mcpAccessLabel, setMcpAccessLabel] = useState('')
     const [issuedMcpToken, setIssuedMcpToken] = useState('')
+    const [workspaceBundle, setWorkspaceBundle] = useState<McpWorkspaceBundle | null>(null)
 
     // Preset State
     const [presetName, setPresetName] = useState('')
@@ -666,6 +685,24 @@ export default function Settings() {
         },
         onError: (error: Error) => showToast(
             locale === 'ru' ? 'Не удалось создать MCP-доступ' : 'Could not create MCP access',
+            'error',
+            error.message
+        )
+    })
+
+    const createWorkspaceAccess = useMutation({
+        mutationFn: () => api.post(`/api/projects/${currentProject!.id}/mcp/workspace-access`, {
+            userId: Number(mcpAccessUserId), label: mcpAccessLabel
+        }),
+        onMutate: () => setWorkspaceBundle(null),
+        onSuccess: (result: McpWorkspaceBundle) => {
+            setWorkspaceBundle(result)
+            setIssuedMcpToken('')
+            queryClient.invalidateQueries({ queryKey: ['mcp-accesses', currentProject?.id] })
+            showToast(locale === 'ru' ? 'Рабочее пространство выпущено. Скопируйте пакет сейчас.' : 'Workspace issued. Copy the bundle now.', 'success')
+        },
+        onError: (error: Error) => showToast(
+            locale === 'ru' ? 'Не удалось выпустить рабочее пространство' : 'Could not issue workspace',
             'error',
             error.message
         )
@@ -1263,6 +1300,15 @@ export default function Settings() {
                 const mcpUrl = mcpStatus?.endpoint || import.meta.env.VITE_MCP_URL || 'http://127.0.0.1:8080/mcp'
                 const capabilityCards = [
                     {
+                        id: 'strategist',
+                        title: copy.strategist,
+                        description: copy.strategistHelp,
+                        icon: 'insights',
+                        endpoint: mcpStatus?.capability_endpoints?.strategist?.endpoint || `${mcpUrl}/strategist`,
+                        configured: mcpStatus?.capability_endpoints?.strategist?.configured ?? false,
+                        token: '<MCP_STRATEGIST_AUTH_TOKEN>'
+                    },
+                    {
                         id: 'planner',
                         title: copy.planningHq,
                         description: copy.planningHqHelp,
@@ -1281,6 +1327,15 @@ export default function Settings() {
                         token: '<MCP_WRITER_AUTH_TOKEN>'
                     },
                     {
+                        id: 'editor',
+                        title: copy.chiefEditor,
+                        description: copy.chiefEditorHelp,
+                        icon: 'fact_check',
+                        endpoint: mcpStatus?.capability_endpoints?.editor?.endpoint || `${mcpUrl}/editor`,
+                        configured: mcpStatus?.capability_endpoints?.editor?.configured ?? false,
+                        token: '<MCP_EDITOR_AUTH_TOKEN>'
+                    },
+                    {
                         id: 'art-director',
                         title: copy.artDirector,
                         description: copy.artDirectorHelp,
@@ -1290,13 +1345,22 @@ export default function Settings() {
                         token: '<MCP_ART_DIRECTOR_AUTH_TOKEN>'
                     },
                     {
-                        id: 'strategist',
-                        title: copy.strategist,
-                        description: copy.strategistHelp,
-                        icon: 'insights',
-                        endpoint: mcpStatus?.capability_endpoints?.strategist?.endpoint || `${mcpUrl}/strategist`,
-                        configured: mcpStatus?.capability_endpoints?.strategist?.configured ?? false,
-                        token: '<MCP_STRATEGIST_AUTH_TOKEN>'
+                        id: 'publisher',
+                        title: copy.publisher,
+                        description: copy.publisherHelp,
+                        icon: 'send',
+                        endpoint: mcpStatus?.capability_endpoints?.publisher?.endpoint || `${mcpUrl}/publisher`,
+                        configured: mcpStatus?.capability_endpoints?.publisher?.configured ?? false,
+                        token: '<MCP_PUBLISHER_AUTH_TOKEN>'
+                    },
+                    {
+                        id: 'growth-analyst',
+                        title: copy.growthAnalyst,
+                        description: copy.growthAnalystHelp,
+                        icon: 'monitoring',
+                        endpoint: mcpStatus?.capability_endpoints?.growth_analyst?.endpoint || `${mcpUrl}/growth-analyst`,
+                        configured: mcpStatus?.capability_endpoints?.growth_analyst?.configured ?? false,
+                        token: '<MCP_GROWTH_ANALYST_AUTH_TOKEN>'
                     }
                 ]
                 const isMcpOnline = mcpStatus?.status === 'online'
@@ -1324,11 +1388,24 @@ export default function Settings() {
                                             {(projectData as ApiJson)?.members?.map((member: ApiJson) => <option key={member.user_id} value={member.user_id}>{member.user?.name || member.user?.email}</option>)}
                                         </select>
                                         <select value={mcpAccessProfile} onChange={event => setMcpAccessProfile(event.target.value as typeof mcpAccessProfile)}>
-                                            <option value="planner">Planner</option><option value="writer">Writer</option><option value="art_director">Art director</option><option value="strategist">Strategist</option>
+                                            <option value="strategist">Strategist</option><option value="planner">Planner</option><option value="writer">Writer</option><option value="editor">Chief Editor</option><option value="art_director">Art director</option><option value="publisher">Publisher</option><option value="growth_analyst">Growth Analyst</option>
                                         </select>
                                         <input value={mcpAccessLabel} onChange={event => setMcpAccessLabel(event.target.value)} placeholder={locale === 'ru' ? 'Например: Claude на ноутбуке' : 'For example: Claude on laptop'} />
                                     </div>
-                                    <button type="button" className="btn-primary mt-3" disabled={!mcpAccessUserId || createMcpAccess.isPending} onClick={() => createMcpAccess.mutate()}>{locale === 'ru' ? 'Создать доступ' : 'Create access'}</button>
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                        <button type="button" className="btn-primary" disabled={!mcpAccessUserId || createWorkspaceAccess.isPending} onClick={() => createWorkspaceAccess.mutate()}>{createWorkspaceAccess.isPending ? (locale === 'ru' ? 'Разворачиваем…' : 'Deploying…') : (locale === 'ru' ? 'Развернуть 7 ролей' : 'Deploy 7 roles')}</button>
+                                        <button type="button" className="btn-secondary" disabled={!mcpAccessUserId || createMcpAccess.isPending} onClick={() => createMcpAccess.mutate()}>{locale === 'ru' ? 'Создать один доступ' : 'Create one access'}</button>
+                                    </div>
+                                    {workspaceBundle && <div className="mt-4 rounded-xl border border-warning/30 bg-white p-3">
+                                        <div className="text-xs font-black text-warning">{locale === 'ru' ? 'Скопируйте оба блока сейчас: семь токенов повторно не показываются' : 'Copy both blocks now: the seven tokens will not be shown again'}</div>
+                                        <div className="mt-3 text-xs font-black uppercase tracking-wider text-primary">{locale === 'ru' ? 'Конфигурация MCP' : 'MCP configuration'}</div>
+                                        <pre className="mt-2 max-h-72 overflow-auto rounded-xl bg-[#17181a] p-3 text-xs leading-5 text-white"><code>{JSON.stringify(workspaceBundle.config, null, 2)}</code></pre>
+                                        <button className="btn-secondary mt-2" onClick={() => navigator.clipboard.writeText(JSON.stringify(workspaceBundle.config, null, 2))}>{copy.copyConfig}</button>
+                                        <div className="mt-4 text-xs font-black uppercase tracking-wider text-primary">{locale === 'ru' ? 'Bootstrap для агента' : 'Agent bootstrap'}</div>
+                                        <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap rounded-xl bg-surface-container-low p-3 text-xs leading-5"><code>{workspaceBundle.bootstrap_prompt}</code></pre>
+                                        <button className="btn-secondary mt-2" onClick={() => navigator.clipboard.writeText(workspaceBundle.bootstrap_prompt)}>{locale === 'ru' ? 'Копировать bootstrap' : 'Copy bootstrap'}</button>
+                                        <button className="ml-2 mt-2 text-xs font-bold text-error" onClick={() => setWorkspaceBundle(null)}>{locale === 'ru' ? 'Скрыть и стереть пакет' : 'Hide and clear bundle'}</button>
+                                    </div>}
                                     {issuedMcpToken && <div className="mt-4 rounded-xl border border-warning/30 bg-white p-3"><div className="text-xs font-black text-warning">{locale === 'ru' ? 'Скопируйте сейчас: повторно токен не показывается' : 'Copy now: this token will not be shown again'}</div><code className="mt-2 block break-all text-xs">{issuedMcpToken}</code><button className="btn-secondary mt-2" onClick={() => navigator.clipboard.writeText(issuedMcpToken)}>{copy.copyConfig}</button></div>}
                                     <div className="mt-4 space-y-2">
                                         {(mcpAccesses?.accesses || []).map(access => <div key={access.id} className="flex items-center justify-between gap-3 rounded-xl bg-white p-3"><div><div className="text-sm font-bold">{access.label} · {access.profile}</div><div className="text-xs text-on-surface-variant">{access.user.name || access.user.email}{access.revoked_at ? ` · ${locale === 'ru' ? 'отозван' : 'revoked'}` : ''}</div></div>{!access.revoked_at && <button className="text-xs font-bold text-error" onClick={() => revokeMcpAccess.mutate(access.id)}>{locale === 'ru' ? 'Отозвать' : 'Revoke'}</button>}</div>)}

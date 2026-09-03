@@ -1,4 +1,4 @@
-export type McpCapabilityProfile = 'owner' | 'planner' | 'writer' | 'art_director' | 'strategist';
+export type McpCapabilityProfile = 'owner' | 'strategist' | 'planner' | 'writer' | 'editor' | 'art_director' | 'publisher' | 'growth_analyst';
 
 const WRITER_TOOLS = new Set([
     'ba_get_agent_workspace_manifest',
@@ -82,6 +82,68 @@ const ART_DIRECTOR_TOOLS = new Set([
     'ba_get_week_autogeneration'
 ]);
 
+const EDITOR_TOOLS = new Set([
+    'ba_get_agent_workspace_manifest',
+    'ba_get_agent_workspace_updates',
+    'ba_get_agent_chat_bootstrap',
+    'ba_list_project_channels',
+    'ba_list_publication_tasks',
+    'ba_get_publication_task',
+    'ba_get_publication_task_resources',
+    'ba_get_publication_fact',
+    'ba_list_publication_plan_assets',
+    'ba_read_publication_plan_asset',
+    'ba_read_publication_plan_ref',
+    'ba_list_work_items',
+    'ba_get_work_item_context',
+    'ba_decide_approval',
+    'ba_get_week_pipeline',
+    'ba_get_week_autogeneration'
+]);
+
+const PUBLISHER_TOOLS = new Set([
+    'ba_get_agent_workspace_manifest',
+    'ba_get_agent_workspace_updates',
+    'ba_get_agent_chat_bootstrap',
+    'ba_list_project_channels',
+    'ba_list_publication_tasks',
+    'ba_get_publication_task',
+    'ba_get_publication_task_resources',
+    'ba_get_publication_fact',
+    'ba_list_publication_plan_assets',
+    'ba_read_publication_plan_asset',
+    'ba_read_publication_plan_ref',
+    'ba_list_image_assets',
+    'ba_get_visual_readiness',
+    'ba_get_release_readiness',
+    'ba_list_release_blockers',
+    'ba_prepare_publication_task',
+    'ba_publish_publication_task',
+    'ba_execute_delivery',
+    'ba_confirm_publication',
+    'ba_record_publication_fact',
+    'ba_list_browser_publication_tasks',
+    'ba_get_week_execution_summary'
+]);
+
+const GROWTH_ANALYST_TOOLS = new Set([
+    'ba_get_agent_workspace_manifest',
+    'ba_get_agent_workspace_updates',
+    'ba_get_agent_chat_bootstrap',
+    'ba_list_project_channels',
+    'ba_list_publication_tasks',
+    'ba_get_publication_task',
+    'ba_get_publication_task_resources',
+    'ba_get_publication_fact',
+    'ba_list_metric_checkpoints',
+    'ba_get_content_metrics',
+    'ba_record_metric_snapshot',
+    'ba_rollup_campaign_metrics',
+    'ba_get_week_execution_summary',
+    'ba_get_initiative',
+    'ba_list_initiatives'
+]);
+
 // Pilot/self-serve profile. Same read and planning surface as `planner`, minus the two
 // tools that either reach a live channel or spend the deployment owner's provider key:
 //   - ba_publish_publication_task      publishes to a connected channel
@@ -101,7 +163,10 @@ const STRATEGIST_TOOLS = new Set(
 export function isToolAllowedForProfile(profile: McpCapabilityProfile, toolName: string) {
     if (profile === 'owner') return true;
     if (profile === 'writer') return WRITER_TOOLS.has(toolName);
+    if (profile === 'editor') return EDITOR_TOOLS.has(toolName);
     if (profile === 'art_director') return ART_DIRECTOR_TOOLS.has(toolName);
+    if (profile === 'publisher') return PUBLISHER_TOOLS.has(toolName);
+    if (profile === 'growth_analyst') return GROWTH_ANALYST_TOOLS.has(toolName);
     if (profile === 'strategist') return STRATEGIST_TOOLS.has(toolName);
     return PLANNER_TOOLS.has(toolName);
 }

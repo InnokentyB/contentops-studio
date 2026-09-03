@@ -21,18 +21,34 @@ Self-hosted installations use their own `MCP_REMOTE_URL`.
 
 | Profile | Endpoint | Intended work |
 | --- | --- | --- |
+| Strategist | `/mcp/strategist` | Initiatives, priorities, themes, and strategic constraints; no publication or deployment-owner model keys |
 | Planner | `/mcp/planner` | Plans, schedule, initiatives, materialization, readiness, and controlled publication |
 | Writer | `/mcp/writer` | Assigned copy work and exact publication-content revisions |
+| Chief editor | `/mcp/editor` | Revision-bound editorial review and approval decisions |
 | Art director | `/mcp/art-director` | Art direction, durable assets, visual QA, and visual readiness |
+| Publisher | `/mcp/publisher` | Readiness-gated delivery and confirmed publication facts; no raw direct-publish tool |
+| Growth analyst | `/mcp/growth-analyst` | Publication metrics, checkpoints, and campaign rollups |
 
-Profiles are enforced by the server. A writer token cannot change the schedule, and an art-director token cannot rewrite accepted copy.
+Profiles are enforced by the server and bound to one project member and project. Operational roles never inherit platform-owner authority.
+
+## Deploy the complete workspace
+
+For a new external user, use the complete workspace flow:
+
+1. Add the user as a member of the project and ask them to sign in once.
+2. Open **Project settings → MCP → Personal access** as a project owner.
+3. Select that project member, add a device-specific label, and select **Deploy 7 roles**.
+4. Copy both one-time blocks: the seven-connector configuration and the agent bootstrap prompt.
+5. Add the connectors to the user's agent client. Give the bootstrap prompt to that agent. If the host can create persistent chats, it creates the seven named role chats; otherwise it should return seven copyable chat cards.
+
+The bundle is created atomically: either all seven hashed credentials are stored or none are. Plaintext tokens are returned only in this response and must not be pasted into chat messages or committed to a repository. Repeating the action creates a new set of credentials; revoke superseded tokens afterward.
 
 ## Issue access
 
 1. Sign in as the project owner.
 2. Open **Project settings → MCP**.
 3. Confirm that the MCP status is **Online**.
-4. Under **Personal access**, select a project member and capability profile.
+4. Under **Personal access**, select a project member and capability profile. Use this path when only one role is needed.
 5. Add a device-specific label such as `Claude on work laptop`.
 6. Select **Create access** and copy the token immediately. The plaintext token is shown once; only its hash is stored afterward.
 
