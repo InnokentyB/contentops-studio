@@ -8,14 +8,23 @@ type Dependencies = {
     prisma: any;
     publisher: {
         publishTelegramTaskMtproto(args: { projectId: number; taskId: number; channel: any; text: string; imageUrl?: string }): Promise<any>;
+        publishTelegramPersonalStoryMtproto(args: { projectId: number; taskId: number; caption: string; imageUrl: string; idempotencyKey: string }): Promise<any>;
         publishVkTask(args: { projectId: number; taskId: number; channel: any; text: string; imageUrl?: string; idempotencyKey: string }): Promise<any>;
     };
     publicationFacts: { record(args: any): Promise<any> };
 };
 
 const COMMAND = 'ba_publish_publication_task';
+const CLAIM_COMMAND = 'ba_publish_publication_task_claim';
 const SYSTEM_ACTOR = 'system:planner-mcp:telegram-publication';
 const CLAIMABLE_STATUSES = ['approved', 'ready_for_execution', 'blocked', 'failed'];
+
+function isTelegramStoryTask(task: any) {
+    return task.channel?.type === 'telegram' && (
+        String(task.type || '').toLowerCase().includes('story')
+        || String(task.visual_placement || '').toLowerCase() === 'story'
+    );
+}
 
 function resolveApprovedAsset(task: any) {
     if (!task.selected_asset_id && !task.selected_asset) return null;
@@ -68,6 +77,15 @@ function prepareTaskPayload(task: any, allowUnsupportedDryRun = false) {
         }
     }
     const selectedAsset = resolveApprovedAsset(task);
+    const isStory = isTelegramStoryTask(task);
+    if (isStory && !selectedAsset) {
+        throw new Error('[TELEGRAM_STORY_MEDIA_REQUIRED] A personal Telegram story requires an approved image');
+    }
+    const handoffBundle = (task.quality_report as any)?.handoff_bundle;
+    const poll = handoffBundle?.placement_contract?.poll || handoffBundle?.poll;
+    if (isStory && poll?.supported === true && poll?.configuration_mode === 'native_manual') {
+        throw new Error('[TELEGRAM_STORY_NATIVE_POLL_MANUAL] Stories with a native poll must use the manual handoff');
+    }
     if (task.visual_state === 'APPROVED' && !selectedAsset) {
         throw new Error('[APPROVED_VISUAL_REQUIRED] Approved visual state requires a selected asset');
     }
@@ -76,7 +94,7 @@ function prepareTaskPayload(task: any, allowUnsupportedDryRun = false) {
     const payload = channelType === 'telegram'
         ? normalizeTelegramDeliveryPayload({ text, imageUrl: selectedAsset?.file_url })
         : { text, imageUrl: selectedAsset?.file_url || null };
-    return { channelType, payload, selectedAsset, directSupported, connectorReady, connectorReason };
+    return { channelType, payload, selectedAsset, directSupported, connectorReady, connectorReason, isStory };
 }
 
 export class TelegramTaskPublicationService {
@@ -107,7 +125,10 @@ export class TelegramTaskPublicationService {
             include: { channel: true, selected_asset: true, publication_fact: true }
         });
         if (!task) throw new Error('[PUBLICATION_TASK_NOT_FOUND] Publication task was not found in the project');
-        const delivery = task.channel?.type === 'telegram' ? 'mtproto' : task.channel?.type === 'vk' ? 'vk_api' : null;
+        const isStory = isTelegramStoryTask(task);
+        const delivery = isStory
+            ? 'mtproto_personal_story'
+            : task.channel?.type === 'telegram' ? 'mtproto' : task.channel?.type === 'vk' ? 'vk_api' : null;
         if (task.publication_fact?.outcome === 'published'
             && (task.publication_fact.public_url || task.publication_fact.provider_object_id)) {
             return {
@@ -126,6 +147,7 @@ export class TelegramTaskPublicationService {
                 mode: 'dry_run', task_id: task.id, project_id: args.projectId, channel_id: task.channel.id,
                 accepted_revision: task.accepted_revision, selected_asset_id: selectedAsset?.id || null,
                 delivery: delivery || 'validated_handoff',
+                ...(prepared.isStory ? { target: 'personal_profile' } : {}),
                 direct_execution_supported: prepared.directSupported,
                 connector_ready: prepared.connectorReady,
                 connector_reason: prepared.connectorReason,
@@ -136,30 +158,61 @@ export class TelegramTaskPublicationService {
         const owner = await db.projectMember.findFirst({ where: { project_id: args.projectId, role: 'owner' }, orderBy: { id: 'asc' } });
         if (!owner) throw new Error('[PROJECT_OWNER_REQUIRED] Project has no owner for publication confirmation');
         if (task.status === 'publishing') throw new Error('[PUBLICATION_ATTEMPT_UNCERTAIN] Task already has an unresolved provider attempt');
-        const claimed = await db.contentItem.updateMany({
-            where: {
-                id: task.id, project_id: args.projectId, status: { in: CLAIMABLE_STATUSES },
-                content_revision: task.content_revision, accepted_revision: task.accepted_revision,
-                selected_asset_id: task.selected_asset_id
-            },
-            data: {
-                status: 'publishing', publication_mode: 'connector_auto',
-                quality_report: {
-                    ...((task.quality_report as any) || {}),
-                    publication_task_delivery: {
-                        state: 'provider_call_started', channel_type: prepared.channelType, delivery,
-                        idempotency_key: idempotencyKey, accepted_revision: task.accepted_revision,
-                        selected_asset_id: selectedAsset?.id || null, started_at: new Date().toISOString()
+        if (task.status === 'browser_required' && !prepared.isStory) {
+            throw new Error('[PUBLICATION_ROUTE_NOT_EXECUTABLE] Browser-required tasks cannot use this direct publication route');
+        }
+        const claimableStatuses = prepared.isStory ? [...CLAIMABLE_STATUSES, 'browser_required'] : CLAIMABLE_STATUSES;
+        const startedAt = new Date().toISOString();
+        const claimed = await db.$transaction(async (tx: any) => {
+            const result = await tx.contentItem.updateMany({
+                where: {
+                    id: task.id, project_id: args.projectId, status: { in: claimableStatuses },
+                    content_revision: task.content_revision, accepted_revision: task.accepted_revision,
+                    selected_asset_id: task.selected_asset_id
+                },
+                data: {
+                    status: 'publishing', publication_mode: 'connector_auto',
+                    quality_report: {
+                        ...((task.quality_report as any) || {}),
+                        publication_task_delivery: {
+                            state: 'provider_call_started', channel_type: prepared.channelType, delivery,
+                            idempotency_key: idempotencyKey, accepted_revision: task.accepted_revision,
+                            selected_asset_id: selectedAsset?.id || null, started_at: startedAt
+                        }
                     }
                 }
+            });
+            if (result.count === 1) {
+                await tx.workflowEvent.create({ data: {
+                    project_id: args.projectId, content_item_id: task.id, actor_id: SYSTEM_ACTOR,
+                    command: CLAIM_COMMAND, idempotency_key: idempotencyKey,
+                    before_state: { status: task.status, publication_mode: task.publication_mode || null },
+                    after_state: {
+                        status: 'publishing', delivery_method: delivery,
+                        target: prepared.isStory ? 'personal_profile' : 'configured_channel', started_at: startedAt
+                    }
+                } });
             }
+            return result;
         });
-        if (claimed.count !== 1) throw new Error('[PUBLICATION_ALREADY_CLAIMED] Publication task changed or is already being processed');
+        if (claimed.count !== 1) {
+            const latest = await db.contentItem.findFirst({
+                where: { id: task.id, project_id: args.projectId }, select: { status: true }
+            });
+            if (latest?.status === 'publishing') {
+                throw new Error('[PUBLICATION_ALREADY_CLAIMED] Another publication attempt claimed this task');
+            }
+            throw new Error('[PUBLICATION_STATE_CHANGED] Publication task changed before it could be claimed');
+        }
 
         let providerResult: any;
         try {
-            providerResult = prepared.channelType === 'telegram'
-                ? await publisher.publishTelegramTaskMtproto({
+            providerResult = prepared.isStory
+                ? await publisher.publishTelegramPersonalStoryMtproto({
+                    projectId: args.projectId, taskId: task.id,
+                    caption: payload.text, imageUrl: payload.imageUrl!, idempotencyKey: idempotencyKey!
+                })
+                : prepared.channelType === 'telegram' ? await publisher.publishTelegramTaskMtproto({
                     projectId: args.projectId, taskId: task.id, channel: task.channel,
                     text: payload.text, imageUrl: payload.imageUrl || undefined
                 })
@@ -174,7 +227,9 @@ export class TelegramTaskPublicationService {
         }
 
         const publishedLink = providerResult.publishedLink || null;
-        const telegramMessageId = prepared.channelType === 'telegram' ? providerResult.metrics?.telegram_message_id || null : null;
+        const telegramMessageId = prepared.channelType === 'telegram'
+            ? prepared.isStory ? providerResult.metrics?.telegram_story_id || null : providerResult.metrics?.telegram_message_id || null
+            : null;
         const vkOwnerId = prepared.channelType === 'vk' ? String(providerResult.metrics?.vk_owner_id || '') : '';
         const vkPostId = prepared.channelType === 'vk' ? String(providerResult.metrics?.vk_post_id || '') : '';
         const externalId = prepared.channelType === 'telegram'
@@ -183,8 +238,9 @@ export class TelegramTaskPublicationService {
         const expectedVkLink = prepared.channelType === 'vk' && externalId
             ? `https://vk.com/${externalId}`
             : null;
-        if (!externalId || !publishedLink || (expectedVkLink && publishedLink !== expectedVkLink)) {
-            await this.markUncertain(db, task, prepared.channelType, delivery, idempotencyKey, 'Provider did not confirm both object ID and permalink');
+        const evidenceRef = providerResult.evidenceRef || publishedLink || null;
+        if (!externalId || (!prepared.isStory && !publishedLink) || (prepared.isStory && !evidenceRef) || (expectedVkLink && publishedLink !== expectedVkLink)) {
+            await this.markUncertain(db, task, prepared.channelType, delivery, idempotencyKey, 'Provider did not confirm object identity and readback evidence');
             const code = prepared.channelType === 'telegram' ? 'TELEGRAM_PUBLICATION_UNCERTAIN' : 'VK_PUBLICATION_UNCERTAIN';
             throw new Error(`[${code}] Provider did not confirm both object ID and permalink`);
         }
@@ -196,9 +252,9 @@ export class TelegramTaskPublicationService {
         };
         await publicationFacts.record({
             projectId: args.projectId, taskId: task.id, actorId: `user:${owner.user_id}`,
-            artifactKind: 'post', outcome: 'published', publishedAt: new Date().toISOString(),
+            artifactKind: prepared.isStory ? 'story' : 'post', outcome: 'published', publishedAt: new Date().toISOString(),
             publicUrl: publishedLink, providerObjectId: String(externalId), confirmationMode: 'automatic',
-            evidence: { type: 'api', ref: publishedLink },
+            evidence: { type: 'api', ref: evidenceRef },
             correctionReason: task.publication_fact
                 ? `Provider-confirmed ${prepared.channelType} publication supersedes prior ${task.publication_fact.outcome || 'unconfirmed'} outcome`
                 : undefined,
@@ -209,7 +265,7 @@ export class TelegramTaskPublicationService {
                 where: { id: task.id },
                 data: {
                     status: 'published', publication_mode: 'connector_auto', published_link: publishedLink,
-                    telegram_message_id: telegramMessageId || undefined,
+                    telegram_message_id: prepared.isStory ? null : telegramMessageId || undefined,
                     quality_report: {
                         ...((task.quality_report as any) || {}),
                         publication_task_delivery: {

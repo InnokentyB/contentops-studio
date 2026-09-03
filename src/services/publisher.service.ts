@@ -362,6 +362,32 @@ class PublisherService {
         };
     }
 
+    async publishTelegramPersonalStoryMtproto(params: {
+        projectId: number;
+        taskId: number;
+        caption: string;
+        imageUrl: string;
+        idempotencyKey: string;
+    }) {
+        const initialized = await telegramClientService.init(params.projectId);
+        if (!initialized) {
+            throw new Error('[MTPROTO_UNAVAILABLE] No active Telegram MTProto session is available for the project');
+        }
+        const story = await telegramClientService.publishPersonalStory({
+            projectId: params.projectId,
+            caption: params.caption,
+            imageUrl: params.imageUrl,
+            idempotencyKey: params.idempotencyKey
+        });
+        return {
+            adapter: 'telegram_story',
+            deliveryMethod: 'mtproto_personal_story',
+            publishedLink: story.publicLink,
+            evidenceRef: story.publicLink || `telegram-story:self:${story.storyId}`,
+            metrics: { telegram_story_id: story.storyId }
+        };
+    }
+
     async publishVkTask(params: {
         projectId: number;
         taskId: number;

@@ -10,6 +10,8 @@ import { config } from 'dotenv';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as net from 'net';
+import { createHash } from 'crypto';
+import bigInt from 'big-integer';
 import {
     decryptTelegramAccountSecrets,
     telegramAccountSecretsAreEncrypted,
@@ -154,6 +156,54 @@ export class TelegramClientService {
             if (!success) return null;
         }
         return this.client;
+    }
+
+    async publishPersonalStory(params: {
+        projectId: number;
+        caption: string;
+        imageUrl: string;
+        idempotencyKey: string;
+    }): Promise<{ storyId: number; publicLink: string | null }> {
+        const client = await this.getClient(params.projectId);
+        if (!client) throw new Error('[MTPROTO_UNAVAILABLE] Telegram Client is not initialized');
+
+        const peer = new Api.InputPeerSelf();
+        const allowed = await client.invoke(new Api.stories.CanSendStory({ peer }));
+        if (!allowed) throw new Error('[TELEGRAM_STORY_NOT_ALLOWED] The authorized profile cannot publish a story now');
+
+        const remoteImage = await loadTelegramRemoteImage(params.imageUrl);
+        const uploaded = await client.uploadFile({ file: remoteImage, workers: 1 });
+        const digest = createHash('sha256').update(params.idempotencyKey).digest('hex').slice(0, 15);
+        const randomId = bigInt(digest, 16);
+        const [caption, entities] = MarkdownParser.parse(params.caption.trim());
+        const result: any = await client.invoke(new Api.stories.SendStory({
+            peer,
+            media: new Api.InputMediaUploadedPhoto({ file: uploaded }),
+            caption,
+            entities,
+            privacyRules: [new Api.InputPrivacyValueAllowAll()],
+            randomId,
+            period: 86400
+        }));
+        const idUpdate = result?.updates?.find((update: any) => update instanceof Api.UpdateStoryID);
+        const storyId = Number(idUpdate?.id);
+        if (!Number.isInteger(storyId) || storyId <= 0) {
+            throw new Error('[TELEGRAM_STORY_IDENTITY_MISSING] Telegram did not return a story ID');
+        }
+
+        const readback: any = await client.invoke(new Api.stories.GetStoriesByID({ peer, id: [storyId] }));
+        if (!Array.isArray(readback?.stories) || !readback.stories.some((story: any) => Number(story?.id) === storyId)) {
+            throw new Error('[TELEGRAM_STORY_READBACK_FAILED] The posted story was not found on the personal profile');
+        }
+
+        let publicLink: string | null = null;
+        try {
+            const exported: any = await client.invoke(new Api.stories.ExportStoryLink({ peer, id: storyId }));
+            publicLink = typeof exported?.link === 'string' && exported.link.trim() ? exported.link.trim() : null;
+        } catch (error) {
+            console.warn(`[TelegramClient] Story ${storyId} was confirmed but its share link could not be exported`, error);
+        }
+        return { storyId, publicLink };
     }
 
     /**
