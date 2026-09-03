@@ -8,7 +8,10 @@ import { mapActionStatus, resolveActionTitle } from './publication_runtime.helpe
 import contentDictionaryService from './content_dictionary.service';
 import contentPolicyMatrixService from './content_policy_matrix.service';
 import { isServerResolvableVisualUrl, visualMetadataFromProvenance } from './visual_asset_binding.service';
-import { publicationPlacementAssetContract } from './publication_placement_contract';
+import {
+    publicationPlacementAssetContract,
+    publicationPlacementManualChecklistNotes
+} from './publication_placement_contract';
 
 type PublicationPlan = {
     meta: {
@@ -2211,10 +2214,13 @@ class PublicationPlanService {
                     : resolvedAssets.filter((entry: any) => entry.asset?.visual_style || entry.asset?.gamma_source)
             },
             resource_files: resourceFiles,
-            manual_checklist: publicationAdapterService.buildManualChecklist(action, {
-                linkUrl,
-                accountRef
-            }),
+            manual_checklist: [
+                ...publicationAdapterService.buildManualChecklist(action, {
+                    linkUrl,
+                    accountRef
+                }),
+                ...publicationPlacementManualChecklistNotes(placementContract)
+            ],
             verification: action.verification || [],
             post_actions: action.post_actions || [],
             dependencies: action.dependencies || []
@@ -2279,14 +2285,17 @@ class PublicationPlanService {
                 provenance: selectedAsset.provenance || null,
                 content_source: 'selected_image_asset'
             }] : [],
-            checklist: publicationAdapterService.buildManualChecklist({
-                id: item.item_key || `content-item:${item.id}`,
-                channel: channelType,
-                action_type: `${channelType}_post:publish`
-            }, {
-                accountRef: item.channel?.name || null,
-                linkUrl: null
-            }),
+            checklist: [
+                ...publicationAdapterService.buildManualChecklist({
+                    id: item.item_key || `content-item:${item.id}`,
+                    channel: channelType,
+                    action_type: `${channelType}_post:publish`
+                }, {
+                    accountRef: item.channel?.name || null,
+                    linkUrl: null
+                }),
+                ...publicationPlacementManualChecklistNotes(placementContract)
+            ],
             monitoring: publicationAdapterService.deriveMonitoringPlan({
                 id: item.item_key || `content-item:${item.id}`,
                 channel: channelType,

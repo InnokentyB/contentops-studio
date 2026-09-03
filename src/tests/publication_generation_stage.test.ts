@@ -180,6 +180,12 @@ test('imported story handoff derives account and channel from the current top-le
     assert.equal(bundle.task.channel, 'telegram');
     assert.equal(bundle.task.action_type, 'telegram_story:publish');
     assert.equal(bundle.manual_checklist[0], 'Post from account: spherical_analyst_tg');
+    assert.ok(bundle.manual_checklist.includes('Keep the prepared question and answer options as ordinary story content.'));
+    assert.deepEqual(bundle.placement_contract.poll, {
+        supported: false,
+        configuration_mode: 'not_supported',
+        render_in_asset: false
+    });
 });
 
 test('plan handoff preserves the approved visual bound to the accepted revision', () => {

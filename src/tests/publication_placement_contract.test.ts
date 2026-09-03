@@ -17,15 +17,19 @@ test('article channels share the canonical article-cover placement', () => {
     );
 });
 
-test('Telegram and VK stories use a vertical manual-only asset contract', () => {
-    for (const type of ['telegram', 'telegram_chat', 'vk']) {
+test('Telegram and VK stories use channel-specific poll capabilities', () => {
+    for (const type of ['telegram', 'telegram_chat']) {
         assert.ok(canonicalPlacementsForChannel({ type }).includes('story'));
         const contract = publicationPlacementAssetContract({ type }, 'story');
         assert.deepEqual(contract.dimensions, { width: 1080, height: 1920, aspect_ratio: '9:16' });
         assert.deepEqual(contract.safe_area, { unit: 'px', top: 250, right: 80, bottom: 320, left: 80 });
-        assert.deepEqual(contract.poll, { supported: true, configuration_mode: 'native_manual', render_in_asset: false });
+        assert.deepEqual(contract.poll, { supported: false, configuration_mode: 'not_supported', render_in_asset: false });
         assert.deepEqual(contract.transport, { materialization: 'story', connector_authority: 'manual_only' });
     }
+
+    const vkContract = publicationPlacementAssetContract({ type: 'vk' }, 'story');
+    assert.deepEqual(vkContract.poll, { supported: true, configuration_mode: 'native_manual', render_in_asset: false });
+    assert.deepEqual(vkContract.transport, { materialization: 'story', connector_authority: 'manual_only' });
 });
 
 test('VK longread uses a distinct manual article-cover contract', () => {

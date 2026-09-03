@@ -22,7 +22,7 @@ export type PublicationPlacementAssetContract = {
     artifact_kind: 'feed' | 'story' | 'article_cover' | 'other';
     dimensions: { width: number; height: number; aspect_ratio: string } | null;
     safe_area: { unit: 'px'; top: number; right: number; bottom: number; left: number } | null;
-    poll: { supported: boolean; configuration_mode: 'native_manual' | 'not_applicable'; render_in_asset: boolean };
+    poll: { supported: boolean; configuration_mode: 'native_manual' | 'not_supported' | 'not_applicable'; render_in_asset: boolean };
     transport: { materialization: 'feed_post' | 'story' | 'article' | 'asset'; connector_authority: 'configured' | 'manual_only' };
 };
 
@@ -32,16 +32,17 @@ export function publicationPlacementAssetContract(
 ): PublicationPlacementAssetContract {
     const normalizedType = channel.type.trim().toLowerCase();
     if (placement === 'story') {
+        const poll = normalizedType === 'vk' || normalizedType === 'instagram'
+            ? { supported: true, configuration_mode: 'native_manual' as const, render_in_asset: false }
+            : ['telegram', 'telegram_chat'].includes(normalizedType)
+                ? { supported: false, configuration_mode: 'not_supported' as const, render_in_asset: false }
+                : { supported: false, configuration_mode: 'not_applicable' as const, render_in_asset: false };
         return {
             placement,
             artifact_kind: 'story',
             dimensions: { width: 1080, height: 1920, aspect_ratio: '9:16' },
             safe_area: { unit: 'px', top: 250, right: 80, bottom: 320, left: 80 },
-            poll: {
-                supported: ['telegram', 'telegram_chat', 'vk'].includes(normalizedType),
-                configuration_mode: 'native_manual',
-                render_in_asset: false
-            },
+            poll,
             transport: { materialization: 'story', connector_authority: 'manual_only' }
         };
     }
@@ -66,6 +67,12 @@ export function publicationPlacementAssetContract(
             connector_authority: 'configured'
         }
     };
+}
+
+export function publicationPlacementManualChecklistNotes(contract: PublicationPlacementAssetContract) {
+    return contract.artifact_kind === 'story' && contract.poll.configuration_mode === 'not_supported'
+        ? ['Keep the prepared question and answer options as ordinary story content.']
+        : [];
 }
 
 function configuredPlacements(config: unknown) {

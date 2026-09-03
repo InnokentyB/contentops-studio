@@ -1,4 +1,7 @@
-import { publicationPlacementAssetContract } from './publication_placement_contract';
+import {
+    publicationPlacementAssetContract,
+    publicationPlacementManualChecklistNotes
+} from './publication_placement_contract';
 
 export function planPublicationPlacementRepair(input: {
     contentItemId: number;
@@ -108,9 +111,15 @@ export function repairMaterializedPublicationProjection(input: {
         const currentChecklist = Array.isArray(handoffBundle.manual_checklist)
             ? [...handoffBundle.manual_checklist]
             : [];
-        const manualChecklist = currentChecklist.length > 0
+        const repairedChecklist = currentChecklist.length > 0
             ? [`Post from account: ${input.channel.name}`, ...currentChecklist.slice(1)]
             : [`Post from account: ${input.channel.name}`];
+        const notes = publicationPlacementManualChecklistNotes(placementContract);
+        const manualChecklist = [
+            repairedChecklist[0],
+            ...notes.filter((note) => !repairedChecklist.includes(note)),
+            ...repairedChecklist.slice(1)
+        ];
         handoffBundle.account = {
             ...(handoffBundle.account || {}),
             ref: input.channel.name,

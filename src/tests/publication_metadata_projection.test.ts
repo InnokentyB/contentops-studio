@@ -38,9 +38,14 @@ test('repairs stale story action, handoff and metrics from the canonical channel
     assert.equal(result.qualityReport.handoff_bundle.task.action_type, 'telegram_story:publish');
     assert.deepEqual(result.qualityReport.handoff_bundle.manual_checklist, [
         'Post from account: spherical_analyst_tg',
+        'Keep the prepared question and answer options as ordinary story content.',
         'Keep this instruction'
     ]);
-    assert.equal(result.qualityReport.handoff_bundle.placement_contract.poll.configuration_mode, 'native_manual');
+    assert.deepEqual(result.qualityReport.handoff_bundle.placement_contract.poll, {
+        supported: false,
+        configuration_mode: 'not_supported',
+        render_in_asset: false
+    });
     assert.equal(result.metrics.account_ref, 'spherical_analyst_tg');
 });
 
