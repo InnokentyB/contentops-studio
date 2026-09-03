@@ -22,7 +22,7 @@ import {
 import dzenService from '../services/dzen.service';
 import initiativeService from '../services/initiative.service';
 import workQueueService from '../services/work_queue.service';
-import mcpAccessTokenService, { isManagedMcpProfile } from '../services/mcp_access_token.service';
+import mcpAccessTokenService, { ActiveMcpWorkspaceBundleError, isManagedMcpProfile } from '../services/mcp_access_token.service';
 
 import { prisma } from '../services/planner.service';
 
@@ -761,14 +761,32 @@ export default async function projectRoutes(fastify: FastifyInstance) {
         const owner = (request as any).user;
         const projectId = parseInt((request.params as { id: string }).id, 10);
         if (!await authService.hasProjectAccess(owner.id, projectId, 'owner')) return reply.code(403).send({ error: 'Owner access required' });
-        const { userId, label } = request.body as { userId: number; label?: string };
+        const { userId, label, expiresAt, rotate } = request.body as { userId: number; label?: string; expiresAt?: string | null; rotate?: boolean };
         if (!Number.isInteger(userId)) return reply.code(400).send({ error: 'Valid project member is required' });
+        const expiry = expiresAt ? new Date(expiresAt) : null;
+        if (expiry && (Number.isNaN(expiry.getTime()) || expiry <= new Date())) return reply.code(400).send({ error: 'Expiry must be in the future' });
         const endpoint = (process.env.MCP_REMOTE_URL || 'http://127.0.0.1:8080/mcp').replace(/\/+$/, '');
         try {
             reply.header('Cache-Control', 'no-store');
-            return await mcpAccessTokenService.createWorkspaceBundle(projectId, userId, label || '', endpoint);
+            return await mcpAccessTokenService.createWorkspaceBundle(projectId, userId, label || '', endpoint, { expiresAt: expiry, rotate: rotate === true });
         } catch (error: any) {
+            if (error instanceof ActiveMcpWorkspaceBundleError) {
+                return reply.code(409).send({ error: error.message, code: 'MCP_WORKSPACE_ACTIVE', bundle_id: error.bundleId });
+            }
             return reply.code(400).send({ error: error.message || 'Unable to create agent workspace access' });
+        }
+    });
+
+    fastify.delete('/api/projects/:id/mcp/workspace-access/:bundleId', async (request, reply) => {
+        const owner = (request as any).user;
+        const { id, bundleId } = request.params as { id: string; bundleId: string };
+        const projectId = parseInt(id, 10);
+        if (!await authService.hasProjectAccess(owner.id, projectId, 'owner')) return reply.code(403).send({ error: 'Owner access required' });
+        if (!/^[0-9a-f-]{36}$/i.test(bundleId)) return reply.code(400).send({ error: 'Valid workspace bundle ID is required' });
+        try {
+            return await mcpAccessTokenService.revokeWorkspaceBundle(projectId, bundleId);
+        } catch (error: any) {
+            return reply.code(404).send({ error: error.message || 'MCP workspace bundle was not found' });
         }
     });
 

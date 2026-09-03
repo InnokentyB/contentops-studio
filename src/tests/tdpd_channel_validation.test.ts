@@ -15,7 +15,7 @@ import projectRoutes from '../routes/project.routes';
 import authService from '../services/auth.service';
 import { prisma } from '../services/planner.service';
 import plannerService from '../services/planner.service';
-import mcpAccessTokenService from '../services/mcp_access_token.service';
+import mcpAccessTokenService, { ActiveMcpWorkspaceBundleError } from '../services/mcp_access_token.service';
 
 test('sanitizeChannelConfig masks sensitive fields', () => {
     const config = {
@@ -401,7 +401,7 @@ test('POST /api/projects/:id/mcp/workspace-access issues the seven-role bundle o
     let received: unknown[] = [];
     mcpAccessTokenService.createWorkspaceBundle = async (...args: any[]) => {
         received = args;
-        return { accesses: new Array(7).fill(null), config: { mcpServers: {} }, bootstrap_prompt: 'bootstrap' } as any;
+        return { bundle_id: 'bundle-1', accesses: new Array(7).fill(null), config: { mcpServers: {} }, bootstrap_prompt: 'bootstrap' } as any;
     };
 
     const app = Fastify();
@@ -411,16 +411,53 @@ test('POST /api/projects/:id/mcp/workspace-access issues the seven-role bundle o
             method: 'POST',
             url: '/api/projects/10/mcp/workspace-access',
             headers: { authorization: 'Bearer mock-token' },
-            payload: { userId: 22, label: 'Codex Cloud' }
+            payload: { userId: 22, label: 'Codex Cloud', expiresAt: '2026-12-01T00:00:00.000Z', rotate: true }
         });
         assert.equal(response.statusCode, 200);
         assert.equal(response.headers['cache-control'], 'no-store');
-        assert.deepEqual(received.slice(0, 3), [10, 22, 'Codex Cloud']);
+        assert.deepEqual(received.slice(0, 4), [10, 22, 'Codex Cloud', 'http://127.0.0.1:8080/mcp']);
+        assert.equal((received[4] as any).rotate, true);
+        assert.equal((received[4] as any).expiresAt.toISOString(), '2026-12-01T00:00:00.000Z');
         assert.equal(JSON.parse(response.body).accesses.length, 7);
     } finally {
         authService.verifyToken = originalVerifyToken;
         authService.hasProjectAccess = originalHasAccess;
         mcpAccessTokenService.createWorkspaceBundle = originalCreateWorkspaceBundle;
+    }
+});
+
+test('workspace access API reports an active bundle and revokes a complete bundle', async () => {
+    const originalVerifyToken = authService.verifyToken;
+    const originalHasAccess = authService.hasProjectAccess;
+    const originalCreateWorkspaceBundle = mcpAccessTokenService.createWorkspaceBundle;
+    const originalRevokeWorkspaceBundle = mcpAccessTokenService.revokeWorkspaceBundle;
+    authService.verifyToken = () => ({ id: 1, email: 'owner@example.com', name: 'Owner' });
+    authService.hasProjectAccess = async (_userId, _projectId, role) => role === 'owner';
+    const bundleId = '123e4567-e89b-12d3-a456-426614174000';
+    mcpAccessTokenService.createWorkspaceBundle = async () => { throw new ActiveMcpWorkspaceBundleError(bundleId); };
+    mcpAccessTokenService.revokeWorkspaceBundle = async (projectId, receivedBundleId) => ({ project_id: projectId, bundle_id: receivedBundleId, revoked: 7 } as any);
+
+    const app = Fastify();
+    app.register(projectRoutes);
+    try {
+        const duplicate = await app.inject({
+            method: 'POST', url: '/api/projects/10/mcp/workspace-access',
+            headers: { authorization: 'Bearer mock-token' }, payload: { userId: 22 }
+        });
+        assert.equal(duplicate.statusCode, 409);
+        assert.equal(JSON.parse(duplicate.body).bundle_id, bundleId);
+
+        const revoked = await app.inject({
+            method: 'DELETE', url: `/api/projects/10/mcp/workspace-access/${bundleId}`,
+            headers: { authorization: 'Bearer mock-token' }
+        });
+        assert.equal(revoked.statusCode, 200);
+        assert.equal(JSON.parse(revoked.body).revoked, 7);
+    } finally {
+        authService.verifyToken = originalVerifyToken;
+        authService.hasProjectAccess = originalHasAccess;
+        mcpAccessTokenService.createWorkspaceBundle = originalCreateWorkspaceBundle;
+        mcpAccessTokenService.revokeWorkspaceBundle = originalRevokeWorkspaceBundle;
     }
 });
 

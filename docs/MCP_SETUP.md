@@ -37,11 +37,11 @@ For a new external user, use the complete workspace flow:
 
 1. Add the user as a member of the project and ask them to sign in once.
 2. Open **Project settings → MCP → Personal access** as a project owner.
-3. Select that project member, add a device-specific label, and select **Deploy 7 roles**.
+3. Select that project member, add a device-specific label and expiry, then select **Deploy 7 roles**.
 4. Copy both one-time blocks: the seven-connector configuration and the agent bootstrap prompt.
 5. Add the connectors to the user's agent client. Give the bootstrap prompt to that agent. If the host can create persistent chats, it creates the seven named role chats; otherwise it should return seven copyable chat cards.
 
-The bundle is created atomically: either all seven hashed credentials are stored or none are. Plaintext tokens are returned only in this response and must not be pasted into chat messages or committed to a repository. Repeating the action creates a new set of credentials; revoke superseded tokens afterward.
+The bundle is created atomically: either all seven hashed credentials are stored or none are. Plaintext tokens are returned only in this response and must not be pasted into chat messages or committed to a repository. Accidental duplicate issuance is rejected. Use **Rotate 7 roles** to revoke the previous bundle and create its replacement in one transaction, or **Revoke complete bundle** to disable all seven credentials together.
 
 ## Issue access
 

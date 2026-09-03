@@ -103,6 +103,7 @@ interface McpStatus {
 
 interface McpAccess {
     id: number
+    bundle_id?: string | null
     profile: 'strategist' | 'planner' | 'writer' | 'editor' | 'art_director' | 'publisher' | 'growth_analyst'
     label: string
     expires_at: string | null
@@ -113,6 +114,7 @@ interface McpAccess {
 
 interface McpWorkspaceBundle {
     schema_version: string
+    bundle_id: string
     project: { id: number; name: string; slug: string }
     user: { id: number; name: string; email: string }
     accesses: Array<{ id: number; profile: McpAccess['profile']; token: string; endpoint: string }>
@@ -592,6 +594,7 @@ export default function Settings() {
     const [mcpAccessUserId, setMcpAccessUserId] = useState('')
     const [mcpAccessProfile, setMcpAccessProfile] = useState<McpAccess['profile']>('writer')
     const [mcpAccessLabel, setMcpAccessLabel] = useState('')
+    const [mcpWorkspaceExpiryDays, setMcpWorkspaceExpiryDays] = useState<'30' | '90' | 'none'>('90')
     const [issuedMcpToken, setIssuedMcpToken] = useState('')
     const [workspaceBundle, setWorkspaceBundle] = useState<McpWorkspaceBundle | null>(null)
 
@@ -674,6 +677,13 @@ export default function Settings() {
         enabled: !!currentProject && activeTab === 'mcp' && isOwner
     })
 
+    const activeWorkspaceBundle = (mcpAccesses?.accesses || []).find(access =>
+        access.user.id === Number(mcpAccessUserId)
+        && Boolean(access.bundle_id)
+        && !access.revoked_at
+        && (!access.expires_at || new Date(access.expires_at) > new Date())
+    )
+
     const createMcpAccess = useMutation({
         mutationFn: () => api.post(`/api/projects/${currentProject!.id}/mcp/access-tokens`, {
             userId: Number(mcpAccessUserId), profile: mcpAccessProfile, label: mcpAccessLabel
@@ -692,7 +702,10 @@ export default function Settings() {
 
     const createWorkspaceAccess = useMutation({
         mutationFn: () => api.post(`/api/projects/${currentProject!.id}/mcp/workspace-access`, {
-            userId: Number(mcpAccessUserId), label: mcpAccessLabel
+            userId: Number(mcpAccessUserId),
+            label: mcpAccessLabel,
+            expiresAt: mcpWorkspaceExpiryDays === 'none' ? null : new Date(Date.now() + Number(mcpWorkspaceExpiryDays) * 24 * 60 * 60 * 1000).toISOString(),
+            rotate: Boolean(activeWorkspaceBundle)
         }),
         onMutate: () => setWorkspaceBundle(null),
         onSuccess: (result: McpWorkspaceBundle) => {
@@ -706,6 +719,16 @@ export default function Settings() {
             'error',
             error.message
         )
+    })
+
+    const revokeWorkspaceAccess = useMutation({
+        mutationFn: (bundleId: string) => api.delete(`/api/projects/${currentProject!.id}/mcp/workspace-access/${bundleId}`),
+        onSuccess: () => {
+            setWorkspaceBundle(null)
+            queryClient.invalidateQueries({ queryKey: ['mcp-accesses', currentProject?.id] })
+            showToast(locale === 'ru' ? 'Весь MCP-пакет отозван' : 'The complete MCP bundle was revoked', 'success')
+        },
+        onError: (error: Error) => showToast(locale === 'ru' ? 'Не удалось отозвать пакет' : 'Could not revoke the bundle', 'error', error.message)
     })
 
     const revokeMcpAccess = useMutation({
@@ -1382,7 +1405,7 @@ export default function Settings() {
                                 <section className="rounded-2xl bg-surface-container-low p-4 sm:p-5">
                                     <h3 className="font-black text-on-surface">{locale === 'ru' ? 'Персональные доступы' : 'Personal access'}</h3>
                                     <p className="mt-1 text-sm text-on-surface-variant">{locale === 'ru' ? 'Выдавайте и отзывайте доступ без изменения Railway.' : 'Issue and revoke access without changing Railway.'}</p>
-                                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                                    <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                                         <select value={mcpAccessUserId} onChange={event => setMcpAccessUserId(event.target.value)}>
                                             <option value="">{locale === 'ru' ? 'Участник проекта' : 'Project member'}</option>
                                             {(projectData as ApiJson)?.members?.map((member: ApiJson) => <option key={member.user_id} value={member.user_id}>{member.user?.name || member.user?.email}</option>)}
@@ -1391,9 +1414,20 @@ export default function Settings() {
                                             <option value="strategist">Strategist</option><option value="planner">Planner</option><option value="writer">Writer</option><option value="editor">Chief Editor</option><option value="art_director">Art director</option><option value="publisher">Publisher</option><option value="growth_analyst">Growth Analyst</option>
                                         </select>
                                         <input value={mcpAccessLabel} onChange={event => setMcpAccessLabel(event.target.value)} placeholder={locale === 'ru' ? 'Например: Claude на ноутбуке' : 'For example: Claude on laptop'} />
+                                        <select value={mcpWorkspaceExpiryDays} onChange={event => setMcpWorkspaceExpiryDays(event.target.value as typeof mcpWorkspaceExpiryDays)}>
+                                            <option value="30">{locale === 'ru' ? 'Срок: 30 дней' : 'Expires: 30 days'}</option>
+                                            <option value="90">{locale === 'ru' ? 'Срок: 90 дней' : 'Expires: 90 days'}</option>
+                                            <option value="none">{locale === 'ru' ? 'Без срока' : 'No expiry'}</option>
+                                        </select>
                                     </div>
+                                    {activeWorkspaceBundle && <div className="mt-3 rounded-xl border border-warning/30 bg-warning/5 p-3 text-xs leading-5 text-on-surface-variant">{locale === 'ru' ? 'У выбранного пользователя уже есть активный пакет. «Ротировать 7 ролей» атомарно отзовёт старые токены и покажет новые один раз.' : 'The selected user already has an active bundle. “Rotate 7 roles” atomically revokes the old tokens and shows the new ones once.'}</div>}
                                     <div className="mt-3 flex flex-wrap gap-2">
-                                        <button type="button" className="btn-primary" disabled={!mcpAccessUserId || createWorkspaceAccess.isPending} onClick={() => createWorkspaceAccess.mutate()}>{createWorkspaceAccess.isPending ? (locale === 'ru' ? 'Разворачиваем…' : 'Deploying…') : (locale === 'ru' ? 'Развернуть 7 ролей' : 'Deploy 7 roles')}</button>
+                                        <button type="button" className="btn-primary" disabled={!mcpAccessUserId || createWorkspaceAccess.isPending} onClick={() => {
+                                            if (!activeWorkspaceBundle || window.confirm(locale === 'ru' ? 'Старый пакет будет немедленно отозван. Продолжить ротацию?' : 'The old bundle will be revoked immediately. Continue rotation?')) createWorkspaceAccess.mutate()
+                                        }}>{createWorkspaceAccess.isPending ? (locale === 'ru' ? 'Выпускаем…' : 'Issuing…') : activeWorkspaceBundle ? (locale === 'ru' ? 'Ротировать 7 ролей' : 'Rotate 7 roles') : (locale === 'ru' ? 'Развернуть 7 ролей' : 'Deploy 7 roles')}</button>
+                                        {activeWorkspaceBundle?.bundle_id && <button type="button" className="btn-secondary text-error" disabled={revokeWorkspaceAccess.isPending} onClick={() => {
+                                            if (window.confirm(locale === 'ru' ? 'Отозвать сразу все семь доступов?' : 'Revoke all seven credentials now?')) revokeWorkspaceAccess.mutate(activeWorkspaceBundle.bundle_id!)
+                                        }}>{locale === 'ru' ? 'Отозвать весь пакет' : 'Revoke complete bundle'}</button>}
                                         <button type="button" className="btn-secondary" disabled={!mcpAccessUserId || createMcpAccess.isPending} onClick={() => createMcpAccess.mutate()}>{locale === 'ru' ? 'Создать один доступ' : 'Create one access'}</button>
                                     </div>
                                     {workspaceBundle && <div className="mt-4 rounded-xl border border-warning/30 bg-white p-3">

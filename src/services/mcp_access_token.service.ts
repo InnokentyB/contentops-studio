@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'crypto';
+import { createHash, randomBytes, randomUUID } from 'crypto';
 import prisma from '../db';
 import type { McpCapabilityProfile } from '../mcp/capabilities';
 
@@ -18,6 +18,13 @@ export function hashMcpToken(token: string) {
 
 export function isManagedMcpProfile(value: unknown): value is McpCapabilityProfile {
     return typeof value === 'string' && MANAGED_PROFILES.has(value as McpCapabilityProfile);
+}
+
+export class ActiveMcpWorkspaceBundleError extends Error {
+    constructor(public readonly bundleId: string) {
+        super('An active MCP workspace already exists for this project member');
+        this.name = 'ActiveMcpWorkspaceBundleError';
+    }
 }
 
 class McpAccessTokenService {
@@ -49,7 +56,13 @@ class McpAccessTokenService {
         });
     }
 
-    async createWorkspaceBundle(projectId: number, userId: number, label: string, remoteUrl: string) {
+    async createWorkspaceBundle(
+        projectId: number,
+        userId: number,
+        label: string,
+        remoteUrl: string,
+        options: { expiresAt?: Date | null; rotate?: boolean } = {}
+    ) {
         const membership = await prisma.projectMember.findUnique({
             where: { project_id_user_id: { project_id: projectId, user_id: userId } },
             include: {
@@ -61,22 +74,44 @@ class McpAccessTokenService {
 
         const baseUrl = remoteUrl.replace(/\/+$/, '');
         const labelPrefix = label.trim() || 'Agent workspace';
+        const bundleId = randomUUID();
         const issued = MANAGED_MCP_PROFILES.map((profile) => ({
             profile,
             token: `mcp_${randomBytes(32).toString('base64url')}`
         }));
 
-        const records = await prisma.$transaction(async (transaction) => Promise.all(issued.map(({ profile, token }) =>
-            transaction.mcpAccessToken.create({
+        const records = await prisma.$transaction(async (transaction) => {
+            await transaction.$queryRawUnsafe('SELECT pg_advisory_xact_lock($1, $2)', projectId, userId);
+            const activeBundle = await transaction.mcpAccessToken.findFirst({
+                where: {
+                    project_id: projectId,
+                    user_id: userId,
+                    bundle_id: { not: null },
+                    revoked_at: null,
+                    OR: [{ expires_at: null }, { expires_at: { gt: new Date() } }]
+                },
+                select: { bundle_id: true },
+                orderBy: { created_at: 'desc' }
+            });
+            if (activeBundle?.bundle_id && !options.rotate) throw new ActiveMcpWorkspaceBundleError(activeBundle.bundle_id);
+            if (activeBundle?.bundle_id && options.rotate) {
+                await transaction.mcpAccessToken.updateMany({
+                    where: { project_id: projectId, user_id: userId, bundle_id: { not: null }, revoked_at: null },
+                    data: { revoked_at: new Date() }
+                });
+            }
+            return Promise.all(issued.map(({ profile, token }) => transaction.mcpAccessToken.create({
                 data: {
                     project_id: projectId,
                     user_id: userId,
                     profile,
+                    bundle_id: bundleId,
                     token_hash: hashMcpToken(token),
-                    label: `${labelPrefix} · ${profile}`
+                    label: `${labelPrefix} · ${profile}`,
+                    expires_at: options.expiresAt || null
                 }
-            })
-        )));
+            })));
+        });
 
         const accesses = issued.map(({ profile, token }, index) => ({
             id: records[index].id,
@@ -94,6 +129,7 @@ class McpAccessTokenService {
 
         return {
             schema_version: '1.0',
+            bundle_id: bundleId,
             project: membership.project,
             user: membership.user,
             accesses,
@@ -107,6 +143,15 @@ class McpAccessTokenService {
                 'Publisher may deliver only through its visible governed tools and must obey release readiness and approval gates; never infer success without a confirmed publication fact.'
             ].join('\n')
         };
+    }
+
+    async revokeWorkspaceBundle(projectId: number, bundleId: string) {
+        const result = await prisma.mcpAccessToken.updateMany({
+            where: { project_id: projectId, bundle_id: bundleId, revoked_at: null },
+            data: { revoked_at: new Date() }
+        });
+        if (!result.count) throw new Error('Active MCP workspace bundle was not found');
+        return { revoked: result.count, bundle_id: bundleId };
     }
 
     async revoke(projectId: number, id: number) {

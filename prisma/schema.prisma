@@ -119,6 +119,7 @@ model McpAccessToken {
   project_id  Int
   user_id     Int
   profile     String
+  bundle_id   String?
   token_hash  String    @unique
   label       String
   expires_at  DateTime? @db.Timestamptz(6)
@@ -130,6 +131,7 @@ model McpAccessToken {
   user    User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([project_id, profile])
+  @@index([project_id, user_id, bundle_id])
   @@index([user_id, revoked_at])
   @@map("mcp_access_tokens")
   @@schema("planner")
