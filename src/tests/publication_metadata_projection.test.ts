@@ -103,3 +103,19 @@ test('VK article projection rebuilds article routing and contract from canonical
     assert.equal(result.qualityReport.handoff_bundle.transport.materialization, 'article');
     assert.equal(result.qualityReport.handoff_bundle.placement_contract.artifact_kind, 'article_cover');
 });
+
+test('Dzen article projection uses the canonical article action and account', () => {
+    const result = repairMaterializedPublicationProjection({
+        assets: { account_ref: 'legacy', action: { action_type: 'manual_handoff', channel: 'growth_ops' } },
+        qualityReport: { handoff_bundle: { account: { ref: 'legacy', details: { platform: 'growth_ops' } }, task: { action_type: 'manual_handoff', channel: 'growth_ops', placement: 'feed' } } },
+        metrics: { account_ref: 'legacy' },
+        channel: { id: 116, name: 'analystcraft_dzen', type: 'dzen' },
+        placement: 'article_cover'
+    });
+    assert.equal(result.assets.action.action_type, 'dzen_article:publish');
+    assert.equal(result.assets.action.channel, 'dzen');
+    assert.equal(result.qualityReport.handoff_bundle.task.action_type, 'dzen_article:publish');
+    assert.equal(result.qualityReport.handoff_bundle.task.placement, 'article_cover');
+    assert.equal(result.qualityReport.handoff_bundle.transport.materialization, 'article');
+    assert.equal(result.metrics.account_ref, 'analystcraft_dzen');
+});

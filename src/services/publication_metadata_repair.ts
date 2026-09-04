@@ -86,6 +86,9 @@ export function repairMaterializedPublicationProjection(input: {
     channel: CanonicalPublicationChannel;
     placement: string;
 }) {
+    const normalizedChannelType = String(input.channel.type || '').trim().toLowerCase();
+    const isDzenArticle = ['dzen', 'zen', 'zen_article'].includes(normalizedChannelType)
+        && input.placement === 'article_cover';
     const assets = { ...(input.assets || {}) };
     const action = { ...(assets.action || {}) };
     const qualityReport = { ...(input.qualityReport || {}) };
@@ -94,6 +97,8 @@ export function repairMaterializedPublicationProjection(input: {
         : null;
     const actionType = input.placement === 'story'
         ? canonicalStoryActionType(input.channel.type, input.placement)
+        : isDzenArticle
+            ? 'dzen_article:publish'
         : input.channel.type === 'vk' && input.placement === 'article_cover'
             ? 'vk_article:publish'
         : (action.action_type || handoffBundle?.task?.action_type || null);

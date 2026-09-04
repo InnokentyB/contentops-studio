@@ -42,6 +42,12 @@ test('VK longread uses a distinct manual article-cover contract', () => {
     assert.deepEqual(contract.transport, { materialization: 'article', connector_authority: 'manual_only' });
 });
 
+test('Dzen longread uses the configured article transport contract', () => {
+    const contract = publicationPlacementAssetContract({ type: 'dzen' }, 'article_cover');
+    assert.equal(contract.artifact_kind, 'article_cover');
+    assert.deepEqual(contract.transport, { materialization: 'article', connector_authority: 'configured' });
+});
+
 test('configured channel placement overrides the type fallback', () => {
     const channel = { type: 'custom', config: { canonical_placements: ['article_cover', 'inline'] } };
     assert.deepEqual(canonicalPlacementsForChannel(channel), ['article_cover', 'inline']);

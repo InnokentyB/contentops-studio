@@ -56,6 +56,16 @@ export function publicationPlacementAssetContract(
             transport: { materialization: 'article', connector_authority: 'manual_only' }
         };
     }
+    if (['dzen', 'zen', 'zen_article'].includes(normalizedType) && placement === 'article_cover') {
+        return {
+            placement,
+            artifact_kind: 'article_cover',
+            dimensions: null,
+            safe_area: null,
+            poll: { supported: false, configuration_mode: 'not_applicable', render_in_asset: false },
+            transport: { materialization: 'article', connector_authority: 'configured' }
+        };
+    }
     return {
         placement,
         artifact_kind: placement === 'feed' ? 'feed' : placement === 'article_cover' ? 'article_cover' : 'other',

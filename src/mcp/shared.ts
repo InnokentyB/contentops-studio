@@ -14,6 +14,7 @@ import weekPackageRepairService from '../services/week_package_repair.service';
 import weeklyThemePipelineService from '../services/weekly_theme_pipeline.service';
 import telegramTaskPublicationService from '../services/telegram_task_publication.service';
 import dzenEngagementService from '../services/dzen_engagement.service';
+import publishedChannelRepairService from '../services/published_channel_repair.service';
 import { filterMcpServerTools, McpCapabilityProfile } from './capabilities';
 import { getAgentChatBootstrap, getAgentWorkspaceUpdate, loadAgentWorkspaceManifest } from '../services/agent_workspace_manifest.service';
 
@@ -1027,6 +1028,36 @@ export function registerPlannerTools(server: McpServer) {
         const result = await workQueueService.repairPublicationProjection(args);
         return asToolResult(result);
     });
+
+    const publishedChannelRepairGuards = {
+        projectId: z.number().int().positive(),
+        actorId: z.string(),
+        taskId: z.number().int().positive(),
+        expectedCurrentChannelId: z.number().int().positive(),
+        targetChannelId: z.number().int().positive(),
+        expectedPublicationFactId: z.number().int().positive(),
+        expectedPublicUrl: z.string().url(),
+        expectedSnapshots: z.array(z.object({
+            id: z.number().int().positive(),
+            channelId: z.number().int().positive()
+        })).min(1).max(20)
+    };
+
+    server.registerTool('ba_preview_published_channel_repair', {
+        description: 'Owner-only read-only preview for an exact published-task channel repair. Returns a hash-bound bounded diff and never publishes, collects metrics, or writes data.',
+        annotations: { readOnlyHint: true },
+        inputSchema: publishedChannelRepairGuards
+    }, async (args) => asToolResult(await publishedChannelRepairService.preview(args)));
+
+    server.registerTool('ba_apply_published_channel_repair', {
+        description: 'Owner-only audited repair of one published task channel binding, its existing publication fact, metric snapshots and derived routing projections. Requires the exact preview hash and guards; never publishes or collects metrics.',
+        inputSchema: {
+            ...publishedChannelRepairGuards,
+            previewHash: z.string().regex(/^[a-f0-9]{64}$/),
+            reason: z.string().trim().min(1).max(1000),
+            idempotencyKey: z.string().trim().min(1).max(500)
+        }
+    }, async (args) => asToolResult(await publishedChannelRepairService.apply(args)));
 
     server.registerTool('ba_list_schedule_exceptions', {
         description: 'List schedule exceptions (overdue content, missed publication slots, unavailable sources).',
