@@ -731,7 +731,7 @@ export function registerPlannerTools(server: McpServer) {
     });
 
     server.registerTool('ba_publish_publication_task', {
-        description: 'Dry-run any canonical publication task using accepted text and approved durable visual. Live Telegram feed tasks target their configured channel. Telegram and VK story tasks target the authorized user personal profile; the first VK story release supports approved photos only. No browser fallback or silent visual downgrade is used.',
+        description: 'Dry-run any canonical publication task using accepted text and approved durable visual. Live Telegram feed tasks target their configured channel. Telegram and VK story tasks target the authorized personal profile; VK photo stories can include a revision-bound native poll configured through ba_configure_vk_story_poll. No browser fallback or silent visual downgrade is used.',
         inputSchema: {
             projectId: z.number().int().positive(),
             taskId: z.number().int().positive(),
