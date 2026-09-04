@@ -42,7 +42,8 @@ test('VK OAuth authorization uses PKCE and binds encrypted state to owner and ch
         assert.equal(url.searchParams.get('code_challenge_method'), 'S256');
         assert.match(url.searchParams.get('code_challenge') || '', /^[A-Za-z0-9_-]{43}$/);
         assert.equal(url.searchParams.get('redirect_uri'), 'https://planner.example/api/integrations/vk/callback');
-        assert.match(result.state, /^enc:v1:/);
+        assert.match(result.state, /^[A-Za-z0-9_-]+$/);
+        assert.equal(result.state.includes(':'), false);
         assert.equal(result.authorizationUrl.includes('verifier'), false);
 
         const state = service.readState(result.state);
