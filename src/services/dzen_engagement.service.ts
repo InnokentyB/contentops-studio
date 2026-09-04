@@ -26,8 +26,9 @@ class DzenEngagementService {
         });
         if (!item?.published_link || !isDzenPublishedUrl(item.published_link)) throw new Error('DZEN_PUBLICATION_URL_NOT_FOUND');
         const collected = await dzenService.collectPostMetrics(config, item.published_link);
-        const values = Object.fromEntries(['views', 'likes', 'comments'].map((name) => {
-            const value = collected[name as 'views' | 'likes' | 'comments'];
+        const metricNames = ['views', 'likes', 'comments', 'impressions', 'pageViews', 'clicks', 'deepViews', 'shares', 'subscriptions', 'sumViewTimeSec', 'ctr'] as const;
+        const values = Object.fromEntries(metricNames.map((name) => {
+            const value = collected[name];
             return [name, { value, status: value === null ? 'unknown' : 'observed' }];
         }));
         const day = collected.captured_at.slice(0, 10);
@@ -39,7 +40,7 @@ class DzenEngagementService {
             capturedAt: collected.captured_at,
             collectionMode: 'automatic',
             source: 'public_page',
-            collectionStatus: observedCount === 3 ? 'collected' : observedCount > 0 ? 'partial' : 'unknown',
+            collectionStatus: observedCount === metricNames.length ? 'collected' : observedCount > 0 ? 'partial' : 'unknown',
             evidenceRef: item.published_link,
             idempotencyKey: `dzen:${args.contentItemId}:${checkpoint}`,
             metrics: { schema_version: 1, values }

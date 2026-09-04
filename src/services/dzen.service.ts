@@ -93,7 +93,15 @@ class DzenService {
             captured_at: new Date().toISOString(),
             views: parseDzenCompactNumber(raw.views),
             likes: parseDzenCompactNumber(raw.likes),
-            comments: parseDzenCompactNumber(raw.comments)
+            comments: parseDzenCompactNumber(raw.comments),
+            impressions: parseDzenCompactNumber(raw.impressions),
+            pageViews: parseDzenCompactNumber(raw.pageViews),
+            clicks: parseDzenCompactNumber(raw.clicks),
+            deepViews: parseDzenCompactNumber(raw.deepViews),
+            shares: parseDzenCompactNumber(raw.shares),
+            subscriptions: parseDzenCompactNumber(raw.subscriptions),
+            sumViewTimeSec: parseDzenCompactNumber(raw.sumViewTimeSec),
+            ctr: parseDzenCompactNumber(raw.ctr)
         };
     }
 

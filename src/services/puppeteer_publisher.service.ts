@@ -21,12 +21,49 @@ export interface DzenPageMetrics {
     views: number | null;
     likes: number | null;
     comments: number | null;
+    impressions?: number | null;
+    pageViews?: number | null;
+    clicks?: number | null;
+    deepViews?: number | null;
+    shares?: number | null;
+    subscriptions?: number | null;
+    sumViewTimeSec?: number | null;
+    ctr?: number | null;
 }
 
 export interface DzenSearchResult {
     url: string;
     title: string;
     snippet: string;
+}
+
+export function extractDzenStudioMetrics(payload: any, postUrl: string): DzenPageMetrics | null {
+    let pathname: string;
+    try {
+        pathname = new URL(postUrl).pathname.replace(/\/$/, '');
+    } catch {
+        return null;
+    }
+    const publication = (payload?.publications || []).find((entry: any) =>
+        typeof entry?.commonUrl === 'string' && entry.commonUrl.replace(/\/$/, '') === pathname
+    );
+    if (!publication?.id) return null;
+    const counters = (payload?.publicationCounters || []).find((entry: any) => entry?.publicationId === publication.id) || {};
+    const social = (payload?.socialCounters || []).find((entry: any) => entry?.publicationId === publication.id) || {};
+    const numberOrNull = (value: unknown) => typeof value === 'number' && Number.isFinite(value) ? value : null;
+    return {
+        views: numberOrNull(counters.views),
+        likes: numberOrNull(social.likeCount),
+        comments: numberOrNull(social.commentCount),
+        impressions: numberOrNull(counters.impressions),
+        pageViews: numberOrNull(counters.pageViews),
+        clicks: numberOrNull(counters.clicks),
+        deepViews: numberOrNull(counters.deepViews),
+        shares: numberOrNull(counters.shares),
+        subscriptions: numberOrNull(counters.subscriptions),
+        sumViewTimeSec: numberOrNull(counters.sumViewTimeSec),
+        ctr: numberOrNull(counters.ctr)
+    };
 }
 
 type DzenPublicationType = 'article' | 'post';
@@ -638,6 +675,17 @@ class PuppeteerPublisherService {
         const page = await browser.newPage();
         try {
             await this.prepareDzenPage(page, config);
+            if (config.cookies?.trim() && this.dzenChannelId(config)) {
+                const responsePromise = page.waitForResponse(
+                    (response) => /\/editor-api\/v3\/publications\?/.test(response.url()) && response.status() === 200,
+                    { timeout: 30_000 }
+                );
+                await page.goto(this.dzenChannelEditorUrl(config), { waitUntil: 'domcontentloaded', timeout: 30_000 });
+                await this.assertDzenAuthenticated(page);
+                const payload = await (await responsePromise).json();
+                const studioMetrics = extractDzenStudioMetrics(payload, postUrl);
+                if (studioMetrics) return studioMetrics;
+            }
             await page.goto(postUrl, { waitUntil: 'networkidle2', timeout: 30_000 });
             await this.assertDzenAuthenticated(page);
             return await page.evaluate(() => {
