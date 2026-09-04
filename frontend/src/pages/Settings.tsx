@@ -1881,11 +1881,25 @@ export default function Settings() {
                         </div>
                     </div>
 
-                    <div className="grid">
+                    <div className="channel-table-shell">
+                        <table className="channel-table">
+                            <thead>
+                                <tr>
+                                    <th>{locale === 'ru' ? 'Канал' : 'Channel'}</th>
+                                    <th>{locale === 'ru' ? 'Площадка' : 'Platform'}</th>
+                                    <th>{locale === 'ru' ? 'Режим' : 'Workflow'}</th>
+                                    <th>{locale === 'ru' ? 'Подключение' : 'Connection'}</th>
+                                    <th>{locale === 'ru' ? 'Идентификатор' : 'Identifier'}</th>
+                                    <th className="channel-table__actions-heading">{locale === 'ru' ? 'Действия' : 'Actions'}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
                         {(projectData as ApiJson)?.channels?.map((channel: SocialChannel) => {
                             if (editingChannelId === channel.id) {
                                 return (
-                                    <div key={channel.id} className="mb-3 p-3 border rounded-xl bg-surface-container-low" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', gridColumn: '1 / -1' }}>
+                                    <tr key={channel.id} className="channel-table__editor-row">
+                                      <td colSpan={6}>
+                                       <div className="p-3 bg-surface-container-low" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                         <div className="flex-between">
                                             <span className="badge" style={{ textTransform: 'uppercase', background: 'var(--primary-container)', color: 'var(--on-primary-container)', fontWeight: 'bold' }}>
                                                 Editing {channel.type}
@@ -2308,84 +2322,100 @@ export default function Settings() {
                                                 </>
                                             )}
                                         </div>
-                                    </div>
+                                       </div>
+                                      </td>
+                                    </tr>
                                 );
                             }
 
+                            const channelIdentifier = channel.config?.telegram_channel_id
+                                || channel.config?.vk_id
+                                || channel.config?.linkedin_urn
+                                || channel.config?.group_id
+                                || channel.config?.channel_id
+                                || channel.config?.subsite_id
+                                || null;
+                            const workflowLabel = channel.config?.workflow_mode === 'auto_publish'
+                                ? copy.autoPublish
+                                : channel.config?.workflow_mode === 'prepare_only'
+                                    ? copy.prepareOnly
+                                    : copy.afterApproval;
+                            const isVkConnected = channel.type === 'vk' && channel.config?.publish_access_token === '******';
+                            const needsLinkedinAnalytics = channel.type === 'linkedin' && !channel.config?.analytics_scope_enabled;
+                            const connectionLabel = channel.type === 'vk'
+                                ? (isVkConnected ? (locale === 'ru' ? 'Подключён' : 'Connected') : (locale === 'ru' ? 'Нужно подключить' : 'Connection required'))
+                                : channel.type === 'linkedin'
+                                    ? (needsLinkedinAnalytics ? (locale === 'ru' ? 'Нужен доступ к аналитике' : 'Analytics access needed') : (locale === 'ru' ? 'Готово' : 'Ready'))
+                                    : (channel.is_active ? (locale === 'ru' ? 'Активен' : 'Active') : (locale === 'ru' ? 'Отключён' : 'Inactive'));
+
                             return (
-                                <div key={channel.id} className="flex-between p-2" style={{ background: 'var(--bg-tertiary)', borderRadius: '6px', marginBottom: '0.5rem' }}>
-                                    <div>
-                                        <div className="flex-center">
-                                            <strong>{channel.name}</strong>
-                                            <span className="badge" style={{ fontSize: '0.7rem', textTransform: 'uppercase' }}>{channel.type}</span>
-                                            <span className="badge" style={{ fontSize: '0.7rem' }}>
-                                                {channel.config?.workflow_mode === 'auto_publish' ? copy.autoPublish : channel.config?.workflow_mode === 'prepare_only' ? copy.prepareOnly : copy.afterApproval}
-                                            </span>
-                                            {channel.type === 'linkedin' && (
-                                                <span className="badge ml-1" style={{ fontSize: '0.7rem', textTransform: 'uppercase' }}>
-                                                    {channel.config?.analytics_scope_enabled ? 'analytics ready' : 'reconnect for analytics'}
-                                                </span>
+                                <tr key={channel.id}>
+                                    <td data-label={locale === 'ru' ? 'Канал' : 'Channel'}>
+                                        <div className="channel-table__name">
+                                            <strong title={channel.name}>{channel.name}</strong>
+                                            {defaultChannelId === String(channel.id) && (
+                                                <span className="channel-table__default">{locale === 'ru' ? 'По умолчанию' : 'Default'}</span>
                                             )}
                                         </div>
-                                        <div className="text-muted" style={{ fontSize: '0.8rem' }}>
-                                            ID: {channel.config?.telegram_channel_id || channel.config?.vk_id || channel.config?.linkedin_urn || channel.config?.group_id || channel.config?.channel_id || channel.config?.subsite_id}
-                                            {channel.config?.channel_username && ` • @${channel.config.channel_username}`}
+                                    </td>
+                                    <td data-label={locale === 'ru' ? 'Площадка' : 'Platform'}>
+                                        <span className="channel-table__platform">{channel.type}</span>
+                                    </td>
+                                    <td data-label={locale === 'ru' ? 'Режим' : 'Workflow'}>
+                                        <span className="channel-table__workflow">{workflowLabel}</span>
+                                    </td>
+                                    <td data-label={locale === 'ru' ? 'Подключение' : 'Connection'}>
+                                        <span className={`channel-table__status ${(!channel.is_active || needsLinkedinAnalytics || (channel.type === 'vk' && !isVkConnected)) ? 'channel-table__status--attention' : 'channel-table__status--ready'}`}>
+                                            <span aria-hidden="true" />{connectionLabel}
+                                        </span>
+                                    </td>
+                                    <td data-label={locale === 'ru' ? 'Идентификатор' : 'Identifier'}>
+                                        <div className="channel-table__identifier" title={channelIdentifier ? String(channelIdentifier) : undefined}>
+                                            {channelIdentifier || '—'}
+                                            {channel.config?.channel_username && <small>@{String(channel.config.channel_username).replace(/^@/, '')}</small>}
                                         </div>
-                                        {channel.type === 'linkedin' && (
-                                            <div className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
-                                                {channel.config?.analytics_scope_enabled
-                                                    ? 'This channel token is ready for member post analytics.'
-                                                    : 'Reconnect this channel after approval to enable LinkedIn post analytics.'}
-                                            </div>
-                                        )}
-                                        {channel.type === 'vk' && (
-                                            <span className="badge ml-1" style={{ fontSize: '0.7rem' }}>
-                                                {channel.config?.publish_access_token === '******'
-                                                    ? (locale === 'ru' ? 'VK подключён' : 'VK connected')
-                                                    : (locale === 'ru' ? 'Требуется подключение' : 'Connection required')}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="flex-center" style={{ gap: '0.5rem' }}>
+                                    </td>
+                                    <td data-label={locale === 'ru' ? 'Действия' : 'Actions'}>
+                                      <div className="channel-table__actions">
                                         {defaultChannelId === String(channel.id) ? (
-                                            <span className="badge" style={{ background: '#027a48', color: '#ffffff', fontSize: '0.75rem', fontWeight: 'bold' }}>Default</span>
+                                            null
                                         ) : (
                                             <button
-                                                className="btn-secondary"
-                                                style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', height: 'auto' }}
+                                                className="channel-table__action channel-table__action--quiet"
                                                 onClick={() => {
                                                     if (confirm(`Set ${channel.name} as the default channel? This will also update all existing unpublished posts to this channel.`)) {
                                                         updateSetting.mutate({ key: 'default_channel_id', value: String(channel.id) });
                                                     }
                                                 }}
                                             >
-                                                Set as Default
+                                                {locale === 'ru' ? 'По умолчанию' : 'Set default'}
                                             </button>
                                         )}
                                         <button
-                                            className="btn-secondary"
-                                            style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', height: 'auto', background: 'var(--bg-secondary-container, #e1e0ff)' }}
+                                            className="channel-table__action channel-table__action--primary"
                                             onClick={() => handleStartEditChannel(channel)}
                                         >
-                                            Edit
+                                            {locale === 'ru' ? 'Изменить' : 'Edit'}
                                         </button>
                                         <button
-                                            className="btn-danger"
-                                            style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', height: 'auto', background: 'var(--error, #ba1a1a)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                                            className="channel-table__action channel-table__action--danger"
                                             onClick={() => {
                                                 if (confirm(`Are you sure you want to delete ${channel.name}?`)) {
                                                     deleteChannel.mutate(channel.id);
                                                 }
                                             }}
                                         >
-                                            Delete
+                                            {locale === 'ru' ? 'Удалить' : 'Delete'}
                                         </button>
-                                    </div>
-                                </div>
+                                      </div>
+                                    </td>
+                                </tr>
                             );
                         })}
+                            </tbody>
+                        </table>
                         {(!projectData || !(projectData as ApiJson).channels?.length) && (
-                            <p className="text-muted">No channels connected.</p>
+                            <p className="channel-table__empty">{locale === 'ru' ? 'Каналы пока не подключены.' : 'No channels connected.'}</p>
                         )}
                     </div>
                 </div>
