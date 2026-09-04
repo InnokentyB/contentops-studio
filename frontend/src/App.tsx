@@ -1,23 +1,12 @@
 import { lazy, Suspense } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from './context/AuthContext'
 import { useAuth } from './context/auth'
-import WeekDetail from './pages/WeekDetail'
-import PostEditor from './pages/PostEditor'
-import Settings from './pages/Settings'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import OAuthAuthorize from './pages/OAuthAuthorize'
-import V2Dashboard from './pages/V2Dashboard'
-import V2WeekDetail from './pages/V2WeekDetail'
-import Guide from './pages/Guide'
-import PublicationTasks from './pages/PublicationTasks'
-import ProjectWorkspace from './pages/ProjectWorkspace'
-import Parsers from './pages/Parsers'
-import ChannelWorkspace from './pages/ChannelWorkspace'
-import PostPublicationAnalytics from './pages/PostPublicationAnalytics'
-import SavedRecipesLibrary from './pages/SavedRecipesLibrary'
+import Landing from './pages/Landing'
 import './index.css'
 
 import Layout from './components/Layout'
@@ -25,12 +14,29 @@ import { LocaleProvider } from './i18n/LocaleContext'
 import { useLocale } from './i18n/locale'
 
 const queryClient = new QueryClient()
+const WeekDetail = lazy(() => import('./pages/WeekDetail'))
+const PostEditor = lazy(() => import('./pages/PostEditor'))
+const Settings = lazy(() => import('./pages/Settings'))
+const V2Dashboard = lazy(() => import('./pages/V2Dashboard'))
+const V2WeekDetail = lazy(() => import('./pages/V2WeekDetail'))
+const Guide = lazy(() => import('./pages/Guide'))
+const PublicationTasks = lazy(() => import('./pages/PublicationTasks'))
+const ProjectWorkspace = lazy(() => import('./pages/ProjectWorkspace'))
+const Parsers = lazy(() => import('./pages/Parsers'))
+const ChannelWorkspace = lazy(() => import('./pages/ChannelWorkspace'))
+const PostPublicationAnalytics = lazy(() => import('./pages/PostPublicationAnalytics'))
+const SavedRecipesLibrary = lazy(() => import('./pages/SavedRecipesLibrary'))
 const OperationalCalendar = lazy(() => import('./pages/OperationalCalendar'))
 
 
 function AppContent() {
   const { isAuthenticated } = useAuth();
   const { locale } = useLocale();
+  const location = useLocation();
+
+  if (location.pathname === '/product') {
+    return <Landing />
+  }
 
   if (!isAuthenticated) {
     const oauthReturnTo = `${window.location.pathname}${window.location.search}`
@@ -39,14 +45,16 @@ function AppContent() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/oauth/authorize" element={<Navigate to={`/login?returnTo=${encodeURIComponent(oauthReturnTo)}`} replace />} />
-        <Route path="*" element={<Navigate to="/login" />} />
+        <Route path="/" element={<Landing />} />
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     );
   }
 
   return (
     <Layout>
-      <Routes>
+      <Suspense fallback={<div role="status" className="p-6 text-on-surface-variant">{locale === 'ru' ? 'Загрузка рабочей области…' : 'Loading workspace…'}</div>}>
+        <Routes>
         <Route path="/projects" element={<ProjectWorkspace />} />
         <Route path="/channels/:channelId" element={<ChannelWorkspace />} />
         <Route path="/parsers" element={<Parsers />} />
@@ -69,7 +77,8 @@ function AppContent() {
         <Route path="/calendar" element={<Suspense fallback={<div role="status" className="p-6 text-on-surface-variant">{locale === 'ru' ? 'Загрузка операционного плана…' : 'Loading operational plan…'}</div>}><OperationalCalendar /></Suspense>} />
         <Route path="/weeks" element={<Navigate to="/publication-tasks" replace />} />
         <Route path="*" element={<Navigate to="/projects" />} />
-      </Routes>
+        </Routes>
+      </Suspense>
     </Layout>
   )
 }
