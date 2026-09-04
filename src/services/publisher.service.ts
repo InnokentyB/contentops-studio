@@ -422,6 +422,34 @@ class PublisherService {
         };
     }
 
+    async publishVkPersonalStory(params: {
+        projectId: number;
+        taskId: number;
+        channel: any;
+        imageUrl: string;
+        idempotencyKey: string;
+    }) {
+        const vkConfig = this.extractVkAccountConfig(params.channel?.config || {});
+        if (!vkConfig.publish_access_token || !vkConfig.oauth_user_id) {
+            throw new Error('[VK_PERSONAL_STORY_CONNECTOR_NOT_READY] Personal VK story requires a connected OAuth profile');
+        }
+        const result = await vkService.publishPersonalPhotoStoryWithIdentity(
+            String(vkConfig.publish_access_token),
+            String(vkConfig.oauth_user_id),
+            params.imageUrl
+        );
+        return {
+            adapter: 'vk_story',
+            deliveryMethod: 'vk_api_personal_story',
+            publishedLink: result.publishedLink,
+            evidenceRef: result.evidenceRef,
+            metrics: {
+                vk_story_owner_id: result.ownerId,
+                vk_story_id: result.storyId
+            }
+        };
+    }
+
     private async routeToBrowserPublication(task: any, bundle: any, reason: Record<string, unknown>) {
         const now = new Date().toISOString();
         const qualityReport = {
@@ -519,7 +547,8 @@ class PublisherService {
                 ?? topLevel.publish_access_token
                 ?? topLevel.api_key
                 ?? null,
-            stats_access_token: raw.stats_access_token ?? topLevel.stats_access_token ?? null
+            stats_access_token: raw.stats_access_token ?? topLevel.stats_access_token ?? null,
+            oauth_user_id: raw.oauth_user_id ?? topLevel.oauth_user_id ?? null
         };
     }
 
@@ -1889,11 +1918,19 @@ class PublisherService {
                 throw new Error('[PUBLICATION_IDENTITY_MISSING] Telegram provider did not confirm a message ID or permalink');
             }
             if (task.channel?.type === 'vk') {
-                const ownerId = String(automatedResult.metrics?.vk_owner_id || '').trim();
-                const postId = String(automatedResult.metrics?.vk_post_id || '').trim();
-                const expectedLink = ownerId && postId ? `https://vk.com/wall${ownerId}_${postId}` : null;
+                const isStory = String(task.type || '').toLowerCase().includes('story')
+                    || String(task.visual_placement || '').toLowerCase() === 'story';
+                const ownerId = String(isStory
+                    ? automatedResult.metrics?.vk_story_owner_id || ''
+                    : automatedResult.metrics?.vk_owner_id || '').trim();
+                const objectId = String(isStory
+                    ? automatedResult.metrics?.vk_story_id || ''
+                    : automatedResult.metrics?.vk_post_id || '').trim();
+                const expectedLink = ownerId && objectId
+                    ? `https://vk.com/${isStory ? 'story' : 'wall'}${ownerId}_${objectId}`
+                    : null;
                 if (!expectedLink || automatedResult.publishedLink !== expectedLink) {
-                    throw new Error('[PUBLICATION_IDENTITY_MISSING] VK provider did not confirm a matching owner ID, post ID, and permalink');
+                    throw new Error('[PUBLICATION_IDENTITY_MISSING] VK provider did not confirm a matching owner ID, object ID, and permalink');
                 }
             }
         } catch (error) {
@@ -1945,7 +1982,9 @@ class PublisherService {
                         publishedAt: new Date().toISOString(),
                         publicUrl: automatedResult.publishedLink,
                         providerObjectId: task.channel?.type === 'vk'
-                            ? `wall${automatedResult.metrics.vk_owner_id}_${automatedResult.metrics.vk_post_id}`
+                            ? artifactKind === 'story'
+                                ? `story${automatedResult.metrics.vk_story_owner_id}_${automatedResult.metrics.vk_story_id}`
+                                : `wall${automatedResult.metrics.vk_owner_id}_${automatedResult.metrics.vk_post_id}`
                             : null,
                         confirmationMode: 'automatic',
                         evidence: { type: 'api', ref: automatedResult.publishedLink },
@@ -2071,7 +2110,7 @@ class PublisherService {
         return { ready: true };
     }
 
-    private async executeAutomatedPublicationTask(task: any, bundle: any, channelConfig: any, plan: any, requestHost?: string) {
+    private async executeAutomatedPublicationTask(task: any, bundle: any, channelConfig: any, plan: any, requestHost?: string): Promise<any> {
         const channelType = task.channel?.type;
         const action = (task.assets as any)?.action || {};
         const directTelegramPayload = channelType === 'telegram'
@@ -2152,6 +2191,19 @@ class PublisherService {
             const vkConfig = this.extractVkAccountConfig(channelConfig);
             const vkId = vkConfig.vk_id;
             const apiKey = vkConfig.publish_access_token;
+            const isStory = String(task.type || '').toLowerCase().includes('story')
+                || String(task.visual_placement || '').toLowerCase() === 'story';
+            if (isStory) {
+                const vkImageUrl = typeof imageUrl === 'string' ? imageUrl.trim() : '';
+                if (!vkImageUrl) throw new Error('[VK_STORY_MEDIA_REQUIRED] A personal VK story requires an approved image');
+                return this.publishVkPersonalStory({
+                    projectId: task.project_id,
+                    taskId: task.id,
+                    channel: task.channel,
+                    imageUrl: vkImageUrl,
+                    idempotencyKey: `scheduler:vk-story:${task.project_id}:${task.id}:r${task.accepted_revision || task.content_revision || 0}`
+                });
+            }
             if (!vkId || !apiKey) {
                 throw new Error('VK channel config is missing vk_id or api_key');
             }

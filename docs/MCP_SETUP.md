@@ -91,6 +91,12 @@ The connection is ready when:
 
 Do not use a live publication as a connection test. Connector tests and publishing should follow the project's approval mode.
 
+### Personal VK photo Stories
+
+VK Stories use the same `ba_publish_publication_task` tool and canonical publication facts as other destinations. Configure the VK community ID, save the channel, and connect a personal administrator profile through VK OAuth in **Project settings → Channels**. Existing VK connections must be reconnected once so the token includes the `stories` permission.
+
+A story task must use the `story` placement and have an approved, durable HTTPS image for its accepted revision. The recommended visual is 1080×1920 (9:16). The first release publishes a photo to the connected personal profile only; it does not transmit captions, links, native polls, video, or community Stories. Run `dryRun: true` before any live call and provide a unique `idempotencyKey` for the live publication.
+
 ## Revoke or rotate access
 
 Open **Project settings → MCP → Personal access** and select **Revoke** next to the affected token. Issue a new device-specific token when a computer is replaced, a person leaves the project, or a token may have been exposed. Revocation is immediate and does not require a redeploy.

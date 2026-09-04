@@ -717,11 +717,11 @@ export function registerPlannerTools(server: McpServer) {
     });
 
     server.registerTool('ba_publish_publication_task', {
-        description: 'Dry-run any canonical publication task using accepted text and approved durable visual. Live Telegram feed tasks target their configured channel; Telegram story tasks target the authorized user personal profile. Live VK uses its provider API. No browser fallback or silent visual downgrade is used.',
+        description: 'Dry-run any canonical publication task using accepted text and approved durable visual. Live Telegram feed tasks target their configured channel. Telegram and VK story tasks target the authorized user personal profile; the first VK story release supports approved photos only. No browser fallback or silent visual downgrade is used.',
         inputSchema: {
             projectId: z.number().int().positive(),
             taskId: z.number().int().positive(),
-            dryRun: z.boolean().optional().describe('Validate and return the exact normalized MTProto payload without sending.'),
+            dryRun: z.boolean().optional().describe('Validate and return the exact normalized provider payload without sending.'),
             idempotencyKey: z.string().min(1).max(500).optional().describe('Required for live publication and reused to safely replay a confirmed result.')
         }
     }, async (args) => asToolResult(await telegramTaskPublicationService.execute(args)));

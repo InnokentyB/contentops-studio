@@ -60,7 +60,7 @@ export class VkOAuthService {
             response_type: 'code',
             code_challenge: base64UrlSha256(verifier),
             code_challenge_method: 'S256',
-            scope: 'wall photos groups stats offline',
+            scope: 'wall photos groups stats stories offline',
             state
         });
         return { authorizationUrl: `${VK_ID_BASE_URL}/authorize?${query.toString()}`, state };

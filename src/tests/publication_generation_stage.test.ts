@@ -91,7 +91,7 @@ test('Telegram story handoff stays distinct from feed and cannot acquire connect
     assert.equal(bundle.publication.body, 'Accepted story copy');
 });
 
-test('imported VK story plan is materialized as a manual story bundle, not a feed post', () => {
+test('imported VK story plan is materialized as an automated story bundle, not a feed post', () => {
     const bundle = publicationPlanService.buildHandoffBundle({
         meta: { plan_id: 'story-plan' },
         accounts: { analystcraft_vk_group: { platform: 'vk', access_token: 'configured' } },
@@ -113,10 +113,10 @@ test('imported VK story plan is materialized as a manual story bundle, not a fee
         }
     });
 
-    assert.equal(bundle.mode, 'manual');
+    assert.equal(bundle.mode, 'automated');
     assert.equal(bundle.task.placement, 'story');
     assert.equal(bundle.transport.materialization, 'story');
-    assert.equal(bundle.transport.connector_authority, 'manual_only');
+    assert.equal(bundle.transport.connector_authority, 'configured');
     assert.equal(bundle.placement_contract.poll.configuration_mode, 'native_manual');
     assert.equal(bundle.publication.body, 'Accepted VK story copy');
 });

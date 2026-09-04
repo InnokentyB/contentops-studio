@@ -43,7 +43,10 @@ export function publicationPlacementAssetContract(
             dimensions: { width: 1080, height: 1920, aspect_ratio: '9:16' },
             safe_area: { unit: 'px', top: 250, right: 80, bottom: 320, left: 80 },
             poll,
-            transport: { materialization: 'story', connector_authority: 'manual_only' }
+            transport: {
+                materialization: 'story',
+                connector_authority: normalizedType === 'vk' ? 'configured' : 'manual_only'
+            }
         };
     }
     if (normalizedType === 'vk' && placement === 'article_cover') {

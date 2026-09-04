@@ -63,6 +63,18 @@ function harness(task = approvedVkTask(), providerError?: Error) {
     };
     const publisher = {
         publishTelegramTaskMtproto: async () => { throw new Error('Telegram boundary must not be called'); },
+        publishTelegramPersonalStoryMtproto: async () => { throw new Error('Telegram story boundary must not be called'); },
+        publishVkPersonalStory: async (payload: any) => {
+            calls.provider.push(payload);
+            if (providerError) throw providerError;
+            return {
+                adapter: 'vk_story',
+                deliveryMethod: 'vk_api_personal_story',
+                publishedLink: 'https://vk.com/story42_88',
+                evidenceRef: 'https://vk.com/story42_88',
+                metrics: { vk_story_owner_id: '42', vk_story_id: '88' }
+            };
+        },
         publishVkTask: async (payload: any) => {
             calls.provider.push(payload);
             if (providerError) throw providerError;
@@ -128,7 +140,7 @@ test('VK provider failure stays uncertain and never writes a publication fact', 
         /VK_PUBLICATION_UNCERTAIN/
     );
     assert.equal(calls.facts.length, 0);
-    assert.equal(calls.events.length, 0);
+    assert.equal(calls.events.length, 1);
     assert.equal(calls.updates[calls.updates.length - 1].status, 'publishing');
 });
 
@@ -155,6 +167,114 @@ test('strict VK provider passes a stable guid and returns validated provider ide
         postId: '456',
         publishedLink: 'https://vk.com/wall-123_456'
     });
+});
+
+test('strict VK provider uploads a personal photo story and verifies its identity by readback', async () => {
+    const uploadCalls: any[] = [];
+    const readbackCalls: any[] = [];
+    const service = new VKService({
+        createClient: () => ({
+            upload: {
+                storiesPhoto: async (args: any) => {
+                    uploadCalls.push(args);
+                    return { ownerId: 42, id: 88 };
+                }
+            },
+            api: {
+                stories: {
+                    getById: async (args: any) => {
+                        readbackCalls.push(args);
+                        return { items: [{ owner_id: 42, id: 88, is_expired: false, is_deleted: false }] };
+                    }
+                }
+            }
+        }),
+        loadRemoteImage: async () => ({ buffer: Buffer.from('png'), filename: 'approved-story.png', contentType: 'image/png' })
+    });
+
+    const result = await service.publishPersonalPhotoStoryWithIdentity(
+        'user-token',
+        42,
+        'https://cdn.example/approved-story.png'
+    );
+
+    assert.equal(uploadCalls.length, 1);
+    assert.equal(uploadCalls[0].source.filename, 'approved-story.png');
+    assert.equal(uploadCalls[0].group_id, undefined);
+    assert.deepEqual(readbackCalls, [{ stories: '42_88', extended: 0 }]);
+    assert.deepEqual(result, {
+        ownerId: '42',
+        storyId: '88',
+        publishedLink: 'https://vk.com/story42_88',
+        evidenceRef: 'https://vk.com/story42_88'
+    });
+});
+
+test('strict VK personal story provider rejects a mismatched readback identity', async () => {
+    const service = new VKService({
+        createClient: () => ({
+            upload: { storiesPhoto: async () => ({ ownerId: 42, id: 88 }) },
+            api: { stories: { getById: async () => ({ items: [{ owner_id: 7, id: 88 }] }) } }
+        }),
+        loadRemoteImage: async () => ({ buffer: Buffer.from('png'), filename: 'approved-story.png', contentType: 'image/png' })
+    });
+
+    await assert.rejects(
+        service.publishPersonalPhotoStoryWithIdentity('user-token', 42, 'https://cdn.example/approved-story.png'),
+        /VK_STORY_READBACK_MISMATCH/
+    );
+});
+
+test('VK personal story uses the accepted vertical asset and records story identity', async () => {
+    const task = approvedVkTask({
+        type: 'vk_story',
+        visual_placement: 'story',
+        channel: {
+            ...approvedVkTask().channel,
+            config: { publish_access_token: 'user-token', oauth_user_id: 42, oauth_provider: 'vk_id' }
+        }
+    });
+    const dry = harness(task);
+    const preview = await dry.service.execute({ projectId: 10, taskId: 900, dryRun: true });
+    assert.equal(preview.delivery, 'vk_api_personal_story');
+    assert.equal(preview.target, 'personal_profile');
+    assert.equal(preview.payload_preview.has_image, true);
+    assert.equal(preview.payload_preview.text, '');
+
+    const live = harness(task);
+    const result = await live.service.execute({ projectId: 10, taskId: 900, idempotencyKey: 'publish:vk-story:900:r3' });
+    assert.deepEqual(live.calls.provider, [{
+        projectId: 10,
+        taskId: 900,
+        channel: task.channel,
+        imageUrl: 'https://cdn.example/approved-vk.png',
+        idempotencyKey: 'publish:vk-story:900:r3'
+    }]);
+    assert.equal(result.external_id, 'story42_88');
+    assert.equal(live.calls.facts[0].artifactKind, 'story');
+    assert.equal(live.calls.facts[0].providerObjectId, 'story42_88');
+});
+
+test('VK personal story dry-run requires OAuth profile identity and an approved visual', async () => {
+    const missingIdentity = approvedVkTask({
+        type: 'vk_story',
+        visual_placement: 'story',
+        channel: { ...approvedVkTask().channel, config: { publish_access_token: 'user-token' } }
+    });
+    const identityHarness = harness(missingIdentity);
+    const preview = await identityHarness.service.execute({ projectId: 10, taskId: 900, dryRun: true });
+    assert.equal(preview.connector_ready, false);
+    assert.equal(preview.connector_reason, 'vk_personal_oauth_identity_missing');
+
+    const missingVisual = approvedVkTask({
+        type: 'vk_story', visual_placement: 'story', selected_asset_id: null, selected_asset: null,
+        visual_state: 'PENDING_ASSESSMENT',
+        channel: { ...approvedVkTask().channel, config: { publish_access_token: 'user-token', oauth_user_id: 42 } }
+    });
+    await assert.rejects(
+        harness(missingVisual).service.execute({ projectId: 10, taskId: 900, dryRun: true }),
+        /VK_STORY_MEDIA_REQUIRED/
+    );
 });
 
 test('task publisher resolves top-level VK credentials even when raw_account exists', async () => {
@@ -227,6 +347,48 @@ test('scheduled VK adapter returns provider identity and a stable retry guid', a
         });
     } finally {
         vkService.publishPostWithIdentity = original;
+    }
+});
+
+test('scheduled VK story dispatches through the personal story provider instead of wall.post', async () => {
+    const publisherService = require('../services/publisher.service').default;
+    const original = publisherService.publishVkPersonalStory;
+    const calls: any[] = [];
+    publisherService.publishVkPersonalStory = async (args: any) => {
+        calls.push(args);
+        return {
+            adapter: 'vk_story',
+            deliveryMethod: 'vk_api_personal_story',
+            publishedLink: 'https://vk.com/story42_88',
+            evidenceRef: 'https://vk.com/story42_88',
+            metrics: { vk_story_owner_id: '42', vk_story_id: '88' }
+        };
+    };
+    try {
+        const task = approvedVkTask({
+            type: 'vk_story',
+            visual_placement: 'story',
+            channel: {
+                ...approvedVkTask().channel,
+                config: { publish_access_token: 'user-token', oauth_user_id: 42 }
+            }
+        });
+        const result = await publisherService.executeAutomatedPublicationTask(
+            task,
+            { publication: { body: 'Not transported', image_url: 'https://cdn.example/approved-vk.png' } },
+            task.channel.config,
+            { actions: [], assets: {}, accounts: {} }
+        );
+        assert.deepEqual(calls, [{
+            projectId: 10,
+            taskId: 900,
+            channel: task.channel,
+            imageUrl: 'https://cdn.example/approved-vk.png',
+            idempotencyKey: 'scheduler:vk-story:10:900:r3'
+        }]);
+        assert.equal(result.publishedLink, 'https://vk.com/story42_88');
+    } finally {
+        publisherService.publishVkPersonalStory = original;
     }
 });
 

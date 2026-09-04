@@ -265,6 +265,48 @@ export class VKService {
         return (await this.publishPostWithIdentity(vkId, apiKey, text, imageUrl, options)).publishedLink;
     }
 
+    async publishPersonalPhotoStoryWithIdentity(
+        apiKey: string,
+        expectedOwnerId: string | number,
+        imageUrl: string
+    ): Promise<{ ownerId: string; storyId: string; publishedLink: string; evidenceRef: string }> {
+        const ownerId = Number.parseInt(String(expectedOwnerId), 10);
+        if (!Number.isSafeInteger(ownerId) || ownerId <= 0) {
+            throw new Error('[VK_STORY_OWNER_INVALID] Personal VK story requires a positive OAuth profile ID');
+        }
+        const remote = await this.dependencies.loadRemoteImage(imageUrl);
+        const vk = this.dependencies.createClient(apiKey);
+        const story = await vk.upload.storiesPhoto({
+            source: { value: remote.buffer, filename: remote.filename }
+        });
+        const storyOwnerId = Number(story?.ownerId);
+        const storyId = Number(story?.id);
+        if (!Number.isSafeInteger(storyOwnerId) || storyOwnerId <= 0
+            || !Number.isSafeInteger(storyId) || storyId <= 0) {
+            throw new Error('[VK_STORY_IDENTITY_MISSING] VK did not confirm the created story identity');
+        }
+        if (storyOwnerId !== ownerId) {
+            throw new Error('[VK_STORY_OWNER_MISMATCH] VK created the story for a different profile');
+        }
+
+        const identity = `${storyOwnerId}_${storyId}`;
+        const readback = await vk.api.stories.getById({ stories: identity, extended: 0 });
+        const confirmed = Array.isArray(readback?.items)
+            ? readback.items.find((item: any) => Number(item?.owner_id) === storyOwnerId && Number(item?.id) === storyId)
+            : null;
+        if (!confirmed || confirmed.is_deleted || confirmed.is_expired) {
+            throw new Error('[VK_STORY_READBACK_MISMATCH] VK did not return the exact active story after creation');
+        }
+
+        const publishedLink = `https://vk.com/story${identity}`;
+        return {
+            ownerId: String(storyOwnerId),
+            storyId: String(storyId),
+            publishedLink,
+            evidenceRef: publishedLink
+        };
+    }
+
     /**
      * Fetches metrics (likes, views, comments, reposts) for a given post.
      * @param vkId The community/page ID.

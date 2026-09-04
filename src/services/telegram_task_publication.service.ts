@@ -9,6 +9,7 @@ type Dependencies = {
     publisher: {
         publishTelegramTaskMtproto(args: { projectId: number; taskId: number; channel: any; text: string; imageUrl?: string }): Promise<any>;
         publishTelegramPersonalStoryMtproto(args: { projectId: number; taskId: number; caption: string; imageUrl: string; idempotencyKey: string }): Promise<any>;
+        publishVkPersonalStory(args: { projectId: number; taskId: number; channel: any; imageUrl: string; idempotencyKey: string }): Promise<any>;
         publishVkTask(args: { projectId: number; taskId: number; channel: any; text: string; imageUrl?: string; idempotencyKey: string }): Promise<any>;
     };
     publicationFacts: { record(args: any): Promise<any> };
@@ -19,11 +20,20 @@ const CLAIM_COMMAND = 'ba_publish_publication_task_claim';
 const SYSTEM_ACTOR = 'system:planner-mcp:telegram-publication';
 const CLAIMABLE_STATUSES = ['approved', 'ready_for_execution', 'blocked', 'failed'];
 
+function isStoryTask(task: any) {
+    return String(task.type || '').toLowerCase().includes('story')
+        || String(task.visual_placement || '').toLowerCase() === 'story';
+}
+
 function isTelegramStoryTask(task: any) {
-    return task.channel?.type === 'telegram' && (
+    return ['telegram', 'telegram_chat'].includes(task.channel?.type) && (
         String(task.type || '').toLowerCase().includes('story')
         || String(task.visual_placement || '').toLowerCase() === 'story'
     );
+}
+
+function isVkPersonalStoryTask(task: any) {
+    return task.channel?.type === 'vk' && isStoryTask(task);
 }
 
 function resolveApprovedAsset(task: any) {
@@ -51,7 +61,8 @@ function extractVkConfig(channel: any) {
     const raw = top.raw_account && typeof top.raw_account === 'object' ? top.raw_account : {};
     return {
         vkId: raw.vk_id ?? top.vk_id ?? null,
-        publishToken: raw.publish_access_token ?? raw.api_key ?? top.publish_access_token ?? top.api_key ?? null
+        publishToken: raw.publish_access_token ?? raw.api_key ?? top.publish_access_token ?? top.api_key ?? null,
+        oauthUserId: raw.oauth_user_id ?? top.oauth_user_id ?? null
     };
 }
 
@@ -66,35 +77,49 @@ function prepareTaskPayload(task: any, allowUnsupportedDryRun = false) {
     }
     let connectorReady = directSupported;
     let connectorReason: string | null = null;
+    const isTelegramStory = isTelegramStoryTask(task);
+    const isVkPersonalStory = isVkPersonalStoryTask(task);
+    const isStory = isTelegramStory || isVkPersonalStory;
     if (channelType === 'vk') {
         const config = extractVkConfig(task.channel);
-        if (!config.vkId || !config.publishToken) {
+        const missingCredentials = isVkPersonalStory
+            ? !config.publishToken || !config.oauthUserId
+            : !config.vkId || !config.publishToken;
+        if (missingCredentials) {
             connectorReady = false;
-            connectorReason = 'vk_credentials_missing';
+            connectorReason = isVkPersonalStory ? 'vk_personal_oauth_identity_missing' : 'vk_credentials_missing';
             if (!allowUnsupportedDryRun) {
-                throw new Error('[VK_CONNECTOR_NOT_READY] VK channel requires vk_id and publish_access_token');
+                throw new Error(isVkPersonalStory
+                    ? '[VK_PERSONAL_STORY_CONNECTOR_NOT_READY] Personal VK story requires a connected OAuth profile'
+                    : '[VK_CONNECTOR_NOT_READY] VK channel requires vk_id and publish_access_token');
             }
         }
     }
     const selectedAsset = resolveApprovedAsset(task);
-    const isStory = isTelegramStoryTask(task);
     if (isStory && !selectedAsset) {
-        throw new Error('[TELEGRAM_STORY_MEDIA_REQUIRED] A personal Telegram story requires an approved image');
+        throw new Error(isVkPersonalStory
+            ? '[VK_STORY_MEDIA_REQUIRED] A personal VK story requires an approved image'
+            : '[TELEGRAM_STORY_MEDIA_REQUIRED] A personal Telegram story requires an approved image');
     }
     const handoffBundle = (task.quality_report as any)?.handoff_bundle;
     const poll = handoffBundle?.placement_contract?.poll || handoffBundle?.poll;
     if (isStory && poll?.supported === true && poll?.configuration_mode === 'native_manual') {
-        throw new Error('[TELEGRAM_STORY_NATIVE_POLL_MANUAL] Stories with a native poll must use the manual handoff');
+        throw new Error(isVkPersonalStory
+            ? '[VK_STORY_NATIVE_POLL_MANUAL] VK stories with a native poll must use the manual handoff'
+            : '[TELEGRAM_STORY_NATIVE_POLL_MANUAL] Stories with a native poll must use the manual handoff');
     }
     if (task.visual_state === 'APPROVED' && !selectedAsset) {
         throw new Error('[APPROVED_VISUAL_REQUIRED] Approved visual state requires a selected asset');
     }
     const text = typeof task.draft_text === 'string' ? task.draft_text.trim() : '';
-    if (channelType === 'vk' && !text) throw new Error('[VK_TEXT_REQUIRED] VK publication text must not be empty');
+    if (channelType === 'vk' && !isVkPersonalStory && !text) throw new Error('[VK_TEXT_REQUIRED] VK publication text must not be empty');
     const payload = channelType === 'telegram'
         ? normalizeTelegramDeliveryPayload({ text, imageUrl: selectedAsset?.file_url })
-        : { text, imageUrl: selectedAsset?.file_url || null };
-    return { channelType, payload, selectedAsset, directSupported, connectorReady, connectorReason, isStory };
+        : { text: isVkPersonalStory ? '' : text, imageUrl: selectedAsset?.file_url || null };
+    return {
+        channelType, payload, selectedAsset, directSupported, connectorReady, connectorReason,
+        isStory, isTelegramStory, isVkPersonalStory
+    };
 }
 
 export class TelegramTaskPublicationService {
@@ -125,9 +150,12 @@ export class TelegramTaskPublicationService {
             include: { channel: true, selected_asset: true, publication_fact: true }
         });
         if (!task) throw new Error('[PUBLICATION_TASK_NOT_FOUND] Publication task was not found in the project');
-        const isStory = isTelegramStoryTask(task);
-        const delivery = isStory
+        const isTelegramStory = isTelegramStoryTask(task);
+        const isVkPersonalStory = isVkPersonalStoryTask(task);
+        const isStory = isTelegramStory || isVkPersonalStory;
+        const delivery = isTelegramStory
             ? 'mtproto_personal_story'
+            : isVkPersonalStory ? 'vk_api_personal_story'
             : task.channel?.type === 'telegram' ? 'mtproto' : task.channel?.type === 'vk' ? 'vk_api' : null;
         if (task.publication_fact?.outcome === 'published'
             && (task.publication_fact.public_url || task.publication_fact.provider_object_id)) {
@@ -207,10 +235,14 @@ export class TelegramTaskPublicationService {
 
         let providerResult: any;
         try {
-            providerResult = prepared.isStory
+            providerResult = prepared.isTelegramStory
                 ? await publisher.publishTelegramPersonalStoryMtproto({
                     projectId: args.projectId, taskId: task.id,
                     caption: payload.text, imageUrl: payload.imageUrl!, idempotencyKey: idempotencyKey!
+                })
+                : prepared.isVkPersonalStory ? await publisher.publishVkPersonalStory({
+                    projectId: args.projectId, taskId: task.id, channel: task.channel,
+                    imageUrl: payload.imageUrl!, idempotencyKey: idempotencyKey!
                 })
                 : prepared.channelType === 'telegram' ? await publisher.publishTelegramTaskMtproto({
                     projectId: args.projectId, taskId: task.id, channel: task.channel,
@@ -228,13 +260,17 @@ export class TelegramTaskPublicationService {
 
         const publishedLink = providerResult.publishedLink || null;
         const telegramMessageId = prepared.channelType === 'telegram'
-            ? prepared.isStory ? providerResult.metrics?.telegram_story_id || null : providerResult.metrics?.telegram_message_id || null
+            ? prepared.isTelegramStory ? providerResult.metrics?.telegram_story_id || null : providerResult.metrics?.telegram_message_id || null
             : null;
         const vkOwnerId = prepared.channelType === 'vk' ? String(providerResult.metrics?.vk_owner_id || '') : '';
         const vkPostId = prepared.channelType === 'vk' ? String(providerResult.metrics?.vk_post_id || '') : '';
+        const vkStoryOwnerId = prepared.isVkPersonalStory ? String(providerResult.metrics?.vk_story_owner_id || '') : '';
+        const vkStoryId = prepared.isVkPersonalStory ? String(providerResult.metrics?.vk_story_id || '') : '';
         const externalId = prepared.channelType === 'telegram'
             ? telegramMessageId
-            : /^-\d+$/.test(vkOwnerId) && /^\d+$/.test(vkPostId) ? `wall${vkOwnerId}_${vkPostId}` : null;
+            : prepared.isVkPersonalStory
+                ? /^\d+$/.test(vkStoryOwnerId) && /^\d+$/.test(vkStoryId) ? `story${vkStoryOwnerId}_${vkStoryId}` : null
+                : /^-\d+$/.test(vkOwnerId) && /^\d+$/.test(vkPostId) ? `wall${vkOwnerId}_${vkPostId}` : null;
         const expectedVkLink = prepared.channelType === 'vk' && externalId
             ? `https://vk.com/${externalId}`
             : null;

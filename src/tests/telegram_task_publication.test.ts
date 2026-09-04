@@ -102,6 +102,7 @@ function harness(task = approvedTask(), options: { cached?: any; providerError?:
                 metrics: { telegram_story_id: 42 }
             };
         },
+        publishVkPersonalStory: async () => { throw new Error('Unexpected VK story call'); },
         publishVkTask: async () => { throw new Error('Unexpected VK call'); }
     };
     const facts = {
