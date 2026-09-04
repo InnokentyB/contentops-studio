@@ -1618,7 +1618,7 @@ class PublisherService {
         const bundle = plan && action
             ? publicationPlanService.buildHandoffBundle(plan as any, task)
             : publicationPlanService.buildGeneratedContentItemHandoff(task);
-        const channelConfig: any = task.channel?.config || {};
+        const channelConfig: any = resolveEffectiveChannelConfig(task.channel?.type || '', task.channel?.config || {});
         const executionMode = bundle.mode;
         const rawAccount = channelConfig.raw_account || channelConfig || {};
         const directExecutionSupported = publicationAdapterService.supportsDirectExecution({
@@ -2331,7 +2331,7 @@ class PublisherService {
                 } else if (channel.type === 'vk') {
                     // VK Publishing Logic
                     logToFile('INFO', `[Publisher] Publishing to VK for post ${post.id}`);
-                    const vkConfig = channel.config as any;
+                    const vkConfig = resolveEffectiveChannelConfig('vk', channel.config);
                     const vkId = vkConfig.vk_id;
                     const apiKey = vkConfig.publish_access_token || vkConfig.api_key;
 
@@ -2631,7 +2631,7 @@ class PublisherService {
             }
             publishedLink = await threadsService.publishPost(threadsUserId, accessToken, text, post.image_url || undefined);
         } else if (channel.type === 'vk') {
-            const vkConfig = channel.config as any;
+            const vkConfig = resolveEffectiveChannelConfig('vk', channel.config);
             const vkId = vkConfig.vk_id;
             const apiKey = vkConfig.publish_access_token || vkConfig.api_key;
             if (!vkId || !apiKey) {

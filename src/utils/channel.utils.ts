@@ -1,6 +1,9 @@
 import { decryptChannelSecret, encryptChannelSecret } from './channel_secrets';
 
 const DZEN_TYPES = new Set(['zen', 'zen_article', 'dzen']);
+const ENCRYPTED_SECRET_FIELDS: Record<string, string[]> = {
+    vk: ['publish_access_token', 'stats_access_token', 'vk_refresh_token']
+};
 
 /**
  * Sanitize channel configuration before returning it to the client by masking secrets.
@@ -23,6 +26,13 @@ export function sanitizeChannelConfig(type: string, config: any): any {
         delete sanitized.cookies_encrypted;
     }
     if (sanitized.application_secret_key) sanitized.application_secret_key = '******';
+    for (const field of ENCRYPTED_SECRET_FIELDS[type] || []) {
+        const encryptedField = `${field}_encrypted`;
+        if (sanitized[encryptedField]) {
+            sanitized[field] = '******';
+            delete sanitized[encryptedField];
+        }
+    }
     
     return sanitized;
 }
@@ -34,7 +44,7 @@ export function mergeChannelConfig(incomingConfig: any, existingConfig: any): an
     if (!existingConfig || typeof existingConfig !== 'object') return incomingConfig;
     const merged = { ...incomingConfig };
     
-    const secretKeys = ['api_key', 'publish_access_token', 'stats_access_token', 'access_token', 'cookies', 'application_secret_key'];
+    const secretKeys = ['api_key', 'publish_access_token', 'stats_access_token', 'vk_refresh_token', 'access_token', 'cookies', 'application_secret_key'];
     for (const key of secretKeys) {
         if (merged[key] === '******' && existingConfig[key]) {
             merged[key] = existingConfig[key];
@@ -45,12 +55,27 @@ export function mergeChannelConfig(incomingConfig: any, existingConfig: any): an
         delete merged.cookies;
         merged.cookies_encrypted = existingConfig.cookies_encrypted;
     }
+    for (const field of ENCRYPTED_SECRET_FIELDS.vk) {
+        const encryptedField = `${field}_encrypted`;
+        if ((merged[field] === '******' || merged[field] === undefined) && existingConfig[encryptedField]) {
+            delete merged[field];
+            merged[encryptedField] = existingConfig[encryptedField];
+        }
+    }
     
     return merged;
 }
 
 export function prepareChannelConfigForStorage(type: string, config: any): any {
     const prepared = { ...(config || {}) };
+    if (type === 'vk') {
+        for (const field of ENCRYPTED_SECRET_FIELDS.vk) {
+            const value = typeof prepared[field] === 'string' ? prepared[field].trim() : '';
+            if (value && value !== '******') prepared[`${field}_encrypted`] = encryptChannelSecret(value);
+            delete prepared[field];
+        }
+        return prepared;
+    }
     if (!DZEN_TYPES.has(type)) return prepared;
 
     if (prepared.raw_account && typeof prepared.raw_account === 'object') {
@@ -67,6 +92,16 @@ export function prepareChannelConfigForStorage(type: string, config: any): any {
 
 export function resolveChannelConfigSecrets(type: string, config: any): any {
     const resolved = { ...(config || {}) };
+    if (type === 'vk') {
+        for (const field of ENCRYPTED_SECRET_FIELDS.vk) {
+            const encryptedField = `${field}_encrypted`;
+            if (!resolved[field] && typeof resolved[encryptedField] === 'string') {
+                resolved[field] = decryptChannelSecret(resolved[encryptedField]);
+            }
+            delete resolved[encryptedField];
+        }
+        return resolved;
+    }
     if (!DZEN_TYPES.has(type)) return resolved;
 
     if (resolved.raw_account && typeof resolved.raw_account === 'object') {
