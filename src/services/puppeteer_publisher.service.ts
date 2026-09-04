@@ -10,11 +10,23 @@ interface HabrPublishConfig {
 }
 
 interface DzenPublishConfig {
-    cookies: string;
+    cookies?: string;
     channel_id?: string;
     channel_url?: string;
     article_editor_url?: string;
     post_editor_url?: string;
+}
+
+export interface DzenPageMetrics {
+    views: number | null;
+    likes: number | null;
+    comments: number | null;
+}
+
+export interface DzenSearchResult {
+    url: string;
+    title: string;
+    snippet: string;
 }
 
 type DzenPublicationType = 'article' | 'post';
@@ -37,6 +49,16 @@ export async function typeDzenContentEditableText(element: any, text: string): P
 }
 
 class PuppeteerPublisherService {
+    private async prepareDzenPage(page: Page, config: DzenPublishConfig) {
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+        if (!config.cookies?.trim()) return;
+        const cookies = [
+            ...this.parseCookieString(config.cookies, 'dzen.ru'),
+            ...this.parseCookieString(config.cookies, '.dzen.ru'),
+            ...this.parseCookieString(config.cookies, '.yandex.ru')
+        ];
+        if (cookies.length > 0) await page.setCookie(...cookies);
+    }
     private dzenChannelId(config: DzenPublishConfig): string | null {
         const candidate = config.channel_id?.trim() || config.channel_url?.trim() || '';
         if (!candidate) return null;
@@ -462,9 +484,10 @@ class PuppeteerPublisherService {
 
         try {
             // Apply the authenticated session to Dzen and the Yandex passport domains.
-            const cookiesMain = this.parseCookieString(config.cookies, 'dzen.ru');
-            const cookiesDot = this.parseCookieString(config.cookies, '.dzen.ru');
-            const cookiesYandex = this.parseCookieString(config.cookies, '.yandex.ru');
+            const cookieString = config.cookies || '';
+            const cookiesMain = this.parseCookieString(cookieString, 'dzen.ru');
+            const cookiesDot = this.parseCookieString(cookieString, '.dzen.ru');
+            const cookiesYandex = this.parseCookieString(cookieString, '.yandex.ru');
             
             if (cookiesMain.length === 0) {
                 throw new Error('Dzen cookie string is empty or invalid');
@@ -581,10 +604,11 @@ class PuppeteerPublisherService {
         const page = await browser.newPage();
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
         try {
+            const cookieString = config.cookies || '';
             const cookies = [
-                ...this.parseCookieString(config.cookies, 'dzen.ru'),
-                ...this.parseCookieString(config.cookies, '.dzen.ru'),
-                ...this.parseCookieString(config.cookies, '.yandex.ru')
+                ...this.parseCookieString(cookieString, 'dzen.ru'),
+                ...this.parseCookieString(cookieString, '.dzen.ru'),
+                ...this.parseCookieString(cookieString, '.yandex.ru')
             ];
             if (cookies.length === 0) throw new Error('Dzen cookie string is empty or invalid');
             await page.setCookie(...cookies);
@@ -603,6 +627,96 @@ class PuppeteerPublisherService {
                 editor_url: currentUrl,
                 checked_at: new Date().toISOString()
             };
+        } finally {
+            await browser.close();
+        }
+    }
+
+    async collectDzenPostMetrics(config: DzenPublishConfig, postUrl: string): Promise<DzenPageMetrics> {
+        if (!this.isPublicDzenUrl(postUrl)) throw new Error('INVALID_DZEN_POST_URL');
+        const browser = await this.launchBrowser();
+        const page = await browser.newPage();
+        try {
+            await this.prepareDzenPage(page, config);
+            await page.goto(postUrl, { waitUntil: 'networkidle2', timeout: 30_000 });
+            await this.assertDzenAuthenticated(page);
+            return await page.evaluate(() => {
+                const normalize = (value: string) => value.replace(/\u00a0/g, ' ').trim();
+                const candidates = Array.from(document.querySelectorAll<HTMLElement>('button, [role="button"], [aria-label], [title]'))
+                    .map((node) => normalize(`${node.innerText || ''} ${node.getAttribute('aria-label') || ''} ${node.getAttribute('title') || ''}`));
+                const find = (pattern: RegExp) => candidates.find((value) => pattern.test(value)) || '';
+                const body = normalize(document.body?.innerText || '');
+                const metric = (label: RegExp, fallback: RegExp) => {
+                    const source = find(label);
+                    const match = source.match(/\d[\d\s.,]*(?:тыс\.?|млн|[kкmм])?/i) || body.match(fallback);
+                    return match?.[0] || null;
+                };
+                return {
+                    views: metric(/просмотр|view/i, /([\d\s.,]+(?:тыс\.?|млн|[kкmм])?)\s*(?:просмотр|view)/i) as any,
+                    likes: metric(/нрав|лайк|like/i, /([\d\s.,]+(?:тыс\.?|млн|[kкmм])?)\s*(?:лайк|like|нрав)/i) as any,
+                    comments: metric(/коммент|comment/i, /([\d\s.,]+(?:тыс\.?|млн|[kкmм])?)\s*(?:коммент|comment)/i) as any
+                };
+            }) as unknown as DzenPageMetrics;
+        } finally {
+            await browser.close();
+        }
+    }
+
+    async searchDzenPosts(config: DzenPublishConfig, query: string, limit: number): Promise<DzenSearchResult[]> {
+        const browser = await this.launchBrowser();
+        const page = await browser.newPage();
+        try {
+            await this.prepareDzenPage(page, config);
+            await page.goto(`https://dzen.ru/search?query=${encodeURIComponent(query)}`, { waitUntil: 'networkidle2', timeout: 30_000 });
+            await this.assertDzenAuthenticated(page);
+            const results = await page.evaluate((maxResults) => {
+                const seen = new Set<string>();
+                const output: DzenSearchResult[] = [];
+                for (const link of Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href]'))) {
+                    const url = link.href;
+                    if (seen.has(url) || !/dzen\.ru\/(?:a|b|media\/id)\//.test(url)) continue;
+                    const card = link.closest('article') || link.closest('[data-testid]') || link.parentElement;
+                    const text = (card?.textContent || link.textContent || '').replace(/\s+/g, ' ').trim();
+                    const heading = card?.querySelector('h1, h2, h3, [role="heading"]')?.textContent?.trim();
+                    seen.add(url);
+                    output.push({ url, title: (heading || link.textContent || '').trim().slice(0, 300), snippet: text.slice(0, 700) });
+                    if (output.length >= maxResults) break;
+                }
+                return output;
+            }, limit);
+            if (results.length === 0) throw new Error('DZEN_SEARCH_INTERFACE_CHANGED');
+            return results;
+        } finally {
+            await browser.close();
+        }
+    }
+
+    async commentOnDzenPost(config: DzenPublishConfig, postUrl: string, comment: string) {
+        if (!config.cookies?.trim()) throw new Error('DZEN_AUTH_REQUIRED');
+        if (!this.isPublicDzenUrl(postUrl)) throw new Error('INVALID_DZEN_POST_URL');
+        const browser = await this.launchBrowser();
+        const page = await browser.newPage();
+        try {
+            await this.prepareDzenPage(page, config);
+            await page.goto(postUrl, { waitUntil: 'networkidle2', timeout: 30_000 });
+            await this.assertDzenAuthenticated(page);
+            const alreadyExists = await page.evaluate((text) => (document.body?.innerText || '').includes(text), comment);
+            if (alreadyExists) return { status: 'already_exists' as const, url: postUrl };
+            const selector = 'textarea[placeholder*="коммент" i], textarea[aria-label*="коммент" i], [contenteditable="true"][aria-label*="коммент" i], [contenteditable="true"][data-placeholder*="коммент" i]';
+            const editor = await page.waitForSelector(selector, { timeout: 15_000 });
+            if (!editor) throw new Error('DZEN_COMMENT_EDITOR_NOT_FOUND');
+            await editor.click();
+            await page.keyboard.type(comment, { delay: 5 });
+            const submitted = await page.evaluate(() => {
+                const controls = Array.from(document.querySelectorAll<HTMLElement>('button, [role="button"]'));
+                const button = controls.find((node) => /^(отправить|опубликовать|комментировать|send)$/i.test((node.innerText || node.getAttribute('aria-label') || '').trim()));
+                if (!button || button.getAttribute('aria-disabled') === 'true' || (button as HTMLButtonElement).disabled) return false;
+                button.click();
+                return true;
+            });
+            if (!submitted) throw new Error('DZEN_COMMENT_SUBMIT_NOT_FOUND');
+            await page.waitForFunction((text) => (document.body?.innerText || '').includes(text), { timeout: 15_000 }, comment);
+            return { status: 'published' as const, url: postUrl };
         } finally {
             await browser.close();
         }

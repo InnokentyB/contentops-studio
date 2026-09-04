@@ -13,6 +13,7 @@ import publicationFactService from '../services/publication_fact.service';
 import weekPackageRepairService from '../services/week_package_repair.service';
 import weeklyThemePipelineService from '../services/weekly_theme_pipeline.service';
 import telegramTaskPublicationService from '../services/telegram_task_publication.service';
+import dzenEngagementService from '../services/dzen_engagement.service';
 import { filterMcpServerTools, McpCapabilityProfile } from './capabilities';
 import { getAgentChatBootstrap, getAgentWorkspaceUpdate, loadAgentWorkspaceManifest } from '../services/agent_workspace_manifest.service';
 
@@ -1528,6 +1529,44 @@ export function registerPlannerTools(server: McpServer) {
         const result = await metricsService.getContentMetrics(args);
         return asToolResult(result);
     });
+
+    server.registerTool('ba_dzen_collect_post_metrics', {
+        description: 'Collect current public Dzen counters for a published content item and save a daily metric snapshot.',
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string().min(1),
+            channelId: z.number().int().positive(),
+            contentItemId: z.number().int().positive(),
+            checkpoint: z.string().min(1).max(100).optional()
+        }
+    }, async (args) => asToolResult(await dzenEngagementService.collectPostMetrics(args)));
+
+    server.registerTool('ba_dzen_search_relevant_posts', {
+        description: 'Search public Dzen posts and rank candidates by relevance to a query. This does not publish or comment.',
+        annotations: { readOnlyHint: true, openWorldHint: true },
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string().min(1),
+            channelId: z.number().int().positive(),
+            query: z.string().trim().min(3).max(300),
+            limit: z.number().int().min(1).max(30).optional(),
+            minScore: z.number().int().min(0).max(100).optional()
+        }
+    }, async (args) => asToolResult(await dzenEngagementService.searchRelevantPosts(args)));
+
+    server.registerTool('ba_dzen_comment', {
+        description: 'Preview or publish one Dzen comment. Defaults to preview; real publication requires confirm=true and an idempotency key.',
+        annotations: { idempotentHint: true, openWorldHint: true },
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string().min(1),
+            channelId: z.number().int().positive(),
+            postUrl: z.string().url().max(2000),
+            text: z.string().trim().min(2).max(2000),
+            idempotencyKey: z.string().min(8).max(200),
+            confirm: z.boolean().optional()
+        }
+    }, async (args) => asToolResult(await dzenEngagementService.comment(args)));
 
     server.registerTool('ba_rollup_campaign_metrics', {
         description: 'Aggregate and rollup campaign metrics across channels and content items.',

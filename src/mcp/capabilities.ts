@@ -33,6 +33,9 @@ const PLANNER_TOOLS = new Set([
     'ba_get_publication_task',
     'ba_get_publication_task_resources',
     'ba_get_publication_fact',
+    'ba_dzen_collect_post_metrics',
+    'ba_dzen_search_relevant_posts',
+    'ba_dzen_comment',
     'ba_list_metric_checkpoints',
     'ba_get_week_execution_summary',
     'ba_list_work_items',
@@ -153,7 +156,8 @@ const GROWTH_ANALYST_TOOLS = new Set([
 // stays available. The agent does the generating on its own side.
 const STRATEGIST_EXCLUDED = new Set([
     'ba_publish_publication_task',
-    'ba_generate_week_topic_preview'
+    'ba_generate_week_topic_preview',
+    'ba_dzen_comment'
 ]);
 
 const STRATEGIST_TOOLS = new Set(
