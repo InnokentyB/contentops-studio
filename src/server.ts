@@ -38,7 +38,21 @@ process.on('unhandledRejection', (reason: any, promise) => {
 };
 
 const server = Fastify({
-    logger: true
+    logger: {
+        serializers: {
+            req(request: any) {
+                // Authorization codes and signed OAuth state arrive in the query
+                // string. Keep operational request logs useful without persisting them.
+                return {
+                    method: request.method,
+                    url: String(request.url || '').split('?')[0],
+                    host: request.headers?.host,
+                    remoteAddress: request.socket?.remoteAddress,
+                    remotePort: request.socket?.remotePort
+                };
+            }
+        }
+    }
 });
 
 server.addHook('onRequest', (request, reply, done) => {

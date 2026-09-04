@@ -50,7 +50,9 @@ export class VkOAuthService {
             nonce: crypto.randomUUID(),
             issuedAt: Math.floor(Date.now() / 1000)
         };
-        const state = encryptChannelSecret(JSON.stringify(statePayload));
+        // VK ID normalizes punctuation in `state`, so transport the sealed value
+        // through an URL-safe alphabet rather than exposing the `enc:v1:` format.
+        const state = Buffer.from(encryptChannelSecret(JSON.stringify(statePayload)), 'utf8').toString('base64url');
         const query = new URLSearchParams({
             client_id: this.clientId,
             app_id: this.clientId,
@@ -67,7 +69,9 @@ export class VkOAuthService {
     readState(value: string): VkOAuthState {
         let parsed: VkOAuthState;
         try {
-            parsed = JSON.parse(decryptChannelSecret(value));
+            if (!/^[A-Za-z0-9_-]+$/.test(value)) throw new Error('Invalid state alphabet');
+            const sealed = Buffer.from(value, 'base64url').toString('utf8');
+            parsed = JSON.parse(decryptChannelSecret(sealed));
         } catch {
             throw new Error('VK OAuth state is invalid');
         }
