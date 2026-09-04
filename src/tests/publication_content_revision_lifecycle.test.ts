@@ -76,6 +76,8 @@ test('publication content update and owner recovery are wired to the lifecycle c
     const mcpServer = readFileSync(resolve(process.cwd(), 'src/mcp/shared.ts'), 'utf8');
 
     assert.match(publicationService, /planAcceptedContentEdit/);
+    assert.match(publicationService, /async configureVkStoryPoll/);
+    assert.match(publicationService, /vk_story_poll: boundPoll/);
     assert.match(publicationService, /accepted_revision: lifecycle\.acceptedRevision/);
     assert.match(publicationService, /kind: 'content_review'/);
     assert.match(queueService, /requireProjectOwner\(tx, params\.projectId, params\.actorId\)/);

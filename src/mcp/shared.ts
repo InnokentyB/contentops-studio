@@ -586,6 +586,20 @@ export function registerPlannerTools(server: McpServer) {
         return asToolResult({ project_id: projectId, task });
     });
 
+    server.registerTool('ba_configure_vk_story_poll', {
+        description: 'Configure or remove a revision-bound native poll for a personal VK story. Any change creates a new content revision and reopens review.',
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            taskId: z.number().int().positive(),
+            expectedRevision: z.number().int().nonnegative(),
+            question: z.string().min(1).max(255).optional(),
+            answers: z.array(z.string().min(1).max(100)).min(2).max(10).optional(),
+            anonymous: z.boolean().optional(),
+            multiple: z.boolean().optional(),
+            remove: z.boolean().optional()
+        }
+    }, async (args) => asToolResult(await mcpPublicationService.configureVkStoryPoll(args)));
+
     server.registerTool('ba_confirm_publication', {
         description: 'Mark a publication task as published after a manual handoff or an external publish step. Already published tasks are read-only and cannot be modified via MCP.',
         inputSchema: {

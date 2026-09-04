@@ -13,6 +13,7 @@ const WRITER_TOOLS = new Set([
     'ba_read_publication_plan_asset',
     'ba_read_publication_plan_ref',
     'ba_update_publication_content',
+    'ba_configure_vk_story_poll',
     'ba_list_image_assets',
     'ba_list_work_items',
     'ba_claim_work_item',

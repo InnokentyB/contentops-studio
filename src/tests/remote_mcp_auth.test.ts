@@ -79,6 +79,7 @@ test('writer MCP discovery exposes content tools but not slot mutation tools', (
     const tools = Object.keys((server as any)._registeredTools || {});
 
     assert.ok(tools.includes('ba_update_publication_content'));
+    assert.ok(tools.includes('ba_configure_vk_story_poll'));
     assert.ok(tools.includes('ba_list_publication_tasks'));
     assert.ok(tools.includes('ba_get_agent_workspace_manifest'));
     assert.ok(tools.includes('ba_get_agent_workspace_updates'));
@@ -102,6 +103,7 @@ test('planner MCP discovery exposes slot controls but not content mutation', () 
     assert.ok(tools.includes('ba_import_operational_plan'));
     assert.ok(tools.includes('ba_materialize_publication_task'));
     assert.ok(tools.includes('ba_publish_publication_task'));
+    assert.ok(!tools.includes('ba_configure_vk_story_poll'));
     assert.ok(!tools.includes('ba_publish_direct'));
     assert.ok(tools.includes('ba_reschedule_work_item'));
     assert.ok(tools.includes('ba_get_agent_workspace_manifest'));
@@ -136,6 +138,7 @@ test('editor, publisher and growth profiles expose only their governed lifecycle
     assert.ok(publisherTools.includes('ba_prepare_publication_task'));
     assert.ok(publisherTools.includes('ba_publish_publication_task'));
     assert.ok(publisherTools.includes('ba_confirm_publication'));
+    assert.ok(!publisherTools.includes('ba_configure_vk_story_poll'));
     assert.ok(!publisherTools.includes('ba_publish_direct'));
     assert.ok(!publisherTools.includes('ba_repair_publication_placement'));
 

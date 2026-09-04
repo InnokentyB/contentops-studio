@@ -2,6 +2,7 @@ import prisma from '../db';
 import publisherService from './publisher.service';
 import publicationFactService from './publication_fact.service';
 import { normalizeTelegramDeliveryPayload } from './telegram_delivery_payload';
+import { resolveVkStoryPollFromTask, type VkStoryPoll } from './vk_story_poll';
 
 type PublicationTaskArgs = { projectId: number; taskId: number; dryRun?: boolean; idempotencyKey?: string };
 type Dependencies = {
@@ -9,7 +10,7 @@ type Dependencies = {
     publisher: {
         publishTelegramTaskMtproto(args: { projectId: number; taskId: number; channel: any; text: string; imageUrl?: string }): Promise<any>;
         publishTelegramPersonalStoryMtproto(args: { projectId: number; taskId: number; caption: string; imageUrl: string; idempotencyKey: string }): Promise<any>;
-        publishVkPersonalStory(args: { projectId: number; taskId: number; channel: any; imageUrl: string; idempotencyKey: string }): Promise<any>;
+        publishVkPersonalStory(args: { projectId: number; taskId: number; channel: any; imageUrl: string; idempotencyKey: string; poll?: VkStoryPoll | null }): Promise<any>;
         publishVkTask(args: { projectId: number; taskId: number; channel: any; text: string; imageUrl?: string; idempotencyKey: string }): Promise<any>;
     };
     publicationFacts: { record(args: any): Promise<any> };
@@ -96,17 +97,11 @@ function prepareTaskPayload(task: any, allowUnsupportedDryRun = false) {
         }
     }
     const selectedAsset = resolveApprovedAsset(task);
+    const nativePoll = isVkPersonalStory ? resolveVkStoryPollFromTask(task) : null;
     if (isStory && !selectedAsset) {
         throw new Error(isVkPersonalStory
             ? '[VK_STORY_MEDIA_REQUIRED] A personal VK story requires an approved image'
             : '[TELEGRAM_STORY_MEDIA_REQUIRED] A personal Telegram story requires an approved image');
-    }
-    const handoffBundle = (task.quality_report as any)?.handoff_bundle;
-    const poll = handoffBundle?.placement_contract?.poll || handoffBundle?.poll;
-    if (isStory && poll?.supported === true && poll?.configuration_mode === 'native_manual') {
-        throw new Error(isVkPersonalStory
-            ? '[VK_STORY_NATIVE_POLL_MANUAL] VK stories with a native poll must use the manual handoff'
-            : '[TELEGRAM_STORY_NATIVE_POLL_MANUAL] Stories with a native poll must use the manual handoff');
     }
     if (task.visual_state === 'APPROVED' && !selectedAsset) {
         throw new Error('[APPROVED_VISUAL_REQUIRED] Approved visual state requires a selected asset');
@@ -118,7 +113,7 @@ function prepareTaskPayload(task: any, allowUnsupportedDryRun = false) {
         : { text: isVkPersonalStory ? '' : text, imageUrl: selectedAsset?.file_url || null };
     return {
         channelType, payload, selectedAsset, directSupported, connectorReady, connectorReason,
-        isStory, isTelegramStory, isVkPersonalStory
+        isStory, isTelegramStory, isVkPersonalStory, nativePoll
     };
 }
 
@@ -169,7 +164,12 @@ export class TelegramTaskPublicationService {
 
         const prepared = prepareTaskPayload(task, args.dryRun === true);
         const { payload, selectedAsset } = prepared;
-        const preview = { text: payload.text, image_url: payload.imageUrl, has_image: Boolean(payload.imageUrl) };
+        const preview = {
+            text: payload.text,
+            image_url: payload.imageUrl,
+            has_image: Boolean(payload.imageUrl),
+            ...(prepared.nativePoll ? { native_poll: prepared.nativePoll } : {})
+        };
         if (args.dryRun) {
             return {
                 mode: 'dry_run', task_id: task.id, project_id: args.projectId, channel_id: task.channel.id,
@@ -242,7 +242,8 @@ export class TelegramTaskPublicationService {
                 })
                 : prepared.isVkPersonalStory ? await publisher.publishVkPersonalStory({
                     projectId: args.projectId, taskId: task.id, channel: task.channel,
-                    imageUrl: payload.imageUrl!, idempotencyKey: idempotencyKey!
+                    imageUrl: payload.imageUrl!, idempotencyKey: idempotencyKey!,
+                    ...(prepared.nativePoll ? { poll: prepared.nativePoll } : {})
                 })
                 : prepared.channelType === 'telegram' ? await publisher.publishTelegramTaskMtproto({
                     projectId: args.projectId, taskId: task.id, channel: task.channel,

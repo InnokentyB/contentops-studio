@@ -2,6 +2,12 @@ import { VK } from 'vk-io';
 import fs from 'fs';
 import path from 'path';
 import net from 'net';
+import {
+    assertVkStoryPollReadback,
+    buildVkStoryPollSticker,
+    normalizeVkStoryPoll,
+    type VkStoryPoll
+} from './vk_story_poll';
 
 export type VkCollectionStatus = 'collected' | 'unavailable' | 'forbidden' | 'not_found' | 'rate_limited' | 'failed';
 
@@ -268,17 +274,36 @@ export class VKService {
     async publishPersonalPhotoStoryWithIdentity(
         apiKey: string,
         expectedOwnerId: string | number,
-        imageUrl: string
-    ): Promise<{ ownerId: string; storyId: string; publishedLink: string; evidenceRef: string }> {
+        imageUrl: string,
+        poll?: VkStoryPoll | null
+    ): Promise<{
+        ownerId: string;
+        storyId: string;
+        publishedLink: string;
+        evidenceRef: string;
+        poll?: { ownerId: string; pollId: string };
+    }> {
         const ownerId = Number.parseInt(String(expectedOwnerId), 10);
         if (!Number.isSafeInteger(ownerId) || ownerId <= 0) {
             throw new Error('[VK_STORY_OWNER_INVALID] Personal VK story requires a positive OAuth profile ID');
         }
         const remote = await this.dependencies.loadRemoteImage(imageUrl);
         const vk = this.dependencies.createClient(apiKey);
-        const story = await vk.upload.storiesPhoto({
+        const normalizedPoll = poll ? normalizeVkStoryPoll(poll) : null;
+        const providerPoll = normalizedPoll ? await vk.api.polls.create({
+            owner_id: ownerId,
+            question: normalizedPoll.question,
+            add_answers: JSON.stringify(normalizedPoll.answers),
+            is_anonymous: normalizedPoll.anonymous,
+            is_multiple: normalizedPoll.multiple
+        }) : null;
+        const uploadParams: any = {
             source: { value: remote.buffer, filename: remote.filename }
-        });
+        };
+        if (normalizedPoll) {
+            uploadParams.clickable_stickers = buildVkStoryPollSticker(normalizedPoll, providerPoll);
+        }
+        const story = await vk.upload.storiesPhoto(uploadParams);
         const storyOwnerId = Number(story?.ownerId);
         const storyId = Number(story?.id);
         if (!Number.isSafeInteger(storyOwnerId) || storyOwnerId <= 0
@@ -297,13 +322,17 @@ export class VKService {
         if (!confirmed || confirmed.is_deleted || confirmed.is_expired) {
             throw new Error('[VK_STORY_READBACK_MISMATCH] VK did not return the exact active story after creation');
         }
+        if (normalizedPoll) {
+            assertVkStoryPollReadback(confirmed, normalizedPoll, Number(providerPoll.id), Number(providerPoll.owner_id));
+        }
 
         const publishedLink = `https://vk.com/story${identity}`;
         return {
             ownerId: String(storyOwnerId),
             storyId: String(storyId),
             publishedLink,
-            evidenceRef: publishedLink
+            evidenceRef: publishedLink,
+            ...(providerPoll ? { poll: { ownerId: String(providerPoll.owner_id), pollId: String(providerPoll.id) } } : {})
         };
     }
 

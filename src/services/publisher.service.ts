@@ -28,6 +28,7 @@ import { config } from 'dotenv';
 import * as fs from 'fs';
 import * as path from 'path';
 import { createHash } from 'crypto';
+import { resolveVkStoryPollFromTask, type VkStoryPoll } from './vk_story_poll';
 
 config();
 
@@ -428,6 +429,7 @@ class PublisherService {
         channel: any;
         imageUrl: string;
         idempotencyKey: string;
+        poll?: VkStoryPoll | null;
     }) {
         const vkConfig = this.extractVkAccountConfig(params.channel?.config || {});
         if (!vkConfig.publish_access_token || !vkConfig.oauth_user_id) {
@@ -436,7 +438,8 @@ class PublisherService {
         const result = await vkService.publishPersonalPhotoStoryWithIdentity(
             String(vkConfig.publish_access_token),
             String(vkConfig.oauth_user_id),
-            params.imageUrl
+            params.imageUrl,
+            params.poll
         );
         return {
             adapter: 'vk_story',
@@ -445,7 +448,11 @@ class PublisherService {
             evidenceRef: result.evidenceRef,
             metrics: {
                 vk_story_owner_id: result.ownerId,
-                vk_story_id: result.storyId
+                vk_story_id: result.storyId,
+                ...(result.poll ? {
+                    vk_story_poll_owner_id: result.poll.ownerId,
+                    vk_story_poll_id: result.poll.pollId
+                } : {})
             }
         };
     }
@@ -2196,12 +2203,14 @@ class PublisherService {
             if (isStory) {
                 const vkImageUrl = typeof imageUrl === 'string' ? imageUrl.trim() : '';
                 if (!vkImageUrl) throw new Error('[VK_STORY_MEDIA_REQUIRED] A personal VK story requires an approved image');
+                const nativePoll = resolveVkStoryPollFromTask(task);
                 return this.publishVkPersonalStory({
                     projectId: task.project_id,
                     taskId: task.id,
                     channel: task.channel,
                     imageUrl: vkImageUrl,
-                    idempotencyKey: `scheduler:vk-story:${task.project_id}:${task.id}:r${task.accepted_revision || task.content_revision || 0}`
+                    idempotencyKey: `scheduler:vk-story:${task.project_id}:${task.id}:r${task.accepted_revision || task.content_revision || 0}`,
+                    ...(nativePoll ? { poll: nativePoll } : {})
                 });
             }
             if (!vkId || !apiKey) {

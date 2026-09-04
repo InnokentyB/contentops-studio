@@ -117,8 +117,45 @@ test('imported VK story plan is materialized as an automated story bundle, not a
     assert.equal(bundle.task.placement, 'story');
     assert.equal(bundle.transport.materialization, 'story');
     assert.equal(bundle.transport.connector_authority, 'configured');
-    assert.equal(bundle.placement_contract.poll.configuration_mode, 'native_manual');
+    assert.equal(bundle.placement_contract.poll.configuration_mode, 'native_configured');
     assert.equal(bundle.publication.body, 'Accepted VK story copy');
+});
+
+test('VK story handoff keeps only a poll bound to the current content revision', () => {
+    const item: any = {
+        id: 855,
+        draft_text: 'Accepted VK story copy',
+        content_revision: 3,
+        accepted_revision: 3,
+        text_state: 'accepted',
+        publication_mode: 'connector_auto',
+        visual_placement: 'story',
+        channel: { name: 'analystcraft_vk_group', type: 'vk' },
+        assets: {
+            vk_story_poll: {
+                question: 'What should we explain next?',
+                answers: ['Metrics', 'Architecture'],
+                anonymous: false,
+                multiple: false,
+                content_revision: 3
+            }
+        }
+    };
+
+    const bundle = publicationPlanService.buildGeneratedContentItemHandoff(item, { requireAcceptedContent: true });
+    const nativePoll = bundle.publication.native_poll;
+    assert.ok(nativePoll);
+    assert.equal(nativePoll.content_revision, 3);
+    assert.deepEqual(nativePoll.answers, ['Metrics', 'Architecture']);
+
+    assert.throws(
+        () => publicationPlanService.buildGeneratedContentItemHandoff({
+            ...item,
+            content_revision: 4,
+            accepted_revision: 4
+        }, { requireAcceptedContent: true }),
+        /VK_STORY_POLL_REVISION_MISMATCH/
+    );
 });
 
 test('VK article cover is materialized as a manual article bundle, not a feed post', () => {

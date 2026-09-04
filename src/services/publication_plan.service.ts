@@ -12,6 +12,7 @@ import {
     publicationPlacementAssetContract,
     publicationPlacementManualChecklistNotes
 } from './publication_placement_contract';
+import { bindVkStoryPollToRevision } from './vk_story_poll';
 
 type PublicationPlan = {
     meta: {
@@ -1997,6 +1998,12 @@ class PublicationPlanService {
         const persistedAssetsByRef = new Map<string, any>();
         const selectedAsset = this.resolveApprovedSelectedAsset(item);
         const acceptedContent = this.resolveAcceptedPublicationBody(item, options.requireAcceptedContent);
+        const nativePollCandidate = canonicalChannelType === 'vk' && placement === 'story'
+            ? item.assets?.vk_story_poll ?? null
+            : null;
+        const nativePoll = nativePollCandidate
+            ? bindVkStoryPollToRevision(nativePollCandidate, item.content_revision)
+            : null;
         const selectedAssetMetadata = selectedAsset ? visualMetadataFromProvenance(selectedAsset.provenance) : {};
         const inferPersistedFileName = (runtimeFileName: string | null | undefined, persistedAsset: any) => {
             if (runtimeFileName) return runtimeFileName;
@@ -2196,6 +2203,7 @@ class PublicationPlanService {
                 link_url: linkUrl,
                 image_url: selectedAsset?.file_url || null,
                 alt_text: selectedAsset?.alt_text || null,
+                native_poll: nativePoll,
                 visuals: selectedAsset
                     ? [{
                         ref: 'selected_asset',
@@ -2242,6 +2250,12 @@ class PublicationPlanService {
             : 'automated';
         const selectedAsset = this.resolveApprovedSelectedAsset(item);
         const selectedAssetMetadata = selectedAsset ? visualMetadataFromProvenance(selectedAsset.provenance) : {};
+        const nativePollCandidate = channelType === 'vk' && placement === 'story'
+            ? (item.assets as any)?.vk_story_poll ?? null
+            : null;
+        const nativePoll = nativePollCandidate
+            ? bindVkStoryPollToRevision(nativePollCandidate, item.content_revision)
+            : null;
 
         return {
             task: {
@@ -2264,7 +2278,8 @@ class PublicationPlanService {
                 link_url: null,
                 html_bundle: [{ asset: { title: item.title || null, content: body } }],
                 image_url: selectedAsset?.file_url || null,
-                alt_text: selectedAsset?.alt_text || null
+                alt_text: selectedAsset?.alt_text || null,
+                native_poll: nativePoll
             },
             resource_files: selectedAsset ? [{
                 ref: 'selected_asset',

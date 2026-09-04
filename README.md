@@ -29,7 +29,7 @@ ContentOps Studio makes that operating chain explicit.
 
 - Multi-project workspaces with owner, editor, and viewer roles
 - Weekly editorial packages, operational calendar, dependencies, and status queues
-- Cross-channel publication tasks for Telegram, VK (including personal photo Stories), LinkedIn, Habr, Zen, Threads, and manual destinations
+- Cross-channel publication tasks for Telegram, VK (including personal photo Stories with revision-bound native polls), LinkedIn, Habr, Zen, Threads, and manual destinations
 - Exact content-revision acceptance and visual QA gates
 - Durable media assets through an S3-compatible storage backend
 - Publication facts, checkpoints, and cross-channel analytics

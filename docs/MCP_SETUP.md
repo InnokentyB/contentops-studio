@@ -95,7 +95,11 @@ Do not use a live publication as a connection test. Connector tests and publishi
 
 VK Stories use the same `ba_publish_publication_task` tool and canonical publication facts as other destinations. Configure the VK community ID, save the channel, and connect a personal administrator profile through VK OAuth in **Project settings → Channels**. Existing VK connections must be reconnected once so the token includes the `stories` permission.
 
-A story task must use the `story` placement and have an approved, durable HTTPS image for its accepted revision. The recommended visual is 1080×1920 (9:16). The first release publishes a photo to the connected personal profile only; it does not transmit captions, links, native polls, video, or community Stories. Run `dryRun: true` before any live call and provide a unique `idempotencyKey` for the live publication.
+A story task must use the `story` placement and have an approved, durable HTTPS image for its accepted revision. The recommended visual is 1080×1920 (9:16). Captions, links, video, and community Stories are not transmitted.
+
+The owner or writer MCP profile can add a native poll with `ba_configure_vk_story_poll`. Pass the current `expectedRevision`, a question, 2–10 unique answers, and optional `anonymous` and `multiple` flags. Pass `remove: true` with the current revision to remove it. Either change creates a new content revision and reopens review. Accept that exact revision before publishing. The dry-run response includes `payload_preview.native_poll`; use it to verify the final question, answer order, and revision. Native poll delivery is experimental until the configured VK account passes a disposable live smoke test.
+
+Run `ba_publish_publication_task` with `dryRun: true` before any live call and provide a unique `idempotencyKey` for the live publication. A started provider call is never retried automatically because VK may have created the poll or Story even if the response was interrupted.
 
 ## Revoke or rotate access
 

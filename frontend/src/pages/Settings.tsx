@@ -389,8 +389,8 @@ function VkConnectionGuide({ locale, vkId, publicationToken, oauthUserId }: {
             'If VK was connected before Stories support was added, select Reconnect VK once to grant the new stories permission.'
         ]}
         note={locale === 'ru'
-            ? `Токен хранится зашифрованно и повторно не показывается. Фото-сторис требуют утверждённый вертикальный визуал 1080×1920 и OAuth-профиль${hasOAuthProfile ? ` ID ${String(oauthUserId)}` : ''}; подписи, ссылки, опросы и видео в первом релизе не отправляются.`
-            : `The token is encrypted and never displayed again. Photo Stories require an approved 1080×1920 vertical visual and an OAuth profile${hasOAuthProfile ? ` ID ${String(oauthUserId)}` : ''}; captions, links, polls, and video are not sent in the first release.`}
+            ? `Токен хранится зашифрованно и повторно не показывается. Фото-сторис требуют утверждённый вертикальный визуал 1080×1920 и OAuth-профиль${hasOAuthProfile ? ` ID ${String(oauthUserId)}` : ''}. Нативный опрос настраивается через MCP и проходит общую проверку ревизии; подписи, ссылки и видео пока не отправляются.`
+            : `The token is encrypted and never displayed again. Photo Stories require an approved 1080×1920 vertical visual and an OAuth profile${hasOAuthProfile ? ` ID ${String(oauthUserId)}` : ''}. A native poll is configured through MCP and follows the shared revision review; captions, links, and video are not sent yet.`}
     />
 }
 

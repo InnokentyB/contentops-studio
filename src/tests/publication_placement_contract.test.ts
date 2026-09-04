@@ -28,7 +28,7 @@ test('Telegram and VK stories use channel-specific poll capabilities', () => {
     }
 
     const vkContract = publicationPlacementAssetContract({ type: 'vk' }, 'story');
-    assert.deepEqual(vkContract.poll, { supported: true, configuration_mode: 'native_manual', render_in_asset: false });
+    assert.deepEqual(vkContract.poll, { supported: true, configuration_mode: 'native_configured', render_in_asset: false });
     assert.deepEqual(vkContract.transport, { materialization: 'story', connector_authority: 'configured' });
 });
 

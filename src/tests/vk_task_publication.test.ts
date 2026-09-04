@@ -22,6 +22,7 @@ function approvedVkTask(overrides: Record<string, any> = {}) {
         selected_asset_id: 18,
         quality_report: {},
         metrics: {},
+        assets: {},
         channel: {
             id: 120,
             type: 'vk',
@@ -225,6 +226,89 @@ test('strict VK personal story provider rejects a mismatched readback identity',
     );
 });
 
+test('strict VK story provider creates and verifies a native poll sticker', async () => {
+    const uploadCalls: any[] = [];
+    const pollCalls: any[] = [];
+    const providerPoll = {
+        id: 501,
+        owner_id: 42,
+        question: 'What should we explain next?',
+        answers: [{ id: 1, text: 'Metrics' }, { id: 2, text: 'Architecture' }]
+    };
+    const service = new VKService({
+        createClient: () => ({
+            upload: {
+                storiesPhoto: async (args: any) => {
+                    uploadCalls.push(args);
+                    return { ownerId: 42, id: 88 };
+                }
+            },
+            api: {
+                polls: {
+                    create: async (args: any) => {
+                        pollCalls.push(args);
+                        return providerPoll;
+                    }
+                },
+                stories: {
+                    getById: async () => ({
+                        items: [{
+                            owner_id: 42,
+                            id: 88,
+                            clickable_stickers: { clickable_stickers: [{ type: 'poll', poll: providerPoll }] }
+                        }]
+                    })
+                }
+            }
+        }),
+        loadRemoteImage: async () => ({ buffer: Buffer.from('png'), filename: 'approved-story.png', contentType: 'image/png' })
+    });
+
+    const result = await service.publishPersonalPhotoStoryWithIdentity(
+        'user-token',
+        42,
+        'https://cdn.example/approved-story.png',
+        {
+            question: ' What should we explain next? ',
+            answers: ['Metrics', 'Architecture'],
+            anonymous: false,
+            multiple: true,
+            content_revision: 3
+        }
+    );
+
+    assert.deepEqual(pollCalls, [{
+        owner_id: 42,
+        question: 'What should we explain next?',
+        add_answers: JSON.stringify(['Metrics', 'Architecture']),
+        is_anonymous: false,
+        is_multiple: true
+    }]);
+    const stickerPayload = JSON.parse(uploadCalls[0].clickable_stickers);
+    assert.equal(stickerPayload.clickable_stickers[0].type, 'poll');
+    assert.equal(stickerPayload.clickable_stickers[0].poll.id, 501);
+    assert.deepEqual(result.poll, { ownerId: '42', pollId: '501' });
+});
+
+test('strict VK story provider rejects a missing or changed native poll readback', async () => {
+    const service = new VKService({
+        createClient: () => ({
+            upload: { storiesPhoto: async () => ({ ownerId: 42, id: 88 }) },
+            api: {
+                polls: { create: async () => ({ id: 501, owner_id: 42, question: 'Q', answers: [{ text: 'A' }, { text: 'B' }] }) },
+                stories: { getById: async () => ({ items: [{ owner_id: 42, id: 88, clickable_stickers: { clickable_stickers: [] } }] }) }
+            }
+        }),
+        loadRemoteImage: async () => ({ buffer: Buffer.from('png'), filename: 'approved-story.png', contentType: 'image/png' })
+    });
+    await assert.rejects(
+        service.publishPersonalPhotoStoryWithIdentity('token', 42, 'https://cdn.example/story.png', {
+            question: 'Q', answers: ['A', 'B'], anonymous: false, multiple: false, content_revision: 3
+        }),
+        /VK_STORY_POLL_READBACK_MISMATCH/
+    );
+});
+
 test('VK personal story uses the accepted vertical asset and records story identity', async () => {
     const task = approvedVkTask({
         type: 'vk_story',
@@ -253,6 +337,38 @@ test('VK personal story uses the accepted vertical asset and records story ident
     assert.equal(result.external_id, 'story42_88');
     assert.equal(live.calls.facts[0].artifactKind, 'story');
     assert.equal(live.calls.facts[0].providerObjectId, 'story42_88');
+});
+
+test('VK personal story passes only the revision-bound native poll to the provider', async () => {
+    const poll = {
+        question: 'What should we explain next?',
+        answers: ['Metrics', 'Architecture'],
+        anonymous: false,
+        multiple: false,
+        content_revision: 3
+    };
+    const task = approvedVkTask({
+        type: 'vk_story',
+        visual_placement: 'story',
+        assets: { vk_story_poll: poll },
+        channel: {
+            ...approvedVkTask().channel,
+            config: { publish_access_token: 'user-token', oauth_user_id: 42 }
+        }
+    });
+    const dry = harness(task);
+    const preview = await dry.service.execute({ projectId: 10, taskId: 900, dryRun: true });
+    assert.deepEqual(preview.payload_preview.native_poll, poll);
+
+    const live = harness(task);
+    await live.service.execute({ projectId: 10, taskId: 900, idempotencyKey: 'publish:vk-story-poll:900:r3' });
+    assert.deepEqual(live.calls.provider[0].poll, poll);
+
+    const stale = harness({ ...task, assets: { vk_story_poll: { ...poll, content_revision: 2 } } });
+    await assert.rejects(
+        stale.service.execute({ projectId: 10, taskId: 900, dryRun: true }),
+        /VK_STORY_POLL_REVISION_MISMATCH/
+    );
 });
 
 test('VK personal story dry-run requires OAuth profile identity and an approved visual', async () => {

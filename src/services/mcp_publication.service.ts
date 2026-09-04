@@ -24,6 +24,7 @@ import { planAcceptedContentEdit } from './publication_content_revision_lifecycl
 import { Prisma } from '@prisma/client';
 import { buildTelegramDeliveryPreview, normalizeTelegramDeliveryPayload } from './telegram_delivery_payload';
 import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
+import { normalizeVkStoryPoll } from './vk_story_poll';
 
 type PublicationOutcome = 'published' | 'blocked' | 'removed' | 'restricted';
 
@@ -1034,6 +1035,111 @@ class McpPublicationService {
             content_state: derivePublicationContentState(updated),
             updated_at: updated.updated_at
         };
+    }
+
+    async configureVkStoryPoll(input: {
+        projectId: number;
+        taskId: number;
+        expectedRevision: number;
+        question?: string;
+        answers?: string[];
+        anonymous?: boolean;
+        multiple?: boolean;
+        remove?: boolean;
+    }) {
+        const item = await prisma.contentItem.findFirst({
+            where: { id: input.taskId, project_id: input.projectId },
+            include: { channel: true }
+        });
+        if (!item) throw new Error(`Publication task ${input.taskId} not found for project ${input.projectId}`);
+        if (item.content_revision !== input.expectedRevision) {
+            throw new Error('[CONTENT_REVISION_CONFLICT] Publication content changed since it was read. Reload the task and retry.');
+        }
+        this.assertPublicationTaskMutableForMcp(item, 'configure_vk_story_poll');
+        const isVkStory = item.channel?.type === 'vk'
+            && (String(item.type || '').toLowerCase().includes('story') || item.visual_placement === 'story');
+        if (!isVkStory) throw new Error('[VK_STORY_TASK_REQUIRED] Native VK polls can only be configured on VK story tasks');
+
+        const previous = (item.assets as any)?.vk_story_poll || null;
+        if (input.remove === true && !previous) return item;
+        const normalized = input.remove === true ? null : normalizeVkStoryPoll(input);
+        const previousComparable = previous ? normalizeVkStoryPoll(previous) : null;
+        const comparable = normalized ? { ...normalized, content_revision: undefined } : null;
+        if (previousComparable && comparable
+            && JSON.stringify({ ...previousComparable, content_revision: undefined }) === JSON.stringify(comparable)) {
+            return item;
+        }
+
+        const lifecycle = planAcceptedContentEdit({
+            currentRevision: item.content_revision,
+            acceptedRevision: item.accepted_revision,
+            textState: item.text_state,
+            bodyChanged: true
+        });
+        const nextRevision = lifecycle.contentRevision;
+        const boundPoll = normalized ? { ...normalized, content_revision: nextRevision } : null;
+        const { vk_story_poll: _previousPoll, ...assetsWithoutPoll } = ((item.assets as any) || {});
+        const qualityReport = { ...((item.quality_report as any) || {}) } as any;
+        if (qualityReport.handoff_bundle?.publication) {
+            const { native_poll: _previousHandoffPoll, ...publicationWithoutPoll } = qualityReport.handoff_bundle.publication;
+            qualityReport.handoff_bundle = {
+                ...qualityReport.handoff_bundle,
+                publication: boundPoll
+                    ? { ...publicationWithoutPoll, native_poll: boundPoll }
+                    : publicationWithoutPoll
+            };
+        }
+
+        return prisma.$transaction(async (tx) => {
+            await artDirectionService.markRevisionStale(tx, item.id);
+            const changed = await tx.contentItem.updateMany({
+                where: { id: item.id, project_id: input.projectId, content_revision: input.expectedRevision },
+                data: {
+                    assets: boundPoll ? { ...assetsWithoutPoll, vk_story_poll: boundPoll } : assetsWithoutPoll,
+                    quality_report: qualityReport,
+                    content_revision: nextRevision,
+                    text_state: lifecycle.textState,
+                    accepted_revision: lifecycle.acceptedRevision,
+                    status: 'drafted',
+                    handoff_state: 'blocked'
+                }
+            });
+            if (changed.count !== 1) {
+                throw new Error('[CONTENT_REVISION_CONFLICT] Publication content changed since it was read. Reload the task and retry.');
+            }
+            const existingReview = await tx.workItem.findFirst({
+                where: { content_item_id: item.id, kind: 'content_review' },
+                orderBy: { updated_at: 'desc' }
+            });
+            const reviewData = {
+                state: 'available',
+                input_context_version: nextRevision,
+                result_version: lifecycle.reviewBaseResultVersion,
+                result_payload: Prisma.DbNull,
+                lease_token: null,
+                lease_expires_at: null,
+                lease_actor_id: null,
+                note: boundPoll
+                    ? `Review publication content and VK story poll revision ${nextRevision}`
+                    : `Review publication content after removing the VK story poll in revision ${nextRevision}`
+            };
+            if (existingReview) {
+                await tx.workItem.update({ where: { id: existingReview.id }, data: reviewData });
+            } else {
+                await tx.workItem.create({
+                    data: {
+                        project_id: input.projectId,
+                        week_package_id: item.week_package_id,
+                        content_item_id: item.id,
+                        item_key: item.item_key || `content:${item.id}`,
+                        kind: 'content_review',
+                        assignee_role: 'content_reviewer',
+                        ...reviewData
+                    }
+                });
+            }
+            return tx.contentItem.findUniqueOrThrow({ where: { id: item.id } });
+        });
     }
 
     async preparePublicationTask(projectId: number, taskId: number) {

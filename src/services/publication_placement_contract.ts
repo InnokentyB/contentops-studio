@@ -22,7 +22,7 @@ export type PublicationPlacementAssetContract = {
     artifact_kind: 'feed' | 'story' | 'article_cover' | 'other';
     dimensions: { width: number; height: number; aspect_ratio: string } | null;
     safe_area: { unit: 'px'; top: number; right: number; bottom: number; left: number } | null;
-    poll: { supported: boolean; configuration_mode: 'native_manual' | 'not_supported' | 'not_applicable'; render_in_asset: boolean };
+    poll: { supported: boolean; configuration_mode: 'native_configured' | 'native_manual' | 'not_supported' | 'not_applicable'; render_in_asset: boolean };
     transport: { materialization: 'feed_post' | 'story' | 'article' | 'asset'; connector_authority: 'configured' | 'manual_only' };
 };
 
@@ -32,11 +32,13 @@ export function publicationPlacementAssetContract(
 ): PublicationPlacementAssetContract {
     const normalizedType = channel.type.trim().toLowerCase();
     if (placement === 'story') {
-        const poll = normalizedType === 'vk' || normalizedType === 'instagram'
-            ? { supported: true, configuration_mode: 'native_manual' as const, render_in_asset: false }
-            : ['telegram', 'telegram_chat'].includes(normalizedType)
-                ? { supported: false, configuration_mode: 'not_supported' as const, render_in_asset: false }
-                : { supported: false, configuration_mode: 'not_applicable' as const, render_in_asset: false };
+        const poll = normalizedType === 'vk'
+            ? { supported: true, configuration_mode: 'native_configured' as const, render_in_asset: false }
+            : normalizedType === 'instagram'
+                ? { supported: true, configuration_mode: 'native_manual' as const, render_in_asset: false }
+                : ['telegram', 'telegram_chat'].includes(normalizedType)
+                    ? { supported: false, configuration_mode: 'not_supported' as const, render_in_asset: false }
+                    : { supported: false, configuration_mode: 'not_applicable' as const, render_in_asset: false };
         return {
             placement,
             artifact_kind: 'story',
