@@ -801,8 +801,31 @@ export default function Settings() {
 
     const testChannelConnection = useMutation({
         mutationFn: (channelId: number) => projectsApi.testChannelConnection(currentProject!.id, channelId),
-        onSuccess: () => showToast(locale === 'ru' ? 'Сессия Дзена активна, редактор доступен' : 'Zen session is active and the editor is available', 'success'),
-        onError: (err: ApiJson) => showToast(locale === 'ru' ? 'Не удалось подключиться к Дзену' : 'Could not connect to Zen', 'error', err.message)
+        onSuccess: (_result, channelId) => {
+            const channel = (projectData as ApiJson)?.channels?.find((item: ApiJson) => item.id === channelId)
+            showToast(
+                channel?.type === 'vk'
+                    ? (locale === 'ru' ? 'VK подключён: профиль управляет выбранным сообществом' : 'VK is connected: the profile administers this community')
+                    : (locale === 'ru' ? 'Сессия Дзена активна, редактор доступен' : 'Zen session is active and the editor is available'),
+                'success'
+            )
+        },
+        onError: (err: ApiJson) => showToast(locale === 'ru' ? 'Проверка подключения не прошла' : 'Connection check failed', 'error', err.message)
+    })
+
+    const connectVk = useMutation({
+        mutationFn: (channelId: number) => api.post('/api/integrations/vk/connect', {
+            projectId: currentProject!.id,
+            channelId
+        }),
+        onSuccess: (result: ApiJson) => {
+            if (!result.authorization_url) {
+                showToast(locale === 'ru' ? 'VK не вернул ссылку авторизации' : 'VK authorization URL is missing', 'error')
+                return
+            }
+            window.location.assign(result.authorization_url)
+        },
+        onError: (err: ApiJson) => showToast(locale === 'ru' ? 'Не удалось начать подключение VK' : 'Could not start VK connection', 'error', err.message)
     })
 
     // Note: Delete channel endpoint might need to be added or we just hide it?
@@ -948,6 +971,20 @@ export default function Settings() {
             setAtomaPayloadText(atomaContext.payload_text || '')
         }
     }, [atomaContext, activeTab])
+
+    useEffect(() => {
+        const vkResult = queryParams.get('vk')
+        if (!vkResult) return
+        if (vkResult === 'connected') {
+            showToast(locale === 'ru' ? 'VK успешно подключён' : 'VK connected successfully', 'success')
+            queryClient.invalidateQueries({ queryKey: ['project'] })
+        } else {
+            showToast(locale === 'ru' ? 'Подключение VK не завершено. Попробуй ещё раз.' : 'VK connection was not completed. Try again.', 'error')
+        }
+        window.history.replaceState({}, '', '/settings?tab=channels')
+    // The callback marker must be consumed only once after returning from VK.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
 
 
 
@@ -1962,6 +1999,36 @@ export default function Settings() {
 
                                             {channel.type === 'vk' && (
                                                 <>
+                                                    <div className="rounded-xl border border-outline-variant/30 bg-white p-4" style={{ gridColumn: '1 / -1' }}>
+                                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                                            <div>
+                                                                <div className="text-sm font-black text-on-surface">
+                                                                    {editingChannelConfig.publish_access_token === '******'
+                                                                        ? (locale === 'ru' ? 'VK ID подключён' : 'VK ID connected')
+                                                                        : (locale === 'ru' ? 'VK ID не подключён' : 'VK ID not connected')}
+                                                                </div>
+                                                                <p className="mt-1 text-xs leading-5 text-on-surface-variant">
+                                                                    {locale === 'ru'
+                                                                        ? 'Авторизуй личный профиль администратора. Planner сохранит токен зашифрованно и не покажет его в интерфейсе.'
+                                                                        : 'Authorize an administrator profile. Planner stores the token encrypted and never displays it.'}
+                                                                </p>
+                                                            </div>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                <button type="button" className="btn-primary" onClick={() => connectVk.mutate(channel.id)} disabled={connectVk.isPending}>
+                                                                    {connectVk.isPending
+                                                                        ? (locale === 'ru' ? 'Открываем VK…' : 'Opening VK…')
+                                                                        : editingChannelConfig.publish_access_token === '******'
+                                                                            ? (locale === 'ru' ? 'Переподключить VK' : 'Reconnect VK')
+                                                                            : (locale === 'ru' ? 'Подключить VK' : 'Connect VK')}
+                                                                </button>
+                                                                {editingChannelConfig.publish_access_token === '******' && (
+                                                                    <button type="button" className="btn-secondary" onClick={() => testChannelConnection.mutate(channel.id)} disabled={testChannelConnection.isPending}>
+                                                                        {locale === 'ru' ? 'Проверить доступ' : 'Test access'}
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                     <div>
                                                         <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>VK Group/Community ID</label>
                                                         <input
@@ -1978,13 +2045,13 @@ export default function Settings() {
                                                         )}
                                                     </div>
                                                     <div>
-                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Community publication token</label>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>{locale === 'ru' ? 'Пользовательский токен (резервный ручной ввод)' : 'User token (manual fallback)'}</label>
                                                         <input
                                                             type="password"
                                                             className="w-full"
                                                             value={editingChannelConfig.publish_access_token || editingChannelConfig.api_key || ''}
                                                             onChange={e => setEditingChannelConfig({ ...editingChannelConfig, publish_access_token: e.target.value })}
-                                                            placeholder="Publication access token"
+                                                            placeholder={locale === 'ru' ? 'Оставь пустым и используй «Подключить VK»' : 'Leave empty and use Connect VK'}
                                                             style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
                                                         />
                                                     </div>
@@ -2270,6 +2337,13 @@ export default function Settings() {
                                                     ? 'This channel token is ready for member post analytics.'
                                                     : 'Reconnect this channel after approval to enable LinkedIn post analytics.'}
                                             </div>
+                                        )}
+                                        {channel.type === 'vk' && (
+                                            <span className="badge ml-1" style={{ fontSize: '0.7rem' }}>
+                                                {channel.config?.publish_access_token === '******'
+                                                    ? (locale === 'ru' ? 'VK подключён' : 'VK connected')
+                                                    : (locale === 'ru' ? 'Требуется подключение' : 'Connection required')}
+                                            </span>
                                         )}
                                     </div>
                                     <div className="flex-center" style={{ gap: '0.5rem' }}>

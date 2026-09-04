@@ -17,9 +17,11 @@ import {
     sanitizeChannelConfig,
     mergeChannelConfig,
     prepareChannelConfigForStorage,
-    resolveChannelConfigSecrets
+    resolveChannelConfigSecrets,
+    resolveEffectiveChannelConfig
 } from '../utils/channel.utils';
 import dzenService from '../services/dzen.service';
+import vkOAuthService from '../services/vk_oauth.service';
 import initiativeService from '../services/initiative.service';
 import workQueueService from '../services/work_queue.service';
 import mcpAccessTokenService, { ActiveMcpWorkspaceBundleError, isManagedMcpProfile } from '../services/mcp_access_token.service';
@@ -1077,11 +1079,19 @@ export default async function projectRoutes(fastify: FastifyInstance) {
             where: { id: parsedChannelId, project_id: projectId }
         });
         if (!channel) return reply.code(404).send({ error: 'Channel not found' });
-        if (!['zen', 'zen_article', 'dzen'].includes(channel.type)) {
+        if (!['zen', 'zen_article', 'dzen', 'vk'].includes(channel.type)) {
             return reply.code(400).send({ error: 'Connection test is not supported for this channel type' });
         }
 
         try {
+            if (channel.type === 'vk') {
+                const config = resolveEffectiveChannelConfig('vk', channel.config);
+                if (!config.vk_id || !config.publish_access_token) {
+                    return reply.code(400).send({ error: 'Connect VK before testing this channel', code: 'VK_NOT_CONNECTED' });
+                }
+                const result = await vkOAuthService.verifyCommunityAdmin(config.publish_access_token, String(config.vk_id));
+                return { success: true, result: { ...result, connected: true } };
+            }
             const result = await dzenService.testConnection(
                 resolveChannelConfigSecrets(channel.type, channel.config)
             );

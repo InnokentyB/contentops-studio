@@ -1138,7 +1138,7 @@ class McpPublicationService {
 
     async publishDirect(params: DirectPublishParams) {
         const channel = await this.resolveChannel(params.projectId, params.channelId, params.channelType);
-        const config = (channel.config as any)?.raw_account || channel.config;
+        const config = resolveEffectiveChannelConfig(channel.type, channel.config);
         const telegramPayload = channel.type === 'telegram'
             ? normalizeTelegramDeliveryPayload(params)
             : null;

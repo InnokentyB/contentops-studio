@@ -506,7 +506,7 @@ class PublisherService {
     }
 
     private extractVkAccountConfig(config: any) {
-        const topLevel = config && typeof config === 'object' ? config : {};
+        const topLevel = resolveEffectiveChannelConfig('vk', config && typeof config === 'object' ? config : {});
         const raw = topLevel.raw_account && typeof topLevel.raw_account === 'object'
             ? topLevel.raw_account
             : {};
@@ -1807,7 +1807,7 @@ class PublisherService {
         const bundle = plan && action
             ? publicationPlanService.buildHandoffBundle(plan as any, task)
             : publicationPlanService.buildGeneratedContentItemHandoff(task);
-        const channelConfig: any = task.channel?.config || {};
+        const channelConfig: any = resolveEffectiveChannelConfig(task.channel?.type || '', task.channel?.config || {});
         const executionMode = bundle.mode;
         const rawAccount = channelConfig.raw_account || channelConfig || {};
         const directExecutionSupported = bundle.transport?.connector_authority !== 'manual_only'

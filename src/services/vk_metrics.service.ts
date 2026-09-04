@@ -5,6 +5,7 @@ import vkService, {
     parseVkPostIdentity,
     VkPostMetricsResult
 } from './vk.service';
+import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
 
 export type VkSnapshotMode = 'automatic' | 'manual';
 
@@ -26,7 +27,7 @@ const METRIC_FIELDS = [
 ] as const;
 
 function resolveVkConfig(rawConfig: any) {
-    const config = rawConfig?.raw_account || rawConfig || {};
+    const config = resolveEffectiveChannelConfig('vk', rawConfig || {});
     return {
         vkId: config.vk_id ? String(config.vk_id) : null,
         publishAccessToken: config.publish_access_token || config.api_key || null,

@@ -1,0 +1,131 @@
+import crypto from 'crypto';
+import { decryptChannelSecret, encryptChannelSecret } from '../utils/channel_secrets';
+
+const VK_ID_BASE_URL = 'https://id.vk.ru';
+const VK_API_BASE_URL = 'https://api.vk.com/method';
+const VK_API_VERSION = '5.199';
+const STATE_LIFETIME_SECONDS = 10 * 60;
+
+type VkOAuthState = {
+    projectId: number;
+    channelId: number;
+    userId: number;
+    nonce: string;
+    verifier: string;
+    issuedAt: number;
+};
+
+type VkTokenResponse = {
+    access_token: string;
+    refresh_token?: string;
+    expires_in?: number;
+    user_id?: number;
+    state?: string;
+    error?: string;
+    error_description?: string;
+};
+
+function base64UrlSha256(value: string) {
+    return crypto.createHash('sha256').update(value).digest('base64url');
+}
+
+export class VkOAuthService {
+    get clientId() {
+        const value = process.env.VK_CLIENT_ID?.trim();
+        if (!value || !/^\d+$/.test(value)) throw new Error('VK_CLIENT_ID is not configured');
+        return value;
+    }
+
+    get redirectUri() {
+        const value = process.env.VK_REDIRECT_URI?.trim();
+        if (!value || !/^https:\/\//.test(value)) throw new Error('VK_REDIRECT_URI must be an HTTPS URL');
+        return value;
+    }
+
+    createAuthorization(params: { projectId: number; channelId: number; userId: number }) {
+        const verifier = crypto.randomBytes(48).toString('base64url');
+        const statePayload: VkOAuthState = {
+            ...params,
+            verifier,
+            nonce: crypto.randomUUID(),
+            issuedAt: Math.floor(Date.now() / 1000)
+        };
+        const state = encryptChannelSecret(JSON.stringify(statePayload));
+        const query = new URLSearchParams({
+            client_id: this.clientId,
+            app_id: this.clientId,
+            redirect_uri: this.redirectUri,
+            response_type: 'code',
+            code_challenge: base64UrlSha256(verifier),
+            code_challenge_method: 'S256',
+            scope: 'wall photos groups stats offline',
+            state
+        });
+        return { authorizationUrl: `${VK_ID_BASE_URL}/authorize?${query.toString()}`, state };
+    }
+
+    readState(value: string): VkOAuthState {
+        let parsed: VkOAuthState;
+        try {
+            parsed = JSON.parse(decryptChannelSecret(value));
+        } catch {
+            throw new Error('VK OAuth state is invalid');
+        }
+        const now = Math.floor(Date.now() / 1000);
+        if (!parsed.projectId || !parsed.channelId || !parsed.userId || !parsed.verifier || !parsed.nonce) {
+            throw new Error('VK OAuth state is incomplete');
+        }
+        if (!parsed.issuedAt || parsed.issuedAt > now + 30 || now - parsed.issuedAt > STATE_LIFETIME_SECONDS) {
+            throw new Error('VK OAuth state has expired');
+        }
+        return parsed;
+    }
+
+    async exchangeCode(params: { code: string; deviceId: string; state: string; verifier: string }): Promise<VkTokenResponse> {
+        const query = new URLSearchParams({
+            grant_type: 'authorization_code',
+            redirect_uri: this.redirectUri,
+            client_id: this.clientId,
+            code_verifier: params.verifier,
+            state: params.state,
+            device_id: params.deviceId
+        });
+        const response = await fetch(`${VK_ID_BASE_URL}/oauth2/auth?${query.toString()}`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ code: params.code })
+        });
+        const payload = await response.json() as VkTokenResponse;
+        if (!response.ok || payload.error || !payload.access_token) {
+            throw new Error(payload.error_description || payload.error || `VK token exchange failed (${response.status})`);
+        }
+        if (payload.state && payload.state !== params.state) throw new Error('VK OAuth response state mismatch');
+        return payload;
+    }
+
+    private async callApi(method: string, accessToken: string, params: Record<string, string> = {}) {
+        const query = new URLSearchParams({ ...params, access_token: accessToken, v: VK_API_VERSION });
+        const response = await fetch(`${VK_API_BASE_URL}/${method}?${query.toString()}`);
+        const payload = await response.json() as any;
+        if (!response.ok || payload?.error) {
+            throw new Error(payload?.error?.error_msg || `VK API verification failed (${response.status})`);
+        }
+        return payload.response;
+    }
+
+    async verifyCommunityAdmin(accessToken: string, vkId: string) {
+        const communityId = String(Math.abs(Number.parseInt(vkId, 10)));
+        if (!/^\d+$/.test(communityId) || communityId === '0') throw new Error('VK community ID is invalid');
+        const users = await this.callApi('users.get', accessToken);
+        const userId = Number(users?.[0]?.id);
+        if (!userId) throw new Error('VK user identity could not be verified');
+        const groups = await this.callApi('groups.get', accessToken, { filter: 'admin', count: '1000' });
+        const adminGroupIds = Array.isArray(groups?.items) ? groups.items.map(String) : [];
+        if (!adminGroupIds.includes(communityId)) {
+            throw new Error('The authorized VK profile is not an administrator of this community');
+        }
+        return { userId, communityId };
+    }
+}
+
+export default new VkOAuthService();
