@@ -139,6 +139,14 @@ export class VkOAuthService {
             || community?.is_admin === true
             || Number(community?.admin_level) > 0;
         if (!isAdmin) {
+            const managers = await this.callApi('groups.getMembers', accessToken, {
+                group_id: communityId,
+                filter: 'managers',
+                count: '1000'
+            });
+            const managerItems = Array.isArray(managers?.items) ? managers.items : [];
+            const isManager = managerItems.some((manager: any) => Number(manager?.id ?? manager) === userId);
+            if (isManager) return { userId, communityId };
             throw new Error('The authorized VK profile is not an administrator of this community');
         }
         return { userId, communityId };

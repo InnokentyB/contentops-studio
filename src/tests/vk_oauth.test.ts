@@ -90,14 +90,40 @@ test('VK OAuth accepts only a profile that administers the configured community'
         const previousFetch = global.fetch;
         global.fetch = (async (input: string | URL | Request) => {
             const url = new URL(String(input));
-            const response = url.pathname.endsWith('/users.get')
-                ? [{ id: 42 }]
-                : { groups: [{ id: 117, is_admin: 1, admin_level: 3 }] };
+            let response: any;
+            if (url.pathname.endsWith('/users.get')) response = [{ id: 42 }];
+            else if (url.pathname.endsWith('/groups.getById')) {
+                response = url.searchParams.get('group_ids') === '117'
+                    ? { groups: [{ id: 117, is_admin: 1, admin_level: 3 }] }
+                    : { groups: [{ id: 118, is_admin: 0, admin_level: 0 }] };
+            } else response = { count: 0, items: [] };
             return new Response(JSON.stringify({ response }), { status: 200, headers: { 'content-type': 'application/json' } });
         }) as typeof fetch;
         try {
             assert.deepEqual(await service.verifyCommunityAdmin('token', '-117'), { userId: 42, communityId: '117' });
             await assert.rejects(() => service.verifyCommunityAdmin('token', '-118'), /not an administrator/);
+        } finally {
+            global.fetch = previousFetch;
+        }
+    });
+});
+
+test('VK OAuth accepts a VK ID profile returned in the configured community manager list', async () => {
+    await withVkEnvironment(async () => {
+        const service = new VkOAuthService();
+        const previousFetch = global.fetch;
+        const methods: string[] = [];
+        global.fetch = (async (input: string | URL | Request) => {
+            const url = new URL(String(input));
+            methods.push(url.pathname.split('/').pop() || '');
+            const response = url.pathname.endsWith('/groups.getById')
+                ? { groups: [{ id: 117, is_admin: 0, admin_level: 0 }] }
+                : { count: 2, items: [{ id: 42, role: 'administrator' }, { id: 99, role: 'editor' }] };
+            return new Response(JSON.stringify({ response }), { status: 200, headers: { 'content-type': 'application/json' } });
+        }) as typeof fetch;
+        try {
+            assert.deepEqual(await service.verifyCommunityAdmin('token', '-117', 42), { userId: 42, communityId: '117' });
+            assert.deepEqual(methods, ['groups.getById', 'groups.getMembers']);
         } finally {
             global.fetch = previousFetch;
         }
