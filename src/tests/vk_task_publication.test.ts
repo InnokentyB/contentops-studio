@@ -4,9 +4,11 @@ import test from 'node:test';
 process.env.TELEGRAM_BOT_TOKEN ||= 'test:vk-task-publication';
 process.env.SUPABASE_URL ||= 'https://example.supabase.co';
 process.env.SUPABASE_KEY ||= 'test-supabase-key';
+process.env.CHANNEL_SECRETS_KEY ||= 'test-only-vk-task-publication-secret-key';
 
 const { TelegramTaskPublicationService } = require('../services/telegram_task_publication.service');
 const { VKService } = require('../services/vk.service');
+const { prepareChannelConfigForStorage } = require('../utils/channel.utils');
 
 function approvedVkTask(overrides: Record<string, any> = {}) {
     return {
@@ -427,6 +429,28 @@ test('task publisher resolves top-level VK credentials even when raw_account exi
     } finally {
         vkService.publishPostWithIdentity = original;
     }
+});
+
+test('VK story preflight resolves OAuth credentials encrypted at rest', async () => {
+    const task = approvedVkTask({
+        type: 'vk_story',
+        visual_placement: 'story',
+        channel: {
+            ...approvedVkTask().channel,
+            config: prepareChannelConfigForStorage('vk', {
+                vk_id: '-123',
+                publish_access_token: 'encrypted-user-token',
+                oauth_user_id: 42,
+                oauth_provider: 'vk_id',
+                raw_account: { platform: 'vk' }
+            })
+        }
+    });
+
+    const preview = await harness(task).service.execute({ projectId: 10, taskId: 900, dryRun: true });
+    assert.equal(preview.connector_ready, true);
+    assert.equal(preview.connector_reason, null);
+    assert.equal(preview.delivery, 'vk_api_personal_story');
 });
 
 test('scheduled VK adapter returns provider identity and a stable retry guid', async () => {

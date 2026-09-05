@@ -3,6 +3,7 @@ import publisherService from './publisher.service';
 import publicationFactService from './publication_fact.service';
 import { normalizeTelegramDeliveryPayload } from './telegram_delivery_payload';
 import { resolveVkStoryPollFromTask, type VkStoryPoll } from './vk_story_poll';
+import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
 
 type PublicationTaskArgs = { projectId: number; taskId: number; dryRun?: boolean; idempotencyKey?: string };
 type Dependencies = {
@@ -58,7 +59,7 @@ function resolveApprovedAsset(task: any) {
 }
 
 function extractVkConfig(channel: any) {
-    const top = channel?.config && typeof channel.config === 'object' ? channel.config : {};
+    const top = resolveEffectiveChannelConfig('vk', channel?.config);
     const raw = top.raw_account && typeof top.raw_account === 'object' ? top.raw_account : {};
     return {
         vkId: raw.vk_id ?? top.vk_id ?? null,
