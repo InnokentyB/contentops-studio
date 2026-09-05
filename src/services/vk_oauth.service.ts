@@ -112,20 +112,33 @@ export class VkOAuthService {
         const response = await fetch(`${VK_API_BASE_URL}/${method}?${query.toString()}`);
         const payload = await response.json() as any;
         if (!response.ok || payload?.error) {
-            throw new Error(payload?.error?.error_msg || `VK API verification failed (${response.status})`);
+            const detail = payload?.error?.error_msg || `request failed (${response.status})`;
+            throw new Error(`VK API ${method}: ${detail}`);
         }
         return payload.response;
     }
 
-    async verifyCommunityAdmin(accessToken: string, vkId: string) {
+    async verifyCommunityAdmin(accessToken: string, vkId: string, oauthUserId?: number) {
         const communityId = String(Math.abs(Number.parseInt(vkId, 10)));
         if (!/^\d+$/.test(communityId) || communityId === '0') throw new Error('VK community ID is invalid');
-        const users = await this.callApi('users.get', accessToken);
-        const userId = Number(users?.[0]?.id);
+        let userId = Number(oauthUserId);
+        if (!Number.isInteger(userId) || userId <= 0) {
+            const users = await this.callApi('users.get', accessToken);
+            userId = Number(users?.[0]?.id);
+        }
         if (!userId) throw new Error('VK user identity could not be verified');
-        const groups = await this.callApi('groups.get', accessToken, { filter: 'admin', count: '1000' });
-        const adminGroupIds = Array.isArray(groups?.items) ? groups.items.map(String) : [];
-        if (!adminGroupIds.includes(communityId)) {
+
+        // VK ID tokens can reject groups.get?filter=admin for their profile type.
+        // Verify the one configured community instead of enumerating all admin groups.
+        const response = await this.callApi('groups.getById', accessToken, { group_ids: communityId });
+        const groups = Array.isArray(response) ? response : response?.groups;
+        const community = Array.isArray(groups)
+            ? groups.find((group: any) => String(group?.id) === communityId)
+            : undefined;
+        const isAdmin = community?.is_admin === 1
+            || community?.is_admin === true
+            || Number(community?.admin_level) > 0;
+        if (!isAdmin) {
             throw new Error('The authorized VK profile is not an administrator of this community');
         }
         return { userId, communityId };

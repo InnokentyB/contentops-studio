@@ -92,12 +92,52 @@ test('VK OAuth accepts only a profile that administers the configured community'
             const url = new URL(String(input));
             const response = url.pathname.endsWith('/users.get')
                 ? [{ id: 42 }]
-                : { items: [117, 999] };
+                : { groups: [{ id: 117, is_admin: 1, admin_level: 3 }] };
             return new Response(JSON.stringify({ response }), { status: 200, headers: { 'content-type': 'application/json' } });
         }) as typeof fetch;
         try {
             assert.deepEqual(await service.verifyCommunityAdmin('token', '-117'), { userId: 42, communityId: '117' });
             await assert.rejects(() => service.verifyCommunityAdmin('token', '-118'), /not an administrator/);
+        } finally {
+            global.fetch = previousFetch;
+        }
+    });
+});
+
+test('VK OAuth uses the VK ID identity and supports the legacy getById response shape', async () => {
+    await withVkEnvironment(async () => {
+        const service = new VkOAuthService();
+        const previousFetch = global.fetch;
+        const methods: string[] = [];
+        global.fetch = (async (input: string | URL | Request) => {
+            const url = new URL(String(input));
+            methods.push(url.pathname.split('/').pop() || '');
+            return new Response(JSON.stringify({ response: [{ id: 117, is_admin: 0, admin_level: 2 }] }), {
+                status: 200,
+                headers: { 'content-type': 'application/json' }
+            });
+        }) as typeof fetch;
+        try {
+            assert.deepEqual(await service.verifyCommunityAdmin('token', '-117', 42), { userId: 42, communityId: '117' });
+            assert.deepEqual(methods, ['groups.getById']);
+        } finally {
+            global.fetch = previousFetch;
+        }
+    });
+});
+
+test('VK OAuth verification errors identify the failed API method without exposing the token', async () => {
+    await withVkEnvironment(async () => {
+        const service = new VkOAuthService();
+        const previousFetch = global.fetch;
+        global.fetch = (async () => new Response(JSON.stringify({
+            error: { error_msg: 'Method is not available for this profile type' }
+        }), { status: 200, headers: { 'content-type': 'application/json' } })) as typeof fetch;
+        try {
+            await assert.rejects(
+                () => service.verifyCommunityAdmin('secret-token', '-117', 42),
+                (error: Error) => error.message.includes('VK API groups.getById') && !error.message.includes('secret-token')
+            );
         } finally {
             global.fetch = previousFetch;
         }

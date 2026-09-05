@@ -59,7 +59,11 @@ export default async function vkRoutes(fastify: FastifyInstance) {
                 state: query.state,
                 verifier: state.verifier
             });
-            const identity = await vkOAuthService.verifyCommunityAdmin(token.access_token, String(currentConfig.vk_id));
+            const identity = await vkOAuthService.verifyCommunityAdmin(
+                token.access_token,
+                String(currentConfig.vk_id),
+                token.user_id
+            );
             const nextConfig = prepareChannelConfigForStorage('vk', {
                 ...(channel.config as any),
                 publish_access_token: token.access_token,
