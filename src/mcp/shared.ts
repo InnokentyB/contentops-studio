@@ -1041,6 +1041,24 @@ export function registerPlannerTools(server: McpServer) {
         return asToolResult(result);
     });
 
+    server.registerTool('ba_repair_superseded_publication_tasks', {
+        description: 'Owner-only audited batch repair for unpublished superseded tasks. Atomically moves guarded legacy tasks to terminal skipped status only when each action already names its accepted, ready replacement. Copy, CTA, schedule, action metadata, replacements and publication facts are never changed.',
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string(),
+            replacements: z.array(z.object({
+                taskId: z.number().int().positive(),
+                replacementTaskId: z.number().int().positive(),
+                expectedRevision: z.number().int().nonnegative(),
+                expectedCurrentStatus: z.string()
+            })).min(1),
+            idempotencyKey: z.string()
+        }
+    }, async (args) => {
+        const result = await workQueueService.repairSupersededPublicationTasks(args);
+        return asToolResult(result);
+    });
+
     server.registerTool('ba_repair_publication_projection', {
         description: 'Owner-only audited metadata repair for an unpublished accepted publication: rebuild stored action, handoff and metrics routing fields from the current top-level channel and placement without changing content, schedule, revisions, visual decisions or assets.',
         inputSchema: {

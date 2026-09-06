@@ -71,6 +71,91 @@ const REGISTERED_SERVICE_IDENTITIES: Record<string, RegisteredServiceIdentity> =
 };
 
 export class WorkQueueService {
+    async repairSupersededPublicationTasks(params: {
+        projectId: number;
+        actorId: string;
+        replacements: Array<{ taskId: number; replacementTaskId: number; expectedRevision: number; expectedCurrentStatus: string }>;
+        idempotencyKey: string;
+    }): Promise<Record<string, unknown>> {
+        return prisma.$transaction(async (tx) => {
+            await this.requireProjectOwner(tx, params.projectId, params.actorId);
+            const command = 'ba_repair_superseded_publication_tasks';
+            const cached = await this.checkIdempotency(tx, { projectId: params.projectId, actorId: params.actorId, command, idempotencyKey: params.idempotencyKey });
+            if (cached) return cached as Record<string, unknown>;
+            if (params.replacements.length === 0) throw new Error('[EMPTY_REPAIR_SET] At least one replacement pair is required');
+            const taskIds = params.replacements.map((pair) => pair.taskId);
+            const replacementIds = params.replacements.map((pair) => pair.replacementTaskId);
+            if (new Set(taskIds).size !== taskIds.length || new Set(replacementIds).size !== replacementIds.length || taskIds.some((id) => replacementIds.includes(id))) {
+                throw new Error('[INVALID_REPLACEMENT_SET] Task and replacement IDs must be unique and disjoint');
+            }
+
+            const rows = await tx.contentItem.findMany({
+                where: { project_id: params.projectId, id: { in: [...taskIds, ...replacementIds] } },
+                include: { publication_fact: true }
+            });
+            const byId = new Map(rows.map((row) => [row.id, row]));
+            const prepared = params.replacements.map((pair) => {
+                const task = byId.get(pair.taskId);
+                const replacement = byId.get(pair.replacementTaskId);
+                if (!task || !replacement) throw new Error('[REPLACEMENT_NOT_FOUND] Repair task or replacement is missing from the project');
+                if (task.publication_fact || task.published_link) throw new Error(`[PUBLICATION_READ_ONLY] Task ${task.id} has publication evidence`);
+                if (task.status !== pair.expectedCurrentStatus || task.content_revision !== pair.expectedRevision || task.accepted_revision !== null) {
+                    throw new Error(`[TASK_STATE_CONFLICT] Task ${task.id} no longer matches drafted revision guards`);
+                }
+                const action = ((task.assets || {}) as any).action || {};
+                const skipReason = String(action.skip_reason || '');
+                if (action.status !== 'skipped' || !skipReason.includes(`#${replacement.id}`)) {
+                    throw new Error(`[SUPERSEDE_BINDING_CONFLICT] Task ${task.id} is not action-bound to replacement #${replacement.id}`);
+                }
+                if (replacement.publication_fact || replacement.published_link || replacement.status !== 'ready_for_execution'
+                    || replacement.accepted_revision === null || replacement.accepted_revision !== replacement.content_revision || replacement.handoff_state !== 'ready') {
+                    throw new Error(`[REPLACEMENT_NOT_READY] Replacement task ${replacement.id} is not accepted and ready`);
+                }
+                return { pair, task, replacement, skipReason };
+            });
+
+            for (const { pair, task, replacement, skipReason } of prepared) {
+                const update = await tx.contentItem.updateMany({
+                    where: { id: task.id, project_id: params.projectId, status: pair.expectedCurrentStatus, content_revision: pair.expectedRevision,
+                        accepted_revision: null, published_link: null, publication_fact: { is: null } },
+                    data: { status: 'skipped' }
+                });
+                if (update.count !== 1) throw new Error(`[TASK_STATE_CONFLICT] Task ${task.id} changed concurrently`);
+                await this.recordWorkflowEvent(tx, {
+                    projectId: params.projectId,
+                    weekPackageId: task.week_package_id || undefined,
+                    contentItemId: task.id,
+                    actorId: params.actorId,
+                    command,
+                    beforeState: {
+                        task_id: task.id, status: task.status, content_revision: task.content_revision, accepted_revision: task.accepted_revision,
+                        draft_text_length: task.draft_text?.length || 0,
+                        draft_text_sha256: createHash('sha256').update(task.draft_text || '').digest('hex'),
+                        action_status: 'skipped', action_skip_reason: skipReason, publication_fact_id: null, published_link: null
+                    },
+                    afterState: {
+                        task_id: task.id, status: 'skipped', replacement_task_id: replacement.id, replacement_status: replacement.status,
+                        replacement_content_revision: replacement.content_revision, replacement_accepted_revision: replacement.accepted_revision,
+                        action_status: 'skipped', action_skip_reason: skipReason, body_preserved: true, publication_fact_created: false
+                    },
+                    idempotencyKey: `${params.idempotencyKey}:task:${task.id}`
+                });
+            }
+            const afterState = {
+                repaired: true,
+                terminal_status: 'skipped',
+                tasks: prepared.map(({ task, replacement }) => ({ task_id: task.id, status: 'skipped', content_revision: task.content_revision,
+                    accepted_revision: null, replacement_task_id: replacement.id, replacement_status: replacement.status,
+                    replacement_content_revision: replacement.content_revision, replacement_accepted_revision: replacement.accepted_revision }))
+            };
+            await this.recordWorkflowEvent(tx, {
+                projectId: params.projectId, actorId: params.actorId, command,
+                beforeState: { task_ids: taskIds, replacement_task_ids: replacementIds }, afterState, idempotencyKey: params.idempotencyKey
+            });
+            return afterState;
+        });
+    }
+
     async repairRevisionZeroStoryBinding(params: {
         projectId: number;
         actorId: string;
