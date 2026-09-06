@@ -2,7 +2,7 @@ import { decryptChannelSecret, encryptChannelSecret } from './channel_secrets';
 
 const DZEN_TYPES = new Set(['zen', 'zen_article', 'dzen']);
 const ENCRYPTED_SECRET_FIELDS: Record<string, string[]> = {
-    vk: ['publish_access_token', 'stats_access_token', 'vk_refresh_token']
+    vk: ['publish_access_token', 'user_access_token', 'vk_oauth_access_token', 'stats_access_token', 'vk_refresh_token']
 };
 
 /**
@@ -18,7 +18,10 @@ export function sanitizeChannelConfig(type: string, config: any): any {
     // Mask sensitive fields
     if (sanitized.api_key) sanitized.api_key = '******';
     if (sanitized.publish_access_token) sanitized.publish_access_token = '******';
+    if (sanitized.user_access_token) sanitized.user_access_token = '******';
+    if (sanitized.vk_oauth_access_token) sanitized.vk_oauth_access_token = '******';
     if (sanitized.stats_access_token) sanitized.stats_access_token = '******';
+    if (sanitized.vk_refresh_token) sanitized.vk_refresh_token = '******';
     if (sanitized.access_token) sanitized.access_token = '******';
     if (sanitized.cookies) sanitized.cookies = '******';
     if (sanitized.cookies_encrypted) {
@@ -44,7 +47,7 @@ export function mergeChannelConfig(incomingConfig: any, existingConfig: any): an
     if (!existingConfig || typeof existingConfig !== 'object') return incomingConfig;
     const merged = { ...incomingConfig };
     
-    const secretKeys = ['api_key', 'publish_access_token', 'stats_access_token', 'vk_refresh_token', 'access_token', 'cookies', 'application_secret_key'];
+    const secretKeys = ['api_key', 'publish_access_token', 'user_access_token', 'vk_oauth_access_token', 'stats_access_token', 'vk_refresh_token', 'access_token', 'cookies', 'application_secret_key'];
     for (const key of secretKeys) {
         if (merged[key] === '******' && existingConfig[key]) {
             merged[key] = existingConfig[key];
@@ -69,6 +72,12 @@ export function mergeChannelConfig(incomingConfig: any, existingConfig: any): an
 export function prepareChannelConfigForStorage(type: string, config: any): any {
     const prepared = { ...(config || {}) };
     if (type === 'vk') {
+        for (const field of ['publish_access_token', 'user_access_token']) {
+            const value = typeof prepared[field] === 'string' ? prepared[field].trim() : '';
+            if (/^vk2\./i.test(value)) {
+                throw new Error(`${field} cannot use a VK ID vk2 token; provide a VK API publishing token`);
+            }
+        }
         for (const field of ENCRYPTED_SECRET_FIELDS.vk) {
             const value = typeof prepared[field] === 'string' ? prepared[field].trim() : '';
             if (value && value !== '******') prepared[`${field}_encrypted`] = encryptChannelSecret(value);

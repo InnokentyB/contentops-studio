@@ -175,24 +175,50 @@ test('VK OAuth tokens are encrypted at rest, masked in API output, and preserved
         const stored = prepareChannelConfigForStorage('vk', {
             vk_id: '-117',
             publish_access_token: 'publish-secret',
+            user_access_token: 'user-secret',
+            vk_oauth_access_token: 'oauth-secret',
             stats_access_token: 'stats-secret',
             vk_refresh_token: 'refresh-secret'
         });
         assert.equal(JSON.stringify(stored).includes('publish-secret'), false);
         assert.match(stored.publish_access_token_encrypted, /^enc:v1:/);
+        assert.match(stored.user_access_token_encrypted, /^enc:v1:/);
+        assert.match(stored.vk_oauth_access_token_encrypted, /^enc:v1:/);
         assert.match(stored.stats_access_token_encrypted, /^enc:v1:/);
         assert.match(stored.vk_refresh_token_encrypted, /^enc:v1:/);
 
         const sanitized = sanitizeChannelConfig('vk', stored);
         assert.equal(sanitized.publish_access_token, '******');
+        assert.equal(sanitized.user_access_token, '******');
+        assert.equal(sanitized.vk_oauth_access_token, '******');
         assert.equal(sanitized.stats_access_token, '******');
         assert.equal(sanitized.vk_refresh_token, '******');
         assert.equal(sanitized.publish_access_token_encrypted, undefined);
 
-        const merged = mergeChannelConfig({ vk_id: '-117', publish_access_token: '******' }, stored);
+        const merged = mergeChannelConfig({
+            vk_id: '-117', publish_access_token: '******', user_access_token: '******', vk_oauth_access_token: '******'
+        }, stored);
         const resolved = resolveEffectiveChannelConfig('vk', merged);
         assert.equal(resolved.publish_access_token, 'publish-secret');
+        assert.equal(resolved.user_access_token, 'user-secret');
+        assert.equal(resolved.vk_oauth_access_token, 'oauth-secret');
         assert.equal(resolved.stats_access_token, 'stats-secret');
         assert.equal(resolved.vk_refresh_token, 'refresh-secret');
+    });
+});
+
+test('VK ID tokens cannot be saved into publishing token fields', async () => {
+    await withVkEnvironment(() => {
+        assert.throws(
+            () => prepareChannelConfigForStorage('vk', { publish_access_token: 'vk2.a.community-wrong' }),
+            /cannot use a VK ID vk2 token/
+        );
+        assert.throws(
+            () => prepareChannelConfigForStorage('vk', { user_access_token: 'vk2.a.user-wrong' }),
+            /cannot use a VK ID vk2 token/
+        );
+        assert.doesNotThrow(() => prepareChannelConfigForStorage('vk', {
+            publish_access_token: 'vk1.community', user_access_token: 'vk1.user'
+        }));
     });
 });

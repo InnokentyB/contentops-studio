@@ -29,7 +29,11 @@ function approvedVkTask(overrides: Record<string, any> = {}) {
             id: 120,
             type: 'vk',
             name: 'analystcraft_vk',
-            config: { vk_id: '-123', publish_access_token: 'secret-token' }
+            config: {
+                vk_id: '-123',
+                publish_access_token: 'community-token',
+                user_access_token: 'user-media-token'
+            }
         },
         selected_asset: {
             id: 18,
@@ -136,6 +140,40 @@ test('VK dry-run validates payload while reporting missing provider configuratio
     assert.equal(calls.provider.length, 0);
 });
 
+test('VK text-only feed remains ready with only the community token', async () => {
+    const task = approvedVkTask({
+        visual_state: 'PENDING_ASSESSMENT',
+        selected_asset_id: null,
+        selected_asset: null,
+        channel: {
+            ...approvedVkTask().channel,
+            config: { vk_id: '-123', publish_access_token: 'community-token' }
+        }
+    });
+    const preview = await harness(task).service.execute({ projectId: 10, taskId: 900, dryRun: true });
+    assert.equal(preview.connector_ready, true);
+    assert.equal(preview.connector_reason, null);
+    assert.equal(preview.payload_preview.has_image, false);
+});
+
+test('VK feed image preflight requires the separate classic user token', async () => {
+    const task = approvedVkTask({
+        channel: {
+            ...approvedVkTask().channel,
+            config: { vk_id: '-123', publish_access_token: 'community-token' }
+        }
+    });
+    const { service, calls } = harness(task);
+    const preview = await service.execute({ projectId: 10, taskId: 900, dryRun: true });
+    assert.equal(preview.connector_ready, false);
+    assert.equal(preview.connector_reason, 'vk_user_media_token_missing');
+    await assert.rejects(
+        service.execute({ projectId: 10, taskId: 900, idempotencyKey: 'vk-image-without-user-token' }),
+        /VK_MEDIA_CONNECTOR_NOT_READY/
+    );
+    assert.equal(calls.provider.length, 0);
+});
+
 test('VK provider failure stays uncertain and never writes a publication fact', async () => {
     const { service, calls } = harness(approvedVkTask(), new Error('connection lost'));
     await assert.rejects(
@@ -157,7 +195,8 @@ test('strict VK provider passes a stable guid and returns validated provider ide
         loadRemoteImage: async () => ({ buffer: Buffer.from('png'), filename: 'approved.png', contentType: 'image/png' })
     });
     const result = await service.publishPostWithIdentity('-123', 'token', 'Accepted VK text', 'https://cdn.example/approved.png', {
-        guid: 'planner-task-900-r3'
+        guid: 'planner-task-900-r3',
+        mediaUploadToken: 'user-media-token'
     });
     assert.deepEqual(wallCalls, [{
         owner_id: -123,
@@ -317,7 +356,7 @@ test('VK personal story uses the accepted vertical asset and records story ident
         visual_placement: 'story',
         channel: {
             ...approvedVkTask().channel,
-            config: { publish_access_token: 'user-token', oauth_user_id: 42, oauth_provider: 'vk_id' }
+            config: { user_access_token: 'user-token', oauth_user_id: 42, oauth_provider: 'vk_id' }
         }
     });
     const dry = harness(task);
@@ -355,7 +394,7 @@ test('VK personal story passes only the revision-bound native poll to the provid
         assets: { vk_story_poll: poll },
         channel: {
             ...approvedVkTask().channel,
-            config: { publish_access_token: 'user-token', oauth_user_id: 42 }
+            config: { user_access_token: 'user-token', oauth_user_id: 42 }
         }
     });
     const dry = harness(task);
@@ -377,7 +416,7 @@ test('VK personal story dry-run requires OAuth profile identity and an approved 
     const missingIdentity = approvedVkTask({
         type: 'vk_story',
         visual_placement: 'story',
-        channel: { ...approvedVkTask().channel, config: { publish_access_token: 'user-token' } }
+        channel: { ...approvedVkTask().channel, config: { user_access_token: 'user-token' } }
     });
     const identityHarness = harness(missingIdentity);
     const preview = await identityHarness.service.execute({ projectId: 10, taskId: 900, dryRun: true });
@@ -387,7 +426,7 @@ test('VK personal story dry-run requires OAuth profile identity and an approved 
     const missingVisual = approvedVkTask({
         type: 'vk_story', visual_placement: 'story', selected_asset_id: null, selected_asset: null,
         visual_state: 'PENDING_ASSESSMENT',
-        channel: { ...approvedVkTask().channel, config: { publish_access_token: 'user-token', oauth_user_id: 42 } }
+        channel: { ...approvedVkTask().channel, config: { user_access_token: 'user-token', oauth_user_id: 42 } }
     });
     await assert.rejects(
         harness(missingVisual).service.execute({ projectId: 10, taskId: 900, dryRun: true }),
@@ -413,6 +452,7 @@ test('task publisher resolves top-level VK credentials even when raw_account exi
                 config: {
                     vk_id: '-123',
                     publish_access_token: 'top-level-token',
+                    user_access_token: 'top-level-user-token',
                     raw_account: { platform: 'vk' }
                 }
             },
@@ -425,6 +465,7 @@ test('task publisher resolves top-level VK credentials even when raw_account exi
         assert.equal(calls[0][2], 'Accepted VK publication text');
         assert.equal(calls[0][3], 'https://cdn.example/approved-vk.png');
         assert.match(calls[0][4].guid, /^planner-[a-f0-9]{32}$/);
+        assert.equal(calls[0][4].mediaUploadToken, 'top-level-user-token');
         assert.equal(result.metrics.vk_post_id, '456');
     } finally {
         vkService.publishPostWithIdentity = original;
@@ -439,7 +480,7 @@ test('VK story preflight resolves OAuth credentials encrypted at rest', async ()
             ...approvedVkTask().channel,
             config: prepareChannelConfigForStorage('vk', {
                 vk_id: '-123',
-                publish_access_token: 'encrypted-user-token',
+                user_access_token: 'encrypted-user-token',
                 oauth_user_id: 42,
                 oauth_provider: 'vk_id',
                 raw_account: { platform: 'vk' }
@@ -472,10 +513,11 @@ test('scheduled VK adapter returns provider identity and a stable retry guid', a
         );
         assert.equal(calls.length, 1);
         assert.equal(calls[0][0], '-123');
-        assert.equal(calls[0][1], 'secret-token');
+        assert.equal(calls[0][1], 'community-token');
         assert.equal(calls[0][2], 'Accepted VK publication text');
         assert.equal(calls[0][3], 'https://cdn.example/approved-vk.png');
         assert.match(calls[0][4].guid, /^planner-[a-f0-9]{32}$/);
+        assert.equal(calls[0][4].mediaUploadToken, 'user-media-token');
         assert.deepEqual(result, {
             adapter: 'vk',
             publishedLink: 'https://vk.com/wall-123_456',
@@ -510,7 +552,7 @@ test('scheduled VK story dispatches through the personal story provider instead 
             visual_placement: 'story',
             channel: {
                 ...approvedVkTask().channel,
-                config: { publish_access_token: 'user-token', oauth_user_id: 42 }
+                config: { user_access_token: 'user-token', oauth_user_id: 42 }
             }
         });
         const result = await publisherService.executeAutomatedPublicationTask(
@@ -542,7 +584,9 @@ test('strict VK provider never drops a requested visual and rejects missing post
         loadRemoteImage: async () => ({ buffer: Buffer.from('png'), filename: 'approved.png', contentType: 'image/png' })
     });
     await assert.rejects(
-        uploadFailure.publishPostWithIdentity('-123', 'token', 'text', 'https://cdn.example/approved.png', { guid: 'task-900' }),
+        uploadFailure.publishPostWithIdentity('-123', 'token', 'text', 'https://cdn.example/approved.png', {
+            guid: 'task-900', mediaUploadToken: 'user-media-token'
+        }),
         /upload failed/
     );
     assert.equal(postCalls, 0);

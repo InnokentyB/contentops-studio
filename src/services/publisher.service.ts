@@ -409,7 +409,7 @@ class PublisherService {
             String(vkConfig.publish_access_token),
             text,
             params.imageUrl,
-            { guid }
+            { guid, mediaUploadToken: vkConfig.user_access_token || undefined }
         );
         return {
             adapter: 'vk',
@@ -432,11 +432,11 @@ class PublisherService {
         poll?: VkStoryPoll | null;
     }) {
         const vkConfig = this.extractVkAccountConfig(params.channel?.config || {});
-        if (!vkConfig.publish_access_token || !vkConfig.oauth_user_id) {
-            throw new Error('[VK_PERSONAL_STORY_CONNECTOR_NOT_READY] Personal VK story requires a connected OAuth profile');
+        if (!vkConfig.user_access_token || !vkConfig.oauth_user_id) {
+            throw new Error('[VK_PERSONAL_STORY_CONNECTOR_NOT_READY] Personal VK story requires a classic user access token and verified profile ID');
         }
         const result = await vkService.publishPersonalPhotoStoryWithIdentity(
-            String(vkConfig.publish_access_token),
+            String(vkConfig.user_access_token),
             String(vkConfig.oauth_user_id),
             params.imageUrl,
             params.poll
@@ -555,6 +555,8 @@ class PublisherService {
                 ?? topLevel.api_key
                 ?? null,
             stats_access_token: raw.stats_access_token ?? topLevel.stats_access_token ?? null,
+            user_access_token: raw.user_access_token ?? topLevel.user_access_token ?? null,
+            vk_oauth_access_token: raw.vk_oauth_access_token ?? topLevel.vk_oauth_access_token ?? null,
             oauth_user_id: raw.oauth_user_id ?? topLevel.oauth_user_id ?? null
         };
     }
@@ -2230,7 +2232,7 @@ class PublisherService {
                 String(apiKey),
                 vkText,
                 vkImageUrl || undefined,
-                { guid }
+                { guid, mediaUploadToken: vkConfig.user_access_token || undefined }
             );
             return {
                 adapter: 'vk',
@@ -2633,7 +2635,8 @@ class PublisherService {
                             vkId,
                             apiKey,
                             text,
-                            post.image_url || undefined
+                            post.image_url || undefined,
+                            { mediaUploadToken: vkConfig.user_access_token || undefined }
                         );
                         logToFile('INFO', `[Publisher] Successfully published post ${post.id} to VK: ${publishedLink}`);
                     } catch (vkErr) {
@@ -2934,7 +2937,13 @@ class PublisherService {
             if (!vkId || !apiKey) {
                 throw new Error(`VK config missing id/key for post ${postId}`);
             }
-            publishedLink = await vkService.publishPost(vkId, apiKey, text, post.image_url || undefined);
+            publishedLink = await vkService.publishPost(
+                vkId,
+                apiKey,
+                text,
+                post.image_url || undefined,
+                { mediaUploadToken: vkConfig.user_access_token || undefined }
+            );
         } else if (channel.type === 'linkedin') {
             const linkedinConfig = channel.config as any;
             const urn = linkedinConfig.linkedin_urn;

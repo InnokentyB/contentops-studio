@@ -66,12 +66,11 @@ export default async function vkRoutes(fastify: FastifyInstance) {
             );
             const nextConfig = prepareChannelConfigForStorage('vk', {
                 ...(channel.config as any),
-                publish_access_token: token.access_token,
-                stats_access_token: token.access_token,
+                vk_oauth_access_token: token.access_token,
                 ...(token.refresh_token ? { vk_refresh_token: token.refresh_token } : {}),
-                analytics_enabled: true,
                 api_version: '5.199',
                 oauth_provider: 'vk_id',
+                oauth_token_profile: 'identity_only',
                 oauth_user_id: identity.userId,
                 oauth_connected_at: new Date().toISOString(),
                 oauth_expires_at: token.expires_in ? new Date(Date.now() + token.expires_in * 1000).toISOString() : null

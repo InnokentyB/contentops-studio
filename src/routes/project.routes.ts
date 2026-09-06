@@ -1086,11 +1086,36 @@ export default async function projectRoutes(fastify: FastifyInstance) {
         try {
             if (channel.type === 'vk') {
                 const config = resolveEffectiveChannelConfig('vk', channel.config);
-                if (!config.vk_id || !config.publish_access_token) {
+                if (!config.vk_id) {
                     return reply.code(400).send({ error: 'Connect VK before testing this channel', code: 'VK_NOT_CONNECTED' });
                 }
-                const result = await vkOAuthService.verifyCommunityAdmin(config.publish_access_token, String(config.vk_id));
-                return { success: true, result: { ...result, connected: true } };
+                const identityToken = config.user_access_token || config.vk_oauth_access_token;
+                const identity = identityToken
+                    ? await vkOAuthService.verifyCommunityAdmin(identityToken, String(config.vk_id), Number(config.oauth_user_id) || undefined)
+                    : null;
+                const profileId = identity?.userId || Number(config.oauth_user_id) || null;
+                if (config.user_access_token && identity?.userId) {
+                    const nextConfig = prepareChannelConfigForStorage('vk', {
+                        ...(channel.config as any),
+                        oauth_user_id: identity.userId,
+                        user_token_profile: 'classic_vk_api',
+                        user_token_verified_at: new Date().toISOString()
+                    });
+                    await prisma.socialChannel.update({ where: { id: channel.id }, data: { config: nextConfig } });
+                }
+                return {
+                    success: true,
+                    result: {
+                        ...(identity || {}),
+                        connected: Boolean(identity),
+                        capabilities: {
+                            feed_text: Boolean(config.publish_access_token),
+                            feed_image: Boolean(config.publish_access_token && config.user_access_token),
+                            personal_story: Boolean(config.user_access_token && profileId),
+                            vk_id_identity: Boolean(config.vk_oauth_access_token && config.oauth_user_id)
+                        }
+                    }
+                };
             }
             const result = await dzenService.testConnection(
                 resolveChannelConfigSecrets(channel.type, channel.config)
@@ -1098,8 +1123,8 @@ export default async function projectRoutes(fastify: FastifyInstance) {
             return { success: true, result };
         } catch (error: any) {
             return reply.code(400).send({
-                error: error.message || 'Dzen connection test failed',
-                code: 'DZEN_CONNECTION_TEST_FAILED'
+                error: error.message || `${channel.type === 'vk' ? 'VK' : 'Dzen'} connection test failed`,
+                code: channel.type === 'vk' ? 'VK_CONNECTION_TEST_FAILED' : 'DZEN_CONNECTION_TEST_FAILED'
             });
         }
     });

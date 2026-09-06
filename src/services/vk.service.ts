@@ -195,7 +195,7 @@ export class VKService {
         apiKey: string,
         text: string,
         imageUrl?: string,
-        options: { guid?: string } = {}
+        options: { guid?: string; mediaUploadToken?: string } = {}
     ): Promise<{ ownerId: string; postId: string; publishedLink: string }> {
         const normalizedText = typeof text === 'string' ? text.trim() : '';
         if (!normalizedText) throw new Error('[VK_TEXT_REQUIRED] VK publication text must not be empty');
@@ -208,6 +208,10 @@ export class VKService {
         let attachmentString: string | undefined;
 
         if (imageUrl) {
+            if (!options.mediaUploadToken?.trim()) {
+                throw new Error('[VK_MEDIA_TOKEN_REQUIRED] VK image upload requires a classic user access token');
+            }
+            const mediaVk = this.dependencies.createClient(options.mediaUploadToken.trim());
             let photoSource: any;
 
             if (imageUrl.startsWith('data:')) {
@@ -228,7 +232,7 @@ export class VKService {
                 throw new Error(`Unsupported image URL format: ${imageUrl}`);
             }
 
-            const photo = await vk.upload.wallPhoto({
+            const photo = await mediaVk.upload.wallPhoto({
                 source: photoSource,
                 group_id: Math.abs(ownerId)
             });
@@ -266,7 +270,7 @@ export class VKService {
         apiKey: string,
         text: string,
         imageUrl?: string,
-        options: { guid?: string } = {}
+        options: { guid?: string; mediaUploadToken?: string } = {}
     ): Promise<string> {
         return (await this.publishPostWithIdentity(vkId, apiKey, text, imageUrl, options)).publishedLink;
     }

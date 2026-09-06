@@ -361,36 +361,38 @@ function ChannelConnectionGuide({
     )
 }
 
-function VkConnectionGuide({ locale, vkId, publicationToken, oauthUserId }: {
-    locale: 'ru' | 'en'; vkId: unknown; publicationToken: unknown; oauthUserId?: unknown
+function VkConnectionGuide({ locale, vkId, publicationToken, userToken, oauthUserId }: {
+    locale: 'ru' | 'en'; vkId: unknown; publicationToken: unknown; userToken?: unknown; oauthUserId?: unknown
 }) {
     const hasVkId = Boolean(String(vkId || '').trim())
     const hasPublicationToken = Boolean(String(publicationToken || '').trim())
+    const hasUserToken = Boolean(String(userToken || '').trim())
     const hasOAuthProfile = Boolean(String(oauthUserId || '').trim())
     const missing = [
         !hasVkId ? (locale === 'ru' ? 'ID сообщества' : 'community ID') : null,
-        !hasPublicationToken ? (locale === 'ru' ? 'токен публикации' : 'publication token') : null
+        !hasPublicationToken ? (locale === 'ru' ? 'ключ сообщества' : 'community token') : null,
+        !hasUserToken ? (locale === 'ru' ? 'классический user token' : 'classic user token') : null
     ].filter(Boolean).join(locale === 'ru' ? ' и ' : ' and ')
 
     return <ChannelConnectionGuide
         title={locale === 'ru' ? 'Как подключить VK' : 'How to connect VK'}
-        fieldsComplete={hasVkId && hasPublicationToken}
+        fieldsComplete={hasVkId && hasPublicationToken && hasUserToken}
         completeLabel={locale === 'ru' ? 'Поля заполнены' : 'Fields filled'}
         missingLabel={locale === 'ru' ? `Не хватает: ${missing}` : `Missing: ${missing}`}
         steps={locale === 'ru' ? [
-            'Укажите числовой ID сообщества со знаком минус, например −123456789, и сохраните карточку канала.',
-            'Нажмите «Подключить VK» и разрешите доступ личному профилю администратора. Planner запросит права на стену, фотографии, статистику и персональные Stories.',
-            'Проверьте доступ. Обычные посты пойдут в указанное сообщество, а задачи с размещением story — в персональные Stories подключённого профиля.',
-            'Если VK был подключён до появления Stories, нажмите «Переподключить VK» один раз, чтобы выдать новое право stories.'
+            'Укажите ID сообщества со знаком минус и вставьте ключ доступа сообщества из Управление → Работа с API. Он используется только для записи в ленту.',
+            'Для изображений и персональных Stories вставьте отдельный классический пользовательский токен VK API. Токены VK ID, начинающиеся с vk2.a, для публикации не подходят.',
+            'Кнопка «Подключить VK ID» подтверждает личность администратора, но не заменяет два publishing-токена.',
+            'Сохраните карточку и нажмите «Проверить доступ»: Planner отдельно покажет готовность текста, изображений и Stories.'
         ] : [
-            'Enter the numeric community ID with a minus sign, for example −123456789, and save the channel card.',
-            'Select Connect VK and authorize a personal administrator profile. Planner requests wall, photo, statistics, and personal Stories permissions.',
-            'Test access. Regular posts target the configured community; tasks with story placement target the connected personal profile.',
-            'If VK was connected before Stories support was added, select Reconnect VK once to grant the new stories permission.'
+            'Enter the community ID with a minus sign and paste its access key from Management → API usage. It is used only for feed publication.',
+            'For images and personal Stories, paste a separate classic VK API user token. VK ID tokens beginning with vk2.a cannot publish.',
+            'Connect VK ID verifies the administrator identity but does not replace either publishing token.',
+            'Save the channel and select Test access. Planner reports feed text, feed image, and Story readiness separately.'
         ]}
         note={locale === 'ru'
-            ? `Токен хранится зашифрованно и повторно не показывается. Фото-сторис требуют утверждённый вертикальный визуал 1080×1920 и OAuth-профиль${hasOAuthProfile ? ` ID ${String(oauthUserId)}` : ''}. Нативный опрос настраивается через MCP и проходит общую проверку ревизии; подписи, ссылки и видео пока не отправляются.`
-            : `The token is encrypted and never displayed again. Photo Stories require an approved 1080×1920 vertical visual and an OAuth profile${hasOAuthProfile ? ` ID ${String(oauthUserId)}` : ''}. A native poll is configured through MCP and follows the shared revision review; captions, links, and video are not sent yet.`}
+            ? `Все токены шифруются и повторно не показываются. VK ID${hasOAuthProfile ? ` профиля ${String(oauthUserId)}` : ''} хранится отдельно. Фото-сторис требуют утверждённый визуал 1080×1920; нативный опрос проходит общую проверку ревизии.`
+            : `All tokens are encrypted and never displayed again. VK ID${hasOAuthProfile ? ` profile ${String(oauthUserId)}` : ''} is stored separately. Photo Stories require an approved 1080×1920 visual; native polls follow the shared revision review.`}
     />
 }
 
@@ -563,6 +565,7 @@ export default function Settings() {
     const [newChannelContentLanguage, setNewChannelContentLanguage] = useState<'ru' | 'en'>('ru')
     const [linkedinConnecting, setLinkedinConnecting] = useState(false)
     const [newVkStatsToken, setNewVkStatsToken] = useState('')
+    const [newVkUserToken, setNewVkUserToken] = useState('')
     const [okAppKey, setOkAppKey] = useState('')
     const [okAppSecret, setOkAppSecret] = useState('')
     const [webhookUrl, setWebhookUrl] = useState('')
@@ -764,6 +767,7 @@ export default function Settings() {
         setNewChannelUsername('')
         setNewChannelApiKey('')
         setNewVkStatsToken('')
+        setNewVkUserToken('')
         setSessionCookies('')
         setHubIds('')
         setWebhookUrl('')
@@ -804,12 +808,25 @@ export default function Settings() {
 
     const testChannelConnection = useMutation({
         mutationFn: (channelId: number) => projectsApi.testChannelConnection(currentProject!.id, channelId),
-        onSuccess: (_result, channelId) => {
+        onSuccess: (response: ApiJson, channelId) => {
             const channel = (projectData as ApiJson)?.channels?.find((item: ApiJson) => item.id === channelId)
+            if (channel?.type === 'vk') {
+                const capabilities = response?.result?.capabilities || response?.capabilities || {}
+                const missing = [
+                    !capabilities.feed_text && (locale === 'ru' ? 'текст' : 'text posts'),
+                    !capabilities.feed_image && (locale === 'ru' ? 'изображения' : 'images'),
+                    !capabilities.personal_story && 'Stories'
+                ].filter(Boolean)
+                showToast(
+                    missing.length === 0
+                        ? (locale === 'ru' ? 'VK полностью готов: текст, изображения и Stories' : 'VK is fully ready: text, images, and Stories')
+                        : (locale === 'ru' ? `VK подключён частично. Не готовы: ${missing.join(', ')}` : `VK is partially connected. Not ready: ${missing.join(', ')}`),
+                    missing.length === 0 ? 'success' : 'warning'
+                )
+                return
+            }
             showToast(
-                channel?.type === 'vk'
-                    ? (locale === 'ru' ? 'VK подключён: профиль управляет выбранным сообществом' : 'VK is connected: the profile administers this community')
-                    : (locale === 'ru' ? 'Сессия Дзена активна, редактор доступен' : 'Zen session is active and the editor is available'),
+                locale === 'ru' ? 'Сессия Дзена активна, редактор доступен' : 'Zen session is active and the editor is available',
                 'success'
             )
         },
@@ -1071,6 +1088,7 @@ export default function Settings() {
             if (!newChannelApiKey) return showToast('VK requires a publication access token', 'warning');
             config.vk_id = newChannelId;
             config.publish_access_token = newChannelApiKey;
+            if (newVkUserToken) config.user_access_token = newVkUserToken;
             if (newVkStatsToken) config.stats_access_token = newVkStatsToken;
             config.analytics_enabled = Boolean(newVkStatsToken);
             config.api_version = '5.199';
@@ -1674,6 +1692,15 @@ export default function Settings() {
                                         </div>
                                     </div>
                                     <div style={{ gridColumn: '1 / -1' }}>
+                                        <label>{locale === 'ru' ? 'Классический пользовательский токен для изображений и Stories' : 'Classic user token for images and Stories'}</label>
+                                        <input
+                                            type="password"
+                                            placeholder={locale === 'ru' ? 'Пользовательский токен VK API, не vk2.a' : 'VK API user token, not vk2.a'}
+                                            value={newVkUserToken}
+                                            onChange={e => setNewVkUserToken(e.target.value)}
+                                        />
+                                    </div>
+                                    <div style={{ gridColumn: '1 / -1' }}>
                                         <label>User statistics token (Optional)</label>
                                         <input
                                             type="password"
@@ -1689,6 +1716,7 @@ export default function Settings() {
                                         locale={locale}
                                         vkId={newChannelId}
                                         publicationToken={newChannelApiKey}
+                                        userToken={newVkUserToken}
                                     />
                                 </>
                             ) : newChannelType === 'ok' ? (
@@ -2021,13 +2049,13 @@ export default function Settings() {
                                                             <div>
                                                                 <div className="text-sm font-black text-on-surface">
                                                                     {editingChannelConfig.oauth_user_id
-                                                                        ? (locale === 'ru' ? 'VK ID подключён' : 'VK ID connected')
+                                                                        ? (locale === 'ru' ? 'VK ID подключён для идентификации' : 'VK ID connected for identity')
                                                                         : (locale === 'ru' ? 'VK ID не подключён' : 'VK ID not connected')}
                                                                 </div>
                                                                 <p className="mt-1 text-xs leading-5 text-on-surface-variant">
                                                                     {locale === 'ru'
-                                                                        ? 'Авторизуй личный профиль администратора. Planner сохранит токен зашифрованно и не покажет его в интерфейсе.'
-                                                                        : 'Authorize an administrator profile. Planner stores the token encrypted and never displays it.'}
+                                                                        ? 'VK ID подтверждает профиль администратора, но его токен vk2.a не используется для публикации.'
+                                                                        : 'VK ID verifies the administrator profile, but its vk2.a token is not used for publishing.'}
                                                                 </p>
                                                             </div>
                                                             <div className="flex flex-wrap gap-2">
@@ -2035,10 +2063,10 @@ export default function Settings() {
                                                                     {connectVk.isPending
                                                                         ? (locale === 'ru' ? 'Открываем VK…' : 'Opening VK…')
                                                                         : editingChannelConfig.oauth_user_id
-                                                                            ? (locale === 'ru' ? 'Переподключить VK' : 'Reconnect VK')
-                                                                            : (locale === 'ru' ? 'Подключить VK' : 'Connect VK')}
+                                                                            ? (locale === 'ru' ? 'Переподключить VK ID' : 'Reconnect VK ID')
+                                                                            : (locale === 'ru' ? 'Подключить VK ID' : 'Connect VK ID')}
                                                                 </button>
-                                                                {editingChannelConfig.oauth_user_id && editingChannelConfig.publish_access_token === '******' && (
+                                                                {(editingChannelConfig.oauth_user_id || editingChannelConfig.publish_access_token === '******' || editingChannelConfig.user_access_token === '******') && (
                                                                     <button type="button" className="btn-secondary" onClick={() => testChannelConnection.mutate(channel.id)} disabled={testChannelConnection.isPending}>
                                                                         {locale === 'ru' ? 'Проверить доступ' : 'Test access'}
                                                                     </button>
@@ -2062,15 +2090,29 @@ export default function Settings() {
                                                         )}
                                                     </div>
                                                     <div>
-                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>{locale === 'ru' ? 'Пользовательский токен (резервный ручной ввод)' : 'User token (manual fallback)'}</label>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>{locale === 'ru' ? 'Ключ доступа сообщества (лента)' : 'Community access token (feed)'}</label>
                                                         <input
                                                             type="password"
                                                             className="w-full"
                                                             value={editingChannelConfig.publish_access_token || editingChannelConfig.api_key || ''}
                                                             onChange={e => setEditingChannelConfig({ ...editingChannelConfig, publish_access_token: e.target.value })}
-                                                            placeholder={locale === 'ru' ? 'Оставь пустым и используй «Подключить VK»' : 'Leave empty and use Connect VK'}
+                                                            placeholder={locale === 'ru' ? 'Ключ из Управление → Работа с API' : 'Key from Management → API usage'}
                                                             style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
                                                         />
+                                                    </div>
+                                                    <div>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>{locale === 'ru' ? 'Классический user token (изображения и Stories)' : 'Classic user token (images and Stories)'}</label>
+                                                        <input
+                                                            type="password"
+                                                            className="w-full"
+                                                            value={editingChannelConfig.user_access_token || ''}
+                                                            onChange={e => setEditingChannelConfig({ ...editingChannelConfig, user_access_token: e.target.value })}
+                                                            placeholder={locale === 'ru' ? 'Пользовательский токен VK API, не vk2.a' : 'VK API user token, not vk2.a'}
+                                                            style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
+                                                        />
+                                                        <div className="text-xs text-on-surface-variant mt-1">
+                                                            {locale === 'ru' ? 'Нужен для загрузки изображений и персональных Stories. Хранится отдельно от ключа сообщества.' : 'Required for image uploads and personal Stories. Stored separately from the community token.'}
+                                                        </div>
                                                     </div>
                                                     <div style={{ gridColumn: '1 / -1' }}>
                                                         <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>User statistics token (Optional)</label>
@@ -2095,6 +2137,7 @@ export default function Settings() {
                                                         locale={locale}
                                                         vkId={editingChannelConfig.vk_id}
                                                         publicationToken={editingChannelConfig.publish_access_token || editingChannelConfig.api_key}
+                                                        userToken={editingChannelConfig.user_access_token}
                                                         oauthUserId={editingChannelConfig.oauth_user_id}
                                                     />
                                                 </>

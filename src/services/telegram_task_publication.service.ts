@@ -63,7 +63,8 @@ function extractVkConfig(channel: any) {
     const raw = top.raw_account && typeof top.raw_account === 'object' ? top.raw_account : {};
     return {
         vkId: raw.vk_id ?? top.vk_id ?? null,
-        publishToken: raw.publish_access_token ?? raw.api_key ?? top.publish_access_token ?? top.api_key ?? null,
+        communityToken: raw.publish_access_token ?? raw.api_key ?? top.publish_access_token ?? top.api_key ?? null,
+        userToken: raw.user_access_token ?? top.user_access_token ?? null,
         oauthUserId: raw.oauth_user_id ?? top.oauth_user_id ?? null
     };
 }
@@ -84,16 +85,24 @@ function prepareTaskPayload(task: any, allowUnsupportedDryRun = false) {
     const isStory = isTelegramStory || isVkPersonalStory;
     if (channelType === 'vk') {
         const config = extractVkConfig(task.channel);
-        const missingCredentials = isVkPersonalStory
-            ? !config.publishToken || !config.oauthUserId
-            : !config.vkId || !config.publishToken;
-        if (missingCredentials) {
+        const hasSelectedVisual = Boolean(task.selected_asset_id || task.selected_asset);
+        if (isVkPersonalStory && (!config.userToken || !config.oauthUserId)) {
             connectorReady = false;
             connectorReason = isVkPersonalStory ? 'vk_personal_oauth_identity_missing' : 'vk_credentials_missing';
             if (!allowUnsupportedDryRun) {
-                throw new Error(isVkPersonalStory
-                    ? '[VK_PERSONAL_STORY_CONNECTOR_NOT_READY] Personal VK story requires a connected OAuth profile'
-                    : '[VK_CONNECTOR_NOT_READY] VK channel requires vk_id and publish_access_token');
+                throw new Error('[VK_PERSONAL_STORY_CONNECTOR_NOT_READY] Personal VK story requires a classic user access token and verified profile ID');
+            }
+        } else if (!isVkPersonalStory && (!config.vkId || !config.communityToken)) {
+            connectorReady = false;
+            connectorReason = 'vk_credentials_missing';
+            if (!allowUnsupportedDryRun) {
+                throw new Error('[VK_CONNECTOR_NOT_READY] VK channel requires vk_id and a community publication token');
+            }
+        } else if (!isVkPersonalStory && hasSelectedVisual && !config.userToken) {
+            connectorReady = false;
+            connectorReason = 'vk_user_media_token_missing';
+            if (!allowUnsupportedDryRun) {
+                throw new Error('[VK_MEDIA_CONNECTOR_NOT_READY] VK image upload requires a classic user access token');
             }
         }
     }

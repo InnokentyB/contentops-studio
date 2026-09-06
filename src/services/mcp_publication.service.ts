@@ -1323,7 +1323,17 @@ class McpPublicationService {
                 throw new Error(`VK channel ${channel.id} is missing vk_id or api_key`);
             }
 
-            publishedLink = await vkService.publishPost(vkId, apiKey, params.text, params.imageUrl);
+            if (params.imageUrl && !config?.user_access_token) {
+                throw new Error(`VK channel ${channel.id} requires user_access_token to upload an image`);
+            }
+
+            publishedLink = await vkService.publishPost(
+                vkId,
+                apiKey,
+                params.text,
+                params.imageUrl,
+                { mediaUploadToken: config?.user_access_token || undefined }
+            );
         } else if (channel.type === 'linkedin') {
             const urn = config?.linkedin_urn;
             const token = config?.access_token;
