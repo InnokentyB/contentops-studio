@@ -71,6 +71,181 @@ const REGISTERED_SERVICE_IDENTITIES: Record<string, RegisteredServiceIdentity> =
 };
 
 export class WorkQueueService {
+    async repairRevisionZeroStoryBinding(params: {
+        projectId: number;
+        actorId: string;
+        taskId: number;
+        expectedChannelId: number;
+        blockedWorkItemId: number;
+        requireStaticStory: boolean;
+        idempotencyKey: string;
+    }): Promise<Record<string, unknown>> {
+        return prisma.$transaction(async (tx) => {
+            await this.requireProjectOwner(tx, params.projectId, params.actorId);
+            const command = 'ba_repair_revision_zero_story_binding';
+            const cached = await this.checkIdempotency(tx, {
+                projectId: params.projectId,
+                actorId: params.actorId,
+                command,
+                idempotencyKey: params.idempotencyKey
+            });
+            if (cached) return cached as Record<string, unknown>;
+
+            const content = await tx.contentItem.findFirst({
+                where: { id: params.taskId, project_id: params.projectId },
+                include: { publication_fact: true }
+            });
+            const channel = await tx.socialChannel.findFirst({
+                where: { id: params.expectedChannelId, project_id: params.projectId }
+            });
+            const blockedItem = await tx.workItem.findFirst({
+                where: {
+                    id: params.blockedWorkItemId,
+                    project_id: params.projectId,
+                    content_item_id: params.taskId,
+                    kind: 'content_write'
+                }
+            });
+            if (!content) throw new Error(`Publication task ${params.taskId} not found for project ${params.projectId}`);
+            if (!channel) throw new Error(`Channel ${params.expectedChannelId} not found for project ${params.projectId}`);
+            assertCanonicalPublicationPlacement(channel, 'story');
+            if (content.publication_fact || content.status === 'published' || content.published_link) {
+                throw new Error('[PUBLICATION_READ_ONLY] Any recorded publication makes this repair ineligible');
+            }
+            if (content.content_revision !== 0 || content.accepted_revision !== null || content.draft_text !== null) {
+                throw new Error('[CONTENT_REVISION_CONFLICT] Repair requires an unwritten revision-zero task');
+            }
+            if (content.channel_id !== params.expectedChannelId || content.visual_placement !== null) {
+                throw new Error('[STORY_BINDING_CONFLICT] Channel changed or visual placement is no longer null');
+            }
+            if (!blockedItem
+                || blockedItem.state !== 'blocked'
+                || blockedItem.reason_code !== 'invalid_story_binding'
+                || blockedItem.result_version !== 0) {
+                throw new Error('[BLOCKED_INPUT_MISMATCH] Expected the exact untouched invalid_story_binding content-write item');
+            }
+
+            const assets = (content.assets || {}) as any;
+            const qualityReport = (content.quality_report || {}) as any;
+            if (params.requireStaticStory) {
+                const action = assets.action || {};
+                const handoff = qualityReport.handoff_bundle || {};
+                const publication = handoff.publication || {};
+                if (content.cta !== null
+                    || action.cta != null
+                    || action.poll != null
+                    || action.sticker != null
+                    || action.native_interaction != null
+                    || publication.native_poll != null
+                    || publication.poll != null
+                    || publication.sticker != null
+                    || publication.native_interaction != null) {
+                    throw new Error('[STATIC_STORY_CONFLICT] Static story contains CTA or native interaction metadata');
+                }
+            }
+
+            const beforeState = {
+                task_id: content.id,
+                channel_id: content.channel_id,
+                visual_placement: content.visual_placement,
+                content_revision: content.content_revision,
+                accepted_revision: content.accepted_revision,
+                draft_text: content.draft_text,
+                publication_fact_id: null,
+                work_item_id: blockedItem.id,
+                work_item_state: blockedItem.state,
+                work_item_reason_code: blockedItem.reason_code,
+                work_item_result_version: blockedItem.result_version
+            };
+            const projection = repairMaterializedPublicationProjection({
+                assets: content.assets,
+                qualityReport: content.quality_report,
+                metrics: content.metrics,
+                channel,
+                placement: 'story'
+            });
+            const taskUpdate = await tx.contentItem.updateMany({
+                where: {
+                    id: content.id,
+                    project_id: params.projectId,
+                    channel_id: params.expectedChannelId,
+                    visual_placement: null,
+                    content_revision: 0,
+                    accepted_revision: null,
+                    draft_text: null,
+                    published_link: null,
+                    publication_fact: { is: null }
+                },
+                data: {
+                    visual_placement: 'story',
+                    assets: projection.assets as Prisma.InputJsonValue,
+                    quality_report: projection.qualityReport as Prisma.InputJsonValue,
+                    metrics: projection.metrics as Prisma.InputJsonValue
+                }
+            });
+            if (taskUpdate.count !== 1) throw new Error('[STORY_BINDING_CONFLICT] Task metadata changed concurrently');
+
+            const workItemUpdate = await tx.workItem.updateMany({
+                where: {
+                    id: blockedItem.id,
+                    project_id: params.projectId,
+                    content_item_id: content.id,
+                    kind: 'content_write',
+                    state: 'blocked',
+                    reason_code: 'invalid_story_binding',
+                    result_version: 0
+                },
+                data: {
+                    state: 'available',
+                    reason_code: null,
+                    note: 'Owner-audited recovery from invalid_story_binding; immutable before-state is recorded in workflow_events.',
+                    missing_resource_refs: Prisma.JsonNull,
+                    lease_token: null,
+                    lease_expires_at: null,
+                    lease_actor_id: null,
+                    result_payload: {
+                        repair_provenance: {
+                            command,
+                            previous_state: 'blocked',
+                            previous_reason_code: 'invalid_story_binding',
+                            target_placement: 'story'
+                        }
+                    }
+                }
+            });
+            if (workItemUpdate.count !== 1) throw new Error('[BLOCKED_INPUT_MISMATCH] Work item changed concurrently');
+
+            const afterState = {
+                repaired: true,
+                task_id: content.id,
+                channel_id: channel.id,
+                account_ref: channel.name,
+                action_type: `${channel.type.toLowerCase()}_story:publish`,
+                visual_placement: 'story',
+                content_revision: 0,
+                accepted_revision: null,
+                draft_text: null,
+                publication_fact_id: null,
+                work_item_id: blockedItem.id,
+                work_item_state: 'available',
+                work_item_previous_reason_code: 'invalid_story_binding',
+                static_story_guarded: params.requireStaticStory
+            };
+            await this.recordWorkflowEvent(tx, {
+                projectId: params.projectId,
+                workItemId: blockedItem.id,
+                weekPackageId: content.week_package_id || undefined,
+                contentItemId: content.id,
+                actorId: params.actorId,
+                command,
+                beforeState,
+                afterState,
+                idempotencyKey: params.idempotencyKey
+            });
+            return afterState;
+        });
+    }
+
     async repairPublicationPlacement(params: {
         projectId: number;
         actorId: string;

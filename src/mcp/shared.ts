@@ -1025,6 +1025,22 @@ export function registerPlannerTools(server: McpServer) {
         return asToolResult(result);
     });
 
+    server.registerTool('ba_repair_revision_zero_story_binding', {
+        description: 'Owner-only audited repair for an unpublished, unwritten revision-zero story task: atomically set canonical story placement, rematerialize action/account metadata, and recover the exact content-write item blocked by invalid_story_binding. It never writes copy or publishes.',
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string(),
+            taskId: z.number().int().positive(),
+            expectedChannelId: z.number().int().positive(),
+            blockedWorkItemId: z.number().int().positive(),
+            requireStaticStory: z.boolean(),
+            idempotencyKey: z.string()
+        }
+    }, async (args) => {
+        const result = await workQueueService.repairRevisionZeroStoryBinding(args);
+        return asToolResult(result);
+    });
+
     server.registerTool('ba_repair_publication_projection', {
         description: 'Owner-only audited metadata repair for an unpublished accepted publication: rebuild stored action, handoff and metrics routing fields from the current top-level channel and placement without changing content, schedule, revisions, visual decisions or assets.',
         inputSchema: {

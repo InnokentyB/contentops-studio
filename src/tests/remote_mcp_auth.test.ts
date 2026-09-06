@@ -91,6 +91,7 @@ test('writer MCP discovery exposes content tools but not slot mutation tools', (
     assert.ok(!tools.includes('ba_recover_content_review'));
     assert.ok(!tools.includes('ba_recover_missing_content_review'));
     assert.ok(!tools.includes('ba_repair_publication_placement'));
+    assert.ok(!tools.includes('ba_repair_revision_zero_story_binding'));
     assert.ok(!tools.includes('ba_repair_publication_projection'));
     assert.ok(!tools.includes('ba_preview_published_channel_repair'));
     assert.ok(!tools.includes('ba_apply_published_channel_repair'));
@@ -111,6 +112,7 @@ test('planner MCP discovery exposes slot controls but not content mutation', () 
     assert.ok(!tools.includes('ba_recover_content_review'));
     assert.ok(!tools.includes('ba_recover_missing_content_review'));
     assert.ok(!tools.includes('ba_repair_publication_placement'));
+    assert.ok(!tools.includes('ba_repair_revision_zero_story_binding'));
     assert.ok(!tools.includes('ba_repair_publication_projection'));
     assert.ok(!tools.includes('ba_preview_published_channel_repair'));
     assert.ok(!tools.includes('ba_apply_published_channel_repair'));
@@ -122,6 +124,7 @@ test('only the owner MCP profile discovers audited content review recovery', () 
     assert.ok(tools.includes('ba_recover_content_review'));
     assert.ok(tools.includes('ba_recover_missing_content_review'));
     assert.ok(tools.includes('ba_repair_publication_placement'));
+    assert.ok(tools.includes('ba_repair_revision_zero_story_binding'));
     assert.ok(tools.includes('ba_repair_publication_projection'));
     assert.ok(tools.includes('ba_preview_published_channel_repair'));
     assert.ok(tools.includes('ba_apply_published_channel_repair'));
@@ -141,6 +144,7 @@ test('editor, publisher and growth profiles expose only their governed lifecycle
     assert.ok(!publisherTools.includes('ba_configure_vk_story_poll'));
     assert.ok(!publisherTools.includes('ba_publish_direct'));
     assert.ok(!publisherTools.includes('ba_repair_publication_placement'));
+    assert.ok(!publisherTools.includes('ba_repair_revision_zero_story_binding'));
 
     const growthTools = Object.keys((createPlannerMcpServer({ profile: 'growth_analyst' } as any) as any)._registeredTools || {});
     assert.ok(growthTools.includes('ba_get_content_metrics'));
