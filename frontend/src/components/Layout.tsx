@@ -205,7 +205,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               title={sidebarCollapsed ? t('expandSidebar') : t('collapseSidebar')}
               className="hidden lg:flex w-10 h-10 rounded-xl bg-surface-container-low text-on-surface-variant items-center justify-center shrink-0 hover:text-primary hover:bg-primary-fixed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 transition-colors"
             >
-              <span className="material-symbols-outlined" aria-hidden="true">{sidebarCollapsed ? 'left_panel_open' : 'left_panel_close'}</span>
+              <span className="material-symbols-outlined" aria-hidden="true">{sidebarCollapsed ? 'chevron_right' : 'chevron_left'}</span>
             </button>
             <div className="min-w-0">
               <span className="block text-lg lg:text-xl font-bold text-primary font-headline truncate">{t('assistant')}</span>

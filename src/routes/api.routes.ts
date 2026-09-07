@@ -2772,12 +2772,34 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         const projectId = (request as any).projectId;
         if (!projectId) return reply.code(400).send({ error: 'Project ID required' });
 
-        const weeks = await prisma.weekPackage.findMany({
-            where: { project_id: projectId },
-            orderBy: { week_start: 'desc' },
-            include: { _count: { select: { content_items: true } } }
-        });
-        return weeks;
+        const publicationTaskWhere = {
+            project_id: projectId,
+            week_package_id: { not: null },
+            type: { not: 'week_theme' },
+            OR: [
+                { assets: { not: Prisma.AnyNull } },
+                { item_key: { startsWith: 'week-topic:' } }
+            ]
+        };
+        const [weeks, publicationTaskCounts] = await Promise.all([
+            prisma.weekPackage.findMany({
+                where: { project_id: projectId },
+                orderBy: { week_start: 'desc' },
+                include: { _count: { select: { content_items: true } } }
+            }),
+            prisma.contentItem.groupBy({
+                by: ['week_package_id'],
+                where: publicationTaskWhere,
+                _count: { _all: true }
+            })
+        ]);
+        const countByWeekId = new Map(
+            publicationTaskCounts.map((entry) => [entry.week_package_id, entry._count._all])
+        );
+        return weeks.map((week) => ({
+            ...week,
+            publication_task_count: countByWeekId.get(week.id) || 0
+        }));
     });
 
     fastify.get('/api/v2/weeks/:id', async (request, reply) => {

@@ -104,6 +104,7 @@ type WeekPackageOption = {
     week_start: string
     week_end: string
     week_theme?: string | null
+    publication_task_count?: number
     _count?: { content_items?: number }
 }
 
@@ -214,6 +215,18 @@ function formatDate(value?: string | null) {
     } catch {
         return value
     }
+}
+
+function formatWeekDate(value: string, locale: 'ru' | 'en') {
+    const dateOnly = value.slice(0, 10)
+    const [year, month, day] = dateOnly.split('-').map(Number)
+    if (!year || !month || !day) return value
+
+    return new Intl.DateTimeFormat(locale === 'ru' ? 'ru-RU' : 'en-US', {
+        day: 'numeric',
+        month: 'short',
+        timeZone: 'UTC'
+    }).format(new Date(Date.UTC(year, month - 1, day)))
 }
 
 function localDateKey(date = new Date()) {
@@ -682,7 +695,8 @@ export default function PublicationTasks() {
         searchPlaceholder: 'Номер #760, название или канал', searchLabel: 'Поиск по задачам', weekLabel: 'Неделя публикаций', allWeeks: 'Все недели / история', statusLabel: 'Статус задач',
         allStatuses: 'Все статусы', active: 'Активные', planned: 'Запланированные', awaitingManual: 'Ждут ручной публикации', ready: 'Готовы', browser: 'Нужна публикация через браузер', deferred: 'Отложенные', publishedPlural: 'Опубликованные', blockedPlural: 'Заблокированные', removedPlural: 'Удалённые с площадки', restricted: 'Ограниченные', cancelledPlural: 'Отменённые', failed: 'С ошибкой',
         manualOnly: 'Только ручные', allModes: 'Все режимы', textReadiness: 'Готовность текста', packageState: 'Состояние пакета', noText: 'Без текста', textReady: 'Текст готов', published: 'Опубликовано', packageContents: 'Состав недельного пакета', blocked: 'Заблокировано', removed: 'Удалено', cancelled: 'Отменено', publicationCancelled: 'Публикация отменена',
-        noResults: 'По выбранным условиям задач не найдено.', reset: 'Сбросить фильтры', importFirst: 'Сначала импортируй план публикаций, а затем выбери проект для работы с очередью задач.',
+        noResults: 'По выбранным условиям задач не найдено.', noWeekTasks: 'В выбранной неделе пока нет задач на публикацию.', showAllWeeks: 'Показать все недели', reset: 'Сбросить фильтры', importFirst: 'Сначала импортируй план публикаций, а затем выбери проект для работы с очередью задач.',
+        selectTask: 'Выберите задачу', selectTaskHelp: 'Откройте задачу публикации, чтобы проверить готовый пакет, подтвердить ссылку и собрать последующие метрики.',
         queueOverdue: 'Просроченные активные', queueUnscheduled: 'Активные без даты', queueInactive: 'Вне активной очереди', queueCompleted: 'Опубликованные и завершённые',
         taskMaterial: 'Рабочий материал задачи', publicationText: 'Текст публикации', resultPreview: 'Предпросмотр результата', publicationPreview: 'Предпросмотр публикации', executionContext: 'Контекст выполнения', publicationContext: 'Контекст публикации', resultLink: 'Ссылка на результат задачи', postLink: 'Ссылка на сам пост', buildTaskPackage: 'Собрать пакет задачи', prepareDraft: 'Подготовить черновик',
         openWeekPlan: 'Открыть план недели', preparing: 'Собираем...', publishing: 'Публикуем...', publishChannel: 'Опубликовать в канал', publishNow: 'Опубликовать сейчас', publicationStages: 'Этапы публикации', slotCreated: 'Слот создан',
@@ -692,7 +706,8 @@ export default function PublicationTasks() {
         searchPlaceholder: 'Task #760, title, or channel', searchLabel: 'Search tasks', weekLabel: 'Publication week', allWeeks: 'All weeks / history', statusLabel: 'Task status',
         allStatuses: 'All statuses', active: 'Active', planned: 'Planned', awaitingManual: 'Awaiting manual publication', ready: 'Ready', browser: 'Browser publication required', deferred: 'Deferred', publishedPlural: 'Published', blockedPlural: 'Blocked', removedPlural: 'Removed from channel', restricted: 'Restricted', cancelledPlural: 'Cancelled', failed: 'Failed',
         manualOnly: 'Manual only', allModes: 'All modes', textReadiness: 'Content readiness', packageState: 'Package state', noText: 'No content', textReady: 'Content ready', published: 'Published', packageContents: 'Weekly package contents', blocked: 'Blocked', removed: 'Removed', cancelled: 'Cancelled', publicationCancelled: 'Publication cancelled',
-        noResults: 'No tasks match the selected filters.', reset: 'Reset filters', importFirst: 'Import a publication plan, then choose a project to work with its task queue.',
+        noResults: 'No tasks match the selected filters.', noWeekTasks: 'There are no publication tasks in the selected week yet.', showAllWeeks: 'Show all weeks', reset: 'Reset filters', importFirst: 'Import a publication plan, then choose a project to work with its task queue.',
+        selectTask: 'Select a task', selectTaskHelp: 'Open a publication task to inspect the ready-to-publish bundle, confirm its live URL, and collect follow-up analytics.',
         queueOverdue: 'Overdue active tasks', queueUnscheduled: 'Active tasks without a date', queueInactive: 'Outside the active queue', queueCompleted: 'Published and completed',
         taskMaterial: 'Task working material', publicationText: 'Publication content', resultPreview: 'Result preview', publicationPreview: 'Publication preview', executionContext: 'Execution context', publicationContext: 'Publication context', resultLink: 'Task result link', postLink: 'Live post link', buildTaskPackage: 'Build task package', prepareDraft: 'Prepare draft',
         openWeekPlan: 'Open weekly plan', preparing: 'Preparing...', publishing: 'Publishing...', publishChannel: 'Publish to channel', publishNow: 'Publish now', publicationStages: 'Publication stages', slotCreated: 'Slot created',
@@ -1338,7 +1353,7 @@ export default function PublicationTasks() {
                                 >
                                     {(weekPackages || []).map((week) => (
                                         <option key={week.id} value={week.id}>
-                                            {formatDate(week.week_start)} — {formatDate(week.week_end)} · {week._count?.content_items || 0}
+                                            {formatWeekDate(week.week_start, locale)} — {formatWeekDate(week.week_end, locale)} · {week.publication_task_count ?? week._count?.content_items ?? 0}
                                         </option>
                                     ))}
                                     <option value="all">{copy.allWeeks}</option>
@@ -1433,7 +1448,7 @@ export default function PublicationTasks() {
                             {typeof weekPackageId === 'number' && (nonPublicationRecordCount > 0 || dateMismatchIds.size > 0 || crossPackageTasks.length > 0) && (
                                 <div className="border-b border-outline-variant/10 bg-surface-container-low px-4 py-4 text-xs leading-relaxed text-on-surface-variant" role="status">
                                     {nonPublicationRecordCount > 0 && (
-                                        <p>{tr('В селекторе учтено', 'The selector includes')} <strong className="text-on-surface">{packageRecordCount}</strong> {tr('записей: публикационных задач', 'records: publication tasks')} — <strong className="text-on-surface">{tasks?.length || 0}</strong>, {tr('служебных', 'service records')} — {nonPublicationRecordCount}.</p>
+                                        <p>{tr('В недельном пакете', 'The weekly package contains')} <strong className="text-on-surface">{packageRecordCount}</strong> {tr('записей: публикационных задач', 'records: publication tasks')} — <strong className="text-on-surface">{tasks?.length || 0}</strong>, {tr('служебных', 'service records')} — {nonPublicationRecordCount}.</p>
                                     )}
                                     {dateMismatchIds.size > 0 && (
                                         <p className={nonPublicationRecordCount > 0 ? 'mt-1' : ''}><strong className="text-on-surface">{dateMismatchIds.size}</strong> {tr('задач в пакете имеют дату за пределами выбранной недели.', 'tasks in the package fall outside the selected week.')}</p>
@@ -1463,13 +1478,13 @@ export default function PublicationTasks() {
 
                             {currentProject && !isLoading && !filteredTasks.length && (
                                 <div className="p-8 text-sm text-on-surface-variant leading-relaxed" role="status">
-                                    <p>{copy.noResults}</p>
+                                    <p>{taskPool.length === 0 && typeof weekPackageId === 'number' ? copy.noWeekTasks : copy.noResults}</p>
                                     <button
                                         type="button"
-                                        onClick={resetTaskFilters}
+                                        onClick={taskPool.length === 0 && typeof weekPackageId === 'number' ? () => setWeekPackageId('all') : resetTaskFilters}
                                         className="mt-4 min-h-11 rounded-xl bg-surface-container-high px-4 font-black text-on-surface transition-colors hover:bg-primary hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                                     >
-                                        {copy.reset}
+                                        {taskPool.length === 0 && typeof weekPackageId === 'number' ? copy.showAllWeeks : copy.reset}
                                     </button>
                                 </div>
                             )}
@@ -1585,9 +1600,9 @@ export default function PublicationTasks() {
                                     <div className="w-16 h-16 mx-auto rounded-3xl bg-surface-container-high flex items-center justify-center text-primary">
                                         <span className="material-symbols-outlined text-3xl">task_alt</span>
                                     </div>
-                                    <h3 className="text-2xl font-headline font-black">Select a task</h3>
+                                    <h3 className="text-2xl font-headline font-black">{copy.selectTask}</h3>
                                     <p className="text-sm text-on-surface-variant leading-relaxed">
-                                        Pick a publication task to inspect the ready-to-publish bundle, confirm the live URL, and collect follow-up analytics.
+                                        {copy.selectTaskHelp}
                                     </p>
                                 </div>
                             </div>
