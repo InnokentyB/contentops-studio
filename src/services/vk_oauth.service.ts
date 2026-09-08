@@ -25,6 +25,11 @@ type VkTokenResponse = {
     error_description?: string;
 };
 
+type VkRefreshTokenParams = {
+    refreshToken: string;
+    deviceId: string;
+};
+
 function base64UrlSha256(value: string) {
     return crypto.createHash('sha256').update(value).digest('base64url');
 }
@@ -104,6 +109,33 @@ export class VkOAuthService {
             throw new Error(payload.error_description || payload.error || `VK token exchange failed (${response.status})`);
         }
         if (payload.state && payload.state !== params.state) throw new Error('VK OAuth response state mismatch');
+        return payload;
+    }
+
+    async refreshAccessToken(params: VkRefreshTokenParams): Promise<VkTokenResponse> {
+        const refreshToken = params.refreshToken.trim();
+        const deviceId = params.deviceId.trim();
+        if (!refreshToken || !deviceId) {
+            throw new Error('VK OAuth refresh requires the refresh token and device ID');
+        }
+        const state = crypto.randomBytes(24).toString('base64url');
+        const body = new URLSearchParams({
+            grant_type: 'refresh_token',
+            refresh_token: refreshToken,
+            client_id: this.clientId,
+            device_id: deviceId,
+            state
+        });
+        const response = await fetch(`${VK_ID_BASE_URL}/oauth2/auth`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/x-www-form-urlencoded' },
+            body
+        });
+        const payload = await response.json() as VkTokenResponse;
+        if (!response.ok || payload.error || !payload.access_token || !payload.refresh_token) {
+            throw new Error(payload.error_description || payload.error || `VK token refresh failed (${response.status})`);
+        }
+        if (payload.state && payload.state !== state) throw new Error('VK OAuth refresh state mismatch');
         return payload;
     }
 

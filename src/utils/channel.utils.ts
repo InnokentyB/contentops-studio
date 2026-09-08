@@ -2,7 +2,7 @@ import { decryptChannelSecret, encryptChannelSecret } from './channel_secrets';
 
 const DZEN_TYPES = new Set(['zen', 'zen_article', 'dzen']);
 const ENCRYPTED_SECRET_FIELDS: Record<string, string[]> = {
-    vk: ['publish_access_token', 'user_access_token', 'vk_oauth_access_token', 'stats_access_token', 'vk_refresh_token']
+    vk: ['publish_access_token', 'user_access_token', 'vk_oauth_access_token', 'stats_access_token', 'vk_refresh_token', 'vk_device_id']
 };
 
 /**
@@ -22,6 +22,7 @@ export function sanitizeChannelConfig(type: string, config: any): any {
     if (sanitized.vk_oauth_access_token) sanitized.vk_oauth_access_token = '******';
     if (sanitized.stats_access_token) sanitized.stats_access_token = '******';
     if (sanitized.vk_refresh_token) sanitized.vk_refresh_token = '******';
+    if (sanitized.vk_device_id) sanitized.vk_device_id = '******';
     if (sanitized.access_token) sanitized.access_token = '******';
     if (sanitized.cookies) sanitized.cookies = '******';
     if (sanitized.cookies_encrypted) {
@@ -47,7 +48,7 @@ export function mergeChannelConfig(incomingConfig: any, existingConfig: any): an
     if (!existingConfig || typeof existingConfig !== 'object') return incomingConfig;
     const merged = { ...incomingConfig };
     
-    const secretKeys = ['api_key', 'publish_access_token', 'user_access_token', 'vk_oauth_access_token', 'stats_access_token', 'vk_refresh_token', 'access_token', 'cookies', 'application_secret_key'];
+    const secretKeys = ['api_key', 'publish_access_token', 'user_access_token', 'vk_oauth_access_token', 'stats_access_token', 'vk_refresh_token', 'vk_device_id', 'access_token', 'cookies', 'application_secret_key'];
     for (const key of secretKeys) {
         if (merged[key] === '******' && existingConfig[key]) {
             merged[key] = existingConfig[key];

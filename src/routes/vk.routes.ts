@@ -53,24 +53,31 @@ export default async function vkRoutes(fastify: FastifyInstance) {
             if (!channel) throw new Error('VK channel no longer exists');
             const currentConfig = resolveEffectiveChannelConfig(channel.type, channel.config);
             if (!currentConfig.vk_id) throw new Error('VK community ID is missing from channel settings');
-            const token = await vkOAuthService.exchangeCode({
+            const exchangedToken = await vkOAuthService.exchangeCode({
                 code: query.code,
                 deviceId: query.device_id,
                 state: query.state,
                 verifier: state.verifier
             });
+            // Refresh on the backend before the first API call so VK binds the
+            // active token pair to the Railway egress IP rather than the browser.
+            const token = await vkOAuthService.refreshAccessToken({
+                refreshToken: exchangedToken.refresh_token || '',
+                deviceId: query.device_id
+            });
             const identity = await vkOAuthService.verifyCommunityAdmin(
                 token.access_token,
                 String(currentConfig.vk_id),
-                token.user_id
+                token.user_id || exchangedToken.user_id
             );
             const nextConfig = prepareChannelConfigForStorage('vk', {
                 ...(channel.config as any),
                 vk_oauth_access_token: token.access_token,
-                ...(token.refresh_token ? { vk_refresh_token: token.refresh_token } : {}),
+                vk_refresh_token: token.refresh_token,
+                vk_device_id: query.device_id,
                 api_version: '5.199',
                 oauth_provider: 'vk_id',
-                oauth_token_profile: 'identity_only',
+                oauth_token_profile: 'server_refreshed',
                 oauth_user_id: identity.userId,
                 oauth_connected_at: new Date().toISOString(),
                 oauth_expires_at: token.expires_in ? new Date(Date.now() + token.expires_in * 1000).toISOString() : null

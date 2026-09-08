@@ -84,6 +84,86 @@ test('VK OAuth exchanges the code with the original PKCE verifier and device ide
     });
 });
 
+test('VK OAuth refreshes and rotates the token pair on the backend device identity', async () => {
+    await withVkEnvironment(async () => {
+        const service = new VkOAuthService();
+        const previousFetch = global.fetch;
+        let capturedUrl = '';
+        let capturedBody = '';
+        global.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+            capturedUrl = String(input);
+            capturedBody = String(init?.body || '');
+            const state = new URLSearchParams(capturedBody).get('state');
+            return new Response(JSON.stringify({
+                access_token: 'vk2.server-access',
+                refresh_token: 'vk2.server-refresh',
+                expires_in: 3600,
+                user_id: 42,
+                state
+            }), { status: 200, headers: { 'content-type': 'application/json' } });
+        }) as typeof fetch;
+        try {
+            const token = await service.refreshAccessToken({
+                refreshToken: 'vk2.browser-refresh',
+                deviceId: 'device-1'
+            });
+            const body = new URLSearchParams(capturedBody);
+            assert.equal(capturedUrl, 'https://id.vk.ru/oauth2/auth');
+            assert.equal(body.get('grant_type'), 'refresh_token');
+            assert.equal(body.get('refresh_token'), 'vk2.browser-refresh');
+            assert.equal(body.get('client_id'), '54753800');
+            assert.equal(body.get('device_id'), 'device-1');
+            assert.match(body.get('state') || '', /^[A-Za-z0-9_-]+$/);
+            assert.equal(token.access_token, 'vk2.server-access');
+            assert.equal(token.refresh_token, 'vk2.server-refresh');
+        } finally {
+            global.fetch = previousFetch;
+        }
+    });
+});
+
+test('VK OAuth rejects an incomplete refresh response without leaking credentials', async () => {
+    await withVkEnvironment(async () => {
+        const service = new VkOAuthService();
+        const previousFetch = global.fetch;
+        global.fetch = (async () => new Response(JSON.stringify({
+            error: 'invalid_grant',
+            error_description: 'Refresh token is invalid'
+        }), { status: 400, headers: { 'content-type': 'application/json' } })) as typeof fetch;
+        try {
+            await assert.rejects(
+                () => service.refreshAccessToken({ refreshToken: 'private-refresh', deviceId: 'private-device' }),
+                (error: Error) => error.message === 'Refresh token is invalid'
+                    && !error.message.includes('private-refresh')
+                    && !error.message.includes('private-device')
+            );
+        } finally {
+            global.fetch = previousFetch;
+        }
+    });
+});
+
+test('VK OAuth does not call VK when refresh credentials are incomplete', async () => {
+    await withVkEnvironment(async () => {
+        const service = new VkOAuthService();
+        const previousFetch = global.fetch;
+        let called = false;
+        global.fetch = (async () => {
+            called = true;
+            throw new Error('unexpected request');
+        }) as typeof fetch;
+        try {
+            await assert.rejects(
+                () => service.refreshAccessToken({ refreshToken: '', deviceId: 'device-1' }),
+                /requires the refresh token and device ID/
+            );
+            assert.equal(called, false);
+        } finally {
+            global.fetch = previousFetch;
+        }
+    });
+});
+
 test('VK OAuth accepts only a profile that administers the configured community', async () => {
     await withVkEnvironment(async () => {
         const service = new VkOAuthService();
@@ -178,7 +258,8 @@ test('VK OAuth tokens are encrypted at rest, masked in API output, and preserved
             user_access_token: 'user-secret',
             vk_oauth_access_token: 'oauth-secret',
             stats_access_token: 'stats-secret',
-            vk_refresh_token: 'refresh-secret'
+            vk_refresh_token: 'refresh-secret',
+            vk_device_id: 'device-secret'
         });
         assert.equal(JSON.stringify(stored).includes('publish-secret'), false);
         assert.match(stored.publish_access_token_encrypted, /^enc:v1:/);
@@ -186,6 +267,7 @@ test('VK OAuth tokens are encrypted at rest, masked in API output, and preserved
         assert.match(stored.vk_oauth_access_token_encrypted, /^enc:v1:/);
         assert.match(stored.stats_access_token_encrypted, /^enc:v1:/);
         assert.match(stored.vk_refresh_token_encrypted, /^enc:v1:/);
+        assert.match(stored.vk_device_id_encrypted, /^enc:v1:/);
 
         const sanitized = sanitizeChannelConfig('vk', stored);
         assert.equal(sanitized.publish_access_token, '******');
@@ -193,6 +275,7 @@ test('VK OAuth tokens are encrypted at rest, masked in API output, and preserved
         assert.equal(sanitized.vk_oauth_access_token, '******');
         assert.equal(sanitized.stats_access_token, '******');
         assert.equal(sanitized.vk_refresh_token, '******');
+        assert.equal(sanitized.vk_device_id, '******');
         assert.equal(sanitized.publish_access_token_encrypted, undefined);
 
         const merged = mergeChannelConfig({
@@ -204,6 +287,7 @@ test('VK OAuth tokens are encrypted at rest, masked in API output, and preserved
         assert.equal(resolved.vk_oauth_access_token, 'oauth-secret');
         assert.equal(resolved.stats_access_token, 'stats-secret');
         assert.equal(resolved.vk_refresh_token, 'refresh-secret');
+        assert.equal(resolved.vk_device_id, 'device-secret');
     });
 });
 
