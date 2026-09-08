@@ -356,7 +356,15 @@ test('VK personal story uses the accepted vertical asset and records story ident
         visual_placement: 'story',
         channel: {
             ...approvedVkTask().channel,
-            config: { user_access_token: 'user-token', oauth_user_id: 42, oauth_provider: 'vk_id' }
+            config: {
+                vk_oauth_access_token: 'vk2.server-access',
+                vk_refresh_token: 'vk2.server-refresh',
+                vk_device_id: 'server-device',
+                oauth_token_profile: 'server_refreshed',
+                oauth_expires_at: new Date(Date.now() + 60 * 60_000).toISOString(),
+                oauth_user_id: 42,
+                oauth_provider: 'vk_id'
+            }
         }
     });
     const dry = harness(task);
@@ -480,7 +488,11 @@ test('VK story preflight resolves OAuth credentials encrypted at rest', async ()
             ...approvedVkTask().channel,
             config: prepareChannelConfigForStorage('vk', {
                 vk_id: '-123',
-                user_access_token: 'encrypted-user-token',
+                vk_oauth_access_token: 'vk2.server-access',
+                vk_refresh_token: 'vk2.server-refresh',
+                vk_device_id: 'server-device',
+                oauth_token_profile: 'server_refreshed',
+                oauth_expires_at: new Date(Date.now() + 60 * 60_000).toISOString(),
                 oauth_user_id: 42,
                 oauth_provider: 'vk_id',
                 raw_account: { platform: 'vk' }
@@ -492,6 +504,41 @@ test('VK story preflight resolves OAuth credentials encrypted at rest', async ()
     assert.equal(preview.connector_ready, true);
     assert.equal(preview.connector_reason, null);
     assert.equal(preview.delivery, 'vk_api_personal_story');
+});
+
+test('VK personal story prefers the server-refreshed OAuth token over the classic media token', async () => {
+    const publisherService = require('../services/publisher.service').default;
+    const vkService = require('../services/vk.service').default;
+    const original = vkService.publishPersonalPhotoStoryWithIdentity;
+    const calls: any[] = [];
+    vkService.publishPersonalPhotoStoryWithIdentity = async (...args: any[]) => {
+        calls.push(args);
+        return { ownerId: '42', storyId: '88', publishedLink: 'https://vk.com/story42_88' };
+    };
+    try {
+        await publisherService.publishVkPersonalStory({
+            projectId: 10,
+            taskId: 900,
+            channel: {
+                ...approvedVkTask().channel,
+                config: {
+                    user_access_token: 'classic-media-token',
+                    vk_oauth_access_token: 'vk2.server-access',
+                    vk_refresh_token: 'vk2.server-refresh',
+                    vk_device_id: 'server-device',
+                    oauth_token_profile: 'server_refreshed',
+                    oauth_expires_at: new Date(Date.now() + 60 * 60_000).toISOString(),
+                    oauth_user_id: 42
+                }
+            },
+            imageUrl: 'https://cdn.example/approved-vk.png',
+            idempotencyKey: 'publish:vk-story:900:r3'
+        });
+        assert.equal(calls[0][0], 'vk2.server-access');
+        assert.equal(calls[0][1], '42');
+    } finally {
+        vkService.publishPersonalPhotoStoryWithIdentity = original;
+    }
 });
 
 test('scheduled VK adapter returns provider identity and a stable retry guid', async () => {

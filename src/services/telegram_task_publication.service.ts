@@ -65,6 +65,10 @@ function extractVkConfig(channel: any) {
         vkId: raw.vk_id ?? top.vk_id ?? null,
         communityToken: raw.publish_access_token ?? raw.api_key ?? top.publish_access_token ?? top.api_key ?? null,
         userToken: raw.user_access_token ?? top.user_access_token ?? null,
+        oauthToken: raw.vk_oauth_access_token ?? top.vk_oauth_access_token ?? null,
+        refreshToken: raw.vk_refresh_token ?? top.vk_refresh_token ?? null,
+        deviceId: raw.vk_device_id ?? top.vk_device_id ?? null,
+        oauthTokenProfile: raw.oauth_token_profile ?? top.oauth_token_profile ?? null,
         oauthUserId: raw.oauth_user_id ?? top.oauth_user_id ?? null
     };
 }
@@ -86,11 +90,17 @@ function prepareTaskPayload(task: any, allowUnsupportedDryRun = false) {
     if (channelType === 'vk') {
         const config = extractVkConfig(task.channel);
         const hasSelectedVisual = Boolean(task.selected_asset_id || task.selected_asset);
-        if (isVkPersonalStory && (!config.userToken || !config.oauthUserId)) {
+        const hasStoryToken = Boolean(config.userToken || (
+            config.oauthTokenProfile === 'server_refreshed'
+            && config.oauthToken
+            && config.refreshToken
+            && config.deviceId
+        ));
+        if (isVkPersonalStory && (!hasStoryToken || !config.oauthUserId)) {
             connectorReady = false;
             connectorReason = isVkPersonalStory ? 'vk_personal_oauth_identity_missing' : 'vk_credentials_missing';
             if (!allowUnsupportedDryRun) {
-                throw new Error('[VK_PERSONAL_STORY_CONNECTOR_NOT_READY] Personal VK story requires a classic user access token and verified profile ID');
+                throw new Error('[VK_PERSONAL_STORY_CONNECTOR_NOT_READY] Personal VK story requires a server-refreshed VK ID connection and verified profile ID');
             }
         } else if (!isVkPersonalStory && (!config.vkId || !config.communityToken)) {
             connectorReady = false;

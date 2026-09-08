@@ -129,7 +129,8 @@ export class VkOAuthService {
         const response = await fetch(`${VK_ID_BASE_URL}/oauth2/auth`, {
             method: 'POST',
             headers: { 'content-type': 'application/x-www-form-urlencoded' },
-            body
+            body,
+            signal: AbortSignal.timeout(10_000)
         });
         const payload = await response.json() as VkTokenResponse;
         if (!response.ok || payload.error || !payload.access_token || !payload.refresh_token) {

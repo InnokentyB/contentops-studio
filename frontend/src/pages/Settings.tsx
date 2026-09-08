@@ -371,28 +371,28 @@ function VkConnectionGuide({ locale, vkId, publicationToken, userToken, oauthUse
     const missing = [
         !hasVkId ? (locale === 'ru' ? 'ID сообщества' : 'community ID') : null,
         !hasPublicationToken ? (locale === 'ru' ? 'ключ сообщества' : 'community token') : null,
-        !hasUserToken ? (locale === 'ru' ? 'классический user token' : 'classic user token') : null
+        !hasOAuthProfile ? (locale === 'ru' ? 'подключение VK ID' : 'VK ID connection') : null
     ].filter(Boolean).join(locale === 'ru' ? ' и ' : ' and ')
 
     return <ChannelConnectionGuide
         title={locale === 'ru' ? 'Как подключить VK' : 'How to connect VK'}
-        fieldsComplete={hasVkId && hasPublicationToken && hasUserToken}
-        completeLabel={locale === 'ru' ? 'Поля заполнены' : 'Fields filled'}
+        fieldsComplete={hasVkId && hasPublicationToken && hasOAuthProfile}
+        completeLabel={locale === 'ru' ? 'Базовое подключение готово' : 'Base connection ready'}
         missingLabel={locale === 'ru' ? `Не хватает: ${missing}` : `Missing: ${missing}`}
         steps={locale === 'ru' ? [
             'Укажите ID сообщества со знаком минус и вставьте ключ доступа сообщества из Управление → Работа с API. Он используется только для записи в ленту.',
-            'Для изображений и персональных Stories вставьте отдельный классический пользовательский токен VK API. Токены VK ID, начинающиеся с vk2.a, для публикации не подходят.',
-            'Кнопка «Подключить VK ID» подтверждает личность администратора, но не заменяет два publishing-токена.',
+            'Нажмите «Подключить VK ID». Planner сохранит зашифрованные OAuth-данные и будет обновлять токен на Railway перед публикацией персональных Stories.',
+            'Классический пользовательский токен пока нужен только для загрузки изображений в посты сообщества. Без него текстовые посты и персональные Stories остаются доступны.',
             'Сохраните карточку и нажмите «Проверить доступ»: Planner отдельно покажет готовность текста, изображений и Stories.'
         ] : [
             'Enter the community ID with a minus sign and paste its access key from Management → API usage. It is used only for feed publication.',
-            'For images and personal Stories, paste a separate classic VK API user token. VK ID tokens beginning with vk2.a cannot publish.',
-            'Connect VK ID verifies the administrator identity but does not replace either publishing token.',
+            'Select Connect VK ID. Planner stores the encrypted OAuth credentials and refreshes the token on Railway before publishing personal Stories.',
+            'A classic VK API user token is currently needed only for uploading images to community posts. Text posts and personal Stories remain available without it.',
             'Save the channel and select Test access. Planner reports feed text, feed image, and Story readiness separately.'
         ]}
         note={locale === 'ru'
-            ? `Все токены шифруются и повторно не показываются. VK ID${hasOAuthProfile ? ` профиля ${String(oauthUserId)}` : ''} хранится отдельно. Фото-сторис требуют утверждённый визуал 1080×1920; нативный опрос проходит общую проверку ревизии.`
-            : `All tokens are encrypted and never displayed again. VK ID${hasOAuthProfile ? ` profile ${String(oauthUserId)}` : ''} is stored separately. Photo Stories require an approved 1080×1920 visual; native polls follow the shared revision review.`}
+            ? `Все токены шифруются и повторно не показываются. VK ID${hasOAuthProfile ? ` профиля ${String(oauthUserId)}` : ''} используется для персональных Stories.${hasUserToken ? ' Классический токен подключён для фото в ленте.' : ' Фото в ленте будут недоступны до подключения классического токена или выдачи VK нужного доступа.'} Фото-сторис требуют утверждённый визуал 1080×1920.`
+            : `All tokens are encrypted and never displayed again. VK ID${hasOAuthProfile ? ` profile ${String(oauthUserId)}` : ''} is used for personal Stories.${hasUserToken ? ' The classic token is connected for feed images.' : ' Feed images remain unavailable until a classic token is added or VK grants the required access.'} Photo Stories require an approved 1080×1920 visual.`}
     />
 }
 
@@ -2049,13 +2049,13 @@ export default function Settings() {
                                                             <div>
                                                                 <div className="text-sm font-black text-on-surface">
                                                                     {editingChannelConfig.oauth_user_id
-                                                                        ? (locale === 'ru' ? 'VK ID подключён для идентификации' : 'VK ID connected for identity')
+                                                                        ? (locale === 'ru' ? 'VK ID подключён для персональных Stories' : 'VK ID connected for personal Stories')
                                                                         : (locale === 'ru' ? 'VK ID не подключён' : 'VK ID not connected')}
                                                                 </div>
                                                                 <p className="mt-1 text-xs leading-5 text-on-surface-variant">
                                                                     {locale === 'ru'
-                                                                        ? 'VK ID подтверждает профиль администратора, но его токен vk2.a не используется для публикации.'
-                                                                        : 'VK ID verifies the administrator profile, but its vk2.a token is not used for publishing.'}
+                                                                        ? 'Planner обновляет OAuth-токен на Railway и использует его для персональных Stories. Лента и фото проверяются отдельно.'
+                                                                        : 'Planner refreshes the OAuth token on Railway and uses it for personal Stories. Feed and image access are checked separately.'}
                                                                 </p>
                                                             </div>
                                                             <div className="flex flex-wrap gap-2">
@@ -2101,7 +2101,7 @@ export default function Settings() {
                                                         />
                                                     </div>
                                                     <div>
-                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>{locale === 'ru' ? 'Классический user token (изображения и Stories)' : 'Classic user token (images and Stories)'}</label>
+                                                        <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>{locale === 'ru' ? 'Классический user token (фото в ленте, необязательно)' : 'Classic user token (feed images, optional)'}</label>
                                                         <input
                                                             type="password"
                                                             className="w-full"
@@ -2111,7 +2111,7 @@ export default function Settings() {
                                                             style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
                                                         />
                                                         <div className="text-xs text-on-surface-variant mt-1">
-                                                            {locale === 'ru' ? 'Нужен для загрузки изображений и персональных Stories. Хранится отдельно от ключа сообщества.' : 'Required for image uploads and personal Stories. Stored separately from the community token.'}
+                                                            {locale === 'ru' ? 'Пока нужен только для загрузки изображений в посты сообщества. Персональные Stories работают через подключение VK ID.' : 'Currently needed only for image uploads to community posts. Personal Stories use the VK ID connection.'}
                                                         </div>
                                                     </div>
                                                     <div style={{ gridColumn: '1 / -1' }}>

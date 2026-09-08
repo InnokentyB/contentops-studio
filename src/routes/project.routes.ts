@@ -1089,11 +1089,15 @@ export default async function projectRoutes(fastify: FastifyInstance) {
                 if (!config.vk_id) {
                     return reply.code(400).send({ error: 'Connect VK before testing this channel', code: 'VK_NOT_CONNECTED' });
                 }
-                const identityToken = config.user_access_token || config.vk_oauth_access_token;
+                const identityToken = config.vk_oauth_access_token || config.user_access_token;
                 const identity = identityToken
                     ? await vkOAuthService.verifyCommunityAdmin(identityToken, String(config.vk_id), Number(config.oauth_user_id) || undefined)
                     : null;
                 const profileId = identity?.userId || Number(config.oauth_user_id) || null;
+                const serverStoryOAuth = config.oauth_token_profile === 'server_refreshed'
+                    && config.vk_oauth_access_token
+                    && config.vk_refresh_token
+                    && config.vk_device_id;
                 if (config.user_access_token && identity?.userId) {
                     const nextConfig = prepareChannelConfigForStorage('vk', {
                         ...(channel.config as any),
@@ -1111,7 +1115,7 @@ export default async function projectRoutes(fastify: FastifyInstance) {
                         capabilities: {
                             feed_text: Boolean(config.publish_access_token),
                             feed_image: Boolean(config.publish_access_token && config.user_access_token),
-                            personal_story: Boolean(config.user_access_token && profileId),
+                            personal_story: Boolean((config.user_access_token || serverStoryOAuth) && profileId),
                             vk_id_identity: Boolean(config.vk_oauth_access_token && config.oauth_user_id)
                         }
                     }
