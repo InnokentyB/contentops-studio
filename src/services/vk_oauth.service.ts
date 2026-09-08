@@ -153,7 +153,10 @@ export class VkOAuthService {
             throw new Error('VK channel identity is missing');
         }
         return prisma.$transaction(async (transaction: any) => {
-            await transaction.$queryRaw`SELECT pg_advisory_xact_lock(${22091}, ${channelId})`;
+            await transaction.$queryRaw`
+                WITH lock AS (SELECT pg_advisory_xact_lock(${22091}, ${channelId}))
+                SELECT 1::int AS acquired FROM lock
+            `;
             const channel = await transaction.socialChannel.findUnique({ where: { id: channelId } });
             if (!channel) throw new Error('VK channel no longer exists');
             const config = resolveEffectiveChannelConfig('vk', channel.config);
