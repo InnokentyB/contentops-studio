@@ -509,8 +509,15 @@ test('VK story preflight resolves OAuth credentials encrypted at rest', async ()
 test('VK personal story prefers the server-refreshed OAuth token over the classic media token', async () => {
     const publisherService = require('../services/publisher.service').default;
     const vkService = require('../services/vk.service').default;
+    const vkOAuthService = require('../services/vk_oauth.service').default;
     const original = vkService.publishPersonalPhotoStoryWithIdentity;
+    const originalRefresh = vkOAuthService.refreshStoredChannelToken;
     const calls: any[] = [];
+    const refreshCalls: any[] = [];
+    vkOAuthService.refreshStoredChannelToken = async (...args: any[]) => {
+        refreshCalls.push(args);
+        return { accessToken: 'vk2.server-access', refreshToken: 'vk2.server-refresh', userId: 42, expiresAt: null };
+    };
     vkService.publishPersonalPhotoStoryWithIdentity = async (...args: any[]) => {
         calls.push(args);
         return { ownerId: '42', storyId: '88', publishedLink: 'https://vk.com/story42_88' };
@@ -534,10 +541,13 @@ test('VK personal story prefers the server-refreshed OAuth token over the classi
             imageUrl: 'https://cdn.example/approved-vk.png',
             idempotencyKey: 'publish:vk-story:900:r3'
         });
+        assert.equal(refreshCalls.length, 1);
+        assert.equal(refreshCalls[0][1], 120);
         assert.equal(calls[0][0], 'vk2.server-access');
         assert.equal(calls[0][1], '42');
     } finally {
         vkService.publishPersonalPhotoStoryWithIdentity = original;
+        vkOAuthService.refreshStoredChannelToken = originalRefresh;
     }
 });
 

@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { decryptChannelSecret, encryptChannelSecret } from '../utils/channel_secrets';
+import { prepareChannelConfigForStorage, resolveEffectiveChannelConfig } from '../utils/channel.utils';
 
 const VK_ID_BASE_URL = 'https://id.vk.ru';
 const VK_API_BASE_URL = 'https://api.vk.com/method';
@@ -28,6 +29,13 @@ type VkTokenResponse = {
 type VkRefreshTokenParams = {
     refreshToken: string;
     deviceId: string;
+};
+
+type VkStoredChannelRefresh = {
+    accessToken: string;
+    refreshToken: string;
+    userId: number | null;
+    expiresAt: string | null;
 };
 
 function base64UrlSha256(value: string) {
@@ -138,6 +146,44 @@ export class VkOAuthService {
         }
         if (payload.state && payload.state !== state) throw new Error('VK OAuth refresh state mismatch');
         return payload;
+    }
+
+    async refreshStoredChannelToken(prisma: any, channelId: number): Promise<VkStoredChannelRefresh> {
+        if (!Number.isInteger(channelId) || channelId <= 0) {
+            throw new Error('VK channel identity is missing');
+        }
+        return prisma.$transaction(async (transaction: any) => {
+            await transaction.$queryRaw`SELECT pg_advisory_xact_lock(${22091}, ${channelId})`;
+            const channel = await transaction.socialChannel.findUnique({ where: { id: channelId } });
+            if (!channel) throw new Error('VK channel no longer exists');
+            const config = resolveEffectiveChannelConfig('vk', channel.config);
+            if (config.oauth_token_profile !== 'server_refreshed' || !config.vk_refresh_token || !config.vk_device_id) {
+                throw new Error('Reconnect VK ID to enable server-side token refresh');
+            }
+            const refreshed = await this.refreshAccessToken({
+                refreshToken: String(config.vk_refresh_token),
+                deviceId: String(config.vk_device_id)
+            });
+            const expiresAt = refreshed.expires_in
+                ? new Date(Date.now() + refreshed.expires_in * 1000).toISOString()
+                : null;
+            const nextConfig = prepareChannelConfigForStorage('vk', {
+                ...(channel.config as any),
+                vk_oauth_access_token: refreshed.access_token,
+                vk_refresh_token: refreshed.refresh_token,
+                oauth_token_profile: 'server_refreshed',
+                oauth_user_id: refreshed.user_id || config.oauth_user_id,
+                oauth_expires_at: expiresAt,
+                oauth_refreshed_at: new Date().toISOString()
+            });
+            await transaction.socialChannel.update({ where: { id: channelId }, data: { config: nextConfig } });
+            return {
+                accessToken: refreshed.access_token,
+                refreshToken: String(refreshed.refresh_token),
+                userId: Number(refreshed.user_id || config.oauth_user_id) || null,
+                expiresAt
+            };
+        }, { timeout: 20_000 });
     }
 
     private async callApi(method: string, accessToken: string, params: Record<string, string> = {}) {

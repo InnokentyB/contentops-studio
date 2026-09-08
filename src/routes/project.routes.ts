@@ -1085,9 +1085,22 @@ export default async function projectRoutes(fastify: FastifyInstance) {
 
         try {
             if (channel.type === 'vk') {
-                const config = resolveEffectiveChannelConfig('vk', channel.config);
+                let config = resolveEffectiveChannelConfig('vk', channel.config);
                 if (!config.vk_id) {
                     return reply.code(400).send({ error: 'Connect VK before testing this channel', code: 'VK_NOT_CONNECTED' });
+                }
+                const canRefreshServerOAuth = config.oauth_token_profile === 'server_refreshed'
+                    && config.vk_refresh_token
+                    && config.vk_device_id;
+                if (canRefreshServerOAuth) {
+                    const refreshed = await vkOAuthService.refreshStoredChannelToken(prisma, channel.id);
+                    config = {
+                        ...config,
+                        vk_oauth_access_token: refreshed.accessToken,
+                        vk_refresh_token: refreshed.refreshToken,
+                        oauth_user_id: refreshed.userId || config.oauth_user_id,
+                        oauth_expires_at: refreshed.expiresAt
+                    };
                 }
                 const identityToken = config.vk_oauth_access_token || config.user_access_token;
                 const identity = identityToken

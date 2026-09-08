@@ -20,7 +20,7 @@ import artDirectionService from './art_direction.service';
 import { parseRecurringTrigger } from './publication_runtime.helpers';
 import { browserFallbackReason, resolvePublicationExecutionRoute } from './publication_execution_route';
 import { derivePublicationContentState } from './publication_content_state';
-import { prepareChannelConfigForStorage, resolveEffectiveChannelConfig } from '../utils/channel.utils';
+import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
 import vkOAuthService from './vk_oauth.service';
 import publicationFactService from './publication_fact.service';
 import { normalizeTelegramDeliveryPayload } from './telegram_delivery_payload';
@@ -577,48 +577,12 @@ class PublisherService {
             if (initial.user_access_token) return String(initial.user_access_token);
             throw new Error('[VK_PERSONAL_STORY_CONNECTOR_NOT_READY] Personal VK story requires a server-refreshed VK ID connection');
         }
-        const expiresAt = Date.parse(String(initial.oauth_expires_at || ''));
-        if (Number.isFinite(expiresAt) && expiresAt > Date.now() + 5 * 60_000) {
-            return String(initial.vk_oauth_access_token);
-        }
-
         const channelId = Number(channel?.id);
         if (!Number.isInteger(channelId) || channelId <= 0) {
             throw new Error('[VK_PERSONAL_STORY_CONNECTOR_NOT_READY] VK channel identity is missing');
         }
-        return prisma.$transaction(async (transaction: any) => {
-            await transaction.$queryRaw`SELECT pg_advisory_xact_lock(${22091}, ${channelId})`;
-            const currentChannel = await transaction.socialChannel.findUnique({ where: { id: channelId } });
-            if (!currentChannel) throw new Error('[VK_PERSONAL_STORY_CONNECTOR_NOT_READY] VK channel no longer exists');
-            const current = this.extractVkAccountConfig(currentChannel.config || {});
-            const currentExpiry = Date.parse(String(current.oauth_expires_at || ''));
-            if (current.oauth_token_profile === 'server_refreshed'
-                && current.vk_oauth_access_token
-                && Number.isFinite(currentExpiry)
-                && currentExpiry > Date.now() + 5 * 60_000) {
-                return String(current.vk_oauth_access_token);
-            }
-            if (!current.vk_refresh_token || !current.vk_device_id) {
-                if (current.user_access_token) return String(current.user_access_token);
-                throw new Error('[VK_PERSONAL_STORY_CONNECTOR_NOT_READY] Reconnect VK ID to refresh the Story token');
-            }
-            const refreshed = await vkOAuthService.refreshAccessToken({
-                refreshToken: String(current.vk_refresh_token),
-                deviceId: String(current.vk_device_id)
-            });
-            const nextConfig = prepareChannelConfigForStorage('vk', {
-                ...(currentChannel.config as any),
-                vk_oauth_access_token: refreshed.access_token,
-                vk_refresh_token: refreshed.refresh_token,
-                oauth_token_profile: 'server_refreshed',
-                oauth_user_id: refreshed.user_id || current.oauth_user_id,
-                oauth_expires_at: refreshed.expires_in
-                    ? new Date(Date.now() + refreshed.expires_in * 1000).toISOString()
-                    : null
-            });
-            await transaction.socialChannel.update({ where: { id: channelId }, data: { config: nextConfig } });
-            return refreshed.access_token;
-        }, { timeout: 20_000 });
+        const refreshed = await vkOAuthService.refreshStoredChannelToken(prisma, channelId);
+        return refreshed.accessToken;
     }
 
     private async resolveTelegramDeliveryConfig(task: any, channelConfig: any) {

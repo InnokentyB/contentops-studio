@@ -122,6 +122,59 @@ test('VK OAuth refreshes and rotates the token pair on the backend device identi
     });
 });
 
+test('VK OAuth atomically refreshes and persists the channel token before server use', async () => {
+    await withVkEnvironment(async () => {
+        const service = new VkOAuthService();
+        const previousFetch = global.fetch;
+        let updatedConfig: any = null;
+        let lockValues: any[] = [];
+        const storedConfig = prepareChannelConfigForStorage('vk', {
+            vk_id: '-117',
+            vk_oauth_access_token: 'vk2.old-access',
+            vk_refresh_token: 'vk2.old-refresh',
+            vk_device_id: 'device-1',
+            oauth_user_id: 42,
+            oauth_token_profile: 'server_refreshed'
+        });
+        const transaction = {
+            $queryRaw: async (_strings: TemplateStringsArray, ...values: any[]) => { lockValues = values; },
+            socialChannel: {
+                findUnique: async () => ({ id: 117, config: storedConfig }),
+                update: async ({ data }: any) => { updatedConfig = data.config; return { id: 117, config: data.config }; }
+            }
+        };
+        const prisma = {
+            $transaction: async (callback: any, options: any) => {
+                assert.equal(options.timeout, 20_000);
+                return callback(transaction);
+            }
+        };
+        global.fetch = (async (_input: string | URL | Request, init?: RequestInit) => {
+            const state = new URLSearchParams(String(init?.body || '')).get('state');
+            return new Response(JSON.stringify({
+                access_token: 'vk2.new-access',
+                refresh_token: 'vk2.new-refresh',
+                expires_in: 3600,
+                user_id: 42,
+                state
+            }), { status: 200, headers: { 'content-type': 'application/json' } });
+        }) as typeof fetch;
+        try {
+            const result = await service.refreshStoredChannelToken(prisma, 117);
+            assert.deepEqual(lockValues, [22091, 117]);
+            assert.equal(result.accessToken, 'vk2.new-access');
+            const resolved = resolveEffectiveChannelConfig('vk', updatedConfig);
+            assert.equal(resolved.vk_oauth_access_token, 'vk2.new-access');
+            assert.equal(resolved.vk_refresh_token, 'vk2.new-refresh');
+            assert.equal(resolved.vk_device_id, 'device-1');
+            assert.equal(JSON.stringify(updatedConfig).includes('vk2.new-access'), false);
+            assert.equal(JSON.stringify(updatedConfig).includes('vk2.new-refresh'), false);
+        } finally {
+            global.fetch = previousFetch;
+        }
+    });
+});
+
 test('VK OAuth rejects an incomplete refresh response without leaking credentials', async () => {
     await withVkEnvironment(async () => {
         const service = new VkOAuthService();
