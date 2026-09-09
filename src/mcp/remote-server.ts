@@ -271,9 +271,19 @@ async function main() {
         try {
             const scopedRequest = scopeRemoteMcpRequest(req.body, principal);
             if (!scopedRequest.allowed) {
+                const projectMismatch = scopedRequest.reason === 'project_scope_mismatch';
                 res.status(403).json({
                     jsonrpc: '2.0',
-                    error: { code: -32003, message: 'Tool is not available through scoped remote MCP' },
+                    error: {
+                        code: -32003,
+                        message: projectMismatch
+                            ? '[MCP_PROJECT_SCOPE_MISMATCH] Requested project does not match the token-bound project'
+                            : 'Tool is not available through scoped remote MCP',
+                        ...(projectMismatch ? { data: {
+                            requested_project_id: scopedRequest.requestedProjectId,
+                            bound_project_id: scopedRequest.boundProjectId
+                        } } : {})
+                    },
                     id: req.body?.id ?? null
                 });
                 return;
@@ -361,9 +371,19 @@ async function main() {
                 const principal = req.mcpCredential.principal;
                 const scopedRequest = scopeRemoteMcpRequest(req.body, principal);
                 if (!scopedRequest.allowed) {
+                    const projectMismatch = scopedRequest.reason === 'project_scope_mismatch';
                     res.status(403).json({
                         jsonrpc: '2.0',
-                        error: { code: -32003, message: 'Tool is not available for this MCP capability profile' },
+                        error: {
+                            code: -32003,
+                            message: projectMismatch
+                                ? '[MCP_PROJECT_SCOPE_MISMATCH] Requested project does not match the token-bound project'
+                                : 'Tool is not available for this MCP capability profile',
+                            ...(projectMismatch ? { data: {
+                                requested_project_id: scopedRequest.requestedProjectId,
+                                bound_project_id: scopedRequest.boundProjectId
+                            } } : {})
+                        },
                         id: req.body?.id ?? null
                     });
                     return;

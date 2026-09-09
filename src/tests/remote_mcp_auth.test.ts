@@ -16,10 +16,22 @@ test('remote MCP replaces caller-controlled actor and user identities', () => {
     assert.equal(result.body.params.arguments.userId, 2);
 });
 
-test('remote MCP scopes agent workspace reads to the bound user and project', () => {
+test('remote MCP rejects an explicit project that differs from the token scope', () => {
     const body = {
         method: 'tools/call',
         params: { name: 'ba_get_agent_workspace_manifest', arguments: { userId: 999, projectId: 999 } }
+    };
+    const result = scopeRemoteMcpRequest(body, { userId: 2, actorId: 'user:2', projectId: 10, profile: 'writer' });
+    assert.equal(result.allowed, false);
+    assert.equal(result.reason, 'project_scope_mismatch');
+    assert.equal(result.requestedProjectId, 999);
+    assert.equal(result.boundProjectId, 10);
+});
+
+test('remote MCP scopes user identity when the requested project matches the token', () => {
+    const body = {
+        method: 'tools/call',
+        params: { name: 'ba_get_agent_workspace_manifest', arguments: { userId: 999, projectId: 10 } }
     };
     const result = scopeRemoteMcpRequest(body, { userId: 2, actorId: 'user:2', projectId: 10, profile: 'writer' });
     assert.equal(result.allowed, true);
@@ -66,9 +78,16 @@ test('writer MCP is restricted to its project and cannot invoke planner tools', 
     }, writerPrincipal);
     assert.equal(denied.allowed, false);
 
-    const allowed = scopeRemoteMcpRequest({
+    const mismatch = scopeRemoteMcpRequest({
         jsonrpc: '2.0', id: 4, method: 'tools/call',
         params: { name: 'ba_update_publication_content', arguments: { projectId: 99, taskId: 12, body: 'Draft', expectedRevision: 0 } }
+    }, writerPrincipal);
+    assert.equal(mismatch.allowed, false);
+    assert.equal(mismatch.reason, 'project_scope_mismatch');
+
+    const allowed = scopeRemoteMcpRequest({
+        jsonrpc: '2.0', id: 5, method: 'tools/call',
+        params: { name: 'ba_update_publication_content', arguments: { projectId: 7, taskId: 12, body: 'Draft', expectedRevision: 0 } }
     }, writerPrincipal);
     assert.equal(allowed.allowed, true);
     assert.equal(allowed.body.params.arguments.projectId, 7);
