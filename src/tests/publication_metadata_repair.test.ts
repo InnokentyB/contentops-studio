@@ -69,6 +69,26 @@ test('blocked Medium work with the missing-channel-contract reason is valid repa
     }), true);
 });
 
+test('blocked feed work with a missing asset contract creates a distinct recovery input', () => {
+    assert.equal(isPublicationPlacementMismatchEvidence({
+        workItemState: 'blocked',
+        workItemReasonCode: 'missing_feed_asset_contract',
+        workItemRevision: 1,
+        expectedRevision: 1,
+        expectedPlacement: 'feed'
+    }), true);
+    assert.equal(planPublicationPlacementRepair({
+        contentItemId: 907,
+        contentRevision: 1,
+        acceptedRevision: 1,
+        currentChannelId: 126,
+        targetChannelId: 126,
+        currentPlacement: 'feed',
+        targetPlacement: 'feed',
+        replacementKeySuffix: 'contract-recovery:685'
+    }).dedupeKey, 'art-direction:907:1:feed:contract-recovery:685');
+});
+
 test('placement repair refuses to operate on a stale accepted revision', () => {
     assert.throws(() => planPublicationPlacementRepair({
         contentItemId: 726,

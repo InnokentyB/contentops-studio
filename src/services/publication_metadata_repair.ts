@@ -11,6 +11,7 @@ export function planPublicationPlacementRepair(input: {
     targetChannelId: number;
     currentPlacement: string | null;
     targetPlacement: string;
+    replacementKeySuffix?: string;
 }) {
     if (input.acceptedRevision !== input.contentRevision) {
         throw new Error('[CURRENT_REVISION_NOT_ACCEPTED] Placement repair requires the current accepted revision');
@@ -22,7 +23,10 @@ export function planPublicationPlacementRepair(input: {
         placement: input.targetPlacement,
         artDirectionState: 'available',
         inputContextVersion: input.contentRevision,
-        dedupeKey: `art-direction:${input.contentItemId}:${input.contentRevision}:${input.targetPlacement}`,
+        dedupeKey: [
+            `art-direction:${input.contentItemId}:${input.contentRevision}:${input.targetPlacement}`,
+            input.replacementKeySuffix
+        ].filter(Boolean).join(':'),
         note: `Assess visual fit for revision ${input.contentRevision}, placement ${input.targetPlacement}`
     };
 }
@@ -42,7 +46,8 @@ export function isPublicationPlacementMismatchEvidence(input: {
     if (input.workItemRevision !== input.expectedRevision) return false;
     if (input.workItemState === 'blocked' && [
         'channel_placement_mismatch',
-        'missing_medium_channel_article_cover_contract'
+        'missing_medium_channel_article_cover_contract',
+        'missing_feed_asset_contract'
     ].includes(String(input.workItemReasonCode || ''))) return true;
     return input.workItemState === 'completed'
         && input.decision?.decision === 'BLOCKED'

@@ -150,7 +150,10 @@ export class WorkQueueService {
                 currentChannelId: content.channel_id,
                 targetChannelId: targetChannel.id,
                 currentPlacement: content.visual_placement,
-                targetPlacement: params.targetPlacement
+                targetPlacement: params.targetPlacement,
+                replacementKeySuffix: blockedItem.reason_code === 'missing_feed_asset_contract'
+                    ? `contract-recovery:${blockedItem.id}`
+                    : undefined
             });
             const beforeState = {
                 channel_id: content.channel_id,
