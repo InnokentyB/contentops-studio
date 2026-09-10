@@ -23,6 +23,7 @@ export type PublicationPlacementAssetContract = {
     artifact_kind: 'feed' | 'story' | 'article_cover' | 'other';
     dimensions: { width: number; height: number; aspect_ratio: string } | null;
     safe_area: { unit: 'px'; top: number; right: number; bottom: number; left: number } | null;
+    accepted_mime_types?: Array<'image/png' | 'image/jpeg'>;
     poll: { supported: boolean; configuration_mode: 'native_configured' | 'native_manual' | 'not_supported' | 'not_applicable'; render_in_asset: boolean };
     transport: { materialization: 'feed_post' | 'story' | 'article' | 'asset'; connector_authority: 'configured' | 'manual_only' };
 };
@@ -60,6 +61,28 @@ export function publicationPlacementAssetContract(
             safe_area: { unit: 'px', top: 72, right: 96, bottom: 72, left: 96 },
             poll: { supported: false, configuration_mode: 'not_applicable', render_in_asset: false },
             transport: { materialization: 'article', connector_authority: 'manual_only' }
+        };
+    }
+    if (normalizedType === 'setka' && placement === 'feed') {
+        return {
+            placement,
+            artifact_kind: 'feed',
+            dimensions: { width: 1200, height: 900, aspect_ratio: '4:3' },
+            safe_area: { unit: 'px', top: 96, right: 144, bottom: 96, left: 144 },
+            accepted_mime_types: ['image/png', 'image/jpeg'],
+            poll: { supported: false, configuration_mode: 'not_applicable', render_in_asset: false },
+            transport: { materialization: 'feed_post', connector_authority: 'configured' }
+        };
+    }
+    if (normalizedType === 'vk' && placement === 'feed') {
+        return {
+            placement,
+            artifact_kind: 'feed',
+            dimensions: { width: 1080, height: 1080, aspect_ratio: '1:1' },
+            safe_area: { unit: 'px', top: 72, right: 72, bottom: 72, left: 72 },
+            accepted_mime_types: ['image/png', 'image/jpeg'],
+            poll: { supported: false, configuration_mode: 'not_applicable', render_in_asset: false },
+            transport: { materialization: 'feed_post', connector_authority: 'configured' }
         };
     }
     if (['dzen', 'zen', 'zen_article'].includes(normalizedType) && placement === 'article_cover') {

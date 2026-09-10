@@ -42,6 +42,24 @@ test('VK longread uses a distinct manual article-cover contract', () => {
     assert.deepEqual(contract.transport, { materialization: 'article', connector_authority: 'manual_only' });
 });
 
+test('Setka feed exposes the established 4:3 asset contract', () => {
+    const contract = publicationPlacementAssetContract({ type: 'setka' }, 'feed');
+    assert.equal(contract.artifact_kind, 'feed');
+    assert.deepEqual(contract.dimensions, { width: 1200, height: 900, aspect_ratio: '4:3' });
+    assert.deepEqual(contract.safe_area, { unit: 'px', top: 96, right: 144, bottom: 96, left: 144 });
+    assert.deepEqual(contract.accepted_mime_types, ['image/png', 'image/jpeg']);
+    assert.deepEqual(contract.transport, { materialization: 'feed_post', connector_authority: 'configured' });
+});
+
+test('VK feed exposes the accepted square asset contract used by the connector', () => {
+    const contract = publicationPlacementAssetContract({ type: 'vk' }, 'feed');
+    assert.equal(contract.artifact_kind, 'feed');
+    assert.deepEqual(contract.dimensions, { width: 1080, height: 1080, aspect_ratio: '1:1' });
+    assert.deepEqual(contract.safe_area, { unit: 'px', top: 72, right: 72, bottom: 72, left: 72 });
+    assert.deepEqual(contract.accepted_mime_types, ['image/png', 'image/jpeg']);
+    assert.deepEqual(contract.transport, { materialization: 'feed_post', connector_authority: 'configured' });
+});
+
 test('Dzen longread uses the configured article transport contract', () => {
     const contract = publicationPlacementAssetContract({ type: 'dzen' }, 'article_cover');
     assert.equal(contract.artifact_kind, 'article_cover');
