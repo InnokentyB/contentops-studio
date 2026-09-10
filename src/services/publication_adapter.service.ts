@@ -106,6 +106,11 @@ class PublicationAdapterService {
             checklist.push(`Set the canonical/original publication URL to: ${resolvedContext.linkUrl}`);
         }
 
+        if (action.channel === 'medium') {
+            checklist.push('Upload the approved image into the Medium article before opening the publish menu.');
+            checklist.push('Set the uploaded image as the featured image and keep its focal point inside the approved safe area.');
+        }
+
         return checklist;
     }
 

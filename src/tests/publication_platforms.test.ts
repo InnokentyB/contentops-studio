@@ -11,6 +11,16 @@ import {
 import puppeteerPublisherService from '../services/puppeteer_publisher.service';
 import publicationAdapterService from '../services/publication_adapter.service';
 
+test('Medium manual handoff includes featured-image and focal-point checks', () => {
+    const checklist = publicationAdapterService.buildManualChecklist({
+        channel: 'medium',
+        parameters: {}
+    } as any, { accountRef: 'innokenty_medium' });
+
+    assert.ok(checklist.includes('Upload the approved image into the Medium article before opening the publish menu.'));
+    assert.ok(checklist.includes('Set the uploaded image as the featured image and keep its focal point inside the approved safe area.'));
+});
+
 test('Odnoklassniki signature helper handles request parameters correctly', () => {
     // Access private calculateSig via bracket syntax
     const serviceInstance = okService as unknown as {
