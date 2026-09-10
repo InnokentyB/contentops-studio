@@ -44,6 +44,7 @@ const PLANNER_TOOLS = new Set([
     'ba_get_work_item_context',
     'ba_list_schedule_exceptions',
     'ba_reschedule_work_item',
+    'ba_repair_publication_placement',
     'ba_upsert_initiative',
     'ba_link_initiatives',
     'ba_import_operational_plan',

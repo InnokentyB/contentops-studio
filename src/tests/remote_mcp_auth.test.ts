@@ -129,7 +129,7 @@ test('planner MCP discovery exposes slot controls but not content mutation', () 
     assert.ok(!tools.includes('ba_update_publication_content'));
     assert.ok(!tools.includes('ba_recover_content_review'));
     assert.ok(!tools.includes('ba_recover_missing_content_review'));
-    assert.ok(!tools.includes('ba_repair_publication_placement'));
+    assert.ok(tools.includes('ba_repair_publication_placement'));
     assert.ok(!tools.includes('ba_repair_publication_projection'));
     assert.ok(!tools.includes('ba_preview_published_channel_repair'));
     assert.ok(!tools.includes('ba_apply_published_channel_repair'));
