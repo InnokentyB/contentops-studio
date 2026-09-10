@@ -1013,7 +1013,7 @@ export function registerPlannerTools(server: McpServer) {
             taskId: z.number().int().positive(),
             expectedContentRevision: z.number().int().positive(),
             expectedAcceptedRevision: z.number().int().positive(),
-            expectedChannelId: z.number().int().positive(),
+            expectedChannelId: z.number().int().positive().nullable(),
             expectedPlacement: z.string(),
             targetChannelId: z.number().int().positive(),
             targetPlacement: z.string(),

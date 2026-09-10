@@ -40,7 +40,10 @@ export function isPublicationPlacementMismatchEvidence(input: {
     } | null;
 }) {
     if (input.workItemRevision !== input.expectedRevision) return false;
-    if (input.workItemState === 'blocked' && input.workItemReasonCode === 'channel_placement_mismatch') return true;
+    if (input.workItemState === 'blocked' && [
+        'channel_placement_mismatch',
+        'missing_medium_channel_article_cover_contract'
+    ].includes(String(input.workItemReasonCode || ''))) return true;
     return input.workItemState === 'completed'
         && input.decision?.decision === 'BLOCKED'
         && input.decision.placement === input.expectedPlacement
@@ -89,6 +92,8 @@ export function repairMaterializedPublicationProjection(input: {
     const normalizedChannelType = String(input.channel.type || '').trim().toLowerCase();
     const isDzenArticle = ['dzen', 'zen', 'zen_article'].includes(normalizedChannelType)
         && input.placement === 'article_cover';
+    const isMediumArticle = normalizedChannelType === 'medium'
+        && input.placement === 'article_cover';
     const assets = { ...(input.assets || {}) };
     const action = { ...(assets.action || {}) };
     const qualityReport = { ...(input.qualityReport || {}) };
@@ -99,6 +104,8 @@ export function repairMaterializedPublicationProjection(input: {
         ? canonicalStoryActionType(input.channel.type, input.placement)
         : isDzenArticle
             ? 'dzen_article:publish'
+        : isMediumArticle
+            ? 'medium:manual_content'
         : input.channel.type === 'vk' && input.placement === 'article_cover'
             ? 'vk_article:publish'
         : (action.action_type || handoffBundle?.task?.action_type || null);
@@ -119,7 +126,12 @@ export function repairMaterializedPublicationProjection(input: {
         const repairedChecklist = currentChecklist.length > 0
             ? [`Post from account: ${input.channel.name}`, ...currentChecklist.slice(1)]
             : [`Post from account: ${input.channel.name}`];
-        const notes = publicationPlacementManualChecklistNotes(placementContract);
+        const notes = isMediumArticle
+            ? [
+                'Upload the approved image into the Medium article before opening the publish menu.',
+                'Set the uploaded image as the featured image and keep its focal point inside the safe area.'
+            ]
+            : publicationPlacementManualChecklistNotes(placementContract);
         const manualChecklist = [
             repairedChecklist[0],
             ...notes.filter((note) => !repairedChecklist.includes(note)),

@@ -2,6 +2,7 @@ const DEFAULT_PLACEMENTS: Record<string, string[]> = {
     habr: ['article_cover'],
     vc: ['article_cover'],
     dzen: ['article_cover'],
+    medium: ['article_cover'],
     site: ['article_cover'],
     telegram: ['feed', 'story'],
     telegram_chat: ['feed', 'story'],
@@ -69,6 +70,16 @@ export function publicationPlacementAssetContract(
             safe_area: null,
             poll: { supported: false, configuration_mode: 'not_applicable', render_in_asset: false },
             transport: { materialization: 'article', connector_authority: 'configured' }
+        };
+    }
+    if (normalizedType === 'medium' && placement === 'article_cover') {
+        return {
+            placement,
+            artifact_kind: 'article_cover',
+            dimensions: { width: 1200, height: 630, aspect_ratio: '1.91:1' },
+            safe_area: { unit: 'px', top: 63, right: 120, bottom: 63, left: 120 },
+            poll: { supported: false, configuration_mode: 'not_applicable', render_in_asset: false },
+            transport: { materialization: 'article', connector_authority: 'manual_only' }
         };
     }
     return {

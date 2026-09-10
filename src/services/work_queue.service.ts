@@ -77,7 +77,7 @@ export class WorkQueueService {
         taskId: number;
         expectedContentRevision: number;
         expectedAcceptedRevision: number;
-        expectedChannelId: number;
+        expectedChannelId: number | null;
         expectedPlacement: string;
         targetChannelId: number;
         targetPlacement: string;

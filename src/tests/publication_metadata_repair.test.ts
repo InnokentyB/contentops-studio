@@ -1,6 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isPublicationPlacementMismatchEvidence, placementRepairProvenance, planPublicationPlacementRepair } from '../services/publication_metadata_repair';
+import {
+    isPublicationPlacementMismatchEvidence,
+    placementRepairProvenance,
+    planPublicationPlacementRepair,
+    repairMaterializedPublicationProjection
+} from '../services/publication_metadata_repair';
+import {
+    assertCanonicalPublicationPlacement,
+    publicationPlacementAssetContract
+} from '../services/publication_placement_contract';
 
 test('placement repair creates a new revision-bound art-direction input without changing content revision', () => {
     assert.deepEqual(planPublicationPlacementRepair({
@@ -50,6 +59,16 @@ test('completed art-direction work with an immutable BLOCKED decision is valid m
     }), false);
 });
 
+test('blocked Medium work with the missing-channel-contract reason is valid repair evidence', () => {
+    assert.equal(isPublicationPlacementMismatchEvidence({
+        workItemState: 'blocked',
+        workItemReasonCode: 'missing_medium_channel_article_cover_contract',
+        workItemRevision: 3,
+        expectedRevision: 3,
+        expectedPlacement: 'feed'
+    }), true);
+});
+
 test('placement repair refuses to operate on a stale accepted revision', () => {
     assert.throws(() => planPublicationPlacementRepair({
         contentItemId: 726,
@@ -77,4 +96,52 @@ test('new art-direction input references the immutable blocker only as provenanc
             immutable: true
         }
     });
+});
+
+test('Medium article cover has an explicit manual-only visual contract', () => {
+    assert.equal(assertCanonicalPublicationPlacement({ type: 'medium' }, 'article_cover'), 'article_cover');
+    assert.throws(
+        () => assertCanonicalPublicationPlacement({ type: 'medium' }, 'feed'),
+        /TARGET_PLACEMENT_MISMATCH/
+    );
+    assert.deepEqual(publicationPlacementAssetContract({ type: 'medium' }, 'article_cover'), {
+        placement: 'article_cover',
+        artifact_kind: 'article_cover',
+        dimensions: { width: 1200, height: 630, aspect_ratio: '1.91:1' },
+        safe_area: { unit: 'px', top: 63, right: 120, bottom: 63, left: 120 },
+        poll: { supported: false, configuration_mode: 'not_applicable', render_in_asset: false },
+        transport: { materialization: 'article', connector_authority: 'manual_only' }
+    });
+});
+
+test('Medium placement repair rematerializes a manual article handoff', () => {
+    const repaired = repairMaterializedPublicationProjection({
+        assets: {
+            action: {
+                id: 'medium-article',
+                channel: 'operational',
+                account_ref: null,
+                action_type: 'operational_feed:publish'
+            }
+        },
+        qualityReport: {
+            handoff_bundle: {
+                mode: 'manual',
+                account: { ref: null, details: {} },
+                task: { channel: 'operational', action_type: 'operational_feed:publish', placement: 'feed' },
+                manual_checklist: ['Post from account: specified account in plan']
+            }
+        },
+        metrics: { account_ref: null },
+        channel: { id: 200, name: 'innokenty_medium', type: 'medium' },
+        placement: 'article_cover'
+    });
+
+    assert.equal(repaired.assets.account_ref, 'innokenty_medium');
+    assert.equal(repaired.assets.action.channel, 'medium');
+    assert.equal(repaired.assets.action.action_type, 'medium:manual_content');
+    assert.equal(repaired.qualityReport.handoff_bundle.account.ref, 'innokenty_medium');
+    assert.equal(repaired.qualityReport.handoff_bundle.task.placement, 'article_cover');
+    assert.equal(repaired.qualityReport.handoff_bundle.placement_contract.transport.connector_authority, 'manual_only');
+    assert.equal(repaired.metrics.account_ref, 'innokenty_medium');
 });

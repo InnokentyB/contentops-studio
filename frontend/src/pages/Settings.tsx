@@ -556,12 +556,12 @@ export default function Settings() {
     const [editingChannelId, setEditingChannelId] = useState<number | null>(null)
     const [editingChannelName, setEditingChannelName] = useState('')
     const [editingChannelConfig, setEditingChannelConfig] = useState<ApiJson>({})
-    const [newChannelType, setNewChannelType] = useState<'telegram' | 'vk' | 'linkedin' | 'ok' | 'habr' | 'vc' | 'zen' | 'threads'>('telegram')
+    const [newChannelType, setNewChannelType] = useState<'telegram' | 'vk' | 'linkedin' | 'ok' | 'habr' | 'vc' | 'zen' | 'threads' | 'medium'>('telegram')
     const [newChannelName, setNewChannelName] = useState('')
     const [newChannelId, setNewChannelId] = useState('')
     const [newChannelUsername, setNewChannelUsername] = useState('')
     const [newChannelApiKey, setNewChannelApiKey] = useState('')
-    const [newChannelWorkflowMode, setNewChannelWorkflowMode] = useState<'prepare_only' | 'approval_required' | 'auto_publish'>('approval_required')
+    const [newChannelWorkflowMode, setNewChannelWorkflowMode] = useState<'prepare_only' | 'manual_handoff' | 'approval_required' | 'auto_publish'>('approval_required')
     const [newChannelContentLanguage, setNewChannelContentLanguage] = useState<'ru' | 'en'>('ru')
     const [linkedinConnecting, setLinkedinConnecting] = useState(false)
     const [newVkStatsToken, setNewVkStatsToken] = useState('')
@@ -1120,6 +1120,39 @@ export default function Settings() {
             if (!newChannelApiKey) return showToast('Access Token is required', 'warning');
             config.threads_user_id = newChannelId;
             config.access_token = newChannelApiKey;
+        } else if (newChannelType === 'medium') {
+            let profileUrl: URL;
+            try {
+                profileUrl = new URL(newChannelId);
+            } catch {
+                return showToast('Medium profile must be a valid URL', 'warning');
+            }
+            if (profileUrl.protocol !== 'https:' || profileUrl.hostname !== 'medium.com' || !profileUrl.pathname.startsWith('/@')) {
+                return showToast('Use an https://medium.com/@… profile URL', 'warning');
+            }
+            config.platform = 'medium';
+            config.account_ref = newChannelName;
+            config.profile_url = profileUrl.toString();
+            config.handle = profileUrl.pathname.slice(2);
+            config.workflow_mode = 'manual_handoff';
+            config.execution_modes = ['manual'];
+            config.allowed_content_types = ['medium:manual_content'];
+            config.capability_flags = {
+                api_publish: false,
+                manual_handoff: true,
+                analytics_supported: false,
+                auto_canvas_generation: false
+            };
+            config.canonical_placements = ['article_cover'];
+            config.placement_contracts = {
+                article_cover: {
+                    artifact_kind: 'article_cover',
+                    dimensions: { width: 1200, height: 630, aspect_ratio: '1.91:1' },
+                    safe_area: { unit: 'px', top: 63, right: 120, bottom: 63, left: 120 },
+                    allowed_formats: ['image/png', 'image/jpeg'],
+                    max_bytes: 26214400
+                }
+            };
         }
 
         addChannel.mutate({
@@ -1592,6 +1625,10 @@ export default function Settings() {
                                 const nextType = e.target.value;
                                 setNewChannelType(nextType);
                                 if (nextType === 'zen') setNewChannelWorkflowMode('auto_publish');
+                                if (nextType === 'medium') {
+                                    setNewChannelWorkflowMode('manual_handoff');
+                                    setNewChannelContentLanguage('en');
+                                }
                             }}>
                                 <option value="telegram">Telegram</option>
                                 <option value="vk">VKontakte (VK)</option>
@@ -1601,6 +1638,7 @@ export default function Settings() {
                                 <option value="vc">VC.ru</option>
                                 <option value="zen">Zen (Dzen)</option>
                                 <option value="threads">Threads</option>
+                                <option value="medium">Medium</option>
                             </select>
                         </div>
 
@@ -1617,11 +1655,16 @@ export default function Settings() {
                                 <label>{copy.workflowMode}</label>
                                 <select value={newChannelWorkflowMode} onChange={(e) => setNewChannelWorkflowMode(e.target.value as typeof newChannelWorkflowMode)}>
                                     <option value="prepare_only">{copy.prepareOnly}</option>
+                                    <option value="manual_handoff">{locale === 'ru' ? 'Ручная публикация' : 'Manual publication'}</option>
                                     <option value="approval_required">{copy.approvalRequired}</option>
                                     <option value="auto_publish">{copy.autoPublish}</option>
                                 </select>
                                 <p className="mt-1 text-xs leading-5 text-on-surface-variant">
-                                    {newChannelWorkflowMode === 'prepare_only' ? copy.prepareOnlyHelp : newChannelWorkflowMode === 'approval_required' ? copy.approvalRequiredHelp : copy.autoPublishHelp}
+                                    {newChannelWorkflowMode === 'prepare_only' || newChannelWorkflowMode === 'manual_handoff'
+                                        ? copy.prepareOnlyHelp
+                                        : newChannelWorkflowMode === 'approval_required'
+                                            ? copy.approvalRequiredHelp
+                                            : copy.autoPublishHelp}
                                 </p>
                             </div>
                             <div>
@@ -1870,6 +1913,20 @@ export default function Settings() {
                                         />
                                     </div>
                                 </>
+                            ) : newChannelType === 'medium' ? (
+                                <div style={{ gridColumn: '1 / -1' }}>
+                                    <label>{locale === 'ru' ? 'Публичный профиль Medium' : 'Public Medium profile'}</label>
+                                    <input
+                                        placeholder="https://medium.com/@username"
+                                        value={newChannelId}
+                                        onChange={e => setNewChannelId(e.target.value)}
+                                    />
+                                    <p className="text-muted" style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>
+                                        {locale === 'ru'
+                                            ? 'Planner подготовит статью и durable-обложку, но публикация останется ручной. API-ключ не создаётся.'
+                                            : 'Planner prepares the article and durable cover, but publication remains manual. No API key is created.'}
+                                    </p>
+                                </div>
                             ) : (
                                 <div style={{ gridColumn: '1 / -1' }}>
                                     <label>Connect to LinkedIn</label>
