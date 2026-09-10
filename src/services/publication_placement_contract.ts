@@ -4,6 +4,7 @@ const DEFAULT_PLACEMENTS: Record<string, string[]> = {
     dzen: ['article_cover'],
     medium: ['article_cover'],
     site: ['article_cover'],
+    setka: ['feed'],
     telegram: ['feed', 'story'],
     telegram_chat: ['feed', 'story'],
     vk: ['feed', 'story', 'article_cover'],

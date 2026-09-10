@@ -43,6 +43,8 @@ test('VK longread uses a distinct manual article-cover contract', () => {
 });
 
 test('Setka feed exposes the established 4:3 asset contract', () => {
+    assert.deepEqual(canonicalPlacementsForChannel({ type: 'setka' }), ['feed']);
+    assert.equal(assertCanonicalPublicationPlacement({ type: 'setka' }, 'feed'), 'feed');
     const contract = publicationPlacementAssetContract({ type: 'setka' }, 'feed');
     assert.equal(contract.artifact_kind, 'feed');
     assert.deepEqual(contract.dimensions, { width: 1200, height: 900, aspect_ratio: '4:3' });
