@@ -117,8 +117,14 @@ interface McpWorkspaceBundle {
     bundle_id: string
     project: { id: number; name: string; slug: string }
     user: { id: number; name: string; email: string }
-    accesses: Array<{ id: number; profile: McpAccess['profile']; token: string; endpoint: string }>
+    accesses: Array<{ id: number; profile: McpAccess['profile']; token: string; endpoint: string; server_name: string; token_env_var: string }>
     config: { mcpServers: Record<string, { url: string; headers: { Authorization: string } }> }
+    codex: {
+        server_namespace: string
+        project_directory_name: string
+        project_config_toml: string
+        secrets_env: string
+    }
     bootstrap_prompt: string
 }
 
@@ -1522,10 +1528,24 @@ export default function Settings() {
                                         <button type="button" className="btn-secondary" disabled={!mcpAccessUserId || createMcpAccess.isPending} onClick={() => createMcpAccess.mutate()}>{locale === 'ru' ? 'Создать один доступ' : 'Create one access'}</button>
                                     </div>
                                     {workspaceBundle && <div className="mt-4 rounded-xl border border-warning/30 bg-white p-3">
-                                        <div className="text-xs font-black text-warning">{locale === 'ru' ? 'Скопируйте оба блока сейчас: семь токенов повторно не показываются' : 'Copy both blocks now: the seven tokens will not be shown again'}</div>
-                                        <div className="mt-3 text-xs font-black uppercase tracking-wider text-primary">{locale === 'ru' ? 'Конфигурация MCP' : 'MCP configuration'}</div>
-                                        <pre className="mt-2 max-h-72 overflow-auto rounded-xl bg-[#17181a] p-3 text-xs leading-5 text-white"><code>{JSON.stringify(workspaceBundle.config, null, 2)}</code></pre>
-                                        <button className="btn-secondary mt-2" onClick={() => navigator.clipboard.writeText(JSON.stringify(workspaceBundle.config, null, 2))}>{copy.copyConfig}</button>
+                                        <div className="text-xs font-black text-warning">{locale === 'ru' ? 'Скопируйте конфигурацию и секреты сейчас: семь токенов повторно не показываются' : 'Copy the configuration and secrets now: the seven tokens will not be shown again'}</div>
+                                        <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs leading-5 text-on-surface-variant">
+                                            <strong className="text-on-surface">{locale === 'ru' ? 'Изоляция проекта включена.' : 'Project isolation is enabled.'}</strong>{' '}
+                                            {locale === 'ru'
+                                                ? `Namespace ${workspaceBundle.codex.server_namespace} принадлежит только проекту ${workspaceBundle.project.name} (#${workspaceBundle.project.id}). Создайте отдельный сохранённый проект Codex с каталогом ${workspaceBundle.codex.project_directory_name}; не используйте общую plugin connection для нескольких проектов.`
+                                                : `Namespace ${workspaceBundle.codex.server_namespace} belongs only to ${workspaceBundle.project.name} (#${workspaceBundle.project.id}). Create a separate saved Codex project rooted at ${workspaceBundle.codex.project_directory_name}; do not use one shared plugin connection for multiple projects.`}
+                                        </div>
+                                        <div className="mt-4 text-xs font-black uppercase tracking-wider text-primary">{locale === 'ru' ? 'Файл проекта .codex/config.toml' : 'Project file .codex/config.toml'}</div>
+                                        <pre className="mt-2 max-h-72 overflow-auto rounded-xl bg-[#17181a] p-3 text-xs leading-5 text-white"><code>{workspaceBundle.codex.project_config_toml}</code></pre>
+                                        <button className="btn-secondary mt-2" onClick={() => navigator.clipboard.writeText(workspaceBundle.codex.project_config_toml)}>{locale === 'ru' ? 'Копировать config.toml' : 'Copy config.toml'}</button>
+                                        <div className="mt-4 text-xs font-black uppercase tracking-wider text-primary">{locale === 'ru' ? 'Секреты ~/.codex/.env' : 'Secrets for ~/.codex/.env'}</div>
+                                        <pre className="mt-2 max-h-72 overflow-auto rounded-xl bg-[#17181a] p-3 text-xs leading-5 text-white"><code>{workspaceBundle.codex.secrets_env}</code></pre>
+                                        <button className="btn-secondary mt-2" onClick={() => navigator.clipboard.writeText(workspaceBundle.codex.secrets_env)}>{locale === 'ru' ? 'Копировать секреты' : 'Copy secrets'}</button>
+                                        <details className="mt-4 rounded-xl bg-surface-container-low p-3">
+                                            <summary className="cursor-pointer text-xs font-black text-on-surface">{locale === 'ru' ? 'JSON для других MCP-клиентов' : 'JSON for other MCP clients'}</summary>
+                                            <pre className="mt-3 max-h-72 overflow-auto rounded-xl bg-[#17181a] p-3 text-xs leading-5 text-white"><code>{JSON.stringify(workspaceBundle.config, null, 2)}</code></pre>
+                                            <button className="btn-secondary mt-2" onClick={() => navigator.clipboard.writeText(JSON.stringify(workspaceBundle.config, null, 2))}>{copy.copyConfig}</button>
+                                        </details>
                                         <div className="mt-4 text-xs font-black uppercase tracking-wider text-primary">{locale === 'ru' ? 'Bootstrap для агента' : 'Agent bootstrap'}</div>
                                         <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap rounded-xl bg-surface-container-low p-3 text-xs leading-5"><code>{workspaceBundle.bootstrap_prompt}</code></pre>
                                         <button className="btn-secondary mt-2" onClick={() => navigator.clipboard.writeText(workspaceBundle.bootstrap_prompt)}>{locale === 'ru' ? 'Копировать bootstrap' : 'Copy bootstrap'}</button>

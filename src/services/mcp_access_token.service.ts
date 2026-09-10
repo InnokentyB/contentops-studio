@@ -12,6 +12,28 @@ function profileSlug(profile: McpCapabilityProfile) {
     return profile.replace(/_/g, '-');
 }
 
+function safeProjectSlug(value: string) {
+    const normalized = value
+        .normalize('NFKD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '');
+    return normalized || 'project';
+}
+
+export function projectMcpNamespace(project: { id: number; slug: string }) {
+    return `contentops_${safeProjectSlug(project.slug)}_p${project.id}`;
+}
+
+function projectTokenEnvVar(namespace: string, profile: McpCapabilityProfile) {
+    return `${namespace}_${profile}_token`.toUpperCase();
+}
+
+function tomlString(value: string) {
+    return JSON.stringify(value);
+}
+
 export function hashMcpToken(token: string) {
     return createHash('sha256').update(token).digest('hex');
 }
@@ -117,32 +139,54 @@ class McpAccessTokenService {
             })));
         });
 
+        const serverNamespace = projectMcpNamespace(membership.project);
         const accesses = issued.map(({ profile, token }, index) => ({
             id: records[index].id,
             profile,
             token,
-            endpoint: `${baseUrl}/${profileSlug(profile)}`
+            endpoint: `${baseUrl}/${profileSlug(profile)}`,
+            server_name: `${serverNamespace}_${profile}`,
+            token_env_var: projectTokenEnvVar(serverNamespace, profile)
         }));
         const mcpServers = Object.fromEntries(accesses.map((access) => [
-            `contentops-${profileSlug(access.profile)}`,
+            access.server_name,
             { url: access.endpoint, headers: { Authorization: `Bearer ${access.token}` } }
         ]));
+        const codexConfigToml = accesses.map((access) => [
+            `[mcp_servers.${access.server_name}]`,
+            `url = ${tomlString(access.endpoint)}`,
+            `bearer_token_env_var = ${tomlString(access.token_env_var)}`,
+            'required = true'
+        ].join('\n')).join('\n\n');
+        const secretsEnv = accesses
+            .map((access) => `${access.token_env_var}=${access.token}`)
+            .join('\n');
         const chatList = [
             'Strategist', 'Planning HQ', 'Content Writer', 'Chief Editor', 'Art Director', 'Publisher', 'Growth Analyst'
         ];
 
         return {
-            schema_version: '1.0',
+            schema_version: '2.0',
             bundle_id: bundleId,
             project: membership.project,
             user: membership.user,
             accesses,
             config: { mcpServers },
+            codex: {
+                server_namespace: serverNamespace,
+                project_directory_name: `${safeProjectSlug(membership.project.slug)}-contentops-p${projectId}`,
+                project_config_toml: codexConfigToml,
+                secrets_env: secretsEnv
+            },
             bootstrap_prompt: [
                 `Set up the governed ContentOps workspace for project ${membership.project.name} (ID ${projectId}).`,
-                `Create these seven role chats if the host supports persistent chats: ${chatList.join(', ')}.`,
-                'Connect each chat only to the matching ContentOps MCP server from the supplied configuration.',
+                `This bundle is exclusively bound to project ${membership.project.slug} (ID ${projectId}) under MCP namespace ${serverNamespace}.`,
+                'Create or open one saved Codex project rooted in the dedicated directory containing the supplied .codex/config.toml.',
+                `Inside that saved project, create these seven role chats if the host supports persistent chats: ${chatList.join(', ')}.`,
+                'Do not create projectless role chats and do not use the globally shared ContentOps Workspace plugin connection for a multi-project setup.',
+                'Connect each chat only to the matching project-namespaced ContentOps MCP server from the supplied configuration.',
                 'In every chat, first call ba_get_agent_workspace_manifest, then ba_get_agent_chat_bootstrap with that chat id.',
+                `Stop if the manifest project id is not ${projectId} or its slug is not ${membership.project.slug}.`,
                 'Treat the returned permissions and handoffs as authoritative. Never print access tokens or copy them into chat messages.',
                 'Publisher may deliver only through its visible governed tools and must obey release readiness and approval gates; never infer success without a confirmed publication fact.'
             ].join('\n')
