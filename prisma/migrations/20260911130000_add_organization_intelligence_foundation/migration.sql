@@ -39,7 +39,7 @@ ALTER TABLE "planner"."mcp_access_tokens"
     ADD CONSTRAINT "mcp_access_tokens_exactly_one_scope_check" CHECK (("project_id" IS NOT NULL) <> ("organization_id" IS NOT NULL));
 ALTER TABLE "planner"."mcp_access_tokens" DROP CONSTRAINT IF EXISTS "mcp_access_tokens_profile_check";
 ALTER TABLE "planner"."mcp_access_tokens" ADD CONSTRAINT "mcp_access_tokens_profile_check"
-    CHECK ("profile" IN ('planner', 'writer', 'art_director', 'strategist', 'organization_researcher'));
+    CHECK ("profile" IN ('strategist', 'planner', 'writer', 'editor', 'art_director', 'publisher', 'growth_analyst', 'organization_researcher'));
 CREATE INDEX "mcp_access_tokens_organization_id_profile_idx" ON "planner"."mcp_access_tokens"("organization_id", "profile");
 
 -- Backfill only projects with exactly one owner. One personal organization is shared by all
