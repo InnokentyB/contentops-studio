@@ -40,22 +40,27 @@ class AuthService {
 
         const passwordHash = await bcrypt.hash(password, 10);
         const finalName = name || email.split('@')[0];
-        const user = await prisma.user.create({
-            data: {
-                email,
-                name: finalName,
-                password_hash: passwordHash
-            }
-        });
-
-        // Create default project
-        const project = await prisma.project.create({
-            data: {
+        const timestamp = Date.now();
+        const { user } = await prisma.$transaction(async (tx) => {
+            const createdUser = await tx.user.create({ data: { email, name: finalName, password_hash: passwordHash } });
+            const organization = await tx.organization.create({
+                data: {
+                    name: `${finalName}'s organization`,
+                    slug: `personal-user-${createdUser.id}`,
+                    members: { create: { user_id: createdUser.id, role: 'owner' } },
+                    research_connections: { create: [
+                        { source_type: 'reddit', name: 'Reddit', capabilities: ['search', 'read'] },
+                        { source_type: 'indie_hackers', name: 'Indie Hackers', capabilities: ['search', 'read'] }
+                    ] }
+                }
+            });
+            await tx.project.create({ data: {
                 name: `${finalName}'s Project`,
-                slug: `${finalName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-project-${Date.now()}`, // Ensure unique slug
+                slug: `${finalName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-project-${timestamp}`,
+                organization_id: organization.id,
                 members: {
                     create: {
-                        user_id: user.id,
+                        user_id: createdUser.id,
                         role: 'owner'
                     }
                 },
@@ -67,8 +72,10 @@ class AuthService {
                             { key: 'post_creator_model', value: 'gpt-4' }
                         ]
                     }
-                }
-            }
+                },
+                research_profile: { create: { revision: 1 } }
+            } });
+            return { user: createdUser };
         });
 
         const token = this.generateToken(user);

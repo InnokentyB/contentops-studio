@@ -6,7 +6,7 @@ export const MANAGED_MCP_PROFILES = [
     'strategist', 'planner', 'writer', 'editor', 'art_director', 'publisher', 'growth_analyst'
 ] as const satisfies readonly McpCapabilityProfile[];
 
-const MANAGED_PROFILES = new Set<McpCapabilityProfile>(MANAGED_MCP_PROFILES);
+const MANAGED_PROFILES = new Set<McpCapabilityProfile>([...MANAGED_MCP_PROFILES, 'organization_researcher']);
 
 function profileSlug(profile: McpCapabilityProfile) {
     return profile.replace(/_/g, '-');
@@ -52,6 +52,7 @@ export class ActiveMcpWorkspaceBundleError extends Error {
 class McpAccessTokenService {
     async create(projectId: number, userId: number, profile: McpCapabilityProfile, label: string, expiresAt?: Date | null) {
         if (!isManagedMcpProfile(profile)) throw new Error('Unsupported MCP profile');
+        if (profile === 'organization_researcher') throw new Error('Organization researcher access must be organization-scoped');
         const membership = await prisma.projectMember.findUnique({ where: { project_id_user_id: { project_id: projectId, user_id: userId } } });
         if (!membership) throw new Error('User is not a member of this project');
 
@@ -70,12 +71,49 @@ class McpAccessTokenService {
         return { token, access: record };
     }
 
+    async createForOrganization(organizationId: number, userId: number, profile: McpCapabilityProfile, label: string, expiresAt?: Date | null) {
+        if (profile !== 'organization_researcher') throw new Error('Only organization researcher access can be organization-scoped');
+        const membership = await prisma.organizationMember.findUnique({
+            where: { organization_id_user_id: { organization_id: organizationId, user_id: userId } }
+        });
+        if (!membership || !['owner', 'researcher'].includes(membership.role)) {
+            throw new Error('User cannot research this organization');
+        }
+
+        const token = `mcp_${randomBytes(32).toString('base64url')}`;
+        const record = await prisma.mcpAccessToken.create({
+            data: {
+                organization_id: organizationId,
+                user_id: userId,
+                profile,
+                token_hash: hashMcpToken(token),
+                label: label.trim() || `${profile} access`,
+                expires_at: expiresAt || null
+            },
+            include: { user: { select: { id: true, name: true, email: true } } }
+        });
+        return { token, access: record };
+    }
+
     async list(projectId: number) {
         return prisma.mcpAccessToken.findMany({
             where: { project_id: projectId },
             orderBy: { created_at: 'desc' },
             include: { user: { select: { id: true, name: true, email: true } } }
         });
+    }
+
+    async listForOrganization(organizationId: number) {
+        return prisma.mcpAccessToken.findMany({
+            where: { organization_id: organizationId }, orderBy: { created_at: 'desc' },
+            include: { user: { select: { id: true, name: true, email: true } } }
+        });
+    }
+
+    async revokeForOrganization(organizationId: number, id: number) {
+        const existing = await prisma.mcpAccessToken.findFirst({ where: { id, organization_id: organizationId } });
+        if (!existing) throw new Error('MCP access was not found');
+        return prisma.mcpAccessToken.update({ where: { id }, data: { revoked_at: new Date() } });
     }
 
     async createWorkspaceBundle(
@@ -211,12 +249,19 @@ class McpAccessTokenService {
     async authenticate(token: string, expectedProfile: McpCapabilityProfile) {
         const record = await prisma.mcpAccessToken.findUnique({ where: { token_hash: hashMcpToken(token) } });
         if (!record || record.profile !== expectedProfile || record.revoked_at || (record.expires_at && record.expires_at <= new Date())) return null;
-        const membership = await prisma.projectMember.findUnique({ where: { project_id_user_id: { project_id: record.project_id, user_id: record.user_id } } });
-        if (!membership) return null;
+        if (expectedProfile === 'organization_researcher') {
+            if (!record.organization_id || record.project_id) return null;
+            const membership = await prisma.organizationMember.findUnique({ where: { organization_id_user_id: { organization_id: record.organization_id, user_id: record.user_id } } });
+            if (!membership || !['owner', 'researcher'].includes(membership.role)) return null;
+        } else {
+            if (!record.project_id || record.organization_id) return null;
+            const membership = await prisma.projectMember.findUnique({ where: { project_id_user_id: { project_id: record.project_id, user_id: record.user_id } } });
+            if (!membership) return null;
+        }
         await prisma.mcpAccessToken.update({ where: { id: record.id }, data: { last_used_at: new Date() } });
         return {
             credentialId: `db:${record.id}:${record.token_hash}`,
-            principal: { userId: record.user_id, actorId: `user:${record.user_id}`, projectId: record.project_id, profile: expectedProfile }
+            principal: { userId: record.user_id, actorId: `user:${record.user_id}`, ...(record.project_id ? { projectId: record.project_id } : {}), ...(record.organization_id ? { organizationId: record.organization_id } : {}), profile: expectedProfile }
         };
     }
 

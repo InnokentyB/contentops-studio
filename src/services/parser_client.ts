@@ -40,6 +40,8 @@ export type ParserSearchJobRequest = {
     idempotencyKey?: string;
 };
 
+export type OrganizationParserSearchRequest = Omit<ParserSearchJobRequest, 'projectId'> & { organizationId: number };
+
 export type ParserTemplateImportRequest = {
     projectId: number;
     yamlContent?: string;
@@ -166,6 +168,21 @@ class ParserClient {
                 idempotency_key: input.idempotencyKey || randomUUID()
             }
         });
+    }
+
+    async createOrganizationSearchJob(input: OrganizationParserSearchRequest) {
+        return this.request<any>('POST', '/search', {
+            workspaceId: `organization-${input.organizationId}`,
+            body: {
+                source: input.source || 'reddit', query: input.query, limit: input.limit ?? 25,
+                min_score: input.minScore ?? 0, include_comments: input.includeComments ?? true,
+                enrich: input.enrich ?? true, idempotency_key: input.idempotencyKey || randomUUID()
+            }
+        });
+    }
+
+    async getOrganizationSearchJob(organizationId: number, jobId: string) {
+        return this.request<any>('GET', `/search/${encodeURIComponent(jobId)}`, { workspaceId: `organization-${organizationId}` });
     }
 
     async getSearchJob(projectId: number, jobId: string) {
