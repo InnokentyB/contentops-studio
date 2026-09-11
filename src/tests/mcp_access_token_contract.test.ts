@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import mcpAccessTokenService, { ActiveMcpWorkspaceBundleError, MANAGED_MCP_PROFILES, hashMcpToken, isManagedMcpProfile } from '../services/mcp_access_token.service';
+import mcpAccessTokenService, { ActiveMcpWorkspaceBundleError, MANAGED_MCP_PROFILES, hashMcpToken, isManagedMcpProfile, projectMcpNamespace } from '../services/mcp_access_token.service';
 import prisma from '../db';
 
 test('personal MCP tokens are stored as deterministic hashes, not plaintext', () => {
@@ -16,6 +16,15 @@ test('only scoped agent profiles can receive personal MCP access', () => {
     ]);
     for (const profile of MANAGED_MCP_PROFILES) assert.equal(isManagedMcpProfile(profile), true);
     assert.equal(isManagedMcpProfile('owner'), false);
+});
+
+test('project MCP namespaces remain distinct even when project slugs are similar', () => {
+    assert.equal(projectMcpNamespace({ id: 10, slug: 'Customer Project' }), 'contentops_customer_project_p10');
+    assert.equal(projectMcpNamespace({ id: 29, slug: 'customer-project' }), 'contentops_customer_project_p29');
+    assert.notEqual(
+        projectMcpNamespace({ id: 10, slug: 'Customer Project' }),
+        projectMcpNamespace({ id: 29, slug: 'customer-project' })
+    );
 });
 
 test('workspace bundle creates all seven hashed credentials in one transaction and returns plaintext once', async () => {
@@ -54,7 +63,20 @@ test('workspace bundle creates all seven hashed credentials in one transaction a
             assert.equal(row.expires_at, expiresAt);
         }
         assert.equal(bundle.accesses.find((access) => access.profile === 'growth_analyst')?.endpoint, 'https://planner.example/mcp/growth-analyst');
-        assert.match(bundle.config.mcpServers['contentops-publisher'].headers.Authorization, /^Bearer mcp_/);
+        assert.equal(bundle.schema_version, '2.0');
+        assert.equal(bundle.codex.server_namespace, 'contentops_customer_project_p10');
+        assert.equal(bundle.codex.project_directory_name, 'customer_project-contentops-p10');
+        assert.match(bundle.config.mcpServers.contentops_customer_project_p10_publisher.headers.Authorization, /^Bearer mcp_/);
+        assert.equal('contentops-publisher' in bundle.config.mcpServers, false);
+        assert.match(bundle.codex.project_config_toml, /\[mcp_servers\.contentops_customer_project_p10_publisher\]/);
+        assert.match(bundle.codex.project_config_toml, /bearer_token_env_var = "CONTENTOPS_CUSTOMER_PROJECT_P10_PUBLISHER_TOKEN"/);
+        assert.doesNotMatch(bundle.codex.project_config_toml, /Bearer mcp_|external@example\.com/);
+        assert.match(bundle.codex.secrets_env, /^CONTENTOPS_CUSTOMER_PROJECT_P10_STRATEGIST_TOKEN=mcp_/m);
+        assert.match(bundle.codex.secrets_env, /^CONTENTOPS_CUSTOMER_PROJECT_P10_GROWTH_ANALYST_TOKEN=mcp_/m);
+        assert.equal(bundle.accesses.find((access) => access.profile === 'publisher')?.server_name, 'contentops_customer_project_p10_publisher');
+        assert.equal(bundle.accesses.find((access) => access.profile === 'publisher')?.token_env_var, 'CONTENTOPS_CUSTOMER_PROJECT_P10_PUBLISHER_TOKEN');
+        assert.match(bundle.bootstrap_prompt, /Do not create projectless role chats/);
+        assert.match(bundle.bootstrap_prompt, /manifest project id is not 10/);
         assert.doesNotMatch(bundle.bootstrap_prompt, /Bearer mcp_|external@example\.com/);
     } finally {
         (prisma.projectMember as any).findUnique = originalFindUnique;

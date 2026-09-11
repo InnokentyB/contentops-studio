@@ -105,6 +105,14 @@ Run `ba_publish_publication_task` with `dryRun: true` before any live call and p
 
 Open **Project settings → MCP → Personal access** and select **Revoke** next to the affected token. Issue a new device-specific token when a computer is replaced, a person leaves the project, or a token may have been exposed. Revocation is immediate and does not require a redeploy.
 
+## Multiple Planner projects in Codex
+
+Do not reuse one ContentOps Workspace plugin connection across several Codex projects. Plugin connections are shared by the host, so authorizing another Planner project replaces the effective connection for existing tasks.
+
+For each Planner project, issue its own seven-role workspace bundle. The bundle returns a project-unique MCP namespace, a `.codex/config.toml` snippet, and project-specific environment variable names. Create a separate saved Codex project rooted in the directory named by the bundle and create all seven role tasks inside it. Projectless tasks do not inherit the project configuration. See [the Russian multi-project guide](CODEX_MULTI_PROJECT_MCP_RU.md) for the complete setup.
+
+After all seven roles report the expected project manifest, revoke the legacy shared or individual tokens for that project. Existing projectless tasks keep their history but cannot be retrofitted with a project root, so continue the roles in new tasks inside the saved project.
+
 ## Troubleshooting
 
 - `401 Unauthorized`: the token is missing, malformed, expired, or revoked.
