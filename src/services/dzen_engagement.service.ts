@@ -60,7 +60,17 @@ class DzenEngagementService {
         const config = await this.getChannel(args.projectId, args.channelId, args.actorId);
         const fingerprint = crypto.createHash('sha256').update(text).digest('hex');
         if (!args.confirm) {
-            return { status: 'preview', will_publish: false, post_url: args.postUrl, text, text_fingerprint: fingerprint };
+            const preflight = await dzenService.preflightComment(config, args.postUrl);
+            return {
+                status: preflight.status === 'ready' ? 'preview' : 'interface_changed',
+                will_publish: false,
+                executable: preflight.status === 'ready',
+                blocker: preflight.status === 'ready' ? null : 'interface_changed',
+                post_url: args.postUrl,
+                text,
+                text_fingerprint: fingerprint,
+                preflight
+            };
         }
         const keyHash = crypto.createHash('sha256').update(`${args.channelId}:${args.postUrl}:${args.idempotencyKey}`).digest('hex');
         const settingKey = `dzen_comment:${keyHash}`;

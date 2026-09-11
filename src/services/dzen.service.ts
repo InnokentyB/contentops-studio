@@ -117,6 +117,10 @@ class DzenService {
     async comment(config: DzenConfig, postUrl: string, text: string) {
         return puppeteerPublisherService.commentOnDzenPost(config, postUrl, text);
     }
+
+    async preflightComment(config: DzenConfig, postUrl: string) {
+        return puppeteerPublisherService.preflightDzenComment(config, postUrl);
+    }
 }
 
 export default new DzenService();
