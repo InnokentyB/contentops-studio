@@ -98,13 +98,14 @@ interface McpStatus {
         editor?: { endpoint: string; configured: boolean; bound_project_id?: number | null }
         publisher?: { endpoint: string; configured: boolean; bound_project_id?: number | null }
         growth_analyst?: { endpoint: string; configured: boolean; bound_project_id?: number | null }
+        organization_researcher?: { endpoint: string; configured: boolean; bound_organization_id?: number | null }
     }
 }
 
 interface McpAccess {
     id: number
     bundle_id?: string | null
-    profile: 'strategist' | 'planner' | 'writer' | 'editor' | 'art_director' | 'publisher' | 'growth_analyst'
+    profile: 'strategist' | 'planner' | 'writer' | 'editor' | 'art_director' | 'publisher' | 'growth_analyst' | 'organization_researcher'
     label: string
     expires_at: string | null
     revoked_at: string | null
@@ -500,6 +501,7 @@ export default function Settings() {
         publisher: 'Публикатор', publisherHelp: 'Проверяет готовность и доставляет только принятый release bundle через управляемый путь. Не обходит approval-gates.',
         growthAnalyst: 'Аналитик роста', growthAnalystHelp: 'Собирает метрики только по подтверждённым фактам публикации и сводит результаты кампаний.',
         strategist: 'Стратег', strategistHelp: 'Читает рабочую область, ведёт инициативы и темы, раскладывает неделю. Не публикует и не тратит ключи владельца установки. Профиль для подключения своего агента.',
+        organizationResearcher: 'Исследователь организации', organizationResearcherHelp: 'Ищет общие сигналы, оценивает их для всех проектов и маршрутизирует в проектные inbox. Не может публиковать, отвечать или менять контент.',
         mcpTitle: 'Подключение MCP', mcpHelp: 'Дайте Codex, Claude или другому агенту доступ к плану, очереди работ и публикациям проекта.',
         mcpOnline: 'MCP работает', mcpOffline: 'MCP недоступен', checking: 'Проверяем MCP', check: 'Проверить', configured: 'Настроен', notConfigured: 'Не настроен',
         copyConfig: 'Копировать конфигурацию', copied: 'Конфигурация скопирована', tokenHelp: 'Каждый агент получает отдельный endpoint и отдельный токен. В конфигурации ниже показан безопасный шаблон, а не настоящий секрет. Вставьте токен, который владелец проекта только что выпустил для этого пользователя и профиля.',
@@ -526,6 +528,7 @@ export default function Settings() {
         publisher: 'Publisher', publisherHelp: 'Checks readiness and delivers only an accepted release bundle through the governed path. Cannot bypass approval gates.',
         growthAnalyst: 'Growth Analyst', growthAnalystHelp: 'Collects metrics only for confirmed publication facts and rolls up campaign outcomes.',
         strategist: 'Strategist', strategistHelp: 'Reads the workspace, drives initiatives and themes, lays out the week. Cannot publish and never spends the deployment owner keys. The profile for bringing your own agent.',
+        organizationResearcher: 'Organization researcher', organizationResearcherHelp: 'Searches shared sources, assesses signals across projects, and routes them to project inboxes. Cannot publish, reply, or change content.',
         mcpTitle: 'MCP connection', mcpHelp: 'Give Codex, Claude or another agent access to the project plan, work queue and publications.',
         mcpOnline: 'MCP online', mcpOffline: 'MCP unavailable', checking: 'Checking MCP', check: 'Check', configured: 'Configured', notConfigured: 'Not configured',
         copyConfig: 'Copy configuration', copied: 'Configuration copied', tokenHelp: 'Each agent receives a separate endpoint and token. The configuration below is a safe template, not a real secret. Insert the token the project owner just issued for this user and profile.',
@@ -1481,6 +1484,15 @@ export default function Settings() {
                         endpoint: mcpStatus?.capability_endpoints?.growth_analyst?.endpoint || `${mcpUrl}/growth-analyst`,
                         configured: mcpStatus?.capability_endpoints?.growth_analyst?.configured ?? false,
                         token: '<MCP_GROWTH_ANALYST_AUTH_TOKEN>'
+                    },
+                    {
+                        id: 'organization-researcher',
+                        title: copy.organizationResearcher,
+                        description: copy.organizationResearcherHelp,
+                        icon: 'travel_explore',
+                        endpoint: mcpStatus?.capability_endpoints?.organization_researcher?.endpoint || `${mcpUrl}/organization-researcher`,
+                        configured: mcpStatus?.capability_endpoints?.organization_researcher?.configured ?? false,
+                        token: '<MCP_ORGANIZATION_RESEARCHER_AUTH_TOKEN>'
                     }
                 ]
                 const isMcpOnline = mcpStatus?.status === 'online'
@@ -1508,7 +1520,7 @@ export default function Settings() {
                                             {(projectData as ApiJson)?.members?.map((member: ApiJson) => <option key={member.user_id} value={member.user_id}>{member.user?.name || member.user?.email}</option>)}
                                         </select>
                                         <select value={mcpAccessProfile} onChange={event => setMcpAccessProfile(event.target.value as typeof mcpAccessProfile)}>
-                                            <option value="strategist">Strategist</option><option value="planner">Planner</option><option value="writer">Writer</option><option value="editor">Chief Editor</option><option value="art_director">Art director</option><option value="publisher">Publisher</option><option value="growth_analyst">Growth Analyst</option>
+                                            <option value="strategist">Strategist</option><option value="planner">Planner</option><option value="writer">Writer</option><option value="editor">Chief Editor</option><option value="art_director">Art director</option><option value="publisher">Publisher</option><option value="growth_analyst">Growth Analyst</option><option value="organization_researcher">Organization researcher</option>
                                         </select>
                                         <input value={mcpAccessLabel} onChange={event => setMcpAccessLabel(event.target.value)} placeholder={locale === 'ru' ? 'Например: Claude на ноутбуке' : 'For example: Claude on laptop'} />
                                         <select value={mcpWorkspaceExpiryDays} onChange={event => setMcpWorkspaceExpiryDays(event.target.value as typeof mcpWorkspaceExpiryDays)}>

@@ -14,6 +14,7 @@ import Guide from './pages/Guide'
 import PublicationTasks from './pages/PublicationTasks'
 import ProjectWorkspace from './pages/ProjectWorkspace'
 import Parsers from './pages/Parsers'
+import OrganizationIntelligence from './pages/OrganizationIntelligence'
 import ChannelWorkspace from './pages/ChannelWorkspace'
 import PostPublicationAnalytics from './pages/PostPublicationAnalytics'
 import SavedRecipesLibrary from './pages/SavedRecipesLibrary'
@@ -47,6 +48,7 @@ function AppContent() {
         <Route path="/projects" element={<ProjectWorkspace />} />
         <Route path="/channels/:channelId" element={<ChannelWorkspace />} />
         <Route path="/parsers" element={<Parsers />} />
+        <Route path="/intelligence" element={<OrganizationIntelligence />} />
         <Route path="/recipes" element={<SavedRecipesLibrary />} />
         <Route path="/analytics" element={<PostPublicationAnalytics />} />
 

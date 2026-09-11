@@ -58,6 +58,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "axios": "^1.13.5",
     "bcrypt": "^6.0.0",
+    "big-integer": "^1.6.52",
     "bullmq": "^5.71.0",
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",

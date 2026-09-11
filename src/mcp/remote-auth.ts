@@ -12,6 +12,7 @@ export type RemotePrincipal = {
     userId: number;
     actorId: string;
     projectId?: number;
+    organizationId?: number;
     profile?: McpCapabilityProfile;
 };
 
@@ -53,6 +54,7 @@ export function scopeRemoteMcpRequest(body: any, principal: RemotePrincipal | nu
     if ('actorId' in scopedArguments) scopedArguments.actorId = principal.actorId;
     if ('userId' in scopedArguments || toolName?.startsWith('ba_get_agent_')) scopedArguments.userId = principal.userId;
     if (principal.projectId && ('projectId' in scopedArguments || toolName?.startsWith('ba_get_agent_'))) scopedArguments.projectId = principal.projectId;
+    if (principal.organizationId && 'organizationId' in scopedArguments) scopedArguments.organizationId = principal.organizationId;
 
     return {
         allowed: true,

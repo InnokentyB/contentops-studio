@@ -12,6 +12,7 @@ import authRoutes from './routes/auth.routes';
 import projectRoutes from './routes/project.routes';
 import linkedinRoutes from './routes/linkedin.routes';
 import vkRoutes from './routes/vk.routes';
+import organizationRoutes from './routes/organization.routes';
 import path from 'path';
 import healthService from './services/health.service';
 import authService from './services/auth.service';
@@ -125,6 +126,7 @@ server.register(telegramRoutes);
 server.register(jobRoutes);
 server.register(linkedinRoutes);
 server.register(vkRoutes);
+server.register(organizationRoutes);
 
 
 // SPA fallback for non-API routes

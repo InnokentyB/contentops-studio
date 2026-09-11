@@ -1,4 +1,12 @@
-export type McpCapabilityProfile = 'owner' | 'strategist' | 'planner' | 'writer' | 'editor' | 'art_director' | 'publisher' | 'growth_analyst';
+export type McpCapabilityProfile = 'owner' | 'strategist' | 'planner' | 'writer' | 'editor' | 'art_director' | 'publisher' | 'growth_analyst' | 'organization_researcher';
+
+const ORGANIZATION_RESEARCHER_TOOLS = new Set([
+    'ba_get_organization_intelligence_context',
+    'ba_search_organization_intelligence',
+    'ba_get_organization_research_run',
+    'ba_route_organization_signal',
+    'ba_promote_project_signal'
+]);
 
 const WRITER_TOOLS = new Set([
     'ba_get_agent_workspace_manifest',
@@ -174,6 +182,7 @@ export function isToolAllowedForProfile(profile: McpCapabilityProfile, toolName:
     if (profile === 'publisher') return PUBLISHER_TOOLS.has(toolName);
     if (profile === 'growth_analyst') return GROWTH_ANALYST_TOOLS.has(toolName);
     if (profile === 'strategist') return STRATEGIST_TOOLS.has(toolName);
+    if (profile === 'organization_researcher') return ORGANIZATION_RESEARCHER_TOOLS.has(toolName);
     return PLANNER_TOOLS.has(toolName);
 }
 

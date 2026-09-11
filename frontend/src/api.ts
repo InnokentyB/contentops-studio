@@ -316,3 +316,22 @@ export const parserApi = {
     listTemplates: (projectId: number) => api.get(`/api/projects/${projectId}/parser/templates`),
     runTemplate: (projectId: number, templateId: string) => api.post(`/api/projects/${projectId}/parser/templates/${templateId}/run`)
 };
+
+export const organizationIntelligenceApi = {
+    listOrganizations: () => api.get('/api/organizations'),
+    getContext: (organizationId: number) => api.get(`/api/organizations/${organizationId}/intelligence/context`),
+    search: (organizationId: number, data: { query: string; sources: string[]; projectIds?: number[]; idempotencyKey: string }) =>
+        api.post(`/api/organizations/${organizationId}/intelligence/search`, data),
+    listRuns: (organizationId: number) => api.get(`/api/organizations/${organizationId}/intelligence/runs`),
+    getRun: (organizationId: number, runId: number | string) =>
+        api.get(`/api/organizations/${organizationId}/intelligence/runs/${runId}`),
+    listSignals: (organizationId: number) => api.get(`/api/organizations/${organizationId}/intelligence/signals`),
+    updateProjectProfile: (organizationId: number, projectId: number, data: Record<string, string[]>) =>
+        api.put(`/api/organizations/${organizationId}/intelligence/projects/${projectId}/profile`, data),
+    setSourceActive: (organizationId: number, connectionId: number, isActive: boolean) =>
+        api.request(`/api/organizations/${organizationId}/intelligence/sources/${connectionId}`, { method: 'PATCH', body: { isActive } }),
+    routeSignal: (organizationId: number, signalId: number, projectId: number, assessmentRevision: number) =>
+        api.post(`/api/organizations/${organizationId}/intelligence/signals/${signalId}/route`, { projectId, assessmentRevision, idempotencyKey: crypto.randomUUID() }),
+    promoteSignal: (organizationId: number, signalId: number, projectId: number, target: 'initiative' | 'research_task' | 'publication_theme' = 'initiative') =>
+        api.post(`/api/organizations/${organizationId}/intelligence/signals/${signalId}/promote`, { projectId, target })
+};
