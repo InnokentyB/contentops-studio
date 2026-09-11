@@ -1,7 +1,7 @@
 -- TDPD-007 Slice A: organization tenant and intelligence data foundation.
 -- Project.organization_id deliberately remains nullable during the compatibility window.
 
-CREATE TABLE "planner"."organizations" (
+CREATE TABLE IF NOT EXISTS "planner"."organizations" (
     "id" SERIAL NOT NULL,
     "name" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
@@ -12,10 +12,10 @@ CREATE TABLE "planner"."organizations" (
     CONSTRAINT "organizations_pkey" PRIMARY KEY ("id")
 );
 
-CREATE UNIQUE INDEX "organizations_slug_key" ON "planner"."organizations"("slug");
-CREATE INDEX "organizations_is_archived_idx" ON "planner"."organizations"("is_archived");
+CREATE UNIQUE INDEX IF NOT EXISTS "organizations_slug_key" ON "planner"."organizations"("slug");
+CREATE INDEX IF NOT EXISTS "organizations_is_archived_idx" ON "planner"."organizations"("is_archived");
 
-CREATE TABLE "planner"."organization_members" (
+CREATE TABLE IF NOT EXISTS "planner"."organization_members" (
     "id" SERIAL NOT NULL,
     "organization_id" INTEGER NOT NULL,
     "user_id" INTEGER NOT NULL,
@@ -26,21 +26,23 @@ CREATE TABLE "planner"."organization_members" (
     CONSTRAINT "organization_members_pkey" PRIMARY KEY ("id")
 );
 
-CREATE UNIQUE INDEX "organization_members_organization_id_user_id_key" ON "planner"."organization_members"("organization_id", "user_id");
-CREATE INDEX "organization_members_user_id_role_idx" ON "planner"."organization_members"("user_id", "role");
+CREATE UNIQUE INDEX IF NOT EXISTS "organization_members_organization_id_user_id_key" ON "planner"."organization_members"("organization_id", "user_id");
+CREATE INDEX IF NOT EXISTS "organization_members_user_id_role_idx" ON "planner"."organization_members"("user_id", "role");
 
-ALTER TABLE "planner"."projects" ADD COLUMN "organization_id" INTEGER;
-CREATE INDEX "projects_organization_id_is_archived_idx" ON "planner"."projects"("organization_id", "is_archived");
+ALTER TABLE "planner"."projects" ADD COLUMN IF NOT EXISTS "organization_id" INTEGER;
+CREATE INDEX IF NOT EXISTS "projects_organization_id_is_archived_idx" ON "planner"."projects"("organization_id", "is_archived");
 
 -- MCP credentials remain project-compatible while adding a mutually exclusive organization scope.
 ALTER TABLE "planner"."mcp_access_tokens"
     ALTER COLUMN "project_id" DROP NOT NULL,
-    ADD COLUMN "organization_id" INTEGER,
+    ADD COLUMN IF NOT EXISTS "organization_id" INTEGER;
+ALTER TABLE "planner"."mcp_access_tokens" DROP CONSTRAINT IF EXISTS "mcp_access_tokens_exactly_one_scope_check";
+ALTER TABLE "planner"."mcp_access_tokens"
     ADD CONSTRAINT "mcp_access_tokens_exactly_one_scope_check" CHECK (("project_id" IS NOT NULL) <> ("organization_id" IS NOT NULL));
 ALTER TABLE "planner"."mcp_access_tokens" DROP CONSTRAINT IF EXISTS "mcp_access_tokens_profile_check";
 ALTER TABLE "planner"."mcp_access_tokens" ADD CONSTRAINT "mcp_access_tokens_profile_check"
     CHECK ("profile" IN ('strategist', 'planner', 'writer', 'editor', 'art_director', 'publisher', 'growth_analyst', 'organization_researcher'));
-CREATE INDEX "mcp_access_tokens_organization_id_profile_idx" ON "planner"."mcp_access_tokens"("organization_id", "profile");
+CREATE INDEX IF NOT EXISTS "mcp_access_tokens_organization_id_profile_idx" ON "planner"."mcp_access_tokens"("organization_id", "profile");
 
 -- Backfill only projects with exactly one owner. One personal organization is shared by all
 -- unambiguously-owned projects of that user. Projects with zero/multiple owners stay NULL.
