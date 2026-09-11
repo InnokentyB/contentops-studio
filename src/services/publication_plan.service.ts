@@ -1219,6 +1219,12 @@ class PublicationPlanService {
             ? null
             : JSON.stringify(plan.atoma_files);
 
+        const organization = await prisma.organizationMember.findFirst({
+            where: { user_id: params.userId, role: 'owner', organization: { is_archived: false } },
+            orderBy: { organization_id: 'asc' }, select: { organization_id: true }
+        });
+        if (!organization) throw new Error('An owner organization is required');
+
         return prisma.$transaction(async (tx) => {
             const project = existingProject
                 ? await tx.project.update({
@@ -1233,6 +1239,8 @@ class PublicationPlanService {
                         name: plan.meta.plan_id,
                         slug,
                         description: `Imported publication plan ${plan.meta.plan_id}`,
+                        organization_id: organization.organization_id,
+                        research_profile: { create: { revision: 1 } },
                         members: {
                             create: {
                                 user_id: params.userId,

@@ -95,12 +95,13 @@ interface McpStatus {
         writer: { endpoint: string; configured: boolean; bound_project_id?: number | null }
         art_director?: { endpoint: string; configured: boolean; bound_project_id?: number | null }
         strategist?: { endpoint: string; configured: boolean; bound_project_id?: number | null }
+        organization_researcher?: { endpoint: string; configured: boolean; bound_organization_id?: number | null }
     }
 }
 
 interface McpAccess {
     id: number
-    profile: 'planner' | 'writer' | 'art_director' | 'strategist'
+    profile: 'planner' | 'writer' | 'art_director' | 'strategist' | 'organization_researcher'
     label: string
     expires_at: string | null
     revoked_at: string | null
@@ -344,7 +345,7 @@ export default function Settings() {
         planningHq: 'Штаб планирования', planningHqHelp: 'Управляет слотами, каналами, темами и расписанием. Не редактирует текст публикации.',
         contentAgent: 'Контент-агент', contentAgentHelp: 'Читает готовые слоты и заполняет только текст. Не может менять дату, канал, тему или статус.',
         artDirector: 'Арт-директор', artDirectorHelp: 'Оценивает необходимость визуала, формирует brief, принимает источники и проводит визуальное ревью. Не может переписывать посты.',
-        strategist: 'Стратег', strategistHelp: 'Читает рабочую область, ведёт инициативы и темы, раскладывает неделю. Не публикует и не тратит ключи владельца установки. Профиль для подключения своего агента.',
+        strategist: 'Стратег', strategistHelp: 'Читает рабочую область, ведёт инициативы и темы, раскладывает неделю. Не публикует и не тратит ключи владельца установки. Профиль для подключения своего агента.', organizationResearcher: 'Исследователь организации', organizationResearcherHelp: 'Ищет общие сигналы, оценивает их для всех проектов и маршрутизирует в проектные inbox. Не может публиковать, отвечать или менять контент.',
         mcpTitle: 'Подключение MCP', mcpHelp: 'Дайте Codex, Claude или другому агенту доступ к плану, очереди работ и публикациям проекта.',
         mcpOnline: 'MCP работает', mcpOffline: 'MCP недоступен', checking: 'Проверяем MCP', check: 'Проверить', configured: 'Настроен', notConfigured: 'Не настроен',
         copyConfig: 'Копировать конфигурацию', copied: 'Конфигурация скопирована', tokenHelp: 'Каждый агент получает отдельный endpoint и отдельный токен. В конфигурации ниже показан безопасный шаблон, а не настоящий секрет. Вставьте токен из Railway или запросите его у владельца проекта.',
@@ -367,7 +368,7 @@ export default function Settings() {
         planningHq: 'Planning HQ', planningHqHelp: 'Manages slots, channels, themes and schedule. Cannot edit publication copy.',
         contentAgent: 'Content agent', contentAgentHelp: 'Reads ready slots and fills only the copy. Cannot change dates, channels, themes or status.',
         artDirector: 'Art director', artDirectorHelp: 'Assesses visual need, creates briefs, accepts sources and reviews visuals. Cannot rewrite posts.',
-        strategist: 'Strategist', strategistHelp: 'Reads the workspace, drives initiatives and themes, lays out the week. Cannot publish and never spends the deployment owner keys. The profile for bringing your own agent.',
+        strategist: 'Strategist', strategistHelp: 'Reads the workspace, drives initiatives and themes, lays out the week. Cannot publish and never spends the deployment owner keys. The profile for bringing your own agent.', organizationResearcher: 'Organization researcher', organizationResearcherHelp: 'Searches shared sources, assesses signals across projects, and routes them to project inboxes. Cannot publish, reply, or change content.',
         mcpTitle: 'MCP connection', mcpHelp: 'Give Codex, Claude or another agent access to the project plan, work queue and publications.',
         mcpOnline: 'MCP online', mcpOffline: 'MCP unavailable', checking: 'Checking MCP', check: 'Check', configured: 'Configured', notConfigured: 'Not configured',
         copyConfig: 'Copy configuration', copied: 'Configuration copied', tokenHelp: 'Each agent receives a separate endpoint and token. The configuration below is a safe template, not a real secret. Insert a Railway token or ask the project owner for it.',
@@ -444,7 +445,7 @@ export default function Settings() {
     const [inviteEmail, setInviteEmail] = useState('')
     const [inviteRole, setInviteRole] = useState('viewer')
     const [mcpAccessUserId, setMcpAccessUserId] = useState('')
-    const [mcpAccessProfile, setMcpAccessProfile] = useState<'planner' | 'writer' | 'art_director' | 'strategist'>('writer')
+    const [mcpAccessProfile, setMcpAccessProfile] = useState<'planner' | 'writer' | 'art_director' | 'strategist' | 'organization_researcher'>('writer')
     const [mcpAccessLabel, setMcpAccessLabel] = useState('')
     const [issuedMcpToken, setIssuedMcpToken] = useState('')
 
@@ -1179,6 +1180,15 @@ export default function Settings() {
                         endpoint: mcpStatus?.capability_endpoints?.strategist?.endpoint || `${mcpUrl}/strategist`,
                         configured: mcpStatus?.capability_endpoints?.strategist?.configured ?? false,
                         token: '<MCP_STRATEGIST_AUTH_TOKEN>'
+                    },
+                    {
+                        id: 'organization-researcher',
+                        title: copy.organizationResearcher,
+                        description: copy.organizationResearcherHelp,
+                        icon: 'travel_explore',
+                        endpoint: mcpStatus?.capability_endpoints?.organization_researcher?.endpoint || `${mcpUrl}/organization-researcher`,
+                        configured: mcpStatus?.capability_endpoints?.organization_researcher?.configured ?? false,
+                        token: '<MCP_ORGANIZATION_RESEARCHER_AUTH_TOKEN>'
                     }
                 ]
                 const isMcpOnline = mcpStatus?.status === 'online'
@@ -1206,7 +1216,7 @@ export default function Settings() {
                                             {(projectData as ApiJson)?.members?.map((member: ApiJson) => <option key={member.user_id} value={member.user_id}>{member.user?.name || member.user?.email}</option>)}
                                         </select>
                                         <select value={mcpAccessProfile} onChange={event => setMcpAccessProfile(event.target.value as typeof mcpAccessProfile)}>
-                                            <option value="planner">Planner</option><option value="writer">Writer</option><option value="art_director">Art director</option><option value="strategist">Strategist</option>
+                                            <option value="planner">Planner</option><option value="writer">Writer</option><option value="art_director">Art director</option><option value="strategist">Strategist</option><option value="organization_researcher">Organization researcher</option>
                                         </select>
                                         <input value={mcpAccessLabel} onChange={event => setMcpAccessLabel(event.target.value)} placeholder={locale === 'ru' ? 'Например: Claude на ноутбуке' : 'For example: Claude on laptop'} />
                                     </div>

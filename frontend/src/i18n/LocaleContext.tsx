@@ -5,7 +5,7 @@ type Messages = Record<string, string>
 const messages: Record<Locale, Messages> = {
   en: {
     workspaceSubtitle: 'Content operations workspace', currentProject: 'Current project',
-    overview: 'Overview', operationalPlan: 'Operational plan', metrics: 'Metrics', research: 'Research',
+    overview: 'Overview', operationalPlan: 'Operational plan', metrics: 'Metrics', research: 'Research', intelligence: 'Intelligence',
     templates: 'Templates', publicationPlan: 'Publication plan', help: 'Help', projectSettings: 'Project settings',
     newPost: 'New post', signOut: 'Sign out', user: 'User', workspaceAccess: 'Workspace access',
     assistant: 'Operations assistant', search: 'Search…', publications: 'Publications', calendar: 'Calendar',
@@ -18,7 +18,7 @@ const messages: Record<Locale, Messages> = {
   },
   ru: {
     workspaceSubtitle: 'Рабочая область контентных операций', currentProject: 'Текущий проект',
-    overview: 'Обзор', operationalPlan: 'Операционный план', metrics: 'Метрики', research: 'Исследования',
+    overview: 'Обзор', operationalPlan: 'Операционный план', metrics: 'Метрики', research: 'Исследования', intelligence: 'Разведка',
     templates: 'Шаблоны', publicationPlan: 'План публикаций', help: 'Справка', projectSettings: 'Настройки проекта',
     newPost: 'Новый пост', signOut: 'Выйти', user: 'Пользователь', workspaceAccess: 'Рабочий доступ',
     assistant: 'Когнитивный помощник', search: 'Поиск…', publications: 'Публикации', calendar: 'Календарь',

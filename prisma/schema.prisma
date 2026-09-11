@@ -19,9 +19,11 @@ model User {
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
 
-  memberships      ProjectMember[]
-  sent_invitations ProjectInvitation[]
-  mcp_access_tokens McpAccessToken[]
+  memberships               ProjectMember[]
+  sent_invitations          ProjectInvitation[]
+  mcp_access_tokens         McpAccessToken[]
+  organization_memberships  OrganizationMember[]
+  updated_research_profiles ProjectResearchProfile[] @relation("ResearchProfileUpdater")
 
   @@map("users")
   @@schema("planner")
@@ -32,15 +34,18 @@ model User {
 // ============================================
 
 model Project {
-  id          Int       @id @default(autoincrement())
-  name        String
-  slug        String    @unique
-  description String?
-  kind        String    @default("content_network")
-  is_archived Boolean   @default(false)
-  archived_at DateTime?
-  created_at  DateTime  @default(now())
-  updated_at  DateTime  @updatedAt
+  id              Int       @id @default(autoincrement())
+  name            String
+  slug            String    @unique
+  description     String?
+  kind            String    @default("content_network")
+  is_archived     Boolean   @default(false)
+  archived_at     DateTime?
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  organization_id Int?
+
+  organization Organization? @relation(fields: [organization_id], references: [id], onDelete: Restrict)
 
   members     ProjectMember[]
   channels    SocialChannel[]
@@ -71,14 +76,242 @@ model Project {
   service_identity_bindings ServiceIdentityBinding[]
   mcp_access_tokens         McpAccessToken[]
 
-  prompt_presets    PromptPreset[]
-  comments          Comment[]
-  provider_keys     ProviderKey[]
-  telegram_accounts TelegramAccount[]
+  prompt_presets     PromptPreset[]
+  comments           Comment[]
+  provider_keys      ProviderKey[]
+  telegram_accounts  TelegramAccount[]
+  research_profile   ProjectResearchProfile?
+  signal_assessments ProjectSignalAssessment[]
+  signal_routes      ProjectSignalRoute[]
 
+  @@index([organization_id, is_archived])
   @@index([is_archived])
   @@index([kind])
   @@map("projects")
+  @@schema("planner")
+}
+
+model Organization {
+  id          Int       @id @default(autoincrement())
+  name        String
+  slug        String    @unique
+  is_archived Boolean   @default(false)
+  archived_at DateTime? @db.Timestamptz(6)
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime  @updatedAt @db.Timestamptz(6)
+
+  members              OrganizationMember[]
+  projects             Project[]
+  research_connections ResearchConnection[]
+  research_runs        ResearchRun[]
+  source_signals       SourceSignal[]
+  mcp_access_tokens    McpAccessToken[]
+
+  @@index([is_archived])
+  @@map("organizations")
+  @@schema("planner")
+}
+
+model OrganizationMember {
+  id              Int      @id @default(autoincrement())
+  organization_id Int
+  user_id         Int
+  role            String
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @updatedAt @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([organization_id, user_id])
+  @@index([user_id, role])
+  @@map("organization_members")
+  @@schema("planner")
+}
+
+model ResearchConnection {
+  id               Int       @id @default(autoincrement())
+  organization_id  Int
+  source_type      String
+  name             String
+  encrypted_config String?   @db.Text
+  capabilities     String[]  @default([])
+  is_active        Boolean   @default(true)
+  last_verified_at DateTime? @db.Timestamptz(6)
+  last_error_code  String?
+  created_at       DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime  @updatedAt @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+
+  @@unique([organization_id, source_type, name])
+  @@index([organization_id, source_type, is_active])
+  @@map("research_connections")
+  @@schema("planner")
+}
+
+model ProjectResearchProfile {
+  id             Int      @id @default(autoincrement())
+  project_id     Int      @unique
+  revision       Int      @default(1)
+  audience       String[] @default([])
+  problems       String[] @default([])
+  themes         String[] @default([])
+  products       String[] @default([])
+  competitors    String[] @default([])
+  include_terms  String[] @default([])
+  exclude_terms  String[] @default([])
+  languages      String[] @default([])
+  geographies    String[] @default([])
+  source_weights Json?
+  updated_by     Int?
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime @updatedAt @db.Timestamptz(6)
+
+  project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  updater User?   @relation("ResearchProfileUpdater", fields: [updated_by], references: [id], onDelete: SetNull)
+
+  @@index([updated_by])
+  @@map("project_research_profiles")
+  @@schema("planner")
+}
+
+model ResearchRun {
+  id                     Int       @id @default(autoincrement())
+  organization_id        Int
+  actor_id               String
+  query                  String    @db.Text
+  normalized_query       String    @db.Text
+  requested_sources      String[]  @default([])
+  project_scope_snapshot Json
+  status                 String    @default("queued")
+  source_outcomes        Json?
+  idempotency_key        String
+  correlation_id         String?
+  adapter_versions       Json?
+  retry_of_id            Int?
+  fetched_count          Int       @default(0)
+  deduplicated_count     Int       @default(0)
+  assessed_count         Int       @default(0)
+  routed_count           Int       @default(0)
+  started_at             DateTime? @db.Timestamptz(6)
+  completed_at           DateTime? @db.Timestamptz(6)
+  created_at             DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime  @updatedAt @db.Timestamptz(6)
+
+  organization Organization        @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  retry_of     ResearchRun?        @relation("ResearchRunRetries", fields: [retry_of_id], references: [id], onDelete: SetNull)
+  retries      ResearchRun[]       @relation("ResearchRunRetries")
+  signals      ResearchRunSignal[]
+
+  @@unique([organization_id, actor_id, idempotency_key])
+  @@index([organization_id, status, created_at])
+  @@index([retry_of_id])
+  @@map("research_runs")
+  @@schema("planner")
+}
+
+model SourceSignal {
+  id                         Int       @id @default(autoincrement())
+  organization_id            Int
+  source_type                String
+  provider_object_id         String?
+  canonical_url              String?   @db.Text
+  normalized_url_hash        String?
+  title                      String?   @db.Text
+  excerpt                    String?   @db.Text
+  author_identity            String?
+  source_published_at        DateTime? @db.Timestamptz(6)
+  first_observed_at          DateTime  @default(now()) @db.Timestamptz(6)
+  last_observed_at           DateTime  @default(now()) @db.Timestamptz(6)
+  provenance                 Json
+  snapshot_hash              String
+  access_classification      String    @default("public")
+  normalized_metadata        Json?
+  untrusted_external_content Boolean   @default(true)
+  created_at                 DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at                 DateTime  @updatedAt @db.Timestamptz(6)
+
+  organization Organization              @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  runs         ResearchRunSignal[]
+  assessments  ProjectSignalAssessment[]
+  routes       ProjectSignalRoute[]
+
+  @@unique([organization_id, source_type, provider_object_id])
+  @@unique([organization_id, source_type, normalized_url_hash])
+  @@index([organization_id, last_observed_at])
+  @@map("source_signals")
+  @@schema("planner")
+}
+
+model ResearchRunSignal {
+  id              Int      @id @default(autoincrement())
+  research_run_id Int
+  signal_id       Int
+  observed_at     DateTime @default(now()) @db.Timestamptz(6)
+
+  research_run ResearchRun  @relation(fields: [research_run_id], references: [id], onDelete: Cascade)
+  signal       SourceSignal @relation(fields: [signal_id], references: [id], onDelete: Cascade)
+
+  @@unique([research_run_id, signal_id])
+  @@index([signal_id])
+  @@map("research_run_signals")
+  @@schema("planner")
+}
+
+model ProjectSignalAssessment {
+  id                 Int      @id @default(autoincrement())
+  signal_id          Int
+  project_id         Int
+  profile_revision   Int
+  revision           Int      @default(1)
+  fit_score          Int
+  reasons            Json
+  matched_dimensions Json?
+  risks              Json?
+  state              String   @default("suggested")
+  assessment_adapter String
+  assessment_version String
+  assessed_at        DateTime @default(now()) @db.Timestamptz(6)
+  created_at         DateTime @default(now()) @db.Timestamptz(6)
+
+  signal  SourceSignal         @relation(fields: [signal_id], references: [id], onDelete: Cascade)
+  project Project              @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  routes  ProjectSignalRoute[]
+
+  @@unique([signal_id, project_id, profile_revision])
+  @@index([project_id, state, fit_score])
+  @@index([signal_id, project_id])
+  @@map("project_signal_assessments")
+  @@schema("planner")
+}
+
+model ProjectSignalRoute {
+  id                     Int       @id @default(autoincrement())
+  signal_id              Int
+  project_id             Int
+  assessment_id          Int
+  assessment_revision    Int
+  decision               String
+  state                  String    @default("routed")
+  actor_id               String
+  note                   String?   @db.Text
+  idempotency_key        String
+  promoted_artifact_type String?
+  promoted_artifact_id   Int?
+  promoted_at            DateTime? @db.Timestamptz(6)
+  created_at             DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime  @updatedAt @db.Timestamptz(6)
+
+  signal     SourceSignal            @relation(fields: [signal_id], references: [id], onDelete: Cascade)
+  project    Project                 @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  assessment ProjectSignalAssessment @relation(fields: [assessment_id], references: [id], onDelete: Restrict)
+
+  @@unique([project_id, actor_id, idempotency_key])
+  @@unique([signal_id, project_id])
+  @@index([project_id, state, created_at])
+  @@index([assessment_id])
+  @@map("project_signal_routes")
   @@schema("planner")
 }
 
@@ -114,21 +347,24 @@ model ServiceIdentityBinding {
 }
 
 model McpAccessToken {
-  id          Int       @id @default(autoincrement())
-  project_id  Int
-  user_id     Int
-  profile     String
-  token_hash  String    @unique
-  label       String
-  expires_at  DateTime? @db.Timestamptz(6)
-  revoked_at  DateTime? @db.Timestamptz(6)
-  last_used_at DateTime? @db.Timestamptz(6)
-  created_at  DateTime  @default(now())
+  id              Int       @id @default(autoincrement())
+  project_id      Int?
+  organization_id Int?
+  user_id         Int
+  profile         String
+  token_hash      String    @unique
+  label           String
+  expires_at      DateTime? @db.Timestamptz(6)
+  revoked_at      DateTime? @db.Timestamptz(6)
+  last_used_at    DateTime? @db.Timestamptz(6)
+  created_at      DateTime  @default(now())
 
-  project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  project      Project?      @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([project_id, profile])
+  @@index([organization_id, profile])
   @@index([user_id, revoked_at])
   @@map("mcp_access_tokens")
   @@schema("planner")
@@ -419,7 +655,7 @@ model TelegramAccount {
   phone_number   String
   session_string String   @db.Text // AES-256-GCM ciphertext; key is stored in Railway
   api_id         Int
-  api_hash       String   // AES-256-GCM ciphertext; key is stored in Railway
+  api_hash       String // AES-256-GCM ciphertext; key is stored in Railway
   is_active      Boolean  @default(true)
   created_at     DateTime @default(now())
   updated_at     DateTime @updatedAt

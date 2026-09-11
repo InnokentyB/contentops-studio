@@ -40,7 +40,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { label: t('overview'), path: '/projects', icon: 'folder_open' },
     { label: t('operationalPlan'), path: '/calendar', icon: 'calendar_month' },
     { label: t('metrics'), path: '/analytics', icon: 'monitoring' },
-    { label: t('research'), path: '/parsers', icon: 'hub' },
+    { label: t('intelligence'), path: '/intelligence', icon: 'travel_explore' },
     { label: t('templates'), path: '/recipes', icon: 'book_2' },
     { label: t('publicationPlan'), path: '/publication-tasks', icon: 'publish' },
     { label: t('help'), path: '/guide', icon: 'help_outline' },

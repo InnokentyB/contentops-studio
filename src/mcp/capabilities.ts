@@ -1,4 +1,15 @@
-export type McpCapabilityProfile = 'owner' | 'planner' | 'writer' | 'art_director' | 'strategist';
+export type McpCapabilityProfile = 'owner' | 'planner' | 'writer' | 'art_director' | 'strategist' | 'organization_researcher';
+
+// Organization research is deliberately isolated from every project-writing and
+// publication capability. Project authorization is still checked by the service
+// for promotion, which is a separate, explicit operation.
+const ORGANIZATION_RESEARCHER_TOOLS = new Set([
+    'ba_get_organization_intelligence_context',
+    'ba_search_organization_intelligence',
+    'ba_get_organization_research_run',
+    'ba_route_organization_signal',
+    'ba_promote_project_signal'
+]);
 
 const WRITER_TOOLS = new Set([
     'ba_get_agent_workspace_manifest',
@@ -107,6 +118,7 @@ export function isToolAllowedForProfile(profile: McpCapabilityProfile, toolName:
     if (profile === 'writer') return WRITER_TOOLS.has(toolName);
     if (profile === 'art_director') return ART_DIRECTOR_TOOLS.has(toolName);
     if (profile === 'strategist') return STRATEGIST_TOOLS.has(toolName);
+    if (profile === 'organization_researcher') return ORGANIZATION_RESEARCHER_TOOLS.has(toolName);
     return PLANNER_TOOLS.has(toolName);
 }
 

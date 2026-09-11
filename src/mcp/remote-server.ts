@@ -23,6 +23,7 @@ type ScopedCredential = {
         userId: number;
         actorId: string;
         projectId?: number;
+        organizationId?: number;
         profile: McpCapabilityProfile;
     };
 };
@@ -68,23 +69,33 @@ async function main() {
         ? { userId: principalUserId, actorId: `user:${principalUserId}`, profile: 'owner' as const }
         : null;
     const defaultProjectId = Number(process.env.MCP_PROJECT_ID || 0);
-    const buildScopedCredential = (profile: 'planner' | 'writer' | 'art_director' | 'strategist'): ScopedCredential | null => {
+    const buildScopedCredential = (profile: 'planner' | 'writer' | 'art_director' | 'strategist' | 'organization_researcher'): ScopedCredential | null => {
         const upper = profile.toUpperCase();
         const token = String(process.env[`MCP_${upper}_AUTH_TOKEN`] || '').trim();
         const userId = Number(process.env[`MCP_${upper}_USER_ID`] || principalUserId || 0);
         const projectId = Number(process.env[`MCP_${upper}_PROJECT_ID`] || defaultProjectId || 0);
-        if (!token || !Number.isInteger(userId) || userId <= 0 || !Number.isInteger(projectId) || projectId <= 0) {
+        const organizationId = Number(process.env[`MCP_${upper}_ORGANIZATION_ID`] || 0);
+        const validScope = profile === 'organization_researcher'
+            ? Number.isInteger(organizationId) && organizationId > 0
+            : Number.isInteger(projectId) && projectId > 0;
+        if (!token || !Number.isInteger(userId) || userId <= 0 || !validScope) {
             return null;
         }
         return {
             token,
-            principal: { userId, actorId: `user:${userId}`, projectId, profile }
+            principal: {
+                userId,
+                actorId: `user:${userId}`,
+                ...(profile === 'organization_researcher' ? { organizationId } : { projectId }),
+                profile
+            }
         };
     };
     const plannerCredential = buildScopedCredential('planner');
     const writerCredential = buildScopedCredential('writer');
     const artDirectorCredential = buildScopedCredential('art_director');
     const strategistCredential = buildScopedCredential('strategist');
+    const organizationResearcherCredential = buildScopedCredential('organization_researcher');
     const isProduction = Boolean(process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production');
     if (isProduction && (!authToken || !principal)) {
         throw new Error('Production remote MCP requires MCP_AUTH_TOKEN and MCP_PRINCIPAL_USER_ID');
@@ -221,7 +232,12 @@ async function main() {
                     configured: true,
                     project_id: strategistCredential.principal.projectId,
                     user_id: strategistCredential.principal.userId
-                } : { configured: managedProfiles.has('strategist') }
+                } : { configured: managedProfiles.has('strategist') },
+                organization_researcher: organizationResearcherCredential ? {
+                    configured: true,
+                    organization_id: organizationResearcherCredential.principal.organizationId,
+                    user_id: organizationResearcherCredential.principal.userId
+                } : { configured: managedProfiles.has('organization_researcher') }
             },
             active_sessions: sessions.size,
             schema_plan: schemaPlanService.getPlan(),
@@ -303,7 +319,7 @@ async function main() {
         await entry.transport.handleRequest(req, res, req.body);
     });
 
-    function registerScopedEndpoint(endpoint: string, profile: 'planner' | 'writer' | 'art_director' | 'strategist', credential: ScopedCredential | null) {
+    function registerScopedEndpoint(endpoint: string, profile: 'planner' | 'writer' | 'art_director' | 'strategist' | 'organization_researcher', credential: ScopedCredential | null) {
         const requireScopedAuth = async (req: any, res: any, next: any) => {
             const token = getBearerToken(req.headers.authorization);
             if (!token) {
@@ -350,6 +366,14 @@ async function main() {
                     return;
                 }
                 req.body = scopedRequest.body;
+                if (profile === 'organization_researcher' && !principal.organizationId) {
+                    res.status(403).json({
+                        jsonrpc: '2.0',
+                        error: { code: -32003, message: 'Organization scope is not available for this MCP credential' },
+                        id: req.body?.id ?? null
+                    });
+                    return;
+                }
                 const sessionIdHeader = req.headers['mcp-session-id'];
                 const sessionId = Array.isArray(sessionIdHeader) ? sessionIdHeader[0] : sessionIdHeader;
                 const entry = await getOrCreateSession(
@@ -391,6 +415,7 @@ async function main() {
     registerScopedEndpoint('/mcp/writer', 'writer', writerCredential);
     registerScopedEndpoint('/mcp/art-director', 'art_director', artDirectorCredential);
     registerScopedEndpoint('/mcp/strategist', 'strategist', strategistCredential);
+    registerScopedEndpoint('/mcp/organization-researcher', 'organization_researcher', organizationResearcherCredential);
 
     const server = app.listen(port, host, () => {
         console.log(`[MCP Remote] listening on http://${host}:${port} (auth required: ${Boolean(authToken)})`);

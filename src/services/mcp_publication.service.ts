@@ -472,6 +472,11 @@ class McpPublicationService {
     }) {
         const user = await this.requireUser(params.userId);
         const slug = await this.makeUniqueProjectSlug(params.slug, params.name);
+        const organization = await prisma.organizationMember.findFirst({
+            where: { user_id: params.userId, role: 'owner', organization: { is_archived: false } },
+            orderBy: { organization_id: 'asc' }, select: { organization_id: true }
+        });
+        if (!organization) throw new Error('An owner organization is required');
 
         const project = await prisma.project.create({
             data: {
@@ -479,6 +484,8 @@ class McpPublicationService {
                 slug,
                 description: params.description,
                 kind: normalizeProjectKind(params.kind),
+                organization_id: organization.organization_id,
+                research_profile: { create: { revision: 1 } },
                 members: {
                     create: {
                         user_id: params.userId,

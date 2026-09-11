@@ -16,6 +16,26 @@ test('remote MCP replaces caller-controlled actor and user identities', () => {
     assert.equal(result.body.params.arguments.userId, 2);
 });
 
+test('organization researcher scope cannot be overridden by tool arguments', () => {
+    const body = {
+        method: 'tools/call',
+        params: {
+            name: 'ba_search_organization_intelligence',
+            arguments: { organizationId: 999, userId: 999, actorId: 'user:999', query: 'test' }
+        }
+    };
+    const result = scopeRemoteMcpRequest(body, {
+        userId: 2,
+        actorId: 'user:2',
+        organizationId: 7,
+        profile: 'organization_researcher'
+    });
+    assert.equal(result.allowed, true);
+    assert.equal(result.body.params.arguments.organizationId, 7);
+    assert.equal(result.body.params.arguments.userId, 2);
+    assert.equal(result.body.params.arguments.actorId, 'user:2');
+});
+
 test('remote MCP scopes agent workspace reads to the bound user and project', () => {
     const body = {
         method: 'tools/call',
