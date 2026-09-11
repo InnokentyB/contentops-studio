@@ -795,12 +795,12 @@ class PuppeteerPublisherService {
             await this.revealDzenComments(page);
             const alreadyExists = await page.evaluate((text) => (document.body?.innerText || '').includes(text), comment);
             if (alreadyExists) return { status: 'already_exists' as const, url: postUrl };
-            const controls = await this.findDzenCommentControls(page, true);
+            const controls = await this.waitForDzenCommentControls(page, true, false);
             const editor = controls.editor;
             if (!editor) throw new Error('DZEN_COMMENT_INTERFACE_CHANGED: composer is unavailable');
             await (editor as ElementHandle<Element>).click();
             await page.keyboard.type(comment, { delay: 5 });
-            const refreshed = await this.findDzenCommentControls(page, false, true);
+            const refreshed = await this.waitForDzenCommentControls(page, false, true);
             if (!refreshed.submit) throw new Error('DZEN_COMMENT_INTERFACE_CHANGED: send control is unavailable');
             await (refreshed.submit as ElementHandle<Element>).click();
             await page.waitForFunction((text) => (document.body?.innerText || '').includes(text), { timeout: 15_000 }, comment);
@@ -820,11 +820,11 @@ class PuppeteerPublisherService {
             await page.goto(postUrl, { waitUntil: 'networkidle2', timeout: 30_000 });
             await this.assertDzenAuthenticated(page);
             await this.revealDzenComments(page);
-            let controls = await this.findDzenCommentControls(page, true);
+            let controls = await this.waitForDzenCommentControls(page, true, false);
             if (controls.editor && !controls.submit) {
                 await (controls.editor as ElementHandle<Element>).click().catch(() => undefined);
                 await new Promise((resolve) => setTimeout(resolve, 350));
-                controls = await this.findDzenCommentControls(page, false);
+                controls = await this.waitForDzenCommentControls(page, false, false);
             }
             return controls.editor && controls.submit
                 ? { status: 'ready' as const, composer_available: true, send_control_available: true }
@@ -849,13 +849,26 @@ class PuppeteerPublisherService {
             window.scrollTo(0, document.documentElement.scrollHeight);
         });
         await new Promise((resolve) => setTimeout(resolve, 750));
+        await page.waitForNetworkIdle({ idleTime: 300, timeout: 3_000 }).catch(() => undefined);
+    }
+
+    private async waitForDzenCommentControls(page: Page, openPanel: boolean, requireSubmitEnabled: boolean) {
+        let controls = { editor: null, submit: null } as Awaited<ReturnType<PuppeteerPublisherService['findDzenCommentControls']>>;
+        for (let attempt = 0; attempt < 4; attempt++) {
+            controls = await this.findDzenCommentControls(page, openPanel && attempt === 0, requireSubmitEnabled);
+            if (controls.editor && controls.submit) return controls;
+            await new Promise((resolve) => setTimeout(resolve, 600));
+        }
+        return controls;
     }
 
     private async findDzenCommentControls(page: Page, openPanel: boolean, requireSubmitEnabled = false) {
         const frames = page.frames();
         if (openPanel) {
             for (const frame of frames) {
-                const opener = await frame.evaluateHandle(() => {
+                let opener;
+                try {
+                    opener = await frame.evaluateHandle(() => {
                     const roots: Array<Document | ShadowRoot> = [document];
                     const nodes: Element[] = [];
                     for (let i = 0; i < roots.length; i++) {
@@ -870,7 +883,10 @@ class PuppeteerPublisherService {
                         const value = `${el.innerText || ''} ${el.getAttribute('aria-label') || ''} ${el.getAttribute('data-testid') || ''}`.trim();
                         return /коммент|comment|обсуждени/i.test(value) && el.getAttribute('aria-disabled') !== 'true';
                     }) || null;
-                });
+                    });
+                } catch {
+                    continue;
+                }
                 const element = opener.asElement();
                 if (element) {
                     await (element as ElementHandle<Element>).click().catch(() => undefined);
@@ -882,7 +898,9 @@ class PuppeteerPublisherService {
         }
 
         for (const frame of page.frames()) {
-            const handles = await frame.evaluateHandle(() => {
+            let handles;
+            try {
+                handles = await frame.evaluateHandle(() => {
                 const roots: Array<Document | ShadowRoot> = [document];
                 const candidates: HTMLElement[] = [];
                 for (let i = 0; i < roots.length; i++) {
@@ -909,10 +927,15 @@ class PuppeteerPublisherService {
                     return (d.tag === 'textarea' ? 4 : d.contentEditable === 'true' ? 3 : 1) + (d.role === 'textbox' ? 2 : 0) + (commentWords.test(own) ? 12 : commentWords.test(d.context) ? 7 : 0) + (/comment|reply/i.test(d.dataTestId) ? 8 : 0);
                 };
                 return candidates.map((el) => ({ el, score: score(el) })).filter((entry) => entry.score >= 3).sort((a, b) => b.score - a.score)[0]?.el || null;
-            });
+                });
+            } catch {
+                continue;
+            }
             const editor = handles.asElement();
             if (!editor) { await handles.dispose(); continue; }
-            const submitHandle = await frame.evaluateHandle((mustBeEnabled) => {
+            let submitHandle;
+            try {
+                submitHandle = await frame.evaluateHandle((mustBeEnabled) => {
                 const roots: Array<Document | ShadowRoot> = [document]; const candidates: HTMLElement[] = [];
                 for (let i = 0; i < roots.length; i++) { const root = roots[i]; candidates.push(...Array.from(root.querySelectorAll<HTMLElement>('button, [role="button"]'))); for (const el of Array.from(root.querySelectorAll('*'))) if ((el as HTMLElement).shadowRoot) roots.push((el as HTMLElement).shadowRoot!); }
                 return candidates.find((el) => {
@@ -921,7 +944,11 @@ class PuppeteerPublisherService {
                     const disabled = (el as HTMLButtonElement).disabled || el.getAttribute('aria-disabled') === 'true';
                     return named && (!mustBeEnabled || !disabled);
                 }) || null;
-            }, requireSubmitEnabled);
+                }, requireSubmitEnabled);
+            } catch {
+                await handles.dispose();
+                continue;
+            }
             return { editor, submit: submitHandle.asElement() };
         }
         return { editor: null, submit: null };
