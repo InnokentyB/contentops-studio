@@ -792,6 +792,7 @@ class PuppeteerPublisherService {
             await this.prepareDzenPage(page, config);
             await page.goto(postUrl, { waitUntil: 'networkidle2', timeout: 30_000 });
             await this.assertDzenAuthenticated(page);
+            await this.revealDzenComments(page);
             const alreadyExists = await page.evaluate((text) => (document.body?.innerText || '').includes(text), comment);
             if (alreadyExists) return { status: 'already_exists' as const, url: postUrl };
             const controls = await this.findDzenCommentControls(page, true);
@@ -818,7 +819,13 @@ class PuppeteerPublisherService {
             await this.prepareDzenPage(page, config);
             await page.goto(postUrl, { waitUntil: 'networkidle2', timeout: 30_000 });
             await this.assertDzenAuthenticated(page);
-            const controls = await this.findDzenCommentControls(page, true);
+            await this.revealDzenComments(page);
+            let controls = await this.findDzenCommentControls(page, true);
+            if (controls.editor && !controls.submit) {
+                await (controls.editor as ElementHandle<Element>).click().catch(() => undefined);
+                await new Promise((resolve) => setTimeout(resolve, 350));
+                controls = await this.findDzenCommentControls(page, false);
+            }
             return controls.editor && controls.submit
                 ? { status: 'ready' as const, composer_available: true, send_control_available: true }
                 : {
@@ -829,6 +836,19 @@ class PuppeteerPublisherService {
         } finally {
             await browser.close();
         }
+    }
+
+    private async revealDzenComments(page: Page) {
+        await page.evaluate(async () => {
+            const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+            const viewport = Math.max(window.innerHeight, 600);
+            for (let top = 0; top < document.documentElement.scrollHeight; top += viewport) {
+                window.scrollTo(0, top);
+                await delay(80);
+            }
+            window.scrollTo(0, document.documentElement.scrollHeight);
+        });
+        await new Promise((resolve) => setTimeout(resolve, 750));
     }
 
     private async findDzenCommentControls(page: Page, openPanel: boolean, requireSubmitEnabled = false) {
@@ -867,7 +887,7 @@ class PuppeteerPublisherService {
                 const candidates: HTMLElement[] = [];
                 for (let i = 0; i < roots.length; i++) {
                     const root = roots[i];
-                    candidates.push(...Array.from(root.querySelectorAll<HTMLElement>('textarea, input, [contenteditable="true"], [role="textbox"]')));
+                    candidates.push(...Array.from(root.querySelectorAll<HTMLElement>('textarea, input, [contenteditable]:not([contenteditable="false"]), [role="textbox"]')));
                     for (const element of Array.from(root.querySelectorAll('*'))) {
                         if ((element as HTMLElement).shadowRoot) roots.push((element as HTMLElement).shadowRoot!);
                     }
@@ -876,7 +896,7 @@ class PuppeteerPublisherService {
                     tag: el.tagName.toLowerCase(), type: el.getAttribute('type') || '', role: el.getAttribute('role') || '',
                     placeholder: el.getAttribute('placeholder') || el.getAttribute('data-placeholder') || '',
                     ariaLabel: el.getAttribute('aria-label') || '', dataTestId: el.getAttribute('data-testid') || '',
-                    contentEditable: el.getAttribute('contenteditable') || '', disabled: (el as HTMLInputElement).disabled || el.getAttribute('aria-disabled') === 'true',
+                    contentEditable: String(el.isContentEditable), disabled: (el as HTMLInputElement).disabled || el.getAttribute('aria-disabled') === 'true',
                     context: el.closest('form, article, section, [data-testid], [class*="comment" i]')?.textContent?.slice(0, 500) || ''
                 });
                 const commentWords = /коммент|comment|ответ|reply|обсуждени/i;
@@ -897,7 +917,7 @@ class PuppeteerPublisherService {
                 for (let i = 0; i < roots.length; i++) { const root = roots[i]; candidates.push(...Array.from(root.querySelectorAll<HTMLElement>('button, [role="button"]'))); for (const el of Array.from(root.querySelectorAll('*'))) if ((el as HTMLElement).shadowRoot) roots.push((el as HTMLElement).shadowRoot!); }
                 return candidates.find((el) => {
                     const named = /^(отправить|опубликовать|комментировать|ответить|send|publish|reply)$/i.test(`${el.innerText || ''} ${el.getAttribute('aria-label') || ''}`.trim())
-                        || /comment|reply/i.test(el.getAttribute('data-testid') || '');
+                        || /(?:comment|reply).*(?:send|submit|publish)|(?:send|submit|publish).*(?:comment|reply)/i.test(el.getAttribute('data-testid') || '');
                     const disabled = (el as HTMLButtonElement).disabled || el.getAttribute('aria-disabled') === 'true';
                     return named && (!mustBeEnabled || !disabled);
                 }) || null;
