@@ -1,4 +1,4 @@
-import puppeteer, { type Page } from 'puppeteer';
+import puppeteer, { type ElementHandle, type Page } from 'puppeteer';
 import fs from 'fs';
 import path from 'path';
 import dns from 'dns/promises';
@@ -35,6 +35,50 @@ export interface DzenSearchResult {
     url: string;
     title: string;
     snippet: string;
+}
+
+export interface DzenCommentControlDescriptor {
+    tag: string;
+    type?: string;
+    role?: string;
+    text?: string;
+    placeholder?: string;
+    ariaLabel?: string;
+    dataTestId?: string;
+    contentEditable?: string;
+    context?: string;
+    disabled?: boolean;
+}
+
+const COMMENT_WORDS = /коммент|comment|ответ|reply|обсуждени/i;
+const SEND_WORDS = /^(?:отправить|опубликовать|комментировать|ответить|send|publish|reply)$/i;
+const EXCLUDED_EDITOR_WORDS = /поиск|search|заголов|title|описани|description/i;
+
+export function scoreDzenCommentComposer(candidate: DzenCommentControlDescriptor): number {
+    const editable = candidate.tag === 'textarea'
+        || (candidate.tag === 'input' && (!candidate.type || ['text', 'search'].includes(candidate.type)))
+        || candidate.role === 'textbox'
+        || candidate.contentEditable === 'true';
+    if (!editable || candidate.disabled) return -100;
+    const ownText = [candidate.placeholder, candidate.ariaLabel, candidate.dataTestId].filter(Boolean).join(' ');
+    const allText = `${ownText} ${candidate.context || ''}`;
+    if (EXCLUDED_EDITOR_WORDS.test(ownText) && !COMMENT_WORDS.test(allText)) return -50;
+    let score = candidate.tag === 'textarea' ? 4 : candidate.contentEditable === 'true' ? 3 : 1;
+    if (candidate.role === 'textbox') score += 2;
+    if (COMMENT_WORDS.test(ownText)) score += 12;
+    else if (COMMENT_WORDS.test(candidate.context || '')) score += 7;
+    if (candidate.dataTestId && /comment|reply/i.test(candidate.dataTestId)) score += 8;
+    return score;
+}
+
+export function scoreDzenCommentSubmit(candidate: DzenCommentControlDescriptor): number {
+    if (candidate.disabled || !['button', 'div', 'span'].includes(candidate.tag)) return -100;
+    const ownText = [candidate.text, candidate.ariaLabel, candidate.dataTestId].filter(Boolean).join(' ').trim();
+    let score = SEND_WORDS.test(ownText) ? 12 : 0;
+    if (candidate.role === 'button' || candidate.tag === 'button') score += 3;
+    if (/comment|reply/i.test(candidate.dataTestId || '')) score += 6;
+    if (COMMENT_WORDS.test(candidate.context || '')) score += 4;
+    return score;
 }
 
 export function extractDzenStudioMetrics(payload: any, postUrl: string): DzenPageMetrics | null {
@@ -750,24 +794,117 @@ class PuppeteerPublisherService {
             await this.assertDzenAuthenticated(page);
             const alreadyExists = await page.evaluate((text) => (document.body?.innerText || '').includes(text), comment);
             if (alreadyExists) return { status: 'already_exists' as const, url: postUrl };
-            const selector = 'textarea[placeholder*="коммент" i], textarea[aria-label*="коммент" i], [contenteditable="true"][aria-label*="коммент" i], [contenteditable="true"][data-placeholder*="коммент" i]';
-            const editor = await page.waitForSelector(selector, { timeout: 15_000 });
-            if (!editor) throw new Error('DZEN_COMMENT_EDITOR_NOT_FOUND');
-            await editor.click();
+            const controls = await this.findDzenCommentControls(page, true);
+            const editor = controls.editor;
+            if (!editor) throw new Error('DZEN_COMMENT_INTERFACE_CHANGED: composer is unavailable');
+            await (editor as ElementHandle<Element>).click();
             await page.keyboard.type(comment, { delay: 5 });
-            const submitted = await page.evaluate(() => {
-                const controls = Array.from(document.querySelectorAll<HTMLElement>('button, [role="button"]'));
-                const button = controls.find((node) => /^(отправить|опубликовать|комментировать|send)$/i.test((node.innerText || node.getAttribute('aria-label') || '').trim()));
-                if (!button || button.getAttribute('aria-disabled') === 'true' || (button as HTMLButtonElement).disabled) return false;
-                button.click();
-                return true;
-            });
-            if (!submitted) throw new Error('DZEN_COMMENT_SUBMIT_NOT_FOUND');
+            const refreshed = await this.findDzenCommentControls(page, false, true);
+            if (!refreshed.submit) throw new Error('DZEN_COMMENT_INTERFACE_CHANGED: send control is unavailable');
+            await (refreshed.submit as ElementHandle<Element>).click();
             await page.waitForFunction((text) => (document.body?.innerText || '').includes(text), { timeout: 15_000 }, comment);
             return { status: 'published' as const, url: postUrl };
         } finally {
             await browser.close();
         }
+    }
+
+    async preflightDzenComment(config: DzenPublishConfig, postUrl: string) {
+        if (!config.cookies?.trim()) throw new Error('DZEN_AUTH_REQUIRED');
+        if (!this.isPublicDzenUrl(postUrl)) throw new Error('INVALID_DZEN_POST_URL');
+        const browser = await this.launchBrowser();
+        const page = await browser.newPage();
+        try {
+            await this.prepareDzenPage(page, config);
+            await page.goto(postUrl, { waitUntil: 'networkidle2', timeout: 30_000 });
+            await this.assertDzenAuthenticated(page);
+            const controls = await this.findDzenCommentControls(page, true);
+            return controls.editor && controls.submit
+                ? { status: 'ready' as const, composer_available: true, send_control_available: true }
+                : {
+                    status: 'interface_changed' as const,
+                    composer_available: Boolean(controls.editor),
+                    send_control_available: Boolean(controls.submit)
+                };
+        } finally {
+            await browser.close();
+        }
+    }
+
+    private async findDzenCommentControls(page: Page, openPanel: boolean, requireSubmitEnabled = false) {
+        const frames = page.frames();
+        if (openPanel) {
+            for (const frame of frames) {
+                const opener = await frame.evaluateHandle(() => {
+                    const roots: Array<Document | ShadowRoot> = [document];
+                    const nodes: Element[] = [];
+                    for (let i = 0; i < roots.length; i++) {
+                        const root = roots[i];
+                        nodes.push(...Array.from(root.querySelectorAll('button, [role="button"], [data-testid*="comment" i], [data-testid*="reply" i]')));
+                        for (const element of Array.from(root.querySelectorAll('*'))) {
+                            if ((element as HTMLElement).shadowRoot) roots.push((element as HTMLElement).shadowRoot!);
+                        }
+                    }
+                    return nodes.find((node) => {
+                        const el = node as HTMLElement;
+                        const value = `${el.innerText || ''} ${el.getAttribute('aria-label') || ''} ${el.getAttribute('data-testid') || ''}`.trim();
+                        return /коммент|comment|обсуждени/i.test(value) && el.getAttribute('aria-disabled') !== 'true';
+                    }) || null;
+                });
+                const element = opener.asElement();
+                if (element) {
+                    await (element as ElementHandle<Element>).click().catch(() => undefined);
+                    await new Promise((resolve) => setTimeout(resolve, 500));
+                    break;
+                }
+                await opener.dispose();
+            }
+        }
+
+        for (const frame of page.frames()) {
+            const handles = await frame.evaluateHandle(() => {
+                const roots: Array<Document | ShadowRoot> = [document];
+                const candidates: HTMLElement[] = [];
+                for (let i = 0; i < roots.length; i++) {
+                    const root = roots[i];
+                    candidates.push(...Array.from(root.querySelectorAll<HTMLElement>('textarea, input, [contenteditable="true"], [role="textbox"]')));
+                    for (const element of Array.from(root.querySelectorAll('*'))) {
+                        if ((element as HTMLElement).shadowRoot) roots.push((element as HTMLElement).shadowRoot!);
+                    }
+                }
+                const descriptor = (el: HTMLElement) => ({
+                    tag: el.tagName.toLowerCase(), type: el.getAttribute('type') || '', role: el.getAttribute('role') || '',
+                    placeholder: el.getAttribute('placeholder') || el.getAttribute('data-placeholder') || '',
+                    ariaLabel: el.getAttribute('aria-label') || '', dataTestId: el.getAttribute('data-testid') || '',
+                    contentEditable: el.getAttribute('contenteditable') || '', disabled: (el as HTMLInputElement).disabled || el.getAttribute('aria-disabled') === 'true',
+                    context: el.closest('form, article, section, [data-testid], [class*="comment" i]')?.textContent?.slice(0, 500) || ''
+                });
+                const commentWords = /коммент|comment|ответ|reply|обсуждени/i;
+                const excluded = /поиск|search|заголов|title|описани|description/i;
+                const score = (el: HTMLElement) => {
+                    const d = descriptor(el); const editable = d.tag === 'textarea' || (d.tag === 'input' && (!d.type || ['text', 'search'].includes(d.type))) || d.role === 'textbox' || d.contentEditable === 'true';
+                    if (!editable || d.disabled) return -100;
+                    const own = `${d.placeholder} ${d.ariaLabel} ${d.dataTestId}`; const all = `${own} ${d.context}`;
+                    if (excluded.test(own) && !commentWords.test(all)) return -50;
+                    return (d.tag === 'textarea' ? 4 : d.contentEditable === 'true' ? 3 : 1) + (d.role === 'textbox' ? 2 : 0) + (commentWords.test(own) ? 12 : commentWords.test(d.context) ? 7 : 0) + (/comment|reply/i.test(d.dataTestId) ? 8 : 0);
+                };
+                return candidates.map((el) => ({ el, score: score(el) })).filter((entry) => entry.score >= 3).sort((a, b) => b.score - a.score)[0]?.el || null;
+            });
+            const editor = handles.asElement();
+            if (!editor) { await handles.dispose(); continue; }
+            const submitHandle = await frame.evaluateHandle((mustBeEnabled) => {
+                const roots: Array<Document | ShadowRoot> = [document]; const candidates: HTMLElement[] = [];
+                for (let i = 0; i < roots.length; i++) { const root = roots[i]; candidates.push(...Array.from(root.querySelectorAll<HTMLElement>('button, [role="button"]'))); for (const el of Array.from(root.querySelectorAll('*'))) if ((el as HTMLElement).shadowRoot) roots.push((el as HTMLElement).shadowRoot!); }
+                return candidates.find((el) => {
+                    const named = /^(отправить|опубликовать|комментировать|ответить|send|publish|reply)$/i.test(`${el.innerText || ''} ${el.getAttribute('aria-label') || ''}`.trim())
+                        || /comment|reply/i.test(el.getAttribute('data-testid') || '');
+                    const disabled = (el as HTMLButtonElement).disabled || el.getAttribute('aria-disabled') === 'true';
+                    return named && (!mustBeEnabled || !disabled);
+                }) || null;
+            }, requireSubmitEnabled);
+            return { editor, submit: submitHandle.asElement() };
+        }
+        return { editor: null, submit: null };
     }
 }
 
