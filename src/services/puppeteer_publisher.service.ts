@@ -81,6 +81,14 @@ export function scoreDzenCommentSubmit(candidate: DzenCommentControlDescriptor):
     return score;
 }
 
+export async function navigateDzenInteractionPage(page: Page, url: string, timeout = 30_000) {
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout });
+    await page.waitForFunction(
+        () => Boolean(document.body) && document.readyState !== 'loading',
+        { timeout: Math.min(timeout, 5_000) }
+    );
+}
+
 export function extractDzenStudioMetrics(payload: any, postUrl: string): DzenPageMetrics | null {
     let pathname: string;
     try {
@@ -730,8 +738,8 @@ class PuppeteerPublisherService {
                 const studioMetrics = extractDzenStudioMetrics(payload, postUrl);
                 if (studioMetrics) return studioMetrics;
             }
-            await page.goto(postUrl, { waitUntil: 'networkidle2', timeout: 30_000 });
-            await this.assertDzenAuthenticated(page);
+            await navigateDzenInteractionPage(page, postUrl);
+            await this.waitForDzenAuthenticatedPage(page);
             return await page.evaluate(() => {
                 const normalize = (value: string) => value.replace(/\u00a0/g, ' ').trim();
                 const candidates = Array.from(document.querySelectorAll<HTMLElement>('button, [role="button"], [aria-label], [title]'))
@@ -803,7 +811,7 @@ class PuppeteerPublisherService {
             const refreshed = await this.waitForDzenCommentControls(page, false, true);
             if (!refreshed.submit) throw new Error('DZEN_COMMENT_INTERFACE_CHANGED: send control is unavailable');
             await (refreshed.submit as ElementHandle<Element>).click();
-            await page.waitForFunction((text) => (document.body?.innerText || '').includes(text), { timeout: 15_000 }, comment);
+            await this.waitForDzenCommentReadback(page, comment);
             return { status: 'published' as const, url: postUrl };
         } finally {
             await browser.close();
@@ -817,8 +825,8 @@ class PuppeteerPublisherService {
         const page = await browser.newPage();
         try {
             await this.prepareDzenPage(page, config);
-            await page.goto(postUrl, { waitUntil: 'networkidle2', timeout: 30_000 });
-            await this.assertDzenAuthenticated(page);
+            await navigateDzenInteractionPage(page, postUrl);
+            await this.waitForDzenAuthenticatedPage(page);
             await this.revealDzenComments(page);
             let controls = await this.waitForDzenCommentControls(page, true, false);
             if (controls.editor && !controls.submit) {
@@ -836,6 +844,46 @@ class PuppeteerPublisherService {
         } finally {
             await browser.close();
         }
+    }
+
+    private async waitForDzenAuthenticatedPage(page: Page) {
+        await page.waitForFunction(
+            () => Boolean(document.body) && document.readyState !== 'loading',
+            { timeout: 5_000 }
+        );
+        await this.assertDzenAuthenticated(page);
+    }
+
+    private async waitForDzenCommentReadback(page: Page, comment: string) {
+        const deadline = Date.now() + 15_000;
+        while (Date.now() < deadline) {
+            for (const frame of page.frames()) {
+                try {
+                    const confirmed = await frame.evaluate((expected) => {
+                        const normalize = (value: string) => value.replace(/\s+/g, ' ').trim();
+                        const target = normalize(expected);
+                        const roots: Array<Document | ShadowRoot> = [document];
+                        for (let i = 0; i < roots.length; i++) {
+                            const root = roots[i];
+                            for (const element of Array.from(root.querySelectorAll<HTMLElement>('p, span, div, article, li'))) {
+                                if (element.closest('[contenteditable]:not([contenteditable="false"]), textarea, input')) continue;
+                                if (element.children.length > 0) continue;
+                                if (normalize(element.innerText || element.textContent || '') === target) return true;
+                            }
+                            for (const element of Array.from(root.querySelectorAll('*'))) {
+                                if ((element as HTMLElement).shadowRoot) roots.push((element as HTMLElement).shadowRoot!);
+                            }
+                        }
+                        return false;
+                    }, comment);
+                    if (confirmed) return;
+                } catch {
+                    // Dzen replaces lazy-loaded frames; retry against the current frame set.
+                }
+            }
+            await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+        throw new Error('DZEN_COMMENT_PROVIDER_CONFIRMATION_TIMEOUT');
     }
 
     private async revealDzenComments(page: Page) {
