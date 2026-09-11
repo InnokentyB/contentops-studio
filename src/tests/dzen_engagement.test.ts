@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { isDzenPublishedUrl, parseDzenCompactNumber, scoreDzenSearchResult } from '../services/dzen.service';
 import { isToolAllowedForProfile } from '../mcp/capabilities';
-import { extractDzenStudioMetrics } from '../services/puppeteer_publisher.service';
+import { extractDzenStudioMetrics, scoreDzenCommentComposer, scoreDzenCommentSubmit } from '../services/puppeteer_publisher.service';
 
 test('Dzen compact counters are normalized', () => {
     assert.equal(parseDzenCompactNumber('1,2 тыс.'), 1200);
@@ -42,4 +42,18 @@ test('planner can use Dzen engagement tools but strategist cannot publish commen
     assert.equal(isToolAllowedForProfile('planner', 'ba_dzen_comment'), true);
     assert.equal(isToolAllowedForProfile('strategist', 'ba_dzen_search_relevant_posts'), true);
     assert.equal(isToolAllowedForProfile('strategist', 'ba_dzen_comment'), false);
+});
+
+test('Dzen comment composer supports semantic current and fallback markup', () => {
+    assert.ok(scoreDzenCommentComposer({ tag: 'div', role: 'textbox', contentEditable: 'true', dataTestId: 'comment-editor' }) >= 7);
+    assert.ok(scoreDzenCommentComposer({ tag: 'textarea', placeholder: 'Write a reply' }) >= 7);
+    assert.ok(scoreDzenCommentComposer({ tag: 'div', contentEditable: 'true', context: 'Комментарии к публикации' }) >= 7);
+    assert.ok(scoreDzenCommentComposer({ tag: 'input', type: 'search', placeholder: 'Поиск' }) < 0);
+});
+
+test('Dzen comment submit supports localized and test-id controls', () => {
+    assert.ok(scoreDzenCommentSubmit({ tag: 'button', text: 'Ответить' }) >= 7);
+    assert.ok(scoreDzenCommentSubmit({ tag: 'button', ariaLabel: 'Send' }) >= 7);
+    assert.ok(scoreDzenCommentSubmit({ tag: 'button', dataTestId: 'comment-submit', context: 'Comments' }) >= 7);
+    assert.ok(scoreDzenCommentSubmit({ tag: 'button', text: 'Отправить', disabled: true }) < 0);
 });
