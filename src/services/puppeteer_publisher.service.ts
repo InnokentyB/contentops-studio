@@ -900,13 +900,16 @@ class PuppeteerPublisherService {
         await page.waitForNetworkIdle({ idleTime: 300, timeout: 3_000 }).catch(() => undefined);
     }
 
-    private async waitForDzenCommentControls(page: Page, openPanel: boolean, requireSubmitEnabled: boolean) {
+    private async waitForDzenCommentControls(page: Page, openPanel: boolean, requireSubmitEnabled: boolean, timeout = 15_000) {
         let controls = { editor: null, submit: null } as Awaited<ReturnType<PuppeteerPublisherService['findDzenCommentControls']>>;
-        for (let attempt = 0; attempt < 4; attempt++) {
+        const deadline = Date.now() + timeout;
+        let attempt = 0;
+        do {
             controls = await this.findDzenCommentControls(page, openPanel && attempt === 0, requireSubmitEnabled);
             if (controls.editor && controls.submit) return controls;
-            await new Promise((resolve) => setTimeout(resolve, 600));
-        }
+            attempt += 1;
+            await new Promise((resolve) => setTimeout(resolve, 750));
+        } while (Date.now() < deadline);
         return controls;
     }
 
