@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import http from 'node:http';
+import puppeteer from 'puppeteer';
 import { isDzenPublishedUrl, parseDzenCompactNumber, scoreDzenSearchResult } from '../services/dzen.service';
 import { isToolAllowedForProfile } from '../mcp/capabilities';
-import { extractDzenStudioMetrics, scoreDzenCommentComposer, scoreDzenCommentSubmit } from '../services/puppeteer_publisher.service';
+import { extractDzenStudioMetrics, navigateDzenInteractionPage, scoreDzenCommentComposer, scoreDzenCommentSubmit } from '../services/puppeteer_publisher.service';
 
 test('Dzen compact counters are normalized', () => {
     assert.equal(parseDzenCompactNumber('1,2 тыс.'), 1200);
@@ -57,4 +59,29 @@ test('Dzen comment submit supports localized and test-id controls', () => {
     assert.ok(scoreDzenCommentSubmit({ tag: 'button', ariaLabel: 'Send' }) >= 7);
     assert.ok(scoreDzenCommentSubmit({ tag: 'button', dataTestId: 'comment-submit', context: 'Comments' }) >= 7);
     assert.ok(scoreDzenCommentSubmit({ tag: 'button', text: 'Отправить', disabled: true }) < 0);
+});
+
+test('Dzen interaction navigation does not wait for permanent background requests', async () => {
+    const sockets = new Set<any>();
+    const server = http.createServer((request, response) => {
+        if (request.url?.startsWith('/hold')) return;
+        response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+        response.end('<!doctype html><body><main>ready</main><script>for(let i=0;i<3;i++)fetch(`/hold?i=${i}`)</script></body>');
+    });
+    server.on('connection', (socket) => { sockets.add(socket); socket.on('close', () => sockets.delete(socket)); });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    assert.ok(address && typeof address !== 'string');
+    const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
+    try {
+        const page = await browser.newPage();
+        const started = Date.now();
+        await navigateDzenInteractionPage(page, `http://127.0.0.1:${address.port}`, 2_000);
+        assert.equal(await page.$eval('main', (node) => node.textContent), 'ready');
+        assert.ok(Date.now() - started < 2_000);
+    } finally {
+        await browser.close();
+        for (const socket of sockets) socket.destroy();
+        await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
 });
