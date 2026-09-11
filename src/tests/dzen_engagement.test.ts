@@ -46,6 +46,7 @@ test('planner can use Dzen engagement tools but strategist cannot publish commen
 
 test('Dzen comment composer supports semantic current and fallback markup', () => {
     assert.ok(scoreDzenCommentComposer({ tag: 'div', role: 'textbox', contentEditable: 'true', dataTestId: 'comment-editor' }) >= 7);
+    assert.ok(scoreDzenCommentComposer({ tag: 'div', contentEditable: 'true', context: 'Discussion' }) >= 3);
     assert.ok(scoreDzenCommentComposer({ tag: 'textarea', placeholder: 'Write a reply' }) >= 7);
     assert.ok(scoreDzenCommentComposer({ tag: 'div', contentEditable: 'true', context: 'Комментарии к публикации' }) >= 7);
     assert.ok(scoreDzenCommentComposer({ tag: 'input', type: 'search', placeholder: 'Поиск' }) < 0);
