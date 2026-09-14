@@ -1009,10 +1009,14 @@ class McpPublicationService {
                 orderBy: { updated_at: 'desc' }
             });
             const reviewData = {
-                state: 'available',
+                state: lifecycle.reviewState!,
                 input_context_version: lifecycle.contentRevision,
                 result_version: lifecycle.reviewBaseResultVersion,
-                result_payload: Prisma.DbNull,
+                result_payload: {
+                    body: input.body,
+                    content_revision: lifecycle.contentRevision,
+                    source: 'publication_content_update'
+                },
                 lease_token: null,
                 lease_expires_at: null,
                 lease_actor_id: null,

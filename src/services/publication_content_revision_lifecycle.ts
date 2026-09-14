@@ -20,7 +20,8 @@ export function planAcceptedContentEdit(input: {
         textState: 'draft',
         acceptedRevision: null,
         reopenReview: true,
-        reviewBaseResultVersion: contentRevision - 1
+        reviewBaseResultVersion: contentRevision,
+        reviewState: 'waiting_approval'
     };
 }
 
