@@ -19,8 +19,21 @@ test('editing accepted content creates a new draft revision and reopens review w
         textState: 'draft',
         acceptedRevision: null,
         reopenReview: true,
-        reviewBaseResultVersion: 1
+        reviewBaseResultVersion: 2,
+        reviewState: 'waiting_approval'
     });
+});
+
+test('reopening an approved review exposes the new content revision as a collision-free result', () => {
+    const reopened = planAcceptedContentEdit({
+        currentRevision: 1,
+        acceptedRevision: 1,
+        textState: 'accepted',
+        bodyChanged: true
+    });
+    assert.equal(reopened.contentRevision, 2);
+    assert.equal(reopened.reviewBaseResultVersion, 2);
+    assert.equal(reopened.reviewState, 'waiting_approval');
 });
 
 test('saving the same body is idempotent and preserves the accepted revision', () => {
@@ -80,6 +93,8 @@ test('publication content update and owner recovery are wired to the lifecycle c
     assert.match(publicationService, /vk_story_poll: boundPoll/);
     assert.match(publicationService, /accepted_revision: lifecycle\.acceptedRevision/);
     assert.match(publicationService, /kind: 'content_review'/);
+    assert.match(publicationService, /state: lifecycle\.reviewState!/);
+    assert.match(publicationService, /content_revision: lifecycle\.contentRevision/);
     assert.match(queueService, /requireProjectOwner\(tx, params\.projectId, params\.actorId\)/);
     assert.match(queueService, /command = 'ba_recover_content_review'/);
     assert.match(mcpServer, /registerTool\('ba_recover_content_review'/);
