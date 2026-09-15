@@ -4,6 +4,35 @@ import prisma from '../db';
 
 export type InitiativeKind = 'publication' | 'event' | 'campaign' | 'infrastructure';
 export type DependencyType = 'blocks' | 'requires' | 'not_before' | 'informs';
+export type DependencyConfirmationState = 'none' | 'confirmed';
+
+type DependencyConfirmationInput = {
+    type: string;
+    sourceStatus: string;
+    sourceKey: string;
+};
+
+export function validateDependencyConfirmation(
+    state: DependencyConfirmationState,
+    incomingDependencies: DependencyConfirmationInput[]
+) {
+    const releaseDependencyTypes = new Set(['blocks', 'requires', 'not_before']);
+    const releaseDependencies = incomingDependencies.filter(dep => releaseDependencyTypes.has(dep.type));
+    const unresolvedReleaseDependencies = releaseDependencies.filter(dep => dep.sourceStatus !== 'completed');
+
+    if (state === 'none' && unresolvedReleaseDependencies.length > 0) {
+        const dependencyKeys = unresolvedReleaseDependencies.map(dep => dep.sourceKey).sort();
+        throw new Error(`[DEPENDENCIES_PRESENT] Cannot declare no dependencies while unresolved release dependencies exist: ${dependencyKeys.join(', ')}`);
+    }
+    if (state === 'confirmed' && releaseDependencies.length === 0) {
+        throw new Error('[DEPENDENCIES_ABSENT] Use state=none when the initiative has no release dependency links');
+    }
+
+    return {
+        releaseDependencyCount: releaseDependencies.length,
+        unresolvedReleaseDependencyCount: unresolvedReleaseDependencies.length
+    };
+}
 
 export class InitiativeService {
     private publicationTaskView(workItems: Array<{ content_item: any }>): Record<string, unknown> | null {
@@ -303,6 +332,109 @@ export class InitiativeService {
                 to_key: params.toKey,
                 type: dep.type
             };
+        });
+    }
+
+    /**
+     * Records an explicit, audited dependency review for one initiative.
+     * `none` means there are no unresolved release-relevant dependency links.
+     * `confirmed` means the stored release dependency graph was reviewed as complete.
+     */
+    async confirmInitiativeDependencies(params: {
+        projectId: number;
+        actorId: string;
+        initiativeKey: string;
+        state: DependencyConfirmationState;
+        evidence: string;
+        source: string;
+        idempotencyKey: string;
+    }): Promise<Record<string, unknown>> {
+        return prisma.$transaction(async (tx) => {
+            await this.requireProjectAccess(tx, params.projectId, params.actorId);
+
+            const command = 'confirm_initiative_dependencies';
+            const request = {
+                initiative_key: params.initiativeKey,
+                state: params.state,
+                evidence: params.evidence.trim(),
+                source: params.source.trim()
+            };
+            const requestHash = this.requestHash(request);
+            const existingEvent = await tx.workflowEvent.findFirst({
+                where: {
+                    project_id: params.projectId,
+                    actor_id: params.actorId,
+                    command,
+                    idempotency_key: params.idempotencyKey
+                }
+            });
+            if (existingEvent) {
+                const existingHash = (existingEvent.before_state as Record<string, unknown> | null)?.request_hash;
+                if (existingHash !== requestHash) {
+                    throw new Error('[IDEMPOTENCY_CONFLICT] The idempotency key was already used for a different dependency confirmation');
+                }
+                return (existingEvent.after_state as Record<string, unknown>) || {};
+            }
+
+            const item = await tx.initiative.findUnique({
+                where: {
+                    project_id_external_key: {
+                        project_id: params.projectId,
+                        external_key: params.initiativeKey
+                    }
+                },
+                include: {
+                    dependencies_incoming: {
+                        include: { from_initiative: true }
+                    }
+                }
+            });
+            if (!item) {
+                throw new Error(`Initiative ${params.initiativeKey} not found in project ${params.projectId}`);
+            }
+
+            const dependencyReview = validateDependencyConfirmation(
+                params.state,
+                item.dependencies_incoming.map(dep => ({
+                    type: dep.type,
+                    sourceStatus: dep.from_initiative.status,
+                    sourceKey: dep.from_initiative.external_key
+                }))
+            );
+
+            const previousState = item.dependencies_status;
+            await tx.initiative.update({
+                where: { id: item.id },
+                data: { dependencies_status: params.state }
+            });
+
+            const result = {
+                initiative_key: item.external_key,
+                previous_dependencies_status: previousState,
+                dependencies_status: params.state,
+                changed: previousState !== params.state,
+                release_dependency_count: dependencyReview.releaseDependencyCount,
+                unresolved_release_dependency_count: dependencyReview.unresolvedReleaseDependencyCount,
+                evidence: request.evidence,
+                source: request.source
+            };
+
+            await tx.workflowEvent.create({
+                data: {
+                    project_id: params.projectId,
+                    actor_id: params.actorId,
+                    command,
+                    before_state: {
+                        request_hash: requestHash,
+                        initiative_key: item.external_key,
+                        dependencies_status: previousState
+                    },
+                    after_state: result,
+                    idempotency_key: params.idempotencyKey
+                }
+            });
+
+            return result;
         });
     }
 

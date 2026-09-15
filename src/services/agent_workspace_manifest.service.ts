@@ -45,7 +45,7 @@ const chats: AgentWorkspaceChat[] = [
         purpose: 'Own the operating plan, publication slots, themes, dates, dependencies and approvals.',
         mcp_profile: 'planner',
         responsibilities: ['Create and maintain publication slots', 'Set themes, channels and schedule', 'Resolve overdue work and blockers'],
-        permissions: ['read_plan', 'change_schedule', 'change_slot_metadata', 'approve_week_plan'],
+        permissions: ['read_plan', 'change_schedule', 'change_slot_metadata', 'confirm_dependencies', 'approve_week_plan'],
         startup_instructions: ['Load the latest workspace manifest', 'Read schedule exceptions before changing the plan', 'Never write publication copy']
     },
     {
