@@ -1238,6 +1238,22 @@ export function registerPlannerTools(server: McpServer) {
         return asToolResult(result);
     });
 
+    server.registerTool('ba_confirm_initiative_dependencies', {
+        description: 'Planner-owned audited confirmation that an initiative has no unresolved release dependencies or that its stored dependency graph is complete.',
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string().trim().min(1),
+            initiativeKey: z.string().trim().min(1),
+            state: z.enum(['none', 'confirmed']),
+            evidence: z.string().trim().min(1).max(4000),
+            source: z.string().trim().min(1).max(1000),
+            idempotencyKey: z.string().trim().min(1).max(500)
+        }
+    }, async (args) => {
+        const result = await initiativeService.confirmInitiativeDependencies(args);
+        return asToolResult(result);
+    });
+
     server.registerTool('ba_import_operational_plan', {
         description: 'Import an operational plan containing initiatives and dependency linkages.',
         inputSchema: {

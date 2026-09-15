@@ -55,6 +55,7 @@ const PLANNER_TOOLS = new Set([
     'ba_repair_publication_placement',
     'ba_upsert_initiative',
     'ba_link_initiatives',
+    'ba_confirm_initiative_dependencies',
     'ba_import_operational_plan',
     'ba_materialize_publication_task',
     'ba_publish_publication_task',
@@ -167,7 +168,8 @@ const GROWTH_ANALYST_TOOLS = new Set([
 const STRATEGIST_EXCLUDED = new Set([
     'ba_publish_publication_task',
     'ba_generate_week_topic_preview',
-    'ba_dzen_comment'
+    'ba_dzen_comment',
+    'ba_confirm_initiative_dependencies'
 ]);
 
 const STRATEGIST_TOOLS = new Set(

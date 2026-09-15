@@ -33,6 +33,7 @@ test('workspace manifest exposes the governed chat topology without secrets', ()
     );
     assert.ok(manifest.handoffs.some((edge) => edge.from === 'strategist' && edge.to === 'planning_hq'));
     assert.ok(manifest.handoffs.some((edge) => edge.from === 'planning_hq' && edge.to === 'content_writer'));
+    assert.ok(manifest.chats.find((chat) => chat.id === 'planning_hq')?.permissions.includes('confirm_dependencies'));
     assert.match(manifest.checksum, /^sha256:[a-f0-9]{64}$/);
     assert.doesNotMatch(JSON.stringify(manifest), /token|api[_-]?key|authorization/i);
 });

@@ -408,6 +408,121 @@ test('E2E-X09 / SC-X05: unknown dependency state cannot be reported as release-r
   assert.equal(readiness.readiness, 'unknown');
 });
 
+test('E2E-X09A: planner can audit a standalone initiative as having no dependencies', async (t) => {
+  requireTools('ba_confirm_initiative_dependencies', 'ba_upsert_initiative', 'ba_get_release_readiness');
+  if (!requireDatabase(t)) return;
+
+  const project = await createProject('standalone-readiness');
+  await callTool('ba_upsert_initiative', {
+    projectId: project.id,
+    actorId: ACTOR_ID,
+    externalKey: 'PUB-STANDALONE',
+    kind: 'publication',
+    title: 'Standalone publication',
+  });
+
+  const key = idempotencyKey('confirm-none');
+  const args = {
+    projectId: project.id,
+    actorId: ACTOR_ID,
+    initiativeKey: 'PUB-STANDALONE',
+    state: 'none',
+    evidence: 'Owner reviewed the standalone publication and confirmed it has no release dependencies.',
+    source: 'test-owner-decision',
+    idempotencyKey: key,
+  };
+  const first = await callTool('ba_confirm_initiative_dependencies', args);
+  const replay = await callTool('ba_confirm_initiative_dependencies', args);
+  assert.deepEqual(replay, first);
+  assert.equal(first.dependencies_status, 'none');
+  assert.equal(first.release_dependency_count, 0);
+
+  const readiness = await callTool('ba_get_release_readiness', {
+    projectId: project.id,
+    actorId: ACTOR_ID,
+    initiativeKey: 'PUB-STANDALONE',
+  });
+  assert.equal(readiness.readiness, 'ready');
+  assert.equal(readiness.is_ready, true);
+
+  const audit = await prisma.workflowEvent.findFirst({
+    where: {
+      project_id: project.id,
+      actor_id: ACTOR_ID,
+      command: 'confirm_initiative_dependencies',
+      idempotency_key: key,
+    },
+  });
+  assert.equal(audit?.after_state?.source, 'test-owner-decision');
+});
+
+test('E2E-X09B: no-dependency confirmation rejects an unresolved release dependency', async (t) => {
+  requireTools('ba_confirm_initiative_dependencies', 'ba_link_initiatives', 'ba_upsert_initiative');
+  if (!requireDatabase(t)) return;
+
+  const project = await createProject('dependency-guard');
+  for (const [externalKey, kind] of [['BLOCKER', 'infrastructure'], ['TARGET', 'publication']]) {
+    await callTool('ba_upsert_initiative', {
+      projectId: project.id,
+      actorId: ACTOR_ID,
+      externalKey,
+      kind,
+      title: externalKey,
+    });
+  }
+  await callTool('ba_link_initiatives', {
+    projectId: project.id,
+    actorId: ACTOR_ID,
+    fromKey: 'BLOCKER',
+    toKey: 'TARGET',
+    type: 'blocks',
+  });
+
+  const result = await client.callTool({
+    name: 'ba_confirm_initiative_dependencies',
+    arguments: {
+      projectId: project.id,
+      actorId: ACTOR_ID,
+      initiativeKey: 'TARGET',
+      state: 'none',
+      evidence: 'Invalid attempt while blocker is unresolved.',
+      source: 'test',
+      idempotencyKey: idempotencyKey('reject-none'),
+    },
+  });
+  assert.equal(result.isError, true);
+  assert.match((result.content || []).map((item) => item.text || '').join('\n'), /DEPENDENCIES_PRESENT/);
+});
+
+test('E2E-X09C: dependency confirmation rejects unauthorized actors', async (t) => {
+  requireTools('ba_confirm_initiative_dependencies', 'ba_upsert_initiative');
+  if (!requireDatabase(t)) return;
+
+  const project = await createProject('dependency-auth');
+  await callTool('ba_upsert_initiative', {
+    projectId: project.id,
+    actorId: ACTOR_ID,
+    externalKey: 'AUTH-TARGET',
+    kind: 'publication',
+    title: 'Authorization target',
+  });
+
+  const result = await client.callTool({
+    name: 'ba_confirm_initiative_dependencies',
+    arguments: {
+      projectId: project.id,
+      actorId: 'user:999999',
+      initiativeKey: 'AUTH-TARGET',
+      state: 'none',
+      evidence: 'Unauthorized evidence.',
+      source: 'test',
+      idempotencyKey: idempotencyKey('unauthorized'),
+    },
+  });
+  assert.equal(result.isError, true);
+  assert.match((result.content || []).map((item) => item.text || '').join('\n'), /Access denied|SECURITY/i);
+});
+
 test('E2E-X10 / SC-X01: coverage audit reports mismatches and planner-only initiatives', async (t) => {
   requireTools('ba_upsert_initiative', 'ba_audit_plan_coverage');
   if (!requireDatabase(t)) return;

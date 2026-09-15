@@ -25,6 +25,7 @@ test('strategist cannot publish and cannot spend the deployment owner provider k
     // ba_generate_week_topic_preview falls back to process.env.OPENAI_API_KEY
     // when the project has no ProviderKey of its own.
     assert.equal(isToolAllowedForProfile('strategist', 'ba_generate_week_topic_preview'), false);
+    assert.equal(isToolAllowedForProfile('strategist', 'ba_confirm_initiative_dependencies'), false);
     // Direct publication and cross-tenant administration were never in the planner set.
     assert.equal(isToolAllowedForProfile('strategist', 'ba_publish_direct'), false);
     assert.equal(isToolAllowedForProfile('strategist', 'ba_list_users'), false);
@@ -52,7 +53,11 @@ test('strategist keeps the read and planning surface it needs', () => {
 test('adding strategist does not widen the existing profiles', () => {
     assert.equal(isToolAllowedForProfile('planner', 'ba_publish_publication_task'), true);
     assert.equal(isToolAllowedForProfile('planner', 'ba_generate_week_topic_preview'), true);
+    assert.equal(isToolAllowedForProfile('planner', 'ba_confirm_initiative_dependencies'), true);
     assert.equal(isToolAllowedForProfile('writer', 'ba_upsert_initiative'), false);
+    assert.equal(isToolAllowedForProfile('writer', 'ba_confirm_initiative_dependencies'), false);
+    assert.equal(isToolAllowedForProfile('editor', 'ba_confirm_initiative_dependencies'), false);
+    assert.equal(isToolAllowedForProfile('publisher', 'ba_confirm_initiative_dependencies'), false);
     assert.equal(isToolAllowedForProfile('art_director', 'ba_upsert_week_theme'), false);
     assert.equal(isToolAllowedForProfile('owner', 'ba_publish_direct'), true);
 });
