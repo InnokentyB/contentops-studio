@@ -10,6 +10,8 @@ const ready = {
     contentRevision: 3,
     decisionType: 'GENERATE',
     decisionSourceRevision: 3,
+    channelId: 121,
+    channelName: 'analystcraft_blog',
     channelType: 'site',
     placement: 'article_cover',
     decisionChannel: 'site',
@@ -25,6 +27,14 @@ test('visual generation is blocked until the weekly topic plan is approved', () 
 test('old site/blog decision cannot generate an asset after article-cover repair', () => {
     assert.throws(() => assertVisualGenerationGate({ ...ready, decisionPlacement: 'blog' }), /VISUAL_DECISION_BINDING_MISMATCH/);
     assert.throws(() => assertVisualGenerationGate({ ...ready, decisionChannel: 'growth_ops' }), /VISUAL_DECISION_BINDING_MISMATCH/);
+});
+
+test('visual decision accepts the bound channel name, ID or legacy type but not another account', () => {
+    assert.doesNotThrow(() => assertVisualGenerationGate({ ...ready, decisionChannel: 'analystcraft_blog' }));
+    assert.doesNotThrow(() => assertVisualGenerationGate({ ...ready, decisionChannel: '121' }));
+    assert.doesNotThrow(() => assertVisualGenerationGate({ ...ready, decisionChannel: 'site' }));
+    assert.throws(() => assertVisualGenerationGate({ ...ready, decisionChannel: 'other_blog' }), /VISUAL_DECISION_BINDING_MISMATCH/);
+    assert.throws(() => assertVisualGenerationGate({ ...ready, decisionChannel: '122' }), /VISUAL_DECISION_BINDING_MISMATCH/);
 });
 
 test('visual generation is blocked until the current text revision is accepted', () => {

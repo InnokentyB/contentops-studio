@@ -1929,6 +1929,8 @@ export default async function apiRoutes(fastify: FastifyInstance) {
                 contentRevision: item.content_revision,
                 decisionType: visualDecision?.decision,
                 decisionSourceRevision: visualDecision?.source_content_revision,
+                channelId: item.channel_id,
+                channelName: item.channel?.name,
                 channelType: item.channel?.type || item.type,
                 placement: item.visual_placement || 'feed',
                 decisionChannel: visualDecision?.channel,

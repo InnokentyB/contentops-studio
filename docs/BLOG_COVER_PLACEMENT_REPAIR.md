@@ -19,4 +19,5 @@ visual state to `PENDING_ASSESSMENT`; it does not edit the old decision, body,
 schedule or publication fact. The art director must claim the new item and
 submit a new decision before any image can be generated or attached. Visual
 generation rejects a decision whose channel or placement differs from the
-current task.
+current task. A decision may identify the current channel by its account name,
+numeric ID or legacy channel type; another account name is never equivalent.
