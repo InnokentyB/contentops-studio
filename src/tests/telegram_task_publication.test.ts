@@ -133,6 +133,7 @@ test('dry-run resolves accepted text and the approved durable asset without a pr
         has_image: true
     });
     assert.equal(result.delivery, 'mtproto');
+    assert.equal(result.route_executable, true);
     assert.equal(calls.provider.length, 0);
     assert.equal(calls.updates.length, 0);
     assert.equal(calls.facts.length, 0);
@@ -206,6 +207,17 @@ test('validated personal Telegram story can claim from browser_required without 
 });
 
 test('browser_required feed reports a route error while a concurrent publishing state reports a claim error', async () => {
+    const preview = await harness(approvedTask({ status: 'browser_required', publication_mode: 'browser_required' }))
+        .service.execute({ projectId: 10, taskId: 779, dryRun: true });
+    assert.equal(preview.delivery, 'mtproto');
+    assert.equal(preview.route_executable, false);
+    assert.equal(preview.route_blocker, 'PUBLICATION_ROUTE_NOT_EXECUTABLE');
+
+    const concurrentPreview = await harness(approvedTask({ status: 'publishing' }))
+        .service.execute({ projectId: 10, taskId: 779, dryRun: true });
+    assert.equal(concurrentPreview.route_executable, false);
+    assert.equal(concurrentPreview.route_blocker, 'PUBLICATION_ATTEMPT_UNCERTAIN');
+
     await assert.rejects(
         harness(approvedTask({ status: 'browser_required', publication_mode: 'browser_required' })).service.execute({
             projectId: 10,

@@ -153,6 +153,11 @@ export class TelegramTaskPublicationService {
             has_image: Boolean(payload.imageUrl)
         };
         if (args.dryRun) {
+            const routeExecutable = CLAIMABLE_STATUSES.includes(task.status)
+                || (isStory && task.status === 'browser_required');
+            const routeBlocker = task.status === 'publishing'
+                ? 'PUBLICATION_ATTEMPT_UNCERTAIN'
+                : 'PUBLICATION_ROUTE_NOT_EXECUTABLE';
             return {
                 mode: 'dry_run',
                 task_id: task.id,
@@ -161,6 +166,8 @@ export class TelegramTaskPublicationService {
                 accepted_revision: task.accepted_revision,
                 selected_asset_id: selectedAsset?.id || null,
                 delivery: deliveryMethod,
+                route_executable: routeExecutable,
+                ...(!routeExecutable ? { route_blocker: routeBlocker } : {}),
                 ...(isStory ? { target: 'personal_profile' } : {}),
                 payload_preview: preview
             };
