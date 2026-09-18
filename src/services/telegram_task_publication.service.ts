@@ -191,10 +191,20 @@ export class TelegramTaskPublicationService {
             ...(prepared.nativePoll ? { native_poll: prepared.nativePoll } : {})
         };
         if (args.dryRun) {
+            const routeExecutable = prepared.directSupported && prepared.connectorReady
+                && (CLAIMABLE_STATUSES.includes(task.status)
+                    || (prepared.isStory && task.status === 'browser_required'));
+            const routeBlocker = task.status === 'publishing'
+                ? 'PUBLICATION_ATTEMPT_UNCERTAIN'
+                : !prepared.directSupported || !prepared.connectorReady
+                    ? 'PUBLICATION_CONNECTOR_NOT_READY'
+                : 'PUBLICATION_ROUTE_NOT_EXECUTABLE';
             return {
                 mode: 'dry_run', task_id: task.id, project_id: args.projectId, channel_id: task.channel.id,
                 accepted_revision: task.accepted_revision, selected_asset_id: selectedAsset?.id || null,
                 delivery: delivery || 'validated_handoff',
+                route_executable: routeExecutable,
+                ...(!routeExecutable ? { route_blocker: routeBlocker } : {}),
                 ...(prepared.isStory ? { target: 'personal_profile' } : {}),
                 direct_execution_supported: prepared.directSupported,
                 connector_ready: prepared.connectorReady,

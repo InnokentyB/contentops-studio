@@ -102,6 +102,7 @@ test('convertWeekPackageToV1 creates V1 Week and slots if none exist', async () 
     const originalFindFirstWeek = prisma.week.findFirst;
     const originalCreateWeek = prisma.week.create;
     const originalFindFirstChannel = prisma.socialChannel.findFirst;
+    const originalFindFirstProjectSettings = prisma.projectSettings.findFirst;
     const originalCreateManyPosts = prisma.post.createMany;
 
     Object.defineProperty(prisma.weekPackage, 'findUnique', {
@@ -123,6 +124,12 @@ test('convertWeekPackageToV1 creates V1 Week and slots if none exist', async () 
     });
 
     Object.defineProperty(prisma.socialChannel, 'findFirst', {
+        value: async () => null,
+        configurable: true,
+        writable: true
+    });
+
+    Object.defineProperty(prisma.projectSettings, 'findFirst', {
         value: async () => null,
         configurable: true,
         writable: true
@@ -165,6 +172,11 @@ test('convertWeekPackageToV1 creates V1 Week and slots if none exist', async () 
         });
         Object.defineProperty(prisma.socialChannel, 'findFirst', {
             value: originalFindFirstChannel,
+            configurable: true,
+            writable: true
+        });
+        Object.defineProperty(prisma.projectSettings, 'findFirst', {
+            value: originalFindFirstProjectSettings,
             configurable: true,
             writable: true
         });
