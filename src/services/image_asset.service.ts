@@ -93,7 +93,7 @@ export class ImageAssetService {
         await requireProjectActorAccess(projectId, args.actorId);
         const item = await prisma.contentItem.findFirst({
             where: { id: contentItemId, project_id: projectId },
-            include: { week_package: true }
+            include: { week_package: true, channel: true }
         });
         if (!item) throw new Error('[PUBLICATION_TASK_NOT_FOUND] Content item was not found in the project');
 
@@ -108,6 +108,10 @@ export class ImageAssetService {
             contentRevision: item.content_revision,
             decisionType: boundDecision?.decision,
             decisionSourceRevision: boundDecision?.source_content_revision,
+            channelType: item.channel?.type || item.type,
+            placement: item.visual_placement || 'feed',
+            decisionChannel: boundDecision?.channel,
+            decisionPlacement: boundDecision?.placement,
             prompt,
             altText
         });

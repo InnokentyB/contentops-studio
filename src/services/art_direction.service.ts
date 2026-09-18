@@ -9,7 +9,7 @@ import {
     clearVisualStorageIngestBlock,
     getVisualStorageIngestState
 } from './visual_storage_incident.service';
-import { publicationPlacementAssetContract } from './publication_placement_contract';
+import { placementForContentAcceptance, publicationPlacementAssetContract } from './publication_placement_contract';
 
 export const ART_DIRECTION_DECISIONS = [
     'NO_VISUAL_NEEDED',
@@ -148,7 +148,9 @@ export class ArtDirectionService {
         if (['published', 'removed', 'cancelled'].includes(item.status) || !item.draft_text?.trim()) return null;
 
         const enabled = await this.isEnabled(item.project_id, client);
-        const placement = item.visual_placement || 'feed';
+        const placement = placementForContentAcceptance(
+            { type: item.channel?.type || item.type, config: item.channel?.config }, item.visual_placement
+        );
         const mode = item.visual_mode || defaultVisualMode(item.channel?.type || item.type, placement);
         await client.contentItem.update({
             where: { id: item.id },

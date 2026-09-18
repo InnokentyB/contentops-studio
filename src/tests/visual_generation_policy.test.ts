@@ -10,12 +10,21 @@ const ready = {
     contentRevision: 3,
     decisionType: 'GENERATE',
     decisionSourceRevision: 3,
+    channelType: 'site',
+    placement: 'article_cover',
+    decisionChannel: 'site',
+    decisionPlacement: 'article_cover',
     prompt: 'A single acceptance threshold beside a finished object that falls short.',
     altText: 'A finished object stopping just before a fixed acceptance threshold.'
 };
 
 test('visual generation is blocked until the weekly topic plan is approved', () => {
     assert.throws(() => assertVisualGenerationGate({ ...ready, weekApprovalStatus: 'needs_review' }), /WEEK_PLAN_NOT_APPROVED/);
+});
+
+test('old site/blog decision cannot generate an asset after article-cover repair', () => {
+    assert.throws(() => assertVisualGenerationGate({ ...ready, decisionPlacement: 'blog' }), /VISUAL_DECISION_BINDING_MISMATCH/);
+    assert.throws(() => assertVisualGenerationGate({ ...ready, decisionChannel: 'growth_ops' }), /VISUAL_DECISION_BINDING_MISMATCH/);
 });
 
 test('visual generation is blocked until the current text revision is accepted', () => {

@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import prisma from '../db';
 import artDirectionService from './art_direction.service';
 import { planContentReviewRecovery, planMissingContentReviewRecovery } from './publication_content_revision_lifecycle';
-import { isPublicationPlacementMismatchEvidence, placementRepairProvenance, planPublicationPlacementRepair, repairMaterializedPublicationProjection } from './publication_metadata_repair';
+import { isLegacySiteBlogCoverMismatchEvidence, isPublicationPlacementMismatchEvidence, placementRepairProvenance, planPublicationPlacementRepair, repairMaterializedPublicationProjection } from './publication_metadata_repair';
 import { assertCanonicalPublicationPlacement } from './publication_placement_contract';
 
 /**
@@ -119,19 +119,47 @@ export class WorkQueueService {
                 },
                 orderBy: { decision_version: 'desc' }
             }) : null;
+            const legacySiteBlogDecision = blockedItem ? await tx.artDirectionDecision.findFirst({
+                where: {
+                    project_id: params.projectId,
+                    content_item_id: params.taskId,
+                    work_item_id: blockedItem.id,
+                    decision: 'GENERATE'
+                },
+                orderBy: { decision_version: 'desc' }
+            }) : null;
             if (!content) throw new Error(`Publication task ${params.taskId} not found for project ${params.projectId}`);
             if (!targetChannel) throw new Error(`Target channel ${params.targetChannelId} not found for project ${params.projectId}`);
             assertCanonicalPublicationPlacement(targetChannel, params.targetPlacement);
-            if (!blockedItem || !isPublicationPlacementMismatchEvidence({
+            const blockedMismatch = blockedItem ? isPublicationPlacementMismatchEvidence({
                 workItemState: blockedItem.state,
                 workItemReasonCode: blockedItem.reason_code,
                 workItemRevision: blockedItem.input_context_version,
                 expectedRevision: params.expectedContentRevision,
                 expectedPlacement: params.expectedPlacement,
                 decision: blockedDecision
-            })) {
+            }) : false;
+            const legacySiteBlogMismatch = blockedItem && content && targetChannel
+                ? isLegacySiteBlogCoverMismatchEvidence({
+                    workItemState: blockedItem.state,
+                    workItemRevision: blockedItem.input_context_version,
+                    expectedRevision: params.expectedContentRevision,
+                    currentChannelId: content.channel_id,
+                    targetChannelId: targetChannel.id,
+                    currentPlacement: content.visual_placement,
+                    targetPlacement: params.targetPlacement,
+                    targetChannelType: targetChannel.type,
+                    taskStatus: content.status,
+                    visualState: content.visual_state,
+                    handoffState: content.handoff_state,
+                    selectedAssetId: content.selected_asset_id,
+                    decision: legacySiteBlogDecision
+                })
+                : false;
+            if (!blockedItem || (!blockedMismatch && !legacySiteBlogMismatch)) {
                 throw new Error('[BLOCKED_INPUT_MISMATCH] Expected immutable channel-placement mismatch evidence');
             }
+            const supersededDecision = legacySiteBlogMismatch ? legacySiteBlogDecision : blockedDecision;
             if (content.status === 'published' || content.published_link || content.publication_fact?.outcome === 'published') {
                 throw new Error('[PUBLICATION_READ_ONLY] Published tasks cannot be repaired');
             }
@@ -177,11 +205,16 @@ export class WorkQueueService {
                     content_revision: params.expectedContentRevision,
                     accepted_revision: params.expectedAcceptedRevision,
                     channel_id: params.expectedChannelId,
-                    visual_placement: params.expectedPlacement
+                    visual_placement: params.expectedPlacement,
+                    ...(legacySiteBlogMismatch ? {
+                        status: 'approved', visual_state: 'BRIEFED',
+                        handoff_state: 'blocked', selected_asset_id: null
+                    } : {})
                 },
                 data: {
                     channel_id: plan.channelId,
                     visual_placement: plan.placement,
+                    ...(legacySiteBlogMismatch ? { visual_state: 'PENDING_ASSESSMENT', handoff_state: 'blocked' } : {}),
                     assets: repairedProjection.assets as Prisma.InputJsonValue,
                     quality_report: repairedProjection.qualityReport as Prisma.InputJsonValue,
                     metrics: repairedProjection.metrics as Prisma.InputJsonValue
@@ -203,12 +236,13 @@ export class WorkQueueService {
                     input_context_version: plan.inputContextVersion,
                     result_version: 0,
                     dedupe_key: plan.dedupeKey,
-                    note: `${plan.note}; supersedes immutable blocker decision ${blockedDecision?.id || 'unknown'}`,
+                    note: `${plan.note}; supersedes immutable ${legacySiteBlogMismatch ? 'legacy blog placement' : 'blocker'} decision ${supersededDecision?.id || 'unknown'}`,
                     result_payload: placementRepairProvenance({
                         blockedWorkItemId: blockedItem.id,
-                        blockedDecisionId: blockedDecision?.id || null,
+                        blockedDecisionId: supersededDecision?.id || null,
                         fromChannelId: content.channel_id,
-                        fromPlacement: content.visual_placement
+                        fromPlacement: content.visual_placement,
+                        kind: legacySiteBlogMismatch ? 'legacy_site_blog_cover' : 'blocked_mismatch'
                     }) as Prisma.InputJsonValue
                 }
             });
@@ -222,11 +256,12 @@ export class WorkQueueService {
                 accepted_revision: plan.acceptedRevision,
                 old_work_item_id: blockedItem.id,
                 old_work_item_state: blockedItem.state,
-                old_decision_id: blockedDecision?.id || null,
+                old_decision_id: supersededDecision?.id || null,
                 art_direction_work_item_id: artDirectionItem.id,
                 art_direction_state: artDirectionItem.state,
                 art_direction_dedupe_key: artDirectionItem.dedupe_key,
-                input_context_version: artDirectionItem.input_context_version
+                input_context_version: artDirectionItem.input_context_version,
+                ...(legacySiteBlogMismatch ? { visual_state: 'PENDING_ASSESSMENT' } : {})
             };
             await this.recordWorkflowEvent(tx, {
                 projectId: params.projectId,

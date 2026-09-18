@@ -55,20 +55,63 @@ export function isPublicationPlacementMismatchEvidence(input: {
         && input.decision.source_content_revision === input.expectedRevision;
 }
 
+export function isLegacySiteBlogCoverMismatchEvidence(input: {
+    workItemState: string;
+    workItemRevision: number;
+    expectedRevision: number;
+    currentChannelId: number | null;
+    targetChannelId: number;
+    currentPlacement: string | null;
+    targetPlacement: string;
+    targetChannelType: string;
+    taskStatus: string;
+    visualState: string;
+    handoffState: string;
+    selectedAssetId: number | null;
+    decision?: {
+        decision: string;
+        status: string;
+        channel: string;
+        placement: string;
+        source_content_revision: number;
+    } | null;
+}) {
+    return input.workItemState === 'completed'
+        && input.workItemRevision === input.expectedRevision
+        && input.currentChannelId === input.targetChannelId
+        && input.currentPlacement === 'feed'
+        && input.targetPlacement === 'article_cover'
+        && input.targetChannelType === 'site'
+        && input.taskStatus === 'approved'
+        && input.visualState === 'BRIEFED'
+        && input.handoffState === 'blocked'
+        && input.selectedAssetId === null
+        && input.decision?.decision === 'GENERATE'
+        && input.decision.status === 'active'
+        && input.decision.channel === 'site'
+        && input.decision.placement === 'blog'
+        && input.decision.source_content_revision === input.expectedRevision;
+}
+
 export function placementRepairProvenance(input: {
     blockedWorkItemId: number;
     blockedDecisionId: number | null;
     fromChannelId: number | null;
     fromPlacement: string | null;
+    kind?: 'blocked_mismatch' | 'legacy_site_blog_cover';
 }) {
+    const superseded = {
+        work_item_id: input.blockedWorkItemId,
+        decision_id: input.blockedDecisionId,
+        channel_id: input.fromChannelId,
+        placement: input.fromPlacement,
+        immutable: true
+    };
+    if (input.kind === 'legacy_site_blog_cover') {
+        return { superseded_input: { ...superseded, reason: 'legacy_site_blog_cover_mismatch' } };
+    }
     return {
-        superseded_blocker: {
-            work_item_id: input.blockedWorkItemId,
-            decision_id: input.blockedDecisionId,
-            channel_id: input.fromChannelId,
-            placement: input.fromPlacement,
-            immutable: true
-        }
+        superseded_blocker: superseded
     };
 }
 
