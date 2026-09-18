@@ -6,6 +6,10 @@ export interface VisualGenerationGateInput {
     contentRevision: number;
     decisionType?: string | null;
     decisionSourceRevision?: number | null;
+    channelType: string;
+    placement: string;
+    decisionChannel?: string | null;
+    decisionPlacement?: string | null;
     prompt?: string | null;
     altText?: string | null;
 }
@@ -19,6 +23,9 @@ export function assertVisualGenerationGate(input: VisualGenerationGateInput) {
     }
     if (input.decisionType !== 'GENERATE' || input.decisionSourceRevision !== input.acceptedRevision) {
         throw new Error('[VISUAL_BRIEF_NOT_APPROVED] An active GENERATE decision for the accepted revision is required');
+    }
+    if (input.decisionChannel !== input.channelType || input.decisionPlacement !== input.placement) {
+        throw new Error('[VISUAL_DECISION_BINDING_MISMATCH] Decision channel and placement must match the current task');
     }
     if (!input.prompt?.trim()) {
         throw new Error('[VISUAL_PROMPT_REQUIRED] The approved visual brief must contain a prompt');

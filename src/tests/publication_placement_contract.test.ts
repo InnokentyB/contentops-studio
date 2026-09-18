@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
     assertCanonicalPublicationPlacement,
     canonicalPlacementsForChannel,
+    placementForContentAcceptance,
     publicationPlacementAssetContract
 } from '../services/publication_placement_contract';
 
@@ -15,6 +16,12 @@ test('article channels share the canonical article-cover placement', () => {
         () => assertCanonicalPublicationPlacement({ type: 'vc' }, 'feed'),
         /TARGET_PLACEMENT_MISMATCH/
     );
+});
+
+test('accepting site content normalizes a legacy feed default to the canonical blog cover', () => {
+    assert.equal(placementForContentAcceptance({ type: 'site' }, null), 'article_cover');
+    assert.equal(placementForContentAcceptance({ type: 'site' }, 'feed'), 'article_cover');
+    assert.equal(placementForContentAcceptance({ type: 'telegram' }, 'feed'), 'feed');
 });
 
 test('Telegram and VK stories use channel-specific poll capabilities', () => {

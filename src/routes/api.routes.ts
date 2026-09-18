@@ -1910,6 +1910,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             where: { id: parseInt(id), project_id: projectId },
             include: {
                 week_package: true,
+                channel: true,
                 art_direction_decisions: { where: { status: 'active' }, orderBy: { decision_version: 'desc' }, take: 1 }
             }
         });
@@ -1928,6 +1929,10 @@ export default async function apiRoutes(fastify: FastifyInstance) {
                 contentRevision: item.content_revision,
                 decisionType: visualDecision?.decision,
                 decisionSourceRevision: visualDecision?.source_content_revision,
+                channelType: item.channel?.type || item.type,
+                placement: item.visual_placement || 'feed',
+                decisionChannel: visualDecision?.channel,
+                decisionPlacement: visualDecision?.placement,
                 prompt: visualDecision?.prompt,
                 altText: visualDecision?.alt_text
             });

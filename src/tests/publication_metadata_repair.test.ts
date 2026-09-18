@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+    isLegacySiteBlogCoverMismatchEvidence,
     isPublicationPlacementMismatchEvidence,
     placementRepairProvenance,
     planPublicationPlacementRepair,
@@ -30,6 +31,31 @@ test('placement repair creates a new revision-bound art-direction input without 
         dedupeKey: 'art-direction:726:2:article_cover',
         note: 'Assess visual fit for revision 2, placement article_cover'
     });
+});
+
+test('legacy site/blog cover decision is narrow evidence for a same-channel article-cover repair', () => {
+    const evidence = {
+        workItemState: 'completed', workItemRevision: 1, expectedRevision: 1,
+        currentChannelId: 121, targetChannelId: 121,
+        currentPlacement: 'feed', targetPlacement: 'article_cover', targetChannelType: 'site',
+        taskStatus: 'approved', visualState: 'BRIEFED', handoffState: 'blocked', selectedAssetId: null,
+        decision: { decision: 'GENERATE', status: 'active', channel: 'site',
+            placement: 'blog', source_content_revision: 1 }
+    };
+    assert.equal(isLegacySiteBlogCoverMismatchEvidence(evidence), true);
+    assert.equal(isLegacySiteBlogCoverMismatchEvidence({ ...evidence, targetChannelId: 122 }), false);
+    assert.equal(isLegacySiteBlogCoverMismatchEvidence({ ...evidence, targetChannelType: 'habr' }), false);
+    assert.equal(isLegacySiteBlogCoverMismatchEvidence({ ...evidence, decision: { ...evidence.decision, placement: 'feed' } }), false);
+    assert.equal(isLegacySiteBlogCoverMismatchEvidence({ ...evidence, expectedRevision: 2 }), false);
+    assert.equal(isLegacySiteBlogCoverMismatchEvidence({ ...evidence, workItemState: 'claimed' }), false);
+    assert.equal(isLegacySiteBlogCoverMismatchEvidence({ ...evidence, selectedAssetId: 12 }), false);
+    const plan = planPublicationPlacementRepair({
+        contentItemId: 940, contentRevision: 1, acceptedRevision: 1,
+        currentChannelId: 121, targetChannelId: 121,
+        currentPlacement: 'feed', targetPlacement: 'article_cover'
+    });
+    assert.equal(plan.dedupeKey, 'art-direction:940:1:article_cover');
+    assert.equal(plan.inputContextVersion, 1);
 });
 
 test('completed art-direction work with an immutable BLOCKED decision is valid mismatch evidence', () => {
@@ -118,6 +144,18 @@ test('new art-direction input references the immutable blocker only as provenanc
     });
 });
 
+test('legacy blog cover repair retains the original GENERATE decision as immutable provenance', () => {
+    assert.deepEqual(placementRepairProvenance({
+        blockedWorkItemId: 815, blockedDecisionId: 117,
+        fromChannelId: 121, fromPlacement: 'feed', kind: 'legacy_site_blog_cover'
+    }), {
+        superseded_input: {
+            work_item_id: 815, decision_id: 117, channel_id: 121,
+            placement: 'feed', immutable: true, reason: 'legacy_site_blog_cover_mismatch'
+        }
+    });
+});
+
 test('Medium article cover has an explicit manual-only visual contract', () => {
     assert.equal(assertCanonicalPublicationPlacement({ type: 'medium' }, 'article_cover'), 'article_cover');
     assert.throws(
@@ -127,6 +165,18 @@ test('Medium article cover has an explicit manual-only visual contract', () => {
     assert.deepEqual(publicationPlacementAssetContract({ type: 'medium' }, 'article_cover'), {
         placement: 'article_cover',
         artifact_kind: 'article_cover',
+        dimensions: { width: 1200, height: 630, aspect_ratio: '1.91:1' },
+        safe_area: { unit: 'px', top: 63, right: 120, bottom: 63, left: 120 },
+        poll: { supported: false, configuration_mode: 'not_applicable', render_in_asset: false },
+        transport: { materialization: 'article', connector_authority: 'manual_only' }
+    });
+});
+
+test('site blog cover has a 1200x630 article/OG contract, not a feed-post contract', () => {
+    assert.equal(assertCanonicalPublicationPlacement({ type: 'site' }, 'article_cover'), 'article_cover');
+    assert.throws(() => assertCanonicalPublicationPlacement({ type: 'site' }, 'feed'), /TARGET_PLACEMENT_MISMATCH/);
+    assert.deepEqual(publicationPlacementAssetContract({ type: 'site' }, 'article_cover'), {
+        placement: 'article_cover', artifact_kind: 'article_cover',
         dimensions: { width: 1200, height: 630, aspect_ratio: '1.91:1' },
         safe_area: { unit: 'px', top: 63, right: 120, bottom: 63, left: 120 },
         poll: { supported: false, configuration_mode: 'not_applicable', render_in_asset: false },

@@ -106,6 +106,16 @@ export function publicationPlacementAssetContract(
             transport: { materialization: 'article', connector_authority: 'manual_only' }
         };
     }
+    if (normalizedType === 'site' && placement === 'article_cover') {
+        return {
+            placement,
+            artifact_kind: 'article_cover',
+            dimensions: { width: 1200, height: 630, aspect_ratio: '1.91:1' },
+            safe_area: { unit: 'px', top: 63, right: 120, bottom: 63, left: 120 },
+            poll: { supported: false, configuration_mode: 'not_applicable', render_in_asset: false },
+            transport: { materialization: 'article', connector_authority: 'manual_only' }
+        };
+    }
     return {
         placement,
         artifact_kind: placement === 'feed' ? 'feed' : placement === 'article_cover' ? 'article_cover' : 'other',
@@ -140,6 +150,14 @@ function configuredPlacements(config: unknown) {
 export function canonicalPlacementsForChannel(channel: { type: string; config?: unknown }) {
     const configured = configuredPlacements(channel.config);
     return configured.length ? [...new Set(configured)] : (DEFAULT_PLACEMENTS[channel.type.trim().toLowerCase()] || []);
+}
+
+export function placementForContentAcceptance(channel: { type: string; config?: unknown }, current: string | null | undefined) {
+    const canonical = canonicalPlacementsForChannel(channel);
+    if (channel.type.trim().toLowerCase() === 'site' && current === 'feed' && canonical.includes('article_cover')) {
+        return 'article_cover';
+    }
+    return current || canonical[0] || 'feed';
 }
 
 export function assertCanonicalPublicationPlacement(channel: { id?: number; type: string; config?: unknown }, placement: string) {
