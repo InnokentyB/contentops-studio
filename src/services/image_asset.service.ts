@@ -108,6 +108,8 @@ export class ImageAssetService {
             contentRevision: item.content_revision,
             decisionType: boundDecision?.decision,
             decisionSourceRevision: boundDecision?.source_content_revision,
+            channelId: item.channel_id,
+            channelName: item.channel?.name,
             channelType: item.channel?.type || item.type,
             placement: item.visual_placement || 'feed',
             decisionChannel: boundDecision?.channel,

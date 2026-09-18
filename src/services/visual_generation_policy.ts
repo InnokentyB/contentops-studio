@@ -6,6 +6,8 @@ export interface VisualGenerationGateInput {
     contentRevision: number;
     decisionType?: string | null;
     decisionSourceRevision?: number | null;
+    channelId?: number | null;
+    channelName?: string | null;
     channelType: string;
     placement: string;
     decisionChannel?: string | null;
@@ -24,7 +26,13 @@ export function assertVisualGenerationGate(input: VisualGenerationGateInput) {
     if (input.decisionType !== 'GENERATE' || input.decisionSourceRevision !== input.acceptedRevision) {
         throw new Error('[VISUAL_BRIEF_NOT_APPROVED] An active GENERATE decision for the accepted revision is required');
     }
-    if (input.decisionChannel !== input.channelType || input.decisionPlacement !== input.placement) {
+    const decisionChannel = input.decisionChannel?.trim().toLowerCase();
+    const channelBindings = [
+        input.channelType,
+        input.channelName,
+        input.channelId != null ? String(input.channelId) : null
+    ].filter((value): value is string => Boolean(value)).map((value) => value.trim().toLowerCase());
+    if (!decisionChannel || !channelBindings.includes(decisionChannel) || input.decisionPlacement !== input.placement) {
         throw new Error('[VISUAL_DECISION_BINDING_MISMATCH] Decision channel and placement must match the current task');
     }
     if (!input.prompt?.trim()) {
