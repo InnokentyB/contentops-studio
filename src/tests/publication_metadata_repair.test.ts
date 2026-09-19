@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+    isLegacyArticleCoverAliasMismatchEvidence,
     isLegacySiteBlogCoverMismatchEvidence,
     isPublicationPlacementMismatchEvidence,
     placementRepairProvenance,
@@ -56,6 +57,34 @@ test('legacy site/blog cover decision is narrow evidence for a same-channel arti
     });
     assert.equal(plan.dedupeKey, 'art-direction:940:1:article_cover');
     assert.equal(plan.inputContextVersion, 1);
+});
+
+test('completed VC/Habr article alias decision is narrow evidence for canonical article-cover repair', () => {
+    const evidence = {
+        workItemState: 'completed', workItemRevision: 1, expectedRevision: 1,
+        currentChannelId: 114, targetChannelId: 114,
+        currentPlacement: 'article_cover', targetPlacement: 'article_cover', targetChannelType: 'vc',
+        taskStatus: 'approved', visualState: 'BRIEFED', handoffState: 'blocked', selectedAssetId: null,
+        decision: { decision: 'GENERATE', status: 'active', channel: 'vc',
+            placement: 'article', source_content_revision: 1 }
+    };
+    assert.equal(isLegacyArticleCoverAliasMismatchEvidence(evidence), true);
+    assert.equal(isLegacyArticleCoverAliasMismatchEvidence({ ...evidence, targetChannelType: 'habr',
+        decision: { ...evidence.decision, channel: 'habr' } }), true);
+    assert.equal(isLegacyArticleCoverAliasMismatchEvidence({ ...evidence, targetChannelId: 115 }), false);
+    assert.equal(isLegacyArticleCoverAliasMismatchEvidence({ ...evidence,
+        decision: { ...evidence.decision, placement: 'article_cover' } }), false);
+    assert.equal(isLegacyArticleCoverAliasMismatchEvidence({ ...evidence, selectedAssetId: 1 }), false);
+});
+
+test('VC article cover exposes authoritative dimensions and four safe margins', () => {
+    assert.deepEqual(publicationPlacementAssetContract({ type: 'vc' }, 'article_cover'), {
+        placement: 'article_cover', artifact_kind: 'article_cover',
+        dimensions: { width: 1200, height: 627, aspect_ratio: '1.91:1' },
+        safe_area: { unit: 'px', top: 63, right: 120, bottom: 63, left: 120 },
+        poll: { supported: false, configuration_mode: 'not_applicable', render_in_asset: false },
+        transport: { materialization: 'article', connector_authority: 'manual_only' }
+    });
 });
 
 test('completed art-direction work with an immutable BLOCKED decision is valid mismatch evidence', () => {

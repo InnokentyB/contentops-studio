@@ -93,12 +93,51 @@ export function isLegacySiteBlogCoverMismatchEvidence(input: {
         && input.decision.source_content_revision === input.expectedRevision;
 }
 
+export function isLegacyArticleCoverAliasMismatchEvidence(input: {
+    workItemState: string;
+    workItemRevision: number;
+    expectedRevision: number;
+    currentChannelId: number | null;
+    targetChannelId: number;
+    currentPlacement: string | null;
+    targetPlacement: string;
+    targetChannelType: string;
+    taskStatus: string;
+    visualState: string;
+    handoffState: string;
+    selectedAssetId: number | null;
+    decision?: {
+        decision: string;
+        status: string;
+        channel: string;
+        placement: string;
+        source_content_revision: number;
+    } | null;
+}) {
+    const channelType = input.targetChannelType.trim().toLowerCase();
+    return input.workItemState === 'completed'
+        && input.workItemRevision === input.expectedRevision
+        && input.currentChannelId === input.targetChannelId
+        && input.currentPlacement === 'article_cover'
+        && input.targetPlacement === 'article_cover'
+        && ['vc', 'habr'].includes(channelType)
+        && input.taskStatus === 'approved'
+        && input.visualState === 'BRIEFED'
+        && input.handoffState === 'blocked'
+        && input.selectedAssetId === null
+        && input.decision?.decision === 'GENERATE'
+        && input.decision.status === 'active'
+        && input.decision.channel === channelType
+        && input.decision.placement === 'article'
+        && input.decision.source_content_revision === input.expectedRevision;
+}
+
 export function placementRepairProvenance(input: {
     blockedWorkItemId: number;
     blockedDecisionId: number | null;
     fromChannelId: number | null;
     fromPlacement: string | null;
-    kind?: 'blocked_mismatch' | 'legacy_site_blog_cover';
+    kind?: 'blocked_mismatch' | 'legacy_site_blog_cover' | 'legacy_article_cover_alias';
 }) {
     const superseded = {
         work_item_id: input.blockedWorkItemId,
@@ -109,6 +148,9 @@ export function placementRepairProvenance(input: {
     };
     if (input.kind === 'legacy_site_blog_cover') {
         return { superseded_input: { ...superseded, reason: 'legacy_site_blog_cover_mismatch' } };
+    }
+    if (input.kind === 'legacy_article_cover_alias') {
+        return { superseded_input: { ...superseded, reason: 'legacy_article_cover_alias_mismatch' } };
     }
     return {
         superseded_blocker: superseded

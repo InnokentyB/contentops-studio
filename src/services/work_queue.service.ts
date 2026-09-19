@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import prisma from '../db';
 import artDirectionService from './art_direction.service';
 import { planContentReviewRecovery, planMissingContentReviewRecovery } from './publication_content_revision_lifecycle';
-import { isLegacySiteBlogCoverMismatchEvidence, isPublicationPlacementMismatchEvidence, placementRepairProvenance, planPublicationPlacementRepair, repairMaterializedPublicationProjection } from './publication_metadata_repair';
+import { isLegacyArticleCoverAliasMismatchEvidence, isLegacySiteBlogCoverMismatchEvidence, isPublicationPlacementMismatchEvidence, placementRepairProvenance, planPublicationPlacementRepair, repairMaterializedPublicationProjection } from './publication_metadata_repair';
 import { assertCanonicalPublicationPlacement } from './publication_placement_contract';
 
 /**
@@ -156,10 +156,28 @@ export class WorkQueueService {
                     decision: legacySiteBlogDecision
                 })
                 : false;
-            if (!blockedItem || (!blockedMismatch && !legacySiteBlogMismatch)) {
+            const legacyArticleCoverAliasMismatch = blockedItem && content && targetChannel
+                ? isLegacyArticleCoverAliasMismatchEvidence({
+                    workItemState: blockedItem.state,
+                    workItemRevision: blockedItem.input_context_version,
+                    expectedRevision: params.expectedContentRevision,
+                    currentChannelId: content.channel_id,
+                    targetChannelId: targetChannel.id,
+                    currentPlacement: content.visual_placement,
+                    targetPlacement: params.targetPlacement,
+                    targetChannelType: targetChannel.type,
+                    taskStatus: content.status,
+                    visualState: content.visual_state,
+                    handoffState: content.handoff_state,
+                    selectedAssetId: content.selected_asset_id,
+                    decision: legacySiteBlogDecision
+                })
+                : false;
+            if (!blockedItem || (!blockedMismatch && !legacySiteBlogMismatch && !legacyArticleCoverAliasMismatch)) {
                 throw new Error('[BLOCKED_INPUT_MISMATCH] Expected immutable channel-placement mismatch evidence');
             }
-            const supersededDecision = legacySiteBlogMismatch ? legacySiteBlogDecision : blockedDecision;
+            const legacyGenerateMismatch = legacySiteBlogMismatch || legacyArticleCoverAliasMismatch;
+            const supersededDecision = legacyGenerateMismatch ? legacySiteBlogDecision : blockedDecision;
             if (content.status === 'published' || content.published_link || content.publication_fact?.outcome === 'published') {
                 throw new Error('[PUBLICATION_READ_ONLY] Published tasks cannot be repaired');
             }
@@ -179,7 +197,9 @@ export class WorkQueueService {
                 targetChannelId: targetChannel.id,
                 currentPlacement: content.visual_placement,
                 targetPlacement: params.targetPlacement,
-                replacementKeySuffix: blockedItem.reason_code === 'missing_feed_asset_contract'
+                replacementKeySuffix: legacyArticleCoverAliasMismatch
+                    ? `contract-recovery:${blockedItem.id}`
+                    : blockedItem.reason_code === 'missing_feed_asset_contract'
                     ? `contract-recovery:${blockedItem.id}`
                     : undefined
             });
@@ -206,7 +226,7 @@ export class WorkQueueService {
                     accepted_revision: params.expectedAcceptedRevision,
                     channel_id: params.expectedChannelId,
                     visual_placement: params.expectedPlacement,
-                    ...(legacySiteBlogMismatch ? {
+                    ...(legacyGenerateMismatch ? {
                         status: 'approved', visual_state: 'BRIEFED',
                         handoff_state: 'blocked', selected_asset_id: null
                     } : {})
@@ -214,13 +234,37 @@ export class WorkQueueService {
                 data: {
                     channel_id: plan.channelId,
                     visual_placement: plan.placement,
-                    ...(legacySiteBlogMismatch ? { visual_state: 'PENDING_ASSESSMENT', handoff_state: 'blocked' } : {}),
+                    ...(legacyGenerateMismatch ? { visual_state: 'PENDING_ASSESSMENT', handoff_state: 'blocked' } : {}),
                     assets: repairedProjection.assets as Prisma.InputJsonValue,
                     quality_report: repairedProjection.qualityReport as Prisma.InputJsonValue,
                     metrics: repairedProjection.metrics as Prisma.InputJsonValue
                 }
             });
             if (update.count !== 1) throw new Error('[PLACEMENT_CONFLICT] Metadata changed concurrently');
+
+            if (legacyArticleCoverAliasMismatch && supersededDecision) {
+                await tx.artDirectionDecision.updateMany({
+                    where: { id: supersededDecision.id, status: 'active' },
+                    data: { status: 'stale' }
+                });
+                await tx.workItem.updateMany({
+                    where: {
+                        project_id: params.projectId,
+                        content_item_id: content.id,
+                        kind: 'visual_generate',
+                        state: { in: ['available', 'claimed', 'waiting_approval'] },
+                        result_payload: { path: ['decision_id'], equals: supersededDecision.id }
+                    },
+                    data: {
+                        state: 'blocked',
+                        reason_code: 'superseded_article_cover_alias',
+                        note: `Superseded by canonical article_cover repair from decision ${supersededDecision.id}`,
+                        lease_token: null,
+                        lease_actor_id: null,
+                        lease_expires_at: null
+                    }
+                });
+            }
 
             const artDirectionItem = await tx.workItem.upsert({
                 where: { dedupe_key: plan.dedupeKey },
@@ -236,13 +280,17 @@ export class WorkQueueService {
                     input_context_version: plan.inputContextVersion,
                     result_version: 0,
                     dedupe_key: plan.dedupeKey,
-                    note: `${plan.note}; supersedes immutable ${legacySiteBlogMismatch ? 'legacy blog placement' : 'blocker'} decision ${supersededDecision?.id || 'unknown'}`,
+                    note: `${plan.note}; supersedes immutable ${legacyGenerateMismatch ? 'legacy article-cover placement' : 'blocker'} decision ${supersededDecision?.id || 'unknown'}`,
                     result_payload: placementRepairProvenance({
                         blockedWorkItemId: blockedItem.id,
                         blockedDecisionId: supersededDecision?.id || null,
                         fromChannelId: content.channel_id,
                         fromPlacement: content.visual_placement,
-                        kind: legacySiteBlogMismatch ? 'legacy_site_blog_cover' : 'blocked_mismatch'
+                        kind: legacySiteBlogMismatch
+                            ? 'legacy_site_blog_cover'
+                            : legacyArticleCoverAliasMismatch
+                                ? 'legacy_article_cover_alias'
+                                : 'blocked_mismatch'
                     }) as Prisma.InputJsonValue
                 }
             });
@@ -261,7 +309,7 @@ export class WorkQueueService {
                 art_direction_state: artDirectionItem.state,
                 art_direction_dedupe_key: artDirectionItem.dedupe_key,
                 input_context_version: artDirectionItem.input_context_version,
-                ...(legacySiteBlogMismatch ? { visual_state: 'PENDING_ASSESSMENT' } : {})
+                ...(legacyGenerateMismatch ? { visual_state: 'PENDING_ASSESSMENT' } : {})
             };
             await this.recordWorkflowEvent(tx, {
                 projectId: params.projectId,
@@ -582,24 +630,57 @@ export class WorkQueueService {
                         accepted_revision: lifecycle.acceptedRevision
                     }
                 });
-                await tx.workItem.update({
-                    where: { id: review.id },
-                    data: {
-                        state: lifecycle.reviewState,
-                        input_context_version: content.content_revision,
-                        result_version: lifecycle.reviewResultVersion,
-                        result_payload: {
-                            recovered_content_revision: content.content_revision,
-                            body: content.draft_text,
-                            evidence: params.evidence || null
-                        },
-                        lease_token: null,
-                        lease_expires_at: null,
-                        lease_actor_id: null,
-                        note: params.evidence || `Recovered review result for content revision ${content.content_revision}`
-                    }
-                });
+                if (lifecycle.replacementReviewRequired) {
+                    await tx.workItem.update({
+                        where: { id: review.id },
+                        data: {
+                            state: 'completed',
+                            lease_token: null,
+                            lease_expires_at: null,
+                            lease_actor_id: null,
+                            note: `Superseded after approval collision for content revision ${content.content_revision}`
+                        }
+                    });
+                } else {
+                    await tx.workItem.update({
+                        where: { id: review.id },
+                        data: {
+                            state: lifecycle.reviewState,
+                            input_context_version: content.content_revision,
+                            result_version: lifecycle.reviewResultVersion,
+                            result_payload: {
+                                recovered_content_revision: content.content_revision,
+                                body: content.draft_text,
+                                evidence: params.evidence || null
+                            },
+                            lease_token: null,
+                            lease_expires_at: null,
+                            lease_actor_id: null,
+                            note: params.evidence || `Recovered review result for content revision ${content.content_revision}`
+                        }
+                    });
+                }
             }
+
+            const replacementReview = lifecycle.replacementReviewRequired
+                ? await tx.workItem.upsert({
+                    where: { dedupe_key: `content-review-recovery:${content.id}:${content.content_revision}:${review.id}` },
+                    update: {},
+                    create: {
+                        project_id: params.projectId,
+                        week_package_id: review.week_package_id,
+                        content_item_id: content.id,
+                        item_key: review.item_key,
+                        kind: 'content_review',
+                        state: 'available',
+                        assignee_role: 'content_reviewer',
+                        input_context_version: content.content_revision,
+                        result_version: Math.max(0, content.content_revision - 1),
+                        dedupe_key: `content-review-recovery:${content.id}:${content.content_revision}:${review.id}`,
+                        note: params.evidence || `Fresh review required for content revision ${content.content_revision}`
+                    }
+                })
+                : review;
 
             const afterState = {
                 recovered: lifecycle.needsRecovery,
@@ -607,13 +688,14 @@ export class WorkQueueService {
                 content_revision: content.content_revision,
                 accepted_revision: lifecycle.acceptedRevision,
                 text_state: lifecycle.textState,
-                work_item_id: review.id,
-                review_result_version: lifecycle.reviewResultVersion,
-                review_state: lifecycle.reviewState
+                work_item_id: replacementReview.id,
+                superseded_work_item_id: lifecycle.replacementReviewRequired ? review.id : null,
+                review_result_version: replacementReview.result_version,
+                review_state: replacementReview.state
             };
             await this.recordWorkflowEvent(tx, {
                 projectId: params.projectId,
-                workItemId: review.id,
+                workItemId: replacementReview.id,
                 weekPackageId: review.week_package_id || undefined,
                 contentItemId: content.id,
                 actorId: params.actorId,

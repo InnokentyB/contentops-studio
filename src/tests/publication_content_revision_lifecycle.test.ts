@@ -63,7 +63,8 @@ test('recovery exposes the current content revision as a separately approvable r
         textState: 'draft',
         acceptedRevision: null,
         reviewState: 'waiting_approval',
-        reviewResultVersion: 2
+        reviewResultVersion: 2,
+        replacementReviewRequired: false
     });
 });
 
@@ -79,7 +80,25 @@ test('recovery is idempotent after the current revision has already been approve
         textState: 'accepted',
         acceptedRevision: 2,
         reviewState: 'completed',
-        reviewResultVersion: 2
+        reviewResultVersion: 2,
+        replacementReviewRequired: false
+    });
+});
+
+test('approval collision requires a fresh revision-bound review item', () => {
+    assert.deepEqual(planContentReviewRecovery({
+        contentRevision: 2,
+        acceptedRevision: null,
+        textState: 'draft',
+        reviewResultVersion: 2,
+        currentRevisionAlreadyApproved: true
+    }), {
+        needsRecovery: true,
+        textState: 'draft',
+        acceptedRevision: null,
+        reviewState: 'waiting_approval',
+        reviewResultVersion: 2,
+        replacementReviewRequired: true
     });
 });
 
