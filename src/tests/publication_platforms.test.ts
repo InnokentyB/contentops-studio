@@ -206,3 +206,18 @@ test('configured Dzen channels prefer connector auto when workflow mode is not e
     assert.equal(publicationAdapterService.prefersAutomaticExecution({ platform: 'dzen', cookies_encrypted: 'enc:v1:test', workflow_mode: 'approval_required' }), false);
     assert.equal(publicationAdapterService.prefersAutomaticExecution({ platform: 'dzen' }), false);
 });
+
+test('standard Telegram channels prefer MTProto while explicit manual workflows stay manual', () => {
+    assert.equal(publicationAdapterService.prefersAutomaticExecution({
+        platform: 'telegram',
+        workflow_mode: 'standard'
+    }), true);
+    assert.equal(publicationAdapterService.prefersAutomaticExecution({
+        platform: 'telegram',
+        workflow_mode: 'approval_required'
+    }), false);
+    assert.equal(publicationAdapterService.prefersAutomaticExecution({
+        platform: 'telegram',
+        workflow_mode: 'manual_handoff'
+    }), false);
+});
