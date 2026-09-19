@@ -31,14 +31,18 @@ class PublicationAdapterService {
 
     prefersAutomaticExecution(account: PublicationAccount) {
         const platform = String(account.platform || '').toLowerCase();
-        if (!['zen', 'zen_article', 'dzen'].includes(platform) || !this.supportsDirectExecution(account)) {
+        if (!this.supportsDirectExecution(account)) {
             return false;
         }
         const workflowMode = String(account.workflow_mode || account.planner_generation_mode || 'standard').toLowerCase();
         if (['prepare_only', 'approval_required', 'manual', 'manual_handoff', 'browser_required'].includes(workflowMode)) {
             return false;
         }
-        return true;
+        // Telegram feed publication is executed by the authenticated MTProto
+        // adapter. Treating every generated handoff bundle as manual here used
+        // to demote an otherwise executable Telegram task to browser_required.
+        // Other platforms keep their existing opt-in behaviour.
+        return platform === 'telegram' || ['zen', 'zen_article', 'dzen'].includes(platform);
     }
 
     inferExecutionMode(account: PublicationAccount, action: PublicationAction): 'manual' | 'automated' {
