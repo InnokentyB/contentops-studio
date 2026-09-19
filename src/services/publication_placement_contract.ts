@@ -106,6 +106,26 @@ export function publicationPlacementAssetContract(
             transport: { materialization: 'article', connector_authority: 'manual_only' }
         };
     }
+    if (normalizedType === 'vc' && placement === 'article_cover') {
+        return {
+            placement,
+            artifact_kind: 'article_cover',
+            dimensions: { width: 1200, height: 627, aspect_ratio: '1.91:1' },
+            safe_area: { unit: 'px', top: 63, right: 120, bottom: 63, left: 120 },
+            poll: { supported: false, configuration_mode: 'not_applicable', render_in_asset: false },
+            transport: { materialization: 'article', connector_authority: 'manual_only' }
+        };
+    }
+    if (normalizedType === 'habr' && placement === 'article_cover') {
+        return {
+            placement,
+            artifact_kind: 'article_cover',
+            dimensions: { width: 1200, height: 630, aspect_ratio: '1.91:1' },
+            safe_area: { unit: 'px', top: 63, right: 120, bottom: 63, left: 120 },
+            poll: { supported: false, configuration_mode: 'not_applicable', render_in_asset: false },
+            transport: { materialization: 'article', connector_authority: 'manual_only' }
+        };
+    }
     if (normalizedType === 'site' && placement === 'article_cover') {
         return {
             placement,

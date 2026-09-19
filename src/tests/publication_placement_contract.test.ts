@@ -18,6 +18,17 @@ test('article channels share the canonical article-cover placement', () => {
     );
 });
 
+test('VC and Habr covers expose explicit article contracts', () => {
+    assert.deepEqual(publicationPlacementAssetContract({ type: 'vc' }, 'article_cover').dimensions,
+        { width: 1200, height: 627, aspect_ratio: '1.91:1' });
+    assert.deepEqual(publicationPlacementAssetContract({ type: 'vc' }, 'article_cover').safe_area,
+        { unit: 'px', top: 63, right: 120, bottom: 63, left: 120 });
+    assert.deepEqual(publicationPlacementAssetContract({ type: 'habr' }, 'article_cover').dimensions,
+        { width: 1200, height: 630, aspect_ratio: '1.91:1' });
+    assert.deepEqual(publicationPlacementAssetContract({ type: 'habr' }, 'article_cover').safe_area,
+        { unit: 'px', top: 63, right: 120, bottom: 63, left: 120 });
+});
+
 test('accepting site content normalizes a legacy feed default to the canonical blog cover', () => {
     assert.equal(placementForContentAcceptance({ type: 'site' }, null), 'article_cover');
     assert.equal(placementForContentAcceptance({ type: 'site' }, 'feed'), 'article_cover');

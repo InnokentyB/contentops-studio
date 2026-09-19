@@ -40,7 +40,8 @@ export function planContentReviewRecovery(input: {
             textState: input.textState,
             acceptedRevision: input.acceptedRevision,
             reviewState: 'completed',
-            reviewResultVersion: input.reviewResultVersion
+            reviewResultVersion: input.reviewResultVersion,
+            replacementReviewRequired: false
         };
     }
 
@@ -49,7 +50,8 @@ export function planContentReviewRecovery(input: {
         textState: 'draft',
         acceptedRevision: null,
         reviewState: 'waiting_approval',
-        reviewResultVersion: input.contentRevision
+        reviewResultVersion: input.contentRevision,
+        replacementReviewRequired: input.currentRevisionAlreadyApproved
     };
 }
 
