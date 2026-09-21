@@ -87,13 +87,28 @@ export function publicationPlacementAssetContract(
         };
     }
     if (['dzen', 'zen', 'zen_article'].includes(normalizedType) && placement === 'article_cover') {
+        // Planner editorial canvas: conservative wide cover with internal text-safe insets.
+        // These are asset-production defaults, not a claim about provider upload limits.
         return {
             placement,
             artifact_kind: 'article_cover',
-            dimensions: null,
-            safe_area: null,
+            dimensions: { width: 1200, height: 630, aspect_ratio: '1.91:1' },
+            safe_area: { unit: 'px', top: 63, right: 120, bottom: 63, left: 120 },
+            accepted_mime_types: ['image/png', 'image/jpeg'],
             poll: { supported: false, configuration_mode: 'not_applicable', render_in_asset: false },
             transport: { materialization: 'article', connector_authority: 'configured' }
+        };
+    }
+    if (['telegram', 'telegram_chat', 'threads'].includes(normalizedType) && placement === 'feed') {
+        // Shared portrait editorial canvas; keep copy inside the insets for feed crops.
+        return {
+            placement,
+            artifact_kind: 'feed',
+            dimensions: { width: 1080, height: 1350, aspect_ratio: '4:5' },
+            safe_area: { unit: 'px', top: 108, right: 86, bottom: 108, left: 86 },
+            accepted_mime_types: ['image/png', 'image/jpeg'],
+            poll: { supported: false, configuration_mode: 'not_applicable', render_in_asset: false },
+            transport: { materialization: 'feed_post', connector_authority: 'configured' }
         };
     }
     if (normalizedType === 'medium' && placement === 'article_cover') {

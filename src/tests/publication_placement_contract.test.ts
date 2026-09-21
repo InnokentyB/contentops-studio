@@ -83,7 +83,18 @@ test('VK feed exposes the accepted square asset contract used by the connector',
 test('Dzen longread uses the configured article transport contract', () => {
     const contract = publicationPlacementAssetContract({ type: 'dzen' }, 'article_cover');
     assert.equal(contract.artifact_kind, 'article_cover');
+    assert.deepEqual(contract.dimensions, { width: 1200, height: 630, aspect_ratio: '1.91:1' });
+    assert.deepEqual(contract.safe_area, { unit: 'px', top: 63, right: 120, bottom: 63, left: 120 });
     assert.deepEqual(contract.transport, { materialization: 'article', connector_authority: 'configured' });
+});
+
+test('Telegram and Threads feed briefs have explicit editorial geometry', () => {
+    for (const type of ['telegram', 'threads']) {
+        const contract = publicationPlacementAssetContract({ type }, 'feed');
+        assert.deepEqual(contract.dimensions, { width: 1080, height: 1350, aspect_ratio: '4:5' });
+        assert.deepEqual(contract.safe_area, { unit: 'px', top: 108, right: 86, bottom: 108, left: 86 });
+        assert.deepEqual(contract.transport, { materialization: 'feed_post', connector_authority: 'configured' });
+    }
 });
 
 test('configured channel placement overrides the type fallback', () => {
