@@ -19,6 +19,7 @@ import threadsService from './threads.service';
 import artDirectionService from './art_direction.service';
 import { parseRecurringTrigger } from './publication_runtime.helpers';
 import { browserFallbackReason, resolvePublicationExecutionRoute } from './publication_execution_route';
+import { connectorAutoModeGuard } from './publication_approval_guard';
 import { derivePublicationContentState } from './publication_content_state';
 import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
 import vkOAuthService from './vk_oauth.service';
@@ -1773,7 +1774,7 @@ class PublisherService {
         const dueTasks = await prisma.contentItem.findMany({
             where: {
                 schedule_at: { lte: now },
-                publication_mode: { not: 'browser_required' },
+                ...connectorAutoModeGuard(),
                 type: { not: 'week_theme' },
                 OR: [
                     { assets: { not: undefined } },
@@ -1916,7 +1917,7 @@ class PublisherService {
             where: {
                 id: task.id,
                 status: { in: ['planned', 'ready_for_execution'] },
-                publication_mode: { not: 'browser_required' }
+                ...connectorAutoModeGuard()
             },
             data: {
                 status: 'publishing',

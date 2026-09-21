@@ -17,6 +17,7 @@ import publicationFactService from './publication_fact.service';
 import { channelContentLanguage } from './content_language.service';
 import { isPublicationTaskActive } from './publication_task_activity';
 import publicationAdapterService from './publication_adapter.service';
+import { preparationRoute } from './publication_approval_guard';
 import { derivePublicationGenerationStage } from './publication_generation_stage';
 import publisherService from './publisher.service';
 import artDirectionService from './art_direction.service';
@@ -1188,12 +1189,21 @@ class McpPublicationService {
         };
         const browserRequired = !directExecutionSupported
             || (bundleWithLanguage.mode === 'manual' && !publicationAdapterService.prefersAutomaticExecution(effectiveAccount));
+        const preparation = preparationRoute(item.publication_mode, browserRequired);
+
+        if (preparation === 'preserve_approval') {
+            return {
+                item: { ...item, schedule_at: resolveTaskScheduleAt(item) },
+                bundle: bundleWithLanguage,
+                reused: false
+            };
+        }
 
         const updated = await prisma.contentItem.update({
             where: { id: item.id },
             data: {
-                status: browserRequired ? 'browser_required' : 'ready_for_execution',
-                publication_mode: browserRequired ? 'browser_required' : 'connector_auto',
+                status: preparation === 'browser_required' ? 'browser_required' : 'ready_for_execution',
+                publication_mode: preparation,
                 quality_report: {
                     ...((item.quality_report as any) || {}),
                     handoff_bundle: bundleWithLanguage,
