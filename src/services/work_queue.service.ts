@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import prisma from '../db';
 import artDirectionService from './art_direction.service';
 import { planContentReviewRecovery, planMissingContentReviewRecovery } from './publication_content_revision_lifecycle';
-import { isLegacyArticleCoverAliasMismatchEvidence, isLegacySiteBlogCoverMismatchEvidence, isPublicationPlacementMismatchEvidence, placementRepairProvenance, planPublicationPlacementRepair, repairMaterializedPublicationProjection } from './publication_metadata_repair';
+import { isLegacyArticleCoverAliasMismatchEvidence, isLegacyDzen958FeedMismatchEvidence, isLegacySiteBlogCoverMismatchEvidence, isPublicationPlacementMismatchEvidence, placementRepairProvenance, planPublicationPlacementRepair, repairMaterializedPublicationProjection } from './publication_metadata_repair';
 import { assertCanonicalPublicationPlacement } from './publication_placement_contract';
 
 /**
@@ -279,6 +279,24 @@ export class WorkQueueService {
                 expectedPlacement: params.expectedPlacement,
                 decision: blockedDecision
             }) : false;
+            const legacyDzen958Mismatch = blockedItem && content && targetChannel
+                ? isLegacyDzen958FeedMismatchEvidence({
+                    projectId: params.projectId,
+                    taskId: content.id,
+                    workItemId: blockedItem.id,
+                    workItemState: blockedItem.state,
+                    workItemRevision: blockedItem.input_context_version,
+                    expectedRevision: params.expectedContentRevision,
+                    currentChannelId: content.channel_id,
+                    targetChannelId: targetChannel.id,
+                    currentPlacement: content.visual_placement,
+                    targetPlacement: params.targetPlacement,
+                    targetChannelType: targetChannel.type,
+                    taskStatus: content.status,
+                    publicationMode: content.publication_mode,
+                    decision: blockedDecision
+                })
+                : false;
             const legacySiteBlogMismatch = blockedItem && content && targetChannel
                 ? isLegacySiteBlogCoverMismatchEvidence({
                     workItemState: blockedItem.state,
@@ -313,7 +331,7 @@ export class WorkQueueService {
                     decision: legacySiteBlogDecision
                 })
                 : false;
-            if (!blockedItem || (!blockedMismatch && !legacySiteBlogMismatch && !legacyArticleCoverAliasMismatch)) {
+            if (!blockedItem || (!blockedMismatch && !legacyDzen958Mismatch && !legacySiteBlogMismatch && !legacyArticleCoverAliasMismatch)) {
                 throw new Error('[BLOCKED_INPUT_MISMATCH] Expected immutable channel-placement mismatch evidence');
             }
             const legacyGenerateMismatch = legacySiteBlogMismatch || legacyArticleCoverAliasMismatch;

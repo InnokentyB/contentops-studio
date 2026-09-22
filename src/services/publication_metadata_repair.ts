@@ -55,6 +55,54 @@ export function isPublicationPlacementMismatchEvidence(input: {
         && input.decision.source_content_revision === input.expectedRevision;
 }
 
+/** One immutable pre-contract Dzen decision recorded its requested feed placement,
+ * while the task still carried the obsolete article_cover placement. */
+export function isLegacyDzen958FeedMismatchEvidence(input: {
+    projectId: number;
+    taskId: number;
+    workItemId: number;
+    workItemState: string;
+    workItemRevision: number;
+    expectedRevision: number;
+    currentChannelId: number | null;
+    targetChannelId: number;
+    currentPlacement: string | null;
+    targetPlacement: string;
+    targetChannelType: string;
+    taskStatus: string;
+    publicationMode: string | null;
+    decision?: {
+        id: number;
+        decision: string;
+        channel: string;
+        status: string;
+        placement: string;
+        source_content_revision: number;
+        reason: string;
+    } | null;
+}) {
+    return input.projectId === 10
+        && input.taskId === 958
+        && input.workItemId === 926
+        && input.workItemState === 'completed'
+        && input.workItemRevision === 1
+        && input.expectedRevision === 1
+        && input.currentChannelId === 116
+        && input.targetChannelId === 116
+        && input.currentPlacement === 'article_cover'
+        && input.targetPlacement === 'feed'
+        && input.targetChannelType.trim().toLowerCase() === 'dzen'
+        && input.taskStatus === 'approved'
+        && input.publicationMode === 'approval_required'
+        && input.decision?.id === 137
+        && input.decision.decision === 'BLOCKED'
+        && input.decision.channel === 'dzen'
+        && input.decision.status === 'active'
+        && input.decision.placement === 'feed'
+        && input.decision.source_content_revision === 1
+        && input.decision.reason === 'Accepted revision is ready, but Planner placement contract does not provide authoritative dimensions or safe area for Dzen feed. Do not generate or attach a visual until the placement contract is resolved.';
+}
+
 export function isLegacySiteBlogCoverMismatchEvidence(input: {
     workItemState: string;
     workItemRevision: number;

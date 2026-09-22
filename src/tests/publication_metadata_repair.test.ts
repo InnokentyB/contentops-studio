@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
     isLegacyArticleCoverAliasMismatchEvidence,
+    isLegacyDzen958FeedMismatchEvidence,
     isLegacySiteBlogCoverMismatchEvidence,
     isPublicationPlacementMismatchEvidence,
     placementRepairProvenance,
@@ -111,6 +112,40 @@ test('completed art-direction work with an immutable BLOCKED decision is valid m
             placement: 'feed',
             source_content_revision: 1
         }
+    }), false);
+});
+
+test('only immutable #958 Dzen feed decision can bridge its historical article-cover mismatch', () => {
+    const evidence = {
+        projectId: 10, taskId: 958, workItemId: 926,
+        workItemState: 'completed', workItemRevision: 1, expectedRevision: 1,
+        currentChannelId: 116, targetChannelId: 116,
+        currentPlacement: 'article_cover', targetPlacement: 'feed',
+        targetChannelType: 'dzen', taskStatus: 'approved',
+        publicationMode: 'approval_required',
+        decision: {
+            id: 137, decision: 'BLOCKED', channel: 'dzen', status: 'active',
+            placement: 'feed', source_content_revision: 1,
+            reason: 'Accepted revision is ready, but Planner placement contract does not provide authoritative dimensions or safe area for Dzen feed. Do not generate or attach a visual until the placement contract is resolved.'
+        }
+    };
+    assert.equal(isLegacyDzen958FeedMismatchEvidence(evidence), true);
+    assert.equal(isPublicationPlacementMismatchEvidence({
+        workItemState: evidence.workItemState,
+        workItemRevision: evidence.workItemRevision,
+        expectedRevision: evidence.expectedRevision,
+        expectedPlacement: evidence.currentPlacement,
+        decision: evidence.decision
+    }), false);
+    assert.equal(isLegacyDzen958FeedMismatchEvidence({ ...evidence, taskId: 962 }), false);
+    assert.equal(isLegacyDzen958FeedMismatchEvidence({ ...evidence, workItemId: 927 }), false);
+    assert.equal(isLegacyDzen958FeedMismatchEvidence({ ...evidence, currentPlacement: 'feed' }), false);
+    assert.equal(isLegacyDzen958FeedMismatchEvidence({ ...evidence, publicationMode: 'connector_auto' }), false);
+    assert.equal(isLegacyDzen958FeedMismatchEvidence({ ...evidence,
+        decision: { ...evidence.decision, reason: 'Unrelated visual block' }
+    }), false);
+    assert.equal(isLegacyDzen958FeedMismatchEvidence({ ...evidence,
+        decision: { ...evidence.decision, source_content_revision: 2 }
     }), false);
 });
 
