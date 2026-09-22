@@ -7,6 +7,7 @@ import initiativeService from '../services/initiative.service';
 import taskTrackerService from '../services/task_tracker.service';
 import deliveryService from '../services/delivery.service';
 import ownerPublicationControlsService from '../services/owner_publication_controls.service';
+import dzenTaskPublicationService from '../services/dzen_task_publication.service';
 import imageAssetService from '../services/image_asset.service';
 import artDirectionService from '../services/art_direction.service';
 import metricsService from '../services/metrics.service';
@@ -806,7 +807,9 @@ export function registerPlannerTools(server: McpServer) {
             dryRun: z.boolean().optional().describe('Validate and return the exact normalized provider payload without sending.'),
             idempotencyKey: z.string().min(1).max(500).optional().describe('Required for live publication and reused to safely replay a confirmed result.')
         }
-    }, async (args) => asToolResult(await telegramTaskPublicationService.execute(args)));
+    }, async (args) => asToolResult(await (args.projectId === 10 && args.taskId === 958
+        ? dzenTaskPublicationService.execute(args)
+        : telegramTaskPublicationService.execute(args))));
 
     server.registerTool('ba_release_approved_telegram_task', {
         description: 'Project-owner audited release of one exact accepted Telegram feed task for a separate explicit send. Does not publish or enable scheduler discovery.',
@@ -822,6 +825,27 @@ export function registerPlannerTools(server: McpServer) {
             approvalReference: z.string().min(10), idempotencyKey: z.string().min(1)
         }
     }, async (args) => asToolResult(await ownerPublicationControlsService.releaseTelegramTask(args)));
+
+    server.registerTool('ba_release_approved_dzen_task958', {
+        description: 'Owner-only audited release of exact accepted Dzen feed task #958 rev1 for separate task-native delivery. Does not publish.',
+        inputSchema: {
+            projectId: z.number().int().positive(), actorId: z.string(),
+            taskId: z.number().int().positive(), expectedChannelId: z.number().int().positive(),
+            expectedContentRevision: z.number().int().positive(),
+            expectedAcceptedRevision: z.number().int().positive(),
+            expectedScheduleAt: z.string().datetime({ offset: true }),
+            expectedBodySha256: z.string().regex(/^[a-f0-9]{64}$/),
+            approvalReference: z.string().min(10), idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await ownerPublicationControlsService.releaseDzenTask958(args)));
+
+    server.registerTool('ba_verify_dzen_task958_connector', {
+        description: 'Owner-only read-only authenticated editor probe for exact released Dzen task #958; records a 15-minute task-scoped connection proof without enabling the channel globally or publishing.',
+        inputSchema: {
+            projectId: z.number().int().positive(), taskId: z.number().int().positive(),
+            actorId: z.string(), idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await dzenTaskPublicationService.verifyConnector(args)));
 
     // ============================================
     // TDPD-001 Work Queue MCP Tools

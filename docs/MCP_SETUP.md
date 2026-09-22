@@ -43,6 +43,8 @@ For the later rev-3 #971 state, use `ba_require_task971_publication_visual` inst
 
 The Publisher profile exposes `ba_release_approved_telegram_task` for an authenticated project owner after exact-copy approval. Supply the current task/channel, accepted and content revisions, visual mode/state/asset, ISO schedule, SHA-256 of the canonical draft body, approval reference and a fresh idempotency key. Successful release changes only `approval_required` to `owner_released` and records an audit event. This mode is excluded from scheduler discovery and generic delivery; only a separate explicit `ba_publish_publication_task` dry-run/live call can consume it. That call rechecks the audit proof and exact body. The release is not a send, and an accepted revision alone is not owner approval. Existing Codex sessions may need MCP capability refresh before new tools become callable.
 
+For the one approved Dzen feed task #958, `ba_release_approved_dzen_task958` binds project 10/channel 116/accepted revision 1/body SHA-256/active NO_VISUAL_NEEDED decision #147 and records the owner approval reference without sending. Then `ba_verify_dzen_task958_connector` checks the authenticated channel editor and records a 15-minute proof for this task only; it does not enable the Dzen channel globally. `ba_publish_publication_task` routes only this exact task to the Dzen adapter. Dry-run must report `route_executable=true` before one live call with a stable idempotency key. An uncertain browser result freezes the task in `publishing` for manual reconciliation and must never be retried through the API. Only a provider-confirmed public Dzen URL creates the canonical publication fact.
+
 ## Deploy the complete workspace
 
 For a new external user, use the complete workspace flow:

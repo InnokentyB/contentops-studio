@@ -186,3 +186,44 @@ test('owner release rejects non-owner, body drift, existing attempt and required
         expectedBodySha256: '0'.repeat(64) }), /OWNER_APPROVED_BODY_MISMATCH/);
     assert.equal(drift.task.publication_mode, 'approval_required');
 });
+
+test('Dzen #958 owner release is exact, audited and does not send', async () => {
+    const hash = '78081837cecace18c91c01af0253b21ca502e611b63a016f9d9035567587dfd3';
+    const task: any = {
+        id: 958, project_id: 10, channel_id: 116, channel: { type: 'dzen' },
+        content_revision: 1, accepted_revision: 1, text_state: 'accepted',
+        visual_placement: 'feed', visual_state: 'NO_VISUAL_NEEDED',
+        visual_decision_version: 2, selected_asset_id: null,
+        status: 'ready_for_execution', handoff_state: 'ready',
+        publication_mode: 'approval_required', schedule_at: schedule,
+        draft_text: 'exact accepted body', publication_fact: null, published_link: null
+    };
+    const events: any[] = [];
+    const tx = {
+        project: { findUnique: async () => ({ slug: 'analystcraft-2' }) },
+        projectMember: { findUnique: async () => ({ role: 'owner' }) },
+        workflowEvent: { findFirst: async () => null, create: async (event: any) => { events.push(event); return event; } },
+        contentItem: {
+            findFirst: async () => task,
+            updateMany: async ({ where, data }: any) => {
+                if (where.publication_mode !== task.publication_mode || where.status !== task.status) return { count: 0 };
+                Object.assign(task, data);
+                return { count: 1 };
+            }
+        },
+        artDirectionDecision: { findFirst: async () => ({ id: 147, decision_version: 2 }) },
+        deliveryAttempt: { findFirst: async () => null }
+    };
+    const service = new OwnerPublicationControlsService({ $transaction: async (fn: any) => fn(tx) } as any, () => hash);
+    const input = { projectId: 10, actorId: 'user:7', taskId: 958, expectedChannelId: 116,
+        expectedContentRevision: 1, expectedAcceptedRevision: 1,
+        expectedScheduleAt: schedule.toISOString(), expectedBodySha256: hash,
+        approvalReference: 'owner-command:hq-thread', idempotencyKey: 'release-958' };
+    const before = { ...task };
+    const result = await service.releaseDzenTask958(input);
+    assert.equal(result.published, false);
+    assert.deepEqual(task, { ...before, publication_mode: 'owner_released' });
+    assert.equal(events.length, 1);
+    assert.equal(events[0].data.before_state.approval_reference, input.approvalReference);
+    await assert.rejects(service.releaseDzenTask958({ ...input, taskId: 959 }), /SCOPE_MISMATCH/);
+});

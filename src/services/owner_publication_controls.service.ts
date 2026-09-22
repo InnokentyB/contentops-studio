@@ -5,6 +5,7 @@ import { calculateVisualReadiness } from './art_direction.service';
 import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
 
 const C20_TASK_IDS = [968, 969, 971, 972, 973, 974];
+const DZEN_958_BODY_SHA256 = '78081837cecace18c91c01af0253b21ca502e611b63a016f9d9035567587dfd3';
 
 type VisualExpectation = {
     taskId: number;
@@ -43,7 +44,8 @@ export function assertExactC20VisualSet(items: VisualExpectation[]) {
 }
 
 export class OwnerPublicationControlsService {
-    constructor(private readonly db: any = prisma) {}
+    constructor(private readonly db: any = prisma,
+        private readonly hashBody: (body: string) => string = body => createHash('sha256').update(body).digest('hex')) {}
 
     private async requireOwner(tx: any, projectId: number, actorId: string) {
         const match = /^user:(\d+)$/.exec(actorId);
@@ -282,6 +284,83 @@ export class OwnerPublicationControlsService {
             await tx.workflowEvent.create({ data: {
                 project_id: args.projectId, content_item_id: task.id,
                 actor_id: args.actorId, command, idempotency_key: args.idempotencyKey,
+                before_state: { request_hash: requestHash, publication_mode: 'approval_required',
+                    approval_reference: args.approvalReference }, after_state: result
+            } });
+            return result;
+        }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    }
+
+    async releaseDzenTask958(args: {
+        projectId: number; actorId: string; taskId: number; expectedChannelId: number;
+        expectedContentRevision: number; expectedAcceptedRevision: number;
+        expectedScheduleAt: string; expectedBodySha256: string;
+        approvalReference: string; idempotencyKey: string;
+    }) {
+        if (args.projectId !== 10 || args.taskId !== 958 || args.expectedChannelId !== 116
+            || args.expectedContentRevision !== 1 || args.expectedAcceptedRevision !== 1
+            || args.expectedBodySha256 !== DZEN_958_BODY_SHA256) {
+            throw new Error('[DZEN_958_SCOPE_MISMATCH] Exact task/revision/body required');
+        }
+        if (!args.approvalReference.trim()) throw new Error('[OWNER_APPROVAL_REFERENCE_REQUIRED]');
+        const requestHash = sha256(args);
+        return this.db.$transaction(async (tx: any) => {
+            const project = await tx.project.findUnique({ where: { id: 10 }, select: { slug: true } });
+            if (project?.slug !== 'analystcraft-2') throw new Error('[MCP_PROJECT_SCOPE_MISMATCH]');
+            await this.requireOwner(tx, 10, args.actorId);
+            const command = 'ba_release_approved_dzen_task958';
+            const prior = await tx.workflowEvent.findFirst({ where: {
+                project_id: 10, actor_id: args.actorId, command, idempotency_key: args.idempotencyKey
+            } });
+            if (prior) {
+                if (prior.before_state?.request_hash !== requestHash) throw new Error('[IDEMPOTENCY_CONFLICT]');
+                return prior.after_state;
+            }
+            const task = await tx.contentItem.findFirst({
+                where: { id: 958, project_id: 10 },
+                include: { channel: true, publication_fact: true }
+            });
+            const decision = await tx.artDirectionDecision.findFirst({ where: {
+                id: 147, project_id: 10, content_item_id: 958,
+                source_content_revision: 1, channel: 'dzen', placement: 'feed',
+                decision: 'NO_VISUAL_NEEDED', status: 'active'
+            } });
+            const bodyHash = this.hashBody(task?.draft_text || '');
+            if (!task || task.channel_id !== 116 || task.channel?.type !== 'dzen'
+                || task.content_revision !== 1 || task.accepted_revision !== 1
+                || task.text_state !== 'accepted' || task.visual_placement !== 'feed'
+                || task.visual_state !== 'NO_VISUAL_NEEDED' || task.selected_asset_id !== null
+                || task.visual_decision_version !== decision?.decision_version
+                || task.status !== 'ready_for_execution' || task.handoff_state !== 'ready'
+                || task.publication_mode !== 'approval_required'
+                || task.schedule_at?.toISOString() !== args.expectedScheduleAt
+                || bodyHash !== DZEN_958_BODY_SHA256
+                || !decision || task.publication_fact || task.published_link) {
+                throw new Error('[DZEN_958_RELEASE_GUARD_FAILED]');
+            }
+            const attempt = await tx.deliveryAttempt.findFirst({ where: {
+                project_id: 10, content_item_id: 958
+            } });
+            if (attempt) throw new Error('[DELIVERY_ATTEMPT_EXISTS]');
+            const changed = await tx.contentItem.updateMany({
+                where: {
+                    id: 958, project_id: 10, channel_id: 116,
+                    content_revision: 1, accepted_revision: 1, text_state: 'accepted',
+                    visual_placement: 'feed', visual_state: 'NO_VISUAL_NEEDED',
+                    visual_decision_version: decision.decision_version,
+                    selected_asset_id: null, status: 'ready_for_execution',
+                    handoff_state: 'ready', publication_mode: 'approval_required',
+                    schedule_at: new Date(args.expectedScheduleAt)
+                }, data: { publication_mode: 'owner_released' }
+            });
+            if (changed.count !== 1) throw new Error('[DZEN_958_RELEASE_CAS_CONFLICT]');
+            const result = { task_id: 958, channel_id: 116, content_revision: 1,
+                accepted_revision: 1, body_sha256: bodyHash,
+                visual_decision_id: 147, schedule_at: args.expectedScheduleAt,
+                publication_mode: 'owner_released', explicit_send_required: true, published: false };
+            await tx.workflowEvent.create({ data: {
+                project_id: 10, content_item_id: 958, actor_id: args.actorId,
+                command, idempotency_key: args.idempotencyKey,
                 before_state: { request_hash: requestHash, publication_mode: 'approval_required',
                     approval_reference: args.approvalReference }, after_state: result
             } });

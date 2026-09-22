@@ -138,6 +138,8 @@ const PUBLISHER_TOOLS = new Set([
     'ba_prepare_publication_task',
     'ba_publish_publication_task',
     'ba_release_approved_telegram_task',
+    'ba_release_approved_dzen_task958',
+    'ba_verify_dzen_task958_connector',
     'ba_execute_delivery',
     'ba_confirm_publication',
     'ba_record_publication_fact',
