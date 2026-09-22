@@ -5,6 +5,7 @@ import artDirectionService from './art_direction.service';
 import { planContentReviewRecovery, planMissingContentReviewRecovery } from './publication_content_revision_lifecycle';
 import { isLegacyArticleCoverAliasMismatchEvidence, isLegacyDzen958FeedMismatchEvidence, isLegacySiteBlogCoverMismatchEvidence, isPublicationPlacementMismatchEvidence, placementRepairProvenance, planPublicationPlacementRepair, repairMaterializedPublicationProjection } from './publication_metadata_repair';
 import { assertCanonicalPublicationPlacement } from './publication_placement_contract';
+import { assertContentReviewInput } from './content_review_gate';
 
 /**
  * Scopes for work queue operations.
@@ -1495,6 +1496,140 @@ export class WorkQueueService {
         };
     }
 
+    /** Editor-only MCP route for the content_reviewer stage. It never touches copy. */
+    async claimContentReview(params: {
+        projectId: number; actorId: string; workItemId: number;
+        expectedResultVersion: number; expectedContentRevision: number;
+        idempotencyKey: string;
+    }): Promise<Record<string, unknown>> {
+        return prisma.$transaction(async (tx) => {
+            await this.requireProjectAccess(tx, params.projectId, params.actorId, 'work_queue:claim');
+            const command = 'ba_claim_content_review';
+            const cached = await this.checkIdempotency(tx, {
+                projectId: params.projectId, actorId: params.actorId,
+                command, idempotencyKey: params.idempotencyKey
+            });
+            if (cached) {
+                const lease = await tx.workItem.findFirst({ where: {
+                    id: params.workItemId, project_id: params.projectId,
+                    kind: 'content_review', assignee_role: 'content_reviewer',
+                    state: 'claimed', lease_actor_id: params.actorId,
+                    lease_expires_at: { gte: new Date() }
+                } });
+                const cachedResult = cached as { work_item?: { id?: number }; lease_token?: string };
+                if (lease?.lease_token && cachedResult.work_item?.id === params.workItemId
+                    && cachedResult.lease_token === lease.lease_token) {
+                    return cached as Record<string, unknown>;
+                }
+                throw new Error('[CONTENT_REVIEW_LEASE_EXPIRED] Idempotent claim has no active lease');
+            }
+            const item = await tx.workItem.findFirst({
+                where: { id: params.workItemId, project_id: params.projectId },
+                include: { content_item: true }
+            });
+            if (!item) throw new Error('[CONTENT_REVIEW_NOT_FOUND] Review work item not found');
+            assertContentReviewInput({
+                kind: item.kind, assigneeRole: item.assignee_role, state: item.state,
+                resultVersion: item.result_version, expectedResultVersion: params.expectedResultVersion,
+                contentRevision: item.content_item?.content_revision ?? null,
+                expectedContentRevision: params.expectedContentRevision, phase: 'claim'
+            });
+            const leaseToken = `lease-${randomUUID()}`;
+            const leaseExpiresAt = new Date(Date.now() + 30 * 60 * 1000);
+            const claimed = await tx.workItem.updateMany({
+                where: {
+                    id: item.id, project_id: params.projectId,
+                    kind: 'content_review', assignee_role: 'content_reviewer',
+                    state: 'available', result_version: params.expectedResultVersion
+                },
+                data: {
+                    state: 'claimed', lease_token: leaseToken,
+                    lease_expires_at: leaseExpiresAt, lease_actor_id: params.actorId
+                }
+            });
+            if (claimed.count !== 1) throw new Error('[CONTENT_REVIEW_CLAIM_CONFLICT] Review was claimed concurrently');
+            const result = {
+                work_item: { id: item.id, state: 'claimed', result_version: item.result_version },
+                lease_token: leaseToken, lease_expires_at: leaseExpiresAt.toISOString(),
+                content_revision: params.expectedContentRevision
+            };
+            await this.recordWorkflowEvent(tx, {
+                projectId: params.projectId, workItemId: item.id,
+                actorId: params.actorId, command, idempotencyKey: params.idempotencyKey,
+                beforeState: { state: item.state, result_version: item.result_version },
+                afterState: { work_item: result.work_item, lease_actor_id: params.actorId,
+                    lease_expires_at: result.lease_expires_at }
+            });
+            return result;
+        }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    }
+
+    async submitContentReview(params: {
+        projectId: number; actorId: string; workItemId: number;
+        expectedResultVersion: number; expectedContentRevision: number;
+        leaseToken: string;
+        result: { recommendation: 'approve' | 'revise'; summary: string; findings?: string[] };
+        idempotencyKey: string;
+    }): Promise<Record<string, unknown>> {
+        return prisma.$transaction(async (tx) => {
+            await this.requireProjectAccess(tx, params.projectId, params.actorId, 'work_queue:complete');
+            const command = 'ba_submit_content_review';
+            const cached = await this.checkIdempotency(tx, {
+                projectId: params.projectId, actorId: params.actorId,
+                command, idempotencyKey: params.idempotencyKey
+            });
+            if (cached) {
+                const cachedResult = cached as { work_item?: { id?: number } };
+                if (cachedResult.work_item?.id !== params.workItemId) {
+                    throw new Error('[CONTENT_REVIEW_IDEMPOTENCY_CONFLICT] Key belongs to another review item');
+                }
+                return cached as Record<string, unknown>;
+            }
+            if (!params.result.summary.trim()) throw new Error('[CONTENT_REVIEW_RESULT_REQUIRED] Review summary is required');
+            const item = await tx.workItem.findFirst({
+                where: { id: params.workItemId, project_id: params.projectId },
+                include: { content_item: true }
+            });
+            if (!item) throw new Error('[CONTENT_REVIEW_NOT_FOUND] Review work item not found');
+            assertContentReviewInput({
+                kind: item.kind, assigneeRole: item.assignee_role, state: item.state,
+                resultVersion: item.result_version, expectedResultVersion: params.expectedResultVersion,
+                contentRevision: item.content_item?.content_revision ?? null,
+                expectedContentRevision: params.expectedContentRevision, phase: 'submit'
+            });
+            const now = new Date();
+            if (item.lease_token !== params.leaseToken || item.lease_actor_id !== params.actorId
+                || !item.lease_expires_at || item.lease_expires_at < now) {
+                throw new Error('[CONTENT_REVIEW_INVALID_LEASE] Active reviewer-owned lease required');
+            }
+            const nextVersion = item.result_version + 1;
+            const updated = await tx.workItem.updateMany({
+                where: {
+                    id: item.id, project_id: params.projectId,
+                    kind: 'content_review', assignee_role: 'content_reviewer',
+                    state: 'claimed', result_version: params.expectedResultVersion,
+                    lease_token: params.leaseToken, lease_actor_id: params.actorId,
+                    lease_expires_at: { gte: now }
+                },
+                data: {
+                    state: 'waiting_approval', result_version: nextVersion,
+                    result_payload: params.result as Prisma.InputJsonValue,
+                    lease_token: null, lease_expires_at: null, lease_actor_id: null
+                }
+            });
+            if (updated.count !== 1) throw new Error('[CONTENT_REVIEW_SUBMIT_CONFLICT] Review changed concurrently');
+            const result = { work_item: { id: item.id, state: 'waiting_approval', result_version: nextVersion },
+                content_revision: params.expectedContentRevision };
+            await this.recordWorkflowEvent(tx, {
+                projectId: params.projectId, workItemId: item.id,
+                actorId: params.actorId, command, idempotencyKey: params.idempotencyKey,
+                beforeState: { state: item.state, result_version: item.result_version },
+                afterState: result
+            });
+            return result;
+        }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    }
+
     /**
      * Claims a work item with an atomic conditional lease reservation.
      */
@@ -1785,6 +1920,11 @@ export class WorkQueueService {
 
             if (!item) {
                 throw new Error(`WorkItem ${params.workItemId} not found in project ${params.projectId}`);
+            }
+
+            if (item.kind === 'content_review' && (item.assignee_role !== 'content_reviewer'
+                || item.state !== 'waiting_approval')) {
+                throw new Error('[CONTENT_REVIEW_NOT_SUBMITTED] Review must be submitted before an approval decision');
             }
 
             if (item.result_version !== params.resultVersion) {

@@ -1025,6 +1025,36 @@ export function registerPlannerTools(server: McpServer) {
         return asToolResult(result);
     });
 
+    server.registerTool('ba_claim_content_review', {
+        description: 'Claim only an available content_reviewer work item with a 30-minute reviewer-owned lease.',
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string(),
+            workItemId: z.number().int().positive(),
+            expectedResultVersion: z.number().int().nonnegative(),
+            expectedContentRevision: z.number().int().positive(),
+            idempotencyKey: z.string()
+        }
+    }, async (args) => asToolResult(await workQueueService.claimContentReview(args)));
+
+    server.registerTool('ba_submit_content_review', {
+        description: 'Submit a lease-bound content review for editor approval without changing copy or accepting the revision.',
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string(),
+            workItemId: z.number().int().positive(),
+            expectedResultVersion: z.number().int().nonnegative(),
+            expectedContentRevision: z.number().int().positive(),
+            leaseToken: z.string(),
+            result: z.object({
+                recommendation: z.enum(['approve', 'revise']),
+                summary: z.string().min(1),
+                findings: z.array(z.string()).optional()
+            }),
+            idempotencyKey: z.string()
+        }
+    }, async (args) => asToolResult(await workQueueService.submitContentReview(args)));
+
     server.registerTool('ba_decide_approval', {
         description: 'Approve or reject a content review work item result version.',
         inputSchema: {

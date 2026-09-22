@@ -31,6 +31,10 @@ Self-hosted installations use their own `MCP_REMOTE_URL`.
 
 Profiles are enforced by the server and bound to one project member and project. Operational roles never inherit platform-owner authority.
 
+### Content-review work items
+
+The Chief editor profile can claim only an `available` work item with `kind=content_review` and `assignee_role=content_reviewer` through `ba_claim_content_review`. Supply the current work-item `result_version` and publication `content_revision`; the response contains a reviewer-owned lease valid for 30 minutes. Submit the review with `ba_submit_content_review`, the same expected versions, that lease token, a nonempty summary, and an `approve` or `revise` recommendation. Submission changes the work item to `waiting_approval` and returns its new result version; it does not alter the copy or accept it. Only then may `ba_decide_approval` make the revision-bound approval decision using that returned version. A stale version, expired or foreign lease, or another work-item kind is rejected. Do not use the writer's generic claim/complete tools for review work.
+
 ## Deploy the complete workspace
 
 For a new external user, use the complete workspace flow:

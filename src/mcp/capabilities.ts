@@ -110,6 +110,8 @@ const EDITOR_TOOLS = new Set([
     'ba_read_publication_plan_ref',
     'ba_list_work_items',
     'ba_get_work_item_context',
+    'ba_claim_content_review',
+    'ba_submit_content_review',
     'ba_decide_approval',
     'ba_get_week_pipeline',
     'ba_get_week_autogeneration'
