@@ -8,7 +8,7 @@ import {
 } from '../services/publication_placement_contract';
 
 test('article channels share the canonical article-cover placement', () => {
-    for (const type of ['habr', 'vc', 'dzen', 'site']) {
+    for (const type of ['habr', 'vc', 'site']) {
         assert.deepEqual(canonicalPlacementsForChannel({ type }), ['article_cover']);
         assert.equal(assertCanonicalPublicationPlacement({ type }, 'article_cover'), 'article_cover');
     }
@@ -16,6 +16,18 @@ test('article channels share the canonical article-cover placement', () => {
         () => assertCanonicalPublicationPlacement({ type: 'vc' }, 'feed'),
         /TARGET_PLACEMENT_MISMATCH/
     );
+});
+
+test('Dzen distinguishes short feed posts from longread covers without inventing post geometry', () => {
+    assert.deepEqual(canonicalPlacementsForChannel({ type: 'dzen' }), ['article_cover', 'feed']);
+    assert.equal(placementForContentAcceptance({ type: 'dzen' }, null), 'article_cover');
+    assert.equal(placementForContentAcceptance({ type: 'dzen' }, 'feed'), 'feed');
+    assert.equal(assertCanonicalPublicationPlacement({ type: 'dzen' }, 'feed'), 'feed');
+    const contract = publicationPlacementAssetContract({ type: 'dzen' }, 'feed');
+    assert.equal(contract.artifact_kind, 'feed');
+    assert.equal(contract.dimensions, null);
+    assert.equal(contract.safe_area, null);
+    assert.deepEqual(contract.transport, { materialization: 'feed_post', connector_authority: 'configured' });
 });
 
 test('VC and Habr covers expose explicit article contracts', () => {
@@ -110,11 +122,7 @@ test('unknown channels cannot be repaired without an explicit contract', () => {
     );
 });
 
-test('asset contract can describe legacy placement metadata without weakening repair validation', () => {
-    const legacy = publicationPlacementAssetContract({ type: 'dzen' }, 'feed');
-    assert.equal(legacy.artifact_kind, 'feed');
-    assert.throws(
-        () => assertCanonicalPublicationPlacement({ type: 'dzen' }, 'feed'),
-        /TARGET_PLACEMENT_MISMATCH/
-    );
+test('Dzen feed is now canonical, while unrelated article channels stay strict', () => {
+    assert.equal(assertCanonicalPublicationPlacement({ type: 'dzen' }, 'feed'), 'feed');
+    assert.throws(() => assertCanonicalPublicationPlacement({ type: 'vc' }, 'feed'), /TARGET_PLACEMENT_MISMATCH/);
 });

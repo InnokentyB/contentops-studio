@@ -182,6 +182,7 @@ export function repairMaterializedPublicationProjection(input: {
     const normalizedChannelType = String(input.channel.type || '').trim().toLowerCase();
     const isDzenArticle = ['dzen', 'zen', 'zen_article'].includes(normalizedChannelType)
         && input.placement === 'article_cover';
+    const isDzenFeed = normalizedChannelType === 'dzen' && input.placement === 'feed';
     const isMediumArticle = normalizedChannelType === 'medium'
         && input.placement === 'article_cover';
     const assets = { ...(input.assets || {}) };
@@ -194,6 +195,8 @@ export function repairMaterializedPublicationProjection(input: {
         ? canonicalStoryActionType(input.channel.type, input.placement)
         : isDzenArticle
             ? 'dzen_article:publish'
+        : isDzenFeed
+            ? 'dzen_feed:publish'
         : isMediumArticle
             ? 'medium:manual_content'
         : input.channel.type === 'vk' && input.placement === 'article_cover'

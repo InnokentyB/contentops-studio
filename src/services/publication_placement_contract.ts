@@ -1,7 +1,7 @@
 const DEFAULT_PLACEMENTS: Record<string, string[]> = {
     habr: ['article_cover'],
     vc: ['article_cover'],
-    dzen: ['article_cover'],
+    dzen: ['article_cover', 'feed'],
     medium: ['article_cover'],
     site: ['article_cover'],
     setka: ['feed'],
@@ -97,6 +97,19 @@ export function publicationPlacementAssetContract(
             accepted_mime_types: ['image/png', 'image/jpeg'],
             poll: { supported: false, configuration_mode: 'not_applicable', render_in_asset: false },
             transport: { materialization: 'article', connector_authority: 'configured' }
+        };
+    }
+    if (normalizedType === 'dzen' && placement === 'feed') {
+        // Dzen documents the first post image as its cover, but does not specify
+        // a fixed post-image aspect ratio or safe area. Art must choose the canvas
+        // for the particular revision; do not borrow the article-cover geometry.
+        return {
+            placement,
+            artifact_kind: 'feed',
+            dimensions: null,
+            safe_area: null,
+            poll: { supported: false, configuration_mode: 'not_applicable', render_in_asset: false },
+            transport: { materialization: 'feed_post', connector_authority: 'configured' }
         };
     }
     if (['telegram', 'telegram_chat', 'threads'].includes(normalizedType) && placement === 'feed') {

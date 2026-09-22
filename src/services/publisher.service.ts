@@ -15,6 +15,7 @@ import okService from './ok.service';
 import habrService from './habr.service';
 import vcService from './vc.service';
 import dzenService from './dzen.service';
+import { dzenPublicationTypeForAction } from './dzen_publication_route';
 import threadsService from './threads.service';
 import artDirectionService from './art_direction.service';
 import { parseRecurringTrigger } from './publication_runtime.helpers';
@@ -2536,11 +2537,9 @@ class PublisherService {
             const dzenConfig = resolveEffectiveChannelConfig(channelType, channelConfig);
             const title = bundle.publication?.html_bundle?.[0]?.asset?.title || task.title || 'Zen article';
             const actionType = String((task.assets as any)?.action?.action_type || task.type || '').toLowerCase();
-            const publicationType = actionType.includes('article') || channelType === 'zen_article'
-                ? 'article'
-                : actionType.includes('post')
-                    ? 'post'
-                    : dzenConfig.default_publication_type === 'post' ? 'post' : 'article';
+            const publicationType = dzenPublicationTypeForAction(
+                actionType, channelType, dzenConfig.default_publication_type
+            );
             const publishedLink = await dzenService.publishPost({
                 channel_id: dzenConfig.channel_id || dzenConfig.vk_id,
                 cookies: dzenConfig.cookies,

@@ -244,3 +244,23 @@ test('Medium placement repair rematerializes a manual article handoff', () => {
     assert.equal(repaired.qualityReport.handoff_bundle.placement_contract.transport.connector_authority, 'manual_only');
     assert.equal(repaired.metrics.account_ref, 'innokenty_medium');
 });
+
+test('Dzen short repair replaces stale article action with feed post without changing body', () => {
+    const repaired = repairMaterializedPublicationProjection({
+        assets: { action: { action_type: 'dzen_article_cover:publish', content: 'accepted rev1' } },
+        qualityReport: { handoff_bundle: {
+            mode: 'automated',
+            task: { action_type: 'dzen_article_cover:publish', placement: 'article_cover' },
+            publication: { body: 'accepted rev1' }
+        } },
+        channel: { id: 116, name: 'analystcraft_dzen', type: 'dzen' },
+        placement: 'feed'
+    });
+    assert.equal(repaired.assets.action.action_type, 'dzen_feed:publish');
+    assert.equal(repaired.qualityReport.handoff_bundle.task.action_type, 'dzen_feed:publish');
+    assert.equal(repaired.qualityReport.handoff_bundle.task.placement, 'feed');
+    assert.equal(repaired.qualityReport.handoff_bundle.publication.body, 'accepted rev1');
+    assert.deepEqual(repaired.qualityReport.handoff_bundle.transport,
+        { materialization: 'feed_post', connector_authority: 'configured' });
+    assert.equal(repaired.qualityReport.handoff_bundle.placement_contract.dimensions, null);
+});
