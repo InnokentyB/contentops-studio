@@ -15,6 +15,7 @@ function approvedVkTask(overrides: Record<string, any> = {}) {
         id: 900,
         project_id: 10,
         status: 'ready_for_execution',
+        publication_mode: 'connector_auto',
         type: 'vk_post:publish',
         draft_text: '  Accepted VK publication text  ',
         content_revision: 3,
