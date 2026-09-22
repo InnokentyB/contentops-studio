@@ -98,7 +98,7 @@ export class DzenTaskPublicationService {
         const bodyHash = (this.dependencies.hashBody || ((body: string) => createHash('sha256').update(body).digest('hex')))(task.draft_text || '');
         const decision = await db.artDirectionDecision.findFirst({ where: {
             id: 147, project_id: 10, content_item_id: 958,
-            source_content_revision: 1, channel: 'dzen', placement: 'feed',
+            source_content_revision: 1, channel: 'analystcraft_dzen', placement: 'feed',
             decision: 'NO_VISUAL_NEEDED', status: 'active'
         } });
         if (!proof || proof.task_id !== 958 || proof.channel_id !== 116

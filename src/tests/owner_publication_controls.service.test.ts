@@ -211,7 +211,10 @@ test('Dzen #958 owner release is exact, audited and does not send', async () => 
                 return { count: 1 };
             }
         },
-        artDirectionDecision: { findFirst: async () => ({ id: 147, decision_version: 2 }) },
+        artDirectionDecision: { findFirst: async ({ where }: any) => {
+            assert.equal(where.channel, 'analystcraft_dzen');
+            return { id: 147, decision_version: 2 };
+        } },
         deliveryAttempt: { findFirst: async () => null }
     };
     const service = new OwnerPublicationControlsService({ $transaction: async (fn: any) => fn(tx) } as any, () => hash);

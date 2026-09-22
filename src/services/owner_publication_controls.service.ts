@@ -322,7 +322,7 @@ export class OwnerPublicationControlsService {
             });
             const decision = await tx.artDirectionDecision.findFirst({ where: {
                 id: 147, project_id: 10, content_item_id: 958,
-                source_content_revision: 1, channel: 'dzen', placement: 'feed',
+                source_content_revision: 1, channel: 'analystcraft_dzen', placement: 'feed',
                 decision: 'NO_VISUAL_NEEDED', status: 'active'
             } });
             const bodyHash = this.hashBody(task?.draft_text || '');
