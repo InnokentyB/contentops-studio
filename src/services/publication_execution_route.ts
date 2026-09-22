@@ -13,7 +13,7 @@ export interface PublicationExecutionRouteInput {
 export function resolvePublicationExecutionRoute(input: PublicationExecutionRouteInput): PublicationExecutionRoute {
     if (input.published) return 'published';
     if (!input.contentReady || !input.visualReady || !input.due) return 'waiting';
-    if (input.publicationMode === 'approval_required') return 'waiting';
+    if (input.publicationMode === 'approval_required' || input.publicationMode === 'owner_released') return 'waiting';
     if (input.publicationMode === 'browser_required') return 'browser_required';
     // A task can originate from a human-review action and still be approved for
     // connector execution once the current revision has passed its review gate.

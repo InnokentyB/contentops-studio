@@ -70,6 +70,9 @@ export class DeliveryService {
         if (task.publication_mode === 'approval_required') {
             throw new Error('[OWNER_RELEASE_REQUIRED] Accepted content is not authorization to deliver this task');
         }
+        if (task.publication_mode === 'owner_released') {
+            throw new Error('[EXPLICIT_TASK_SEND_ONLY] Owner release permits only task-native explicit publication');
+        }
 
         const channelType = String(task.channel?.type || '').toLowerCase();
         const storedChannelConfig = task.channel?.config || {};

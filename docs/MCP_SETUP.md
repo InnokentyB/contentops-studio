@@ -35,6 +35,14 @@ Profiles are enforced by the server and bound to one project member and project.
 
 The Chief editor profile can claim only an `available` work item with `kind=content_review` and `assignee_role=content_reviewer` through `ba_claim_content_review`. Supply the current work-item `result_version` and publication `content_revision`; the response contains a reviewer-owned lease valid for 30 minutes. Submit the review with `ba_submit_content_review`, the same expected versions, that lease token, a nonempty summary, and an `approve` or `revise` recommendation. Submission changes the work item to `waiting_approval` and returns its new result version; it does not alter the copy or accept it. Only then may `ba_decide_approval` make the revision-bound approval decision using that returned version. A stale version, expired or foreign lease, or another work-item kind is rejected. Do not use the writer's generic claim/complete tools for review work.
 
+### Owner-gated publication controls
+
+The Planner profile exposes `ba_require_c20_publication_visuals` for one atomic, owner-authorized project-10 repair of exactly tasks 968, 969 and 971–974. Supply each task's current revision, accepted revision, status, visual state and ISO schedule. The transaction changes only `visual_mode` from `auto_assess` to `required`, audits every task, and rejects a publication fact, selected asset, or current `NO_VISUAL_NEEDED` decision. It does not accept text, approve art, or publish.
+
+For the later rev-3 #971 state, use `ba_require_task971_publication_visual` instead: it is an owner-only CAS limited to project 10/`analystcraft-2`, channel 111, task 971, accepted revision 3, feed placement and approved selected asset 76. Supply the current status, visual state and ISO schedule; it changes only `visual_mode` and keeps `approval_required`. Do not use it as publication approval or send authorization.
+
+The Publisher profile exposes `ba_release_approved_telegram_task` for an authenticated project owner after exact-copy approval. Supply the current task/channel, accepted and content revisions, visual mode/state/asset, ISO schedule, SHA-256 of the canonical draft body, approval reference and a fresh idempotency key. Successful release changes only `approval_required` to `owner_released` and records an audit event. This mode is excluded from scheduler discovery and generic delivery; only a separate explicit `ba_publish_publication_task` dry-run/live call can consume it. That call rechecks the audit proof and exact body. The release is not a send, and an accepted revision alone is not owner approval. Existing Codex sessions may need MCP capability refresh before new tools become callable.
+
 ## Deploy the complete workspace
 
 For a new external user, use the complete workspace flow:

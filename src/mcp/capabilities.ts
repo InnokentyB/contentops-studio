@@ -53,6 +53,8 @@ const PLANNER_TOOLS = new Set([
     'ba_list_schedule_exceptions',
     'ba_reschedule_work_item',
     'ba_repair_publication_placement',
+    'ba_require_c20_publication_visuals',
+    'ba_require_task971_publication_visual',
     'ba_upsert_initiative',
     'ba_link_initiatives',
     'ba_confirm_initiative_dependencies',
@@ -135,6 +137,7 @@ const PUBLISHER_TOOLS = new Set([
     'ba_list_release_blockers',
     'ba_prepare_publication_task',
     'ba_publish_publication_task',
+    'ba_release_approved_telegram_task',
     'ba_execute_delivery',
     'ba_confirm_publication',
     'ba_record_publication_fact',
@@ -171,7 +174,9 @@ const STRATEGIST_EXCLUDED = new Set([
     'ba_publish_publication_task',
     'ba_generate_week_topic_preview',
     'ba_dzen_comment',
-    'ba_confirm_initiative_dependencies'
+    'ba_confirm_initiative_dependencies',
+    'ba_require_c20_publication_visuals',
+    'ba_require_task971_publication_visual'
 ]);
 
 const STRATEGIST_TOOLS = new Set(

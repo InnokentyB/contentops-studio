@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createHash } from 'crypto';
 import { isToolAllowedForProfile } from '../mcp/capabilities';
 
 process.env.TELEGRAM_BOT_TOKEN ||= 'test:telegram-task-publication';
@@ -47,7 +48,7 @@ function approvedTask(overrides: Record<string, any> = {}) {
     };
 }
 
-function harness(task = approvedTask(), options: { cached?: any; providerError?: Error; changeModeBeforeClaim?: string } = {}) {
+function harness(task = approvedTask(), options: { cached?: any; providerError?: Error; changeModeBeforeClaim?: string; releaseEvent?: any } = {}) {
     const calls = {
         provider: [] as any[],
         updates: [] as any[],
@@ -58,6 +59,7 @@ function harness(task = approvedTask(), options: { cached?: any; providerError?:
     let currentTask = { ...task };
     const workflowEvent = {
         findUnique: async () => options.cached || null,
+        findFirst: async () => options.releaseEvent || null,
         create: async ({ data }: any) => {
             calls.events.push(data);
             return data;
@@ -152,6 +154,33 @@ test('approval-required task cannot preview executable route, claim or send to p
     assert.equal(calls.updates.length, 0);
     assert.equal(calls.events.length, 0);
     assert.equal(calls.facts.length, 0);
+});
+
+test('owner-released Telegram task requires exact audit proof before preview or live send', async () => {
+    const schedule = new Date('2026-09-21T11:00:00.000Z');
+    const task = approvedTask({ publication_mode: 'owner_released', channel_id: 111,
+        schedule_at: schedule, publication_fact: null });
+    const withoutProof = harness(task);
+    await assert.rejects(withoutProof.service.execute({ projectId: 10, taskId: 779, dryRun: true }), /OWNER_RELEASE_PROOF_MISMATCH/);
+    assert.equal(withoutProof.calls.provider.length, 0);
+    const proof = { after_state: { task_id: 779, channel_id: 111,
+        content_revision: 2, accepted_revision: 2, schedule_at: schedule.toISOString(),
+        body_sha256: createHash('sha256').update(task.draft_text).digest('hex'),
+        publication_mode: 'owner_released' } };
+    const { service, calls } = harness(task, { releaseEvent: proof });
+    const preview = await service.execute({ projectId: 10, taskId: 779, dryRun: true });
+    assert.equal(preview.route_executable, true);
+    assert.equal(calls.provider.length, 0);
+    const result = await service.execute({ projectId: 10, taskId: 779,
+        idempotencyKey: 'owner-released-779' });
+    assert.equal(result.mode, 'published');
+    assert.equal(calls.provider.length, 1);
+    assert.equal(calls.claimWhere[0].publication_mode, 'owner_released');
+    assert.equal(calls.updates[0].publication_mode, 'owner_released');
+    assert.equal(calls.updates[calls.updates.length - 1]?.publication_mode, 'owner_released');
+    const stale = harness({ ...task, draft_text: `${task.draft_text} changed` }, { releaseEvent: proof });
+    await assert.rejects(stale.service.execute({ projectId: 10, taskId: 779, dryRun: true }), /OWNER_RELEASE_PROOF_MISMATCH/);
+    assert.equal(stale.calls.provider.length, 0);
 });
 
 test('atomic claim rejects a concurrent change to approval-required before provider dispatch', async () => {

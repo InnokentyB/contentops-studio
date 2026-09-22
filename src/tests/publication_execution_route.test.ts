@@ -54,4 +54,5 @@ test('an explicit browser route cannot fall back to the connector', () => {
 
 test('approval-required task with an automated bundle remains waiting', () => {
     assert.equal(resolvePublicationExecutionRoute({ ...ready, publicationMode: 'approval_required' }), 'waiting');
+    assert.equal(resolvePublicationExecutionRoute({ ...ready, publicationMode: 'owner_released' }), 'waiting');
 });

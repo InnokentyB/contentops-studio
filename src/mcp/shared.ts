@@ -6,6 +6,7 @@ import workQueueService from '../services/work_queue.service';
 import initiativeService from '../services/initiative.service';
 import taskTrackerService from '../services/task_tracker.service';
 import deliveryService from '../services/delivery.service';
+import ownerPublicationControlsService from '../services/owner_publication_controls.service';
 import imageAssetService from '../services/image_asset.service';
 import artDirectionService from '../services/art_direction.service';
 import metricsService from '../services/metrics.service';
@@ -807,6 +808,21 @@ export function registerPlannerTools(server: McpServer) {
         }
     }, async (args) => asToolResult(await telegramTaskPublicationService.execute(args)));
 
+    server.registerTool('ba_release_approved_telegram_task', {
+        description: 'Project-owner audited release of one exact accepted Telegram feed task for a separate explicit send. Does not publish or enable scheduler discovery.',
+        inputSchema: {
+            projectId: z.number().int().positive(), actorId: z.string(),
+            taskId: z.number().int().positive(), expectedChannelId: z.number().int().positive(),
+            expectedContentRevision: z.number().int().positive(),
+            expectedAcceptedRevision: z.number().int().positive(),
+            expectedVisualMode: z.string(), expectedVisualState: z.string(),
+            expectedSelectedAssetId: z.number().int().positive().nullable(),
+            expectedScheduleAt: z.string().datetime({ offset: true }),
+            expectedBodySha256: z.string().regex(/^[a-f0-9]{64}$/),
+            approvalReference: z.string().min(10), idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await ownerPublicationControlsService.releaseTelegramTask(args)));
+
     // ============================================
     // TDPD-001 Work Queue MCP Tools
     // ============================================
@@ -1101,6 +1117,35 @@ export function registerPlannerTools(server: McpServer) {
         const result = await workQueueService.recoverMissingContentReview(args);
         return asToolResult(result);
     });
+
+    server.registerTool('ba_require_c20_publication_visuals', {
+        description: 'Project-owner atomic repair of visual_mode=required for exactly six unpublished C20 channel-111 tasks. No content, art decision, schedule or publication change.',
+        inputSchema: {
+            projectId: z.number().int().positive(), actorId: z.string(),
+            expected: z.array(z.object({
+                taskId: z.number().int().positive(),
+                expectedContentRevision: z.number().int().nonnegative(),
+                expectedAcceptedRevision: z.number().int().nonnegative().nullable(),
+                expectedStatus: z.string(), expectedVisualState: z.string(),
+                expectedScheduleAt: z.string().datetime({ offset: true })
+            })).length(6),
+            idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await ownerPublicationControlsService.requireC20Visuals(args)));
+
+    server.registerTool('ba_require_task971_publication_visual', {
+        description: 'Owner-only audited CAS: set only task #971 visual_mode=required for accepted revision 3 and approved feed asset #76. Does not release or publish.',
+        inputSchema: {
+            projectId: z.number().int().positive(), actorId: z.string(),
+            taskId: z.number().int().positive(), expectedChannelId: z.number().int().positive(),
+            expectedContentRevision: z.number().int().positive(),
+            expectedAcceptedRevision: z.number().int().positive(),
+            expectedSelectedAssetId: z.number().int().positive(),
+            expectedScheduleAt: z.string().datetime({ offset: true }),
+            expectedStatus: z.string(), expectedVisualState: z.string(),
+            idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await ownerPublicationControlsService.requireTask971Visual(args)));
 
     server.registerTool('ba_repair_publication_placement', {
         description: 'Owner-only audited metadata repair for an unpublished accepted publication: atomically change only channel and canonical visual placement and create a new revision-bound art-direction work item. The target placement must match the configured channel contract.',

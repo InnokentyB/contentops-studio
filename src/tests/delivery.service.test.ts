@@ -254,3 +254,15 @@ test('approval-required delivery is rejected before preflight, attempt creation 
     assert.equal(h.attempts.size, 0);
     assert.equal(h.task.publication_mode, 'approval_required');
 });
+
+test('owner-released task cannot use generic delivery even with forceAutomatic', async () => {
+    let publishCalls = 0;
+    const h = createHarness({ publishTask: async () => { publishCalls += 1; return { success: true, status: 'published' }; } });
+    h.task.publication_mode = 'owner_released';
+    await assert.rejects(h.service.executeDelivery({
+        projectId: 10, actorId: 'user:1', contentItemId: 815, channelId: 116,
+        forceAutomatic: true, idempotencyKey: 'owner-release-generic-denied'
+    }), /EXPLICIT_TASK_SEND_ONLY/);
+    assert.equal(publishCalls, 0);
+    assert.equal(h.attempts.size, 0);
+});

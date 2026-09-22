@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { createHash } from 'crypto';
 import prisma from '../db';
+import { assertMaterializationPreservesApproval } from './publication_approval_guard';
 
 export type InitiativeKind = 'publication' | 'event' | 'campaign' | 'infrastructure';
 export type DependencyType = 'blocks' | 'requires' | 'not_before' | 'informs';
@@ -610,6 +611,7 @@ export class InitiativeService {
                 include: { content_item: true },
                 orderBy: { id: 'asc' }
             });
+            assertMaterializationPreservesApproval(existingBridge?.content_item?.publication_mode, params.publicationMode);
             const executionMode = params.publicationMode === 'automatic'
                 ? 'automated'
                 : params.publicationMode === 'approval_required' ? 'assisted' : 'manual';

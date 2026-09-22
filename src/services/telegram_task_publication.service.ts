@@ -4,6 +4,7 @@ import publicationFactService from './publication_fact.service';
 import { normalizeTelegramDeliveryPayload } from './telegram_delivery_payload';
 import { resolveVkStoryPollFromTask, type VkStoryPoll } from './vk_story_poll';
 import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
+import { createHash } from 'crypto';
 
 type PublicationTaskArgs = { projectId: number; taskId: number; dryRun?: boolean; idempotencyKey?: string };
 type Dependencies = {
@@ -168,6 +169,22 @@ export class TelegramTaskPublicationService {
         if (task.publication_mode === 'approval_required') {
             throw new Error('[OWNER_RELEASE_REQUIRED] Accepted content is not authorization to publish this task');
         }
+        if (task.publication_mode === 'owner_released') {
+            const release = await db.workflowEvent.findFirst({ where: {
+                project_id: args.projectId, content_item_id: task.id,
+                command: 'ba_release_approved_telegram_task'
+            }, orderBy: { id: 'desc' } });
+            const proof = release?.after_state as any;
+            const bodyHash = createHash('sha256').update(task.draft_text || '').digest('hex');
+            if (!proof || proof.task_id !== task.id || proof.channel_id !== task.channel_id
+                || proof.content_revision !== task.content_revision
+                || proof.accepted_revision !== task.accepted_revision
+                || proof.schedule_at !== task.schedule_at?.toISOString()
+                || proof.body_sha256 !== bodyHash
+                || proof.publication_mode !== 'owner_released') {
+                throw new Error('[OWNER_RELEASE_PROOF_MISMATCH] Exact audited owner release is required');
+            }
+        }
         const isTelegramStory = isTelegramStoryTask(task);
         const isVkPersonalStory = isVkPersonalStoryTask(task);
         const isStory = isTelegramStory || isVkPersonalStory;
@@ -187,6 +204,7 @@ export class TelegramTaskPublicationService {
 
         const prepared = prepareTaskPayload(task, args.dryRun === true);
         const routeAuthorized = task.publication_mode === 'connector_auto'
+            || (prepared.channelType === 'telegram' && !prepared.isStory && task.publication_mode === 'owner_released')
             || (prepared.isStory && task.publication_mode === 'browser_required');
         const { payload, selectedAsset } = prepared;
         const preview = {
@@ -227,6 +245,10 @@ export class TelegramTaskPublicationService {
         if (task.status === 'browser_required' && !prepared.isStory) {
             throw new Error('[PUBLICATION_ROUTE_NOT_EXECUTABLE] Browser-required tasks cannot use this direct publication route');
         }
+        if (task.publication_mode === 'owner_released' && task.schedule_at
+            && new Date(task.schedule_at).getTime() > Date.now()) {
+            throw new Error('[PUBLICATION_NOT_DUE] Owner-released task is scheduled for the future');
+        }
         const claimableStatuses = prepared.isStory ? [...CLAIMABLE_STATUSES, 'browser_required'] : CLAIMABLE_STATUSES;
         const startedAt = new Date().toISOString();
         const claimed = await db.$transaction(async (tx: any) => {
@@ -238,7 +260,8 @@ export class TelegramTaskPublicationService {
                     publication_mode: task.publication_mode
                 },
                 data: {
-                    status: 'publishing', publication_mode: 'connector_auto',
+                    status: 'publishing', publication_mode: task.publication_mode === 'owner_released'
+                        ? 'owner_released' : 'connector_auto',
                     quality_report: {
                         ...((task.quality_report as any) || {}),
                         publication_task_delivery: {
@@ -340,7 +363,8 @@ export class TelegramTaskPublicationService {
             await tx.contentItem.update({
                 where: { id: task.id },
                 data: {
-                    status: 'published', publication_mode: 'connector_auto', published_link: publishedLink,
+                    status: 'published', publication_mode: task.publication_mode === 'owner_released'
+                        ? 'owner_released' : 'connector_auto', published_link: publishedLink,
                     telegram_message_id: prepared.isStory ? null : telegramMessageId || undefined,
                     quality_report: {
                         ...((task.quality_report as any) || {}),
