@@ -12,6 +12,7 @@ function approvedTask(overrides: Record<string, any> = {}) {
         id: 779,
         project_id: 10,
         status: 'ready_for_execution',
+        publication_mode: 'connector_auto',
         type: 'tg_post',
         draft_text: '  Accepted publication text  ',
         content_revision: 2,
@@ -46,10 +47,11 @@ function approvedTask(overrides: Record<string, any> = {}) {
     };
 }
 
-function harness(task = approvedTask(), options: { cached?: any; providerError?: Error } = {}) {
+function harness(task = approvedTask(), options: { cached?: any; providerError?: Error; changeModeBeforeClaim?: string } = {}) {
     const calls = {
         provider: [] as any[],
         updates: [] as any[],
+        claimWhere: [] as any[],
         events: [] as any[],
         facts: [] as any[]
     };
@@ -65,7 +67,10 @@ function harness(task = approvedTask(), options: { cached?: any; providerError?:
         findFirst: async () => currentTask,
         findUnique: async () => currentTask,
         updateMany: async ({ where, data }: any) => {
+            calls.claimWhere.push(where);
+            if (options.changeModeBeforeClaim) currentTask.publication_mode = options.changeModeBeforeClaim;
             if (where?.status?.in && !where.status.in.includes(currentTask.status)) return { count: 0 };
+            if (where?.publication_mode !== currentTask.publication_mode) return { count: 0 };
             calls.updates.push(data);
             currentTask = { ...currentTask, ...data };
             return { count: 1 };
@@ -138,6 +143,27 @@ test('dry-run resolves accepted text and the approved durable asset without a pr
     assert.equal(calls.facts.length, 0);
 });
 
+test('approval-required task cannot preview executable route, claim or send to provider', async () => {
+    const { service, calls } = harness(approvedTask({ publication_mode: 'approval_required' }));
+    await assert.rejects(service.execute({ projectId: 10, taskId: 779, dryRun: true }), /OWNER_RELEASE_REQUIRED/);
+    await assert.rejects(service.execute({ projectId: 10, taskId: 779,
+        idempotencyKey: 'approval-required-must-not-publish' }), /OWNER_RELEASE_REQUIRED/);
+    assert.equal(calls.provider.length, 0);
+    assert.equal(calls.updates.length, 0);
+    assert.equal(calls.events.length, 0);
+    assert.equal(calls.facts.length, 0);
+});
+
+test('atomic claim rejects a concurrent change to approval-required before provider dispatch', async () => {
+    const { service, calls } = harness(approvedTask(), { changeModeBeforeClaim: 'approval_required' });
+    await assert.rejects(service.execute({ projectId: 10, taskId: 779,
+        idempotencyKey: 'claim-mode-race' }), /PUBLICATION_STATE_CHANGED/);
+    assert.equal(calls.claimWhere[0].publication_mode, 'connector_auto');
+    assert.equal(calls.provider.length, 0);
+    assert.equal(calls.facts.length, 0);
+    assert.equal(calls.events.length, 0);
+});
+
 test('dry-run validates a browser-only channel without dispatch', async () => {
     const task = approvedTask({
         id: 865,
@@ -184,7 +210,7 @@ test('browser_required personal Telegram story dry-run and live claim use the pe
 });
 
 test('browser-only feed and a real concurrent publication claim return different errors', async () => {
-    const preview = await harness(approvedTask({ status: 'browser_required', publication_mode: 'approval_required' }))
+    const preview = await harness(approvedTask({ status: 'browser_required', publication_mode: 'browser_required' }))
         .service.execute({ projectId: 10, taskId: 779, dryRun: true });
     assert.equal(preview.delivery, 'mtproto');
     assert.equal(preview.route_executable, false);
@@ -245,6 +271,7 @@ test('live task publication sends the same payload through MTProto and corrects 
         text: 'Accepted publication text',
         imageUrl: 'https://cdn.example/approved.png'
     }]);
+    assert.equal(calls.claimWhere[0].publication_mode, 'connector_auto');
     assert.equal(result.delivery_method, 'mtproto');
     assert.equal(result.external_id, 779);
     assert.equal(calls.events.length, 2);

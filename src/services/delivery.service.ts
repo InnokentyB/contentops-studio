@@ -67,6 +67,9 @@ export class DeliveryService {
         if (unapproved || !task.content_revision || task.accepted_revision !== task.content_revision || task.text_state !== 'accepted') {
             throw new Error('[APPROVAL_REQUIRED] Automatic posting requires the current content revision to be accepted');
         }
+        if (task.publication_mode === 'approval_required') {
+            throw new Error('[OWNER_RELEASE_REQUIRED] Accepted content is not authorization to deliver this task');
+        }
 
         const channelType = String(task.channel?.type || '').toLowerCase();
         const storedChannelConfig = task.channel?.config || {};

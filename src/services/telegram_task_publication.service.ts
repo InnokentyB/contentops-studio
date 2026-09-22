@@ -165,6 +165,9 @@ export class TelegramTaskPublicationService {
             include: { channel: true, selected_asset: true, publication_fact: true }
         });
         if (!task) throw new Error('[PUBLICATION_TASK_NOT_FOUND] Publication task was not found in the project');
+        if (task.publication_mode === 'approval_required') {
+            throw new Error('[OWNER_RELEASE_REQUIRED] Accepted content is not authorization to publish this task');
+        }
         const isTelegramStory = isTelegramStoryTask(task);
         const isVkPersonalStory = isVkPersonalStoryTask(task);
         const isStory = isTelegramStory || isVkPersonalStory;
@@ -183,6 +186,8 @@ export class TelegramTaskPublicationService {
         }
 
         const prepared = prepareTaskPayload(task, args.dryRun === true);
+        const routeAuthorized = task.publication_mode === 'connector_auto'
+            || (prepared.isStory && task.publication_mode === 'browser_required');
         const { payload, selectedAsset } = prepared;
         const preview = {
             text: payload.text,
@@ -191,7 +196,7 @@ export class TelegramTaskPublicationService {
             ...(prepared.nativePoll ? { native_poll: prepared.nativePoll } : {})
         };
         if (args.dryRun) {
-            const routeExecutable = prepared.directSupported && prepared.connectorReady
+            const routeExecutable = routeAuthorized && prepared.directSupported && prepared.connectorReady
                 && (CLAIMABLE_STATUSES.includes(task.status)
                     || (prepared.isStory && task.status === 'browser_required'));
             const routeBlocker = task.status === 'publishing'
@@ -216,6 +221,9 @@ export class TelegramTaskPublicationService {
         const owner = await db.projectMember.findFirst({ where: { project_id: args.projectId, role: 'owner' }, orderBy: { id: 'asc' } });
         if (!owner) throw new Error('[PROJECT_OWNER_REQUIRED] Project has no owner for publication confirmation');
         if (task.status === 'publishing') throw new Error('[PUBLICATION_ATTEMPT_UNCERTAIN] Task already has an unresolved provider attempt');
+        if (!routeAuthorized) {
+            throw new Error('[PUBLICATION_ROUTE_NOT_EXECUTABLE] Task has no connector execution authorization');
+        }
         if (task.status === 'browser_required' && !prepared.isStory) {
             throw new Error('[PUBLICATION_ROUTE_NOT_EXECUTABLE] Browser-required tasks cannot use this direct publication route');
         }
@@ -226,7 +234,8 @@ export class TelegramTaskPublicationService {
                 where: {
                     id: task.id, project_id: args.projectId, status: { in: claimableStatuses },
                     content_revision: task.content_revision, accepted_revision: task.accepted_revision,
-                    selected_asset_id: task.selected_asset_id
+                    selected_asset_id: task.selected_asset_id,
+                    publication_mode: task.publication_mode
                 },
                 data: {
                     status: 'publishing', publication_mode: 'connector_auto',

@@ -236,3 +236,21 @@ test('Dzen preflight failure leaves browser mode unchanged and creates no delive
     assert.equal(h.task.publication_mode, 'browser_required');
     assert.equal(h.attempts.size, 0);
 });
+
+test('approval-required delivery is rejected before preflight, attempt creation or publishing', async () => {
+    let preflightCalls = 0;
+    let publishCalls = 0;
+    const h = createHarness({
+        preflightDzen: async () => { preflightCalls += 1; return { connected: true }; },
+        publishTask: async () => { publishCalls += 1; return { success: true, status: 'published' }; }
+    });
+    h.task.publication_mode = 'approval_required';
+    await assert.rejects(h.service.executeDelivery({
+        projectId: 10, actorId: 'user:1', contentItemId: 815, channelId: 116,
+        forceAutomatic: true, idempotencyKey: 'approval-required-must-not-deliver'
+    }), /OWNER_RELEASE_REQUIRED/);
+    assert.equal(preflightCalls, 0);
+    assert.equal(publishCalls, 0);
+    assert.equal(h.attempts.size, 0);
+    assert.equal(h.task.publication_mode, 'approval_required');
+});
