@@ -9,7 +9,7 @@ interface HabrPublishConfig {
     hub_ids?: string[];
 }
 
-interface DzenPublishConfig {
+export interface DzenPublishConfig {
     cookies?: string;
     channel_id?: string;
     channel_url?: string;
@@ -35,6 +35,30 @@ export interface DzenSearchResult {
     url: string;
     title: string;
     snippet: string;
+}
+
+export interface DzenPublishedPostMatch {
+    url: string;
+    providerId: string;
+}
+
+function normalizeDzenMatchText(value: string) {
+    return value.replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+export function extractDzenPublishedPostMatch(payload: any, expectedText: string): DzenPublishedPostMatch | null {
+    const expected = normalizeDzenMatchText(expectedText).slice(0, 120);
+    if (expected.length < 40) return null;
+    for (const publication of payload?.publications || []) {
+        const searchable = normalizeDzenMatchText(JSON.stringify(publication));
+        if (!searchable.includes(expected)) continue;
+        const rawUrl = typeof publication?.commonUrl === 'string' ? publication.commonUrl : '';
+        if (!rawUrl) continue;
+        const url = rawUrl.startsWith('http') ? rawUrl : `https://dzen.ru${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`;
+        const providerId = String(publication?.id || new URL(url).pathname.split('/').filter(Boolean).pop() || '');
+        if (providerId) return { url, providerId };
+    }
+    return null;
 }
 
 export interface DzenCommentControlDescriptor {
@@ -930,6 +954,28 @@ class PuppeteerPublisherService {
                     comments: metric(/коммент|comment/i, /([\d\s.,]+(?:тыс\.?|млн|[kкmм])?)\s*(?:коммент|comment)/i) as any
                 };
             }) as unknown as DzenPageMetrics;
+        } finally {
+            await browser.close();
+        }
+    }
+
+    async resolveDzenPublishedPost(config: DzenPublishConfig, expectedText: string): Promise<DzenPublishedPostMatch> {
+        const browser = await this.launchBrowser();
+        const page = await browser.newPage();
+        try {
+            await this.prepareDzenPage(page, config);
+            const responsePromise = page.waitForResponse(
+                (response) => /\/editor-api\/v3\/publications\?/.test(response.url()) && response.status() === 200,
+                { timeout: 30_000 }
+            );
+            await page.goto(this.dzenChannelEditorUrl(config), { waitUntil: 'domcontentloaded', timeout: 30_000 });
+            await this.assertDzenAuthenticated(page);
+            const payload = await (await responsePromise).json();
+            const match = extractDzenPublishedPostMatch(payload, expectedText);
+            if (!match || !this.isPublicDzenUrl(match.url)) {
+                throw new Error('Exact Dzen publication permalink was not found');
+            }
+            return match;
         } finally {
             await browser.close();
         }

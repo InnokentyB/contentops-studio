@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { DzenTaskPublicationService } from '../services/dzen_task_publication.service';
 import { isToolAllowedForProfile } from '../mcp/capabilities';
+import { extractDzenPublishedPostMatch } from '../services/puppeteer_publisher.service';
 
 const hash = '78081837cecace18c91c01af0253b21ca502e611b63a016f9d9035567587dfd3';
 const schedule = new Date('2026-09-22T11:00:00.000Z');
@@ -68,7 +69,8 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
             if (options.providerError) throw new Error('unknown provider result');
             return 'https://dzen.ru/b/approved-task958';
         }, testConnection: async () => ({ authenticated: true, editor_available: true,
-            editor_url: 'https://dzen.ru/profile/editor/id/dzen-channel' }) },
+            editor_url: 'https://dzen.ru/profile/editor/id/dzen-channel' }),
+        resolvePublishedPost: async () => ({ url: 'https://dzen.ru/b/approved-task958', providerId: 'approved-task958' }) },
         facts: { record: async () => { factCalls += 1; return {}; } }
     });
     return { service, task, events, get providerCalls() { return providerCalls; }, get factCalls() { return factCalls; } };
@@ -78,12 +80,34 @@ test('Dzen release tool is publisher-only and delivery rejects missing owner pro
     assert.equal(isToolAllowedForProfile('publisher', 'ba_release_approved_dzen_task958'), true);
     assert.equal(isToolAllowedForProfile('publisher', 'ba_reconcile_dzen_task958_absent'), true);
     assert.equal(isToolAllowedForProfile('publisher', 'ba_resume_dzen_task958_after_absence'), true);
+    assert.equal(isToolAllowedForProfile('publisher', 'ba_resolve_dzen_task958_permalink'), true);
     assert.equal(isToolAllowedForProfile('planner', 'ba_release_approved_dzen_task958'), false);
     assert.equal(isToolAllowedForProfile('planner', 'ba_reconcile_dzen_task958_absent'), false);
     assert.equal(isToolAllowedForProfile('planner', 'ba_resume_dzen_task958_after_absence'), false);
     const h = harness({ released: false });
     await assert.rejects(h.service.execute({ projectId: 10, taskId: 958, dryRun: true }), /OWNER_RELEASE_PROOF_MISMATCH/);
     assert.equal(h.providerCalls, 0);
+});
+
+test('Dzen Studio payload resolves only the publication matching the accepted text', () => {
+    const body = 'AI-агент может вернуть правильный JSON и всё равно не закончить работу. Остальной текст.';
+    const match = extractDzenPublishedPostMatch({ publications: [
+        { id: 'old', commonUrl: '/b/old', text: 'Другая публикация' },
+        { id: 'exact', commonUrl: '/b/exact', text: body }
+    ] }, body);
+    assert.deepEqual(match, { url: 'https://dzen.ru/b/exact', providerId: 'exact' });
+    assert.equal(extractDzenPublishedPostMatch({ publications: [{ id: 'old', commonUrl: '/b/old', text: 'Другая' }] }, body), null);
+});
+
+test('read-only Dzen permalink lookup accepts only exact frozen attempt', async () => {
+    const h = harness({ status: 'publishing', delivery: {
+        state: 'provider_result_uncertain', idempotency_key: 'publish-task-958-rev1-resume8-20260923-001'
+    } });
+    const result = await h.service.resolvePublishedPermalink({ projectId: 10, taskId: 958, actorId: 'user:2' });
+    assert.equal(result.published_link, 'https://dzen.ru/b/approved-task958');
+    assert.equal(result.read_only, true);
+    assert.equal(h.providerCalls, 0);
+    assert.equal(h.factCalls, 0);
 });
 
 test('Dzen unverified connector blocks dry-run and live without provider call', async () => {

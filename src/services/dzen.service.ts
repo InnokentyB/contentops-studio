@@ -109,6 +109,14 @@ class DzenService {
         };
     }
 
+    async resolvePublishedPost(config: DzenConfig, expectedText: string) {
+        if (!config.cookies?.trim()) throw new Error('An authenticated Dzen session is required');
+        return puppeteerPublisherService.resolveDzenPublishedPost({
+            ...config,
+            cookies: normalizeDzenCookieHeader(config.cookies)
+        }, expectedText);
+    }
+
     async searchRelevantPosts(config: DzenConfig, query: string, limit = 10, minScore = 25) {
         const results = await puppeteerPublisherService.searchDzenPosts(config, query, Math.min(Math.max(limit * 3, 10), 50));
         return results

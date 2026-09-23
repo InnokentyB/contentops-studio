@@ -37,6 +37,7 @@ type Dependencies = {
     dzen: {
         publishPost(config: any, text: string, imageUrl?: string, title?: string, type?: 'article' | 'post'): Promise<string>;
         testConnection(config: any): Promise<any>;
+        resolvePublishedPost(config: any, expectedText: string): Promise<{ url: string; providerId: string }>;
     };
     facts: { record(args: any): Promise<any> };
     hashBody?: (body: string) => string;
@@ -200,6 +201,39 @@ export class DzenTaskPublicationService {
             after_state: result
         } });
         return result;
+    }
+
+    async resolvePublishedPermalink(args: { projectId: number; taskId: number; actorId: string }) {
+        if (args.projectId !== 10 || args.taskId !== 958) throw new Error('[DZEN_958_SCOPE_MISMATCH]');
+        const match = /^user:(\d+)$/.exec(args.actorId);
+        if (!match) throw new Error('[OWNER_REQUIRED]');
+        const { db, dzen } = this.dependencies;
+        const member = await db.projectMember.findUnique({ where: {
+            project_id_user_id: { project_id: 10, user_id: Number(match[1]) }
+        } });
+        if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
+        const project = await db.project.findUnique({ where: { id: 10 }, select: { slug: true } });
+        if (project?.slug !== 'analystcraft-2') throw new Error('[MCP_PROJECT_SCOPE_MISMATCH]');
+        const task = await db.contentItem.findFirst({
+            where: { id: 958, project_id: 10 }, include: { channel: true, publication_fact: true }
+        });
+        const bodyHash = (this.dependencies.hashBody || ((body: string) => createHash('sha256').update(body).digest('hex')))(task?.draft_text || '');
+        const delivery = task?.quality_report?.publication_task_delivery;
+        if (!task || task.channel_id !== 116 || task.channel?.type !== 'dzen'
+            || task.content_revision !== 1 || task.accepted_revision !== 1
+            || bodyHash !== BODY_SHA256 || task.status !== 'publishing'
+            || task.published_link || task.publication_fact
+            || delivery?.state !== 'provider_result_uncertain'
+            || delivery?.idempotency_key !== 'publish-task-958-rev1-resume8-20260923-001') {
+            throw new Error('[DZEN_958_PERMALINK_GUARD_FAILED]');
+        }
+        const config = resolveEffectiveChannelConfig('dzen', task.channel.config || {});
+        if (!config.cookies?.trim() || !config.channel_id) throw new Error('[DZEN_CONNECTOR_NOT_READY]');
+        const resolved = await dzen.resolvePublishedPost(config, task.draft_text);
+        if (!isDzenPublishedUrl(resolved.url)) throw new Error('[DZEN_958_INVALID_RESOLVED_URL]');
+        return { task_id: 958, channel_id: 116, body_sha256: bodyHash,
+            published_link: resolved.url, provider_object_id: resolved.providerId,
+            read_only: true, published: true };
     }
 
     async execute(args: Args) {

@@ -898,6 +898,13 @@ export function registerPlannerTools(server: McpServer) {
         }
     }, async (args) => asToolResult(await dzenTaskPublicationService.resumeAfterAbsence(args)));
 
+    server.registerTool('ba_resolve_dzen_task958_permalink', {
+        description: 'Owner-only read-only lookup of the exact already-published Dzen task #958 permalink. Never publishes, edits, or records a fact.',
+        inputSchema: {
+            projectId: z.number().int().positive(), taskId: z.number().int().positive(), actorId: z.string()
+        }
+    }, async (args) => asToolResult(await dzenTaskPublicationService.resolvePublishedPermalink(args)));
+
     // ============================================
     // TDPD-001 Work Queue MCP Tools
     // ============================================

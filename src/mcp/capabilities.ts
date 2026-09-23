@@ -148,6 +148,7 @@ const PUBLISHER_TOOLS = new Set([
     'ba_verify_dzen_task958_connector',
     'ba_reconcile_dzen_task958_absent',
     'ba_resume_dzen_task958_after_absence',
+    'ba_resolve_dzen_task958_permalink',
     'ba_execute_delivery',
     'ba_confirm_publication',
     'ba_record_publication_fact',
