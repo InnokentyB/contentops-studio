@@ -202,6 +202,13 @@ class McpAccessTokenService {
         const chatList = [
             'Strategist', 'Planning HQ', 'Content Writer', 'Chief Editor', 'Art Director', 'Publisher', 'Growth Analyst'
         ];
+        const roleTasks = accesses.map((access, index) => ({
+            profile: access.profile,
+            title: chatList[index],
+            server_name: access.server_name,
+            project_id: membership.project.id,
+            project_slug: membership.project.slug
+        }));
 
         return {
             schema_version: '2.0',
@@ -214,7 +221,8 @@ class McpAccessTokenService {
                 server_namespace: serverNamespace,
                 project_directory_name: `${safeProjectSlug(membership.project.slug)}-contentops-p${projectId}`,
                 project_config_toml: codexConfigToml,
-                secrets_env: secretsEnv
+                secrets_env: secretsEnv,
+                role_tasks: roleTasks
             },
             bootstrap_prompt: [
                 `Set up the governed ContentOps workspace for project ${membership.project.name} (ID ${projectId}).`,

@@ -22,11 +22,19 @@ import { filterMcpServerTools, McpCapabilityProfile } from './capabilities';
 import { getAgentChatBootstrap, getAgentWorkspaceUpdate, loadAgentWorkspaceManifest } from '../services/agent_workspace_manifest.service';
 import { organizationIntelligenceService } from '../services/organization_intelligence.service';
 
+const INTERNAL_MUTATION_ANNOTATIONS = {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: false
+} as const;
 
-
-
-
-
+const EXTERNAL_PUBLICATION_ANNOTATIONS = {
+    readOnlyHint: false,
+    destructiveHint: true,
+    idempotentHint: false,
+    openWorldHint: true
+} as const;
 export function asToolResult<T extends Record<string, unknown>>(payload: T) {
     return {
         content: [
@@ -634,6 +642,7 @@ export function registerPlannerTools(server: McpServer) {
 
     server.registerTool('ba_prepare_publication_task', {
         description: 'Prepare or reuse a handoff bundle for a publication task before manual publication. Already published tasks are read-only and cannot be modified via MCP.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
         inputSchema: {
             projectId: z.number().int().positive(),
             taskId: z.number().int().positive()
@@ -645,6 +654,7 @@ export function registerPlannerTools(server: McpServer) {
 
     server.registerTool('ba_update_publication_content', {
         description: 'Replace only the editable publication body for an existing slot. Slot topic, channel, schedule and lifecycle status remain unchanged.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
         inputSchema: {
             projectId: z.number().int().positive(),
             taskId: z.number().int().positive(),
@@ -658,6 +668,7 @@ export function registerPlannerTools(server: McpServer) {
 
     server.registerTool('ba_configure_vk_story_poll', {
         description: 'Configure or remove a revision-bound native poll for a personal VK story. Any change creates a new content revision and reopens review.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
         inputSchema: {
             projectId: z.number().int().positive(),
             taskId: z.number().int().positive(),
@@ -672,6 +683,7 @@ export function registerPlannerTools(server: McpServer) {
 
     server.registerTool('ba_confirm_publication', {
         description: 'Mark a publication task as published after a manual handoff or an external publish step. Already published tasks are read-only and cannot be modified via MCP.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
         inputSchema: {
             projectId: z.number().int().positive(),
             taskId: z.number().int().positive(),
@@ -686,6 +698,7 @@ export function registerPlannerTools(server: McpServer) {
 
     server.registerTool('ba_record_publication_fact', {
         description: 'Record or explicitly correct the canonical publication fact. Published posts/articles/comments require a permalink; stories require stable identity and evidence.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
         inputSchema: {
             projectId: z.number().int().positive(),
             actorId: z.string().min(1),
@@ -802,6 +815,7 @@ export function registerPlannerTools(server: McpServer) {
 
     server.registerTool('ba_publish_publication_task', {
         description: 'Dry-run any canonical publication task using accepted text and approved durable visual. Live Telegram feed tasks target their configured channel. Telegram and VK story tasks target the authorized personal profile; VK photo stories can include a revision-bound native poll configured through ba_configure_vk_story_poll. No browser fallback or silent visual downgrade is used.',
+        annotations: EXTERNAL_PUBLICATION_ANNOTATIONS,
         inputSchema: {
             projectId: z.number().int().positive(),
             taskId: z.number().int().positive(),
@@ -1061,6 +1075,7 @@ export function registerPlannerTools(server: McpServer) {
 
     server.registerTool('ba_claim_work_item', {
         description: 'Atomically claim a work item for execution with a timed lease token.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
         inputSchema: {
             projectId: z.number().int().positive(),
             actorId: z.string(),
@@ -1075,6 +1090,7 @@ export function registerPlannerTools(server: McpServer) {
 
     server.registerTool('ba_complete_work_item', {
         description: 'Complete execution of a work item and submit the result payload, unlocking content review.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
         inputSchema: {
             projectId: z.number().int().positive(),
             actorId: z.string(),
@@ -1094,6 +1110,7 @@ export function registerPlannerTools(server: McpServer) {
 
     server.registerTool('ba_claim_content_review', {
         description: 'Claim only an available content_reviewer work item with a 30-minute reviewer-owned lease.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
         inputSchema: {
             projectId: z.number().int().positive(),
             actorId: z.string(),
@@ -1106,6 +1123,7 @@ export function registerPlannerTools(server: McpServer) {
 
     server.registerTool('ba_submit_content_review', {
         description: 'Submit a lease-bound content review for editor approval without changing copy or accepting the revision.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
         inputSchema: {
             projectId: z.number().int().positive(),
             actorId: z.string(),
@@ -1124,6 +1142,7 @@ export function registerPlannerTools(server: McpServer) {
 
     server.registerTool('ba_decide_approval', {
         description: 'Approve or reject a content review work item result version.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
         inputSchema: {
             projectId: z.number().int().positive(),
             actorId: z.string(),
@@ -1327,6 +1346,7 @@ export function registerPlannerTools(server: McpServer) {
 
     server.registerTool('ba_block_work_item', {
         description: 'Manually block a work item with an explicit reason code.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
         inputSchema: {
             projectId: z.number().int().positive(),
             actorId: z.string(),
@@ -1343,6 +1363,7 @@ export function registerPlannerTools(server: McpServer) {
 
     server.registerTool('ba_release_work_item', {
         description: 'Release a claimed work item lease back to the available queue.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
         inputSchema: {
             projectId: z.number().int().positive(),
             actorId: z.string(),
@@ -1633,6 +1654,7 @@ export function registerPlannerTools(server: McpServer) {
 
     server.registerTool('ba_execute_delivery', {
         description: 'Execute publication delivery attempt to a target channel.',
+        annotations: EXTERNAL_PUBLICATION_ANNOTATIONS,
         inputSchema: {
             projectId: z.number().int().positive(),
             actorId: z.string(),
@@ -1675,6 +1697,7 @@ export function registerPlannerTools(server: McpServer) {
 
     server.registerTool('ba_generate_image_asset', {
         description: 'Register a generated image candidate only after the weekly plan and current text revision are accepted and an active GENERATE art-direction decision exists. Requires the stored image URL and alt text; the asset remains blocked until visual review.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
         inputSchema: {
             projectId: z.number().int().positive(),
             actorId: z.string(),
@@ -1702,6 +1725,7 @@ export function registerPlannerTools(server: McpServer) {
 
     server.registerTool('ba_review_image_asset', {
         description: 'Review an image asset candidate (approve or reject).',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
         inputSchema: {
             projectId: z.number().int().positive(),
             actorId: z.string(),
@@ -1727,6 +1751,7 @@ export function registerPlannerTools(server: McpServer) {
 
     server.registerTool('ba_submit_art_direction_decision', {
         description: 'Submit a revision-bound visual-fit decision. Generated visuals remain blocked until separate review approval.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
         inputSchema: {
             projectId: z.number().int().positive(), actorId: z.string(), workItemId: z.number().int().positive(),
             leaseToken: z.string(), idempotencyKey: z.string(),
@@ -1770,6 +1795,7 @@ export function registerPlannerTools(server: McpServer) {
 
     server.registerTool('ba_attach_visual_source', {
         description: 'Attach a real source or owner-provided visual with provenance to the current accepted revision. Local files must be sent as base64 so Planner can ingest them into durable managed storage.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
         inputSchema: {
             projectId: z.number().int().positive(), actorId: z.string(), contentItemId: z.number().int().positive(),
             fileUrl: z.string().url().optional(), fileDataBase64: z.string().min(1).optional(),
@@ -1793,6 +1819,7 @@ export function registerPlannerTools(server: McpServer) {
 
     server.registerTool('ba_record_metric_snapshot', {
         description: 'Record a T+24h/T+7d metric snapshot with per-field observed/unknown/not-supported semantics.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
         inputSchema: {
             projectId: z.number().int().positive(),
             actorId: z.string(),

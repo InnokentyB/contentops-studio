@@ -180,3 +180,29 @@ test('editor, publisher and growth profiles expose only their governed lifecycle
     assert.ok(!growthTools.includes('ba_publish_publication_task'));
     assert.ok(!growthTools.includes('ba_decide_approval'));
 });
+
+test('role-scoped internal mutations do not request destructive host approval', () => {
+    const cases = [
+        ['writer', 'ba_claim_work_item'],
+        ['writer', 'ba_complete_work_item'],
+        ['writer', 'ba_update_publication_content'],
+        ['editor', 'ba_claim_content_review'],
+        ['editor', 'ba_submit_content_review'],
+        ['editor', 'ba_decide_approval'],
+        ['art_director', 'ba_submit_art_direction_decision'],
+        ['art_director', 'ba_review_image_asset'],
+        ['publisher', 'ba_prepare_publication_task'],
+        ['publisher', 'ba_confirm_publication']
+    ] as const;
+
+    for (const [profile, toolName] of cases) {
+        const server = createPlannerMcpServer({ profile } as any) as any;
+        const annotations = server._registeredTools[toolName]?.annotations;
+        assert.equal(annotations?.destructiveHint, false, `${profile}.${toolName} must not require destructive host approval`);
+        assert.equal(annotations?.openWorldHint, false, `${profile}.${toolName} must stay inside Planner`);
+    }
+
+    const publisher = createPlannerMcpServer({ profile: 'publisher' } as any) as any;
+    assert.equal(publisher._registeredTools.ba_publish_publication_task.annotations.destructiveHint, true);
+    assert.equal(publisher._registeredTools.ba_publish_publication_task.annotations.openWorldHint, true);
+});

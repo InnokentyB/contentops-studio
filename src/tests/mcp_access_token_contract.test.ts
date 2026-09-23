@@ -75,6 +75,11 @@ test('workspace bundle creates all seven hashed credentials in one transaction a
         assert.match(bundle.codex.secrets_env, /^CONTENTOPS_CUSTOMER_PROJECT_P10_GROWTH_ANALYST_TOKEN=mcp_/m);
         assert.equal(bundle.accesses.find((access) => access.profile === 'publisher')?.server_name, 'contentops_customer_project_p10_publisher');
         assert.equal(bundle.accesses.find((access) => access.profile === 'publisher')?.token_env_var, 'CONTENTOPS_CUSTOMER_PROJECT_P10_PUBLISHER_TOKEN');
+        assert.equal(bundle.codex.role_tasks.length, 7);
+        assert.deepEqual(bundle.codex.role_tasks.map((task) => task.profile), MANAGED_MCP_PROFILES);
+        assert.ok(bundle.codex.role_tasks.every((task) => task.server_name.startsWith('contentops_customer_project_p10_')));
+        assert.ok(bundle.codex.role_tasks.every((task) => task.project_id === 10 && task.project_slug === 'customer-project'));
+        assert.equal(new Set(bundle.codex.role_tasks.map((task) => task.server_name)).size, 7);
         assert.match(bundle.bootstrap_prompt, /Do not create projectless role chats/);
         assert.match(bundle.bootstrap_prompt, /manifest project id is not 10/);
         assert.doesNotMatch(bundle.bootstrap_prompt, /Bearer mcp_|external@example\.com/);
