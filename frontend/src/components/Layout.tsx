@@ -8,6 +8,36 @@ interface LayoutProps {
   children: React.ReactNode;
 }
 
+interface ShellIconProps {
+  name: string;
+  className?: string;
+}
+
+function ShellIcon({ name, className = '' }: ShellIconProps) {
+  const svgClassName = `h-6 w-6 shrink-0 ${className}`.trim();
+
+  if (name === 'travel_explore') {
+    return (
+      <svg aria-hidden="true" className={svgClassName} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="8.5" />
+        <path d="M3.8 9h16.4M3.8 15h8.1M12 3.5c-2.2 2.3-3.4 5.2-3.4 8.5s1.2 6.2 3.4 8.5" />
+        <path d="m17.8 15.5-1.1 2.4-2.4 1.1 1.1-2.4 2.4-1.1Z" />
+      </svg>
+    );
+  }
+
+  if (name === 'chevron_left' || name === 'chevron_right') {
+    const points = name === 'chevron_right' ? '9 7 14 12 9 17' : '15 7 10 12 15 17';
+    return (
+      <svg aria-hidden="true" className={svgClassName} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points={points} />
+      </svg>
+    );
+  }
+
+  return <span className={`material-symbols-outlined ${className}`.trim()} aria-hidden="true">{name}</span>;
+}
+
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user, projects, currentProject, setCurrentProject, logout } = useAuth();
   const { t, locale } = useLocale();
@@ -114,7 +144,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               title={compact ? item.label : undefined}
               onClick={isMobile ? () => setMobileNavOpen(false) : undefined}
             >
-              <span className="material-symbols-outlined">{item.icon}</span>
+                <ShellIcon name={item.icon} />
               {!compact && <span className="font-label">{item.label}</span>}
             </Link>
           ))}
@@ -206,7 +236,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               title={sidebarCollapsed ? t('expandSidebar') : t('collapseSidebar')}
               className="hidden lg:flex w-10 h-10 rounded-xl bg-surface-container-low text-on-surface-variant items-center justify-center shrink-0 hover:text-primary hover:bg-primary-fixed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 transition-colors"
             >
-              <span className="material-symbols-outlined" aria-hidden="true">{sidebarCollapsed ? 'chevron_right' : 'chevron_left'}</span>
+              <ShellIcon name={sidebarCollapsed ? 'chevron_right' : 'chevron_left'} />
             </button>
             <div className="min-w-0">
               <span className="block text-lg lg:text-xl font-bold text-primary font-headline truncate">{t('assistant')}</span>
