@@ -155,6 +155,7 @@ export async function findDzenPostBody(page: Page): Promise<ElementHandle<Elemen
         handle,
         result: await handle.evaluate((element) => {
             const html = element as HTMLElement;
+            const rect = html.getBoundingClientRect();
             const style = window.getComputedStyle(html);
             const descriptor = {
                 tag: html.tagName.toLowerCase(),
@@ -162,10 +163,10 @@ export async function findDzenPostBody(page: Page): Promise<ElementHandle<Elemen
                 placeholder: html.getAttribute('placeholder') || html.getAttribute('aria-placeholder') || undefined,
                 dataTestId: html.getAttribute('data-testid') || undefined,
                 contentEditable: html.getAttribute('contenteditable') || undefined,
-                width: Math.round(html.getBoundingClientRect().width),
-                height: Math.round(html.getBoundingClientRect().height),
-                top: Math.round(html.getBoundingClientRect().top),
-                left: Math.round(html.getBoundingClientRect().left),
+                width: Math.round(rect.width),
+                height: Math.round(rect.height),
+                top: Math.round(rect.top),
+                left: Math.round(rect.left),
                 parentTag: html.parentElement?.tagName.toLowerCase(),
                 parentClass: String(html.parentElement?.className || '').slice(0, 120) || undefined
             };
@@ -175,7 +176,13 @@ export async function findDzenPostBody(page: Page): Promise<ElementHandle<Elemen
             // here we only reject elements hidden by CSS.
             const rendered = style.display !== 'none'
                 && style.visibility !== 'hidden'
-                && style.opacity !== '0';
+                && style.opacity !== '0'
+                && rect.width > 0
+                && rect.height > 0
+                && rect.right > 0
+                && rect.bottom > 0
+                && rect.left < window.innerWidth
+                && rect.top < window.innerHeight;
             const disabled = html.hasAttribute('disabled') || html.getAttribute('aria-disabled') === 'true';
             const excluded = /search|поиск|title|заголов/i.test([
                 descriptor.role, descriptor.placeholder, descriptor.dataTestId

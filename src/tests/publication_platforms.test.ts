@@ -238,23 +238,10 @@ test('Dzen adaptive post-body finder supports current textarea modal and legacy 
         await nested.dispose();
 
         await page.setContent(`
-            <div style="width:600px;height:400px">
-                <span>Что нового?</span>
-                <div contenteditable="true" data-testid="zero-outer">
-                    <div contenteditable="true" data-testid="zero-inner"></div>
-                </div>
-                <button disabled>Идёт сохранение</button>
-            </div>
-        `);
-        const zeroGeometry = await findDzenPostBody(page);
-        assert.equal(await zeroGeometry.evaluate((element) => element.getAttribute('data-testid')), 'zero-inner');
-        await zeroGeometry.dispose();
-
-        await page.setContent(`
             <header><span>Что нового?</span></header>
             <main>
-                <div contenteditable="true" data-testid="portal-outer">
-                    <div contenteditable="true" data-testid="portal-inner"></div>
+                <div contenteditable="true" data-testid="portal-outer" style="width:500px;height:220px">
+                    <div contenteditable="true" data-testid="portal-inner" style="width:480px;height:180px"></div>
                 </div>
             </main>
             <footer><button>Publish</button></footer>
@@ -269,8 +256,8 @@ test('Dzen adaptive post-body finder supports current textarea modal and legacy 
             contentType: 'text/html',
             body: `
             <main>
-                <div contenteditable="true" data-testid="route-outer">
-                    <div contenteditable="true" data-testid="route-inner"></div>
+                <div contenteditable="true" data-testid="route-outer" style="width:500px;height:220px">
+                    <div contenteditable="true" data-testid="route-inner" style="width:480px;height:180px"></div>
                 </div>
             </main>
             <footer><button>Publish</button></footer>
@@ -281,6 +268,20 @@ test('Dzen adaptive post-body finder supports current textarea modal and legacy 
         const routeBound = await findDzenPostBody(page);
         assert.equal(await routeBound.evaluate((element) => element.getAttribute('data-testid')), 'route-inner');
         await routeBound.dispose();
+
+        await page.evaluate(() => {
+            const clone = document.createElement('div');
+            clone.contentEditable = 'true';
+            clone.dataset.testid = 'offscreen-clone';
+            clone.style.position = 'fixed';
+            clone.style.left = '-80000px';
+            clone.style.width = '1px';
+            clone.style.height = '1px';
+            document.body.appendChild(clone);
+        });
+        const routeWithClone = await findDzenPostBody(page);
+        assert.equal(await routeWithClone.evaluate((element) => element.getAttribute('data-testid')), 'route-inner');
+        await routeWithClone.dispose();
     } finally {
         await browser.close();
     }
