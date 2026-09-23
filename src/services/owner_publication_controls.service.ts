@@ -301,8 +301,6 @@ export class OwnerPublicationControlsService {
             const quality = (task?.quality_report as any) || {};
             const bundle = quality.handoff_bundle;
             if (!task || task.channel_id !== 123 || task.channel?.type !== 'linkedin'
-                || task.channel?.name !== 'analystcraft_linkedin'
-                || task.channel?.config?.account_ref !== 'analystcraft_linkedin'
                 || task.content_revision !== 1 || task.accepted_revision !== 1
                 || task.text_state !== 'accepted' || task.visual_placement !== 'feed'
                 || task.visual_state !== 'NO_VISUAL_NEEDED' || task.selected_asset_id !== null
