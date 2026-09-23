@@ -55,6 +55,7 @@ const PLANNER_TOOLS = new Set([
     'ba_repair_publication_placement',
     'ba_require_c20_publication_visuals',
     'ba_require_task971_publication_visual',
+    'ba_require_task972_publication_visual',
     'ba_upsert_initiative',
     'ba_link_initiatives',
     'ba_confirm_initiative_dependencies',
@@ -180,7 +181,8 @@ const STRATEGIST_EXCLUDED = new Set([
     'ba_dzen_comment',
     'ba_confirm_initiative_dependencies',
     'ba_require_c20_publication_visuals',
-    'ba_require_task971_publication_visual'
+    'ba_require_task971_publication_visual',
+    'ba_require_task972_publication_visual'
 ]);
 
 const STRATEGIST_TOOLS = new Set(

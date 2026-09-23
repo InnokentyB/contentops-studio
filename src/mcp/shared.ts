@@ -1198,6 +1198,19 @@ export function registerPlannerTools(server: McpServer) {
         }
     }, async (args) => asToolResult(await ownerPublicationControlsService.requireTask971Visual(args)));
 
+    server.registerTool('ba_require_task972_publication_visual', {
+        description: 'Owner-only audited CAS for exact task #972 rev1: change only visual_mode from auto_assess to required while preserving approved decision #152 and asset #77. Does not publish.',
+        inputSchema: {
+            projectId: z.number().int().positive(), actorId: z.string(),
+            taskId: z.number().int().positive(), expectedChannelId: z.number().int().positive(),
+            expectedContentRevision: z.number().int().positive(), expectedAcceptedRevision: z.number().int().positive(),
+            expectedSelectedAssetId: z.number().int().positive(), expectedDecisionId: z.number().int().positive(),
+            expectedScheduleAt: z.string().datetime({ offset: true }),
+            expectedBodySha256: z.string().regex(/^[a-f0-9]{64}$/),
+            expectedStatus: z.string(), idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await ownerPublicationControlsService.requireTask972Visual(args)));
+
     server.registerTool('ba_repair_publication_placement', {
         description: 'Owner-only audited metadata repair for an unpublished accepted publication: atomically change only channel and canonical visual placement and create a new revision-bound art-direction work item. The target placement must match the configured channel contract.',
         inputSchema: {

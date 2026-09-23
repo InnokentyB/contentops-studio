@@ -8,6 +8,7 @@ const C20_TASK_IDS = [968, 969, 971, 972, 973, 974];
 const DZEN_958_BODY_SHA256 = '78081837cecace18c91c01af0253b21ca502e611b63a016f9d9035567587dfd3';
 const THREADS_953_BODY_SHA256 = 'e7d8c1f2f9cf4f7e3ca1ad6fb05e55153c2153739b3fcdf280e519f574b7f7a6';
 const THREADS_959_BODY_SHA256 = 'c3e7912e4f32aceafae19ea99751ef98f3f7d26554b9dfe160e78222eb64cf39';
+const TASK_972_BODY_SHA256 = 'b971d270d3a2deb2d21bbd1cb9e77598340e0426e84c4bf2219ad0a6d926d283';
 
 type VisualExpectation = {
     taskId: number;
@@ -121,6 +122,74 @@ export class OwnerPublicationControlsService {
                     status: task.status, visual_state: task.visual_state,
                     schedule_at: args.expectedScheduleAt }, after_state: result
             } });
+            return result;
+        }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    }
+
+    async requireTask972Visual(args: {
+        projectId: number; actorId: string; taskId: number; expectedChannelId: number;
+        expectedContentRevision: number; expectedAcceptedRevision: number;
+        expectedSelectedAssetId: number; expectedDecisionId: number;
+        expectedScheduleAt: string; expectedBodySha256: string;
+        expectedStatus: string; idempotencyKey: string;
+    }) {
+        if (args.projectId !== 10 || args.taskId !== 972 || args.expectedChannelId !== 111
+            || args.expectedContentRevision !== 1 || args.expectedAcceptedRevision !== 1
+            || args.expectedSelectedAssetId !== 77 || args.expectedDecisionId !== 152
+            || args.expectedBodySha256 !== TASK_972_BODY_SHA256) {
+            throw new Error('[TASK972_SCOPE_MISMATCH] Exact task/revision/asset/decision/body required');
+        }
+        const requestHash = sha256(args);
+        return this.db.$transaction(async (tx: any) => {
+            const project = await tx.project.findUnique({ where: { id: 10 }, select: { slug: true } });
+            if (project?.slug !== 'analystcraft-2') throw new Error('[MCP_PROJECT_SCOPE_MISMATCH]');
+            await this.requireOwner(tx, 10, args.actorId);
+            const command = 'ba_require_task972_publication_visual';
+            const prior = await tx.workflowEvent.findFirst({ where: {
+                project_id: 10, actor_id: args.actorId, command, idempotency_key: args.idempotencyKey
+            } });
+            if (prior) {
+                if (prior.before_state?.request_hash !== requestHash) throw new Error('[IDEMPOTENCY_CONFLICT]');
+                return prior.after_state;
+            }
+            const task = await tx.contentItem.findFirst({ where: { id: 972, project_id: 10 },
+                include: { selected_asset: true, publication_fact: true } });
+            const decision = await tx.artDirectionDecision.findFirst({ where: {
+                id: 152, project_id: 10, content_item_id: 972, source_content_revision: 1,
+                channel: 'telegram', placement: 'feed', decision: 'GENERATE', status: 'active'
+            } });
+            const bodyHash = this.hashBody(task?.draft_text || '');
+            if (!task || task.channel_id !== 111 || task.content_revision !== 1
+                || task.accepted_revision !== 1 || task.text_state !== 'accepted'
+                || task.visual_placement !== 'feed' || task.visual_mode !== 'auto_assess'
+                || task.visual_state !== 'APPROVED' || task.selected_asset_id !== 77
+                || task.selected_asset?.status !== 'approved' || task.selected_asset?.content_revision !== 1
+                || task.visual_decision_version !== decision?.decision_version
+                || task.handoff_state !== 'ready' || task.status !== args.expectedStatus
+                || task.publication_mode !== 'approval_required'
+                || task.schedule_at?.toISOString() !== args.expectedScheduleAt
+                || bodyHash !== TASK_972_BODY_SHA256 || !decision
+                || task.publication_fact || task.published_link) {
+                throw new Error('[TASK972_VISUAL_GUARD_FAILED]');
+            }
+            const changed = await tx.contentItem.updateMany({ where: {
+                id: 972, project_id: 10, channel_id: 111,
+                content_revision: 1, accepted_revision: 1, text_state: 'accepted',
+                visual_placement: 'feed', visual_mode: 'auto_assess', visual_state: 'APPROVED',
+                visual_decision_version: decision.decision_version, selected_asset_id: 77,
+                handoff_state: 'ready', status: args.expectedStatus,
+                publication_mode: 'approval_required', schedule_at: new Date(args.expectedScheduleAt)
+            }, data: { visual_mode: 'required' } });
+            if (changed.count !== 1) throw new Error('[TASK972_VISUAL_CAS_CONFLICT]');
+            const result = { task_id: 972, project_id: 10, channel_id: 111,
+                content_revision: 1, accepted_revision: 1, body_sha256: bodyHash,
+                decision_id: 152, selected_asset_id: 77, visual_state: 'APPROVED',
+                visual_mode: 'required', status: task.status, handoff_state: 'ready',
+                publication_mode: 'approval_required', published: false };
+            await tx.workflowEvent.create({ data: { project_id: 10, content_item_id: 972,
+                actor_id: args.actorId, command, idempotency_key: args.idempotencyKey,
+                before_state: { request_hash: requestHash, visual_mode: 'auto_assess',
+                    status: task.status, schedule_at: args.expectedScheduleAt }, after_state: result } });
             return result;
         }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     }

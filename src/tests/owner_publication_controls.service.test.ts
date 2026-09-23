@@ -117,6 +117,40 @@ test('task #971 visual repair preserves revision-bound asset and approval gate',
     await assert.rejects(service.requireTask971Visual({ ...input, expectedSelectedAssetId: 77 }), /SCOPE_MISMATCH/);
 });
 
+test('task #972 visual repair changes only mode for exact decision and asset', async () => {
+    const hash = 'b971d270d3a2deb2d21bbd1cb9e77598340e0426e84c4bf2219ad0a6d926d283';
+    const task: any = { id: 972, project_id: 10, channel_id: 111,
+        content_revision: 1, accepted_revision: 1, text_state: 'accepted',
+        visual_placement: 'feed', visual_mode: 'auto_assess', visual_state: 'APPROVED',
+        visual_decision_version: 1, selected_asset_id: 77,
+        selected_asset: { id: 77, status: 'approved', content_revision: 1 },
+        handoff_state: 'ready', status: 'ready_for_execution', publication_mode: 'approval_required',
+        schedule_at: schedule, publication_fact: null, published_link: null, draft_text: 'exact body' };
+    const events: any[] = [];
+    const tx = {
+        project: { findUnique: async () => ({ slug: 'analystcraft-2' }) },
+        projectMember: { findUnique: async () => ({ role: 'owner' }) },
+        workflowEvent: { findFirst: async () => null, create: async (e: any) => (events.push(e), e) },
+        contentItem: { findFirst: async () => task, updateMany: async ({ where, data }: any) =>
+            task.visual_mode === where.visual_mode && task.status === where.status
+                ? (Object.assign(task, data), { count: 1 }) : { count: 0 } },
+        artDirectionDecision: { findFirst: async ({ where }: any) => {
+            assert.equal(where.id, 152); assert.equal(where.decision, 'GENERATE');
+            return { id: 152, decision_version: 1 };
+        } }
+    };
+    const service = new OwnerPublicationControlsService({ $transaction: async (fn: any) => fn(tx) } as any, () => hash);
+    const before = { ...task };
+    const result = await service.requireTask972Visual({ projectId: 10, actorId: 'user:7', taskId: 972,
+        expectedChannelId: 111, expectedContentRevision: 1, expectedAcceptedRevision: 1,
+        expectedSelectedAssetId: 77, expectedDecisionId: 152,
+        expectedScheduleAt: schedule.toISOString(), expectedBodySha256: hash,
+        expectedStatus: 'ready_for_execution', idempotencyKey: 'task972-required' });
+    assert.equal(result.visual_mode, 'required');
+    assert.deepEqual(task, { ...before, visual_mode: 'required' });
+    assert.equal(events.length, 1);
+});
+
 function releaseHarness(options: { owner?: boolean; attempt?: boolean; visualState?: string } = {}) {
     const task: any = {
         id: 971, project_id: 10, channel_id: 111,
