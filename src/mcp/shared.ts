@@ -854,6 +854,18 @@ export function registerPlannerTools(server: McpServer) {
         }
     }, async (args) => asToolResult(await ownerPublicationControlsService.releaseThreadsTask953(args)));
 
+    server.registerTool('ba_release_approved_threads_task959', {
+        description: 'Owner-only audited release of exact accepted Threads replacement task #959 rev2. Does not publish.',
+        inputSchema: {
+            projectId: z.number().int().positive(), actorId: z.string(),
+            taskId: z.number().int().positive(), expectedChannelId: z.number().int().positive(),
+            expectedContentRevision: z.number().int().positive(), expectedAcceptedRevision: z.number().int().positive(),
+            expectedScheduleAt: z.string().datetime({ offset: true }),
+            expectedBodySha256: z.string().regex(/^[a-f0-9]{64}$/),
+            approvalReference: z.string().min(10), idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await ownerPublicationControlsService.releaseThreadsTask959(args)));
+
     server.registerTool('ba_verify_dzen_task958_connector', {
         description: 'Owner-only read-only authenticated editor probe for exact released Dzen task #958; records a 15-minute task-scoped connection proof without enabling the channel globally or publishing.',
         inputSchema: {

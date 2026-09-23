@@ -230,3 +230,34 @@ test('Dzen #958 owner release is exact, audited and does not send', async () => 
     assert.equal(events[0].data.before_state.approval_reference, input.approvalReference);
     await assert.rejects(service.releaseDzenTask958({ ...input, taskId: 959 }), /SCOPE_MISMATCH/);
 });
+
+test('Threads replacement #959 release binds only accepted rev2 and decision 150', async () => {
+    const hash = 'c3e7912e4f32aceafae19ea99751ef98f3f7d26554b9dfe160e78222eb64cf39';
+    const task: any = { id: 959, project_id: 10, channel_id: 138, channel: { type: 'threads' },
+        content_revision: 2, accepted_revision: 2, text_state: 'accepted', draft_text: 'short replacement',
+        visual_placement: 'feed', visual_state: 'NO_VISUAL_NEEDED', visual_decision_version: 2,
+        selected_asset_id: null, status: 'ready_for_execution', handoff_state: 'ready',
+        publication_mode: 'approval_required', schedule_at: schedule,
+        publication_fact: null, published_link: null };
+    const events: any[] = [];
+    const tx = {
+        project: { findUnique: async () => ({ slug: 'analystcraft-2' }) },
+        projectMember: { findUnique: async () => ({ role: 'owner' }) },
+        workflowEvent: { findFirst: async () => null, create: async (e: any) => (events.push(e), e) },
+        contentItem: { findFirst: async () => task, updateMany: async ({ where, data }: any) =>
+            task.publication_mode === where.publication_mode ? (Object.assign(task, data), { count: 1 }) : { count: 0 } },
+        artDirectionDecision: { findFirst: async ({ where }: any) => {
+            assert.equal(where.id, 150); assert.equal(where.channel, 'innokenty_threads');
+            return { id: 150, decision_version: 2 };
+        } }
+    };
+    const service = new OwnerPublicationControlsService({ $transaction: async (fn: any) => fn(tx) } as any, () => hash);
+    const result = await service.releaseThreadsTask959({ projectId: 10, actorId: 'user:7', taskId: 959,
+        expectedChannelId: 138, expectedContentRevision: 2, expectedAcceptedRevision: 2,
+        expectedScheduleAt: schedule.toISOString(), expectedBodySha256: hash,
+        approvalReference: 'owner-command:portfolio-hq', idempotencyKey: 'release-959-rev2' });
+    assert.equal(result.publication_mode, 'owner_released');
+    assert.equal(result.published, false);
+    assert.equal(task.publication_mode, 'owner_released');
+    assert.equal(events.length, 1);
+});
