@@ -149,7 +149,6 @@ export async function findDzenPostBody(page: Page): Promise<ElementHandle<Elemen
         handle,
         result: await handle.evaluate((element) => {
             const html = element as HTMLElement;
-            const rect = html.getBoundingClientRect();
             const style = window.getComputedStyle(html);
             const descriptor = {
                 tag: html.tagName.toLowerCase(),
@@ -158,8 +157,13 @@ export async function findDzenPostBody(page: Page): Promise<ElementHandle<Elemen
                 dataTestId: html.getAttribute('data-testid') || undefined,
                 contentEditable: html.getAttribute('contenteditable') || undefined
             };
-            const visible = rect.width > 0 && rect.height > 0
-                && style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+            // Draft-style editors can keep the empty contenteditable node at
+            // zero height until the first character is inserted. The composer
+            // scope below proves that the node belongs to the visible modal;
+            // here we only reject elements hidden by CSS.
+            const rendered = style.display !== 'none'
+                && style.visibility !== 'hidden'
+                && style.opacity !== '0';
             const disabled = html.hasAttribute('disabled') || html.getAttribute('aria-disabled') === 'true';
             const excluded = /search|поиск|title|заголов/i.test([
                 descriptor.role, descriptor.placeholder, descriptor.dataTestId
@@ -186,7 +190,7 @@ export async function findDzenPostBody(page: Page): Promise<ElementHandle<Elemen
                 }
                 modal = modal.parentElement;
             }
-            return { descriptor, safe: visible && !disabled && !excluded && inComposer };
+            return { descriptor, safe: rendered && !disabled && !excluded && inComposer };
         })
     })));
     const safe = inspected.filter((candidate) => candidate.result.safe);
