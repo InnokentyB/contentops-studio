@@ -11,6 +11,7 @@ const THREADS_959_BODY_SHA256 = 'c3e7912e4f32aceafae19ea99751ef98f3f7d26554b9dfe
 const TASK_972_BODY_SHA256 = 'b971d270d3a2deb2d21bbd1cb9e77598340e0426e84c4bf2219ad0a6d926d283';
 const TASK_972_TITLE = '@analysts_thinking 23.09 — 202 Accepted is not done';
 const TASK_972_BRIEF = 'C20 daily post 3/7. Synthetic S19 access-transfer example: 202 Accepted confirms queue admission, not business completion; follow terminal outcome, partial-result recovery and actual-state reconciliation. No CTA. Exact rev1 accepted; substantive revision-bound APPROVED visual required; no automatic release.';
+const TASK_960_BODY_SHA256 = '39791d0315ad8c02d1d71566b4a1b775916f2f26f25ba971051dae8d259c6c43';
 
 type VisualExpectation = {
     taskId: number;
@@ -261,6 +262,86 @@ export class OwnerPublicationControlsService {
             await tx.workflowEvent.create({ data: { project_id: 10, content_item_id: 972,
                 actor_id: args.actorId, command, idempotency_key: args.idempotencyKey,
                 before_state: { request_hash: requestHash, title: task.title, brief: task.brief },
+                after_state: result } });
+            return result;
+        }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    }
+
+    async bindTask960LinkedinIdentity(args: {
+        projectId: number; actorId: string; taskId: number; expectedChannelId: number;
+        expectedContentRevision: number; expectedAcceptedRevision: number;
+        expectedDecisionId: number; expectedScheduleAt: string;
+        expectedBodySha256: string; expectedStatus: string; idempotencyKey: string;
+    }) {
+        if (args.projectId !== 10 || args.taskId !== 960 || args.expectedChannelId !== 123
+            || args.expectedContentRevision !== 1 || args.expectedAcceptedRevision !== 1
+            || args.expectedDecisionId !== 151 || args.expectedBodySha256 !== TASK_960_BODY_SHA256) {
+            throw new Error('[TASK960_LINKEDIN_SCOPE_MISMATCH]');
+        }
+        const requestHash = sha256(args);
+        return this.db.$transaction(async (tx: any) => {
+            const project = await tx.project.findUnique({ where: { id: 10 }, select: { slug: true } });
+            if (project?.slug !== 'analystcraft-2') throw new Error('[MCP_PROJECT_SCOPE_MISMATCH]');
+            await this.requireOwner(tx, 10, args.actorId);
+            const command = 'ba_bind_task960_linkedin_identity';
+            const prior = await tx.workflowEvent.findFirst({ where: {
+                project_id: 10, actor_id: args.actorId, command, idempotency_key: args.idempotencyKey
+            } });
+            if (prior) {
+                if (prior.before_state?.request_hash !== requestHash) throw new Error('[IDEMPOTENCY_CONFLICT]');
+                return prior.after_state;
+            }
+            const task = await tx.contentItem.findFirst({ where: { id: 960, project_id: 10 },
+                include: { channel: true, publication_fact: true } });
+            const decision = await tx.artDirectionDecision.findFirst({ where: {
+                id: 151, project_id: 10, content_item_id: 960, source_content_revision: 1,
+                channel: 'linkedin', placement: 'feed', decision: 'NO_VISUAL_NEEDED', status: 'active'
+            } });
+            const bodyHash = this.hashBody(task?.draft_text || '');
+            const quality = (task?.quality_report as any) || {};
+            const bundle = quality.handoff_bundle;
+            if (!task || task.channel_id !== 123 || task.channel?.type !== 'linkedin'
+                || task.channel?.name !== 'analystcraft_linkedin'
+                || task.channel?.config?.account_ref !== 'analystcraft_linkedin'
+                || task.content_revision !== 1 || task.accepted_revision !== 1
+                || task.text_state !== 'accepted' || task.visual_placement !== 'feed'
+                || task.visual_state !== 'NO_VISUAL_NEEDED' || task.selected_asset_id !== null
+                || task.visual_decision_version !== decision?.decision_version
+                || task.handoff_state !== 'ready' || task.status !== args.expectedStatus
+                || task.publication_mode !== 'approval_required'
+                || task.schedule_at?.toISOString() !== args.expectedScheduleAt
+                || bodyHash !== TASK_960_BODY_SHA256 || !decision
+                || task.publication_fact || task.published_link
+                || bundle?.task?.account_ref !== 'analystcraft_linkedin') {
+                throw new Error('[TASK960_LINKEDIN_IDENTITY_GUARD_FAILED]');
+            }
+            const targetIdentity = { account_ref: 'innokenty_linkedin', profile_url: 'https://www.linkedin.com/in/innokentyb/',
+                display_name: 'Innokenty Bodrov', identity_kind: 'personal_founder_profile', channel_id: 123 };
+            const nextQuality = { ...quality, handoff_bundle: { ...bundle,
+                task: { ...bundle.task, account_ref: 'innokenty_linkedin', target_identity: targetIdentity },
+                target_identity: targetIdentity,
+                checklist: [
+                    'Post from personal profile: Innokenty Bodrov — https://www.linkedin.com/in/innokentyb/',
+                    ...((bundle.checklist || []).slice(1))
+                ]
+            }, identity_binding: { ...targetIdentity, registry_profile_id: 'profile_123',
+                registry_account_ref_status: 'UNKNOWN', binding_scope: 'task_960_only' } };
+            const changed = await tx.contentItem.updateMany({ where: {
+                id: 960, project_id: 10, channel_id: 123, content_revision: 1, accepted_revision: 1,
+                text_state: 'accepted', visual_state: 'NO_VISUAL_NEEDED', selected_asset_id: null,
+                visual_decision_version: decision.decision_version, handoff_state: 'ready',
+                status: args.expectedStatus, publication_mode: 'approval_required',
+                schedule_at: new Date(args.expectedScheduleAt), quality_report: task.quality_report
+            }, data: { quality_report: nextQuality } });
+            if (changed.count !== 1) throw new Error('[TASK960_LINKEDIN_IDENTITY_CAS_CONFLICT]');
+            const result = { task_id: 960, channel_id: 123, content_revision: 1,
+                accepted_revision: 1, body_sha256: bodyHash, decision_id: 151,
+                account_ref: 'innokenty_linkedin', profile_url: targetIdentity.profile_url,
+                display_name: targetIdentity.display_name, binding_scope: 'task_960_only',
+                registry_drift: 'profile_123 accountRef UNKNOWN', publication_mode: 'approval_required', published: false };
+            await tx.workflowEvent.create({ data: { project_id: 10, content_item_id: 960,
+                actor_id: args.actorId, command, idempotency_key: args.idempotencyKey,
+                before_state: { request_hash: requestHash, account_ref: 'analystcraft_linkedin' },
                 after_state: result } });
             return result;
         }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
