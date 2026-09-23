@@ -222,6 +222,20 @@ test('Dzen adaptive post-body finder supports current textarea modal and legacy 
         const legacy = await findDzenPostBody(page);
         assert.equal(await legacy.evaluate((element) => element.getAttribute('role')), 'textbox');
         await legacy.dispose();
+
+        await page.setContent(`
+            <div class="opaque-generated-scope" style="width:600px;height:400px">
+                <span>Что нового?</span>
+                <div contenteditable="true" data-testid="outer-editor" style="width:500px;height:220px">
+                    <div contenteditable="true" data-testid="inner-editor" style="width:480px;height:180px"></div>
+                </div>
+                <button disabled>Идёт сохранение</button>
+            </div>
+            <div contenteditable="true" data-testid="unrelated-editor" style="width:200px;height:80px"></div>
+        `);
+        const nested = await findDzenPostBody(page);
+        assert.equal(await nested.evaluate((element) => element.getAttribute('data-testid')), 'inner-editor');
+        await nested.dispose();
     } finally {
         await browser.close();
     }

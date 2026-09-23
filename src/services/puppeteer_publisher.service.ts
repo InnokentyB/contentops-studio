@@ -171,15 +171,14 @@ export async function findDzenPostBody(page: Page): Promise<ElementHandle<Elemen
                 const modalRect = modal.getBoundingClientRect();
                 const modalVisible = modalRect.width > 0 && modalRect.height > 0
                     && modalStyle.display !== 'none' && modalStyle.visibility !== 'hidden';
-                const modalLike = modal.matches('dialog, [role="dialog"], [aria-modal="true"]')
-                    || /modal|overlay|dialog|popup/i.test(modal.className || '')
-                    || modalStyle.position === 'fixed';
-                if (modalVisible && modalLike) {
+                if (modalVisible) {
                     const hasHeading = Array.from(modal.querySelectorAll('h1, h2, h3, [role="heading"], [data-testid*="title"]'))
                         .some((node) => /что нового\??/i.test(node.textContent || ''))
                         || /что нового\??/i.test(modal.textContent?.slice(0, 300) || '');
                     const hasPublish = Array.from(modal.querySelectorAll('button, [role="button"], input[type="submit"]'))
-                        .some((node) => /опубликовать|publish/i.test(node.textContent || (node as HTMLInputElement).value || ''));
+                        .some((node) => /опубликовать|publish|ид[её]т сохранение/i.test(
+                            node.textContent || (node as HTMLInputElement).value || ''
+                        ));
                     if (hasHeading && hasPublish) {
                         inComposer = true;
                         break;
@@ -191,13 +190,25 @@ export async function findDzenPostBody(page: Page): Promise<ElementHandle<Elemen
         })
     })));
     const safe = inspected.filter((candidate) => candidate.result.safe);
-    if (safe.length === 1) {
-        await Promise.all(inspected.filter((candidate) => candidate !== safe[0]).map((candidate) => candidate.handle.dispose()));
-        return safe[0].handle;
+    const leafSafe = [] as typeof safe;
+    for (const candidate of safe) {
+        let containsAnother = false;
+        for (const other of safe) {
+            if (candidate === other) continue;
+            if (await candidate.handle.evaluate((element, nested) => element.contains(nested), other.handle)) {
+                containsAnother = true;
+                break;
+            }
+        }
+        if (!containsAnother) leafSafe.push(candidate);
+    }
+    if (leafSafe.length === 1) {
+        await Promise.all(inspected.filter((candidate) => candidate !== leafSafe[0]).map((candidate) => candidate.handle.dispose()));
+        return leafSafe[0].handle;
     }
     const descriptors = inspected.map((candidate) => candidate.result.descriptor);
     await Promise.all(handles.map((handle) => handle.dispose()));
-    throw new Error(`Dzen post body candidate mismatch (${safe.length}); descriptors=${JSON.stringify(descriptors)}`);
+    throw new Error(`Dzen post body candidate mismatch (${leafSafe.length}); descriptors=${JSON.stringify(descriptors)}`);
 }
 
 type BrowserCookie = {

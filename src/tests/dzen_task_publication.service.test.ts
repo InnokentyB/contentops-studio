@@ -184,3 +184,21 @@ test('second confirmed absence authorizes only the exact resume2 publication key
         nextPublicationIdempotencyKey: 'some-other-key', approvalReference: 'owner-approved-but-wrong-key',
         idempotencyKey: 'resume958-wrong' }), /RESUME_SCOPE_MISMATCH/);
 });
+
+test('third confirmed absence authorizes only the exact resume3 publication key', async () => {
+    const thirdAttempt = 'publish-task-958-rev1-resume2-20260923-001';
+    const h = harness({ status: 'publishing', delivery: {
+        state: 'provider_result_uncertain', idempotency_key: thirdAttempt
+    } });
+    await h.service.reconcileAbsent({ projectId: 10, taskId: 958, channelId: 116,
+        actorId: 'user:2', expectedBodySha256: hash, previousIdempotencyKey: thirdAttempt,
+        reason: 'provider_absence_confirmed_pre_send', idempotencyKey: 'reconcile958-third' });
+    const result = await h.service.resumeAfterAbsence({ projectId: 10, taskId: 958, channelId: 116,
+        actorId: 'user:2', expectedBodySha256: hash, previousIdempotencyKey: thirdAttempt,
+        nextPublicationIdempotencyKey: 'publish-task-958-rev1-resume3-20260923-001',
+        approvalReference: 'owner-approved-third-resume-after-confirmed-absence',
+        idempotencyKey: 'resume958-third' });
+    assert.equal(result.next_publication_idempotency_key, 'publish-task-958-rev1-resume3-20260923-001');
+    assert.equal(h.providerCalls, 0);
+    assert.equal(h.factCalls, 0);
+});
