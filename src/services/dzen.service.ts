@@ -1,4 +1,5 @@
 import puppeteerPublisherService from './puppeteer_publisher.service';
+import { normalizeDzenCookieHeader } from '../utils/dzen_cookie.utils';
 
 export type DzenPublicationType = 'article' | 'post';
 
@@ -65,7 +66,7 @@ class DzenService {
             throw new Error('Dzen article title is required');
         }
 
-        const authenticatedConfig = { ...config, cookies: config.cookies.trim() };
+        const authenticatedConfig = { ...config, cookies: normalizeDzenCookieHeader(config.cookies) };
         const publishedUrl = await puppeteerPublisherService.publishToDzen(
             authenticatedConfig,
             title?.trim() || '',
@@ -83,7 +84,10 @@ class DzenService {
         if (!config.cookies?.trim()) {
             throw new Error('An authenticated Dzen session is required');
         }
-        return puppeteerPublisherService.testDzenConnection({ ...config, cookies: config.cookies.trim() });
+        return puppeteerPublisherService.testDzenConnection({
+            ...config,
+            cookies: normalizeDzenCookieHeader(config.cookies)
+        });
     }
 
     async collectPostMetrics(config: DzenConfig, postUrl: string) {
