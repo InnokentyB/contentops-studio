@@ -874,6 +874,30 @@ export function registerPlannerTools(server: McpServer) {
         }
     }, async (args) => asToolResult(await dzenTaskPublicationService.verifyConnector(args)));
 
+    server.registerTool('ba_reconcile_dzen_task958_absent', {
+        description: 'Owner-only exact audited reconciliation of task #958 after confirmed pre-send provider absence. Moves the frozen task to blocked; never publishes or records a fact.',
+        inputSchema: {
+            projectId: z.number().int().positive(), taskId: z.number().int().positive(),
+            channelId: z.number().int().positive(), actorId: z.string(),
+            expectedBodySha256: z.string().regex(/^[a-f0-9]{64}$/),
+            previousIdempotencyKey: z.string().min(1),
+            reason: z.literal('provider_absence_confirmed_pre_send'),
+            idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await dzenTaskPublicationService.reconcileAbsent(args)));
+
+    server.registerTool('ba_resume_dzen_task958_after_absence', {
+        description: 'Owner-only exact audited resume of blocked task #958 after absence reconciliation. Authorizes one new explicit idempotency key but does not publish or record a fact.',
+        inputSchema: {
+            projectId: z.number().int().positive(), taskId: z.number().int().positive(),
+            channelId: z.number().int().positive(), actorId: z.string(),
+            expectedBodySha256: z.string().regex(/^[a-f0-9]{64}$/),
+            previousIdempotencyKey: z.string().min(1),
+            nextPublicationIdempotencyKey: z.string().min(1),
+            approvalReference: z.string().min(10), idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await dzenTaskPublicationService.resumeAfterAbsence(args)));
+
     // ============================================
     // TDPD-001 Work Queue MCP Tools
     // ============================================

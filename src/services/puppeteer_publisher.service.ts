@@ -124,6 +124,7 @@ export const DZEN_EDITOR_SELECTORS = {
     addPublication: '[data-testid="add-publication-button"]',
     articleMenuItem: '[role="button"][aria-label="Написать статью"]',
     postMenuItem: '[role="button"][aria-label="Написать пост"]',
+    postBody: '[contenteditable="true"][role="textbox"]',
     articleTitle: '[contenteditable="true"][role="textbox"]:has(h1[data-block="true"])',
     articleBody: '[contenteditable="true"][role="textbox"]:has(.zen-editor-block)',
     imageInsertIconFragment: 'add_gallery',
@@ -240,6 +241,18 @@ class PuppeteerPublisherService {
         await page.waitForSelector(DZEN_EDITOR_SELECTORS.addPublication, { timeout: 15_000 });
         await page.click(DZEN_EDITOR_SELECTORS.addPublication);
 
+        // Current Dzen opens the short-post composer modal directly. Older UI
+        // versions still expose an article/post chooser, so support both without
+        // treating a URL change as the editor-readiness signal.
+        if (publicationType === 'post') {
+            const directPostBody = await page.waitForSelector(DZEN_EDITOR_SELECTORS.postBody, { timeout: 3_000 })
+                .catch(() => null);
+            if (directPostBody) {
+                await this.assertDzenAuthenticated(page);
+                return;
+            }
+        }
+
         const menuSelector = publicationType === 'article'
             ? DZEN_EDITOR_SELECTORS.articleMenuItem
             : DZEN_EDITOR_SELECTORS.postMenuItem;
@@ -248,10 +261,11 @@ class PuppeteerPublisherService {
             page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30_000 }).catch(() => undefined),
             page.click(menuSelector)
         ]);
-        await page.waitForFunction(
-            () => /\/profile\/editor\/id\/[^/]+\/[^/]+\/edit(?:[/?#]|$)/.test(window.location.href),
-            { timeout: 15_000 }
-        );
+        const readySelector = publicationType === 'article'
+            ? DZEN_EDITOR_SELECTORS.articleBody
+            : DZEN_EDITOR_SELECTORS.postBody;
+        await page.waitForSelector(readySelector, { timeout: 15_000 });
+        await this.assertDzenAuthenticated(page);
 
         const helpClose = await page.$(DZEN_EDITOR_SELECTORS.helpClose);
         if (helpClose) {
@@ -635,7 +649,7 @@ class PuppeteerPublisherService {
             console.log('[PuppeteerPublisher] Filling body text...');
             const bodySelector = publicationType === 'article'
                 ? DZEN_EDITOR_SELECTORS.articleBody
-                : '[contenteditable="true"][role="textbox"]';
+                : DZEN_EDITOR_SELECTORS.postBody;
             const bodyEl = await page.waitForSelector(bodySelector, { timeout: 15000 });
             if (!bodyEl) throw new Error('Could not find Dzen content body editor block');
 

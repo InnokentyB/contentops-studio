@@ -185,12 +185,36 @@ test('Dzen connection distinguishes Studio from an expired-session public redire
 test('Dzen editor automation uses the current studio entrypoint and semantic Draft.js fields', () => {
     assert.equal(DZEN_EDITOR_SELECTORS.addPublication, '[data-testid="add-publication-button"]');
     assert.match(DZEN_EDITOR_SELECTORS.articleMenuItem, /Написать статью/);
+    assert.equal(DZEN_EDITOR_SELECTORS.postBody, '[contenteditable="true"][role="textbox"]');
     assert.match(DZEN_EDITOR_SELECTORS.articleTitle, /role="textbox".*:has\(h1/);
     assert.match(DZEN_EDITOR_SELECTORS.articleBody, /role="textbox".*zen-editor-block/);
     assert.equal(DZEN_EDITOR_SELECTORS.imageInsertIconFragment, 'add_gallery');
     assert.match(DZEN_EDITOR_SELECTORS.helpClose, /help-popup/);
     assert.equal(DZEN_EDITOR_SELECTORS.articlePublish, '[data-testid="article-publish-btn"]');
     assert.equal(DZEN_EDITOR_SELECTORS.publicationConfirm, '[data-testid="publish-btn"]');
+});
+
+test('Dzen short-post composer accepts the current direct modal without waiting for a URL change', async () => {
+    const waits: string[] = [];
+    const page: any = {
+        goto: async () => undefined,
+        url: () => 'https://dzen.ru/profile/editor/id/channel-1/publications',
+        evaluate: async () => '',
+        click: async () => undefined,
+        waitForSelector: async (selector: string) => {
+            waits.push(selector);
+            if (selector === DZEN_EDITOR_SELECTORS.addPublication) return {};
+            if (selector === DZEN_EDITOR_SELECTORS.postBody) return {};
+            throw new Error(`unexpected selector ${selector}`);
+        }
+    };
+
+    await (puppeteerPublisherService as any).openDzenComposer(
+        page,
+        { channel_id: 'channel-1' },
+        'post'
+    );
+    assert.deepEqual(waits, [DZEN_EDITOR_SELECTORS.addPublication, DZEN_EDITOR_SELECTORS.postBody]);
 });
 
 test('Dzen Draft.js input uses native element typing without document selection', async () => {

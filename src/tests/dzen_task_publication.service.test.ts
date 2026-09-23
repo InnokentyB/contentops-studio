@@ -6,7 +6,8 @@ import { isToolAllowedForProfile } from '../mcp/capabilities';
 const hash = '78081837cecace18c91c01af0253b21ca502e611b63a016f9d9035567587dfd3';
 const schedule = new Date('2026-09-22T11:00:00.000Z');
 
-function harness(options: { released?: boolean; verified?: boolean; providerError?: boolean } = {}) {
+function harness(options: { released?: boolean; verified?: boolean; providerError?: boolean;
+    status?: string; delivery?: any } = {}) {
     const task: any = {
         id: 958, project_id: 10, channel_id: 116,
         channel: { type: 'dzen', config: { channel_id: 'dzen-channel', cookies: 'session=test',
@@ -15,9 +16,9 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
         draft_text: 'exact accepted body', visual_placement: 'feed',
         visual_state: 'NO_VISUAL_NEEDED', selected_asset_id: null,
         visual_decision_version: 2, handoff_state: 'ready',
-        status: 'ready_for_execution', publication_mode: 'owner_released',
+        status: options.status || 'ready_for_execution', publication_mode: 'owner_released',
         schedule_at: schedule, published_link: null, publication_fact: null,
-        quality_report: {}
+        quality_report: options.delivery ? { publication_task_delivery: options.delivery } : {}
     };
     const events: any[] = [];
     let providerCalls = 0;
@@ -26,7 +27,8 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
         contentItem: {
             findFirst: async () => task,
             updateMany: async ({ where, data }: any) => {
-                if (task.status !== where.status || task.publication_mode !== where.publication_mode) return { count: 0 };
+                if (where.status !== undefined && task.status !== where.status) return { count: 0 };
+                if (where.publication_mode !== undefined && task.publication_mode !== where.publication_mode) return { count: 0 };
                 Object.assign(task, data);
                 return { count: 1 };
             },
@@ -37,7 +39,9 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
                 && event.data.idempotency_key === where.project_id_actor_id_command_idempotency_key.idempotency_key)
                 ? { after_state: events.find(event => event.data.command === where.project_id_actor_id_command_idempotency_key.command
                     && event.data.idempotency_key === where.project_id_actor_id_command_idempotency_key.idempotency_key).data.after_state } : null,
-            findFirst: async ({ where }: any) => where.command === 'ba_verify_dzen_task958_connector'
+            findFirst: async ({ where }: any) => ['ba_reconcile_dzen_task958_absent', 'ba_resume_dzen_task958_after_absence'].includes(where.command)
+                ? null
+                : where.command === 'ba_verify_dzen_task958_connector'
                 ? options.verified === false ? null : { after_state: {
                     task_id: 958, channel_id: 116, body_sha256: hash,
                     authenticated: true, editor_available: true, checked_at: new Date().toISOString()
@@ -72,7 +76,11 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
 
 test('Dzen release tool is publisher-only and delivery rejects missing owner proof', async () => {
     assert.equal(isToolAllowedForProfile('publisher', 'ba_release_approved_dzen_task958'), true);
+    assert.equal(isToolAllowedForProfile('publisher', 'ba_reconcile_dzen_task958_absent'), true);
+    assert.equal(isToolAllowedForProfile('publisher', 'ba_resume_dzen_task958_after_absence'), true);
     assert.equal(isToolAllowedForProfile('planner', 'ba_release_approved_dzen_task958'), false);
+    assert.equal(isToolAllowedForProfile('planner', 'ba_reconcile_dzen_task958_absent'), false);
+    assert.equal(isToolAllowedForProfile('planner', 'ba_resume_dzen_task958_after_absence'), false);
     const h = harness({ released: false });
     await assert.rejects(h.service.execute({ projectId: 10, taskId: 958, dryRun: true }), /OWNER_RELEASE_PROOF_MISMATCH/);
     assert.equal(h.providerCalls, 0);
@@ -121,5 +129,37 @@ test('uncertain Dzen result freezes task and never retries provider', async () =
     assert.equal(h.task.quality_report.publication_task_delivery.retry_via_api, false);
     await assert.rejects(h.service.execute({ projectId: 10, taskId: 958, idempotencyKey: 'send958' }), /DZEN_PUBLICATION_STATE_CHANGED/);
     assert.equal(h.providerCalls, 1);
+    assert.equal(h.factCalls, 0);
+});
+
+test('owner reconciliation moves exact uncertain task to blocked without provider call', async () => {
+    const h = harness({ status: 'publishing', delivery: {
+        state: 'provider_result_uncertain', idempotency_key: 'publish-task-958-rev1-20260923'
+    } });
+    const result = await h.service.reconcileAbsent({ projectId: 10, taskId: 958, channelId: 116,
+        actorId: 'user:2', expectedBodySha256: hash,
+        previousIdempotencyKey: 'publish-task-958-rev1-20260923',
+        reason: 'provider_absence_confirmed_pre_send', idempotencyKey: 'reconcile958' });
+    assert.equal(result.status, 'blocked');
+    assert.equal(h.task.status, 'blocked');
+    assert.equal(h.task.quality_report.publication_task_delivery.state, 'reconciled_absent');
+    assert.equal(h.providerCalls, 0);
+    assert.equal(h.factCalls, 0);
+});
+
+test('owner resume authorizes one new explicit idempotency without publishing', async () => {
+    const h = harness({ status: 'blocked', delivery: {
+        state: 'reconciled_absent', idempotency_key: 'publish-task-958-rev1-20260923',
+        reason: 'provider_absence_confirmed_pre_send'
+    } });
+    const result = await h.service.resumeAfterAbsence({ projectId: 10, taskId: 958, channelId: 116,
+        actorId: 'user:2', expectedBodySha256: hash,
+        previousIdempotencyKey: 'publish-task-958-rev1-20260923',
+        nextPublicationIdempotencyKey: 'publish-task-958-rev1-resumed-001',
+        approvalReference: 'owner-approved-resume-after-confirmed-absence', idempotencyKey: 'resume958' });
+    assert.equal(result.status, 'ready_for_execution');
+    assert.equal(result.explicit_send_required, true);
+    assert.equal(h.task.status, 'ready_for_execution');
+    assert.equal(h.providerCalls, 0);
     assert.equal(h.factCalls, 0);
 });

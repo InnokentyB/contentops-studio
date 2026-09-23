@@ -8,6 +8,9 @@ const BODY_SHA256 = '78081837cecace18c91c01af0253b21ca502e611b63a016f9d903556758
 const COMMAND = 'ba_publish_dzen_task958';
 const CLAIM_COMMAND = `${COMMAND}_claim`;
 const ACTOR = 'system:planner-mcp:dzen-task958';
+const PREVIOUS_IDEMPOTENCY_KEY = 'publish-task-958-rev1-20260923';
+const RECONCILE_COMMAND = 'ba_reconcile_dzen_task958_absent';
+const RESUME_COMMAND = 'ba_resume_dzen_task958_after_absence';
 
 type Args = { projectId: number; taskId: number; dryRun?: boolean; idempotencyKey?: string };
 type Dependencies = {
@@ -22,6 +25,119 @@ type Dependencies = {
 
 export class DzenTaskPublicationService {
     constructor(private readonly dependencies: Dependencies) {}
+
+    private async requireOwner(db: any, actorId: string) {
+        const match = /^user:(\d+)$/.exec(actorId);
+        if (!match) throw new Error('[OWNER_REQUIRED]');
+        const member = await db.projectMember.findUnique({ where: {
+            project_id_user_id: { project_id: 10, user_id: Number(match[1]) }
+        } });
+        if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
+    }
+
+    async reconcileAbsent(args: { projectId: number; taskId: number; channelId: number;
+        actorId: string; expectedBodySha256: string; previousIdempotencyKey: string;
+        reason: string; idempotencyKey: string }) {
+        if (args.projectId !== 10 || args.taskId !== 958 || args.channelId !== 116
+            || args.expectedBodySha256 !== BODY_SHA256
+            || args.previousIdempotencyKey !== PREVIOUS_IDEMPOTENCY_KEY
+            || args.reason !== 'provider_absence_confirmed_pre_send') {
+            throw new Error('[DZEN_958_RECONCILIATION_SCOPE_MISMATCH]');
+        }
+        const db = this.dependencies.db;
+        return db.$transaction(async (tx: any) => {
+            const project = await tx.project.findUnique({ where: { id: 10 }, select: { slug: true } });
+            if (project?.slug !== 'analystcraft-2') throw new Error('[MCP_PROJECT_SCOPE_MISMATCH]');
+            await this.requireOwner(tx, args.actorId);
+            const prior = await tx.workflowEvent.findFirst({ where: {
+                project_id: 10, actor_id: args.actorId, command: RECONCILE_COMMAND,
+                idempotency_key: args.idempotencyKey
+            } });
+            if (prior) return prior.after_state;
+            const task = await tx.contentItem.findFirst({ where: { id: 958, project_id: 10 },
+                include: { publication_fact: true } });
+            const bodyHash = (this.dependencies.hashBody || ((body: string) => createHash('sha256').update(body).digest('hex')))(task?.draft_text || '');
+            const delivery = task?.quality_report?.publication_task_delivery;
+            if (!task || task.channel_id !== 116 || task.content_revision !== 1 || task.accepted_revision !== 1
+                || bodyHash !== BODY_SHA256 || task.status !== 'publishing' || task.published_link
+                || task.publication_fact || delivery?.state !== 'provider_result_uncertain'
+                || delivery?.idempotency_key !== PREVIOUS_IDEMPOTENCY_KEY) {
+                throw new Error('[DZEN_958_RECONCILIATION_GUARD_FAILED]');
+            }
+            const reconciledAt = new Date().toISOString();
+            const qualityReport = { ...(task.quality_report || {}), publication_task_delivery: {
+                ...delivery, state: 'reconciled_absent', reason: args.reason,
+                retry_via_api: false, reconciled_at: reconciledAt
+            } };
+            const changed = await tx.contentItem.updateMany({ where: {
+                id: 958, project_id: 10, channel_id: 116, status: 'publishing',
+                content_revision: 1, accepted_revision: 1, published_link: null
+            }, data: { status: 'blocked', quality_report: qualityReport } });
+            if (changed.count !== 1) throw new Error('[DZEN_958_RECONCILIATION_CAS_CONFLICT]');
+            const result = { task_id: 958, channel_id: 116, status: 'blocked',
+                body_sha256: bodyHash, previous_idempotency_key: PREVIOUS_IDEMPOTENCY_KEY,
+                reason: args.reason, reconciled_at: reconciledAt, published: false };
+            await tx.workflowEvent.create({ data: { project_id: 10, content_item_id: 958,
+                actor_id: args.actorId, command: RECONCILE_COMMAND, idempotency_key: args.idempotencyKey,
+                before_state: { status: 'publishing', delivery_state: delivery.state,
+                    previous_idempotency_key: PREVIOUS_IDEMPOTENCY_KEY }, after_state: result } });
+            return result;
+        });
+    }
+
+    async resumeAfterAbsence(args: { projectId: number; taskId: number; channelId: number;
+        actorId: string; expectedBodySha256: string; previousIdempotencyKey: string;
+        nextPublicationIdempotencyKey: string; approvalReference: string; idempotencyKey: string }) {
+        if (args.projectId !== 10 || args.taskId !== 958 || args.channelId !== 116
+            || args.expectedBodySha256 !== BODY_SHA256
+            || args.previousIdempotencyKey !== PREVIOUS_IDEMPOTENCY_KEY
+            || !args.nextPublicationIdempotencyKey.trim()
+            || args.nextPublicationIdempotencyKey === PREVIOUS_IDEMPOTENCY_KEY) {
+            throw new Error('[DZEN_958_RESUME_SCOPE_MISMATCH]');
+        }
+        const db = this.dependencies.db;
+        return db.$transaction(async (tx: any) => {
+            const project = await tx.project.findUnique({ where: { id: 10 }, select: { slug: true } });
+            if (project?.slug !== 'analystcraft-2') throw new Error('[MCP_PROJECT_SCOPE_MISMATCH]');
+            await this.requireOwner(tx, args.actorId);
+            const prior = await tx.workflowEvent.findFirst({ where: {
+                project_id: 10, actor_id: args.actorId, command: RESUME_COMMAND,
+                idempotency_key: args.idempotencyKey
+            } });
+            if (prior) return prior.after_state;
+            const task = await tx.contentItem.findFirst({ where: { id: 958, project_id: 10 },
+                include: { publication_fact: true } });
+            const bodyHash = (this.dependencies.hashBody || ((body: string) => createHash('sha256').update(body).digest('hex')))(task?.draft_text || '');
+            const delivery = task?.quality_report?.publication_task_delivery;
+            if (!task || task.channel_id !== 116 || task.content_revision !== 1 || task.accepted_revision !== 1
+                || bodyHash !== BODY_SHA256 || task.status !== 'blocked' || task.published_link
+                || task.publication_fact || delivery?.state !== 'reconciled_absent'
+                || delivery?.idempotency_key !== PREVIOUS_IDEMPOTENCY_KEY
+                || delivery?.reason !== 'provider_absence_confirmed_pre_send') {
+                throw new Error('[DZEN_958_RESUME_GUARD_FAILED]');
+            }
+            const resumedAt = new Date().toISOString();
+            const qualityReport = { ...(task.quality_report || {}), publication_task_delivery: {
+                ...delivery, state: 'resumed_for_explicit_send', retry_via_api: false,
+                next_publication_idempotency_key: args.nextPublicationIdempotencyKey,
+                approval_reference: args.approvalReference, resumed_at: resumedAt
+            } };
+            const changed = await tx.contentItem.updateMany({ where: {
+                id: 958, project_id: 10, channel_id: 116, status: 'blocked',
+                content_revision: 1, accepted_revision: 1, published_link: null
+            }, data: { status: 'ready_for_execution', quality_report: qualityReport } });
+            if (changed.count !== 1) throw new Error('[DZEN_958_RESUME_CAS_CONFLICT]');
+            const result = { task_id: 958, channel_id: 116, status: 'ready_for_execution',
+                body_sha256: bodyHash, previous_idempotency_key: PREVIOUS_IDEMPOTENCY_KEY,
+                next_publication_idempotency_key: args.nextPublicationIdempotencyKey,
+                explicit_send_required: true, published: false, resumed_at: resumedAt };
+            await tx.workflowEvent.create({ data: { project_id: 10, content_item_id: 958,
+                actor_id: args.actorId, command: RESUME_COMMAND, idempotency_key: args.idempotencyKey,
+                before_state: { status: 'blocked', delivery_state: delivery.state,
+                    previous_idempotency_key: PREVIOUS_IDEMPOTENCY_KEY }, after_state: result } });
+            return result;
+        });
+    }
 
     async verifyConnector(args: { projectId: number; taskId: number; actorId: string; idempotencyKey: string }) {
         if (args.projectId !== 10 || args.taskId !== 958) throw new Error('[DZEN_958_SCOPE_MISMATCH]');
@@ -137,6 +253,11 @@ export class DzenTaskPublicationService {
         if (!connectorReady) throw new Error('[DZEN_CONNECTOR_NOT_READY] Channel requires enabled API publication and authenticated session');
         if (task.status !== 'ready_for_execution') throw new Error('[DZEN_PUBLICATION_STATE_CHANGED]');
         if (task.schedule_at && new Date(task.schedule_at).getTime() > Date.now()) throw new Error('[PUBLICATION_NOT_DUE]');
+        const resumedDelivery = task.quality_report?.publication_task_delivery;
+        if (resumedDelivery?.state === 'resumed_for_explicit_send'
+            && resumedDelivery.next_publication_idempotency_key !== key) {
+            throw new Error('[DZEN_958_RESUMED_IDEMPOTENCY_MISMATCH]');
+        }
         const owner = await db.projectMember.findFirst({ where: { project_id: 10, role: 'owner' }, orderBy: { id: 'asc' } });
         if (!owner) throw new Error('[PROJECT_OWNER_REQUIRED]');
         const claimed = await db.$transaction(async (tx: any) => {
