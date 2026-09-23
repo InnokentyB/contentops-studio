@@ -249,6 +249,19 @@ test('Dzen adaptive post-body finder supports current textarea modal and legacy 
         const zeroGeometry = await findDzenPostBody(page);
         assert.equal(await zeroGeometry.evaluate((element) => element.getAttribute('data-testid')), 'zero-inner');
         await zeroGeometry.dispose();
+
+        await page.setContent(`
+            <header><span>Что нового?</span></header>
+            <main>
+                <div contenteditable="true" data-testid="portal-outer">
+                    <div contenteditable="true" data-testid="portal-inner"></div>
+                </div>
+            </main>
+            <footer><button>Опубликовать</button></footer>
+        `);
+        const portalSplit = await findDzenPostBody(page);
+        assert.equal(await portalSplit.evaluate((element) => element.getAttribute('data-testid')), 'portal-inner');
+        await portalSplit.dispose();
     } finally {
         await browser.close();
     }

@@ -190,14 +190,27 @@ export async function findDzenPostBody(page: Page): Promise<ElementHandle<Elemen
                 }
                 modal = modal.parentElement;
             }
-            return { descriptor, safe: rendered && !disabled && !excluded && inComposer };
+            const bodyText = document.body?.innerText || '';
+            const globalComposer = /что нового\??/i.test(bodyText)
+                && Array.from(document.querySelectorAll('button, [role="button"], input[type="submit"]'))
+                    .some((node) => /опубликовать|publish|ид[её]т сохранение/i.test(
+                        node.textContent || (node as HTMLInputElement).value || ''
+                    ));
+            return {
+                descriptor,
+                safe: rendered && !disabled && !excluded && inComposer,
+                fallbackSafe: rendered && !disabled && !excluded && globalComposer
+            };
         })
     })));
     const safe = inspected.filter((candidate) => candidate.result.safe);
-    const leafSafe = [] as typeof safe;
-    for (const candidate of safe) {
+    const eligible = safe.length > 0
+        ? safe
+        : inspected.filter((candidate) => candidate.result.fallbackSafe);
+    const leafSafe = [] as typeof eligible;
+    for (const candidate of eligible) {
         let containsAnother = false;
-        for (const other of safe) {
+        for (const other of eligible) {
             if (candidate === other) continue;
             if (await candidate.handle.evaluate((element, nested) => element.contains(nested), other.handle)) {
                 containsAnother = true;
