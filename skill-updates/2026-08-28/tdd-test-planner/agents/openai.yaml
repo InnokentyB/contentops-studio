@@ -1,0 +1,4 @@
+interface:
+  display_name: "TDD Test Planner"
+  short_description: "Turn requirements into pre-code tests"
+  default_prompt: "Use $tdd-test-planner to analyze the requirements, identify ambiguities, and produce the detailed test scenarios that should exist before implementation starts."

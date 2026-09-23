@@ -1,41 +1,26 @@
-import OpenAI from 'openai';
 import { config } from 'dotenv';
 import { modelForRole } from './model_policy.service';
 import prisma from '../db';
+import aiGateway from './ai_gateway.service';
 
 config();
 
-
 export class V2OrchestratorService {
-    private openai: OpenAI | null = null;
-
-    constructor() {
-        if (process.env.OPENAI_API_KEY) {
-            this.openai = new OpenAI({
-                apiKey: process.env.OPENAI_API_KEY
-            });
-        }
-    }
-
-    private getOpenAIClient(): OpenAI {
-        if (!this.openai) {
+    private async callLLM(systemPrompt: string, userPrompt: string): Promise<string> {
+        const apiKey = process.env.OPENAI_API_KEY?.trim() || '';
+        if (!apiKey) {
             throw new Error('OPENAI_API_KEY is required for v2 orchestrator flows');
         }
 
-        return this.openai;
-    }
-
-    private async callLLM(systemPrompt: string, userPrompt: string): Promise<string> {
-        const completion = await this.getOpenAIClient().chat.completions.create({
+        const result = await aiGateway.complete({
             model: modelForRole('topic_creator'),
-            messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: userPrompt }
-            ],
-            response_format: { type: "json_object" }
+            apiKey,
+            systemPrompt,
+            userPrompt,
+            json: true
         });
 
-        return completion.choices[0]?.message.content || '{}';
+        return result.content || '{}';
     }
 
     /**

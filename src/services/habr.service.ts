@@ -52,11 +52,9 @@ class HabrService {
         // 1. Log locally
         try {
             const logsDir = path.join(process.cwd(), 'logs');
-            if (!fs.existsSync(logsDir)) {
-                fs.mkdirSync(logsDir, { recursive: true });
-            }
+            await fs.promises.mkdir(logsDir, { recursive: true });
             const logPath = path.join(logsDir, 'habr_publications.log');
-            fs.appendFileSync(logPath, `${JSON.stringify(publicationPayload)}\n---\n`);
+            await fs.promises.appendFile(logPath, `${JSON.stringify(publicationPayload)}\n---\n`);
         } catch (logErr: unknown) {
             console.error('[HabrService] Failed to log publication locally:', logErr);
         }

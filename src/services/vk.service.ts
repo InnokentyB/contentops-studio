@@ -218,12 +218,12 @@ export class VKService {
                 const base64Data = imageUrl.split(',')[1];
                 photoSource = { value: Buffer.from(base64Data, 'base64') };
             } else if (imageUrl.startsWith('/uploads/')) {
-                const filename = imageUrl.split('/').pop();
-                const localPath = path.join(__dirname, '../../uploads', filename || '');
-                if (fs.existsSync(localPath)) {
+                const { safeResolveUploadPath } = require('../utils/path_safety');
+                const localPath = safeResolveUploadPath(imageUrl, { requireImageExtension: true });
+                if (localPath && fs.existsSync(localPath)) {
                     photoSource = { value: fs.createReadStream(localPath) };
                 } else {
-                    throw new Error(`Local image file not found: ${localPath}`);
+                    throw new Error(`Local image file access denied or not found: ${imageUrl}`);
                 }
             } else if (imageUrl.startsWith('https://')) {
                 const remote = await this.dependencies.loadRemoteImage(imageUrl);

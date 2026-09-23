@@ -1,22 +1,47 @@
 import path from 'path';
 
 /**
+ * Whitelist of permitted image extensions for uploads.
+ */
+export const ALLOWED_IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif']);
+
+/**
+ * Checks whether a given path or filename has an allowed image extension.
+ * @param filename File path or name
+ * @returns boolean
+ */
+export function isAllowedImageExtension(filename: string): boolean {
+    const ext = path.extname(filename).toLowerCase();
+    return ALLOWED_IMAGE_EXTENSIONS.has(ext);
+}
+
+export interface SafeResolveUploadPathOptions {
+    customUploadsDir?: string;
+    requireImageExtension?: boolean;
+}
+
+/**
  * Safely resolves an untrusted file path or filename within the project's 'uploads' directory.
- * Strips path traversal sequences and ensures the resulting absolute path stays strictly inside uploads.
+ * Strips path traversal sequences, validates extensions, and ensures the resulting absolute
+ * path stays strictly inside the designated uploads root.
  *
  * @param untrustedInput The raw path or filename provided by the user or client.
- * @param customUploadsDir Optional custom base directory; defaults to path.resolve(process.cwd(), 'uploads').
- * @returns The validated absolute path if safe, or null if a traversal attempt or invalid name is detected.
+ * @param customUploadsDirOrOptions Optional custom base directory or configuration options.
+ * @returns The validated absolute path if safe, or null if a traversal attempt or invalid extension is detected.
  */
 export function safeResolveUploadPath(
     untrustedInput: string,
-    customUploadsDir?: string
+    customUploadsDirOrOptions?: string | SafeResolveUploadPathOptions
 ): string | null {
     if (!untrustedInput || typeof untrustedInput !== 'string') {
         return null;
     }
 
-    const baseDir = path.resolve(customUploadsDir || path.join(process.cwd(), 'uploads'));
+    const options: SafeResolveUploadPathOptions = typeof customUploadsDirOrOptions === 'string'
+        ? { customUploadsDir: customUploadsDirOrOptions }
+        : (customUploadsDirOrOptions || {});
+
+    const baseDir = path.resolve(options.customUploadsDir || path.join(process.cwd(), 'uploads'));
 
     // Strip leading /uploads/ or uploads/ if present
     let cleaned = untrustedInput.trim();
@@ -37,6 +62,13 @@ export function safeResolveUploadPath(
     const filename = path.basename(cleaned);
     if (!filename || filename === '.' || filename === '..') {
         return null;
+    }
+
+    // Validate extension if required
+    if (options.requireImageExtension) {
+        if (!isAllowedImageExtension(filename)) {
+            return null;
+        }
     }
 
     // Resolve absolute path and verify boundary

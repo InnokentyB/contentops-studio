@@ -10,6 +10,7 @@ import { modelForRole } from '../services/model_policy.service';
 import v2Orchestrator from '../services/v2_orchestrator.service';
 import { Prisma, Post, Week } from '@prisma/client';
 import prisma from '../db';
+import aiGateway from '../services/ai_gateway.service';
 
 import authService from '../services/auth.service';
 import commentService from '../services/comment.service';
@@ -30,6 +31,21 @@ import imageAssetService from '../services/image_asset.service';
 import { assertVisualGenerationGate, hardenEditorialVisualPrompt } from '../services/visual_generation_policy';
 import { safeResolveUploadPath } from '../utils/path_safety';
 import { safeEncryptProviderKey, safeDecryptProviderKey } from '../utils/channel_secrets';
+import strategyChatRoutes from './api/strategy_chat.routes';
+import presetsRoutes from './api/presets.routes';
+import {
+    UpdateWeekSchema,
+    UpdatePostSchema,
+    ApprovePostSchema,
+    CreateCommentSchema,
+    GenerateTopicsSchema
+} from '../schemas/routes.schema';
+
+function maskApiKey(key?: string): string {
+    if (!key) return '';
+    if (key.length <= 8) return '••••••••';
+    return `${key.slice(0, 4)}••••••••${key.slice(-4)}`;
+}
 
 async function loadPublicationPlanContext(projectId: number) {
     const settings = await prisma.projectSettings.findMany({
@@ -699,7 +715,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         } catch (e: any) {
             console.error('Error in GET /api/weeks/:id:', e);
             const fs = require('fs');
-            fs.appendFileSync('server_error.log', `[${new Date().toISOString()}] Error in GET /weeks/${(request.params as any).id}: ${e.message}\n${e.stack}\n\n`);
+            fs.promises.appendFile('server_error.log', `[${new Date().toISOString()}] Error in GET /weeks/${(request.params as any).id}: ${e.message}\n${e.stack}\n\n`).catch(() => {});
             return reply.code(500).send({ error: 'Internal Server Error' });
         }
     });
@@ -711,11 +727,15 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         if (!week) {
             return reply.code(404).send({ error: 'Week not found' });
         }
-        const data = request.body as any;
+        const parseResult = UpdateWeekSchema.safeParse(request.body);
+        if (!parseResult.success) {
+            return reply.code(400).send({ error: parseResult.error.message });
+        }
+        const data = parseResult.data;
 
         const updated = await prisma.week.update({
             where: { id: parseInt(id) },
-            data
+            data: data as Prisma.WeekUpdateInput
         });
 
         return updated;
@@ -748,7 +768,11 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             }
 
             const { id } = request.params as { id: string };
-            const { promptPresetId, overwrite } = request.body as { promptPresetId?: number, overwrite?: boolean };
+            const parseResult = GenerateTopicsSchema.safeParse(request.body || {});
+            if (!parseResult.success) {
+                return reply.code(400).send({ error: parseResult.error.message });
+            }
+            const { promptPresetId, overwrite } = parseResult.data;
 
             const week = await prisma.week.findUnique({
                 where: { id: parseInt(id) } // Removed project_id check temporarily to depend on middleware
@@ -821,7 +845,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             console.error('[API Error] Generate Topics Failed API setup:', error);
             const fs = require('fs');
             const logEntry = `[${new Date().toISOString()}] Error in /generate-topics API: ${error.message}\nStack: ${error.stack}\n\n`;
-            fs.appendFileSync('server_error.log', logEntry);
+            fs.promises.appendFile('server_error.log', logEntry).catch(() => {});
             return reply.code(500).send({ error: 'Internal Server Error', details: error.message });
         }
     });
@@ -1032,11 +1056,15 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             return reply.code(404).send({ error: 'Post not found' });
         }
 
-        const data = request.body as any;
+        const parseResult = UpdatePostSchema.safeParse(request.body);
+        if (!parseResult.success) {
+            return reply.code(400).send({ error: parseResult.error.message });
+        }
+        const data = parseResult.data;
 
         const updatedPost = await prisma.post.update({
             where: { id: parseInt(id) },
-            data
+            data: data as Prisma.PostUpdateInput
         });
 
         return updatedPost;
@@ -1051,14 +1079,18 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             return reply.code(404).send({ error: 'Post not found' });
         }
 
-        const data = (request.body as any) || {};
+        const parseResult = ApprovePostSchema.safeParse(request.body || {});
+        if (!parseResult.success) {
+            return reply.code(400).send({ error: parseResult.error.message });
+        }
+        const data = parseResult.data;
 
         const updatedPost = await prisma.post.update({
             where: { id: parseInt(id) },
             data: {
                 ...data, // Allow updating publish_at, text, channel_id etc during approval
                 status: 'scheduled'
-            }
+            } as Prisma.PostUpdateInput
         });
 
         return updatedPost;
@@ -2209,7 +2241,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
                     agents.push({
                         role,
                         prompt: config.prompt,
-                        apiKey: config.apiKey,
+                        apiKey: maskApiKey(config.apiKey),
                         model: config.model,
                         provider
                     });
@@ -2400,7 +2432,13 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             };
 
             await saveSetting(keys.prompt, prompt);
-            await saveSetting(keys.key, apiKey || '');
+            if (apiKey !== undefined) {
+                if (apiKey === '') {
+                    await saveSetting(keys.key, '');
+                } else if (!apiKey.includes('••••')) {
+                    await saveSetting(keys.key, safeEncryptProviderKey(apiKey));
+                }
+            }
             await saveSetting(keys.model, model);
 
             return { success: true };
@@ -2421,60 +2459,8 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     });
 
     // Agents Presets
-    fastify.get('/api/settings/presets', async (request, reply) => {
-        try {
-            const projectId = (request as any).projectId;
-            if (!projectId) return reply.code(400).send({ error: 'Project ID required' });
-
-            return await prisma.promptPreset.findMany({
-                where: { project_id: projectId },
-                orderBy: { created_at: 'desc' }
-            });
-        } catch (e: any) {
-            console.error('Error in GET /api/settings/presets:', e);
-            const fs = require('fs');
-            fs.appendFileSync('server_error.log', `[${new Date().toISOString()}] Error in GET /presets: ${e.message}\n${e.stack}\n\n`);
-            return reply.code(500).send({ error: 'Internal Server Error' });
-        }
-    });
-
-    fastify.post('/api/settings/presets', async (request, reply) => {
-        const projectId = (request as any).projectId;
-        if (!projectId) return reply.code(400).send({ error: 'Project ID required' });
-
-        const { name, role, prompt_text } = request.body as any;
-
-        return await prisma.promptPreset.create({
-            data: { project_id: projectId, name, role, prompt_text }
-        });
-    });
-
-    fastify.put('/api/settings/presets/:id', async (request, reply) => {
-        const projectId = (request as any).projectId;
-        const { id } = request.params as { id: string };
-        const data = request.body as any;
-
-        // Ensure belongs to project
-        const count = await prisma.promptPreset.count({ where: { id: parseInt(id), project_id: projectId } });
-        if (count === 0) return reply.code(404).send({ error: 'Not found' });
-
-        return await prisma.promptPreset.update({
-            where: { id: parseInt(id) },
-            data
-        });
-    });
-
-    fastify.delete('/api/settings/presets/:id', async (request, reply) => {
-        const projectId = (request as any).projectId;
-        const { id } = request.params as { id: string };
-
-        // Ensure belongs to project
-        const count = await prisma.promptPreset.count({ where: { id: parseInt(id), project_id: projectId } });
-        if (count === 0) return reply.code(404).send({ error: 'Not found' });
-
-        await prisma.promptPreset.delete({ where: { id: parseInt(id) } });
-        return { success: true };
-    });
+    // Presets & Provider Keys (Modularized)
+    await presetsRoutes(fastify);
 
     // Comments
     fastify.get('/api/comments', async (request, reply) => {
@@ -2491,67 +2477,13 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         const projectId = (request as any).projectId;
         if (!projectId) return reply.code(400).send({ error: 'Project ID required' });
 
-        const { entityType, entityId, text } = request.body as any;
+        const parseResult = CreateCommentSchema.safeParse(request.body);
+        if (!parseResult.success) {
+            return reply.code(400).send({ error: parseResult.error.message });
+        }
+        const { entityType, entityId, text } = parseResult.data;
 
-        return await commentService.createComment(projectId, entityType, parseInt(entityId), text, 'user');
-    });
-
-    // Keys Management
-    fastify.get('/api/settings/keys', async (request, reply) => {
-        const projectId = (request as any).projectId;
-        if (!projectId) return reply.code(400).send({ error: 'Project ID required' });
-
-        const keys = await prisma.providerKey.findMany({
-            where: { project_id: projectId },
-            orderBy: { created_at: 'desc' }
-        });
-
-        // Mask keys
-        return keys.map(k => {
-            const rawKey = safeDecryptProviderKey(k.key);
-            const masked = rawKey.length > 7
-                ? rawKey.substring(0, 3) + '...' + rawKey.substring(rawKey.length - 4)
-                : '***';
-            return {
-                ...k,
-                key: masked
-            };
-        });
-    });
-
-    fastify.post('/api/settings/keys', async (request, reply) => {
-        const projectId = (request as any).projectId;
-        if (!projectId) return reply.code(400).send({ error: 'Project ID required' });
-
-        const { name, key } = request.body as { name: string; key: string };
-
-        let provider = 'Other';
-        if (key.startsWith('sk-ant')) provider = 'Anthropic';
-        else if (key.startsWith('AIza')) provider = 'Gemini';
-        else if (key.startsWith('sk-')) provider = 'OpenAI';
-
-        const newKey = await prisma.providerKey.create({
-            data: {
-                project_id: projectId,
-                name,
-                key: safeEncryptProviderKey(key),
-                provider
-            }
-        });
-
-        return { success: true, id: newKey.id, provider: newKey.provider };
-    });
-
-    fastify.delete('/api/settings/keys/:id', async (request, reply) => {
-        const projectId = (request as any).projectId;
-        const { id } = request.params as { id: string };
-
-        // Ensure belongs to project
-        const count = await prisma.providerKey.count({ where: { id: parseInt(id), project_id: projectId } });
-        if (count === 0) return reply.code(404).send({ error: 'Not found' });
-
-        await prisma.providerKey.delete({ where: { id: parseInt(id) } });
-        return { success: true };
+        return await commentService.createComment(projectId, entityType, entityId, text, 'user');
     });
 
     fastify.get('/api/settings/content-dictionary', async (request, reply) => {
@@ -3131,130 +3063,6 @@ Ask focused follow-up questions and propose concrete decisions and post formats.
 Ты учитываешь разные платформы, стабильный контентный поток, воронку Awareness → Authority → Conversion и текущий квартальный план.
 Задавай уточняющие вопросы, предлагай конкретные решения и форматы постов. Отвечай на русском языке: кратко, конкретно и полезно.`;
 
-    /**
-     * GET the current system prompt for the strategy assistant.
-     */
-    fastify.get('/api/v2/strategy-chat/settings', async (request, _reply) => {
-        const projectId = (request as any).projectId;
-        const { language } = request.query as { language?: string };
-        const setting = await prisma.projectSettings.findUnique({
-            where: { project_id_key: { project_id: projectId, key: 'strategy_assistant_prompt' } }
-        });
-        return {
-            systemPrompt: setting?.value || defaultStrategyPrompt(strategyLanguage(language))
-        };
-    });
-
-    /**
-     * PUT updated system prompt for the strategy assistant.
-     */
-    fastify.put('/api/v2/strategy-chat/settings', async (request, _reply) => {
-        const projectId = (request as any).projectId;
-        const { systemPrompt } = request.body as { systemPrompt: string };
-        await prisma.projectSettings.upsert({
-            where: { project_id_key: { project_id: projectId, key: 'strategy_assistant_prompt' } },
-            update: { value: systemPrompt },
-            create: { project_id: projectId, key: 'strategy_assistant_prompt', value: systemPrompt }
-        });
-        return { success: true };
-    });
-
-    fastify.get('/api/v2/strategy-chat/history', async (request) => {
-        const projectId = (request as any).projectId;
-        const setting = await prisma.projectSettings.findUnique({
-            where: { project_id_key: { project_id: projectId, key: 'strategy_assistant_history' } }
-        });
-        try {
-            const messages = JSON.parse(setting?.value || '[]');
-            return { messages: Array.isArray(messages) ? messages.slice(-40) : [] };
-        } catch {
-            return { messages: [] };
-        }
-    });
-
-    fastify.delete('/api/v2/strategy-chat/history', async (request) => {
-        const projectId = (request as any).projectId;
-        await prisma.projectSettings.deleteMany({ where: { project_id: projectId, key: 'strategy_assistant_history' } });
-        return { success: true };
-    });
-
-    /**
-     * POST a message to the strategy assistant. Conversation history is owned by the project.
-     */
-    fastify.post('/api/v2/strategy-chat', async (request, reply) => {
-        const projectId = (request as any).projectId;
-        const { message, language } = (request.body as {
-            message?: unknown;
-            language?: string;
-        }) || {};
-        const responseLanguage = strategyLanguage(language);
-
-        if (typeof message !== 'string' || !message.trim()) {
-            return reply.code(400).send({ error: 'Message is required' });
-        }
-
-        if (message.length > 4000) {
-            return reply.code(400).send({ error: 'Message exceeds maximum length of 4000 characters' });
-        }
-
-        // Load custom system prompt (or use default)
-        const setting = await prisma.projectSettings.findUnique({
-            where: { project_id_key: { project_id: projectId, key: 'strategy_assistant_prompt' } }
-        });
-        const systemPrompt = setting?.value || defaultStrategyPrompt(responseLanguage);
-
-        // Load current quarters for context
-        const quarters = await prisma.quarterPlan.findMany({
-            where: { project_id: projectId },
-            orderBy: { quarter_start: 'desc' },
-            take: 1,
-            include: { month_arcs: true }
-        });
-        const contextStr = quarters.length > 0
-            ? responseLanguage === 'en'
-                ? `\n\nCurrent quarterly plan:\nGoal: ${quarters[0].strategic_goal}\nPillar: ${quarters[0].primary_pillar}\nMonths: ${quarters[0].month_arcs.map(m => m.arc_theme).join(', ')}`
-                : `\n\nТекущий квартальный план:\nЦель: ${quarters[0].strategic_goal}\nПилар: ${quarters[0].primary_pillar}\nМесяцы: ${quarters[0].month_arcs.map(m => m.arc_theme).join(', ')}`
-            : '';
-        const languageRule = responseLanguage === 'en'
-            ? '\n\nRespond in English, even if the source context contains another language.'
-            : '\n\nОтвечай по-русски, даже если исходный контекст содержит другой язык.';
-
-        const openai = new (require('openai').default)({ apiKey: process.env.OPENAI_API_KEY });
-        const historySetting = await prisma.projectSettings.findUnique({
-            where: { project_id_key: { project_id: projectId, key: 'strategy_assistant_history' } }
-        });
-        let history: { role: 'user' | 'assistant'; content: string }[] = [];
-        try {
-            const parsed = JSON.parse(historySetting?.value || '[]');
-            history = Array.isArray(parsed)
-                ? parsed.filter((item) => item && (item.role === 'user' || item.role === 'assistant') && typeof item.content === 'string').slice(-20)
-                : [];
-        } catch { /* Ignore malformed legacy chat history. */ }
-
-        const messages = [
-            { role: 'system' as const, content: systemPrompt + contextStr + languageRule },
-            ...history.slice(-10), // keep last 10 turns for context
-            { role: 'user' as const, content: message }
-        ];
-
-        try {
-            const completion = await openai.chat.completions.create({
-                model: modelForRole('classifier'),
-                messages,
-                max_tokens: 1000
-            }, {
-                timeout: 45000
-            });
-            const reply_text = completion.choices[0]?.message.content || '';
-            const nextHistory = [...history, { role: 'user' as const, content: message.trim() }, { role: 'assistant' as const, content: reply_text }].slice(-40);
-            await prisma.projectSettings.upsert({
-                where: { project_id_key: { project_id: projectId, key: 'strategy_assistant_history' } },
-                update: { value: JSON.stringify(nextHistory) },
-                create: { project_id: projectId, key: 'strategy_assistant_history', value: JSON.stringify(nextHistory) }
-            });
-            return { reply: reply_text, messages: nextHistory };
-        } catch (e: any) {
-            reply.code(500).send({ error: e.message || 'AI request failed' });
-        }
-    });
+    // Strategy Assistant Chat (Modularized)
+    await strategyChatRoutes(fastify);
 }

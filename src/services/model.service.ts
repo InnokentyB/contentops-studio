@@ -1,6 +1,7 @@
 
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import aiGateway from './ai_gateway.service';
 
 interface ModelInfo {
     id: string;
@@ -29,7 +30,7 @@ class ModelService {
     }
 
     private async fetchOpenAIModels(apiKey: string): Promise<string[]> {
-        const openai = new OpenAI({ apiKey });
+        const openai = aiGateway.getOpenAIClient(apiKey, 15000);
         const list = await openai.models.list();
         return list.data
             .filter(m => m.id.includes('gpt')) // Filter for GPT models primarily

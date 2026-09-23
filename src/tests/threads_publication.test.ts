@@ -114,3 +114,82 @@ test('ThreadsService.getMetrics retrieves insights successfully', async () => {
         globalThis.fetch = originalFetch;
     }
 });
+
+test('ThreadsService.testConnection rejects missing access token', async () => {
+    const res = await threadsService.testConnection({ access_token: '' });
+    assert.equal(res.success, false);
+    assert.equal(res.error, 'Access token is required');
+});
+
+test('ThreadsService.testConnection succeeds with valid token and matching user id', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (url: any) => {
+        assert.ok(url.toString().includes('graph.threads.net/v1.0/me'));
+        assert.ok(url.toString().includes('valid_token_xyz'));
+        return {
+            ok: true,
+            json: async () => ({
+                id: '123456789',
+                username: 'alice_writer',
+                name: 'Alice Writer',
+                threads_profile_picture_url: 'https://example.com/pic.jpg'
+            })
+        } as any;
+    };
+
+    try {
+        const res = await threadsService.testConnection({
+            access_token: 'valid_token_xyz',
+            threads_user_id: '123456789'
+        });
+        assert.equal(res.success, true);
+        assert.equal(res.details?.id, '123456789');
+        assert.equal(res.details?.username, 'alice_writer');
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test('ThreadsService.testConnection flags user id mismatch', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => ({
+        ok: true,
+        json: async () => ({
+            id: '999999999',
+            username: 'bob_actual',
+            name: 'Bob Actual'
+        })
+    } as any);
+
+    try {
+        const res = await threadsService.testConnection({
+            access_token: 'token_for_bob',
+            threads_user_id: '111111111'
+        });
+        assert.equal(res.success, false);
+        assert.ok(res.error?.includes('Threads User ID mismatch'));
+        assert.ok(res.error?.includes('bob_actual'));
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test('ThreadsService.testConnection handles Meta API error response', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => ({
+        ok: false,
+        status: 401,
+        text: async () => JSON.stringify({ error: { message: 'Invalid OAuth 2.0 Access Token' } })
+    } as any);
+
+    try {
+        const res = await threadsService.testConnection({
+            access_token: 'expired_or_invalid'
+        });
+        assert.equal(res.success, false);
+        assert.ok(res.error?.includes('401'));
+        assert.ok(res.error?.includes('Invalid OAuth 2.0 Access Token'));
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});

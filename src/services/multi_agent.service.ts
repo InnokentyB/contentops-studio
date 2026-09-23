@@ -1,3 +1,4 @@
+import fs from 'fs';
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -7,6 +8,7 @@ import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import prisma from '../db';
 import commentService from './comment.service';
+import aiGateway from './ai_gateway.service';
 import {
     estimateModelCostUsd,
     inferModelProvider,
@@ -14,6 +16,11 @@ import {
     preflightInvocation
 } from './model_policy.service';
 import { contentLanguageInstruction, type ContentLanguage } from './content_language.service';
+import { isolateUntrustedInput, DEFENSIVE_SYSTEM_PROMPT_DIRECTIVE } from '../utils/prompt_safety';
+
+const appendDebugLog = (msg: string): void => {
+    fs.promises.appendFile('debug.log', msg).catch(() => {});
+};
 
 config();
 
@@ -42,6 +49,7 @@ interface InvocationTelemetry {
     reasoningTokens?: number;
     latencyMs: number;
     providerRequestId?: string;
+    costUsd?: number;
 }
 
 class MultiAgentService {
@@ -575,89 +583,38 @@ ${languageInstruction}`;
         input: string,
         options: { json?: boolean; temperature?: number; maxTokens?: number } = {}
     ): Promise<string> {
-        const provider = preflightInvocation(config);
-        const startedAt = Date.now();
-        let output = '';
         let telemetry: InvocationTelemetry = {
-            provider,
+            provider: inferModelProvider(config.model),
             model: config.model,
             latencyMs: 0
         };
 
         try {
-            if (provider === 'anthropic') {
-                const response: any = await new Anthropic({ apiKey: config.apiKey }).messages.create({
-                    model: config.model,
-                    max_tokens: options.maxTokens || 4000,
-                    system: config.prompt + (options.json ? '\nIMPORTANT: return valid JSON only.' : ''),
-                    messages: [{ role: 'user', content: input }]
-                });
-                output = response.content?.[0]?.text || '';
-                telemetry = {
-                    ...telemetry,
-                    inputTokens: response.usage?.input_tokens,
-                    outputTokens: response.usage?.output_tokens,
-                    providerRequestId: response.id
-                };
-            } else if (provider === 'google') {
-                const model = new GoogleGenerativeAI(config.apiKey).getGenerativeModel({
-                    model: config.model,
-                    systemInstruction: config.prompt + (options.json ? '\nIMPORTANT: return valid JSON only.' : ''),
-                    generationConfig: options.json ? { responseMimeType: 'application/json' } : undefined
-                });
-                const result: any = await model.generateContent(input);
-                output = result.response.text();
-                const usage = result.response.usageMetadata;
-                telemetry = {
-                    ...telemetry,
-                    inputTokens: usage?.promptTokenCount,
-                    outputTokens: usage?.candidatesTokenCount,
-                    cachedInputTokens: usage?.cachedContentTokenCount,
-                    providerRequestId: result.response.responseId
-                };
-            } else {
-                const client = new OpenAI({ apiKey: config.apiKey });
-                if (config.model.toLowerCase().startsWith('gpt-5')) {
-                    const response: any = await client.responses.create({
-                        model: config.model,
-                        instructions: config.prompt + (options.json ? '\nReturn valid JSON only.' : ''),
-                        input
-                    });
-                    output = response.output_text || '';
-                    telemetry = {
-                        ...telemetry,
-                        inputTokens: response.usage?.input_tokens,
-                        outputTokens: response.usage?.output_tokens,
-                        cachedInputTokens: response.usage?.input_tokens_details?.cached_tokens,
-                        reasoningTokens: response.usage?.output_tokens_details?.reasoning_tokens,
-                        providerRequestId: response.id
-                    };
-                } else {
-                    const response: any = await client.chat.completions.create({
-                        model: config.model,
-                        messages: [
-                            { role: 'system', content: config.prompt + (options.json ? '\nReturn valid JSON only.' : '') },
-                            { role: 'user', content: input }
-                        ],
-                        ...(options.json ? { response_format: { type: 'json_object' } } : {}),
-                        ...(options.temperature === undefined ? {} : { temperature: options.temperature })
-                    });
-                    output = response.choices?.[0]?.message?.content || '';
-                    telemetry = {
-                        ...telemetry,
-                        inputTokens: response.usage?.prompt_tokens,
-                        outputTokens: response.usage?.completion_tokens,
-                        cachedInputTokens: response.usage?.prompt_tokens_details?.cached_tokens,
-                        reasoningTokens: response.usage?.completion_tokens_details?.reasoning_tokens,
-                        providerRequestId: response.id
-                    };
-                }
-            }
-            telemetry.latencyMs = Date.now() - startedAt;
-            await this.logRun(projectId, 'model_invocation', role, 'success', input, config.prompt, output, null, telemetry);
-            return output;
+            const result = await aiGateway.complete({
+                model: config.model,
+                apiKey: config.apiKey,
+                systemPrompt: config.prompt ? `${config.prompt}${DEFENSIVE_SYSTEM_PROMPT_DIRECTIVE}` : config.prompt,
+                userPrompt: input,
+                json: options.json,
+                temperature: options.temperature,
+                maxTokens: options.maxTokens
+            });
+
+            telemetry = {
+                provider: result.provider,
+                model: result.model,
+                inputTokens: result.inputTokens,
+                outputTokens: result.outputTokens,
+                cachedInputTokens: result.cachedInputTokens,
+                reasoningTokens: result.reasoningTokens,
+                providerRequestId: result.providerRequestId,
+                costUsd: result.costUsd || undefined,
+                latencyMs: result.latencyMs
+            };
+
+            await this.logRun(projectId, 'model_invocation', role, 'success', input, config.prompt, result.content, null, telemetry);
+            return result.content;
         } catch (error: any) {
-            telemetry.latencyMs = Date.now() - startedAt;
             await this.logRun(projectId, 'model_invocation', role, 'failed', input, config.prompt, null, error?.message || String(error), telemetry);
             throw error;
         }
@@ -749,7 +706,7 @@ ${languageInstruction}`;
         if (imageUrl.startsWith('/uploads/')) {
             const fs = require('fs');
             const { safeResolveUploadPath } = require('../utils/path_safety');
-            const localFilePath = safeResolveUploadPath(imageUrl);
+            const localFilePath = safeResolveUploadPath(imageUrl, { requireImageExtension: true });
             if (localFilePath && fs.existsSync(localFilePath)) {
                 const buffer = fs.readFileSync(localFilePath);
                 const base64Data = buffer.toString('base64');
@@ -904,34 +861,11 @@ ${languageInstruction}`;
         const prompt = await this.getPrompt(projectId, promptKey, defaultPrompt);
 
         // Validate model families explicitly. Never hide configuration mistakes behind a paid fallback.
-        inferModelProvider(model);
-
-        // Resolve Provider Key if it starts with pk_
-        if (apiKey && apiKey.startsWith('pk_')) {
-            const keyId = parseInt(apiKey.substring(3));
-            if (!isNaN(keyId)) {
-                const providerKey = await this.prisma.providerKey.findUnique({
-                    where: { id: keyId }
-                });
-                if (providerKey) {
-                    const { safeDecryptProviderKey } = require('../utils/channel_secrets');
-                    apiKey = safeDecryptProviderKey(providerKey.key);
-                } else {
-                    console.warn(`Provider Key ${keyId} not found for project ${projectId}`);
-                    apiKey = ''; // Or keep as is? Better to fail if key is missing.
-                }
-            }
-        }
-
         const provider = inferModelProvider(model);
-        const providerFallback = provider === 'google'
-            ? process.env.GOOGLE_API_KEY
-            : provider === 'anthropic'
-                ? process.env.ANTHROPIC_API_KEY
-                : process.env.OPENAI_API_KEY;
+        const resolvedApiKey = await aiGateway.resolveApiKey(projectId, provider, apiKey);
 
         return {
-            apiKey: apiKey || providerFallback || '',
+            apiKey: resolvedApiKey,
             model,
             prompt,
             provider
@@ -1165,10 +1099,11 @@ ${contentLanguageInstruction(context.content_language === 'en' ? 'en' : 'ru')}`;
     private async postCreator(projectId: number, theme: string, topic: string, config: any, runId: number, additionalContext: string = ''): Promise<string> {
         let output = '';
 
-        let userContent = `Theme: ${theme} \nPost Topic: ${topic} `;
-        if (additionalContext) {
-            userContent += `\n\nUSER COMMENTS / REQUIREMENTS: \n${additionalContext} `;
-        }
+        let userContent = [
+            isolateUntrustedInput('theme', theme),
+            isolateUntrustedInput('topic', topic),
+            additionalContext ? isolateUntrustedInput('user_requirements', additionalContext) : ''
+        ].filter(Boolean).join('\n\n');
 
         output = await this.invokeTextAgent(projectId, 'post_creator', config, userContent, { temperature: 0.7, maxTokens: 4000 });
 
@@ -1187,7 +1122,7 @@ ${contentLanguageInstruction(context.content_language === 'en' ? 'en' : 'ru')}`;
         let result: CritiqueResult = { score: 50, critique: '' };
         let content = '{}';
 
-        const context = `Topic: ${topic} \n\nPost to evaluate: \n${text} \n\n${lengthConstraint ? `CRITICAL CONSTRAINT TO VERIFY: ${lengthConstraint}. If text exceeds limit, SCORE MUST BE < 50 and critique must demand shortening.` : ''} `;
+        const context = `${isolateUntrustedInput('topic', topic)}\n\n${isolateUntrustedInput('post_to_evaluate', text)}\n\n${lengthConstraint ? `CRITICAL CONSTRAINT TO VERIFY: ${lengthConstraint}. If text exceeds limit, SCORE MUST BE < 50 and critique must demand shortening.` : ''} `;
 
         content = await this.invokeTextAgent(projectId, 'post_critic', config, context, {
             json: true,
@@ -1233,7 +1168,7 @@ ${contentLanguageInstruction(context.content_language === 'en' ? 'en' : 'ru')}`;
     private async postFixer(projectId: number, text: string, critique: string, config: any, runId: number, iteration: number, lengthConstraint: string = ''): Promise<string> {
         let output = '';
 
-        const context = `Original Text: \n${text} \n\nCritique to address: \n${critique} \n\n${lengthConstraint ? `MANDATORY CONSTRAINT: ${lengthConstraint}` : ''} `;
+        const context = `${isolateUntrustedInput('original_text', text)}\n\n${isolateUntrustedInput('critique_to_address', critique)}\n\n${lengthConstraint ? `MANDATORY CONSTRAINT: ${lengthConstraint}` : ''} `;
 
         output = await this.invokeTextAgent(projectId, 'post_fixer', config, context, {
             json: true,
@@ -1302,14 +1237,14 @@ ${contentLanguageInstruction(context.content_language === 'en' ? 'en' : 'ru')}`;
     // --- Topic List Generation ---
 
     async refineTopics(projectId: number, theme: string, weekId: number, promptOverride?: string, count: number = 2, existingTopics: string[] = [], contentLanguage: ContentLanguage = 'ru'): Promise<{ topics: { topic: string, category: string, tags: string[] }[], score: number }> {
-        const fs = require('fs');
-        fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [MultiAgent] Starting topic generation for theme: "${theme}", count: ${count}\n`);
+        const appendDebug = appendDebugLog;
+        appendDebug(`[${new Date().toISOString()}] [MultiAgent] Starting topic generation for theme: "${theme}", count: ${count}\n`);
         console.log(`[MultiAgent] Starting topic generation for theme: "${theme}", count: ${count}`);
 
-        fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [MultiAgent] Fetching comments...\n`);
+        appendDebug(`[${new Date().toISOString()}] [MultiAgent] Fetching comments...\n`);
         // Fetch comments
         const commentsContext = await commentService.getCommentsForContext(projectId, 'week', weekId);
-        fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [MultiAgent] Comments fetched. Context length: ${commentsContext.length}\n`);
+        appendDebug(`[${new Date().toISOString()}] [MultiAgent] Comments fetched. Context length: ${commentsContext.length}\n`);
 
         // Context construction
         let fullContext = commentsContext;
@@ -1321,7 +1256,7 @@ ${contentLanguageInstruction(context.content_language === 'en' ? 'en' : 'ru')}`;
         // 1. Create Run Log (Topics)
         let runLogId = 0;
         try {
-            fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [MultiAgent] Creating Run Log...\n`);
+            appendDebug(`[${new Date().toISOString()}] [MultiAgent] Creating Run Log...\n`);
             const runLog = await this.prisma.agentRun.create({
                 data: {
                     project: { connect: { id: projectId } },
@@ -1331,10 +1266,10 @@ ${contentLanguageInstruction(context.content_language === 'en' ? 'en' : 'ru')}`;
                 }
             });
             runLogId = runLog.id;
-            fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [MultiAgent] Run Log Created: ${runLogId}\n`);
+            appendDebug(`[${new Date().toISOString()}] [MultiAgent] Run Log Created: ${runLogId}\n`);
         } catch (e) {
             console.error('Failed to create run log', e);
-            fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [MultiAgent] Run Log Creation Failed: ${e}\n`);
+            appendDebug(`[${new Date().toISOString()}] [MultiAgent] Run Log Creation Failed: ${e}\n`);
         }
 
         let currentTopicsJSON = '{}';
@@ -1345,13 +1280,13 @@ ${contentLanguageInstruction(context.content_language === 'en' ? 'en' : 'ru')}`;
 
         try {
             // Creator
-            fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [MultiAgent] Fetching Creator Prompt...\n`);
+            appendDebug(`[${new Date().toISOString()}] [MultiAgent] Fetching Creator Prompt...\n`);
             let creatorPrompt = await this.getPrompt(projectId, this.KEY_TOPIC_CREATOR, this.DEFAULT_TOPIC_CREATOR_PROMPT);
-            fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [MultiAgent] Creator Prompt fetched.\n`);
+            appendDebug(`[${new Date().toISOString()}] [MultiAgent] Creator Prompt fetched.\n`);
 
             if (promptOverride) creatorPrompt = promptOverride;
 
-            fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [MultiAgent] Calling Validated Topic Creator...\n`);
+            appendDebug(`[${new Date().toISOString()}] [MultiAgent] Calling Validated Topic Creator...\n`);
             const creatorConfig = await this.getAgentConfig(projectId, 'topic_creator');
             const criticConfig = await this.getAgentConfig(projectId, 'topic_critic');
             const fixerConfig = await this.getAgentConfig(projectId, 'topic_fixer');
@@ -1370,7 +1305,7 @@ ${contentLanguageInstruction(context.content_language === 'en' ? 'en' : 'ru')}`;
 
             while (iterations < MAX_ITERATIONS) {
                 iterations++;
-                fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [MultiAgent Topics] Iteration ${iterations} starting...\n`);
+                appendDebug(`[${new Date().toISOString()}] [MultiAgent Topics] Iteration ${iterations} starting...\n`);
                 console.log(`[MultiAgent Topics] Iteration ${iterations} starting...`);
 
                 criticConfig.prompt = `${await this.getPrompt(projectId, this.KEY_TOPIC_CRITIC, this.DEFAULT_TOPIC_CRITIC_PROMPT)}\n\n${contentLanguageInstruction(contentLanguage)}`;
@@ -1449,17 +1384,16 @@ ${contentLanguageInstruction(context.content_language === 'en' ? 'en' : 'ru')}`;
     }
 
     private async topicCreator(projectId: number, theme: string, config: any, runId: number, additionalContext: string = ''): Promise<string> {
-        const fs = require('fs');
-        fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [TopicCreator] Starting... Theme: ${theme}\n`);
+        appendDebugLog(`[${new Date().toISOString()}] [TopicCreator] Starting... Theme: ${theme}\n`);
 
-        let userContent = `Theme: ${theme}`;
-        if (additionalContext) {
-            userContent += `\n\nUSER COMMENTS / REQUIREMENTS:\n${additionalContext}`;
-        }
+        let userContent = [
+            isolateUntrustedInput('theme', theme),
+            additionalContext ? isolateUntrustedInput('user_requirements', additionalContext) : ''
+        ].filter(Boolean).join('\n\n');
 
         try {
             const output = await this.invokeTextAgent(projectId, 'topic_creator', config, userContent, { json: true, temperature: 0.7 });
-            fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [TopicCreator] OpenAI response received.\n`);
+            appendDebugLog(`[${new Date().toISOString()}] [TopicCreator] OpenAI response received.\n`);
 
             if (runId > 0) {
                 try {
@@ -1472,22 +1406,21 @@ ${contentLanguageInstruction(context.content_language === 'en' ? 'en' : 'ru')}`;
                             output: output
                         }
                     });
-                } catch (e) { console.error('Log error', e); fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [TopicCreator] DB Log Error: ${e}\n`); }
+                } catch (e) { console.error('Log error', e); appendDebugLog(`[${new Date().toISOString()}] [TopicCreator] DB Log Error: ${e}\n`); }
             }
             return output;
         } catch (error: any) {
-            fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [TopicCreator] ERROR: ${error.message}\n`);
+            appendDebugLog(`[${new Date().toISOString()}] [TopicCreator] ERROR: ${error.message}\n`);
             throw error;
         }
     }
 
     private async topicCritic(projectId: number, topicsJSON: string, theme: string, config: any, runId: number, iteration: number): Promise<CritiqueResult> {
-        const fs = require('fs');
-        fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [TopicCritic] Starting Iteration ${iteration}...\n`);
+        appendDebugLog(`[${new Date().toISOString()}] [TopicCritic] Starting Iteration ${iteration}...\n`);
 
         try {
             const content = await this.invokeTextAgent(projectId, 'topic_critic', config, `Theme: ${theme}\n\nTopics JSON:\n${topicsJSON}`, { json: true, temperature: 0.3 });
-            fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [TopicCritic] OpenAI response received.\n`);
+            appendDebugLog(`[${new Date().toISOString()}] [TopicCritic] OpenAI response received.\n`);
 
             let result: CritiqueResult;
             try {
@@ -1510,22 +1443,21 @@ ${contentLanguageInstruction(context.content_language === 'en' ? 'en' : 'ru')}`;
                             critique: result.critique
                         }
                     });
-                } catch (e) { console.error('Log error', e); fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [TopicCritic] DB Log Error: ${e}\n`); }
+                } catch (e) { console.error('Log error', e); appendDebugLog(`[${new Date().toISOString()}] [TopicCritic] DB Log Error: ${e}\n`); }
             }
             return result;
         } catch (error: any) {
-            fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [TopicCritic] CRITICAL ERROR: ${error.message}\n`);
+            appendDebugLog(`[${new Date().toISOString()}] [TopicCritic] CRITICAL ERROR: ${error.message}\n`);
             throw error;
         }
     }
 
     private async topicFixer(projectId: number, topicsJSON: string, critique: string, theme: string, config: any, runId: number, iteration: number): Promise<string> {
-        const fs = require('fs');
-        fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [TopicFixer] Starting Iteration ${iteration}...\n`);
+        appendDebugLog(`[${new Date().toISOString()}] [TopicFixer] Starting Iteration ${iteration}...\n`);
 
         try {
             const output = await this.invokeTextAgent(projectId, 'topic_fixer', config, `Original Topics:\n${topicsJSON}\n\nCritique:\n${critique}`, { json: true, temperature: 0.7 });
-            fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [TopicFixer] OpenAI response received.\n`);
+            appendDebugLog(`[${new Date().toISOString()}] [TopicFixer] OpenAI response received.\n`);
 
             if (runId > 0) {
                 try {
@@ -1538,11 +1470,11 @@ ${contentLanguageInstruction(context.content_language === 'en' ? 'en' : 'ru')}`;
                             output: output
                         }
                     });
-                } catch (e) { console.error('Log error', e); fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [TopicFixer] DB Log Error: ${e}\n`); }
+                } catch (e) { console.error('Log error', e); appendDebugLog(`[${new Date().toISOString()}] [TopicFixer] DB Log Error: ${e}\n`); }
             }
             return output;
         } catch (error: any) {
-            fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [TopicFixer] CRITICAL ERROR: ${error.message}\n`);
+            appendDebugLog(`[${new Date().toISOString()}] [TopicFixer] CRITICAL ERROR: ${error.message}\n`);
             throw error;
         }
     }

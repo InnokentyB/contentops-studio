@@ -7,7 +7,6 @@ import contentDictionaryService from '../services/content_dictionary.service';
 import contentPolicyMatrixService from '../services/content_policy_matrix.service';
 import publicationPlanService from '../services/publication_plan.service';
 import { jsonBytes, logEgressDiagnostic, textBytes } from '../utils/egress_diagnostics';
-import parserIntegrationService from '../services/parser_integration.service';
 import storageService from '../services/storage.service';
 import generatorService from '../services/generator.service';
 import { normalizeProjectKind, slugifyProjectName } from '../utils/project.utils';
@@ -20,10 +19,13 @@ import {
 } from '../utils/channel.utils';
 import dzenService from '../services/dzen.service';
 import vkOAuthService from '../services/vk_oauth.service';
+import threadsService from '../services/threads.service';
 import initiativeService from '../services/initiative.service';
 import workQueueService from '../services/work_queue.service';
-import mcpAccessTokenService, { ActiveMcpWorkspaceBundleError, isManagedMcpProfile } from '../services/mcp_access_token.service';
 import { safeEncryptProviderKey } from '../utils/channel_secrets';
+import mcpRoutes from './projects/mcp.routes';
+import parserRoutes from './projects/parser.routes';
+import { CreateChannelSchema } from '../schemas/routes.schema';
 
 const agentSettingKeyMap: Record<string, { prompt: string; key: string; model: string }> = {
     post_creator: {
@@ -305,7 +307,11 @@ async function buildImportedProjectData(rawConfig: string, userId: number) {
 
         const entries: Array<{ key: string; value: string }> = [];
         if (config?.prompt !== undefined) entries.push({ key: keys.prompt, value: String(config.prompt) });
-        if (config?.apiKey !== undefined) entries.push({ key: keys.key, value: String(config.apiKey) });
+        if (config?.apiKey !== undefined) {
+            const rawKey = String(config.apiKey).trim();
+            const encryptedKey = rawKey && !rawKey.includes('••••') ? safeEncryptProviderKey(rawKey) : rawKey;
+            entries.push({ key: keys.key, value: encryptedKey });
+        }
         if (config?.model !== undefined) entries.push({ key: keys.model, value: String(config.model) });
         return entries;
     });
@@ -682,354 +688,28 @@ export default async function projectRoutes(fastify: FastifyInstance) {
         return project;
     });
 
-    fastify.get('/api/projects/:id/mcp/status', async (request, reply) => {
-        const user = (request as any).user;
-        const { id } = request.params as { id: string };
-        const projectId = parseInt(id, 10);
-        const hasAccess = await authService.hasProjectAccess(user.id, projectId, 'owner');
-        if (!hasAccess) {
-            return reply.code(403).send({ error: 'Only owners can inspect MCP settings' });
-        }
+    // Modular Project Sub-Routes
+    await mcpRoutes(fastify);
+    await parserRoutes(fastify);
 
-        const endpoint = (process.env.MCP_REMOTE_URL || 'http://127.0.0.1:8080/mcp').replace(/\/+$/, '');
-        const healthUrl = endpoint.endsWith('/mcp') ? endpoint.slice(0, -4) + '/health' : `${endpoint}/health`;
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 2500);
-
-        try {
-            const response = await fetch(healthUrl, { signal: controller.signal });
-            const health = response.ok ? await response.json() as any : null;
-            const capabilityEndpoints = health?.capability_endpoints || {};
-            const capabilityStatus = (profile: Exclude<import('../mcp/capabilities').McpCapabilityProfile, 'owner'>) => {
-                const remote = capabilityEndpoints[profile];
-                const configured = remote === true || remote?.configured === true;
-                const boundProjectId = Number(remote?.project_id || 0) || null;
-                const boundOrganizationId = Number(remote?.organization_id || 0) || null;
-                return {
-                    endpoint: `${endpoint}/${profile.replace(/_/g, '-')}`,
-                    configured: configured && (profile === 'organization_researcher' || !boundProjectId || boundProjectId === projectId),
-                    bound_project_id: boundProjectId,
-                    bound_organization_id: boundOrganizationId
-                };
-            };
-            return {
-                status: response.ok && health?.status === 'ok' ? 'online' : 'degraded',
-                endpoint,
-                health_url: healthUrl,
-                transport: health?.transport || null,
-                bearer_required: Boolean(health?.auth?.bearer_required),
-                uptime_s: health?.uptime_s || 0,
-                active_sessions: health?.active_sessions || 0,
-                capability_endpoints: {
-                    planner: capabilityStatus('planner'),
-                    writer: capabilityStatus('writer'),
-                    art_director: capabilityStatus('art_director'),
-                    strategist: capabilityStatus('strategist'),
-                    editor: capabilityStatus('editor'),
-                    publisher: capabilityStatus('publisher'),
-                    growth_analyst: capabilityStatus('growth_analyst'),
-                    organization_researcher: capabilityStatus('organization_researcher')
-                },
-                checked_at: new Date().toISOString()
-            };
-        } catch (error: any) {
-            return {
-                status: 'offline',
-                endpoint,
-                health_url: healthUrl,
-                bearer_required: null,
-                checked_at: new Date().toISOString(),
-                message: error?.name === 'AbortError' ? 'MCP health check timed out' : 'MCP server is unreachable'
-            };
-        } finally {
-            clearTimeout(timeout);
-        }
-    });
-
-    fastify.get('/api/projects/:id/mcp/access-tokens', async (request, reply) => {
-        const user = (request as any).user;
-        const projectId = parseInt((request.params as { id: string }).id, 10);
-        if (!await authService.hasProjectAccess(user.id, projectId, 'owner')) return reply.code(403).send({ error: 'Owner access required' });
-        const project = await prisma.project.findUnique({ where: { id: projectId }, select: { organization_id: true } });
-        const organizationMembership = project?.organization_id ? await prisma.organizationMember.findUnique({ where: { organization_id_user_id: { organization_id: project.organization_id, user_id: user.id } } }) : null;
-        const accesses = [
-            ...await mcpAccessTokenService.list(projectId),
-            ...(project?.organization_id && organizationMembership?.role === 'owner' ? await mcpAccessTokenService.listForOrganization(project.organization_id) : [])
-        ];
-        return {
-            accesses: accesses.map(({ token_hash: _tokenHash, ...access }) => access)
-        };
-    });
-
-    fastify.post('/api/projects/:id/mcp/access-tokens', async (request, reply) => {
-        const owner = (request as any).user;
-        const projectId = parseInt((request.params as { id: string }).id, 10);
-        if (!await authService.hasProjectAccess(owner.id, projectId, 'owner')) return reply.code(403).send({ error: 'Owner access required' });
-        const { userId, profile, label, expiresAt } = request.body as { userId: number; profile: unknown; label?: string; expiresAt?: string | null };
-        if (!Number.isInteger(userId) || !isManagedMcpProfile(profile)) return reply.code(400).send({ error: 'Valid user and MCP profile are required' });
-        const expiry = expiresAt ? new Date(expiresAt) : null;
-        if (expiry && (Number.isNaN(expiry.getTime()) || expiry <= new Date())) return reply.code(400).send({ error: 'Expiry must be in the future' });
-        try {
-            reply.header('Cache-Control', 'no-store');
-            if (profile === 'organization_researcher') {
-                const project = await prisma.project.findUnique({ where: { id: projectId }, select: { organization_id: true } });
-                if (!project?.organization_id) return reply.code(409).send({ error: 'Project is not attached to an organization' });
-                const organizationOwner = await prisma.organizationMember.findUnique({ where: { organization_id_user_id: { organization_id: project.organization_id, user_id: owner.id } } });
-                if (organizationOwner?.role !== 'owner') return reply.code(403).send({ error: 'Organization owner access required' });
-                return await mcpAccessTokenService.createForOrganization(project.organization_id, userId, profile, label || '', expiry);
-            }
-            return await mcpAccessTokenService.create(projectId, userId, profile, label || '', expiry);
-        } catch (error: any) {
-            return reply.code(400).send({ error: error.message || 'Unable to create MCP access' });
-        }
-    });
-
-    fastify.post('/api/projects/:id/mcp/workspace-access', async (request, reply) => {
-        const owner = (request as any).user;
-        const projectId = parseInt((request.params as { id: string }).id, 10);
-        if (!await authService.hasProjectAccess(owner.id, projectId, 'owner')) return reply.code(403).send({ error: 'Owner access required' });
-        const { userId, label, expiresAt, rotate } = request.body as { userId: number; label?: string; expiresAt?: string | null; rotate?: boolean };
-        if (!Number.isInteger(userId)) return reply.code(400).send({ error: 'Valid project member is required' });
-        const expiry = expiresAt ? new Date(expiresAt) : null;
-        if (expiry && (Number.isNaN(expiry.getTime()) || expiry <= new Date())) return reply.code(400).send({ error: 'Expiry must be in the future' });
-        const endpoint = (process.env.MCP_REMOTE_URL || 'http://127.0.0.1:8080/mcp').replace(/\/+$/, '');
-        try {
-            reply.header('Cache-Control', 'no-store');
-            return await mcpAccessTokenService.createWorkspaceBundle(projectId, userId, label || '', endpoint, { expiresAt: expiry, rotate: rotate === true });
-        } catch (error: any) {
-            if (error instanceof ActiveMcpWorkspaceBundleError) {
-                return reply.code(409).send({ error: error.message, code: 'MCP_WORKSPACE_ACTIVE', bundle_id: error.bundleId });
-            }
-            return reply.code(400).send({ error: error.message || 'Unable to create agent workspace access' });
-        }
-    });
-
-    fastify.delete('/api/projects/:id/mcp/workspace-access/:bundleId', async (request, reply) => {
-        const owner = (request as any).user;
-        const { id, bundleId } = request.params as { id: string; bundleId: string };
-        const projectId = parseInt(id, 10);
-        if (!await authService.hasProjectAccess(owner.id, projectId, 'owner')) return reply.code(403).send({ error: 'Owner access required' });
-        if (!/^[0-9a-f-]{36}$/i.test(bundleId)) return reply.code(400).send({ error: 'Valid workspace bundle ID is required' });
-        try {
-            return await mcpAccessTokenService.revokeWorkspaceBundle(projectId, bundleId);
-        } catch (error: any) {
-            return reply.code(404).send({ error: error.message || 'MCP workspace bundle was not found' });
-        }
-    });
-
-    fastify.delete('/api/projects/:id/mcp/access-tokens/:tokenId', async (request, reply) => {
-        const owner = (request as any).user;
-        const { id, tokenId } = request.params as { id: string; tokenId: string };
-        const projectId = parseInt(id, 10);
-        if (!await authService.hasProjectAccess(owner.id, projectId, 'owner')) return reply.code(403).send({ error: 'Owner access required' });
-        try {
-            const access = await prisma.mcpAccessToken.findUnique({ where: { id: parseInt(tokenId, 10) }, select: { organization_id: true } });
-            if (access?.organization_id) {
-                const membership = await prisma.organizationMember.findUnique({ where: { organization_id_user_id: { organization_id: access.organization_id, user_id: owner.id } } });
-                if (membership?.role !== 'owner') return reply.code(403).send({ error: 'Organization owner access required' });
-                await mcpAccessTokenService.revokeForOrganization(access.organization_id, parseInt(tokenId, 10));
-                return { success: true };
-            }
-            await mcpAccessTokenService.revoke(projectId, parseInt(tokenId, 10));
-            return { success: true };
-        } catch (error: any) {
-            return reply.code(404).send({ error: error.message || 'MCP access was not found' });
-        }
-    });
-
-    fastify.get('/api/projects/:id/parser/health', async (request, reply) => {
-        const user = (request as any).user;
-        const { id } = request.params as any;
-
-        try {
-            const projectId = parseProjectId(id);
-            const hasAccess = await authService.hasProjectAccess(user.id, projectId);
-            if (!hasAccess) {
-                return reply.code(403).send({ error: 'No access' });
-            }
-
-            return await parserIntegrationService.getHealth();
-        } catch (error: any) {
-            return reply.code(400).send({ error: error.message || 'Failed to fetch parser health' });
-        }
-    });
-
-    fastify.post('/api/projects/:id/parser/search', async (request, reply) => {
-        const user = (request as any).user;
-        const { id } = request.params as any;
-
-        try {
-            const projectId = parseProjectId(id);
-            const result = await parserIntegrationService.createSearchJob({
-                projectId,
-                ...(request.body as any)
-            }, { userId: user.id, minRole: 'editor' });
-
-            return reply.code(202).send(result);
-        } catch (error: any) {
-            const message = error.message || 'Failed to create parser search job';
-            const statusCode = message.includes('does not have') ? 403 : 400;
-            return reply.code(statusCode).send({ error: message });
-        }
-    });
-
-    fastify.get('/api/projects/:id/parser/search/:jobId', async (request, reply) => {
-        const user = (request as any).user;
-        const { id, jobId } = request.params as any;
-
-        try {
-            const projectId = parseProjectId(id);
-            return await parserIntegrationService.getSearchJob(projectId, jobId, { userId: user.id });
-        } catch (error: any) {
-            const message = error.message || 'Failed to fetch parser search job';
-            const statusCode = message.includes('does not have') ? 403 : 400;
-            return reply.code(statusCode).send({ error: message });
-        }
-    });
-
-    fastify.post('/api/projects/:id/parser/search/:jobId/refresh', async (request, reply) => {
-        const user = (request as any).user;
-        const { id, jobId } = request.params as any;
-
-        try {
-            const projectId = parseProjectId(id);
-            const body = (request.body || {}) as any;
-            const result = await parserIntegrationService.refreshSearchJob({
-                projectId,
-                jobId,
-                idempotencyKey: body.idempotencyKey
-            }, { userId: user.id, minRole: 'editor' });
-
-            return reply.code(202).send(result);
-        } catch (error: any) {
-            const message = error.message || 'Failed to refresh parser search job';
-            const statusCode = message.includes('does not have') ? 403 : 400;
-            return reply.code(statusCode).send({ error: message });
-        }
-    });
-
-    fastify.get('/api/projects/:id/parser/posts', async (request, reply) => {
-        const user = (request as any).user;
-        const { id } = request.params as any;
-        const { limit, offset } = request.query as any;
-
-        try {
-            const projectId = parseProjectId(id);
-            return await parserIntegrationService.listPosts(projectId, { userId: user.id }, {
-                limit: limit !== undefined ? parseInt(limit, 10) : undefined,
-                offset: offset !== undefined ? parseInt(offset, 10) : undefined
-            });
-        } catch (error: any) {
-            const message = error.message || 'Failed to list parser posts';
-            const statusCode = message.includes('does not have') ? 403 : 400;
-            return reply.code(statusCode).send({ error: message });
-        }
-    });
-
-    fastify.get('/api/projects/:id/parser/insights', async (request, reply) => {
-        const user = (request as any).user;
-        const { id } = request.params as any;
-        const { limit, offset, jobId, type } = request.query as any;
-
-        try {
-            const projectId = parseProjectId(id);
-            return await parserIntegrationService.getInsights({
-                projectId,
-                limit: limit !== undefined ? parseInt(limit, 10) : undefined,
-                offset: offset !== undefined ? parseInt(offset, 10) : undefined,
-                jobId,
-                type
-            }, { userId: user.id });
-        } catch (error: any) {
-            const message = error.message || 'Failed to fetch parser insights';
-            const statusCode = message.includes('does not have') ? 403 : 400;
-            return reply.code(statusCode).send({ error: message });
-        }
-    });
-
-    fastify.get('/api/projects/:id/parser/summaries/:jobId', async (request, reply) => {
-        const user = (request as any).user;
-        const { id, jobId } = request.params as any;
-
-        try {
-            const projectId = parseProjectId(id);
-            return await parserIntegrationService.getSummary({
-                projectId,
-                jobId
-            }, { userId: user.id });
-        } catch (error: any) {
-            const message = error.message || 'Failed to fetch parser summary';
-            const statusCode = message.includes('does not have') ? 403 : 400;
-            return reply.code(statusCode).send({ error: message });
-        }
-    });
-
-    fastify.get('/api/projects/:id/parser/templates', async (request, reply) => {
-        const user = (request as any).user;
-        const { id } = request.params as any;
-
-        try {
-            const projectId = parseProjectId(id);
-            return await parserIntegrationService.listTemplates(projectId, { userId: user.id });
-        } catch (error: any) {
-            const message = error.message || 'Failed to list parser templates';
-            const statusCode = message.includes('does not have') ? 403 : 400;
-            return reply.code(statusCode).send({ error: message });
-        }
-    });
-
-    fastify.post('/api/projects/:id/parser/templates/import', async (request, reply) => {
-        const user = (request as any).user;
-        const { id } = request.params as any;
-
-        try {
-            const projectId = parseProjectId(id);
-            const result = await parserIntegrationService.importTemplates({
-                projectId,
-                ...(request.body as any)
-            }, { userId: user.id, minRole: 'editor' });
-
-            return reply.code(202).send(result);
-        } catch (error: any) {
-            const message = error.message || 'Failed to import parser templates';
-            const statusCode = message.includes('does not have') ? 403 : 400;
-            return reply.code(statusCode).send({ error: message });
-        }
-    });
-
-    fastify.post('/api/projects/:id/parser/templates/:templateId/run', async (request, reply) => {
-        const user = (request as any).user;
-        const { id, templateId } = request.params as any;
-
-        try {
-            const projectId = parseProjectId(id);
-            const body = (request.body || {}) as any;
-            const result = await parserIntegrationService.runTemplate({
-                projectId,
-                templateId,
-                idempotencyKey: body.idempotencyKey
-            }, { userId: user.id, minRole: 'editor' });
-
-            return reply.code(202).send(result);
-        } catch (error: any) {
-            const message = error.message || 'Failed to run parser template';
-            const statusCode = message.includes('does not have') ? 403 : 400;
-            return reply.code(statusCode).send({ error: message });
-        }
-    });
 
     // Channels management
     fastify.post('/api/projects/:id/channels', async (request, reply) => {
         const user = (request as any).user;
-        const { id } = request.params as any;
-        const { type, name, config } = request.body as any;
-        const projectId = parseInt(id);
+        const { id } = request.params as { id: string };
+        const projectId = parseInt(id, 10);
 
         const hasAccess = await authService.hasProjectAccess(user.id, projectId, 'owner');
         if (!hasAccess) {
             reply.code(403).send({ error: 'No access' });
             return;
         }
+
+        const parseResult = CreateChannelSchema.safeParse(request.body);
+        if (!parseResult.success) {
+            return reply.code(400).send({ error: parseResult.error.message });
+        }
+        const { type, name, config } = parseResult.data;
 
         let storedConfig: any;
         try {
@@ -1112,11 +792,42 @@ export default async function projectRoutes(fastify: FastifyInstance) {
             where: { id: parsedChannelId, project_id: projectId }
         });
         if (!channel) return reply.code(404).send({ error: 'Channel not found' });
-        if (!['zen', 'zen_article', 'dzen', 'vk'].includes(channel.type)) {
+        if (!['zen', 'zen_article', 'dzen', 'vk', 'threads'].includes(channel.type)) {
             return reply.code(400).send({ error: 'Connection test is not supported for this channel type' });
         }
 
         try {
+            if (channel.type === 'threads') {
+                const savedConfig = resolveEffectiveChannelConfig(channel.type, channel.config);
+                const unsavedConfig = requestedConfig && typeof requestedConfig === 'object'
+                    ? requestedConfig
+                    : {};
+                const token = typeof unsavedConfig.access_token === 'string' && unsavedConfig.access_token.trim() !== '' && unsavedConfig.access_token !== '******'
+                    ? unsavedConfig.access_token.trim()
+                    : savedConfig.access_token;
+                const userId = typeof unsavedConfig.threads_user_id === 'string' && unsavedConfig.threads_user_id.trim() !== ''
+                    ? unsavedConfig.threads_user_id.trim()
+                    : (savedConfig.threads_user_id || savedConfig.user_id);
+
+                if (!token) {
+                    return reply.code(400).send({ error: 'Access token is required to test Threads connection', code: 'THREADS_TOKEN_REQUIRED' });
+                }
+
+                const result = await threadsService.testConnection({
+                    access_token: token,
+                    threads_user_id: userId
+                });
+
+                if (!result.success) {
+                    return reply.code(400).send({ error: result.error || 'Failed to connect to Threads', code: 'THREADS_CONNECTION_TEST_FAILED' });
+                }
+
+                return {
+                    success: true,
+                    result: result.details
+                };
+            }
+
             if (channel.type === 'vk') {
                 let config = resolveEffectiveChannelConfig('vk', channel.config);
                 if (!config.vk_id) {
@@ -1181,9 +892,11 @@ export default async function projectRoutes(fastify: FastifyInstance) {
             });
             return { success: true, result };
         } catch (error: any) {
+            const channelName = channel.type === 'vk' ? 'VK' : channel.type === 'threads' ? 'Threads' : 'Dzen';
+            const channelCode = channel.type === 'vk' ? 'VK_CONNECTION_TEST_FAILED' : channel.type === 'threads' ? 'THREADS_CONNECTION_TEST_FAILED' : 'DZEN_CONNECTION_TEST_FAILED';
             return reply.code(400).send({
-                error: error.message || `${channel.type === 'vk' ? 'VK' : 'Dzen'} connection test failed`,
-                code: channel.type === 'vk' ? 'VK_CONNECTION_TEST_FAILED' : 'DZEN_CONNECTION_TEST_FAILED'
+                error: error.message || `${channelName} connection test failed`,
+                code: channelCode
             });
         }
     });

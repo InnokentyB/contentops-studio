@@ -1,0 +1,4 @@
+interface:
+  display_name: "TDPD"
+  short_description: "Вести продуктовую разработку через e2e-тесты"
+  default_prompt: "Use $tdpd to turn this product problem into executable user scenarios and deliver it through the TDPD pipeline."

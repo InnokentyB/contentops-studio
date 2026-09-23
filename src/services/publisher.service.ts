@@ -48,8 +48,10 @@ function logToFile(level: 'INFO' | 'WARN' | 'ERROR', message: string, data?: any
     }
     logLine += '\n';
 
-    // Write to file
-    fs.appendFileSync(PUBLISHER_LOG_FILE, logLine);
+    // Write to file asynchronously without blocking the Node event loop
+    fs.promises.appendFile(PUBLISHER_LOG_FILE, logLine).catch((err) => {
+        console.error('[logToFile] Failed to write log asynchronously:', err);
+    });
 
     // Also log to console
     if (level === 'ERROR') console.error(message, data || '');
@@ -723,10 +725,9 @@ class PublisherService {
             }
             
             const fs = require('fs');
-            const path = require('path');
-            const filename = imageUrl.split('/').pop();
-            const localPath = path.join(__dirname, '../../uploads', filename);
-            if (fs.existsSync(localPath)) {
+            const { safeResolveUploadPath } = require('../utils/path_safety');
+            const localPath = safeResolveUploadPath(imageUrl, { requireImageExtension: true });
+            if (localPath && fs.existsSync(localPath)) {
                 return { source: fs.createReadStream(localPath) };
             }
             return null;
@@ -2643,7 +2644,14 @@ class PublisherService {
                     const apiKey = vkConfig.publish_access_token;
 
                     if (!vkId || !apiKey) {
-                        logToFile('ERROR', `VK config missing id/key for post ${post.id}`);
+                        logToFile('ERROR', `VK config missing id/key for post ${post.id}. Marking as failed.`);
+                        await prisma.post.update({
+                            where: { id: post.id },
+                            data: {
+                                status: 'failed',
+                                metrics: { error: 'VK config missing id or key' }
+                            }
+                        });
                         continue;
                     }
 
@@ -2668,7 +2676,14 @@ class PublisherService {
                     const token = linkedinConfig.access_token;
 
                     if (!urn || !token) {
-                        logToFile('ERROR', `LinkedIn config missing urn/token for post ${post.id}`);
+                        logToFile('ERROR', `LinkedIn config missing urn/token for post ${post.id}. Marking as failed.`);
+                        await prisma.post.update({
+                            where: { id: post.id },
+                            data: {
+                                status: 'failed',
+                                metrics: { error: 'LinkedIn config missing urn or token' }
+                            }
+                        });
                         continue;
                     }
 
@@ -2689,7 +2704,14 @@ class PublisherService {
                     // Telegram Publishing Logic
                     const rawChannelId = (channel.config as any).telegram_channel_id?.toString();
                     if (!rawChannelId) {
-                        logToFile('ERROR', `Telegram channel config missing ID for post ${post.id}`);
+                        logToFile('ERROR', `Telegram channel config missing ID for post ${post.id}. Marking as failed.`);
+                        await prisma.post.update({
+                            where: { id: post.id },
+                            data: {
+                                status: 'failed',
+                                metrics: { error: 'Telegram channel config missing telegram_channel_id' }
+                            }
+                        });
                         continue;
                     }
 

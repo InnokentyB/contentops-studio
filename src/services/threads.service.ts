@@ -108,6 +108,82 @@ class ThreadsService {
             return null;
         }
     }
+
+    /**
+     * Tests connection to Meta Threads API with the provided or stored credentials.
+     * @param config The channel configuration containing access_token and optional threads_user_id.
+     * @returns ThreadsTestConnectionResult with user profile or error description.
+     */
+    async testConnection(config: { access_token?: string; threads_user_id?: string; user_id?: string }): Promise<ThreadsTestConnectionResult> {
+        const token = config.access_token?.trim();
+        const expectedUserId = (config.threads_user_id || config.user_id)?.trim();
+
+        if (!token) {
+            return { success: false, error: 'Access token is required' };
+        }
+
+        try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 10000);
+
+            const res = await fetch(`https://graph.threads.net/v1.0/me?fields=id,username,name,threads_profile_picture_url&access_token=${encodeURIComponent(token)}`, {
+                signal: controller.signal
+            });
+            clearTimeout(timeout);
+
+            if (!res.ok) {
+                const errBody = await res.text();
+                return {
+                    success: false,
+                    error: `Meta Threads API returned status ${res.status}: ${errBody}`
+                };
+            }
+
+            const data = (await res.json()) as { id: string; username?: string; name?: string; threads_profile_picture_url?: string };
+
+            if (!data.id) {
+                return {
+                    success: false,
+                    error: 'Meta Threads API did not return a valid user profile'
+                };
+            }
+
+            if (expectedUserId && expectedUserId !== data.id) {
+                return {
+                    success: false,
+                    error: `Threads User ID mismatch: configured "${expectedUserId}", but token belongs to "${data.id}" (@${data.username || 'unknown'})`
+                };
+            }
+
+            return {
+                success: true,
+                details: {
+                    id: data.id,
+                    username: data.username,
+                    name: data.name,
+                    threads_profile_picture_url: data.threads_profile_picture_url
+                }
+            };
+        } catch (err: unknown) {
+            const error = err as Error;
+            return {
+                success: false,
+                error: error.name === 'AbortError' ? 'Connection timed out after 10s' : error.message
+            };
+        }
+    }
 }
 
+export interface ThreadsTestConnectionResult {
+    success: boolean;
+    details?: {
+        id: string;
+        username?: string;
+        name?: string;
+        threads_profile_picture_url?: string;
+    };
+    error?: string;
+}
+
+export { ThreadsService };
 export default new ThreadsService();

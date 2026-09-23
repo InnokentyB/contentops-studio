@@ -278,9 +278,9 @@ export class TelegramClientService {
                         ? await loadTelegramRemoteImage(imageUrl)
                         : imageUrl;
                 } else if (imageUrl.startsWith('/uploads/')) {
-                    const filename = imageUrl.split('/').pop();
-                    const localPath = path.join(__dirname, '../../uploads', filename || '');
-                    if (fs.existsSync(localPath)) {
+                    const { safeResolveUploadPath } = require('../utils/path_safety');
+                    const localPath = safeResolveUploadPath(imageUrl, { requireImageExtension: true });
+                    if (localPath && fs.existsSync(localPath)) {
                         fileSource = localPath; // Uploading local path works in gramjs
                     }
                 }

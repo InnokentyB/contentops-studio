@@ -5,6 +5,7 @@ import { POST_SYSTEM_PROMPT } from '../config/prompts';
 import multiAgentService from './multi_agent.service';
 import { estimateImageCostUsd, modelForRole } from './model_policy.service';
 import { channelContentLanguage, contentLanguageInstruction } from './content_language.service';
+import aiGateway from './ai_gateway.service';
 
 config();
 
@@ -28,31 +29,11 @@ function resolveGoogleImageModel(explicitModel?: string) {
 }
 
 class GeneratorService {
-    private openai!: OpenAI;
-    private genAI: any;
-
     private PROMPT_KEY_GPT_IMAGE = 'image_generation_prompt';
     private PROMPT_KEY_NANO = 'nano_banana_image_prompt';
 
     private DEFAULT_PROMPT_GPT_IMAGE = "Create a modern, flat vector illustration for a tech blog post about: ${topic}. \n\nStyle: Minimalist, clean lines, corporate colors (blue, grey, white). \nUse metaphors related to: ${text.substring(0, 500)} \nNo text in the image.";
     private DEFAULT_PROMPT_NANO = "Generate a photorealistic image for a post about ${topic}. Context: ${text.substring(0, 500)}. High quality, professional lighting.";
-
-    constructor() {
-        if (process.env.OPENAI_API_KEY) {
-            this.openai = new OpenAI({
-                apiKey: process.env.OPENAI_API_KEY,
-            });
-        }
-
-        if (process.env.GOOGLE_API_KEY) {
-            try {
-                const { GoogleGenerativeAI } = require('@google/generative-ai');
-                this.genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-            } catch (e) {
-                console.error('Failed to initialize Google AI', e);
-            }
-        }
-    }
 
     private async logImageInvocation(input: {
         projectId?: number;
@@ -226,21 +207,24 @@ Return the publication text only, without meta-commentary.`;
             .replace('${topic}', topic)
             .replace('${text.substring(0, 500)}', text.substring(0, 500));
 
-        const response = await this.openai.chat.completions.create({
-            model: modelForRole('precision_fixer'),
-            messages: [{ role: 'user', content: filledPrompt }], // Simplification: just use the template as the prompt
+        const apiKey = process.env.OPENAI_API_KEY?.trim() || '';
+        const model = modelForRole('precision_fixer');
+        const result = await aiGateway.complete({
+            model,
+            apiKey,
+            userPrompt: filledPrompt
         });
 
-        const generatedPrompt = response.choices[0].message.content || '';
-
-        return generatedPrompt;
+        return result.content || '';
     }
 
     async generateImage(prompt: string, projectId?: number): Promise<string> {
         const startedAt = Date.now();
         const model = (process.env.OPENAI_IMAGE_MODEL || DEFAULT_OPENAI_IMAGE_MODEL).trim();
+        const apiKey = process.env.OPENAI_API_KEY?.trim() || '';
+        const client = aiGateway.getOpenAIClient(apiKey);
         try {
-            const response: any = await this.openai.images.generate({
+            const response: any = await client.images.generate({
                 model,
                 prompt: prompt,
                 n: 1,

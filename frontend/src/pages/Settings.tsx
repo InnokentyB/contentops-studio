@@ -836,6 +836,19 @@ export default function Settings() {
                 )
                 return
             }
+            if (channel?.type === 'threads') {
+                const user = response?.result?.username ? `@${response.result.username}` : (response?.result?.id || '')
+                showToast(
+                    locale === 'ru' ? `Threads подключён успешно (${user})` : `Threads connected successfully (${user})`,
+                    'success'
+                )
+                setConnectionTestFeedback({
+                    channelId,
+                    type: 'success',
+                    message: locale === 'ru' ? `Подключение работает (${user}). Теперь можно сохранить настройки.` : `Connection works (${user}). You can now save these settings.`
+                })
+                return
+            }
             showToast(
                 locale === 'ru' ? 'Сессия Дзена активна, редактор доступен' : 'Zen session is active and the editor is available',
                 'success'
@@ -2474,6 +2487,24 @@ export default function Settings() {
                                                             placeholder="Access Token"
                                                             style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
                                                         />
+                                                    </div>
+                                                    <div style={{ gridColumn: '1 / -1' }}>
+                                                        <button
+                                                            type="button"
+                                                            className="btn-secondary w-full"
+                                                            disabled={testChannelConnection.isPending}
+                                                            onClick={() => testChannelConnection.mutate({ channelId: channel.id, config: editingChannelConfig })}
+                                                        >
+                                                            {testChannelConnection.isPending ? (locale === 'ru' ? 'Проверяем Threads…' : 'Checking Threads...') : (locale === 'ru' ? 'Проверить подключение Threads' : 'Test Threads connection')}
+                                                        </button>
+                                                        {connectionTestFeedback?.channelId === channel.id && (
+                                                            <div
+                                                                role="status"
+                                                                className={`mt-2 rounded-xl px-4 py-3 text-sm ${connectionTestFeedback.type === 'success' ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800'}`}
+                                                            >
+                                                                {connectionTestFeedback.message}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </>
                                             )}

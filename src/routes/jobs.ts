@@ -1,12 +1,13 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
-import plannerService from '../services/planner.service';
+import crypto from 'crypto';
 import publisherService from '../services/publisher.service';
 import telegramService from '../services/telegram.service';
 
 /**
  * Verifies internal job invocation authorization.
- * If INTERNAL_JOB_SECRET is configured in environment, requests must supply
- * a matching secret via 'x-job-secret' header or Bearer authorization token.
+ * Fails closed if INTERNAL_JOB_SECRET is not configured, unless explicitly bypassed
+ * in development via ALLOW_INSECURE_JOBS=true.
+ * Employs timingSafeEqual comparison to defend against timing side-channel attacks.
  *
  * @param request Fastify request object
  * @returns boolean indicating whether the job request is authorized
@@ -14,14 +15,33 @@ import telegramService from '../services/telegram.service';
 export function verifyJobAuthorization(request: FastifyRequest): boolean {
     const configuredSecret = process.env.INTERNAL_JOB_SECRET;
     if (!configuredSecret) {
-        return true;
+        if (process.env.NODE_ENV === 'development' && process.env.ALLOW_INSECURE_JOBS === 'true') {
+            return true;
+        }
+        return false;
     }
+
     const headerSecret = request.headers['x-job-secret'];
     const authHeader = request.headers.authorization;
     const bearerSecret = typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
         ? authHeader.slice(7)
         : null;
-    return headerSecret === configuredSecret || bearerSecret === configuredSecret;
+
+    const provided = (typeof headerSecret === 'string' ? headerSecret : null) || bearerSecret;
+    if (!provided) {
+        return false;
+    }
+
+    try {
+        const providedBuf = Buffer.from(provided);
+        const configuredBuf = Buffer.from(configuredSecret);
+        if (providedBuf.length !== configuredBuf.length) {
+            return false;
+        }
+        return crypto.timingSafeEqual(providedBuf, configuredBuf);
+    } catch {
+        return false;
+    }
 }
 
 /**
@@ -51,4 +71,3 @@ export default async function jobRoutes(fastify: FastifyInstance): Promise<void>
         return { success: true, published_count: count };
     });
 }
-

@@ -8,17 +8,17 @@ import generatorService from './generator.service';
 import multiAgentService from './multi_agent.service';
 import { modelForRole } from './model_policy.service';
 import { format } from 'date-fns';
+import aiGateway from './ai_gateway.service';
 
 config();
 
-
-function getOpenAIClient() {
-    const apiKey = process.env.OPENAI_API_KEY;
+function getOpenAIClient(): OpenAI {
+    const apiKey = process.env.OPENAI_API_KEY?.trim();
     if (!apiKey) {
         throw new Error('OPENAI_API_KEY is required only for agent-driven content flows');
     }
 
-    return new OpenAI({ apiKey });
+    return aiGateway.getOpenAIClient(apiKey);
 }
 
 class AgentService {

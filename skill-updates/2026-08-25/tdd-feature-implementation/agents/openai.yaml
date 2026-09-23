@@ -1,0 +1,4 @@
+interface:
+  display_name: "TDD Feature Implementation"
+  short_description: "Implement feature to pass TDD tests"
+  default_prompt: "Use $tdd-feature-implementation to implement the smallest production-code changes needed to make the existing TDD tests pass, then refactor safely."

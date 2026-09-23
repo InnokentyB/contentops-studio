@@ -1,29 +1,11 @@
-import OpenAI from 'openai';
 import { config } from 'dotenv';
 import { modelForRole } from './model_policy.service';
 import prisma from '../db';
+import aiGateway from './ai_gateway.service';
 
 config();
 
-
 export class FaeService {
-    private openai: OpenAI | null = null;
-
-    constructor() {
-        if (process.env.OPENAI_API_KEY) {
-            this.openai = new OpenAI({
-                apiKey: process.env.OPENAI_API_KEY
-            });
-        }
-    }
-
-    private getOpenAIClient(): OpenAI {
-        if (!this.openai) {
-            throw new Error('OPENAI_API_KEY is required for feedback adaptation flows');
-        }
-
-        return this.openai;
-    }
 
     /**
      * Collects manual feedback from the owner via CLI/UI 
@@ -56,16 +38,20 @@ export class FaeService {
 
 Предложи корректировки стратегии.`;
 
-        const responseStr = await this.getOpenAIClient().chat.completions.create({
+        const apiKey = process.env.OPENAI_API_KEY?.trim() || '';
+        if (!apiKey) {
+            throw new Error('OPENAI_API_KEY is required for feedback adaptation flows');
+        }
+
+        const result = await aiGateway.complete({
             model: modelForRole('post_critic'),
-            messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: userPrompt }
-            ],
-            response_format: { type: "json_object" }
+            apiKey,
+            systemPrompt,
+            userPrompt,
+            json: true
         });
 
-        const parsed = JSON.parse(responseStr.choices[0]?.message.content || '{}');
+        const parsed = JSON.parse(result.content || '{}');
 
         const feedback = await prisma.feedbackPackage.create({
             data: {

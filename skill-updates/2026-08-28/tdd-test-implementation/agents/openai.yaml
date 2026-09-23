@@ -1,0 +1,4 @@
+interface:
+  display_name: "TDD Test Implementation"
+  short_description: "Bootstrap and write TDD tests"
+  default_prompt: "Use $tdd-test-implementation to prepare the project test infrastructure if needed and create the failing tests that should be written before implementing the feature."
