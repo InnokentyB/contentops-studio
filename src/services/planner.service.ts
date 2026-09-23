@@ -1,15 +1,12 @@
-import { PrismaClient, Post } from '@prisma/client';
-import { Pool } from 'pg';
-import { PrismaPg } from '@prisma/adapter-pg';
+import { Post } from '@prisma/client';
 import { addDays, nextMonday, nextSunday, format, startOfWeek, endOfWeek } from 'date-fns';
 import { config } from 'dotenv';
+import prisma from '../db';
 
 config();
 
-const connectionString = process.env.DATABASE_URL;
-const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
-export const prisma = new PrismaClient({ adapter });
+export { prisma };
+
 
 class PlannerService {
     async getCurrentWeekRange() {

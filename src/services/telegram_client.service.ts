@@ -3,10 +3,9 @@ import { StringSession } from "telegram/sessions";
 import { Api } from "telegram/tl";
 import { CustomFile } from "telegram/client/uploads";
 import { MarkdownParser } from "telegram/extensions/markdown";
-import { PrismaClient } from "@prisma/client";
-import { Pool } from 'pg';
-import { PrismaPg } from '@prisma/adapter-pg';
+import prisma from "../db";
 import { config } from 'dotenv';
+
 import * as fs from 'fs';
 import * as path from 'path';
 import * as net from 'net';
@@ -62,10 +61,6 @@ export async function loadTelegramRemoteImage(rawUrl: string, fetchImpl: typeof 
     return new CustomFile(`approved-visual.${extension}`, buffer.length, '', buffer);
 }
 
-const connectionString = process.env.DATABASE_URL;
-const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
 
 export class TelegramClientService {
     private client: TelegramClient | null = null;

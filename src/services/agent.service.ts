@@ -3,9 +3,7 @@ import { config } from 'dotenv';
 import { AGENT_SYSTEM_PROMPT } from '../config/prompts';
 import plannerService from './planner.service';
 import publisherService from './publisher.service';
-import { PrismaClient } from '@prisma/client';
-import { Pool } from 'pg';
-import { PrismaPg } from '@prisma/adapter-pg';
+import prisma from '../db';
 import generatorService from './generator.service';
 import multiAgentService from './multi_agent.service';
 import { modelForRole } from './model_policy.service';
@@ -13,10 +11,6 @@ import { format } from 'date-fns';
 
 config();
 
-const connectionString = process.env.DATABASE_URL;
-const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
 
 function getOpenAIClient() {
     const apiKey = process.env.OPENAI_API_KEY;

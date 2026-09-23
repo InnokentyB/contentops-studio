@@ -1,8 +1,7 @@
 import { Worker, Job } from 'bullmq';
 import { connection } from '../index';
-import { PrismaClient } from '@prisma/client';
-import { Pool } from 'pg';
-import { PrismaPg } from '@prisma/adapter-pg';
+import prisma from '../../db';
+
 import generatorService from '../../services/generator.service';
 import multiAgentService from '../../services/multi_agent.service';
 import { ImageExecutionMode, resolveImageExecutionPlan } from '../../services/model_policy.service';
@@ -14,10 +13,7 @@ function normalizeImageMode(provider?: string): ImageExecutionMode | 'openai-dir
     return 'preview';
 }
 
-const connectionString = process.env.DATABASE_URL;
-const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
+
 
 export const createImageWorker = () => {
     return new Worker('imageQueue', async (job: Job) => {

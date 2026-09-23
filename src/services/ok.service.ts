@@ -52,12 +52,12 @@ class OKService {
         }
 
         if (imageUrl.startsWith('/uploads/')) {
-            const filename = imageUrl.split('/').pop();
-            const localPath = path.join(__dirname, '../../uploads', filename || '');
-            if (fs.existsSync(localPath)) {
+            const { safeResolveUploadPath } = require('../utils/path_safety');
+            const localPath = safeResolveUploadPath(imageUrl);
+            if (localPath && fs.existsSync(localPath)) {
                 return fs.readFileSync(localPath);
             }
-            throw new Error(`Local image file not found: ${localPath}`);
+            throw new Error(`Local image file access denied or not found: ${imageUrl}`);
         }
 
         if (imageUrl.startsWith('http')) {

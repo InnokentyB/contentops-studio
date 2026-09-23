@@ -1,15 +1,9 @@
 import { Worker, Job } from 'bullmq';
 import { connection } from '../index';
-import { PrismaClient } from '@prisma/client';
-import { Pool } from 'pg';
-import { PrismaPg } from '@prisma/adapter-pg';
+import prisma from '../../db';
 import plannerService from '../../services/planner.service';
 import generatorService from '../../services/generator.service';
 
-const connectionString = process.env.DATABASE_URL;
-const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
 
 export const createTopicWorker = () => {
     return new Worker('topicsQueue', async (job: Job) => {

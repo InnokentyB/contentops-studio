@@ -1,9 +1,7 @@
 import { Telegraf, Context, Markup } from 'telegraf';
-import { Pool } from 'pg';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '@prisma/client';
 import { format } from 'date-fns';
 import { config } from 'dotenv';
+import prisma from '../db';
 import plannerService from './planner.service';
 import generatorService from './generator.service';
 import publisherService from './publisher.service';
@@ -12,10 +10,7 @@ import { cleanAndFormatHashtags } from '../utils/channel.utils';
 
 config();
 
-const connectionString = process.env.DATABASE_URL;
-const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
+
 
 class TelegramService {
     public bot: Telegraf;

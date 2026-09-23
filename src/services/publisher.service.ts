@@ -1,6 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-import { Pool } from 'pg';
-import { PrismaPg } from '@prisma/adapter-pg';
+import prisma, { pool } from '../db';
 import telegramService from './telegram.service';
 import vkService from './vk.service';
 import storageService from './storage.service';
@@ -34,11 +32,6 @@ import { createHash } from 'crypto';
 import { resolveVkStoryPollFromTask, type VkStoryPoll } from './vk_story_poll';
 
 config();
-
-const connectionString = process.env.DATABASE_URL;
-const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
 
 // --- Simple File Logger ---
 const LOGS_DIR = path.join(__dirname, '../../logs');

@@ -1,14 +1,8 @@
 import { FastifyInstance } from 'fastify';
 import linkedinService from '../services/linkedin.service';
 import authService from '../services/auth.service';
-import { PrismaClient } from '@prisma/client';
-import { Pool } from 'pg';
-import { PrismaPg } from '@prisma/adapter-pg';
+import prisma from '../db';
 
-const connectionString = process.env.DATABASE_URL;
-const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
 
 export default async function linkedinRoutes(fastify: FastifyInstance) {
     

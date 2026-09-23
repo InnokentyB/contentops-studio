@@ -1,8 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import authService from '../services/auth.service';
-import { PrismaClient } from '@prisma/client';
-import { Pool } from 'pg';
-import { PrismaPg } from '@prisma/adapter-pg';
+import prisma from '../db';
 import yaml from 'js-yaml';
 import multiAgentService from '../services/multi_agent.service';
 import contentDictionaryService from '../services/content_dictionary.service';
@@ -25,8 +23,7 @@ import vkOAuthService from '../services/vk_oauth.service';
 import initiativeService from '../services/initiative.service';
 import workQueueService from '../services/work_queue.service';
 import mcpAccessTokenService, { ActiveMcpWorkspaceBundleError, isManagedMcpProfile } from '../services/mcp_access_token.service';
-
-import { prisma } from '../services/planner.service';
+import { safeEncryptProviderKey } from '../utils/channel_secrets';
 
 const agentSettingKeyMap: Record<string, { prompt: string; key: string; model: string }> = {
     post_creator: {
@@ -495,7 +492,7 @@ export default async function projectRoutes(fastify: FastifyInstance) {
                         data: {
                             project_id: createdProject.id,
                             name: providerKey.name,
-                            key: providerKey.key,
+                            key: safeEncryptProviderKey(providerKey.key),
                             provider: providerKey.provider
                         }
                     });

@@ -29,6 +29,9 @@ async function withMockedTelegramProvider(
     const originalSendMessage = telegramService.sendMessage;
     const originalSendPhoto = telegramService.sendPhoto;
     const originalInspectSession = telegramClientService.inspectSessionTarget;
+    const originalLocalTestChannel = process.env.LOCAL_TEST_CHANNEL;
+
+    delete process.env.LOCAL_TEST_CHANNEL;
 
     publisherService.resolveTelegramDeliveryConfig = async () => ({
         rawChannelId: '-1001234567890',
@@ -69,6 +72,11 @@ async function withMockedTelegramProvider(
         telegramService.sendMessage = originalSendMessage;
         telegramService.sendPhoto = originalSendPhoto;
         telegramClientService.inspectSessionTarget = originalInspectSession;
+        if (originalLocalTestChannel === undefined) {
+            delete process.env.LOCAL_TEST_CHANNEL;
+        } else {
+            process.env.LOCAL_TEST_CHANNEL = originalLocalTestChannel;
+        }
     }
 }
 

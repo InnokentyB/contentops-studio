@@ -1,15 +1,9 @@
 import { Worker, Job } from 'bullmq';
 import { connection } from '../index';
-import { PrismaClient } from '@prisma/client';
-import { Pool } from 'pg';
-import { PrismaPg } from '@prisma/adapter-pg';
+import prisma from '../../db';
 import generatorService from '../../services/generator.service';
 import plannerService from '../../services/planner.service';
 
-const connectionString = process.env.DATABASE_URL;
-const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
 
 export const createPostWorker = () => {
     return new Worker('postsQueue', async (job: Job) => {
@@ -38,8 +32,9 @@ export const createPostWorker = () => {
 
             let fullText = result.text;
             if (result.tags && result.tags.length > 0) {
-                fullText += '\n\n' + result.tags.map(t => `#${t.replace(/\s+/g, '').replace(/^#+/, '')}`).join(' ');
+                fullText += '\n\n' + result.tags.map((t: string) => `#${t.replace(/\s+/g, '').replace(/^#+/, '')}`).join(' ');
             } else if (post.category) { 
+
                 fullText += `\n\n#${post.category.replace(/\s+/g, '')}`;
             }
 
