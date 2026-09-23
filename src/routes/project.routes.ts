@@ -1107,6 +1107,7 @@ export default async function projectRoutes(fastify: FastifyInstance) {
         const { id, channelId } = request.params as { id: string; channelId: string };
         const projectId = parseInt(id, 10);
         const parsedChannelId = parseInt(channelId, 10);
+        const requestedConfig = (request.body as { config?: Record<string, unknown> } | undefined)?.config;
         const hasAccess = await authService.hasProjectAccess(user.id, projectId, 'owner');
         if (!hasAccess) return reply.code(403).send({ error: 'No access' });
 
@@ -1169,9 +1170,18 @@ export default async function projectRoutes(fastify: FastifyInstance) {
                     }
                 };
             }
-            const result = await dzenService.testConnection(
-                resolveChannelConfigSecrets(channel.type, channel.config)
-            );
+            const savedConfig = resolveEffectiveChannelConfig(channel.type, channel.config);
+            const unsavedConfig = requestedConfig && typeof requestedConfig === 'object'
+                ? requestedConfig
+                : {};
+            const cookies = typeof unsavedConfig.cookies === 'string' && unsavedConfig.cookies.trim() !== '' && unsavedConfig.cookies !== '******'
+                ? unsavedConfig.cookies.trim()
+                : savedConfig.cookies;
+            const result = await dzenService.testConnection({
+                ...savedConfig,
+                ...unsavedConfig,
+                cookies
+            });
             return { success: true, result };
         } catch (error: any) {
             return reply.code(400).send({

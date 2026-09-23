@@ -6,9 +6,27 @@ import vcService from '../services/vc.service';
 import dzenService, { isDzenPublishedUrl } from '../services/dzen.service';
 import {
     classifyDzenStudioLocation,
+    parseBrowserCookieHeader,
     DZEN_EDITOR_SELECTORS,
     typeDzenContentEditableText
 } from '../services/puppeteer_publisher.service';
+
+test('Dzen cookie parser accepts a copied Cookie request header', () => {
+    assert.deepEqual(
+        parseBrowserCookieHeader('Cookie: Session_id=abc123; yandexuid=xyz', '.yandex.ru'),
+        [
+            { name: 'Session_id', value: 'abc123', domain: '.yandex.ru', path: '/', secure: true },
+            { name: 'yandexuid', value: 'xyz', domain: '.yandex.ru', path: '/', secure: true }
+        ]
+    );
+});
+
+test('Dzen cookie parser reports malformed copied fields before CDP', () => {
+    assert.throws(
+        () => parseBrowserCookieHeader('Cookie: valid=one; bad name=two', 'dzen.ru'),
+        /Invalid cookie name "bad name"/
+    );
+});
 import puppeteerPublisherService from '../services/puppeteer_publisher.service';
 import publicationAdapterService from '../services/publication_adapter.service';
 

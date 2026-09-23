@@ -565,6 +565,7 @@ export default function Settings() {
     const [editingChannelId, setEditingChannelId] = useState<number | null>(null)
     const [editingChannelName, setEditingChannelName] = useState('')
     const [editingChannelConfig, setEditingChannelConfig] = useState<ApiJson>({})
+    const [connectionTestFeedback, setConnectionTestFeedback] = useState<{ channelId: number; type: 'success' | 'error'; message: string } | null>(null)
     const [newChannelType, setNewChannelType] = useState<'telegram' | 'vk' | 'linkedin' | 'ok' | 'habr' | 'vc' | 'zen' | 'threads' | 'medium'>('telegram')
     const [newChannelName, setNewChannelName] = useState('')
     const [newChannelId, setNewChannelId] = useState('')
@@ -816,8 +817,9 @@ export default function Settings() {
     })
 
     const testChannelConnection = useMutation({
-        mutationFn: (channelId: number) => projectsApi.testChannelConnection(currentProject!.id, channelId),
-        onSuccess: (response: ApiJson, channelId) => {
+        mutationFn: ({ channelId, config }: { channelId: number; config?: ApiJson }) => projectsApi.testChannelConnection(currentProject!.id, channelId, config),
+        onMutate: () => setConnectionTestFeedback(null),
+        onSuccess: (response: ApiJson, { channelId }) => {
             const channel = (projectData as ApiJson)?.channels?.find((item: ApiJson) => item.id === channelId)
             if (channel?.type === 'vk') {
                 const capabilities = response?.result?.capabilities || response?.capabilities || {}
@@ -838,8 +840,17 @@ export default function Settings() {
                 locale === 'ru' ? 'Сессия Дзена активна, редактор доступен' : 'Zen session is active and the editor is available',
                 'success'
             )
+            setConnectionTestFeedback({
+                channelId,
+                type: 'success',
+                message: locale === 'ru' ? 'Подключение работает. Теперь можно сохранить эту сессию.' : 'Connection works. You can now save this session.'
+            })
         },
-        onError: (err: ApiJson) => showToast(locale === 'ru' ? 'Проверка подключения не прошла' : 'Connection check failed', 'error', err.message)
+        onError: (err: ApiJson, { channelId }) => {
+            const message = err.message || (locale === 'ru' ? 'Не удалось проверить подключение' : 'Unable to test the connection')
+            setConnectionTestFeedback({ channelId, type: 'error', message })
+            showToast(locale === 'ru' ? 'Проверка подключения не прошла' : 'Connection check failed', 'error', message)
+        }
     })
 
     const connectVk = useMutation({
@@ -1172,6 +1183,7 @@ export default function Settings() {
     }
 
     const handleStartEditChannel = (channel: ApiJson) => {
+        setConnectionTestFeedback(null);
         setEditingChannelId(channel.id);
         setEditingChannelName(channel.name);
         setEditingChannelConfig(channel.config ? JSON.parse(JSON.stringify(channel.config)) : {});
@@ -2156,7 +2168,7 @@ export default function Settings() {
                                                                             : (locale === 'ru' ? 'Подключить VK ID' : 'Connect VK ID')}
                                                                 </button>
                                                                 {(editingChannelConfig.oauth_user_id || editingChannelConfig.publish_access_token === '******' || editingChannelConfig.user_access_token === '******') && (
-                                                                    <button type="button" className="btn-secondary" onClick={() => testChannelConnection.mutate(channel.id)} disabled={testChannelConnection.isPending}>
+                                                                    <button type="button" className="btn-secondary" onClick={() => testChannelConnection.mutate({ channelId: channel.id })} disabled={testChannelConnection.isPending}>
                                                                         {locale === 'ru' ? 'Проверить доступ' : 'Test access'}
                                                                     </button>
                                                                 )}
@@ -2412,7 +2424,7 @@ export default function Settings() {
                                                             style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
                                                         />
                                                         <div className="text-xs text-on-surface-variant mt-1">
-                                                            {locale === 'ru' ? 'Сначала сохраните изменения, затем запустите проверку подключения.' : 'Save changes first, then test the connection.'}
+                                                            {locale === 'ru' ? 'Можно проверить введённую сессию до сохранения. Значение отправляется только на проверку и не записывается.' : 'You can test the entered session before saving. It is sent only for this check and is not stored.'}
                                                         </div>
                                                     </div>
                                                     <DzenConnectionGuide
@@ -2425,10 +2437,18 @@ export default function Settings() {
                                                             type="button"
                                                             className="btn-secondary w-full"
                                                             disabled={testChannelConnection.isPending}
-                                                            onClick={() => testChannelConnection.mutate(channel.id)}
+                                                            onClick={() => testChannelConnection.mutate({ channelId: channel.id, config: editingChannelConfig })}
                                                         >
-                                                            {testChannelConnection.isPending ? (locale === 'ru' ? 'Проверяем Дзен…' : 'Checking Zen...') : (locale === 'ru' ? 'Проверить подключение к Дзену' : 'Test Zen connection')}
+                                                            {testChannelConnection.isPending ? (locale === 'ru' ? 'Проверяем Дзен…' : 'Checking Zen...') : (locale === 'ru' ? 'Проверить без сохранения' : 'Test without saving')}
                                                         </button>
+                                                        {connectionTestFeedback?.channelId === channel.id && (
+                                                            <div
+                                                                role="status"
+                                                                className={`mt-2 rounded-xl px-4 py-3 text-sm ${connectionTestFeedback.type === 'success' ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800'}`}
+                                                            >
+                                                                {connectionTestFeedback.message}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </>
                                             )}

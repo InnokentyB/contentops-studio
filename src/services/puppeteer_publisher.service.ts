@@ -132,6 +132,43 @@ export const DZEN_EDITOR_SELECTORS = {
     publicationConfirm: '[data-testid="publish-btn"]'
 } as const;
 
+type BrowserCookie = {
+    name: string;
+    value: string;
+    domain?: string;
+    url?: string;
+    path: string;
+    secure: boolean;
+};
+
+export function parseBrowserCookieHeader(cookieStr: string, domain: string): BrowserCookie[] {
+    const normalized = cookieStr.trim().replace(/^cookie\s*:\s*/i, '');
+    const cookieNamePattern = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
+    const cookieAttributeNames = new Set(['domain', 'expires', 'httponly', 'max-age', 'path', 'samesite', 'secure']);
+    const cookies: BrowserCookie[] = [];
+
+    for (const item of normalized.split(';').map((part) => part.trim()).filter(Boolean)) {
+        const index = item.indexOf('=');
+        if (index === -1) continue;
+        const name = item.substring(0, index).trim();
+        const value = item.substring(index + 1).trim();
+        if (cookieAttributeNames.has(name.toLowerCase())) continue;
+        if (!cookieNamePattern.test(name)) {
+            throw new Error(`Invalid cookie name "${name}". Copy only the Cookie request-header value from DevTools.`);
+        }
+        if (!value || /[\u0000-\u001F\u007F]/.test(value)) {
+            throw new Error(`Invalid value for cookie "${name}". Copy the Cookie request-header value again.`);
+        }
+        if (name.startsWith('__Host-')) {
+            cookies.push({ name, value, url: `https://${domain.replace(/^\./, '')}/`, path: '/', secure: true });
+        } else {
+            cookies.push({ name, value, domain, path: '/', secure: true });
+        }
+    }
+
+    return cookies;
+}
+
 export async function typeDzenContentEditableText(element: any, text: string): Promise<void> {
     await element.focus();
     await element.type(text, { delay: 1 });
@@ -227,24 +264,7 @@ class PuppeteerPublisherService {
      * Parse raw browser Cookie header string into Puppeteer-compliant cookies.
      */
     private parseCookieString(cookieStr: string, domain: string): any[] {
-        return cookieStr
-            .split(';')
-            .map((item) => {
-                const trimmed = item.trim();
-                const index = trimmed.indexOf('=');
-                if (index === -1) return null;
-                const name = trimmed.substring(0, index);
-                const value = trimmed.substring(index + 1);
-                return {
-                    name,
-                    value,
-                    domain,
-                    path: '/'
-                };
-            })
-            .filter((c): c is { name: string; value: string; domain: string; path: string } => 
-                c !== null && c.name !== '' && c.value !== ''
-            );
+        return parseBrowserCookieHeader(cookieStr, domain);
     }
 
     /**
