@@ -238,3 +238,21 @@ test('fifth confirmed absence authorizes only the exact resume5 publication key'
     assert.equal(h.providerCalls, 0);
     assert.equal(h.factCalls, 0);
 });
+
+test('sixth confirmed absence authorizes only the exact resume6 publication key', async () => {
+    const sixthAttempt = 'publish-task-958-rev1-resume5-20260923-001';
+    const h = harness({ status: 'publishing', delivery: {
+        state: 'provider_result_uncertain', idempotency_key: sixthAttempt
+    } });
+    await h.service.reconcileAbsent({ projectId: 10, taskId: 958, channelId: 116,
+        actorId: 'user:2', expectedBodySha256: hash, previousIdempotencyKey: sixthAttempt,
+        reason: 'provider_absence_confirmed_pre_send', idempotencyKey: 'reconcile958-sixth' });
+    const result = await h.service.resumeAfterAbsence({ projectId: 10, taskId: 958, channelId: 116,
+        actorId: 'user:2', expectedBodySha256: hash, previousIdempotencyKey: sixthAttempt,
+        nextPublicationIdempotencyKey: 'publish-task-958-rev1-resume6-20260923-001',
+        approvalReference: 'owner-approved-sixth-resume-after-confirmed-absence',
+        idempotencyKey: 'resume958-sixth' });
+    assert.equal(result.next_publication_idempotency_key, 'publish-task-958-rev1-resume6-20260923-001');
+    assert.equal(h.providerCalls, 0);
+    assert.equal(h.factCalls, 0);
+});

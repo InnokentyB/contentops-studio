@@ -257,11 +257,30 @@ test('Dzen adaptive post-body finder supports current textarea modal and legacy 
                     <div contenteditable="true" data-testid="portal-inner"></div>
                 </div>
             </main>
-            <footer><button>Опубликовать</button></footer>
+            <footer><button>Publish</button></footer>
         `);
         const portalSplit = await findDzenPostBody(page);
         assert.equal(await portalSplit.evaluate((element) => element.getAttribute('data-testid')), 'portal-inner');
         await portalSplit.dispose();
+
+        await page.setRequestInterception(true);
+        page.once('request', (request) => request.respond({
+            status: 200,
+            contentType: 'text/html',
+            body: `
+            <main>
+                <div contenteditable="true" data-testid="route-outer">
+                    <div contenteditable="true" data-testid="route-inner"></div>
+                </div>
+            </main>
+            <footer><button>Publish</button></footer>
+            `
+        }));
+        await page.goto('https://dzen.ru/profile/editor/id/test-channel/publications', { waitUntil: 'domcontentloaded' });
+        await page.setRequestInterception(false);
+        const routeBound = await findDzenPostBody(page);
+        assert.equal(await routeBound.evaluate((element) => element.getAttribute('data-testid')), 'route-inner');
+        await routeBound.dispose();
     } finally {
         await browser.close();
     }

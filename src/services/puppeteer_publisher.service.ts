@@ -191,7 +191,8 @@ export async function findDzenPostBody(page: Page): Promise<ElementHandle<Elemen
                 modal = modal.parentElement;
             }
             const bodyText = document.body?.innerText || '';
-            const globalComposer = /что нового\??/i.test(bodyText)
+            const composerRoute = /^\/profile\/editor\/id\/[^/]+\/publications\/?$/.test(location.pathname);
+            const globalComposer = (/что нового\??/i.test(bodyText) || composerRoute)
                 && Array.from(document.querySelectorAll('button, [role="button"], input[type="submit"]'))
                     .some((node) => /опубликовать|publish|ид[её]т сохранение/i.test(
                         node.textContent || (node as HTMLInputElement).value || ''
