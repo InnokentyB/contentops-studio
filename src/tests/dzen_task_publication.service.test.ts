@@ -155,11 +155,32 @@ test('owner resume authorizes one new explicit idempotency without publishing', 
     const result = await h.service.resumeAfterAbsence({ projectId: 10, taskId: 958, channelId: 116,
         actorId: 'user:2', expectedBodySha256: hash,
         previousIdempotencyKey: 'publish-task-958-rev1-20260923',
-        nextPublicationIdempotencyKey: 'publish-task-958-rev1-resumed-001',
+        nextPublicationIdempotencyKey: 'publish-task-958-rev1-resume-20260923-001',
         approvalReference: 'owner-approved-resume-after-confirmed-absence', idempotencyKey: 'resume958' });
     assert.equal(result.status, 'ready_for_execution');
     assert.equal(result.explicit_send_required, true);
     assert.equal(h.task.status, 'ready_for_execution');
     assert.equal(h.providerCalls, 0);
     assert.equal(h.factCalls, 0);
+});
+
+test('second confirmed absence authorizes only the exact resume2 publication key', async () => {
+    const secondAttempt = 'publish-task-958-rev1-resume-20260923-001';
+    const h = harness({ status: 'publishing', delivery: {
+        state: 'provider_result_uncertain', idempotency_key: secondAttempt
+    } });
+    await h.service.reconcileAbsent({ projectId: 10, taskId: 958, channelId: 116,
+        actorId: 'user:2', expectedBodySha256: hash, previousIdempotencyKey: secondAttempt,
+        reason: 'provider_absence_confirmed_pre_send', idempotencyKey: 'reconcile958-second' });
+    const result = await h.service.resumeAfterAbsence({ projectId: 10, taskId: 958, channelId: 116,
+        actorId: 'user:2', expectedBodySha256: hash, previousIdempotencyKey: secondAttempt,
+        nextPublicationIdempotencyKey: 'publish-task-958-rev1-resume2-20260923-001',
+        approvalReference: 'owner-approved-second-resume-after-confirmed-absence',
+        idempotencyKey: 'resume958-second' });
+    assert.equal(result.next_publication_idempotency_key, 'publish-task-958-rev1-resume2-20260923-001');
+    assert.equal(h.providerCalls, 0);
+    await assert.rejects(h.service.resumeAfterAbsence({ projectId: 10, taskId: 958, channelId: 116,
+        actorId: 'user:2', expectedBodySha256: hash, previousIdempotencyKey: secondAttempt,
+        nextPublicationIdempotencyKey: 'some-other-key', approvalReference: 'owner-approved-but-wrong-key',
+        idempotencyKey: 'resume958-wrong' }), /RESUME_SCOPE_MISMATCH/);
 });

@@ -8,7 +8,14 @@ const BODY_SHA256 = '78081837cecace18c91c01af0253b21ca502e611b63a016f9d903556758
 const COMMAND = 'ba_publish_dzen_task958';
 const CLAIM_COMMAND = `${COMMAND}_claim`;
 const ACTOR = 'system:planner-mcp:dzen-task958';
-const PREVIOUS_IDEMPOTENCY_KEY = 'publish-task-958-rev1-20260923';
+const CONFIRMED_ABSENT_IDEMPOTENCY_KEYS = new Set([
+    'publish-task-958-rev1-20260923',
+    'publish-task-958-rev1-resume-20260923-001'
+]);
+const NEXT_IDEMPOTENCY_BY_PREVIOUS = new Map([
+    ['publish-task-958-rev1-20260923', 'publish-task-958-rev1-resume-20260923-001'],
+    ['publish-task-958-rev1-resume-20260923-001', 'publish-task-958-rev1-resume2-20260923-001']
+]);
 const RECONCILE_COMMAND = 'ba_reconcile_dzen_task958_absent';
 const RESUME_COMMAND = 'ba_resume_dzen_task958_after_absence';
 
@@ -40,7 +47,7 @@ export class DzenTaskPublicationService {
         reason: string; idempotencyKey: string }) {
         if (args.projectId !== 10 || args.taskId !== 958 || args.channelId !== 116
             || args.expectedBodySha256 !== BODY_SHA256
-            || args.previousIdempotencyKey !== PREVIOUS_IDEMPOTENCY_KEY
+            || !CONFIRMED_ABSENT_IDEMPOTENCY_KEYS.has(args.previousIdempotencyKey)
             || args.reason !== 'provider_absence_confirmed_pre_send') {
             throw new Error('[DZEN_958_RECONCILIATION_SCOPE_MISMATCH]');
         }
@@ -61,7 +68,7 @@ export class DzenTaskPublicationService {
             if (!task || task.channel_id !== 116 || task.content_revision !== 1 || task.accepted_revision !== 1
                 || bodyHash !== BODY_SHA256 || task.status !== 'publishing' || task.published_link
                 || task.publication_fact || delivery?.state !== 'provider_result_uncertain'
-                || delivery?.idempotency_key !== PREVIOUS_IDEMPOTENCY_KEY) {
+                || delivery?.idempotency_key !== args.previousIdempotencyKey) {
                 throw new Error('[DZEN_958_RECONCILIATION_GUARD_FAILED]');
             }
             const reconciledAt = new Date().toISOString();
@@ -75,12 +82,12 @@ export class DzenTaskPublicationService {
             }, data: { status: 'blocked', quality_report: qualityReport } });
             if (changed.count !== 1) throw new Error('[DZEN_958_RECONCILIATION_CAS_CONFLICT]');
             const result = { task_id: 958, channel_id: 116, status: 'blocked',
-                body_sha256: bodyHash, previous_idempotency_key: PREVIOUS_IDEMPOTENCY_KEY,
+                body_sha256: bodyHash, previous_idempotency_key: args.previousIdempotencyKey,
                 reason: args.reason, reconciled_at: reconciledAt, published: false };
             await tx.workflowEvent.create({ data: { project_id: 10, content_item_id: 958,
                 actor_id: args.actorId, command: RECONCILE_COMMAND, idempotency_key: args.idempotencyKey,
                 before_state: { status: 'publishing', delivery_state: delivery.state,
-                    previous_idempotency_key: PREVIOUS_IDEMPOTENCY_KEY }, after_state: result } });
+                    previous_idempotency_key: args.previousIdempotencyKey }, after_state: result } });
             return result;
         });
     }
@@ -90,9 +97,9 @@ export class DzenTaskPublicationService {
         nextPublicationIdempotencyKey: string; approvalReference: string; idempotencyKey: string }) {
         if (args.projectId !== 10 || args.taskId !== 958 || args.channelId !== 116
             || args.expectedBodySha256 !== BODY_SHA256
-            || args.previousIdempotencyKey !== PREVIOUS_IDEMPOTENCY_KEY
+            || !CONFIRMED_ABSENT_IDEMPOTENCY_KEYS.has(args.previousIdempotencyKey)
             || !args.nextPublicationIdempotencyKey.trim()
-            || args.nextPublicationIdempotencyKey === PREVIOUS_IDEMPOTENCY_KEY) {
+            || args.nextPublicationIdempotencyKey !== NEXT_IDEMPOTENCY_BY_PREVIOUS.get(args.previousIdempotencyKey)) {
             throw new Error('[DZEN_958_RESUME_SCOPE_MISMATCH]');
         }
         const db = this.dependencies.db;
@@ -112,7 +119,7 @@ export class DzenTaskPublicationService {
             if (!task || task.channel_id !== 116 || task.content_revision !== 1 || task.accepted_revision !== 1
                 || bodyHash !== BODY_SHA256 || task.status !== 'blocked' || task.published_link
                 || task.publication_fact || delivery?.state !== 'reconciled_absent'
-                || delivery?.idempotency_key !== PREVIOUS_IDEMPOTENCY_KEY
+                || delivery?.idempotency_key !== args.previousIdempotencyKey
                 || delivery?.reason !== 'provider_absence_confirmed_pre_send') {
                 throw new Error('[DZEN_958_RESUME_GUARD_FAILED]');
             }
@@ -128,13 +135,13 @@ export class DzenTaskPublicationService {
             }, data: { status: 'ready_for_execution', quality_report: qualityReport } });
             if (changed.count !== 1) throw new Error('[DZEN_958_RESUME_CAS_CONFLICT]');
             const result = { task_id: 958, channel_id: 116, status: 'ready_for_execution',
-                body_sha256: bodyHash, previous_idempotency_key: PREVIOUS_IDEMPOTENCY_KEY,
+                body_sha256: bodyHash, previous_idempotency_key: args.previousIdempotencyKey,
                 next_publication_idempotency_key: args.nextPublicationIdempotencyKey,
                 explicit_send_required: true, published: false, resumed_at: resumedAt };
             await tx.workflowEvent.create({ data: { project_id: 10, content_item_id: 958,
                 actor_id: args.actorId, command: RESUME_COMMAND, idempotency_key: args.idempotencyKey,
                 before_state: { status: 'blocked', delivery_state: delivery.state,
-                    previous_idempotency_key: PREVIOUS_IDEMPOTENCY_KEY }, after_state: result } });
+                    previous_idempotency_key: args.previousIdempotencyKey }, after_state: result } });
             return result;
         });
     }

@@ -1,5 +1,6 @@
 import test, { TestContext } from 'node:test';
 import assert from 'node:assert/strict';
+import puppeteer from 'puppeteer';
 import okService from '../services/ok.service';
 import habrService from '../services/habr.service';
 import vcService from '../services/vc.service';
@@ -8,6 +9,7 @@ import {
     classifyDzenStudioLocation,
     parseBrowserCookieHeader,
     DZEN_EDITOR_SELECTORS,
+    findDzenPostBody,
     typeDzenContentEditableText
 } from '../services/puppeteer_publisher.service';
 
@@ -194,27 +196,35 @@ test('Dzen editor automation uses the current studio entrypoint and semantic Dra
     assert.equal(DZEN_EDITOR_SELECTORS.publicationConfirm, '[data-testid="publish-btn"]');
 });
 
-test('Dzen short-post composer accepts the current direct modal without waiting for a URL change', async () => {
-    const waits: string[] = [];
-    const page: any = {
-        goto: async () => undefined,
-        url: () => 'https://dzen.ru/profile/editor/id/channel-1/publications',
-        evaluate: async () => '',
-        click: async () => undefined,
-        waitForSelector: async (selector: string) => {
-            waits.push(selector);
-            if (selector === DZEN_EDITOR_SELECTORS.addPublication) return {};
-            if (selector === DZEN_EDITOR_SELECTORS.postBody) return {};
-            throw new Error(`unexpected selector ${selector}`);
-        }
-    };
+test('Dzen adaptive post-body finder supports current textarea modal and legacy editable DOM', async () => {
+    const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
+    const page = await browser.newPage();
+    try {
+        await page.setContent(`
+            <div class="composer-overlay" style="position:fixed;inset:0">
+                <h2>Что нового?</h2>
+                <textarea placeholder="Расскажите читателям"></textarea>
+                <button>Опубликовать</button>
+            </div>
+            <textarea placeholder="Поиск" style="width:100px;height:20px"></textarea>
+        `);
+        const current = await findDzenPostBody(page);
+        assert.equal(await current.evaluate((element) => element.tagName.toLowerCase()), 'textarea');
+        await current.dispose();
 
-    await (puppeteerPublisherService as any).openDzenComposer(
-        page,
-        { channel_id: 'channel-1' },
-        'post'
-    );
-    assert.deepEqual(waits, [DZEN_EDITOR_SELECTORS.addPublication, DZEN_EDITOR_SELECTORS.postBody]);
+        await page.setContent(`
+            <div role="dialog" aria-modal="true" style="width:600px;height:400px">
+                <h2>Что нового?</h2>
+                <div contenteditable="true" role="textbox" style="width:500px;height:200px"></div>
+                <button>Опубликовать</button>
+            </div>
+        `);
+        const legacy = await findDzenPostBody(page);
+        assert.equal(await legacy.evaluate((element) => element.getAttribute('role')), 'textbox');
+        await legacy.dispose();
+    } finally {
+        await browser.close();
+    }
 });
 
 test('Dzen Draft.js input uses native element typing without document selection', async () => {

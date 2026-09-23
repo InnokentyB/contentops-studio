@@ -133,6 +133,73 @@ export const DZEN_EDITOR_SELECTORS = {
     publicationConfirm: '[data-testid="publish-btn"]'
 } as const;
 
+export type DzenPostBodyDescriptor = {
+    tag: string;
+    role?: string;
+    placeholder?: string;
+    dataTestId?: string;
+    contentEditable?: string;
+};
+
+const POST_BODY_CANDIDATES = '[contenteditable]:not([contenteditable="false"]), [role="textbox"], textarea';
+
+export async function findDzenPostBody(page: Page): Promise<ElementHandle<Element>> {
+    const handles = await page.$$(POST_BODY_CANDIDATES);
+    const inspected = await Promise.all(handles.map(async (handle) => ({
+        handle,
+        result: await handle.evaluate((element) => {
+            const html = element as HTMLElement;
+            const rect = html.getBoundingClientRect();
+            const style = window.getComputedStyle(html);
+            const descriptor = {
+                tag: html.tagName.toLowerCase(),
+                role: html.getAttribute('role') || undefined,
+                placeholder: html.getAttribute('placeholder') || html.getAttribute('aria-placeholder') || undefined,
+                dataTestId: html.getAttribute('data-testid') || undefined,
+                contentEditable: html.getAttribute('contenteditable') || undefined
+            };
+            const visible = rect.width > 0 && rect.height > 0
+                && style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+            const disabled = html.hasAttribute('disabled') || html.getAttribute('aria-disabled') === 'true';
+            const excluded = /search|поиск|title|заголов/i.test([
+                descriptor.role, descriptor.placeholder, descriptor.dataTestId
+            ].filter(Boolean).join(' '));
+            let modal: HTMLElement | null = html.parentElement;
+            let inComposer = false;
+            while (modal && modal !== document.body && modal !== document.documentElement) {
+                const modalStyle = window.getComputedStyle(modal);
+                const modalRect = modal.getBoundingClientRect();
+                const modalVisible = modalRect.width > 0 && modalRect.height > 0
+                    && modalStyle.display !== 'none' && modalStyle.visibility !== 'hidden';
+                const modalLike = modal.matches('dialog, [role="dialog"], [aria-modal="true"]')
+                    || /modal|overlay|dialog|popup/i.test(modal.className || '')
+                    || modalStyle.position === 'fixed';
+                if (modalVisible && modalLike) {
+                    const hasHeading = Array.from(modal.querySelectorAll('h1, h2, h3, [role="heading"], [data-testid*="title"]'))
+                        .some((node) => /что нового\??/i.test(node.textContent || ''))
+                        || /что нового\??/i.test(modal.textContent?.slice(0, 300) || '');
+                    const hasPublish = Array.from(modal.querySelectorAll('button, [role="button"], input[type="submit"]'))
+                        .some((node) => /опубликовать|publish/i.test(node.textContent || (node as HTMLInputElement).value || ''));
+                    if (hasHeading && hasPublish) {
+                        inComposer = true;
+                        break;
+                    }
+                }
+                modal = modal.parentElement;
+            }
+            return { descriptor, safe: visible && !disabled && !excluded && inComposer };
+        })
+    })));
+    const safe = inspected.filter((candidate) => candidate.result.safe);
+    if (safe.length === 1) {
+        await Promise.all(inspected.filter((candidate) => candidate !== safe[0]).map((candidate) => candidate.handle.dispose()));
+        return safe[0].handle;
+    }
+    const descriptors = inspected.map((candidate) => candidate.result.descriptor);
+    await Promise.all(handles.map((handle) => handle.dispose()));
+    throw new Error(`Dzen post body candidate mismatch (${safe.length}); descriptors=${JSON.stringify(descriptors)}`);
+}
+
 type BrowserCookie = {
     name: string;
     value: string;
@@ -245,9 +312,11 @@ class PuppeteerPublisherService {
         // versions still expose an article/post chooser, so support both without
         // treating a URL change as the editor-readiness signal.
         if (publicationType === 'post') {
-            const directPostBody = await page.waitForSelector(DZEN_EDITOR_SELECTORS.postBody, { timeout: 3_000 })
-                .catch(() => null);
-            if (directPostBody) {
+            const directCandidate = await page.waitForSelector(POST_BODY_CANDIDATES, { timeout: 3_000 }).catch(() => null);
+            if (directCandidate) {
+                await directCandidate.dispose();
+                const directPostBody = await findDzenPostBody(page);
+                await directPostBody.dispose();
                 await this.assertDzenAuthenticated(page);
                 return;
             }
@@ -261,10 +330,12 @@ class PuppeteerPublisherService {
             page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30_000 }).catch(() => undefined),
             page.click(menuSelector)
         ]);
-        const readySelector = publicationType === 'article'
-            ? DZEN_EDITOR_SELECTORS.articleBody
-            : DZEN_EDITOR_SELECTORS.postBody;
+        const readySelector = publicationType === 'article' ? DZEN_EDITOR_SELECTORS.articleBody : POST_BODY_CANDIDATES;
         await page.waitForSelector(readySelector, { timeout: 15_000 });
+        if (publicationType === 'post') {
+            const postBody = await findDzenPostBody(page);
+            await postBody.dispose();
+        }
         await this.assertDzenAuthenticated(page);
 
         const helpClose = await page.$(DZEN_EDITOR_SELECTORS.helpClose);
@@ -647,10 +718,9 @@ class PuppeteerPublisherService {
 
             // Move to body editor
             console.log('[PuppeteerPublisher] Filling body text...');
-            const bodySelector = publicationType === 'article'
-                ? DZEN_EDITOR_SELECTORS.articleBody
-                : DZEN_EDITOR_SELECTORS.postBody;
-            const bodyEl = await page.waitForSelector(bodySelector, { timeout: 15000 });
+            const bodyEl = publicationType === 'article'
+                ? await page.waitForSelector(DZEN_EDITOR_SELECTORS.articleBody, { timeout: 15000 })
+                : await findDzenPostBody(page);
             if (!bodyEl) throw new Error('Could not find Dzen content body editor block');
 
             await typeDzenContentEditableText(bodyEl, text);
