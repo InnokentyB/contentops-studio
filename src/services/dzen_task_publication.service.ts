@@ -14,7 +14,8 @@ const CONFIRMED_ABSENT_IDEMPOTENCY_KEYS = new Set([
     'publish-task-958-rev1-resume2-20260923-001',
     'publish-task-958-rev1-resume3-20260923-001',
     'publish-task-958-rev1-resume4-20260923-001',
-    'publish-task-958-rev1-resume5-20260923-001'
+    'publish-task-958-rev1-resume5-20260923-001',
+    'publish-task-958-rev1-resume6-20260923-001'
 ]);
 const NEXT_IDEMPOTENCY_BY_PREVIOUS = new Map([
     ['publish-task-958-rev1-20260923', 'publish-task-958-rev1-resume-20260923-001'],
@@ -22,7 +23,8 @@ const NEXT_IDEMPOTENCY_BY_PREVIOUS = new Map([
     ['publish-task-958-rev1-resume2-20260923-001', 'publish-task-958-rev1-resume3-20260923-001'],
     ['publish-task-958-rev1-resume3-20260923-001', 'publish-task-958-rev1-resume4-20260923-001'],
     ['publish-task-958-rev1-resume4-20260923-001', 'publish-task-958-rev1-resume5-20260923-001'],
-    ['publish-task-958-rev1-resume5-20260923-001', 'publish-task-958-rev1-resume6-20260923-001']
+    ['publish-task-958-rev1-resume5-20260923-001', 'publish-task-958-rev1-resume6-20260923-001'],
+    ['publish-task-958-rev1-resume6-20260923-001', 'publish-task-958-rev1-resume7-20260923-001']
 ]);
 const RECONCILE_COMMAND = 'ba_reconcile_dzen_task958_absent';
 const RESUME_COMMAND = 'ba_resume_dzen_task958_after_absence';

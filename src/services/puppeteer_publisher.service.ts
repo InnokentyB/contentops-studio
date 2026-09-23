@@ -139,6 +139,12 @@ export type DzenPostBodyDescriptor = {
     placeholder?: string;
     dataTestId?: string;
     contentEditable?: string;
+    width?: number;
+    height?: number;
+    top?: number;
+    left?: number;
+    parentTag?: string;
+    parentClass?: string;
 };
 
 const POST_BODY_CANDIDATES = '[contenteditable]:not([contenteditable="false"]), [role="textbox"], textarea';
@@ -155,7 +161,13 @@ export async function findDzenPostBody(page: Page): Promise<ElementHandle<Elemen
                 role: html.getAttribute('role') || undefined,
                 placeholder: html.getAttribute('placeholder') || html.getAttribute('aria-placeholder') || undefined,
                 dataTestId: html.getAttribute('data-testid') || undefined,
-                contentEditable: html.getAttribute('contenteditable') || undefined
+                contentEditable: html.getAttribute('contenteditable') || undefined,
+                width: Math.round(html.getBoundingClientRect().width),
+                height: Math.round(html.getBoundingClientRect().height),
+                top: Math.round(html.getBoundingClientRect().top),
+                left: Math.round(html.getBoundingClientRect().left),
+                parentTag: html.parentElement?.tagName.toLowerCase(),
+                parentClass: String(html.parentElement?.className || '').slice(0, 120) || undefined
             };
             // Draft-style editors can keep the empty contenteditable node at
             // zero height until the first character is inserted. The composer
