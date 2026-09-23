@@ -32,6 +32,17 @@ test('filters unsafe cookie names and values without exposing them', () => {
     );
 });
 
+test('drops cookies with empty names or values', () => {
+    const stored = JSON.stringify([
+        { name: 'session', value: 'valid', domain: '.dzen.ru' },
+        { name: 'zen_extra_gid', value: '', domain: '.dzen.ru' },
+        { name: 'zen_extra_vk_gid', value: '', domain: 'dzen.ru' },
+        { name: '', value: 'not-used', domain: '.dzen.ru' }
+    ]);
+
+    assert.equal(normalizeDzenCookieHeader(stored), 'session=valid');
+});
+
 test('rejects malformed JSON without echoing its contents', () => {
     assert.throws(
         () => normalizeDzenCookieHeader('[{"name":"session","value":"do-not-echo"}'),

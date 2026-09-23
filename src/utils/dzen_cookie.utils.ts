@@ -33,7 +33,8 @@ export function normalizeDzenCookieHeader(input: string): string {
     for (const candidate of parsed as StoredCookie[]) {
         if (!candidate || typeof candidate !== 'object' || !isDzenDomain(candidate.domain)) continue;
         if (typeof candidate.name !== 'string' || !COOKIE_NAME.test(candidate.name)) continue;
-        if (typeof candidate.value !== 'string' || /[;\r\n\x00-\x1f\x7f]/.test(candidate.value)) continue;
+        if (typeof candidate.value !== 'string' || candidate.value.length === 0) continue;
+        if (/[;\r\n\x00-\x1f\x7f]/.test(candidate.value)) continue;
         byName.set(candidate.name, candidate.value);
     }
 
