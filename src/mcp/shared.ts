@@ -1235,6 +1235,15 @@ export function registerPlannerTools(server: McpServer) {
         }
     }, async (args) => asToolResult(await ownerPublicationControlsService.bindTask960LinkedinIdentity(args)));
 
+    server.registerTool('ba_create_task970_t72_checkpoint', {
+        description: 'Owner-only idempotent creation of the exact manual t72h metric checkpoint for published task #970/fact #345. Preserves t24h/t7d and publication state.',
+        inputSchema: {
+            projectId: z.number().int().positive(), actorId: z.string(), taskId: z.number().int().positive(),
+            expectedChannelId: z.number().int().positive(), expectedFactId: z.number().int().positive(),
+            scheduledFor: z.string().datetime({ offset: true }), idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await ownerPublicationControlsService.createTask970T72Checkpoint(args)));
+
     server.registerTool('ba_repair_publication_placement', {
         description: 'Owner-only audited metadata repair for an unpublished accepted publication: atomically change only channel and canonical visual placement and create a new revision-bound art-direction work item. The target placement must match the configured channel contract.',
         inputSchema: {

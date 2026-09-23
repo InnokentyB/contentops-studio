@@ -58,6 +58,7 @@ const PLANNER_TOOLS = new Set([
     'ba_require_task972_publication_visual',
     'ba_repair_task972_publication_metadata',
     'ba_bind_task960_linkedin_identity',
+    'ba_create_task970_t72_checkpoint',
     'ba_upsert_initiative',
     'ba_link_initiatives',
     'ba_confirm_initiative_dependencies',
@@ -162,6 +163,7 @@ const GROWTH_ANALYST_TOOLS = new Set([
     'ba_get_publication_task_resources',
     'ba_get_publication_fact',
     'ba_list_metric_checkpoints',
+    'ba_create_task970_t72_checkpoint',
     'ba_get_content_metrics',
     'ba_record_metric_snapshot',
     'ba_rollup_campaign_metrics',
@@ -186,7 +188,8 @@ const STRATEGIST_EXCLUDED = new Set([
     'ba_require_task971_publication_visual',
     'ba_require_task972_publication_visual',
     'ba_repair_task972_publication_metadata',
-    'ba_bind_task960_linkedin_identity'
+    'ba_bind_task960_linkedin_identity',
+    'ba_create_task970_t72_checkpoint'
 ]);
 
 const STRATEGIST_TOOLS = new Set(

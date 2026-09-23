@@ -345,6 +345,66 @@ export class OwnerPublicationControlsService {
         }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     }
 
+    async createTask970T72Checkpoint(args: {
+        projectId: number; actorId: string; taskId: number; expectedChannelId: number;
+        expectedFactId: number; scheduledFor: string; idempotencyKey: string;
+    }) {
+        if (args.projectId !== 10 || args.taskId !== 970 || args.expectedChannelId !== 164
+            || args.expectedFactId !== 345 || args.scheduledFor !== '2026-09-26T12:55:34.000Z') {
+            throw new Error('[TASK970_T72_SCOPE_MISMATCH]');
+        }
+        return this.db.$transaction(async (tx: any) => {
+            const project = await tx.project.findUnique({ where: { id: 10 }, select: { slug: true } });
+            if (project?.slug !== 'analystcraft-2') throw new Error('[MCP_PROJECT_SCOPE_MISMATCH]');
+            await this.requireOwner(tx, 10, args.actorId);
+            const task = await tx.contentItem.findFirst({ where: { id: 970, project_id: 10 },
+                include: { publication_fact: true } });
+            if (!task || task.channel_id !== 164 || task.status !== 'published'
+                || task.publication_fact?.id !== 345 || task.publication_fact.outcome !== 'published'
+                || task.publication_fact.published_at?.toISOString() !== '2026-09-23T12:55:34.000Z'
+                || task.publication_fact.public_url !== task.published_link) {
+                throw new Error('[TASK970_T72_FACT_GUARD_FAILED]');
+            }
+            const existing = await tx.metricSnapshot.findUnique({ where: {
+                project_id_content_item_id_channel_id_checkpoint: {
+                    project_id: 10, content_item_id: 970, channel_id: 164, checkpoint: 't72h'
+                }
+            } });
+            if (existing) {
+                if (existing.scheduled_for?.toISOString() !== args.scheduledFor
+                    || existing.collection_mode !== 'manual' || existing.source !== 'manual') {
+                    throw new Error('[TASK970_T72_EXISTING_CONFLICT]');
+                }
+                return { checkpoint_id: existing.id, task_id: 970, channel_id: 164,
+                    fact_id: 345, checkpoint: 't72h', scheduled_for: args.scheduledFor,
+                    collection_mode: 'manual', replayed: true };
+            }
+            const checkpoint = await tx.metricSnapshot.create({ data: {
+                project_id: 10, content_item_id: 970, channel_id: 164,
+                checkpoint: 't72h', scheduled_for: new Date(args.scheduledFor),
+                collection_status: 'pending', collection_mode: 'manual', source: 'manual',
+                idempotency_key: args.idempotencyKey, metrics: { schema_version: 1, values: {} }
+            } });
+            const itemKey = 'metric:970:t72h';
+            const existingWork = await tx.workItem.findFirst({ where: { project_id: 10, item_key: itemKey } });
+            if (!existingWork) await tx.workItem.create({ data: {
+                project_id: 10, week_package_id: task.week_package_id, content_item_id: 970,
+                item_key: itemKey, kind: 'metric_capture', state: 'available',
+                assignee_role: 'metrics_operator', due_at: new Date(args.scheduledFor),
+                result_payload: { checkpoint: 't72h', channel_id: 164, collection_mode: 'manual', fact_id: 345 }
+            } });
+            const result = { checkpoint_id: checkpoint.id, task_id: 970, channel_id: 164,
+                fact_id: 345, checkpoint: 't72h', scheduled_for: args.scheduledFor,
+                collection_mode: 'manual', collection_status: 'pending', replayed: false };
+            await tx.workflowEvent.create({ data: { project_id: 10, content_item_id: 970,
+                actor_id: args.actorId, command: 'ba_create_task970_t72_checkpoint',
+                idempotency_key: args.idempotencyKey,
+                before_state: { fact_id: 345, preserve_checkpoints: ['t24h', 't7d'] },
+                after_state: result } });
+            return result;
+        }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    }
+
     async requireC20Visuals(args: {
         projectId: number; actorId: string; expected: VisualExpectation[]; idempotencyKey: string;
     }) {
