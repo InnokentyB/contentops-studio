@@ -137,6 +137,21 @@ export async function typeDzenContentEditableText(element: any, text: string): P
     await element.type(text, { delay: 1 });
 }
 
+export type DzenStudioLocation = 'studio' | 'public_channel' | 'authentication' | 'unexpected';
+
+export function classifyDzenStudioLocation(value: string): DzenStudioLocation {
+    try {
+        const url = new URL(value);
+        if (url.hostname === 'passport.yandex.ru' || url.pathname.includes('/login')) return 'authentication';
+        if (!['dzen.ru', 'www.dzen.ru'].includes(url.hostname)) return 'unexpected';
+        if (/^\/profile\/editor\//.test(url.pathname)) return 'studio';
+        if (/^\/id\/[^/]+\/?$/.test(url.pathname)) return 'public_channel';
+        return 'unexpected';
+    } catch {
+        return 'unexpected';
+    }
+}
+
 class PuppeteerPublisherService {
     private async prepareDzenPage(page: Page, config: DzenPublishConfig) {
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
@@ -165,7 +180,7 @@ class PuppeteerPublisherService {
     private dzenChannelEditorUrl(config: DzenPublishConfig): string {
         const channelId = this.dzenChannelId(config);
         return channelId
-            ? `https://dzen.ru/profile/editor/id/${encodeURIComponent(channelId)}`
+            ? `https://dzen.ru/profile/editor/id/${encodeURIComponent(channelId)}/publications`
             : (config.article_editor_url || 'https://dzen.ru/studio/editor/create/article');
     }
 
@@ -705,8 +720,14 @@ class PuppeteerPublisherService {
             await page.goto(editorUrl, { waitUntil: 'networkidle2', timeout: 30_000 });
             await this.assertDzenAuthenticated(page);
             const currentUrl = page.url();
-            const editorRouteFound = /dzen\.ru\/profile\/editor\/id\//.test(currentUrl);
-            const editorControlFound = Boolean(await page.$('[contenteditable="true"], textarea, [data-placeholder="Заголовок"], button'));
+            const location = classifyDzenStudioLocation(currentUrl);
+            if (location === 'public_channel') {
+                throw new Error('Dzen authentication failed: the saved session no longer grants access to the configured channel Studio');
+            }
+            const editorRouteFound = location === 'studio';
+            const editorControlFound = Boolean(await page.$(
+                `${DZEN_EDITOR_SELECTORS.addPublication}, [contenteditable="true"], textarea, [data-placeholder="Заголовок"]`
+            ));
             if (!editorRouteFound || !editorControlFound) {
                 throw new Error(`Dzen channel editor is unavailable at ${currentUrl}. Verify the channel ID and account access.`);
             }

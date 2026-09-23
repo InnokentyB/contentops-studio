@@ -5,6 +5,7 @@ import habrService from '../services/habr.service';
 import vcService from '../services/vc.service';
 import dzenService, { isDzenPublishedUrl } from '../services/dzen.service';
 import {
+    classifyDzenStudioLocation,
     DZEN_EDITOR_SELECTORS,
     typeDzenContentEditableText
 } from '../services/puppeteer_publisher.service';
@@ -139,15 +140,27 @@ test('Dzen permalink validation rejects editor and fabricated URLs', () => {
     assert.equal(isDzenPublishedUrl('https://dzen.ru/media/id/123456/example'), true);
 });
 
-test('Dzen connection supports current channel editor identifiers', () => {
+test('Dzen connection checks the current channel publications workspace', () => {
     const publisher = puppeteerPublisherService as any;
     assert.equal(
         publisher.dzenChannelEditorUrl({ cookies: 'x=1', channel_id: '6a8029aba055ec36033bf81c' }),
-        'https://dzen.ru/profile/editor/id/6a8029aba055ec36033bf81c'
+        'https://dzen.ru/profile/editor/id/6a8029aba055ec36033bf81c/publications'
     );
     assert.equal(
         publisher.dzenChannelEditorUrl({ cookies: 'x=1', channel_url: 'https://dzen.ru/id/6a8029aba055ec36033bf81c' }),
-        'https://dzen.ru/profile/editor/id/6a8029aba055ec36033bf81c'
+        'https://dzen.ru/profile/editor/id/6a8029aba055ec36033bf81c/publications'
+    );
+});
+
+test('Dzen connection distinguishes Studio from an expired-session public redirect', () => {
+    assert.equal(
+        classifyDzenStudioLocation('https://dzen.ru/profile/editor/id/channel-1/publications'),
+        'studio'
+    );
+    assert.equal(classifyDzenStudioLocation('https://dzen.ru/id/channel-1'), 'public_channel');
+    assert.equal(
+        classifyDzenStudioLocation('https://passport.yandex.ru/auth?retpath=https%3A%2F%2Fdzen.ru'),
+        'authentication'
     );
 });
 
