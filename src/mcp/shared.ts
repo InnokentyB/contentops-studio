@@ -1211,6 +1211,18 @@ export function registerPlannerTools(server: McpServer) {
         }
     }, async (args) => asToolResult(await ownerPublicationControlsService.requireTask972Visual(args)));
 
+    server.registerTool('ba_repair_task972_publication_metadata', {
+        description: 'Owner-only audited CAS for exact task #972 rev1: replace only stale title and brief after visual_mode is required. Preserves body, art, asset, schedule, handoff and publication mode; does not publish.',
+        inputSchema: {
+            projectId: z.number().int().positive(), actorId: z.string(), taskId: z.number().int().positive(),
+            expectedChannelId: z.number().int().positive(), expectedContentRevision: z.number().int().positive(),
+            expectedAcceptedRevision: z.number().int().positive(), expectedSelectedAssetId: z.number().int().positive(),
+            expectedDecisionId: z.number().int().positive(), expectedScheduleAt: z.string().datetime({ offset: true }),
+            expectedBodySha256: z.string().regex(/^[a-f0-9]{64}$/), expectedStatus: z.string(),
+            expectedTitle: z.string(), expectedBrief: z.string(), idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await ownerPublicationControlsService.repairTask972Metadata(args)));
+
     server.registerTool('ba_repair_publication_placement', {
         description: 'Owner-only audited metadata repair for an unpublished accepted publication: atomically change only channel and canonical visual placement and create a new revision-bound art-direction work item. The target placement must match the configured channel contract.',
         inputSchema: {

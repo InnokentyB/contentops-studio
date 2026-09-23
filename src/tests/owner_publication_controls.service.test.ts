@@ -125,7 +125,8 @@ test('task #972 visual repair changes only mode for exact decision and asset', a
         visual_decision_version: 1, selected_asset_id: 77,
         selected_asset: { id: 77, status: 'approved', content_revision: 1 },
         handoff_state: 'ready', status: 'ready_for_execution', publication_mode: 'approval_required',
-        schedule_at: schedule, publication_fact: null, published_link: null, draft_text: 'exact body' };
+        schedule_at: schedule, publication_fact: null, published_link: null, draft_text: 'exact body',
+        title: 'old title', brief: 'old brief' };
     const events: any[] = [];
     const tx = {
         project: { findUnique: async () => ({ slug: 'analystcraft-2' }) },
@@ -149,6 +150,17 @@ test('task #972 visual repair changes only mode for exact decision and asset', a
     assert.equal(result.visual_mode, 'required');
     assert.deepEqual(task, { ...before, visual_mode: 'required' });
     assert.equal(events.length, 1);
+    const metadata = await service.repairTask972Metadata({ projectId: 10, actorId: 'user:7', taskId: 972,
+        expectedChannelId: 111, expectedContentRevision: 1, expectedAcceptedRevision: 1,
+        expectedSelectedAssetId: 77, expectedDecisionId: 152,
+        expectedScheduleAt: schedule.toISOString(), expectedBodySha256: hash,
+        expectedStatus: 'ready_for_execution', expectedTitle: 'old title', expectedBrief: 'old brief',
+        idempotencyKey: 'task972-metadata' });
+    assert.equal(metadata.title, '@analysts_thinking 23.09 — 202 Accepted is not done');
+    assert.match(metadata.brief, /Synthetic S19 access-transfer/);
+    assert.equal(task.draft_text, before.draft_text);
+    assert.equal(task.selected_asset_id, 77);
+    assert.equal(events.length, 2);
 });
 
 function releaseHarness(options: { owner?: boolean; attempt?: boolean; visualState?: string } = {}) {
