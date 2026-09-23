@@ -1,6 +1,5 @@
-import { PrismaClient } from '@prisma/client';
-import { Pool } from 'pg';
-import { PrismaPg } from '@prisma/adapter-pg';
+import prisma, { pool } from '../db';
+
 import telegramService from './telegram.service';
 import vkService from './vk.service';
 import storageService from './storage.service';
@@ -30,10 +29,6 @@ import * as path from 'path';
 
 config();
 
-const connectionString = process.env.DATABASE_URL;
-const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
 
 // --- Simple File Logger ---
 const LOGS_DIR = path.join(__dirname, '../../logs');
@@ -1522,7 +1517,7 @@ class PublisherService {
         const dueTasks = await prisma.contentItem.findMany({
             where: {
                 schedule_at: { lte: now },
-                publication_mode: { not: 'browser_required' },
+                publication_mode: 'connector_auto',
                 type: { not: 'week_theme' },
                 OR: [
                     { assets: { not: undefined } },
@@ -1663,7 +1658,7 @@ class PublisherService {
             where: {
                 id: task.id,
                 status: { in: ['planned', 'ready_for_execution'] },
-                publication_mode: { not: 'browser_required' }
+                publication_mode: 'connector_auto'
             },
             data: {
                 status: 'publishing',

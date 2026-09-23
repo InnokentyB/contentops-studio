@@ -1,10 +1,44 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = projectRoutes;
 const auth_service_1 = __importDefault(require("../services/auth.service"));
+const db_1 = __importDefault(require("../db"));
 const js_yaml_1 = __importDefault(require("js-yaml"));
 const multi_agent_service_1 = __importDefault(require("../services/multi_agent.service"));
 const content_dictionary_service_1 = __importDefault(require("../services/content_dictionary.service"));
@@ -16,9 +50,12 @@ const storage_service_1 = __importDefault(require("../services/storage.service")
 const generator_service_1 = __importDefault(require("../services/generator.service"));
 const project_utils_1 = require("../utils/project.utils");
 const channel_utils_1 = require("../utils/channel.utils");
+const dzen_service_1 = __importDefault(require("../services/dzen.service"));
+const vk_oauth_service_1 = __importDefault(require("../services/vk_oauth.service"));
 const initiative_service_1 = __importDefault(require("../services/initiative.service"));
 const work_queue_service_1 = __importDefault(require("../services/work_queue.service"));
-const planner_service_1 = require("../services/planner.service");
+const mcp_access_token_service_1 = __importStar(require("../services/mcp_access_token.service"));
+const channel_secrets_1 = require("../utils/channel_secrets");
 const agentSettingKeyMap = {
     post_creator: {
         prompt: multi_agent_service_1.default.KEY_POST_CREATOR_PROMPT,
@@ -146,7 +183,7 @@ async function makeUniqueProjectSlug(baseSlug, fallbackName, excludeProjectId) {
     const normalized = (0, project_utils_1.slugifyProjectName)(source) || `project-${Date.now()}`;
     let candidate = normalized;
     let suffix = 1;
-    while (await planner_service_1.prisma.project.findFirst({
+    while (await db_1.default.project.findFirst({
         where: {
             slug: candidate,
             ...(excludeProjectId ? { id: { not: excludeProjectId } } : {})
@@ -156,6 +193,15 @@ async function makeUniqueProjectSlug(baseSlug, fallbackName, excludeProjectId) {
         suffix += 1;
     }
     return candidate;
+}
+async function resolveOwnedOrganizationId(userId, requestedOrganizationId) {
+    const membership = await db_1.default.organizationMember.findFirst({
+        where: { user_id: userId, role: 'owner', organization: { is_archived: false }, ...(requestedOrganizationId ? { organization_id: requestedOrganizationId } : {}) },
+        orderBy: { organization_id: 'asc' }, select: { organization_id: true }
+    });
+    if (!membership)
+        throw new Error('An owner organization is required');
+    return membership.organization_id;
 }
 function parseImportedProjectConfig(rawConfig) {
     const trimmed = rawConfig.trim();
@@ -346,14 +392,17 @@ async function projectRoutes(fastify) {
     // Create project
     fastify.post('/api/projects', async (request, reply) => {
         const user = request.user;
-        const { name, slug, description, kind } = request.body;
+        const { name, slug, description, kind, organizationId } = request.body;
         const finalSlug = await makeUniqueProjectSlug(slug, name);
-        const project = await planner_service_1.prisma.project.create({
+        const organization_id = await resolveOwnedOrganizationId(user.id, Number(organizationId) || undefined);
+        const project = await db_1.default.project.create({
             data: {
                 name,
                 slug: finalSlug,
                 description,
                 kind: (0, project_utils_1.normalizeProjectKind)(kind),
+                organization_id,
+                research_profile: { create: { revision: 1 } },
                 members: {
                     create: {
                         user_id: user.id,
@@ -372,9 +421,10 @@ async function projectRoutes(fastify) {
         }
         try {
             const imported = await buildImportedProjectData(config, user.id);
-            const project = await planner_service_1.prisma.$transaction(async (tx) => {
+            const organization_id = await resolveOwnedOrganizationId(user.id);
+            const project = await db_1.default.$transaction(async (tx) => {
                 const createdProject = await tx.project.create({
-                    data: imported.project
+                    data: { ...imported.project, organization_id, research_profile: { create: { revision: 1 } } }
                 });
                 if (imported.settings.length > 0) {
                     await tx.projectSettings.createMany({
@@ -391,7 +441,7 @@ async function projectRoutes(fastify) {
                         data: {
                             project_id: createdProject.id,
                             name: providerKey.name,
-                            key: providerKey.key,
+                            key: (0, channel_secrets_1.safeEncryptProviderKey)(providerKey.key),
                             provider: providerKey.provider
                         }
                     });
@@ -493,7 +543,7 @@ async function projectRoutes(fastify) {
             reply.code(403).send({ error: 'No access' });
             return;
         }
-        const setting = await planner_service_1.prisma.projectSettings.upsert({
+        const setting = await db_1.default.projectSettings.upsert({
             where: {
                 project_id_key: {
                     project_id: projectId,
@@ -510,7 +560,7 @@ async function projectRoutes(fastify) {
         if (key === 'default_channel_id') {
             const channelId = parseInt(value);
             if (!isNaN(channelId)) {
-                await planner_service_1.prisma.post.updateMany({
+                await db_1.default.post.updateMany({
                     where: {
                         project_id: projectId,
                         status: { notIn: ['published', 'publishing'] }
@@ -533,7 +583,7 @@ async function projectRoutes(fastify) {
             reply.code(403).send({ error: 'No access' });
             return;
         }
-        const project = await planner_service_1.prisma.project.findUnique({
+        const project = await db_1.default.project.findUnique({
             where: { id: projectId },
             include: {
                 channels: true,
@@ -572,10 +622,12 @@ async function projectRoutes(fastify) {
                 const remote = capabilityEndpoints[profile];
                 const configured = remote === true || remote?.configured === true;
                 const boundProjectId = Number(remote?.project_id || 0) || null;
+                const boundOrganizationId = Number(remote?.organization_id || 0) || null;
                 return {
                     endpoint: `${endpoint}/${profile.replace('_', '-')}`,
-                    configured: configured && (!boundProjectId || boundProjectId === projectId),
-                    bound_project_id: boundProjectId
+                    configured: configured && (profile === 'organization_researcher' || !boundProjectId || boundProjectId === projectId),
+                    bound_project_id: boundProjectId,
+                    bound_organization_id: boundOrganizationId
                 };
             };
             return {
@@ -589,7 +641,9 @@ async function projectRoutes(fastify) {
                 capability_endpoints: {
                     planner: capabilityStatus('planner'),
                     writer: capabilityStatus('writer'),
-                    art_director: capabilityStatus('art_director')
+                    art_director: capabilityStatus('art_director'),
+                    strategist: capabilityStatus('strategist'),
+                    organization_researcher: capabilityStatus('organization_researcher')
                 },
                 checked_at: new Date().toISOString()
             };
@@ -606,6 +660,70 @@ async function projectRoutes(fastify) {
         }
         finally {
             clearTimeout(timeout);
+        }
+    });
+    fastify.get('/api/projects/:id/mcp/access-tokens', async (request, reply) => {
+        const user = request.user;
+        const projectId = parseInt(request.params.id, 10);
+        if (!await auth_service_1.default.hasProjectAccess(user.id, projectId, 'owner'))
+            return reply.code(403).send({ error: 'Owner access required' });
+        const project = await db_1.default.project.findUnique({ where: { id: projectId }, select: { organization_id: true } });
+        const organizationMembership = project?.organization_id ? await db_1.default.organizationMember.findUnique({ where: { organization_id_user_id: { organization_id: project.organization_id, user_id: user.id } } }) : null;
+        const accesses = [
+            ...await mcp_access_token_service_1.default.list(projectId),
+            ...(project?.organization_id && organizationMembership?.role === 'owner' ? await mcp_access_token_service_1.default.listForOrganization(project.organization_id) : [])
+        ];
+        return {
+            accesses: accesses.map(({ token_hash: _tokenHash, ...access }) => access)
+        };
+    });
+    fastify.post('/api/projects/:id/mcp/access-tokens', async (request, reply) => {
+        const owner = request.user;
+        const projectId = parseInt(request.params.id, 10);
+        if (!await auth_service_1.default.hasProjectAccess(owner.id, projectId, 'owner'))
+            return reply.code(403).send({ error: 'Owner access required' });
+        const { userId, profile, label, expiresAt } = request.body;
+        if (!Number.isInteger(userId) || !(0, mcp_access_token_service_1.isManagedMcpProfile)(profile))
+            return reply.code(400).send({ error: 'Valid user and MCP profile are required' });
+        const expiry = expiresAt ? new Date(expiresAt) : null;
+        if (expiry && (Number.isNaN(expiry.getTime()) || expiry <= new Date()))
+            return reply.code(400).send({ error: 'Expiry must be in the future' });
+        try {
+            if (profile === 'organization_researcher') {
+                const project = await db_1.default.project.findUnique({ where: { id: projectId }, select: { organization_id: true } });
+                if (!project?.organization_id)
+                    return reply.code(409).send({ error: 'Project is not attached to an organization' });
+                const organizationOwner = await db_1.default.organizationMember.findUnique({ where: { organization_id_user_id: { organization_id: project.organization_id, user_id: owner.id } } });
+                if (organizationOwner?.role !== 'owner')
+                    return reply.code(403).send({ error: 'Organization owner access required' });
+                return await mcp_access_token_service_1.default.createForOrganization(project.organization_id, userId, profile, label || '', expiry);
+            }
+            return await mcp_access_token_service_1.default.create(projectId, userId, profile, label || '', expiry);
+        }
+        catch (error) {
+            return reply.code(400).send({ error: error.message || 'Unable to create MCP access' });
+        }
+    });
+    fastify.delete('/api/projects/:id/mcp/access-tokens/:tokenId', async (request, reply) => {
+        const owner = request.user;
+        const { id, tokenId } = request.params;
+        const projectId = parseInt(id, 10);
+        if (!await auth_service_1.default.hasProjectAccess(owner.id, projectId, 'owner'))
+            return reply.code(403).send({ error: 'Owner access required' });
+        try {
+            const access = await db_1.default.mcpAccessToken.findUnique({ where: { id: parseInt(tokenId, 10) }, select: { organization_id: true } });
+            if (access?.organization_id) {
+                const membership = await db_1.default.organizationMember.findUnique({ where: { organization_id_user_id: { organization_id: access.organization_id, user_id: owner.id } } });
+                if (membership?.role !== 'owner')
+                    return reply.code(403).send({ error: 'Organization owner access required' });
+                await mcp_access_token_service_1.default.revokeForOrganization(access.organization_id, parseInt(tokenId, 10));
+                return { success: true };
+            }
+            await mcp_access_token_service_1.default.revoke(projectId, parseInt(tokenId, 10));
+            return { success: true };
+        }
+        catch (error) {
+            return reply.code(404).send({ error: error.message || 'MCP access was not found' });
         }
     });
     fastify.get('/api/projects/:id/parser/health', async (request, reply) => {
@@ -785,12 +903,19 @@ async function projectRoutes(fastify) {
             reply.code(403).send({ error: 'No access' });
             return;
         }
-        const channel = await planner_service_1.prisma.socialChannel.create({
+        let storedConfig;
+        try {
+            storedConfig = (0, channel_utils_1.prepareChannelConfigForStorage)(type, config);
+        }
+        catch (error) {
+            return reply.code(400).send({ error: error.message });
+        }
+        const channel = await db_1.default.socialChannel.create({
             data: {
                 project_id: projectId,
                 type,
                 name,
-                config
+                config: storedConfig
             }
         });
         return {
@@ -810,11 +935,20 @@ async function projectRoutes(fastify) {
             reply.code(403).send({ error: 'No access' });
             return;
         }
-        const existingChannel = await planner_service_1.prisma.socialChannel.findUnique({
+        const existingChannel = await db_1.default.socialChannel.findUnique({
             where: { id: parsedChannelId, project_id: projectId }
         });
-        const mergedConfig = (0, channel_utils_1.mergeChannelConfig)(config, existingChannel?.config || {});
-        const channel = await planner_service_1.prisma.socialChannel.update({
+        if (!existingChannel) {
+            return reply.code(404).send({ error: 'Channel not found' });
+        }
+        let mergedConfig;
+        try {
+            mergedConfig = (0, channel_utils_1.prepareChannelConfigForStorage)(existingChannel.type, (0, channel_utils_1.mergeChannelConfig)(config, existingChannel.config || {}));
+        }
+        catch (error) {
+            return reply.code(400).send({ error: error.message });
+        }
+        const channel = await db_1.default.socialChannel.update({
             where: { id: parsedChannelId, project_id: projectId },
             data: {
                 name,
@@ -825,6 +959,45 @@ async function projectRoutes(fastify) {
             ...channel,
             config: (0, channel_utils_1.sanitizeChannelConfig)(channel.type, channel.config)
         };
+    });
+    fastify.post('/api/projects/:id/channels/:channelId/test-connection', async (request, reply) => {
+        const user = request.user;
+        const { id, channelId } = request.params;
+        const projectId = parseInt(id, 10);
+        const parsedChannelId = parseInt(channelId, 10);
+        const hasAccess = await auth_service_1.default.hasProjectAccess(user.id, projectId, 'owner');
+        if (!hasAccess)
+            return reply.code(403).send({ error: 'No access' });
+        const channel = await db_1.default.socialChannel.findFirst({
+            where: { id: parsedChannelId, project_id: projectId }
+        });
+        if (!channel)
+            return reply.code(404).send({ error: 'Channel not found' });
+        if (!['zen', 'zen_article', 'dzen', 'vk'].includes(channel.type)) {
+            return reply.code(400).send({ error: 'Connection test is not supported for this channel type' });
+        }
+        try {
+            if (channel.type === 'vk') {
+                const config = (0, channel_utils_1.resolveEffectiveChannelConfig)('vk', channel.config);
+                if (!config.vk_id || !config.publish_access_token) {
+                    return reply.code(400).send({ error: 'Connect VK before testing this channel', code: 'VK_NOT_CONNECTED' });
+                }
+                const result = await vk_oauth_service_1.default.verifyCommunityAdmin(config.publish_access_token, String(config.vk_id));
+                return { success: true, result: { ...result, connected: true } };
+            }
+            const body = (request.body || {});
+            const savedConfig = (0, channel_utils_1.resolveChannelConfigSecrets)(channel.type, channel.config);
+            const draftConfig = body.config && typeof body.config === 'object' ? body.config : {};
+            const effectiveConfig = (0, channel_utils_1.resolveEffectiveChannelConfig)(channel.type, (0, channel_utils_1.mergeChannelConfig)(draftConfig, savedConfig));
+            const result = await dzen_service_1.default.testConnection(effectiveConfig);
+            return { success: true, result };
+        }
+        catch (error) {
+            return reply.code(400).send({
+                error: error.message || 'Dzen connection test failed',
+                code: 'DZEN_CONNECTION_TEST_FAILED'
+            });
+        }
     });
     // Delete channel
     fastify.delete('/api/projects/:id/channels/:channelId', async (request, reply) => {
@@ -837,15 +1010,15 @@ async function projectRoutes(fastify) {
             reply.code(403).send({ error: 'No access' });
             return;
         }
-        const defaultChannelSetting = await planner_service_1.prisma.projectSettings.findFirst({
+        const defaultChannelSetting = await db_1.default.projectSettings.findFirst({
             where: { project_id: projectId, key: 'default_channel_id', value: String(parsedChannelId) }
         });
         if (defaultChannelSetting) {
-            await planner_service_1.prisma.projectSettings.delete({
+            await db_1.default.projectSettings.delete({
                 where: { id: defaultChannelSetting.id }
             });
         }
-        await planner_service_1.prisma.socialChannel.delete({
+        await db_1.default.socialChannel.delete({
             where: { id: parsedChannelId, project_id: projectId }
         });
         return { success: true };
@@ -864,7 +1037,7 @@ async function projectRoutes(fastify) {
         if (!content?.trim()) {
             return reply.code(400).send({ error: 'content is required' });
         }
-        const channel = await planner_service_1.prisma.socialChannel.findFirst({
+        const channel = await db_1.default.socialChannel.findFirst({
             where: {
                 id: parsedChannelId,
                 project_id: projectId
@@ -878,7 +1051,7 @@ async function projectRoutes(fastify) {
         const normalizedPublishedLink = publishedLink?.trim() || null;
         const publicationOutcome = outcome || 'published';
         const shouldMarkPublished = publishNow === true && Boolean(normalizedPublishedLink);
-        const item = await planner_service_1.prisma.contentItem.create({
+        const item = await db_1.default.contentItem.create({
             data: {
                 project_id: projectId,
                 channel_id: channel.id,
@@ -968,7 +1141,7 @@ async function projectRoutes(fastify) {
         if (!data) {
             return reply.code(400).send({ error: 'No file uploaded' });
         }
-        const channel = await planner_service_1.prisma.socialChannel.findFirst({
+        const channel = await db_1.default.socialChannel.findFirst({
             where: {
                 id: parsedChannelId,
                 project_id: projectId
@@ -999,7 +1172,7 @@ async function projectRoutes(fastify) {
             fileUrl = await storage_service_1.default.uploadFileFromBuffer(buffer, data.mimetype || 'application/octet-stream', `uploads/${filename}`);
             previewUrl = resourceKind === 'image' ? fileUrl : null;
         }
-        const item = await planner_service_1.prisma.contentItem.create({
+        const item = await db_1.default.contentItem.create({
             data: {
                 project_id: projectId,
                 channel_id: channel.id,
@@ -1093,7 +1266,7 @@ async function projectRoutes(fastify) {
             reply.code(403).send({ error: 'No access' });
             return;
         }
-        const channel = await planner_service_1.prisma.socialChannel.findFirst({
+        const channel = await db_1.default.socialChannel.findFirst({
             where: {
                 id: parsedChannelId,
                 project_id: projectId
@@ -1102,7 +1275,7 @@ async function projectRoutes(fastify) {
         if (!channel) {
             return reply.code(404).send({ error: 'Channel not found' });
         }
-        const channelItems = await planner_service_1.prisma.contentItem.findMany({
+        const channelItems = await db_1.default.contentItem.findMany({
             where: {
                 project_id: projectId,
                 channel_id: parsedChannelId,
@@ -1125,7 +1298,7 @@ async function projectRoutes(fastify) {
             return rightTime - leftTime;
         })[0] || null;
         const packageItems = latestWeekPackage
-            ? await planner_service_1.prisma.contentItem.findMany({
+            ? await db_1.default.contentItem.findMany({
                 where: {
                     project_id: projectId,
                     week_package_id: latestWeekPackage.id,
@@ -1202,7 +1375,7 @@ async function projectRoutes(fastify) {
         if (!await auth_service_1.default.hasProjectAccess(user.id, projectId, 'owner')) {
             return reply.code(403).send({ error: 'Only the project owner can approve the weekly plan' });
         }
-        const weekPackage = await planner_service_1.prisma.weekPackage.findFirst({
+        const weekPackage = await db_1.default.weekPackage.findFirst({
             where: {
                 id: parsedWeekPackageId,
                 project_id: projectId,
@@ -1234,7 +1407,7 @@ async function projectRoutes(fastify) {
             reply.code(403).send({ error: 'No access' });
             return;
         }
-        const channel = await planner_service_1.prisma.socialChannel.findFirst({
+        const channel = await db_1.default.socialChannel.findFirst({
             where: {
                 id: parsedChannelId,
                 project_id: projectId
@@ -1246,7 +1419,7 @@ async function projectRoutes(fastify) {
         if (!isAutoCanvasChannel(channel)) {
             return reply.code(400).send({ error: 'This channel is not configured for automatic canvas generation.' });
         }
-        const itemsToProcess = await planner_service_1.prisma.contentItem.findMany({
+        const itemsToProcess = await db_1.default.contentItem.findMany({
             where: {
                 project_id: projectId,
                 channel_id: parsedChannelId,
@@ -1266,7 +1439,7 @@ async function projectRoutes(fastify) {
                 results.push({ id: item.id, status: 'drafted' });
             }
             catch (error) {
-                await planner_service_1.prisma.contentItem.update({
+                await db_1.default.contentItem.update({
                     where: { id: item.id },
                     data: { status: 'failed' }
                 });
@@ -1289,7 +1462,7 @@ async function projectRoutes(fastify) {
             reply.code(403).send({ error: 'Only owners can edit project details' });
             return;
         }
-        const existing = await planner_service_1.prisma.project.findUnique({
+        const existing = await db_1.default.project.findUnique({
             where: { id: projectId }
         });
         if (!existing) {
@@ -1299,7 +1472,7 @@ async function projectRoutes(fastify) {
         const finalSlug = typeof slug === 'string' && slug.trim()
             ? await makeUniqueProjectSlug(slug, existing.name, existing.id)
             : undefined;
-        const project = await planner_service_1.prisma.project.update({
+        const project = await db_1.default.project.update({
             where: { id: projectId },
             data: {
                 ...(typeof name === 'string' ? { name } : {}),
@@ -1321,7 +1494,7 @@ async function projectRoutes(fastify) {
             return;
         }
         const nextArchived = archived !== false;
-        const project = await planner_service_1.prisma.project.update({
+        const project = await db_1.default.project.update({
             where: { id: projectId },
             data: {
                 is_archived: nextArchived,
@@ -1342,11 +1515,11 @@ async function projectRoutes(fastify) {
             return;
         }
         // Find user by email
-        const targetUser = await planner_service_1.prisma.user.findUnique({ where: { email } });
+        const targetUser = await db_1.default.user.findUnique({ where: { email } });
         // If user not found, create invitation
         if (!targetUser) {
             // Check existing invitation
-            const existingInvite = await planner_service_1.prisma.projectInvitation.findFirst({
+            const existingInvite = await db_1.default.projectInvitation.findFirst({
                 where: { project_id: projectId, email }
             });
             if (existingInvite) {
@@ -1361,7 +1534,7 @@ async function projectRoutes(fastify) {
             const token = require('crypto').randomBytes(32).toString('hex');
             const expiresAt = new Date();
             expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
-            const invitation = await planner_service_1.prisma.projectInvitation.create({
+            const invitation = await db_1.default.projectInvitation.create({
                 data: {
                     project_id: projectId,
                     email,
@@ -1378,13 +1551,13 @@ async function projectRoutes(fastify) {
             };
         }
         // Check if already member
-        const existing = await planner_service_1.prisma.projectMember.findUnique({
+        const existing = await db_1.default.projectMember.findUnique({
             where: { project_id_user_id: { project_id: projectId, user_id: targetUser.id } }
         });
         if (existing) {
             return reply.code(400).send({ error: 'User already in project' });
         }
-        const member = await planner_service_1.prisma.projectMember.create({
+        const member = await db_1.default.projectMember.create({
             data: {
                 project_id: projectId,
                 user_id: targetUser.id,
@@ -1398,7 +1571,7 @@ async function projectRoutes(fastify) {
     // Get invitation details
     fastify.get('/api/invitations/:token', async (request, reply) => {
         const { token } = request.params;
-        const invitation = await planner_service_1.prisma.projectInvitation.findUnique({
+        const invitation = await db_1.default.projectInvitation.findUnique({
             where: { token },
             include: {
                 project: { select: { name: true, description: true } },
@@ -1432,7 +1605,7 @@ async function projectRoutes(fastify) {
             return reply.code(401).send({ error: 'Invalid token' });
         }
         const { token } = request.params;
-        const invitation = await planner_service_1.prisma.projectInvitation.findUnique({
+        const invitation = await db_1.default.projectInvitation.findUnique({
             where: { token }
         });
         if (!invitation) {
@@ -1446,7 +1619,7 @@ async function projectRoutes(fastify) {
         // For now, allow accepting with any email as long as they have the link (flexible)
         // Add to project
         try {
-            await planner_service_1.prisma.projectMember.create({
+            await db_1.default.projectMember.create({
                 data: {
                     project_id: invitation.project_id,
                     user_id: user.id,
@@ -1458,7 +1631,7 @@ async function projectRoutes(fastify) {
             // Ignore if already member
         }
         // Delete invitation
-        await planner_service_1.prisma.projectInvitation.delete({ where: { token } });
+        await db_1.default.projectInvitation.delete({ where: { token } });
         return { success: true, projectId: invitation.project_id };
     });
     // DELETE member
@@ -1475,7 +1648,7 @@ async function projectRoutes(fastify) {
         if (user.id === targetUserId) {
             return reply.code(400).send({ error: 'Cannot remove yourself' });
         }
-        await planner_service_1.prisma.projectMember.delete({
+        await db_1.default.projectMember.delete({
             where: { project_id_user_id: { project_id: projectId, user_id: targetUserId } }
         });
         return { success: true };

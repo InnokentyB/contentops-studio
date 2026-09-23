@@ -5,7 +5,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const crypto_1 = __importDefault(require("crypto"));
 const fs_1 = __importDefault(require("fs"));
-const path_1 = __importDefault(require("path"));
 class OKService {
     /**
      * Helper to compute OK API request signature (sig).
@@ -32,12 +31,12 @@ class OKService {
             return Buffer.from(base64Data, 'base64');
         }
         if (imageUrl.startsWith('/uploads/')) {
-            const filename = imageUrl.split('/').pop();
-            const localPath = path_1.default.join(__dirname, '../../uploads', filename || '');
-            if (fs_1.default.existsSync(localPath)) {
+            const { safeResolveUploadPath } = require('../utils/path_safety');
+            const localPath = safeResolveUploadPath(imageUrl);
+            if (localPath && fs_1.default.existsSync(localPath)) {
                 return fs_1.default.readFileSync(localPath);
             }
-            throw new Error(`Local image file not found: ${localPath}`);
+            throw new Error(`Local image file access denied or not found: ${imageUrl}`);
         }
         if (imageUrl.startsWith('http')) {
             const response = await fetch(imageUrl);

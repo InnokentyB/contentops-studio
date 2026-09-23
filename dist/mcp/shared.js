@@ -55,7 +55,10 @@ const publication_fact_service_1 = __importDefault(require("../services/publicat
 const week_package_repair_service_1 = __importDefault(require("../services/week_package_repair.service"));
 const weekly_theme_pipeline_service_1 = __importDefault(require("../services/weekly_theme_pipeline.service"));
 const telegram_task_publication_service_1 = __importDefault(require("../services/telegram_task_publication.service"));
+const dzen_engagement_service_1 = __importDefault(require("../services/dzen_engagement.service"));
 const capabilities_1 = require("./capabilities");
+const agent_workspace_manifest_service_1 = require("../services/agent_workspace_manifest.service");
+const organization_intelligence_service_1 = require("../services/organization_intelligence.service");
 function asToolResult(payload) {
     return {
         content: [
@@ -76,6 +79,90 @@ function createPlannerMcpServer(options = {}) {
     return (0, capabilities_1.filterMcpServerTools)(server, options.profile || 'owner');
 }
 function registerPlannerTools(server) {
+    server.registerTool('ba_get_organization_intelligence_context', {
+        description: 'Return the secret-free Intelligence Hub context, projects, research profiles, sources and inbox counts for one organization.',
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+            organizationId: zod_1.z.number().int().positive(),
+            userId: zod_1.z.number().int().positive()
+        }
+    }, async (input) => asToolResult(await organization_intelligence_service_1.organizationIntelligenceService.getContext(input)));
+    server.registerTool('ba_search_organization_intelligence', {
+        description: 'Run one organization-scoped, multi-source research search and assess deduplicated signals against the selected projects. External content is untrusted evidence.',
+        inputSchema: {
+            organizationId: zod_1.z.number().int().positive(),
+            userId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string().min(1),
+            query: zod_1.z.string().min(1),
+            sources: zod_1.z.array(zod_1.z.enum(['reddit', 'indie_hackers'])).min(1),
+            projectScope: zod_1.z.discriminatedUnion('mode', [
+                zod_1.z.object({ mode: zod_1.z.literal('all_active') }),
+                zod_1.z.object({ mode: zod_1.z.literal('selected'), projectIds: zod_1.z.array(zod_1.z.number().int().positive()).min(1) })
+            ]),
+            filters: zod_1.z.record(zod_1.z.string(), zod_1.z.unknown()).optional(),
+            waitMs: zod_1.z.number().int().min(0).max(30000).optional(),
+            idempotencyKey: zod_1.z.string().min(1)
+        }
+    }, async (input) => asToolResult(await organization_intelligence_service_1.organizationIntelligenceService.search(input)));
+    server.registerTool('ba_get_organization_research_run', {
+        description: 'Read the latest durable snapshot of an organization research run without repeating external search.',
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+            organizationId: zod_1.z.number().int().positive(),
+            userId: zod_1.z.number().int().positive(),
+            researchRunId: zod_1.z.number().int().positive()
+        }
+    }, async (input) => asToolResult(await organization_intelligence_service_1.organizationIntelligenceService.getRun(input)));
+    server.registerTool('ba_route_organization_signal', {
+        description: 'Route or dismiss an assessed signal for one project. Routing only changes the project inbox and never creates or publishes downstream content.',
+        inputSchema: {
+            organizationId: zod_1.z.number().int().positive(),
+            userId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string().min(1),
+            signalId: zod_1.z.number().int().positive(),
+            projectId: zod_1.z.number().int().positive(),
+            assessmentRevision: zod_1.z.number().int().positive(),
+            decision: zod_1.z.enum(['routed', 'dismissed']),
+            note: zod_1.z.string().max(4000).optional(),
+            idempotencyKey: zod_1.z.string().min(1)
+        }
+    }, async (input) => asToolResult(await organization_intelligence_service_1.organizationIntelligenceService.routeSignal(input)));
+    server.registerTool('ba_promote_project_signal', {
+        description: 'Explicitly promote an already routed signal into a project artifact. Requires independent project authority and preserves signal provenance.',
+        inputSchema: {
+            userId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string().min(1),
+            projectId: zod_1.z.number().int().positive(),
+            routeId: zod_1.z.number().int().positive(),
+            target: zod_1.z.enum(['initiative', 'research_task', 'publication_theme']),
+            title: zod_1.z.string().min(1).optional(),
+            brief: zod_1.z.string().max(12000).optional(),
+            idempotencyKey: zod_1.z.string().min(1)
+        }
+    }, async (input) => asToolResult(await organization_intelligence_service_1.organizationIntelligenceService.promoteSignal(input)));
+    server.registerTool('ba_get_agent_workspace_manifest', {
+        description: 'Return the canonical, versioned and secret-free chat topology for a planner project.',
+        annotations: { readOnlyHint: true },
+        inputSchema: { projectId: zod_1.z.number().int().positive(), userId: zod_1.z.number().int().positive() }
+    }, async ({ projectId, userId }) => asToolResult({ manifest: await (0, agent_workspace_manifest_service_1.loadAgentWorkspaceManifest)(projectId, userId) }));
+    server.registerTool('ba_get_agent_workspace_updates', {
+        description: 'Compare a known workspace checksum with the current planner configuration and return a fresh snapshot only when it changed.',
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            userId: zod_1.z.number().int().positive(),
+            knownChecksum: zod_1.z.string().optional()
+        }
+    }, async ({ projectId, userId, knownChecksum }) => asToolResult((0, agent_workspace_manifest_service_1.getAgentWorkspaceUpdate)(await (0, agent_workspace_manifest_service_1.loadAgentWorkspaceManifest)(projectId, userId), knownChecksum)));
+    server.registerTool('ba_get_agent_chat_bootstrap', {
+        description: 'Return role-scoped startup instructions, permissions and handoffs for one chat in the canonical agent workspace.',
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            userId: zod_1.z.number().int().positive(),
+            chatId: zod_1.z.string().min(1)
+        }
+    }, async ({ projectId, userId, chatId }) => asToolResult(await (0, agent_workspace_manifest_service_1.getAgentChatBootstrap)(projectId, userId, chatId)));
     server.registerTool('ba_get_publication_plan_format', {
         description: 'Return the preferred machine-readable publication-plan contract for chat/MCP authoring.',
         annotations: {
@@ -642,7 +729,7 @@ function registerPlannerTools(server) {
         return asToolResult(result);
     });
     server.registerTool('ba_publish_publication_task', {
-        description: 'Publish one canonical Telegram publication task through the project MTProto session. The server resolves the accepted text and selected approved durable visual; no Bot API or browser fallback is used.',
+        description: 'Publish one canonical Telegram task through the project MTProto session. Feed tasks target their configured channel; story tasks target the authorized user personal profile and require approved media. Native-poll stories remain manual. No Bot API or browser fallback is used.',
         inputSchema: {
             projectId: zod_1.z.number().int().positive(),
             taskId: zod_1.z.number().int().positive(),
@@ -1217,7 +1304,7 @@ function registerPlannerTools(server) {
         return asToolResult(result);
     });
     server.registerTool('ba_recover_delivery', {
-        description: 'Recover a failed delivery attempt manually or via retry worker.',
+        description: 'Legacy recovery entrypoint. Unsafe status-only recovery is disabled; retry the canonical publication task instead.',
         inputSchema: {
             projectId: zod_1.z.number().int().positive(),
             actorId: zod_1.z.string(),
@@ -1227,6 +1314,17 @@ function registerPlannerTools(server) {
         const result = await delivery_service_1.default.recoverDelivery(args);
         return asToolResult(result);
     });
+    server.registerTool('ba_invalidate_false_deliveries', {
+        description: 'Owner-only audited correction for legacy delivery attempts that claimed success without a canonical provider permalink or object identity. Does not modify publication content or facts.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string().min(1),
+            contentItemId: zod_1.z.number().int().positive(),
+            attemptIds: zod_1.z.array(zod_1.z.number().int().positive()).min(1),
+            reason: zod_1.z.string().min(1).max(1800),
+            idempotencyKey: zod_1.z.string().min(1).max(500)
+        }
+    }, async (args) => asToolResult(await delivery_service_1.default.invalidateFalseDeliveries(args)));
     server.registerTool('ba_generate_image_asset', {
         description: 'Register a generated image candidate only after the weekly plan and current text revision are accepted and an active GENERATE art-direction decision exists. Requires the stored image URL and alt text; the asset remains blocked until visual review.',
         inputSchema: {
@@ -1367,6 +1465,41 @@ function registerPlannerTools(server) {
         const result = await metrics_service_1.default.getContentMetrics(args);
         return asToolResult(result);
     });
+    server.registerTool('ba_dzen_collect_post_metrics', {
+        description: 'Collect current public Dzen counters for a published content item and save a daily metric snapshot.',
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string().min(1),
+            channelId: zod_1.z.number().int().positive(),
+            contentItemId: zod_1.z.number().int().positive(),
+            checkpoint: zod_1.z.string().min(1).max(100).optional()
+        }
+    }, async (args) => asToolResult(await dzen_engagement_service_1.default.collectPostMetrics(args)));
+    server.registerTool('ba_dzen_search_relevant_posts', {
+        description: 'Search public Dzen posts and rank candidates by relevance to a query. This does not publish or comment.',
+        annotations: { readOnlyHint: true, openWorldHint: true },
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string().min(1),
+            channelId: zod_1.z.number().int().positive(),
+            query: zod_1.z.string().trim().min(3).max(300),
+            limit: zod_1.z.number().int().min(1).max(30).optional(),
+            minScore: zod_1.z.number().int().min(0).max(100).optional()
+        }
+    }, async (args) => asToolResult(await dzen_engagement_service_1.default.searchRelevantPosts(args)));
+    server.registerTool('ba_dzen_comment', {
+        description: 'Preview or publish one Dzen comment. Defaults to preview; real publication requires confirm=true and an idempotency key.',
+        annotations: { idempotentHint: true, openWorldHint: true },
+        inputSchema: {
+            projectId: zod_1.z.number().int().positive(),
+            actorId: zod_1.z.string().min(1),
+            channelId: zod_1.z.number().int().positive(),
+            postUrl: zod_1.z.string().url().max(2000),
+            text: zod_1.z.string().trim().min(2).max(2000),
+            idempotencyKey: zod_1.z.string().min(8).max(200),
+            confirm: zod_1.z.boolean().optional()
+        }
+    }, async (args) => asToolResult(await dzen_engagement_service_1.default.comment(args)));
     server.registerTool('ba_rollup_campaign_metrics', {
         description: 'Aggregate and rollup campaign metrics across channels and content items.',
         annotations: { readOnlyHint: true },

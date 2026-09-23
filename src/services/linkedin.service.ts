@@ -130,12 +130,12 @@ class LinkedInService {
             const base64Data = imageUrl.split(',')[1];
             imageBuffer = Buffer.from(base64Data, 'base64');
         } else if (imageUrl.startsWith('/uploads/')) {
-            const filename = imageUrl.split('/').pop();
-            const localPath = path.join(__dirname, '../../uploads', filename || '');
-            if (fs.existsSync(localPath)) {
+            const { safeResolveUploadPath } = require('../utils/path_safety');
+            const localPath = safeResolveUploadPath(imageUrl);
+            if (localPath && fs.existsSync(localPath)) {
                 imageBuffer = fs.readFileSync(localPath);
             } else {
-                throw new Error(`Local image file not found: ${localPath}`);
+                throw new Error(`Local image file access denied or not found: ${imageUrl}`);
             }
         } else if (imageUrl.startsWith('http')) {
             const imgRes = await fetch(imageUrl);

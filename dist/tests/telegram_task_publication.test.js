@@ -67,7 +67,10 @@ function harness(task = approvedTask(), options = {}) {
     const contentItem = {
         findFirst: async () => currentTask,
         findUnique: async () => currentTask,
-        updateMany: async ({ data }) => {
+        updateMany: async ({ where, data }) => {
+            if (where?.status?.in && !where.status.in.includes(currentTask.status)) {
+                return { count: 0 };
+            }
             calls.updates.push(data);
             currentTask = { ...currentTask, ...data };
             return { count: 1 };
@@ -95,6 +98,17 @@ function harness(task = approvedTask(), options = {}) {
                 publishedLink: 'https://t.me/analystcraft/779',
                 metrics: { telegram_message_id: 779 }
             };
+        },
+        publishTelegramPersonalStoryMtproto: async (payload) => {
+            calls.provider.push(payload);
+            if (options.providerError)
+                throw options.providerError;
+            return {
+                adapter: 'telegram_story',
+                deliveryMethod: 'mtproto_personal_story',
+                publishedLink: 'https://t.me/i/s/42',
+                metrics: { telegram_story_id: 42 }
+            };
         }
     };
     const facts = {
@@ -121,9 +135,110 @@ function harness(task = approvedTask(), options = {}) {
         has_image: true
     });
     strict_1.default.equal(result.delivery, 'mtproto');
+    strict_1.default.equal(result.route_executable, true);
     strict_1.default.equal(calls.provider.length, 0);
     strict_1.default.equal(calls.updates.length, 0);
     strict_1.default.equal(calls.facts.length, 0);
+});
+(0, node_test_1.default)('personal Telegram story dry-run is distinct from channel feed delivery', async () => {
+    const story = approvedTask({
+        type: 'telegram:story',
+        visual_placement: 'story',
+        quality_report: { handoff_bundle: { poll: { supported: false } } }
+    });
+    const { service, calls } = harness(story);
+    const result = await service.execute({ projectId: 10, taskId: 779, dryRun: true });
+    strict_1.default.equal(result.delivery, 'mtproto_personal_story');
+    strict_1.default.equal(result.target, 'personal_profile');
+    strict_1.default.equal(result.payload_preview.image_url, 'https://cdn.example/approved.png');
+    strict_1.default.equal(calls.provider.length, 0);
+});
+(0, node_test_1.default)('personal Telegram story publishes as self and records story identity evidence', async () => {
+    const story = approvedTask({
+        type: 'telegram:story',
+        visual_placement: 'story',
+        quality_report: { handoff_bundle: { poll: { supported: false } } }
+    });
+    const { service, calls } = harness(story);
+    const result = await service.execute({
+        projectId: 10,
+        taskId: 779,
+        idempotencyKey: 'publish-personal-story:779:r2'
+    });
+    strict_1.default.deepEqual(calls.provider, [{
+            projectId: 10,
+            taskId: 779,
+            caption: 'Accepted publication text',
+            imageUrl: 'https://cdn.example/approved.png',
+            idempotencyKey: 'publish-personal-story:779:r2'
+        }]);
+    strict_1.default.equal(result.delivery_method, 'mtproto_personal_story');
+    strict_1.default.equal(result.external_id, 42);
+    strict_1.default.equal(calls.facts[0].artifactKind, 'story');
+    strict_1.default.equal(calls.facts[0].providerObjectId, '42');
+    strict_1.default.deepEqual(calls.facts[0].evidence, { type: 'api', ref: 'https://t.me/i/s/42' });
+});
+(0, node_test_1.default)('validated personal Telegram story can claim from browser_required without becoming a channel post', async () => {
+    const story = approvedTask({
+        status: 'browser_required',
+        publication_mode: 'browser_required',
+        type: 'telegram:story',
+        visual_placement: 'story',
+        quality_report: {
+            handoff_bundle: {
+                placement_contract: { poll: { supported: false, configuration_mode: 'not_supported' } }
+            }
+        }
+    });
+    const { service, calls } = harness(story);
+    const result = await service.execute({
+        projectId: 10,
+        taskId: 779,
+        idempotencyKey: 'task-779-story-publish-r2'
+    });
+    strict_1.default.equal(result.delivery_method, 'mtproto_personal_story');
+    strict_1.default.equal(calls.provider.length, 1);
+    strict_1.default.equal(calls.provider[0].channel, undefined);
+    strict_1.default.equal(calls.provider[0].idempotencyKey, 'task-779-story-publish-r2');
+});
+(0, node_test_1.default)('browser_required feed reports a route error while a concurrent publishing state reports a claim error', async () => {
+    const preview = await harness(approvedTask({ status: 'browser_required', publication_mode: 'browser_required' }))
+        .service.execute({ projectId: 10, taskId: 779, dryRun: true });
+    strict_1.default.equal(preview.delivery, 'mtproto');
+    strict_1.default.equal(preview.route_executable, false);
+    strict_1.default.equal(preview.route_blocker, 'PUBLICATION_ROUTE_NOT_EXECUTABLE');
+    const concurrentPreview = await harness(approvedTask({ status: 'publishing' }))
+        .service.execute({ projectId: 10, taskId: 779, dryRun: true });
+    strict_1.default.equal(concurrentPreview.route_executable, false);
+    strict_1.default.equal(concurrentPreview.route_blocker, 'PUBLICATION_ATTEMPT_UNCERTAIN');
+    await strict_1.default.rejects(harness(approvedTask({ status: 'browser_required', publication_mode: 'browser_required' })).service.execute({
+        projectId: 10,
+        taskId: 779,
+        idempotencyKey: 'publish-browser-feed:779'
+    }), /PUBLICATION_ROUTE_NOT_EXECUTABLE/);
+    await strict_1.default.rejects(harness(approvedTask({ status: 'publishing' })).service.execute({
+        projectId: 10,
+        taskId: 779,
+        idempotencyKey: 'publish-concurrent:779'
+    }), /PUBLICATION_ATTEMPT_UNCERTAIN/);
+});
+(0, node_test_1.default)('personal Telegram story requires approved media and keeps native polls manual', async () => {
+    const noMedia = approvedTask({
+        type: 'telegram:story', visual_placement: 'story',
+        visual_state: 'NOT_REQUIRED', selected_asset_id: null, selected_asset: null
+    });
+    await strict_1.default.rejects(harness(noMedia).service.execute({ projectId: 10, taskId: 779, dryRun: true }), /TELEGRAM_STORY_MEDIA_REQUIRED/);
+    const nativePoll = approvedTask({
+        type: 'telegram:story', visual_placement: 'story',
+        quality_report: {
+            handoff_bundle: {
+                placement_contract: {
+                    poll: { supported: true, configuration_mode: 'native_manual' }
+                }
+            }
+        }
+    });
+    await strict_1.default.rejects(harness(nativePoll).service.execute({ projectId: 10, taskId: 779, dryRun: true }), /TELEGRAM_STORY_NATIVE_POLL_MANUAL/);
 });
 (0, node_test_1.default)('text-only task uses the same normalized payload for dry-run and live publication', async () => {
     const textOnly = approvedTask({
@@ -160,7 +275,9 @@ function harness(task = approvedTask(), options = {}) {
         }]);
     strict_1.default.equal(result.delivery_method, 'mtproto');
     strict_1.default.equal(result.external_id, 779);
-    strict_1.default.equal(calls.events.length, 1);
+    strict_1.default.equal(calls.events.length, 2);
+    strict_1.default.equal(calls.events[0].command, 'ba_publish_publication_task_claim');
+    strict_1.default.equal(calls.events[0].after_state.target, 'configured_channel');
     strict_1.default.equal(calls.facts.length, 1);
     strict_1.default.equal(calls.facts[0].outcome, 'published');
     strict_1.default.equal(calls.facts[0].providerObjectId, '779');
@@ -218,6 +335,45 @@ function harness(task = approvedTask(), options = {}) {
     await strict_1.default.rejects(loadTelegramRemoteImage('https://127.0.0.1/approved.png', async () => new Response()), /TELEGRAM_IMAGE_URL_FORBIDDEN/);
     await strict_1.default.rejects(loadTelegramRemoteImage('https://cdn.example/not-an-image', async () => new Response('text', { status: 200, headers: { 'content-type': 'text/plain' } })), /TELEGRAM_IMAGE_TYPE_INVALID/);
 });
+(0, node_test_1.default)('MTProto personal story uses self peer, deterministic random id, and provider readback', async (t) => {
+    const { TelegramClientService } = require('../services/telegram_client.service');
+    const { Api } = require('telegram/tl');
+    const requests = [];
+    const fakeClient = {
+        uploadFile: async () => new Api.InputFile({ id: 1, parts: 1, name: 'story.png', md5Checksum: '' }),
+        invoke: async (request) => {
+            requests.push(request);
+            if (request instanceof Api.stories.CanSendStory)
+                return true;
+            if (request instanceof Api.stories.SendStory) {
+                return { updates: [new Api.UpdateStoryID({ id: 42, randomId: request.randomId })] };
+            }
+            if (request instanceof Api.stories.GetStoriesByID)
+                return { stories: [{ id: 42 }] };
+            if (request instanceof Api.stories.ExportStoryLink)
+                return { link: 'https://t.me/i/s/42' };
+            throw new Error(`Unexpected request ${request.className}`);
+        }
+    };
+    const service = new TelegramClientService();
+    service.getClient = async () => fakeClient;
+    t.mock.method(globalThis, 'fetch', async () => new Response(Uint8Array.from([137, 80, 78, 71]), {
+        status: 200,
+        headers: { 'content-type': 'image/png' }
+    }));
+    const first = await service.publishPersonalStory({
+        projectId: 10,
+        caption: 'Story caption',
+        imageUrl: 'https://cdn.example/story.png',
+        idempotencyKey: 'story:779:r2'
+    });
+    strict_1.default.deepEqual(first, { storyId: 42, publicLink: 'https://t.me/i/s/42' });
+    strict_1.default.ok(requests[0].peer instanceof Api.InputPeerSelf);
+    strict_1.default.ok(requests[1].peer instanceof Api.InputPeerSelf);
+    strict_1.default.equal(requests[1].randomId.toString(), '397729934467936089');
+    strict_1.default.ok(requests[2] instanceof Api.stories.GetStoriesByID);
+    strict_1.default.ok(requests[3] instanceof Api.stories.ExportStoryLink);
+});
 (0, node_test_1.default)('file and data assets are rejected before MTProto is called', async () => {
     for (const fileUrl of ['file:///tmp/approved.png', 'data:image/png;base64,AAAA']) {
         const { service, calls } = harness(approvedTask({
@@ -252,6 +408,7 @@ function harness(task = approvedTask(), options = {}) {
     const { service, calls } = harness(approvedTask(), { providerError: new Error('connection lost') });
     await strict_1.default.rejects(service.execute({ projectId: 10, taskId: 779, idempotencyKey: 'publish:779:r2' }), /TELEGRAM_PUBLICATION_UNCERTAIN/);
     strict_1.default.equal(calls.facts.length, 0);
-    strict_1.default.equal(calls.events.length, 0);
+    strict_1.default.equal(calls.events.length, 1);
+    strict_1.default.equal(calls.events[0].command, 'ba_publish_publication_task_claim');
     strict_1.default.equal(calls.updates[calls.updates.length - 1].status, 'publishing');
 });

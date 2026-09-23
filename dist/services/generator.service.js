@@ -3,18 +3,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const client_1 = require("@prisma/client");
-const pg_1 = require("pg");
-const adapter_pg_1 = require("@prisma/adapter-pg");
+const db_1 = __importDefault(require("../db"));
 const openai_1 = __importDefault(require("openai"));
 const dotenv_1 = require("dotenv");
 const multi_agent_service_1 = __importDefault(require("./multi_agent.service"));
 const model_policy_service_1 = require("./model_policy.service");
+const content_language_service_1 = require("./content_language.service");
 (0, dotenv_1.config)();
-const connectionString = process.env.DATABASE_URL;
-const pool = new pg_1.Pool({ connectionString });
-const adapter = new adapter_pg_1.PrismaPg(pool);
-const prisma = new client_1.PrismaClient({ adapter });
 const DEFAULT_GOOGLE_IMAGE_MODEL = 'gemini-3.1-flash-image';
 const DEFAULT_OPENAI_IMAGE_MODEL = 'gpt-image-2';
 const RETIRED_GOOGLE_IMAGE_MODELS = new Set([
@@ -56,7 +51,7 @@ class GeneratorService {
         if (!input.projectId)
             return;
         try {
-            await prisma.agentRun.create({
+            await db_1.default.agentRun.create({
                 data: {
                     project: { connect: { id: input.projectId } },
                     type: 'model_invocation',
@@ -84,7 +79,7 @@ class GeneratorService {
         const key = provider === 'nano' ? this.PROMPT_KEY_NANO : this.PROMPT_KEY_GPT_IMAGE;
         const defaultPrompt = provider === 'nano' ? this.DEFAULT_PROMPT_NANO : this.DEFAULT_PROMPT_GPT_IMAGE;
         try {
-            const setting = await prisma.projectSettings.findUnique({
+            const setting = await db_1.default.projectSettings.findUnique({
                 where: {
                     project_id_key: {
                         project_id: projectId,
@@ -96,7 +91,7 @@ class GeneratorService {
                 return setting.value;
             // If not set, initialize with default (safely)
             try {
-                await prisma.projectSettings.create({
+                await db_1.default.projectSettings.create({
                     data: {
                         project_id: projectId,
                         key: key,
@@ -116,7 +111,7 @@ class GeneratorService {
     }
     async updateImagePromptTemplate(projectId, value, provider = 'gpt-image') {
         const key = provider === 'nano' ? this.PROMPT_KEY_NANO : this.PROMPT_KEY_GPT_IMAGE;
-        await prisma.projectSettings.upsert({
+        await db_1.default.projectSettings.upsert({
             where: {
                 project_id_key: {
                     project_id: projectId,
@@ -128,10 +123,24 @@ class GeneratorService {
         });
     }
     async generateTopics(projectId, theme, weekId, promptOverride, count = 5, existingTopics = []) {
-        return await multi_agent_service_1.default.refineTopics(projectId, theme, weekId, promptOverride, count, existingTopics);
+        // Week plans inherit language from their target channel's existing slots.
+        const slot = await db_1.default.post.findFirst({
+            where: { project_id: projectId, week_id: weekId },
+            orderBy: { slot_index: 'asc' },
+            include: { channel: true }
+        });
+        const contentLanguage = (0, content_language_service_1.channelContentLanguage)(slot?.channel);
+        return await multi_agent_service_1.default.refineTopics(projectId, theme, weekId, promptOverride, count, existingTopics, contentLanguage);
     }
     async generatePostText(projectId, theme, topic, postId, promptOverride, withImage = false) {
-        const result = await multi_agent_service_1.default.runPostGeneration(projectId, theme, topic, postId, promptOverride, withImage);
+        const post = postId > 0
+            ? await db_1.default.post.findFirst({
+                where: { id: postId, project_id: projectId },
+                include: { channel: true }
+            })
+            : null;
+        const contentLanguage = (0, content_language_service_1.channelContentLanguage)(post?.channel);
+        const result = await multi_agent_service_1.default.runPostGeneration(projectId, theme, topic, postId, promptOverride, withImage, contentLanguage);
         return {
             text: result.finalText,
             category: result.category,
@@ -139,29 +148,31 @@ class GeneratorService {
         };
     }
     async generateContentItemText(contentItemId) {
-        const item = await prisma.contentItem.findUnique({
+        const item = await db_1.default.contentItem.findUnique({
             where: { id: contentItemId },
-            include: { week_package: true }
+            include: { week_package: true, channel: true }
         });
         if (!item || !item.week_package)
             throw new Error("ContentItem or WeekPackage not found");
         const theme = item.week_package.week_theme || '';
         const topic = item.title || item.brief || 'Unknown topic';
+        const contentLanguage = (0, content_language_service_1.channelContentLanguage)(item.channel);
         // For MVP, reuse the existing runPostGeneration logic but point it to this ContentItem's topic
         // A more advanced integration would pass the ContentItem's specific requirements (layer, CTA) 
         // to a dedicated v2 prompt.
-        const promptOverride = `Ты — Автор контента. Тема недели: ${theme}. Тезис: ${item.week_package.core_thesis}.
-Твоя задача — написать черновик:
-Формат: ${item.type} (Слой: ${item.layer || 'общий'})
-Заголовок: ${item.title}
-Детали: ${item.brief}
-Ключевые пункты: ${(item.key_points || []).join(', ')}
-CTA: ${item.cta || 'Нет'}
+        const promptOverride = `You are a content writer. Weekly theme: ${theme}. Core thesis: ${item.week_package.core_thesis}.
+Write a publication draft:
+Format: ${item.type} (layer: ${item.layer || 'general'})
+Title: ${item.title}
+Details: ${item.brief}
+Key points: ${(item.key_points || []).join(', ')}
+CTA: ${item.cta || 'None'}
 
-Пиши сразу текст, без мета-комментариев.`;
+${(0, content_language_service_1.contentLanguageInstruction)(contentLanguage)}
+Return the publication text only, without meta-commentary.`;
         // Mocking postId as 0 since we capture the output directly and will save it to ContentItem manually
-        const result = await multi_agent_service_1.default.runPostGeneration(item.project_id, theme, topic, 0, promptOverride, false);
-        await prisma.contentItem.update({
+        const result = await multi_agent_service_1.default.runPostGeneration(item.project_id, theme, topic, 0, promptOverride, false, contentLanguage);
+        await db_1.default.contentItem.update({
             where: { id: item.id },
             data: { draft_text: result.finalText, status: 'drafted', quality_report: result.history }
         });

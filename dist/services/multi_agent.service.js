@@ -10,19 +10,22 @@ const dotenv_1 = require("dotenv");
 const db_1 = __importDefault(require("../db"));
 const comment_service_1 = __importDefault(require("./comment.service"));
 const model_policy_service_1 = require("./model_policy.service");
+const content_language_service_1 = require("./content_language.service");
 (0, dotenv_1.config)();
 class MultiAgentService {
     /**
      * Run Sequential Writer
      */
     async runSequentialWriter(projectId, context) {
-        return this.runJsonAgent(projectId, 'seq_writer', this.KEY_SEQ_WRITER_PROMPT, this.DEFAULT_SEQ_WRITER_PROMPT, JSON.stringify(context));
+        const language = context.content_language === 'en' ? 'en' : 'ru';
+        return this.runJsonAgent(projectId, 'seq_writer', this.KEY_SEQ_WRITER_PROMPT, this.DEFAULT_SEQ_WRITER_PROMPT, JSON.stringify(context), language);
     }
     /**
      * Run Content Critic
      */
     async runContentCritic(projectId, context) {
-        const result = await this.runJsonAgent(projectId, 'seq_critic', this.KEY_SEQ_CRITIC_PROMPT, this.DEFAULT_SEQ_CRITIC_PROMPT, JSON.stringify(context));
+        const language = context.content_language === 'en' ? 'en' : 'ru';
+        const result = await this.runJsonAgent(projectId, 'seq_critic', this.KEY_SEQ_CRITIC_PROMPT, this.DEFAULT_SEQ_CRITIC_PROMPT, JSON.stringify(context), language);
         return {
             score: result?.score || 0,
             critique: result?.critique || "Parsing error"
@@ -30,13 +33,14 @@ class MultiAgentService {
     }
     async runPublicationCritic(projectId, context) {
         const config = await this.getAgentConfig(projectId, 'post_critic');
+        const languageInstruction = (0, content_language_service_1.contentLanguageInstruction)(context.content_language === 'en' ? 'en' : 'ru');
         const systemPrompt = `${config.prompt || this.DEFAULT_POST_CRITIC_PROMPT}
 
 You are reviewing a publication task for a real channel.
 Return STRICT JSON with:
 {
   "score": 0-100,
-  "critique": "short summary in Russian",
+  "critique": "short editorial summary",
   "dimensions": {
     "platform_fit": 0-100,
     "voice_fit": 0-100,
@@ -48,7 +52,8 @@ Return STRICT JSON with:
   "rewrite_instructions": ["concrete edit instruction", "..."]
 }
 
-Use deterministic findings and policy matrix as hard constraints.`;
+Use deterministic findings and policy matrix as hard constraints.
+${languageInstruction}`;
         const parsed = await this.invokeStructuredAgent(config, systemPrompt, JSON.stringify(context), projectId, 'publication_critic');
         return {
             score: typeof parsed?.score === 'number' ? parsed.score : 0,
@@ -63,21 +68,24 @@ Use deterministic findings and policy matrix as hard constraints.`;
      * Run Content Fixer
      */
     async runContentFixer(projectId, context) {
-        return this.runJsonAgent(projectId, 'seq_fixer', this.KEY_SEQ_FIXER_PROMPT, this.DEFAULT_SEQ_FIXER_PROMPT, JSON.stringify(context));
+        const language = context.content_language === 'en' ? 'en' : 'ru';
+        return this.runJsonAgent(projectId, 'seq_fixer', this.KEY_SEQ_FIXER_PROMPT, this.DEFAULT_SEQ_FIXER_PROMPT, JSON.stringify(context), language);
     }
     async runPublicationFixer(projectId, context) {
         const config = await this.getAgentConfig(projectId, 'post_fixer');
+        const languageInstruction = (0, content_language_service_1.contentLanguageInstruction)(context.content_language === 'en' ? 'en' : 'ru');
         const systemPrompt = `${config.prompt || this.DEFAULT_POST_FIXER_PROMPT}
 
 You are fixing a publication task after a structured critic review.
 Return STRICT JSON with:
 {
-  "updated_text": "final edited post text in Russian",
+  "updated_text": "final edited publication text",
   "summary": "what changed and why",
   "resolved_findings": ["..."]
 }
 
-Do not return markdown fences. Keep the original intent, but fully address platform, voice, glossary and policy issues.`;
+Do not return markdown fences. Keep the original intent, but fully address platform, voice, glossary and policy issues.
+${languageInstruction}`;
         const parsed = await this.invokeStructuredAgent(config, systemPrompt, JSON.stringify(context), projectId, 'publication_fixer');
         return {
             updated_text: typeof parsed?.updated_text === 'string' && parsed.updated_text.trim()
@@ -92,9 +100,9 @@ Do not return markdown fences. Keep the original intent, but fully address platf
     /**
      * Generic JSON Agent Runner
      */
-    async runJsonAgent(projectId, role, promptKey, defaultPrompt, input) {
+    async runJsonAgent(projectId, role, promptKey, defaultPrompt, input, contentLanguage) {
         const config = await this.getAgentConfig(projectId, role); // cast for now
-        const systemPrompt = config.prompt || defaultPrompt;
+        const systemPrompt = `${config.prompt || defaultPrompt}${contentLanguage ? `\n\n${(0, content_language_service_1.contentLanguageInstruction)(contentLanguage)}` : ''}`;
         try {
             const responseText = await this.invokeTextAgent(projectId, role, { ...config, prompt: systemPrompt }, input, { json: true, temperature: 0.3 });
             return JSON.parse(responseText);
@@ -144,9 +152,9 @@ Do not return markdown fences. Keep the original intent, but fully address platf
         this.KEY_TOPIC_FIXER_KEY = 'multi_agent_topic_fixer_key';
         this.KEY_TOPIC_FIXER_MODEL = 'multi_agent_topic_fixer_model';
         // Default Propmts for Post Generation (similar to legacy but split)
-        this.DEFAULT_POST_CREATOR_PROMPT = `You are an expert content creator. Write an engaging, insightful, and professionally formatted Telegram post about the given topic. Use Markdown. Focus on value. Max 4000 chars. Language: Russian.`;
-        this.DEFAULT_POST_CRITIC_PROMPT = `You are a strict editor. Evaluate the post based on relevance, insight, clarity, engagement, and formatting. Output JSON with "score" (0-100) and "critique" (in Russian).`;
-        this.DEFAULT_POST_FIXER_PROMPT = `You are an expert editor. Rewrite the post to address the critique while keeping the original meaning. Language: Russian. 
+        this.DEFAULT_POST_CREATOR_PROMPT = `You are an expert content creator. Write an engaging, insightful, and professionally formatted Telegram post about the given topic. Use Markdown. Focus on value. Max 4000 chars. Follow the language instruction supplied with the request.`;
+        this.DEFAULT_POST_CRITIC_PROMPT = `You are a strict editor. Evaluate the post based on relevance, insight, clarity, engagement, and formatting. Output JSON with "score" (0-100) and "critique". Write the critique in the requested content language.`;
+        this.DEFAULT_POST_FIXER_PROMPT = `You are an expert editor. Rewrite the post to address the critique while keeping the original meaning. Follow the language instruction supplied with the request.
 
 CRITICAL: Return ONLY the improved post text itself. Do NOT include:
 - Any meta-commentary about what you changed
@@ -193,7 +201,7 @@ Start directly with the post content.`;
 Верни ТОЛЬКО JSON:
 {
     "score": <number 0-100>,
-    "critique": "<detailed feedback in Russian>"
+    "critique": "<detailed feedback in the requested content language>"
 }`;
         this.DEFAULT_TOPIC_FIXER_PROMPT = `Ты — TopicFixerAgent, автоматический редактор контент-плана.
 
@@ -410,7 +418,7 @@ Definitions:
 - tool_used: checklist / 3 questions / framework / case study / personal story / rant.
 - angle: contrarian / analytical / emotional / educational.
 
-Language: Russian (text), English (keys in JSON).`;
+Language: follow the request language for text and use English keys in JSON.`;
         this.DEFAULT_SEQ_CRITIC_PROMPT = `You are a strict Content Critic.
 Review the provided post against the "Week Memory".
 
@@ -423,7 +431,7 @@ Criteria:
 Output JSON Format:
 {
   "score": 0-100,
-  "critique": "Specific feedback in Russian..."
+  "critique": "Specific feedback in the requested content language..."
 }`;
         this.DEFAULT_SEQ_FIXER_PROMPT = `You are a Content Editor (Fixer).
 Rewrite the post based on the critique. 
@@ -645,16 +653,15 @@ Output JSON Format (Strict):
         let finalImageUrl = imageUrl;
         if (imageUrl.startsWith('/uploads/')) {
             const fs = require('fs');
-            const path = require('path');
-            const filename = imageUrl.replace('/uploads/', '');
-            const localFilePath = path.join(process.cwd(), 'uploads', filename);
-            if (fs.existsSync(localFilePath)) {
+            const { safeResolveUploadPath } = require('../utils/path_safety');
+            const localFilePath = safeResolveUploadPath(imageUrl);
+            if (localFilePath && fs.existsSync(localFilePath)) {
                 const buffer = fs.readFileSync(localFilePath);
                 const base64Data = buffer.toString('base64');
                 finalImageUrl = `data:image/png;base64,${base64Data}`;
             }
             else {
-                console.warn(`[MultiAgent] Local file not found: ${localFilePath}`);
+                console.warn(`[MultiAgent] Local file access denied or not found: ${imageUrl}`);
             }
         }
         try {
@@ -672,6 +679,8 @@ Output JSON Format (Strict):
                     }
                 ],
                 response_format: { type: 'json_object' }
+            }, {
+                timeout: 45000
             });
             const content = response.choices[0].message.content || '{}';
             await this.logRun(projectId, 'model_invocation', 'image_critic', 'success', 'Image URL + Text', systemPrompt, content, null, {
@@ -817,7 +826,8 @@ Output JSON Format (Strict):
                     where: { id: keyId }
                 });
                 if (providerKey) {
-                    apiKey = providerKey.key;
+                    const { safeDecryptProviderKey } = require('../utils/channel_secrets');
+                    apiKey = safeDecryptProviderKey(providerKey.key);
                 }
                 else {
                     console.warn(`Provider Key ${keyId} not found for project ${projectId}`);
@@ -850,17 +860,18 @@ Return JSON only in this exact shape:
 {
   "proposals": [
     {
-      "thesis": "specific substantive post thesis in Russian",
+      "thesis": "specific substantive post thesis",
       "function": "frame|diagnose|demonstrate|contrast|apply|reflect|synthesize",
       "difference_from_neighbors": "how this proposal differs from adjacent days"
     }
   ]
 }
-Do not return placeholders, day labels, generic "focus of the day" formulations, categories, or tags instead of theses.`;
+Do not return placeholders, day labels, generic "focus of the day" formulations, categories, or tags instead of theses.
+${(0, content_language_service_1.contentLanguageInstruction)(context.content_language === 'en' ? 'en' : 'ru')}`;
         return this.invokeStructuredAgent(agentConfig, systemPrompt, JSON.stringify(context), projectId, 'weekly_topic_planner');
     }
     // --- Post Generation Loop (New) ---
-    async runPostGeneration(projectId, theme, topic, postId, promptOverride, withImage = false) {
+    async runPostGeneration(projectId, theme, topic, postId, promptOverride, withImage = false, contentLanguage = 'ru') {
         console.log(`[MultiAgent Post] Starting generation for: "${topic}"(Image: ${withImage})`);
         // Fetch comments for context
         let commentsContext = await comment_service_1.default.getCommentsForContext(projectId, 'post', postId);
@@ -921,6 +932,9 @@ Do not return placeholders, day labels, generic "focus of the day" formulations,
                 creatorConfig.prompt = promptOverride;
                 console.log('[MultiAgent Post] Using prompt override');
             }
+            creatorConfig.prompt = `${creatorConfig.prompt || this.DEFAULT_POST_CREATOR_PROMPT}\n\n${(0, content_language_service_1.contentLanguageInstruction)(contentLanguage)}`;
+            criticConfig.prompt = `${criticConfig.prompt || this.DEFAULT_POST_CRITIC_PROMPT}\n\n${(0, content_language_service_1.contentLanguageInstruction)(contentLanguage)}`;
+            fixerConfig.prompt = `${fixerConfig.prompt || this.DEFAULT_POST_FIXER_PROMPT}\n\n${(0, content_language_service_1.contentLanguageInstruction)(contentLanguage)}`;
             currentText = await this.postCreator(projectId, theme, topic, creatorConfig, runLogId, commentsContext);
             const MAX_ITERATIONS = 2; // one repair at most, followed by a final verification
             const TARGET_SCORE = 80;
@@ -1128,7 +1142,7 @@ Do not return placeholders, day labels, generic "focus of the day" formulations,
     }
     // ... rest of the file ...
     // --- Topic List Generation ---
-    async refineTopics(projectId, theme, weekId, promptOverride, count = 2, existingTopics = []) {
+    async refineTopics(projectId, theme, weekId, promptOverride, count = 2, existingTopics = [], contentLanguage = 'ru') {
         const fs = require('fs');
         fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [MultiAgent] Starting topic generation for theme: "${theme}", count: ${count}\n`);
         console.log(`[MultiAgent] Starting topic generation for theme: "${theme}", count: ${count}`);
@@ -1178,7 +1192,7 @@ Do not return placeholders, day labels, generic "focus of the day" formulations,
             const criticConfig = await this.getAgentConfig(projectId, 'topic_critic');
             const fixerConfig = await this.getAgentConfig(projectId, 'topic_fixer');
             [creatorConfig, criticConfig, fixerConfig].forEach(model_policy_service_1.preflightInvocation);
-            creatorConfig.prompt = creatorPrompt;
+            creatorConfig.prompt = `${creatorPrompt}\n\n${(0, content_language_service_1.contentLanguageInstruction)(contentLanguage)}`;
             currentTopicsJSON = await this.topicCreator(projectId, theme, creatorConfig, runLogId, fullContext);
             // Ensure it's valid JSON structure from the start
             try {
@@ -1193,8 +1207,8 @@ Do not return placeholders, day labels, generic "focus of the day" formulations,
                 iterations++;
                 fs.appendFileSync('debug.log', `[${new Date().toISOString()}] [MultiAgent Topics] Iteration ${iterations} starting...\n`);
                 console.log(`[MultiAgent Topics] Iteration ${iterations} starting...`);
-                criticConfig.prompt = await this.getPrompt(projectId, this.KEY_TOPIC_CRITIC, this.DEFAULT_TOPIC_CRITIC_PROMPT);
-                fixerConfig.prompt = await this.getPrompt(projectId, this.KEY_TOPIC_FIXER, this.DEFAULT_TOPIC_FIXER_PROMPT);
+                criticConfig.prompt = `${await this.getPrompt(projectId, this.KEY_TOPIC_CRITIC, this.DEFAULT_TOPIC_CRITIC_PROMPT)}\n\n${(0, content_language_service_1.contentLanguageInstruction)(contentLanguage)}`;
+                fixerConfig.prompt = `${await this.getPrompt(projectId, this.KEY_TOPIC_FIXER, this.DEFAULT_TOPIC_FIXER_PROMPT)}\n\n${(0, content_language_service_1.contentLanguageInstruction)(contentLanguage)}`;
                 // Critic
                 const critiqueResult = await this.topicCritic(projectId, currentTopicsJSON, theme, criticConfig, runLogId, iterations);
                 currentScore = critiqueResult.score;

@@ -8,14 +8,9 @@ import initiativeService from '../services/initiative.service';
 import modelService from '../services/model.service';
 import { modelForRole } from '../services/model_policy.service';
 import v2Orchestrator from '../services/v2_orchestrator.service';
-import { PrismaClient, Prisma } from '@prisma/client';
-import { Pool } from 'pg';
-import { PrismaPg } from '@prisma/adapter-pg';
+import { Prisma, Post, Week } from '@prisma/client';
+import prisma from '../db';
 
-const connectionString = process.env.DATABASE_URL;
-const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
 
 import authService from '../services/auth.service';
 import commentService from '../services/comment.service';
@@ -34,6 +29,8 @@ import publicationAdapterService from '../services/publication_adapter.service';
 import { derivePublicationGenerationStage } from '../services/publication_generation_stage';
 import imageAssetService from '../services/image_asset.service';
 import { assertVisualGenerationGate, hardenEditorialVisualPrompt } from '../services/visual_generation_policy';
+import { safeResolveUploadPath } from '../utils/path_safety';
+import { safeEncryptProviderKey, safeDecryptProviderKey } from '../utils/channel_secrets';
 
 async function loadPublicationPlanContext(projectId: number) {
     const settings = await prisma.projectSettings.findMany({
@@ -441,6 +438,72 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         }
     });
 
+    /**
+     * Loads a post by ID and asserts that the requesting user has the required project access.
+     * Returns null if the post does not exist or user lacks access, preventing IDOR data leaks.
+     */
+    async function getAuthorizedPost(
+        postId: number,
+        userId: number,
+        minRole?: 'owner' | 'editor' | 'viewer',
+        includeWeek?: false
+    ): Promise<Post | null>;
+    async function getAuthorizedPost(
+        postId: number,
+        userId: number,
+        minRole: 'owner' | 'editor' | 'viewer',
+        includeWeek: true
+    ): Promise<(Post & { week: Week | null }) | null>;
+    async function getAuthorizedPost(
+        postId: number,
+        userId: number,
+        minRole: 'owner' | 'editor' | 'viewer' = 'viewer',
+        includeWeek = false
+    ): Promise<(Post & { week?: Week | null }) | null> {
+        if (!Number.isInteger(postId) || postId <= 0) return null;
+        const post = await prisma.post.findUnique({
+            where: { id: postId },
+            include: includeWeek ? { week: true } : undefined
+        });
+        if (!post) return null;
+        const hasAccess = await authService.hasProjectAccess(userId, post.project_id, minRole);
+        if (!hasAccess) return null;
+        return post;
+    }
+
+    /**
+     * Loads a week by ID and asserts that the requesting user has the required project access.
+     * Returns null if the week does not exist or user lacks access, preventing IDOR data leaks.
+     */
+    async function getAuthorizedWeek(
+        weekId: number,
+        userId: number,
+        minRole?: 'owner' | 'editor' | 'viewer',
+        includePosts?: false
+    ): Promise<Week | null>;
+    async function getAuthorizedWeek(
+        weekId: number,
+        userId: number,
+        minRole: 'owner' | 'editor' | 'viewer',
+        includePosts: true
+    ): Promise<(Week & { posts: Post[] }) | null>;
+    async function getAuthorizedWeek(
+        weekId: number,
+        userId: number,
+        minRole: 'owner' | 'editor' | 'viewer' = 'viewer',
+        includePosts = false
+    ): Promise<(Week & { posts?: Post[] }) | null> {
+        if (!Number.isInteger(weekId) || weekId <= 0) return null;
+        const week = await prisma.week.findUnique({
+            where: { id: weekId },
+            include: includePosts ? { posts: { orderBy: { publish_at: 'asc' } } } : undefined
+        });
+        if (!week) return null;
+        const hasAccess = await authService.hasProjectAccess(userId, week.project_id, minRole);
+        if (!hasAccess) return null;
+        return week;
+    }
+
     // Public endpoint to serve images for Telegram link preview
     fastify.get('/public/posts/:id/image', async (request, reply) => {
         const { id } = request.params as { id: string };
@@ -465,13 +528,12 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             reply.header('Cache-Control', 'public, max-age=86400');
             return reply.send(buffer);
         } else if (post.image_url.startsWith('/uploads/')) {
-            // Local upload: serve file
+            // Local upload: serve file safely
             const fs = require('fs');
             const path = require('path');
-            const filename = post.image_url.split('/').pop() || '';
-            const localPath = path.join(__dirname, '../../uploads', filename);
-            if (fs.existsSync(localPath)) {
-                const ext = filename.split('.').pop()?.toLowerCase();
+            const localPath = safeResolveUploadPath(post.image_url);
+            if (localPath && fs.existsSync(localPath)) {
+                const ext = path.extname(localPath).slice(1).toLowerCase();
                 const mimeType = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : 'image/jpeg';
                 const buffer = fs.readFileSync(localPath);
                 reply.header('Content-Type', mimeType);
@@ -522,10 +584,9 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         } else if (imageUrl.startsWith('/uploads/')) {
             const fs = require('fs');
             const path = require('path');
-            const filename = imageUrl.split('/').pop() || '';
-            const localPath = path.join(__dirname, '../../uploads', filename);
-            if (fs.existsSync(localPath)) {
-                const ext = filename.split('.').pop()?.toLowerCase();
+            const localPath = safeResolveUploadPath(imageUrl);
+            if (localPath && fs.existsSync(localPath)) {
+                const ext = path.extname(localPath).slice(1).toLowerCase();
                 const mimeType = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : 'image/jpeg';
                 const buffer = fs.readFileSync(localPath);
                 reply.header('Content-Type', mimeType);
@@ -598,14 +659,8 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     fastify.get('/api/weeks/:id', async (request, reply) => {
         try {
             const { id } = request.params as { id: string };
-            const week = await prisma.week.findUnique({
-                where: { id: parseInt(id) },
-                include: {
-                    posts: {
-                        orderBy: { publish_at: 'asc' }
-                    }
-                }
-            });
+            const user = (request as any).user;
+            const week = await getAuthorizedWeek(parseInt(id), user?.id, 'viewer', true);
 
             if (!week) {
                 reply.code(404).send({ error: 'Week not found' });
@@ -615,22 +670,18 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             // Get topics if in topics_generated status
             let topics = null;
             if (week.status === 'topics_generated') {
-                console.log('Week status is topics_generated, looking for run...');
                 const run = await prisma.agentRun.findFirst({
-                    where: { input: `Theme: ${week.theme}` },
+                    where: { input: `Theme: ${week.theme}`, project_id: week.project_id },
                     orderBy: { created_at: 'desc' },
                     include: { iterations: true }
                 });
                 if (run) {
-                    console.log('Run found:', run.id);
                     // Noop
                 }
             }
 
-            console.log('Returning week:', week.id); // Debug Log
-
             // Sanitize BigInt for Fastify
-            const serializedPosts = week.posts.map((p: any) => ({
+            const serializedPosts = (week.posts || []).map((p: any) => ({
                 ...p,
                 approval_message_id: p.approval_message_id ? p.approval_message_id.toString() : null
             }));
@@ -638,29 +689,38 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             return { ...week, posts: serializedPosts, topics };
         } catch (e: any) {
             console.error('Error in GET /api/weeks/:id:', e);
-            const fs = require('fs');
-            fs.appendFileSync('server_error.log', `[${new Date().toISOString()}] Error in GET /weeks/${(request.params as any).id}: ${e.message}\n${e.stack}\n\n`);
             return reply.code(500).send({ error: 'Internal Server Error' });
         }
     });
 
     fastify.put('/api/weeks/:id', async (request, reply) => {
         const { id } = request.params as { id: string };
+        const user = (request as any).user;
+        const week = await getAuthorizedWeek(parseInt(id), user?.id, 'editor');
+        if (!week) {
+            return reply.code(404).send({ error: 'Week not found' });
+        }
         const data = request.body as any;
 
-        const week = await prisma.week.update({
+        const updated = await prisma.week.update({
             where: { id: parseInt(id) },
             data
         });
 
-        return week;
+        return updated;
     });
 
     fastify.delete('/api/weeks/:id', async (request, reply) => {
         const { id } = request.params as { id: string };
+        const user = (request as any).user;
+        const week = await getAuthorizedWeek(parseInt(id), user?.id, 'editor');
+        if (!week) {
+            return reply.code(404).send({ error: 'Week not found' });
+        }
         await prisma.week.delete({ where: { id: parseInt(id) } });
         return { success: true };
     });
+
 
     // Week actions
     fastify.post('/api/weeks/:id/generate-topics', async (request, reply) => {
@@ -840,17 +900,16 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     });
 
     fastify.post('/api/posts/:id/generate-image', async (request, reply) => {
-        const projectId = (request as any).projectId;
         const { id } = request.params as { id: string };
-        const { provider } = request.body as { provider?: 'preview' | 'final' | 'flagship' | 'gpt-image' | 'nano' | 'full' };
-
-        const post = await prisma.post.findUnique({
-            where: { id: parseInt(id) }
-        });
+        const user = (request as any).user;
+        const post = await getAuthorizedPost(parseInt(id), user?.id, 'editor');
 
         if (!post) {
             return reply.code(404).send({ error: 'Post not found' });
         }
+
+        const projectId = (request as any).projectId || post.project_id;
+        const { provider } = request.body as { provider?: 'preview' | 'final' | 'flagship' | 'gpt-image' | 'nano' | 'full' };
 
         try {
             console.log(`[Generate Image] Enqueueing request for Post ${id}, Mode: ${provider || 'preview'}`);
@@ -883,6 +942,13 @@ export default async function apiRoutes(fastify: FastifyInstance) {
 
     fastify.post('/api/posts/:id/upload-image', async (request, reply) => {
         const { id } = request.params as { id: string };
+        const user = (request as any).user;
+        const post = await getAuthorizedPost(parseInt(id), user?.id, 'editor');
+
+        if (!post) {
+            return reply.code(404).send({ error: 'Post not found' });
+        }
+
         const data = await (request as any).file();
 
         if (!data) {
@@ -917,10 +983,8 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     // Posts
     fastify.get('/api/posts/:id', async (request, reply) => {
         const { id } = request.params as { id: string };
-        const post = await prisma.post.findUnique({
-            where: { id: parseInt(id) },
-            include: { week: true }
-        });
+        const user = (request as any).user;
+        const post = await getAuthorizedPost(parseInt(id), user?.id, 'viewer', true);
 
         if (!post) {
             reply.code(404).send({ error: 'Post not found' });
@@ -951,21 +1015,35 @@ export default async function apiRoutes(fastify: FastifyInstance) {
 
     fastify.put('/api/posts/:id', async (request, reply) => {
         const { id } = request.params as { id: string };
+        const user = (request as any).user;
+        const post = await getAuthorizedPost(parseInt(id), user?.id, 'editor');
+
+        if (!post) {
+            return reply.code(404).send({ error: 'Post not found' });
+        }
+
         const data = request.body as any;
 
-        const post = await prisma.post.update({
+        const updatedPost = await prisma.post.update({
             where: { id: parseInt(id) },
             data
         });
 
-        return post;
+        return updatedPost;
     });
 
     fastify.post('/api/posts/:id/approve', async (request, reply) => {
         const { id } = request.params as { id: string };
+        const user = (request as any).user;
+        const post = await getAuthorizedPost(parseInt(id), user?.id, 'editor');
+
+        if (!post) {
+            return reply.code(404).send({ error: 'Post not found' });
+        }
+
         const data = (request.body as any) || {};
 
-        const post = await prisma.post.update({
+        const updatedPost = await prisma.post.update({
             where: { id: parseInt(id) },
             data: {
                 ...data, // Allow updating publish_at, text, channel_id etc during approval
@@ -973,21 +1051,34 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             }
         });
 
-        return post;
+        return updatedPost;
     });
 
     fastify.post('/api/posts/:id/approve-topic', async (request, reply) => {
         const { id } = request.params as { id: string };
-        const post = await prisma.post.update({
+        const user = (request as any).user;
+        const post = await getAuthorizedPost(parseInt(id), user?.id, 'editor');
+
+        if (!post) {
+            return reply.code(404).send({ error: 'Post not found' });
+        }
+
+        const updatedPost = await prisma.post.update({
             where: { id: parseInt(id) },
             data: { status: 'topics_approved' }
         });
-        return post;
+        return updatedPost;
     });
-
 
     fastify.post('/api/posts/:id/publish-now', async (request, reply) => {
         const { id } = request.params as { id: string };
+        const user = (request as any).user;
+        const post = await getAuthorizedPost(parseInt(id), user?.id, 'editor');
+
+        if (!post) {
+            return reply.code(404).send({ error: 'Post not found' });
+        }
+
         try {
             const host = request.headers.host || undefined;
             const result = await publisherService.publishPostNow(parseInt(id), host);
@@ -1003,20 +1094,16 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     });
 
     fastify.post('/api/posts/:id/generate', async (request, reply) => {
-        const projectId = (request as any).projectId;
         const { id } = request.params as { id: string };
-        const post = await prisma.post.findFirst({
-            where: {
-                id: parseInt(id),
-                week: { project_id: projectId }
-            },
-            include: { week: true }
-        });
+        const user = (request as any).user;
+        const post = await getAuthorizedPost(parseInt(id), user?.id, 'editor', true);
 
         if (!post || !post.week) {
             reply.code(404).send({ error: 'Post not found or access denied' });
             return;
         }
+
+        const projectId = post.project_id;
 
         if (!post.topic) {
             reply.code(400).send({ error: 'Post has no topic' });
@@ -1054,22 +1141,16 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     });
 
     fastify.post('/api/posts/:id/validate-dictionary', async (request, reply) => {
-        const projectId = (request as any).projectId;
-        if (!projectId) return reply.code(400).send({ error: 'Project ID required' });
-
         const { id } = request.params as { id: string };
-        const { text } = request.body as { text?: string };
-
-        const post = await prisma.post.findFirst({
-            where: {
-                id: parseInt(id),
-                project_id: projectId
-            }
-        });
+        const user = (request as any).user;
+        const post = await getAuthorizedPost(parseInt(id), user?.id, 'viewer');
 
         if (!post) {
             return reply.code(404).send({ error: 'Post not found' });
         }
+
+        const projectId = post.project_id;
+        const { text } = request.body as { text?: string };
 
         const dictionarySetting = await prisma.projectSettings.findUnique({
             where: { project_id_key: { project_id: projectId, key: 'content_dictionary_yaml' } }
@@ -2337,10 +2418,16 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         });
 
         // Mask keys
-        return keys.map(k => ({
-            ...k,
-            key: k.key.substring(0, 3) + '...' + k.key.substring(k.key.length - 4)
-        }));
+        return keys.map(k => {
+            const rawKey = safeDecryptProviderKey(k.key);
+            const masked = rawKey.length > 7
+                ? rawKey.substring(0, 3) + '...' + rawKey.substring(rawKey.length - 4)
+                : '***';
+            return {
+                ...k,
+                key: masked
+            };
+        });
     });
 
     fastify.post('/api/settings/keys', async (request, reply) => {
@@ -2358,7 +2445,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             data: {
                 project_id: projectId,
                 name,
-                key,
+                key: safeEncryptProviderKey(key),
                 provider
             }
         });
@@ -2668,7 +2755,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
                 where: { id: parseInt(keyId), project_id: projectId }
             });
             if (storedKey) {
-                apiKey = storedKey.key;
+                apiKey = safeDecryptProviderKey(storedKey.key);
                 detectedProvider = storedKey.provider;
             }
         }
@@ -2985,13 +3072,19 @@ Ask focused follow-up questions and propose concrete decisions and post formats.
      */
     fastify.post('/api/v2/strategy-chat', async (request, reply) => {
         const projectId = (request as any).projectId;
-        const { message, language } = request.body as {
-            message: string;
+        const { message, language } = (request.body as {
+            message?: unknown;
             language?: string;
-        };
+        }) || {};
         const responseLanguage = strategyLanguage(language);
 
-        if (!message?.trim()) return reply.code(400).send({ error: 'Message is required' });
+        if (typeof message !== 'string' || !message.trim()) {
+            return reply.code(400).send({ error: 'Message is required' });
+        }
+
+        if (message.length > 4000) {
+            return reply.code(400).send({ error: 'Message exceeds maximum length of 4000 characters' });
+        }
 
         // Load custom system prompt (or use default)
         const setting = await prisma.projectSettings.findUnique({
@@ -3038,6 +3131,8 @@ Ask focused follow-up questions and propose concrete decisions and post formats.
                 model: modelForRole('classifier'),
                 messages,
                 max_tokens: 1000
+            }, {
+                timeout: 45000
             });
             const reply_text = completion.choices[0]?.message.content || '';
             const nextHistory = [...history, { role: 'user' as const, content: message.trim() }, { role: 'assistant' as const, content: reply_text }].slice(-40);

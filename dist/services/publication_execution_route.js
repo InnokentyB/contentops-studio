@@ -7,6 +7,9 @@ function resolvePublicationExecutionRoute(input) {
         return 'published';
     if (!input.contentReady || !input.visualReady || !input.due)
         return 'waiting';
+    // A prepared handoff is not authorization to execute a connector.
+    if (input.publicationMode === 'approval_required')
+        return 'waiting';
     if (input.publicationMode === 'browser_required')
         return 'browser_required';
     if (input.executionMode === 'manual' || !input.directExecutionSupported)

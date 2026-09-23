@@ -37,21 +37,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const telegraf_1 = require("telegraf");
-const pg_1 = require("pg");
-const adapter_pg_1 = require("@prisma/adapter-pg");
-const client_1 = require("@prisma/client");
 const date_fns_1 = require("date-fns");
 const dotenv_1 = require("dotenv");
+const db_1 = __importDefault(require("../db"));
 const planner_service_1 = __importDefault(require("./planner.service"));
 const generator_service_1 = __importDefault(require("./generator.service"));
 const publisher_service_1 = __importDefault(require("./publisher.service"));
 const multi_agent_service_1 = __importDefault(require("./multi_agent.service"));
 const channel_utils_1 = require("../utils/channel.utils");
 (0, dotenv_1.config)();
-const connectionString = process.env.DATABASE_URL;
-const pool = new pg_1.Pool({ connectionString });
-const adapter = new adapter_pg_1.PrismaPg(pool);
-const prisma = new client_1.PrismaClient({ adapter });
 class TelegramService {
     constructor() {
         this.isWebhook = false;
@@ -72,7 +66,7 @@ class TelegramService {
         if (!ctx.chat)
             return 1; // Fallback to project 1 for global bots
         // Try to find a channel that matches this chat id
-        const channel = await prisma.socialChannel.findFirst({
+        const channel = await db_1.default.socialChannel.findFirst({
             where: {
                 type: 'telegram',
                 config: {
@@ -154,7 +148,7 @@ class TelegramService {
             await ctx.reply('✅ Промпт для Nano Banana обновлен!');
         });
         this.bot.hears('📋 Список планов', async (ctx) => {
-            const weeks = await prisma.week.findMany({
+            const weeks = await db_1.default.week.findMany({
                 orderBy: { week_start: 'desc' },
                 take: 10
             });
@@ -174,8 +168,8 @@ class TelegramService {
             await this.sendWeekDetails(ctx, weekId);
         });
         this.bot.hears('🔄 Сбросить всё', async (ctx) => {
-            await prisma.post.deleteMany({});
-            await prisma.week.deleteMany({});
+            await db_1.default.post.deleteMany({});
+            await db_1.default.week.deleteMany({});
             await ctx.reply('База данных очищена! Отправь мне тему новой недели.');
         });
         this.bot.hears('🗓 Текущая неделя', async (ctx) => {
@@ -265,7 +259,7 @@ class TelegramService {
             // OR use prisma directly here. Let's use Prisma directly to avoid changing service interface if possible, 
             // OR better, add a public getter to MultiAgentService. 
             // For now, I'll access Prisma via existing reference in this file.
-            const setting = await prisma.promptSettings.findUnique({ where: { key } });
+            const setting = await db_1.default.promptSettings.findUnique({ where: { key } });
             const value = setting?.value || 'Is not set (using default)';
             await ctx.reply(`📜 **Текущий промпт (${key}):**\n\n\`${value}\``, {
                 parse_mode: 'Markdown',
@@ -306,7 +300,7 @@ class TelegramService {
             if (this.promptEditState.has(fromId)) {
                 const key = this.promptEditState.get(fromId);
                 // Update prompt
-                await prisma.promptSettings.upsert({
+                await db_1.default.promptSettings.upsert({
                     where: { key: key },
                     update: { value: text },
                     create: { key: key, value: text }
@@ -420,8 +414,8 @@ class TelegramService {
         const existingWeek = await planner_service_1.default.findWeekByDate(projectId, start);
         if (existingWeek) {
             // Force reset to allow re-trying with new theme
-            await prisma.post.deleteMany({ where: { week_id: existingWeek.id } });
-            await prisma.week.delete({ where: { id: existingWeek.id } });
+            await db_1.default.post.deleteMany({ where: { week_id: existingWeek.id } });
+            await db_1.default.week.delete({ where: { id: existingWeek.id } });
         }
         const week = await planner_service_1.default.createWeek(projectId, theme, start, end);
         const weekId = week.id;
@@ -441,7 +435,7 @@ class TelegramService {
         const projectId = await this.getProjectId(ctx) || 1;
         let existingWeek;
         if (weekId) {
-            existingWeek = await prisma.week.findUnique({
+            existingWeek = await db_1.default.week.findUnique({
                 where: { id: weekId, project_id: projectId },
                 include: { posts: true }
             });
@@ -549,7 +543,7 @@ class TelegramService {
         catch (e) { }
         const providerName = provider === 'nano' ? 'Nano Banana' : 'GPT-Image';
         const loadingMsg = await ctx.reply(`🎨 (${providerName}) Придумываю промпт и рисую... (это займет около 15-30 сек)`);
-        const post = await prisma.post.findUnique({
+        const post = await db_1.default.post.findUnique({
             where: { id: postId, project_id: projectId }
         });
         if (!post || !post.generated_text || !post.topic) {
@@ -621,7 +615,7 @@ class TelegramService {
         }
         catch (e) { }
         let loadingMsg = await ctx.reply(`🧠 (Этап 1/3) Анализирую тему и генерирую базовую картинку в GPT-Image...`);
-        const post = await prisma.post.findUnique({
+        const post = await db_1.default.post.findUnique({
             where: { id: postId, project_id: projectId }
         });
         if (!post || !post.generated_text || !post.topic) {
@@ -701,7 +695,7 @@ class TelegramService {
     async handlePostRegen(ctx, postId) {
         const projectId = await this.getProjectId(ctx) || 1;
         await ctx.reply(`Перегенерирую пост ${postId}...`);
-        const post = await prisma.post.findUnique({
+        const post = await db_1.default.post.findUnique({
             where: { id: postId },
             include: { week: true }
         });
@@ -739,7 +733,7 @@ class TelegramService {
         const projectId = await this.getProjectId(ctx) || 1;
         let existingWeek;
         if (weekId) {
-            existingWeek = await prisma.week.findUnique({
+            existingWeek = await db_1.default.week.findUnique({
                 where: { id: weekId, project_id: projectId }
             });
         }
@@ -756,7 +750,7 @@ class TelegramService {
             return;
         }
         // Increment regen attempt
-        await prisma.week.update({
+        await db_1.default.week.update({
             where: { id: existingWeek.id },
             data: { regen_attempt: { increment: 1 } }
         });
@@ -770,7 +764,7 @@ class TelegramService {
         ]));
     }
     async handleReviewPending(ctx, weekId) {
-        const posts = await prisma.post.findMany({
+        const posts = await db_1.default.post.findMany({
             where: {
                 week_id: weekId,
                 status: 'generated'
@@ -805,7 +799,7 @@ class TelegramService {
         }
     }
     async sendWeekDetails(ctx, weekId) {
-        const week = await prisma.week.findUnique({
+        const week = await db_1.default.week.findUnique({
             where: { id: weekId },
             include: { posts: true }
         });

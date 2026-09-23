@@ -1,9 +1,8 @@
 import { FastifyInstance } from 'fastify';
 import authService from '../services/auth.service';
-import { PrismaClient } from '@prisma/client';
-import { Pool } from 'pg';
-import { PrismaPg } from '@prisma/adapter-pg';
+import prisma from '../db';
 import yaml from 'js-yaml';
+
 import multiAgentService from '../services/multi_agent.service';
 import contentDictionaryService from '../services/content_dictionary.service';
 import contentPolicyMatrixService from '../services/content_policy_matrix.service';
@@ -25,8 +24,8 @@ import vkOAuthService from '../services/vk_oauth.service';
 import initiativeService from '../services/initiative.service';
 import workQueueService from '../services/work_queue.service';
 import mcpAccessTokenService, { isManagedMcpProfile } from '../services/mcp_access_token.service';
+import { safeEncryptProviderKey } from '../utils/channel_secrets';
 
-import { prisma } from '../services/planner.service';
 
 const agentSettingKeyMap: Record<string, { prompt: string; key: string; model: string }> = {
     post_creator: {
@@ -495,7 +494,7 @@ export default async function projectRoutes(fastify: FastifyInstance) {
                         data: {
                             project_id: createdProject.id,
                             name: providerKey.name,
-                            key: providerKey.key,
+                            key: safeEncryptProviderKey(providerKey.key),
                             provider: providerKey.provider
                         }
                     });
@@ -1090,9 +1089,14 @@ export default async function projectRoutes(fastify: FastifyInstance) {
                 const result = await vkOAuthService.verifyCommunityAdmin(config.publish_access_token, String(config.vk_id));
                 return { success: true, result: { ...result, connected: true } };
             }
-            const result = await dzenService.testConnection(
-                resolveChannelConfigSecrets(channel.type, channel.config)
+            const body = (request.body || {}) as { config?: Record<string, unknown> };
+            const savedConfig = resolveChannelConfigSecrets(channel.type, channel.config);
+            const draftConfig = body.config && typeof body.config === 'object' ? body.config : {};
+            const effectiveConfig = resolveEffectiveChannelConfig(
+                channel.type,
+                mergeChannelConfig(draftConfig, savedConfig)
             );
+            const result = await dzenService.testConnection(effectiveConfig);
             return { success: true, result };
         } catch (error: any) {
             return reply.code(400).send({

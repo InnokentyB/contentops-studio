@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.VkMetricsService = void 0;
 const planner_service_1 = require("./planner.service");
 const vk_service_1 = __importStar(require("./vk.service"));
+const channel_utils_1 = require("../utils/channel.utils");
 const METRIC_FIELDS = [
     'views',
     'likes',
@@ -53,7 +54,7 @@ const METRIC_FIELDS = [
     'unsubscribes'
 ];
 function resolveVkConfig(rawConfig) {
-    const config = rawConfig?.raw_account || rawConfig || {};
+    const config = (0, channel_utils_1.resolveEffectiveChannelConfig)('vk', rawConfig || {});
     return {
         vkId: config.vk_id ? String(config.vk_id) : null,
         publishAccessToken: config.publish_access_token || config.api_key || null,

@@ -4,17 +4,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FaeService = void 0;
-const client_1 = require("@prisma/client");
 const openai_1 = __importDefault(require("openai"));
 const dotenv_1 = require("dotenv");
 const model_policy_service_1 = require("./model_policy.service");
-const pg_1 = require("pg");
-const adapter_pg_1 = require("@prisma/adapter-pg");
+const db_1 = __importDefault(require("../db"));
 (0, dotenv_1.config)();
-const connectionString = process.env.DATABASE_URL;
-const pool = new pg_1.Pool({ connectionString });
-const adapter = new adapter_pg_1.PrismaPg(pool);
-const prisma = new client_1.PrismaClient({ adapter });
 class FaeService {
     constructor() {
         this.openai = null;
@@ -66,7 +60,7 @@ class FaeService {
             response_format: { type: "json_object" }
         });
         const parsed = JSON.parse(responseStr.choices[0]?.message.content || '{}');
-        const feedback = await prisma.feedbackPackage.create({
+        const feedback = await db_1.default.feedbackPackage.create({
             data: {
                 project_id: projectId,
                 period: period,
@@ -80,7 +74,7 @@ class FaeService {
             }
         });
         // Save preferences to ProjectSettings to influence SMO later
-        await prisma.projectSettings.upsert({
+        await db_1.default.projectSettings.upsert({
             where: {
                 project_id_key: {
                     project_id: projectId,

@@ -13,6 +13,8 @@ export interface PublicationExecutionRouteInput {
 export function resolvePublicationExecutionRoute(input: PublicationExecutionRouteInput): PublicationExecutionRoute {
     if (input.published) return 'published';
     if (!input.contentReady || !input.visualReady || !input.due) return 'waiting';
+    // A prepared handoff is not authorization to execute a connector.
+    if (input.publicationMode === 'approval_required') return 'waiting';
     if (input.publicationMode === 'browser_required') return 'browser_required';
     if (input.executionMode === 'manual' || !input.directExecutionSupported) return 'browser_required';
     return 'connector_auto';

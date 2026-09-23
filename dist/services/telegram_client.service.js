@@ -32,6 +32,9 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TelegramClientService = void 0;
 exports.loadTelegramRemoteImage = loadTelegramRemoteImage;
@@ -40,13 +43,14 @@ const sessions_1 = require("telegram/sessions");
 const tl_1 = require("telegram/tl");
 const uploads_1 = require("telegram/client/uploads");
 const markdown_1 = require("telegram/extensions/markdown");
-const client_1 = require("@prisma/client");
-const pg_1 = require("pg");
-const adapter_pg_1 = require("@prisma/adapter-pg");
+const db_1 = __importDefault(require("../db"));
 const dotenv_1 = require("dotenv");
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const net = __importStar(require("net"));
+const crypto_1 = require("crypto");
+const big_integer_1 = __importDefault(require("big-integer"));
+const telegram_account_secrets_1 = require("../utils/telegram_account_secrets");
 (0, dotenv_1.config)();
 const MAX_TELEGRAM_IMAGE_BYTES = 10 * 1024 * 1024;
 function assertSafeRemoteImageUrl(rawUrl) {
@@ -92,10 +96,6 @@ async function loadTelegramRemoteImage(rawUrl, fetchImpl = fetch) {
             : contentType === 'image/gif' ? 'gif' : 'jpg';
     return new uploads_1.CustomFile(`approved-visual.${extension}`, buffer.length, '', buffer);
 }
-const connectionString = process.env.DATABASE_URL;
-const pool = new pg_1.Pool({ connectionString });
-const adapter = new adapter_pg_1.PrismaPg(pool);
-const prisma = new client_1.PrismaClient({ adapter });
 class TelegramClientService {
     constructor() {
         this.client = null;
@@ -109,23 +109,27 @@ class TelegramClientService {
      */
     async init(projectId = 1) {
         // @ts-ignore
-        const account = await prisma.telegramAccount.findFirst({
+        const account = await db_1.default.telegramAccount.findFirst({
             where: { project_id: projectId, is_active: true }
         });
         if (!account) {
             console.log(`[TelegramClient] No active account found for project ${projectId}`);
             return false;
         }
-        this.sessionString = account.session_string;
+        if (!(0, telegram_account_secrets_1.telegramAccountSecretsAreEncrypted)(account)) {
+            console.warn(`[TelegramClient] Legacy plaintext credentials detected for project ${projectId}; run telegram:encrypt-existing`);
+        }
+        const secrets = (0, telegram_account_secrets_1.decryptTelegramAccountSecrets)(account);
+        this.sessionString = secrets.session_string;
         this.apiId = account.api_id;
-        this.apiHash = account.api_hash;
+        this.apiHash = secrets.api_hash;
         this.phoneNumber = account.phone_number;
         try {
             this.client = new telegram_1.TelegramClient(new sessions_1.StringSession(this.sessionString), this.apiId, this.apiHash, { connectionRetries: 5 });
             // Connect without login if session is valid? 
             // Actually connect() does not trigger interactive login if session is present.
             await this.client.connect();
-            console.log(`[TelegramClient] Connected as ${this.phoneNumber}`);
+            console.log(`[TelegramClient] Connected as ${(0, telegram_account_secrets_1.telegramPhoneHint)(this.phoneNumber)}`);
             return true;
         }
         catch (e) {
@@ -140,6 +144,48 @@ class TelegramClientService {
                 return null;
         }
         return this.client;
+    }
+    async publishPersonalStory(params) {
+        const client = await this.getClient(params.projectId);
+        if (!client)
+            throw new Error('[MTPROTO_UNAVAILABLE] Telegram Client is not initialized');
+        const peer = new tl_1.Api.InputPeerSelf();
+        const allowed = await client.invoke(new tl_1.Api.stories.CanSendStory({ peer }));
+        if (!allowed) {
+            throw new Error('[TELEGRAM_STORY_NOT_ALLOWED] The authorized profile cannot publish a story now');
+        }
+        const remoteImage = await loadTelegramRemoteImage(params.imageUrl);
+        const uploaded = await client.uploadFile({ file: remoteImage, workers: 1 });
+        const digest = (0, crypto_1.createHash)('sha256').update(params.idempotencyKey).digest('hex').slice(0, 15);
+        const randomId = (0, big_integer_1.default)(digest, 16);
+        const [caption, entities] = markdown_1.MarkdownParser.parse(params.caption.trim());
+        const result = await client.invoke(new tl_1.Api.stories.SendStory({
+            peer,
+            media: new tl_1.Api.InputMediaUploadedPhoto({ file: uploaded }),
+            caption,
+            entities,
+            privacyRules: [new tl_1.Api.InputPrivacyValueAllowAll()],
+            randomId,
+            period: 86400
+        }));
+        const idUpdate = result?.updates?.find((update) => update instanceof tl_1.Api.UpdateStoryID);
+        const storyId = Number(idUpdate?.id);
+        if (!Number.isInteger(storyId) || storyId <= 0) {
+            throw new Error('[TELEGRAM_STORY_IDENTITY_MISSING] Telegram did not return a story ID');
+        }
+        const readback = await client.invoke(new tl_1.Api.stories.GetStoriesByID({ peer, id: [storyId] }));
+        if (!Array.isArray(readback?.stories) || !readback.stories.some((story) => Number(story?.id) === storyId)) {
+            throw new Error('[TELEGRAM_STORY_READBACK_FAILED] The posted story was not found on the personal profile');
+        }
+        let publicLink = null;
+        try {
+            const exported = await client.invoke(new tl_1.Api.stories.ExportStoryLink({ peer, id: storyId }));
+            publicLink = typeof exported?.link === 'string' && exported.link.trim() ? exported.link.trim() : null;
+        }
+        catch (error) {
+            console.warn(`[TelegramClient] Story ${storyId} was confirmed but its share link could not be exported`, error);
+        }
+        return { storyId, publicLink };
     }
     /**
      * Publish a post to a channel/chat

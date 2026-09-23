@@ -2,7 +2,20 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.isToolAllowedForProfile = isToolAllowedForProfile;
 exports.filterMcpServerTools = filterMcpServerTools;
+// Organization research is deliberately isolated from every project-writing and
+// publication capability. Project authorization is still checked by the service
+// for promotion, which is a separate, explicit operation.
+const ORGANIZATION_RESEARCHER_TOOLS = new Set([
+    'ba_get_organization_intelligence_context',
+    'ba_search_organization_intelligence',
+    'ba_get_organization_research_run',
+    'ba_route_organization_signal',
+    'ba_promote_project_signal'
+]);
 const WRITER_TOOLS = new Set([
+    'ba_get_agent_workspace_manifest',
+    'ba_get_agent_workspace_updates',
+    'ba_get_agent_chat_bootstrap',
     'ba_list_project_channels',
     'ba_list_publication_tasks',
     'ba_get_publication_task',
@@ -23,11 +36,17 @@ const WRITER_TOOLS = new Set([
     'ba_get_week_autogeneration'
 ]);
 const PLANNER_TOOLS = new Set([
+    'ba_get_agent_workspace_manifest',
+    'ba_get_agent_workspace_updates',
+    'ba_get_agent_chat_bootstrap',
     'ba_list_project_channels',
     'ba_list_publication_tasks',
     'ba_get_publication_task',
     'ba_get_publication_task_resources',
     'ba_get_publication_fact',
+    'ba_dzen_collect_post_metrics',
+    'ba_dzen_search_relevant_posts',
+    'ba_dzen_comment',
     'ba_list_metric_checkpoints',
     'ba_get_week_execution_summary',
     'ba_list_work_items',
@@ -54,6 +73,9 @@ const PLANNER_TOOLS = new Set([
     'ba_get_week_autogeneration'
 ]);
 const ART_DIRECTOR_TOOLS = new Set([
+    'ba_get_agent_workspace_manifest',
+    'ba_get_agent_workspace_updates',
+    'ba_get_agent_chat_bootstrap',
     'ba_list_project_channels',
     'ba_list_publication_tasks',
     'ba_get_publication_task',
@@ -72,6 +94,19 @@ const ART_DIRECTOR_TOOLS = new Set([
     'ba_get_week_pipeline',
     'ba_get_week_autogeneration'
 ]);
+// Pilot/self-serve profile. Same read and planning surface as `planner`, minus the two
+// tools that either reach a live channel or spend the deployment owner's provider key:
+//   - ba_publish_publication_task      publishes to a connected channel
+//   - ba_generate_week_topic_preview   falls back to process.env.OPENAI_API_KEY when the
+//                                      project has no ProviderKey of its own
+// Everything a strategist agent needs to read state, plan initiatives and lay out a week
+// stays available. The agent does the generating on its own side.
+const STRATEGIST_EXCLUDED = new Set([
+    'ba_publish_publication_task',
+    'ba_generate_week_topic_preview',
+    'ba_dzen_comment'
+]);
+const STRATEGIST_TOOLS = new Set([...PLANNER_TOOLS].filter(toolName => !STRATEGIST_EXCLUDED.has(toolName)));
 function isToolAllowedForProfile(profile, toolName) {
     if (profile === 'owner')
         return true;
@@ -79,6 +114,10 @@ function isToolAllowedForProfile(profile, toolName) {
         return WRITER_TOOLS.has(toolName);
     if (profile === 'art_director')
         return ART_DIRECTOR_TOOLS.has(toolName);
+    if (profile === 'strategist')
+        return STRATEGIST_TOOLS.has(toolName);
+    if (profile === 'organization_researcher')
+        return ORGANIZATION_RESEARCHER_TOOLS.has(toolName);
     return PLANNER_TOOLS.has(toolName);
 }
 function filterMcpServerTools(server, profile) {

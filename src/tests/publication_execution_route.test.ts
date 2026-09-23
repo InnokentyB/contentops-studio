@@ -46,3 +46,10 @@ test('an explicit browser route cannot fall back to the connector', () => {
         publicationMode: 'browser_required'
     }), 'browser_required');
 });
+
+test('approval-required tasks cannot use an automated handoff as connector authorization', () => {
+    assert.equal(resolvePublicationExecutionRoute({
+        ...ready,
+        publicationMode: 'approval_required'
+    }), 'waiting');
+});

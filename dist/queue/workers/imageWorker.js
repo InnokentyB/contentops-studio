@@ -6,9 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createImageWorker = void 0;
 const bullmq_1 = require("bullmq");
 const index_1 = require("../index");
-const client_1 = require("@prisma/client");
-const pg_1 = require("pg");
-const adapter_pg_1 = require("@prisma/adapter-pg");
+const db_1 = __importDefault(require("../../db"));
 const generator_service_1 = __importDefault(require("../../services/generator.service"));
 const multi_agent_service_1 = __importDefault(require("../../services/multi_agent.service"));
 const model_policy_service_1 = require("../../services/model_policy.service");
@@ -21,21 +19,17 @@ function normalizeImageMode(provider) {
         return 'openai-direct';
     return 'preview';
 }
-const connectionString = process.env.DATABASE_URL;
-const pool = new pg_1.Pool({ connectionString });
-const adapter = new adapter_pg_1.PrismaPg(pool);
-const prisma = new client_1.PrismaClient({ adapter });
 const createImageWorker = () => {
     return new bullmq_1.Worker('imageQueue', async (job) => {
         const { projectId, postId, provider, textToUse, topic } = job.data;
-        const post = await prisma.post.findUnique({ where: { id: postId } });
+        const post = await db_1.default.post.findUnique({ where: { id: postId } });
         if (!post)
             throw new Error(`Post ${postId} not found`);
         let safePrompt = '';
         try {
             console.log(`[Worker - Image] Starting image generation for post ${postId}`);
             // Mark post as generating image
-            await prisma.post.update({
+            await db_1.default.post.update({
                 where: { id: postId },
                 data: { status: 'generating' } // Reusing generating status for UX
             });
@@ -72,7 +66,7 @@ const createImageWorker = () => {
                 imageUrl = await generator_service_1.default.generateImage(safePrompt, projectId);
             }
             // 3. Save to DB
-            await prisma.post.update({
+            await db_1.default.post.update({
                 where: { id: postId },
                 data: {
                     image_url: imageUrl,
@@ -85,7 +79,7 @@ const createImageWorker = () => {
         catch (error) {
             console.error(`[Worker - Image] Job failed for post ${postId}:`, error);
             const errMsg = error?.message || error?.toString() || '';
-            await prisma.post.update({
+            await db_1.default.post.update({
                 where: { id: postId },
                 data: {
                     status: 'failed',

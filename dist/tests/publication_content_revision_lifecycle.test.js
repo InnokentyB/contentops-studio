@@ -19,8 +19,20 @@ const publication_content_revision_lifecycle_1 = require("../services/publicatio
         textState: 'draft',
         acceptedRevision: null,
         reopenReview: true,
-        reviewBaseResultVersion: 1
+        reviewBaseResultVersion: 2,
+        reviewState: 'waiting_approval'
     });
+});
+(0, node_test_1.default)('reopening an approved review exposes the new content revision as a collision-free result', () => {
+    const reopened = (0, publication_content_revision_lifecycle_1.planAcceptedContentEdit)({
+        currentRevision: 1,
+        acceptedRevision: 1,
+        textState: 'accepted',
+        bodyChanged: true
+    });
+    strict_1.default.equal(reopened.contentRevision, 2);
+    strict_1.default.equal(reopened.reviewBaseResultVersion, 2);
+    strict_1.default.equal(reopened.reviewState, 'waiting_approval');
 });
 (0, node_test_1.default)('saving the same body is idempotent and preserves the accepted revision', () => {
     strict_1.default.deepEqual((0, publication_content_revision_lifecycle_1.planAcceptedContentEdit)({
@@ -73,6 +85,8 @@ const publication_content_revision_lifecycle_1 = require("../services/publicatio
     strict_1.default.match(publicationService, /planAcceptedContentEdit/);
     strict_1.default.match(publicationService, /accepted_revision: lifecycle\.acceptedRevision/);
     strict_1.default.match(publicationService, /kind: 'content_review'/);
+    strict_1.default.match(publicationService, /state: lifecycle\.reviewState!/);
+    strict_1.default.match(publicationService, /content_revision: lifecycle\.contentRevision/);
     strict_1.default.match(queueService, /requireProjectOwner\(tx, params\.projectId, params\.actorId\)/);
     strict_1.default.match(queueService, /command = 'ba_recover_content_review'/);
     strict_1.default.match(mcpServer, /registerTool\('ba_recover_content_review'/);

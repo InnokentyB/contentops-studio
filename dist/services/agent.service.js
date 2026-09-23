@@ -8,18 +8,12 @@ const dotenv_1 = require("dotenv");
 const prompts_1 = require("../config/prompts");
 const planner_service_1 = __importDefault(require("./planner.service"));
 const publisher_service_1 = __importDefault(require("./publisher.service"));
-const client_1 = require("@prisma/client");
-const pg_1 = require("pg");
-const adapter_pg_1 = require("@prisma/adapter-pg");
+const db_1 = __importDefault(require("../db"));
 const generator_service_1 = __importDefault(require("./generator.service"));
 const multi_agent_service_1 = __importDefault(require("./multi_agent.service"));
 const model_policy_service_1 = require("./model_policy.service");
 const date_fns_1 = require("date-fns");
 (0, dotenv_1.config)();
-const connectionString = process.env.DATABASE_URL;
-const pool = new pg_1.Pool({ connectionString });
-const adapter = new adapter_pg_1.PrismaPg(pool);
-const prisma = new client_1.PrismaClient({ adapter });
 function getOpenAIClient() {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
@@ -172,7 +166,7 @@ class AgentService {
                         result = { success: true, message: `План создан на ${(0, date_fns_1.format)(start, 'dd.MM')} - ${(0, date_fns_1.format)(end, 'dd.MM')}. Темы сгенерированы.`, weekId: week.id };
                     }
                     else if (name === 'get_current_status') {
-                        const weeks = await prisma.week.findMany({
+                        const weeks = await db_1.default.week.findMany({
                             where: { project_id: projectId },
                             take: 3,
                             orderBy: { week_start: 'desc' },
@@ -188,7 +182,7 @@ class AgentService {
                     }
                     else if (name === 'publish_post_instantly') {
                         // For MVP, just update status to scheduled and call publishDuePosts
-                        const post = await prisma.post.update({
+                        const post = await db_1.default.post.update({
                             where: { id: args.postId },
                             data: { status: 'scheduled', publish_at: new Date() }
                         });
@@ -196,7 +190,7 @@ class AgentService {
                         result = { success: true, message: `Пост "${post.topic}" опубликован.` };
                     }
                     else if (name === 'search_posts') {
-                        const posts = await prisma.post.findMany({
+                        const posts = await db_1.default.post.findMany({
                             where: {
                                 OR: [
                                     { topic: { contains: args.query, mode: 'insensitive' } },
@@ -227,11 +221,11 @@ class AgentService {
                             }
                         }
                         // Find or create a default "Standalone" week
-                        let standaloneWeek = await prisma.week.findFirst({
+                        let standaloneWeek = await db_1.default.week.findFirst({
                             where: { theme: 'Standalone Posts', project_id: projectId }
                         });
                         if (!standaloneWeek) {
-                            standaloneWeek = await prisma.week.create({
+                            standaloneWeek = await db_1.default.week.create({
                                 data: {
                                     project_id: projectId,
                                     theme: 'Standalone Posts',
@@ -242,7 +236,7 @@ class AgentService {
                             });
                         }
                         // Create a standalone post
-                        const post = await prisma.post.create({
+                        const post = await db_1.default.post.create({
                             data: {
                                 project_id: projectId,
                                 week_id: standaloneWeek.id,

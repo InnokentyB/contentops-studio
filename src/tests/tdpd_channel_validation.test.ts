@@ -15,6 +15,7 @@ import projectRoutes from '../routes/project.routes';
 import authService from '../services/auth.service';
 import { prisma } from '../services/planner.service';
 import plannerService from '../services/planner.service';
+import dzenService from '../services/dzen.service';
 
 test('sanitizeChannelConfig masks sensitive fields', () => {
     const config = {
@@ -343,6 +344,77 @@ test('PUT /api/projects/:id/channels/:channelId requires project owner', async (
     } finally {
         authService.verifyToken = originalVerifyToken;
         authService.hasProjectAccess = originalHasAccess;
+    }
+});
+
+test('POST channel test-connection checks an unsaved Dzen session without mutating the channel', async () => {
+    const originalVerifyToken = authService.verifyToken;
+    const originalHasAccess = authService.hasProjectAccess;
+    const originalFindFirst = prisma.socialChannel.findFirst;
+    const originalUpdate = prisma.socialChannel.update;
+    const originalTestConnection = dzenService.testConnection;
+    let receivedConfig: any = null;
+    let updateCalled = false;
+
+    authService.verifyToken = () => ({ id: 1, email: 'owner@example.com', name: 'Owner' });
+    authService.hasProjectAccess = async () => true;
+    Object.defineProperty(prisma.socialChannel, 'findFirst', {
+        value: async () => ({
+            id: 10,
+            project_id: 1,
+            type: 'dzen',
+            name: 'Dzen',
+            config: { channel_id: 'saved-channel', cookies: 'saved-session' }
+        }),
+        configurable: true,
+        writable: true
+    });
+    Object.defineProperty(prisma.socialChannel, 'update', {
+        value: async () => {
+            updateCalled = true;
+            throw new Error('test-connection must not save');
+        },
+        configurable: true,
+        writable: true
+    });
+    dzenService.testConnection = async (config: any) => {
+        receivedConfig = config;
+        return { authenticated: true, editor_available: true } as any;
+    };
+
+    const app = Fastify();
+    app.register(projectRoutes);
+    try {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/projects/1/channels/10/test-connection',
+            headers: { authorization: 'Bearer mock-token' },
+            payload: {
+                config: {
+                    channel_id: 'draft-channel',
+                    cookies: 'Cookie: Session_id=draft-session'
+                }
+            }
+        });
+
+        assert.equal(response.statusCode, 200);
+        assert.equal(receivedConfig.channel_id, 'draft-channel');
+        assert.equal(receivedConfig.cookies, 'Cookie: Session_id=draft-session');
+        assert.equal(updateCalled, false);
+    } finally {
+        authService.verifyToken = originalVerifyToken;
+        authService.hasProjectAccess = originalHasAccess;
+        dzenService.testConnection = originalTestConnection;
+        Object.defineProperty(prisma.socialChannel, 'findFirst', {
+            value: originalFindFirst,
+            configurable: true,
+            writable: true
+        });
+        Object.defineProperty(prisma.socialChannel, 'update', {
+            value: originalUpdate,
+            configurable: true,
+            writable: true
+        });
     }
 });
 

@@ -19,14 +19,15 @@ const path_1 = __importDefault(require("path"));
 const project_utils_1 = require("../utils/project.utils");
 const publication_content_state_1 = require("./publication_content_state");
 const publication_fact_service_1 = __importDefault(require("./publication_fact.service"));
+const content_language_service_1 = require("./content_language.service");
 const publication_task_activity_1 = require("./publication_task_activity");
 const publication_adapter_service_1 = __importDefault(require("./publication_adapter.service"));
 const publication_generation_stage_1 = require("./publication_generation_stage");
 const publisher_service_1 = __importDefault(require("./publisher.service"));
 const art_direction_service_1 = __importDefault(require("./art_direction.service"));
 const publication_content_revision_lifecycle_1 = require("./publication_content_revision_lifecycle");
-const client_1 = require("@prisma/client");
 const telegram_delivery_payload_1 = require("./telegram_delivery_payload");
+const channel_utils_1 = require("../utils/channel.utils");
 function resolveTaskScheduleAt(item) {
     const actionScheduleAt = item?.assets?.action?.scheduled_at;
     if (typeof actionScheduleAt === 'string' && actionScheduleAt.trim()) {
@@ -354,12 +355,20 @@ class McpPublicationService {
     async createProject(params) {
         const user = await this.requireUser(params.userId);
         const slug = await this.makeUniqueProjectSlug(params.slug, params.name);
+        const organization = await db_1.default.organizationMember.findFirst({
+            where: { user_id: params.userId, role: 'owner', organization: { is_archived: false } },
+            orderBy: { organization_id: 'asc' }, select: { organization_id: true }
+        });
+        if (!organization)
+            throw new Error('An owner organization is required');
         const project = await db_1.default.project.create({
             data: {
                 name: params.name,
                 slug,
                 description: params.description,
                 kind: (0, project_utils_1.normalizeProjectKind)(params.kind),
+                organization_id: organization.organization_id,
+                research_profile: { create: { revision: 1 } },
                 members: {
                     create: {
                         user_id: params.userId,
@@ -810,10 +819,14 @@ class McpPublicationService {
                 orderBy: { updated_at: 'desc' }
             });
             const reviewData = {
-                state: 'available',
+                state: lifecycle.reviewState,
                 input_context_version: lifecycle.contentRevision,
                 result_version: lifecycle.reviewBaseResultVersion,
-                result_payload: client_1.Prisma.DbNull,
+                result_payload: {
+                    body: input.body,
+                    content_revision: lifecycle.contentRevision,
+                    source: 'publication_content_update'
+                },
                 lease_token: null,
                 lease_expires_at: null,
                 lease_actor_id: null,
@@ -863,11 +876,26 @@ class McpPublicationService {
             : publication_plan_service_1.default.buildGeneratedContentItemHandoff(item);
         const channelConfig = item.channel?.config || {};
         const rawAccount = channelConfig.raw_account || channelConfig;
-        const directExecutionSupported = publication_adapter_service_1.default.supportsDirectExecution({
+        const effectiveAccount = {
             ...rawAccount,
+            workflow_mode: channelConfig.workflow_mode || rawAccount.workflow_mode,
             platform: rawAccount.platform || item.channel?.type
-        });
-        const browserRequired = bundle.mode === 'manual' || !directExecutionSupported;
+        };
+        const directExecutionSupported = publication_adapter_service_1.default.supportsDirectExecution(effectiveAccount);
+        const bundleWithLanguage = {
+            ...bundle,
+            content_language: (0, content_language_service_1.channelContentLanguage)(item.channel)
+        };
+        const browserRequired = !directExecutionSupported
+            || (bundleWithLanguage.mode === 'manual' && !publication_adapter_service_1.default.prefersAutomaticExecution(effectiveAccount));
+        // Preparing an approval-gated task must not silently authorize a connector.
+        if (item.publication_mode === 'approval_required') {
+            return {
+                item: { ...item, schedule_at: resolveTaskScheduleAt(item) },
+                bundle: bundleWithLanguage,
+                reused: false
+            };
+        }
         const updated = await db_1.default.contentItem.update({
             where: { id: item.id },
             data: {
@@ -875,7 +903,7 @@ class McpPublicationService {
                 publication_mode: browserRequired ? 'browser_required' : 'connector_auto',
                 quality_report: {
                     ...(item.quality_report || {}),
-                    handoff_bundle: bundle,
+                    handoff_bundle: bundleWithLanguage,
                     execution_mode: browserRequired ? 'browser' : 'automatic',
                     publication_route: browserRequired ? 'browser_required' : 'connector_auto',
                     prepared_at: new Date().toISOString()
@@ -887,7 +915,7 @@ class McpPublicationService {
                 ...updated,
                 schedule_at: resolveTaskScheduleAt(updated)
             },
-            bundle,
+            bundle: bundleWithLanguage,
             reused: false
         };
     }
@@ -929,7 +957,7 @@ class McpPublicationService {
     }
     async publishDirect(params) {
         const channel = await this.resolveChannel(params.projectId, params.channelId, params.channelType);
-        const config = channel.config?.raw_account || channel.config;
+        const config = (0, channel_utils_1.resolveEffectiveChannelConfig)(channel.type, channel.config);
         const telegramPayload = channel.type === 'telegram'
             ? (0, telegram_delivery_payload_1.normalizeTelegramDeliveryPayload)(params)
             : null;
@@ -1039,11 +1067,13 @@ class McpPublicationService {
             }, params.text, params.imageUrl, params.title);
         }
         else if (['zen', 'zen_article', 'dzen'].includes(channel.type)) {
+            const dzenConfig = (0, channel_utils_1.resolveEffectiveChannelConfig)(channel.type, channel.config);
             publishedLink = await dzen_service_1.default.publishPost({
-                channel_id: config?.channel_id || config?.vk_id,
-                webhook_url: config?.webhook_url,
-                cookies: config?.cookies
-            }, params.text, params.imageUrl, params.title);
+                channel_id: dzenConfig?.channel_id || dzenConfig?.vk_id,
+                cookies: dzenConfig?.cookies,
+                article_editor_url: dzenConfig?.article_editor_url,
+                post_editor_url: dzenConfig?.post_editor_url
+            }, params.text, params.imageUrl, params.title, params.title ? 'article' : 'post');
         }
         else {
             throw new Error(`Direct MCP publication is not supported for channel type '${channel.type}'`);

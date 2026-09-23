@@ -32,19 +32,16 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ExporterService = void 0;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
-const client_1 = require("@prisma/client");
 const dotenv_1 = require("dotenv");
-const pg_1 = require("pg");
-const adapter_pg_1 = require("@prisma/adapter-pg");
+const db_1 = __importDefault(require("../db"));
 (0, dotenv_1.config)();
-const connectionString = process.env.DATABASE_URL;
-const pool = new pg_1.Pool({ connectionString });
-const adapter = new adapter_pg_1.PrismaPg(pool);
-const prisma = new client_1.PrismaClient({ adapter });
 class ExporterService {
     constructor() {
         this.exportDir = path.join(__dirname, '../../exports');
@@ -57,7 +54,7 @@ class ExporterService {
      * Use this for habr_article, vc_article, zen_article, video_script.
      */
     async exportToMarkdown(contentItemId) {
-        const item = await prisma.contentItem.findUnique({
+        const item = await db_1.default.contentItem.findUnique({
             where: { id: contentItemId },
             include: { week_package: true }
         });
@@ -92,7 +89,7 @@ ${item.draft_text || '*No text generated yet.*'}
 `;
         fs.writeFileSync(filePath, content, 'utf8');
         // Update status to 'published' in our terminology for exported drafts
-        await prisma.contentItem.update({
+        await db_1.default.contentItem.update({
             where: { id: item.id },
             data: {
                 status: 'published',

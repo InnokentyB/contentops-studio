@@ -1,6 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-import { Pool } from 'pg';
-import { PrismaPg } from '@prisma/adapter-pg';
+import prisma from '../db';
 import OpenAI from 'openai';
 import { config } from 'dotenv';
 import { POST_SYSTEM_PROMPT } from '../config/prompts';
@@ -10,10 +8,6 @@ import { channelContentLanguage, contentLanguageInstruction } from './content_la
 
 config();
 
-const connectionString = process.env.DATABASE_URL;
-const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
 
 const DEFAULT_GOOGLE_IMAGE_MODEL = 'gemini-3.1-flash-image';
 const DEFAULT_OPENAI_IMAGE_MODEL = 'gpt-image-2';

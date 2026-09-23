@@ -2,7 +2,21 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 class PublicationAdapterService {
     supportsDirectExecution(account) {
-        return ['telegram', 'vk', 'linkedin', 'reddit', 'tilda', 'ok', 'odnoklassniki', 'habr', 'habr_article', 'vc', 'vc_article', 'zen', 'zen_article', 'dzen', 'threads'].includes(account.platform);
+        if (['zen', 'zen_article', 'dzen'].includes(account.platform)) {
+            return Boolean(account.cookies || account.cookies_encrypted);
+        }
+        return ['telegram', 'vk', 'linkedin', 'reddit', 'tilda', 'ok', 'odnoklassniki', 'habr', 'habr_article', 'vc', 'vc_article', 'threads'].includes(account.platform);
+    }
+    prefersAutomaticExecution(account) {
+        const platform = String(account.platform || '').toLowerCase();
+        if (!['zen', 'zen_article', 'dzen'].includes(platform) || !this.supportsDirectExecution(account)) {
+            return false;
+        }
+        const workflowMode = String(account.workflow_mode || account.planner_generation_mode || 'standard').toLowerCase();
+        if (['prepare_only', 'approval_required', 'manual', 'manual_handoff', 'browser_required'].includes(workflowMode)) {
+            return false;
+        }
+        return true;
     }
     inferExecutionMode(account, action) {
         if (action.human_review) {
@@ -33,7 +47,7 @@ class PublicationAdapterService {
             usage_rule: account.usage_rule || null,
             capability_flags: {
                 api_publish: account.cms_api_enabled === true
-                    || ['telegram', 'vk', 'linkedin', 'reddit', 'google_search_console', 'tilda', 'ok', 'odnoklassniki', 'habr', 'habr_article', 'vc', 'vc_article', 'zen', 'zen_article', 'dzen', 'threads'].includes(account.platform),
+                    || this.supportsDirectExecution(account),
                 manual_handoff: account.platform === 'linkedin' || account.platform === 'medium' || account.platform === 'indiehackers' || account.platform === 'reddit' || account.platform === 'threads',
                 analytics_supported: account.platform === 'linkedin' || account.platform === 'reddit' || account.platform === 'google_search_console' || account.platform === 'threads',
                 auto_canvas_generation: account.planner_generation_mode === 'auto_canvas'

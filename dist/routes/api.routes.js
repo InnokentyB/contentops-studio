@@ -7,18 +7,14 @@ exports.default = apiRoutes;
 const planner_service_1 = __importDefault(require("../services/planner.service"));
 const generator_service_1 = __importDefault(require("../services/generator.service"));
 const multi_agent_service_1 = __importDefault(require("../services/multi_agent.service"));
+const content_language_service_1 = require("../services/content_language.service");
 const publisher_service_1 = __importDefault(require("../services/publisher.service"));
 const initiative_service_1 = __importDefault(require("../services/initiative.service"));
 const model_service_1 = __importDefault(require("../services/model.service"));
 const model_policy_service_1 = require("../services/model_policy.service");
 const v2_orchestrator_service_1 = __importDefault(require("../services/v2_orchestrator.service"));
 const client_1 = require("@prisma/client");
-const pg_1 = require("pg");
-const adapter_pg_1 = require("@prisma/adapter-pg");
-const connectionString = process.env.DATABASE_URL;
-const pool = new pg_1.Pool({ connectionString });
-const adapter = new adapter_pg_1.PrismaPg(pool);
-const prisma = new client_1.PrismaClient({ adapter });
+const db_1 = __importDefault(require("../db"));
 const auth_service_1 = __importDefault(require("../services/auth.service"));
 const comment_service_1 = __importDefault(require("../services/comment.service"));
 const storage_service_1 = __importDefault(require("../services/storage.service"));
@@ -36,8 +32,10 @@ const publication_adapter_service_1 = __importDefault(require("../services/publi
 const publication_generation_stage_1 = require("../services/publication_generation_stage");
 const image_asset_service_1 = __importDefault(require("../services/image_asset.service"));
 const visual_generation_policy_1 = require("../services/visual_generation_policy");
+const path_safety_1 = require("../utils/path_safety");
+const channel_secrets_1 = require("../utils/channel_secrets");
 async function loadPublicationPlanContext(projectId) {
-    const settings = await prisma.projectSettings.findMany({
+    const settings = await db_1.default.projectSettings.findMany({
         where: {
             project_id: projectId,
             key: { in: ['publication_plan_meta', 'publication_plan_assets', 'publication_plan_accounts', 'publication_plan_asset_snapshots', 'publication_plan_content_file_snapshots'] }
@@ -105,7 +103,7 @@ function extractRequestErrorMessage(error, fallback) {
     return fallback;
 }
 async function loadPublicationProjectContext(projectId) {
-    const settings = await prisma.projectSettings.findMany({
+    const settings = await db_1.default.projectSettings.findMany({
         where: {
             project_id: projectId,
             key: { in: ['content_dictionary_yaml', 'content_policy_matrix_yaml', 'atoma_files_description', 'atoma_files_payload'] }
@@ -208,6 +206,8 @@ function buildPublicationTaskDetailItem(item, options) {
         draft_text: item.draft_text || null,
         content_state: (0, publication_content_state_1.derivePublicationContentState)({ ...item, quality_report: { ...qualityReport, handoff_bundle: handoffBundle } }),
         content_revision: item.content_revision || 0,
+        accepted_revision: item.accepted_revision || null,
+        text_state: item.text_state || null,
         generation_stage: (0, publication_generation_stage_1.derivePublicationGenerationStage)({
             status: item.status,
             draftText: item.draft_text,
@@ -288,6 +288,7 @@ async function runPublicationCriticReview(projectId, item, overrideText) {
         throw new Error('No publication body is available for critic review.');
     }
     const platform = item.channel?.type || item.layer || item.type;
+    const contentLanguage = (0, content_language_service_1.channelContentLanguage)(item.channel);
     const voice = derivePublicationVoice(item);
     const dictionaryReport = content_dictionary_service_1.default.validateText(publicationBody, projectContext.glossaryYaml);
     const policyReport = content_policy_matrix_service_1.default.validateText(publicationBody, projectContext.contentPolicyMatrixYaml, {
@@ -302,6 +303,7 @@ async function runPublicationCriticReview(projectId, item, overrideText) {
             title: item.title,
             channel: item.channel?.name || item.layer || item.type,
             platform,
+            content_language: contentLanguage,
             voice_profile: voice,
             target_resource_url: bundle?.publication?.link_url || null,
             publication_body: publicationBody,
@@ -399,10 +401,38 @@ async function apiRoutes(fastify) {
             reply.code(401).send({ error: 'Invalid or expired token' });
         }
     });
+    async function getAuthorizedPost(postId, userId, minRole = 'viewer', includeWeek = false) {
+        if (!Number.isInteger(postId) || postId <= 0)
+            return null;
+        const post = await db_1.default.post.findUnique({
+            where: { id: postId },
+            include: includeWeek ? { week: true } : undefined
+        });
+        if (!post)
+            return null;
+        const hasAccess = await auth_service_1.default.hasProjectAccess(userId, post.project_id, minRole);
+        if (!hasAccess)
+            return null;
+        return post;
+    }
+    async function getAuthorizedWeek(weekId, userId, minRole = 'viewer', includePosts = false) {
+        if (!Number.isInteger(weekId) || weekId <= 0)
+            return null;
+        const week = await db_1.default.week.findUnique({
+            where: { id: weekId },
+            include: includePosts ? { posts: { orderBy: { publish_at: 'asc' } } } : undefined
+        });
+        if (!week)
+            return null;
+        const hasAccess = await auth_service_1.default.hasProjectAccess(userId, week.project_id, minRole);
+        if (!hasAccess)
+            return null;
+        return week;
+    }
     // Public endpoint to serve images for Telegram link preview
     fastify.get('/public/posts/:id/image', async (request, reply) => {
         const { id } = request.params;
-        const post = await prisma.post.findUnique({
+        const post = await db_1.default.post.findUnique({
             where: { id: parseInt(id) },
             select: { image_url: true }
         });
@@ -422,13 +452,12 @@ async function apiRoutes(fastify) {
             return reply.send(buffer);
         }
         else if (post.image_url.startsWith('/uploads/')) {
-            // Local upload: serve file
+            // Local upload: serve file safely
             const fs = require('fs');
             const path = require('path');
-            const filename = post.image_url.split('/').pop() || '';
-            const localPath = path.join(__dirname, '../../uploads', filename);
-            if (fs.existsSync(localPath)) {
-                const ext = filename.split('.').pop()?.toLowerCase();
+            const localPath = (0, path_safety_1.safeResolveUploadPath)(post.image_url);
+            if (localPath && fs.existsSync(localPath)) {
+                const ext = path.extname(localPath).slice(1).toLowerCase();
                 const mimeType = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : 'image/jpeg';
                 const buffer = fs.readFileSync(localPath);
                 reply.header('Content-Type', mimeType);
@@ -447,7 +476,7 @@ async function apiRoutes(fastify) {
     // Public endpoint to serve images for V2 ContentItem link preview
     fastify.get('/public/content-items/:id/image', async (request, reply) => {
         const { id } = request.params;
-        const item = await prisma.contentItem.findUnique({
+        const item = await db_1.default.contentItem.findUnique({
             where: { id: parseInt(id) },
             select: { assets: true }
         });
@@ -477,10 +506,9 @@ async function apiRoutes(fastify) {
         else if (imageUrl.startsWith('/uploads/')) {
             const fs = require('fs');
             const path = require('path');
-            const filename = imageUrl.split('/').pop() || '';
-            const localPath = path.join(__dirname, '../../uploads', filename);
-            if (fs.existsSync(localPath)) {
-                const ext = filename.split('.').pop()?.toLowerCase();
+            const localPath = (0, path_safety_1.safeResolveUploadPath)(imageUrl);
+            if (localPath && fs.existsSync(localPath)) {
+                const ext = path.extname(localPath).slice(1).toLowerCase();
                 const mimeType = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : 'image/jpeg';
                 const buffer = fs.readFileSync(localPath);
                 reply.header('Content-Type', mimeType);
@@ -501,7 +529,7 @@ async function apiRoutes(fastify) {
         const projectId = request.projectId;
         if (!projectId)
             return reply.code(400).send({ error: 'Project ID required' });
-        const weeks = await prisma.week.findMany({
+        const weeks = await db_1.default.week.findMany({
             where: { project_id: projectId },
             orderBy: { week_start: 'desc' },
             include: { _count: { select: { posts: true } } }
@@ -535,7 +563,7 @@ async function apiRoutes(fastify) {
             // P2002 is Prisma Unique Constraint Violation
             if (e.code === 'P2002') {
                 console.log(`[API] Week already exists for project ${projectId} and start ${start}. Returning existing.`);
-                const existing = await prisma.week.findFirst({
+                const existing = await db_1.default.week.findFirst({
                     where: {
                         project_id: projectId,
                         week_start: start,
@@ -552,14 +580,8 @@ async function apiRoutes(fastify) {
     fastify.get('/api/weeks/:id', async (request, reply) => {
         try {
             const { id } = request.params;
-            const week = await prisma.week.findUnique({
-                where: { id: parseInt(id) },
-                include: {
-                    posts: {
-                        orderBy: { publish_at: 'asc' }
-                    }
-                }
-            });
+            const user = request.user;
+            const week = await getAuthorizedWeek(parseInt(id), user?.id, 'viewer', true);
             if (!week) {
                 reply.code(404).send({ error: 'Week not found' });
                 return;
@@ -567,20 +589,17 @@ async function apiRoutes(fastify) {
             // Get topics if in topics_generated status
             let topics = null;
             if (week.status === 'topics_generated') {
-                console.log('Week status is topics_generated, looking for run...');
-                const run = await prisma.agentRun.findFirst({
-                    where: { input: `Theme: ${week.theme}` },
+                const run = await db_1.default.agentRun.findFirst({
+                    where: { input: `Theme: ${week.theme}`, project_id: week.project_id },
                     orderBy: { created_at: 'desc' },
                     include: { iterations: true }
                 });
                 if (run) {
-                    console.log('Run found:', run.id);
                     // Noop
                 }
             }
-            console.log('Returning week:', week.id); // Debug Log
             // Sanitize BigInt for Fastify
-            const serializedPosts = week.posts.map((p) => ({
+            const serializedPosts = (week.posts || []).map((p) => ({
                 ...p,
                 approval_message_id: p.approval_message_id ? p.approval_message_id.toString() : null
             }));
@@ -588,23 +607,31 @@ async function apiRoutes(fastify) {
         }
         catch (e) {
             console.error('Error in GET /api/weeks/:id:', e);
-            const fs = require('fs');
-            fs.appendFileSync('server_error.log', `[${new Date().toISOString()}] Error in GET /weeks/${request.params.id}: ${e.message}\n${e.stack}\n\n`);
             return reply.code(500).send({ error: 'Internal Server Error' });
         }
     });
     fastify.put('/api/weeks/:id', async (request, reply) => {
         const { id } = request.params;
+        const user = request.user;
+        const week = await getAuthorizedWeek(parseInt(id), user?.id, 'editor');
+        if (!week) {
+            return reply.code(404).send({ error: 'Week not found' });
+        }
         const data = request.body;
-        const week = await prisma.week.update({
+        const updated = await db_1.default.week.update({
             where: { id: parseInt(id) },
             data
         });
-        return week;
+        return updated;
     });
     fastify.delete('/api/weeks/:id', async (request, reply) => {
         const { id } = request.params;
-        await prisma.week.delete({ where: { id: parseInt(id) } });
+        const user = request.user;
+        const week = await getAuthorizedWeek(parseInt(id), user?.id, 'editor');
+        if (!week) {
+            return reply.code(404).send({ error: 'Week not found' });
+        }
+        await db_1.default.week.delete({ where: { id: parseInt(id) } });
         return { success: true };
     });
     // Week actions
@@ -622,7 +649,7 @@ async function apiRoutes(fastify) {
             }
             const { id } = request.params;
             const { promptPresetId, overwrite } = request.body;
-            const week = await prisma.week.findUnique({
+            const week = await db_1.default.week.findUnique({
                 where: { id: parseInt(id) } // Removed project_id check temporarily to depend on middleware
             });
             // Double check project ownership if needed, or rely on middleware
@@ -632,7 +659,7 @@ async function apiRoutes(fastify) {
             // Handle Overwrite
             if (overwrite) {
                 console.log(`[API] Overwriting topics for week ${id}`);
-                await prisma.post.deleteMany({
+                await db_1.default.post.deleteMany({
                     where: {
                         week_id: week.id,
                         status: { in: ['planned', 'topics_generated'] } // Only delete planned/generated, keep published/scheduled? 
@@ -642,12 +669,12 @@ async function apiRoutes(fastify) {
             }
             let promptOverride;
             if (promptPresetId) {
-                const preset = await prisma.promptPreset.findUnique({ where: { id: promptPresetId } });
+                const preset = await db_1.default.promptPreset.findUnique({ where: { id: promptPresetId } });
                 if (preset)
                     promptOverride = preset.prompt_text;
             }
             // Determine how many topics to generate based on existing posts (topics)
-            const existingPosts = await prisma.post.findMany({
+            const existingPosts = await db_1.default.post.findMany({
                 where: { week_id: week.id, status: { not: 'planned' } }, // Count generated/approved topics
                 select: { topic: true }
             });
@@ -696,7 +723,7 @@ async function apiRoutes(fastify) {
         const { id } = request.params;
         const weekId = parseInt(id);
         // Update all posts status
-        await prisma.post.updateMany({
+        await db_1.default.post.updateMany({
             where: {
                 week_id: weekId,
                 status: 'topics_generated'
@@ -711,7 +738,7 @@ async function apiRoutes(fastify) {
     fastify.post('/api/weeks/:id/generate-posts', async (request, reply) => {
         const projectId = request.projectId;
         const { id } = request.params;
-        const week = await prisma.week.findUnique({
+        const week = await db_1.default.week.findUnique({
             where: { id: parseInt(id), project_id: projectId },
             include: { posts: true }
         });
@@ -725,7 +752,7 @@ async function apiRoutes(fastify) {
         for (const post of week.posts) {
             if (!post.topic)
                 continue;
-            await prisma.post.update({
+            await db_1.default.post.update({
                 where: { id: post.id },
                 data: { status: 'generating' }
             });
@@ -745,7 +772,7 @@ async function apiRoutes(fastify) {
     fastify.post('/api/weeks/:id/generate-sequential', async (request, reply) => {
         const projectId = request.projectId;
         const { id } = request.params;
-        const week = await prisma.week.findUnique({
+        const week = await db_1.default.week.findUnique({
             where: { id: parseInt(id) }
         });
         if (!week)
@@ -763,20 +790,19 @@ async function apiRoutes(fastify) {
         return { success: true, message: 'Sequential generation started' };
     });
     fastify.post('/api/posts/:id/generate-image', async (request, reply) => {
-        const projectId = request.projectId;
         const { id } = request.params;
-        const { provider } = request.body;
-        const post = await prisma.post.findUnique({
-            where: { id: parseInt(id) }
-        });
+        const user = request.user;
+        const post = await getAuthorizedPost(parseInt(id), user?.id, 'editor');
         if (!post) {
             return reply.code(404).send({ error: 'Post not found' });
         }
+        const projectId = request.projectId || post.project_id;
+        const { provider } = request.body;
         try {
             console.log(`[Generate Image] Enqueueing request for Post ${id}, Mode: ${provider || 'preview'}`);
             const textToUse = post.final_text || post.generated_text || post.topic || '';
             // Mark immediately to stop re-clicks
-            await prisma.post.update({
+            await db_1.default.post.update({
                 where: { id: parseInt(id) },
                 data: { status: 'generating' }
             });
@@ -800,6 +826,11 @@ async function apiRoutes(fastify) {
     });
     fastify.post('/api/posts/:id/upload-image', async (request, reply) => {
         const { id } = request.params;
+        const user = request.user;
+        const post = await getAuthorizedPost(parseInt(id), user?.id, 'editor');
+        if (!post) {
+            return reply.code(404).send({ error: 'Post not found' });
+        }
         const data = await request.file();
         if (!data) {
             return reply.code(400).send({ error: 'No file uploaded' });
@@ -812,7 +843,7 @@ async function apiRoutes(fastify) {
             console.log(`[Upload] Uploading ${filename} to Supabase Storage...`);
             const imageUrl = await storage_service_1.default.uploadFileFromBuffer(buffer, data.mimetype, destinationPath);
             console.log(`[Upload] Upload success: ${imageUrl}`);
-            await prisma.post.update({
+            await db_1.default.post.update({
                 where: { id: parseInt(id) },
                 data: {
                     image_url: imageUrl,
@@ -829,10 +860,8 @@ async function apiRoutes(fastify) {
     // Posts
     fastify.get('/api/posts/:id', async (request, reply) => {
         const { id } = request.params;
-        const post = await prisma.post.findUnique({
-            where: { id: parseInt(id) },
-            include: { week: true }
-        });
+        const user = request.user;
+        const post = await getAuthorizedPost(parseInt(id), user?.id, 'viewer', true);
         if (!post) {
             reply.code(404).send({ error: 'Post not found' });
             return;
@@ -840,7 +869,7 @@ async function apiRoutes(fastify) {
         // Find associated WeekPackage by matching dates and project_id (with range overlap support)
         let weekPackageId = null;
         if (post.week) {
-            const weekPackage = await prisma.weekPackage.findFirst({
+            const weekPackage = await db_1.default.weekPackage.findFirst({
                 where: {
                     project_id: post.project_id,
                     week_start: {
@@ -859,35 +888,55 @@ async function apiRoutes(fastify) {
     });
     fastify.put('/api/posts/:id', async (request, reply) => {
         const { id } = request.params;
+        const user = request.user;
+        const post = await getAuthorizedPost(parseInt(id), user?.id, 'editor');
+        if (!post) {
+            return reply.code(404).send({ error: 'Post not found' });
+        }
         const data = request.body;
-        const post = await prisma.post.update({
+        const updatedPost = await db_1.default.post.update({
             where: { id: parseInt(id) },
             data
         });
-        return post;
+        return updatedPost;
     });
     fastify.post('/api/posts/:id/approve', async (request, reply) => {
         const { id } = request.params;
+        const user = request.user;
+        const post = await getAuthorizedPost(parseInt(id), user?.id, 'editor');
+        if (!post) {
+            return reply.code(404).send({ error: 'Post not found' });
+        }
         const data = request.body || {};
-        const post = await prisma.post.update({
+        const updatedPost = await db_1.default.post.update({
             where: { id: parseInt(id) },
             data: {
                 ...data, // Allow updating publish_at, text, channel_id etc during approval
                 status: 'scheduled'
             }
         });
-        return post;
+        return updatedPost;
     });
     fastify.post('/api/posts/:id/approve-topic', async (request, reply) => {
         const { id } = request.params;
-        const post = await prisma.post.update({
+        const user = request.user;
+        const post = await getAuthorizedPost(parseInt(id), user?.id, 'editor');
+        if (!post) {
+            return reply.code(404).send({ error: 'Post not found' });
+        }
+        const updatedPost = await db_1.default.post.update({
             where: { id: parseInt(id) },
             data: { status: 'topics_approved' }
         });
-        return post;
+        return updatedPost;
     });
     fastify.post('/api/posts/:id/publish-now', async (request, reply) => {
         const { id } = request.params;
+        const user = request.user;
+        const post = await getAuthorizedPost(parseInt(id), user?.id, 'editor');
+        if (!post) {
+            return reply.code(404).send({ error: 'Post not found' });
+        }
         try {
             const host = request.headers.host || undefined;
             const result = await publisher_service_1.default.publishPostNow(parseInt(id), host);
@@ -903,19 +952,14 @@ async function apiRoutes(fastify) {
         }
     });
     fastify.post('/api/posts/:id/generate', async (request, reply) => {
-        const projectId = request.projectId;
         const { id } = request.params;
-        const post = await prisma.post.findFirst({
-            where: {
-                id: parseInt(id),
-                week: { project_id: projectId }
-            },
-            include: { week: true }
-        });
+        const user = request.user;
+        const post = await getAuthorizedPost(parseInt(id), user?.id, 'editor', true);
         if (!post || !post.week) {
             reply.code(404).send({ error: 'Post not found or access denied' });
             return;
         }
+        const projectId = post.project_id;
         if (!post.topic) {
             reply.code(400).send({ error: 'Post has no topic' });
             return;
@@ -923,12 +967,12 @@ async function apiRoutes(fastify) {
         const { promptPresetId, withImage } = request.body;
         let promptOverride;
         if (promptPresetId) {
-            const preset = await prisma.promptPreset.findUnique({ where: { id: promptPresetId } });
+            const preset = await db_1.default.promptPreset.findUnique({ where: { id: promptPresetId } });
             if (preset)
                 promptOverride = preset.prompt_text;
         }
         // Immediately update status and enqueue background generation via BullMQ
-        await prisma.post.update({
+        await db_1.default.post.update({
             where: { id: post.id },
             data: { status: 'generating' }
         });
@@ -948,21 +992,15 @@ async function apiRoutes(fastify) {
         return reply.code(202).send({ success: true, message: 'Generation queued in background' });
     });
     fastify.post('/api/posts/:id/validate-dictionary', async (request, reply) => {
-        const projectId = request.projectId;
-        if (!projectId)
-            return reply.code(400).send({ error: 'Project ID required' });
         const { id } = request.params;
-        const { text } = request.body;
-        const post = await prisma.post.findFirst({
-            where: {
-                id: parseInt(id),
-                project_id: projectId
-            }
-        });
+        const user = request.user;
+        const post = await getAuthorizedPost(parseInt(id), user?.id, 'viewer');
         if (!post) {
             return reply.code(404).send({ error: 'Post not found' });
         }
-        const dictionarySetting = await prisma.projectSettings.findUnique({
+        const projectId = post.project_id;
+        const { text } = request.body;
+        const dictionarySetting = await db_1.default.projectSettings.findUnique({
             where: { project_id_key: { project_id: projectId, key: 'content_dictionary_yaml' } }
         });
         const report = content_dictionary_service_1.default.validateText(text || post.final_text || post.generated_text || '', dictionarySetting?.value || null);
@@ -995,7 +1033,7 @@ async function apiRoutes(fastify) {
                 ...(to ? { lte: new Date(to) } : {})
             };
         }
-        const items = await prisma.contentItem.findMany({
+        const items = await db_1.default.contentItem.findMany({
             where,
             select: {
                 id: true,
@@ -1057,7 +1095,7 @@ async function apiRoutes(fastify) {
         if (!projectId)
             return reply.code(400).send({ error: 'Project ID required' });
         const { id } = request.params;
-        const item = await prisma.contentItem.findFirst({
+        const item = await db_1.default.contentItem.findFirst({
             where: { id: parseInt(id), project_id: projectId },
             include: {
                 channel: true,
@@ -1119,7 +1157,7 @@ async function apiRoutes(fastify) {
         if (typeof body !== 'string') {
             return reply.code(400).send({ error: 'body must be a string' });
         }
-        const item = await prisma.contentItem.findFirst({
+        const item = await db_1.default.contentItem.findFirst({
             where: { id: parseInt(id), project_id: projectId }
         });
         if (!item) {
@@ -1153,7 +1191,7 @@ async function apiRoutes(fastify) {
                 }
             };
         }
-        const updated = await prisma.contentItem.update({
+        const updated = await db_1.default.contentItem.update({
             where: { id: item.id },
             data: {
                 draft_text: body,
@@ -1181,7 +1219,7 @@ async function apiRoutes(fastify) {
         if (!projectId)
             return reply.code(400).send({ error: 'Project ID required' });
         const { id } = request.params;
-        const item = await prisma.contentItem.findFirst({
+        const item = await db_1.default.contentItem.findFirst({
             where: { id: parseInt(id), project_id: projectId },
             include: { channel: true, selected_asset: true }
         });
@@ -1198,12 +1236,15 @@ async function apiRoutes(fastify) {
             : publication_plan_service_1.default.buildGeneratedContentItemHandoff(item);
         const channelConfig = item.channel?.config || {};
         const rawAccount = channelConfig.raw_account || channelConfig;
-        const directExecutionSupported = publication_adapter_service_1.default.supportsDirectExecution({
+        const effectiveAccount = {
             ...rawAccount,
+            workflow_mode: channelConfig.workflow_mode || rawAccount.workflow_mode,
             platform: rawAccount.platform || item.channel?.type
-        });
-        const browserRequired = bundle.mode === 'manual' || !directExecutionSupported;
-        const updated = await prisma.contentItem.update({
+        };
+        const directExecutionSupported = publication_adapter_service_1.default.supportsDirectExecution(effectiveAccount);
+        const browserRequired = !directExecutionSupported
+            || (bundle.mode === 'manual' && !publication_adapter_service_1.default.prefersAutomaticExecution(effectiveAccount));
+        const updated = await db_1.default.contentItem.update({
             where: { id: item.id },
             data: {
                 status: browserRequired ? 'browser_required' : 'ready_for_execution',
@@ -1240,7 +1281,7 @@ async function apiRoutes(fastify) {
             return reply.code(400).send({ error: 'Project ID required' });
         const { id } = request.params;
         const taskId = parseInt(id);
-        const item = await prisma.contentItem.findFirst({
+        const item = await db_1.default.contentItem.findFirst({
             where: { id: taskId, project_id: projectId },
             include: { channel: true }
         });
@@ -1250,7 +1291,7 @@ async function apiRoutes(fastify) {
         try {
             const host = request.headers.host || undefined;
             const result = await publisher_service_1.default.processPublicationTaskNow(taskId, host);
-            const refreshed = await prisma.contentItem.findFirst({
+            const refreshed = await db_1.default.contentItem.findFirst({
                 where: { id: taskId, project_id: projectId },
                 include: { channel: true }
             });
@@ -1282,7 +1323,7 @@ async function apiRoutes(fastify) {
         if (!publishedLink) {
             return reply.code(400).send({ error: 'publishedLink is required' });
         }
-        const item = await prisma.contentItem.findFirst({
+        const item = await db_1.default.contentItem.findFirst({
             where: { id: parseInt(id), project_id: projectId }
         });
         if (!item) {
@@ -1306,7 +1347,7 @@ async function apiRoutes(fastify) {
             evidence: { type: 'public_url', ref: publishedLink },
             note
         });
-        const updated = await prisma.contentItem.findUniqueOrThrow({ where: { id: item.id } });
+        const updated = await db_1.default.contentItem.findUniqueOrThrow({ where: { id: item.id } });
         await initiative_service_1.default.syncPublishedPublicationTask(projectId, updated.id);
         (0, egress_diagnostics_1.logEgressDiagnostic)('publication_tasks.confirm_publication', {
             projectId,
@@ -1398,13 +1439,13 @@ async function apiRoutes(fastify) {
             return reply.code(400).send({ error: 'Project ID required' });
         const { id } = request.params;
         const { metrics } = request.body;
-        const item = await prisma.contentItem.findFirst({
+        const item = await db_1.default.contentItem.findFirst({
             where: { id: parseInt(id), project_id: projectId }
         });
         if (!item) {
             return reply.code(404).send({ error: 'Publication task not found' });
         }
-        const updated = await prisma.contentItem.update({
+        const updated = await db_1.default.contentItem.update({
             where: { id: item.id },
             data: {
                 metrics: {
@@ -1509,7 +1550,7 @@ async function apiRoutes(fastify) {
             return reply.code(400).send({ error: 'Project ID required' });
         const { id } = request.params;
         const { text, commentUrl, author } = request.body;
-        const item = await prisma.contentItem.findFirst({
+        const item = await db_1.default.contentItem.findFirst({
             where: { id: parseInt(id), project_id: projectId }
         });
         if (!item) {
@@ -1521,7 +1562,7 @@ async function apiRoutes(fastify) {
             commentUrl ? `URL: ${commentUrl}` : null
         ].filter(Boolean).join('\n');
         const comment = await comment_service_1.default.createComment(projectId, 'content_item', item.id, composed || 'External comment alert received', 'assistant');
-        await prisma.contentItem.update({
+        await db_1.default.contentItem.update({
             where: { id: item.id },
             data: {
                 metrics: {
@@ -1546,7 +1587,7 @@ async function apiRoutes(fastify) {
             return reply.code(400).send({ error: 'Project ID required' });
         const { id } = request.params;
         const { text } = request.body;
-        const item = await prisma.contentItem.findFirst({
+        const item = await db_1.default.contentItem.findFirst({
             where: { id: parseInt(id), project_id: projectId },
             include: { channel: true }
         });
@@ -1560,7 +1601,7 @@ async function apiRoutes(fastify) {
         catch (error) {
             return reply.code(400).send({ error: error?.message || 'No publication body is available for critic review.' });
         }
-        await prisma.contentItem.update({
+        await db_1.default.contentItem.update({
             where: { id: item.id },
             data: {
                 quality_report: {
@@ -1583,7 +1624,7 @@ async function apiRoutes(fastify) {
             return reply.code(400).send({ error: 'Project ID required' });
         const { id } = request.params;
         const { text } = request.body;
-        const item = await prisma.contentItem.findFirst({
+        const item = await db_1.default.contentItem.findFirst({
             where: { id: parseInt(id), project_id: projectId },
             include: { channel: true }
         });
@@ -1597,6 +1638,7 @@ async function apiRoutes(fastify) {
             title: item.title,
             channel: item.channel?.name || item.layer || item.type,
             platform: item.channel?.type || item.layer || item.type,
+            content_language: (0, content_language_service_1.channelContentLanguage)(item.channel),
             voice_profile: derivePublicationVoice(item),
             original_text: currentText,
             critic_review: initial.criticReview,
@@ -1638,14 +1680,14 @@ async function apiRoutes(fastify) {
             resolved_findings: fixed.resolved_findings || [],
             raw: fixed
         };
-        const updated = await prisma.contentItem.update({
+        const updated = await db_1.default.contentItem.update({
             where: { id: item.id },
             data: {
                 draft_text: fixed.updated_text || currentText,
                 quality_report: nextQualityReport
             }
         });
-        const reloaded = await prisma.contentItem.findFirst({
+        const reloaded = await db_1.default.contentItem.findFirst({
             where: { id: updated.id, project_id: projectId },
             include: { channel: true }
         });
@@ -1653,7 +1695,7 @@ async function apiRoutes(fastify) {
             ? await runPublicationCriticReview(projectId, reloaded, updated.draft_text || currentText)
             : null;
         if (reloaded && finalCritic) {
-            await prisma.contentItem.update({
+            await db_1.default.contentItem.update({
                 where: { id: reloaded.id },
                 data: {
                     quality_report: {
@@ -1685,7 +1727,7 @@ async function apiRoutes(fastify) {
             return reply.code(400).send({ error: 'Project and user are required' });
         const { id } = request.params;
         const { provider } = request.body;
-        const item = await prisma.contentItem.findFirst({
+        const item = await db_1.default.contentItem.findFirst({
             where: { id: parseInt(id), project_id: projectId },
             include: {
                 week_package: true,
@@ -1768,7 +1810,7 @@ async function apiRoutes(fastify) {
             placement: visualDecision.placement,
             fileUrl: imageUrl
         });
-        await prisma.contentItem.update({
+        await db_1.default.contentItem.update({
             where: { id: item.id },
             data: {
                 assets: {
@@ -1875,7 +1917,7 @@ async function apiRoutes(fastify) {
             return reply.code(400).send({ error: 'Project ID required' });
         const daysRaw = Number(request.query?.days || 30);
         const days = Number.isFinite(daysRaw) ? Math.min(90, Math.max(1, Math.trunc(daysRaw))) : 30;
-        const rows = await prisma.$queryRaw(client_1.Prisma.sql `
+        const rows = await db_1.default.$queryRaw(client_1.Prisma.sql `
             SELECT provider,
                    model,
                    COUNT(*)::int AS calls,
@@ -1977,17 +2019,17 @@ async function apiRoutes(fastify) {
         try {
             // Helper to safe update
             const saveSetting = async (key, value) => {
-                const existing = await prisma.projectSettings.findUnique({
+                const existing = await db_1.default.projectSettings.findUnique({
                     where: { project_id_key: { project_id: projectId, key } }
                 });
                 if (existing) {
-                    await prisma.projectSettings.update({
+                    await db_1.default.projectSettings.update({
                         where: { id: existing.id },
                         data: { value }
                     });
                 }
                 else {
-                    await prisma.projectSettings.create({
+                    await db_1.default.projectSettings.create({
                         data: { project_id: projectId, key, value }
                     });
                 }
@@ -2003,7 +2045,7 @@ async function apiRoutes(fastify) {
         }
     });
     fastify.get('/api/settings/runs', async (request, reply) => {
-        const runs = await prisma.agentRun.findMany({
+        const runs = await db_1.default.agentRun.findMany({
             orderBy: { created_at: 'desc' },
             take: 50
         });
@@ -2015,7 +2057,7 @@ async function apiRoutes(fastify) {
             const projectId = request.projectId;
             if (!projectId)
                 return reply.code(400).send({ error: 'Project ID required' });
-            return await prisma.promptPreset.findMany({
+            return await db_1.default.promptPreset.findMany({
                 where: { project_id: projectId },
                 orderBy: { created_at: 'desc' }
             });
@@ -2032,7 +2074,7 @@ async function apiRoutes(fastify) {
         if (!projectId)
             return reply.code(400).send({ error: 'Project ID required' });
         const { name, role, prompt_text } = request.body;
-        return await prisma.promptPreset.create({
+        return await db_1.default.promptPreset.create({
             data: { project_id: projectId, name, role, prompt_text }
         });
     });
@@ -2041,10 +2083,10 @@ async function apiRoutes(fastify) {
         const { id } = request.params;
         const data = request.body;
         // Ensure belongs to project
-        const count = await prisma.promptPreset.count({ where: { id: parseInt(id), project_id: projectId } });
+        const count = await db_1.default.promptPreset.count({ where: { id: parseInt(id), project_id: projectId } });
         if (count === 0)
             return reply.code(404).send({ error: 'Not found' });
-        return await prisma.promptPreset.update({
+        return await db_1.default.promptPreset.update({
             where: { id: parseInt(id) },
             data
         });
@@ -2053,10 +2095,10 @@ async function apiRoutes(fastify) {
         const projectId = request.projectId;
         const { id } = request.params;
         // Ensure belongs to project
-        const count = await prisma.promptPreset.count({ where: { id: parseInt(id), project_id: projectId } });
+        const count = await db_1.default.promptPreset.count({ where: { id: parseInt(id), project_id: projectId } });
         if (count === 0)
             return reply.code(404).send({ error: 'Not found' });
-        await prisma.promptPreset.delete({ where: { id: parseInt(id) } });
+        await db_1.default.promptPreset.delete({ where: { id: parseInt(id) } });
         return { success: true };
     });
     // Comments
@@ -2081,15 +2123,21 @@ async function apiRoutes(fastify) {
         const projectId = request.projectId;
         if (!projectId)
             return reply.code(400).send({ error: 'Project ID required' });
-        const keys = await prisma.providerKey.findMany({
+        const keys = await db_1.default.providerKey.findMany({
             where: { project_id: projectId },
             orderBy: { created_at: 'desc' }
         });
         // Mask keys
-        return keys.map(k => ({
-            ...k,
-            key: k.key.substring(0, 3) + '...' + k.key.substring(k.key.length - 4)
-        }));
+        return keys.map(k => {
+            const rawKey = (0, channel_secrets_1.safeDecryptProviderKey)(k.key);
+            const masked = rawKey.length > 7
+                ? rawKey.substring(0, 3) + '...' + rawKey.substring(rawKey.length - 4)
+                : '***';
+            return {
+                ...k,
+                key: masked
+            };
+        });
     });
     fastify.post('/api/settings/keys', async (request, reply) => {
         const projectId = request.projectId;
@@ -2103,11 +2151,11 @@ async function apiRoutes(fastify) {
             provider = 'Gemini';
         else if (key.startsWith('sk-'))
             provider = 'OpenAI';
-        const newKey = await prisma.providerKey.create({
+        const newKey = await db_1.default.providerKey.create({
             data: {
                 project_id: projectId,
                 name,
-                key,
+                key: (0, channel_secrets_1.safeEncryptProviderKey)(key),
                 provider
             }
         });
@@ -2117,17 +2165,17 @@ async function apiRoutes(fastify) {
         const projectId = request.projectId;
         const { id } = request.params;
         // Ensure belongs to project
-        const count = await prisma.providerKey.count({ where: { id: parseInt(id), project_id: projectId } });
+        const count = await db_1.default.providerKey.count({ where: { id: parseInt(id), project_id: projectId } });
         if (count === 0)
             return reply.code(404).send({ error: 'Not found' });
-        await prisma.providerKey.delete({ where: { id: parseInt(id) } });
+        await db_1.default.providerKey.delete({ where: { id: parseInt(id) } });
         return { success: true };
     });
     fastify.get('/api/settings/content-dictionary', async (request, reply) => {
         const projectId = request.projectId;
         if (!projectId)
             return reply.code(400).send({ error: 'Project ID required' });
-        const setting = await prisma.projectSettings.findUnique({
+        const setting = await db_1.default.projectSettings.findUnique({
             where: { project_id_key: { project_id: projectId, key: 'content_dictionary_yaml' } }
         });
         const yamlValue = setting?.value || content_dictionary_service_1.default.getDefaultYaml();
@@ -2149,7 +2197,7 @@ async function apiRoutes(fastify) {
         try {
             const normalizedYaml = content_dictionary_service_1.default.normalizeToYaml(yamlText);
             const parsed = content_dictionary_service_1.default.parseYaml(normalizedYaml);
-            const saved = await prisma.projectSettings.upsert({
+            const saved = await db_1.default.projectSettings.upsert({
                 where: { project_id_key: { project_id: projectId, key: 'content_dictionary_yaml' } },
                 update: { value: normalizedYaml },
                 create: {
@@ -2172,7 +2220,7 @@ async function apiRoutes(fastify) {
         const projectId = request.projectId;
         if (!projectId)
             return reply.code(400).send({ error: 'Project ID required' });
-        const setting = await prisma.projectSettings.findUnique({
+        const setting = await db_1.default.projectSettings.findUnique({
             where: { project_id_key: { project_id: projectId, key: 'content_policy_matrix_yaml' } }
         });
         const yamlValue = setting?.value || content_policy_matrix_service_1.default.getDefaultYaml();
@@ -2194,7 +2242,7 @@ async function apiRoutes(fastify) {
         try {
             const normalizedYaml = content_policy_matrix_service_1.default.normalizeToYaml(yamlText);
             const parsed = content_policy_matrix_service_1.default.parseYaml(normalizedYaml);
-            const saved = await prisma.projectSettings.upsert({
+            const saved = await db_1.default.projectSettings.upsert({
                 where: { project_id_key: { project_id: projectId, key: 'content_policy_matrix_yaml' } },
                 update: { value: normalizedYaml },
                 create: {
@@ -2217,7 +2265,7 @@ async function apiRoutes(fastify) {
         const projectId = request.projectId;
         if (!projectId)
             return reply.code(400).send({ error: 'Project ID required' });
-        const settings = await prisma.projectSettings.findMany({
+        const settings = await db_1.default.projectSettings.findMany({
             where: {
                 project_id: projectId,
                 key: { in: ['atoma_files_description', 'atoma_files_payload'] }
@@ -2259,7 +2307,7 @@ async function apiRoutes(fastify) {
                 return reply.code(400).send({ error: error.message || 'Invalid ATOMA payload JSON' });
             }
         }
-        await prisma.$transaction(async (tx) => {
+        await db_1.default.$transaction(async (tx) => {
             if (normalizedDescription) {
                 await tx.projectSettings.upsert({
                     where: { project_id_key: { project_id: projectId, key: 'atoma_files_description' } },
@@ -2293,7 +2341,7 @@ async function apiRoutes(fastify) {
                 });
             }
         });
-        const refreshed = await prisma.projectSettings.findMany({
+        const refreshed = await db_1.default.projectSettings.findMany({
             where: {
                 project_id: projectId,
                 key: { in: ['atoma_files_description', 'atoma_files_payload'] }
@@ -2316,7 +2364,7 @@ async function apiRoutes(fastify) {
         const projectId = request.projectId;
         if (!projectId)
             return reply.code(400).send({ error: 'Project ID required' });
-        const setting = await prisma.projectSettings.findUnique({
+        const setting = await db_1.default.projectSettings.findUnique({
             where: { project_id_key: { project_id: projectId, key: 'llm_skill_connections' } }
         });
         if (!setting?.value) {
@@ -2360,7 +2408,7 @@ async function apiRoutes(fastify) {
                 supportsSkills: connection.supportsSkills !== false
             };
         });
-        await prisma.projectSettings.upsert({
+        await db_1.default.projectSettings.upsert({
             where: { project_id_key: { project_id: projectId, key: 'llm_skill_connections' } },
             update: { value: JSON.stringify(normalized) },
             create: {
@@ -2379,11 +2427,11 @@ async function apiRoutes(fastify) {
         let detectedProvider = provider || 'Unknown';
         // If keyId is provided, fetch from DB
         if (keyId) {
-            const storedKey = await prisma.providerKey.findFirst({
+            const storedKey = await db_1.default.providerKey.findFirst({
                 where: { id: parseInt(keyId), project_id: projectId }
             });
             if (storedKey) {
-                apiKey = storedKey.key;
+                apiKey = (0, channel_secrets_1.safeDecryptProviderKey)(storedKey.key);
                 detectedProvider = storedKey.provider;
             }
         }
@@ -2408,7 +2456,7 @@ async function apiRoutes(fastify) {
         const projectId = request.projectId;
         if (!projectId)
             return reply.code(400).send({ error: 'Project ID required' });
-        const weeks = await prisma.weekPackage.findMany({
+        const weeks = await db_1.default.weekPackage.findMany({
             where: { project_id: projectId },
             orderBy: { week_start: 'desc' },
             include: { _count: { select: { content_items: true } } }
@@ -2420,7 +2468,7 @@ async function apiRoutes(fastify) {
         if (!projectId)
             return reply.code(400).send({ error: 'Project ID required' });
         const { id } = request.params;
-        let week = await prisma.weekPackage.findUnique({
+        let week = await db_1.default.weekPackage.findUnique({
             where: { id: parseInt(id), project_id: projectId },
             include: {
                 content_items: {
@@ -2430,12 +2478,12 @@ async function apiRoutes(fastify) {
         });
         if (!week) {
             // Check if it is a V1 week ID
-            const v1Week = await prisma.week.findFirst({
+            const v1Week = await db_1.default.week.findFirst({
                 where: { id: parseInt(id), project_id: projectId }
             });
             if (v1Week) {
                 // Find matching V2 week package using range overlap
-                const matchingWeekPackage = await prisma.weekPackage.findFirst({
+                const matchingWeekPackage = await db_1.default.weekPackage.findFirst({
                     where: {
                         project_id: projectId,
                         week_start: {
@@ -2526,10 +2574,10 @@ async function apiRoutes(fastify) {
         if (!projectId)
             return reply.code(400).send({ error: 'Project ID required' });
         const { id } = request.params;
-        const wp = await prisma.weekPackage.findUnique({ where: { id: parseInt(id), project_id: projectId } });
+        const wp = await db_1.default.weekPackage.findUnique({ where: { id: parseInt(id), project_id: projectId } });
         if (!wp)
             return reply.code(404).send({ error: 'WeekPackage not found' });
-        const updated = await prisma.weekPackage.update({
+        const updated = await db_1.default.weekPackage.update({
             where: { id: wp.id },
             data: { approval_status: 'approved' }
         });
@@ -2570,7 +2618,7 @@ async function apiRoutes(fastify) {
         const projectId = request.projectId;
         if (!projectId)
             return reply.code(400).send({ error: 'Project ID required' });
-        const quarters = await prisma.quarterPlan.findMany({
+        const quarters = await db_1.default.quarterPlan.findMany({
             where: { project_id: projectId },
             orderBy: { quarter_start: 'desc' },
             include: {
@@ -2591,7 +2639,7 @@ async function apiRoutes(fastify) {
             // Trigger the generator service script Logic asynchronously or await it here.
             // For MVP API, we do it inline and block or trigger child process.
             // Let's do a lightweight inline sweep for just 2 items to prevent timeout
-            const itemsToProcess = await prisma.contentItem.findMany({
+            const itemsToProcess = await db_1.default.contentItem.findMany({
                 where: {
                     project_id: projectId,
                     status: 'planned',
@@ -2606,7 +2654,7 @@ async function apiRoutes(fastify) {
                     results.push({ id: item.id, status: 'drafted' });
                 }
                 catch (e) {
-                    await prisma.contentItem.update({ where: { id: item.id }, data: { status: 'failed' } });
+                    await db_1.default.contentItem.update({ where: { id: item.id }, data: { status: 'failed' } });
                     results.push({ id: item.id, status: 'failed', error: e.message });
                 }
             }
@@ -2617,25 +2665,26 @@ async function apiRoutes(fastify) {
         }
     });
     // ─── Strategy Assistant Chat ─────────────────────────────────────────────
-    const DEFAULT_STRATEGY_PROMPT = `Ты — Стратегический Ассистент по контенту.
+    const strategyLanguage = (value) => value === 'en' ? 'en' : 'ru';
+    const defaultStrategyPrompt = (language) => language === 'en'
+        ? `You are a content strategy assistant. Help the author build an effective content strategy for their channels.
+Consider platform-specific audiences, a sustainable publishing cadence, the Awareness → Authority → Conversion funnel, and the current quarterly plan.
+Ask focused follow-up questions and propose concrete decisions and post formats. Reply in English: concise, specific, and useful.`
+        : `Ты — Стратегический Ассистент по контенту.
 Твоя задача: помогать автору выстроить эффективную контентную стратегию для его каналов.
-Ты учитываешь:
-- Разные платформы (Telegram, VK, YouTube и т.д.) и их специфику аудитории
-- Принципы стабильного контентного потока (контент-план, ритм публикаций)
-- Воронку прогрева: Awareness → Authority → Conversion
-- Текущий квартальный план и месячные арки
-Ты задаёшь уточняющие вопросы, предлагаешь конкретные решения и форматы постов.
-Отвечай на русском языке. Будь кратким, конкретным и полезным.`;
+Ты учитываешь разные платформы, стабильный контентный поток, воронку Awareness → Authority → Conversion и текущий квартальный план.
+Задавай уточняющие вопросы, предлагай конкретные решения и форматы постов. Отвечай на русском языке: кратко, конкретно и полезно.`;
     /**
      * GET the current system prompt for the strategy assistant.
      */
     fastify.get('/api/v2/strategy-chat/settings', async (request, _reply) => {
         const projectId = request.projectId;
-        const setting = await prisma.projectSettings.findUnique({
+        const { language } = request.query;
+        const setting = await db_1.default.projectSettings.findUnique({
             where: { project_id_key: { project_id: projectId, key: 'strategy_assistant_prompt' } }
         });
         return {
-            systemPrompt: setting?.value || DEFAULT_STRATEGY_PROMPT
+            systemPrompt: setting?.value || defaultStrategyPrompt(strategyLanguage(language))
         };
     });
     /**
@@ -2644,40 +2693,78 @@ async function apiRoutes(fastify) {
     fastify.put('/api/v2/strategy-chat/settings', async (request, _reply) => {
         const projectId = request.projectId;
         const { systemPrompt } = request.body;
-        await prisma.projectSettings.upsert({
+        await db_1.default.projectSettings.upsert({
             where: { project_id_key: { project_id: projectId, key: 'strategy_assistant_prompt' } },
             update: { value: systemPrompt },
             create: { project_id: projectId, key: 'strategy_assistant_prompt', value: systemPrompt }
         });
         return { success: true };
     });
+    fastify.get('/api/v2/strategy-chat/history', async (request) => {
+        const projectId = request.projectId;
+        const setting = await db_1.default.projectSettings.findUnique({
+            where: { project_id_key: { project_id: projectId, key: 'strategy_assistant_history' } }
+        });
+        try {
+            const messages = JSON.parse(setting?.value || '[]');
+            return { messages: Array.isArray(messages) ? messages.slice(-40) : [] };
+        }
+        catch {
+            return { messages: [] };
+        }
+    });
+    fastify.delete('/api/v2/strategy-chat/history', async (request) => {
+        const projectId = request.projectId;
+        await db_1.default.projectSettings.deleteMany({ where: { project_id: projectId, key: 'strategy_assistant_history' } });
+        return { success: true };
+    });
     /**
-     * POST a message to the strategy assistant. Accepts conversation history.
-     * Body: { message: string; history: { role: 'user'|'assistant'; content: string }[] }
+     * POST a message to the strategy assistant. Conversation history is owned by the project.
      */
     fastify.post('/api/v2/strategy-chat', async (request, reply) => {
         const projectId = request.projectId;
-        const { message, history = [] } = request.body;
-        if (!message?.trim())
+        const { message, language } = request.body || {};
+        const responseLanguage = strategyLanguage(language);
+        if (typeof message !== 'string' || !message.trim()) {
             return reply.code(400).send({ error: 'Message is required' });
+        }
+        if (message.length > 4000) {
+            return reply.code(400).send({ error: 'Message exceeds maximum length of 4000 characters' });
+        }
         // Load custom system prompt (or use default)
-        const setting = await prisma.projectSettings.findUnique({
+        const setting = await db_1.default.projectSettings.findUnique({
             where: { project_id_key: { project_id: projectId, key: 'strategy_assistant_prompt' } }
         });
-        const systemPrompt = setting?.value || DEFAULT_STRATEGY_PROMPT;
+        const systemPrompt = setting?.value || defaultStrategyPrompt(responseLanguage);
         // Load current quarters for context
-        const quarters = await prisma.quarterPlan.findMany({
+        const quarters = await db_1.default.quarterPlan.findMany({
             where: { project_id: projectId },
             orderBy: { quarter_start: 'desc' },
             take: 1,
             include: { month_arcs: true }
         });
         const contextStr = quarters.length > 0
-            ? `\n\nТекущий квартальный план:\nЦель: ${quarters[0].strategic_goal}\nПилар: ${quarters[0].primary_pillar}\nМесяцы: ${quarters[0].month_arcs.map(m => m.arc_theme).join(', ')}`
+            ? responseLanguage === 'en'
+                ? `\n\nCurrent quarterly plan:\nGoal: ${quarters[0].strategic_goal}\nPillar: ${quarters[0].primary_pillar}\nMonths: ${quarters[0].month_arcs.map(m => m.arc_theme).join(', ')}`
+                : `\n\nТекущий квартальный план:\nЦель: ${quarters[0].strategic_goal}\nПилар: ${quarters[0].primary_pillar}\nМесяцы: ${quarters[0].month_arcs.map(m => m.arc_theme).join(', ')}`
             : '';
+        const languageRule = responseLanguage === 'en'
+            ? '\n\nRespond in English, even if the source context contains another language.'
+            : '\n\nОтвечай по-русски, даже если исходный контекст содержит другой язык.';
         const openai = new (require('openai').default)({ apiKey: process.env.OPENAI_API_KEY });
+        const historySetting = await db_1.default.projectSettings.findUnique({
+            where: { project_id_key: { project_id: projectId, key: 'strategy_assistant_history' } }
+        });
+        let history = [];
+        try {
+            const parsed = JSON.parse(historySetting?.value || '[]');
+            history = Array.isArray(parsed)
+                ? parsed.filter((item) => item && (item.role === 'user' || item.role === 'assistant') && typeof item.content === 'string').slice(-20)
+                : [];
+        }
+        catch { /* Ignore malformed legacy chat history. */ }
         const messages = [
-            { role: 'system', content: systemPrompt + contextStr },
+            { role: 'system', content: systemPrompt + contextStr + languageRule },
             ...history.slice(-10), // keep last 10 turns for context
             { role: 'user', content: message }
         ];
@@ -2686,9 +2773,17 @@ async function apiRoutes(fastify) {
                 model: (0, model_policy_service_1.modelForRole)('classifier'),
                 messages,
                 max_tokens: 1000
+            }, {
+                timeout: 45000
             });
             const reply_text = completion.choices[0]?.message.content || '';
-            return { reply: reply_text };
+            const nextHistory = [...history, { role: 'user', content: message.trim() }, { role: 'assistant', content: reply_text }].slice(-40);
+            await db_1.default.projectSettings.upsert({
+                where: { project_id_key: { project_id: projectId, key: 'strategy_assistant_history' } },
+                update: { value: JSON.stringify(nextHistory) },
+                create: { project_id: projectId, key: 'strategy_assistant_history', value: JSON.stringify(nextHistory) }
+            });
+            return { reply: reply_text, messages: nextHistory };
         }
         catch (e) {
             reply.code(500).send({ error: e.message || 'AI request failed' });

@@ -17,6 +17,35 @@ const principal = { userId: 2, actorId: 'user:2' };
     strict_1.default.equal(result.body.params.arguments.actorId, 'user:2');
     strict_1.default.equal(result.body.params.arguments.userId, 2);
 });
+(0, node_test_1.default)('organization researcher scope cannot be overridden by tool arguments', () => {
+    const body = {
+        method: 'tools/call',
+        params: {
+            name: 'ba_search_organization_intelligence',
+            arguments: { organizationId: 999, userId: 999, actorId: 'user:999', query: 'test' }
+        }
+    };
+    const result = (0, remote_auth_1.scopeRemoteMcpRequest)(body, {
+        userId: 2,
+        actorId: 'user:2',
+        organizationId: 7,
+        profile: 'organization_researcher'
+    });
+    strict_1.default.equal(result.allowed, true);
+    strict_1.default.equal(result.body.params.arguments.organizationId, 7);
+    strict_1.default.equal(result.body.params.arguments.userId, 2);
+    strict_1.default.equal(result.body.params.arguments.actorId, 'user:2');
+});
+(0, node_test_1.default)('remote MCP scopes agent workspace reads to the bound user and project', () => {
+    const body = {
+        method: 'tools/call',
+        params: { name: 'ba_get_agent_workspace_manifest', arguments: { userId: 999, projectId: 999 } }
+    };
+    const result = (0, remote_auth_1.scopeRemoteMcpRequest)(body, { userId: 2, actorId: 'user:2', projectId: 10, profile: 'writer' });
+    strict_1.default.equal(result.allowed, true);
+    strict_1.default.equal(result.body.params.arguments.userId, 2);
+    strict_1.default.equal(result.body.params.arguments.projectId, 10);
+});
 (0, node_test_1.default)('remote MCP denies cross-tenant administrative tools', () => {
     const result = (0, remote_auth_1.scopeRemoteMcpRequest)({
         jsonrpc: '2.0', id: 2, method: 'tools/call',
@@ -52,6 +81,9 @@ const principal = { userId: 2, actorId: 'user:2' };
     const tools = Object.keys(server._registeredTools || {});
     strict_1.default.ok(tools.includes('ba_update_publication_content'));
     strict_1.default.ok(tools.includes('ba_list_publication_tasks'));
+    strict_1.default.ok(tools.includes('ba_get_agent_workspace_manifest'));
+    strict_1.default.ok(tools.includes('ba_get_agent_workspace_updates'));
+    strict_1.default.ok(tools.includes('ba_get_agent_chat_bootstrap'));
     strict_1.default.ok(!tools.includes('ba_import_operational_plan'));
     strict_1.default.ok(!tools.includes('ba_materialize_publication_task'));
     strict_1.default.ok(!tools.includes('ba_reschedule_work_item'));
@@ -68,6 +100,7 @@ const principal = { userId: 2, actorId: 'user:2' };
     strict_1.default.ok(tools.includes('ba_publish_publication_task'));
     strict_1.default.ok(!tools.includes('ba_publish_direct'));
     strict_1.default.ok(tools.includes('ba_reschedule_work_item'));
+    strict_1.default.ok(tools.includes('ba_get_agent_workspace_manifest'));
     strict_1.default.ok(!tools.includes('ba_update_publication_content'));
     strict_1.default.ok(!tools.includes('ba_recover_content_review'));
     strict_1.default.ok(!tools.includes('ba_recover_missing_content_review'));

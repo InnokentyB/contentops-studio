@@ -4,7 +4,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const fs_1 = __importDefault(require("fs"));
-const path_1 = __importDefault(require("path"));
 class LinkedInService {
     getApiVersion() {
         return process.env.LINKEDIN_API_VERSION || '202603';
@@ -115,13 +114,13 @@ class LinkedInService {
             imageBuffer = Buffer.from(base64Data, 'base64');
         }
         else if (imageUrl.startsWith('/uploads/')) {
-            const filename = imageUrl.split('/').pop();
-            const localPath = path_1.default.join(__dirname, '../../uploads', filename || '');
-            if (fs_1.default.existsSync(localPath)) {
+            const { safeResolveUploadPath } = require('../utils/path_safety');
+            const localPath = safeResolveUploadPath(imageUrl);
+            if (localPath && fs_1.default.existsSync(localPath)) {
                 imageBuffer = fs_1.default.readFileSync(localPath);
             }
             else {
-                throw new Error(`Local image file not found: ${localPath}`);
+                throw new Error(`Local image file access denied or not found: ${imageUrl}`);
             }
         }
         else if (imageUrl.startsWith('http')) {

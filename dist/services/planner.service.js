@@ -1,16 +1,14 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.prisma = void 0;
-const client_1 = require("@prisma/client");
-const pg_1 = require("pg");
-const adapter_pg_1 = require("@prisma/adapter-pg");
 const date_fns_1 = require("date-fns");
 const dotenv_1 = require("dotenv");
+const db_1 = __importDefault(require("../db"));
+exports.prisma = db_1.default;
 (0, dotenv_1.config)();
-const connectionString = process.env.DATABASE_URL;
-const pool = new pg_1.Pool({ connectionString });
-const adapter = new adapter_pg_1.PrismaPg(pool);
-exports.prisma = new client_1.PrismaClient({ adapter });
 class PlannerService {
     async getCurrentWeekRange() {
         const today = new Date();
@@ -30,7 +28,7 @@ class PlannerService {
         return { start, end };
     }
     async createWeek(projectId, theme, start, end) {
-        return exports.prisma.week.create({
+        return db_1.default.week.create({
             data: {
                 project_id: projectId,
                 theme,
@@ -45,13 +43,13 @@ class PlannerService {
         let channelId = explicitChannelId || null;
         if (!channelId) {
             // Fetch default channel setting
-            const defaultChannelSetting = await exports.prisma.projectSettings.findFirst({
+            const defaultChannelSetting = await db_1.default.projectSettings.findFirst({
                 where: { project_id: projectId, key: 'default_channel_id' }
             });
             if (defaultChannelSetting?.value) {
                 const configuredChannelId = parseInt(defaultChannelSetting.value);
                 if (!isNaN(configuredChannelId)) {
-                    const exists = await exports.prisma.socialChannel.findUnique({
+                    const exists = await db_1.default.socialChannel.findUnique({
                         where: { id: configuredChannelId, project_id: projectId }
                     });
                     if (exists) {
@@ -62,7 +60,7 @@ class PlannerService {
         }
         if (!channelId) {
             // Fallback to default channel (Telegram)
-            const channel = await exports.prisma.socialChannel.findFirst({
+            const channel = await db_1.default.socialChannel.findFirst({
                 where: { project_id: projectId, type: 'telegram' }
             });
             channelId = channel ? channel.id : null;
@@ -91,13 +89,13 @@ class PlannerService {
         }
         // Bulk insert
         if (slots.length > 0) {
-            await exports.prisma.post.createMany({
+            await db_1.default.post.createMany({
                 data: slots
             });
         }
     }
     async findWeekByDate(projectId, date) {
-        return exports.prisma.week.findFirst({
+        return db_1.default.week.findFirst({
             where: {
                 project_id: projectId,
                 week_start: { lte: date },
@@ -107,13 +105,13 @@ class PlannerService {
         });
     }
     async updateWeekStatus(weekId, status) {
-        return exports.prisma.week.update({
+        return db_1.default.week.update({
             where: { id: weekId },
             data: { status }
         });
     }
     async saveTopics(weekId, topics, startIndex = 0) {
-        const posts = await exports.prisma.post.findMany({
+        const posts = await db_1.default.post.findMany({
             where: { week_id: weekId },
             orderBy: { topic_index: 'asc' }
         });
@@ -123,7 +121,7 @@ class PlannerService {
         const updates = targetPosts.map((post, i) => {
             // i here is index in targetPosts, which matches index in topics
             if (topics[i]) {
-                return exports.prisma.post.update({
+                return db_1.default.post.update({
                     where: { id: post.id },
                     data: {
                         topic: topics[i].topic,
@@ -139,32 +137,32 @@ class PlannerService {
         await this.updateWeekStatus(weekId, 'topics_generated');
     }
     async getWeekPosts(weekId) {
-        return exports.prisma.post.findMany({
+        return db_1.default.post.findMany({
             where: { week_id: weekId },
             orderBy: { topic_index: 'asc' }
         });
     }
     async getPostById(postId) {
-        return exports.prisma.post.findUnique({
+        return db_1.default.post.findUnique({
             where: { id: postId },
             include: { week: true }
         });
     }
     async updatePost(postId, data) {
-        return exports.prisma.post.update({
+        return db_1.default.post.update({
             where: { id: postId },
             data
         });
     }
     async convertWeekPackageToV1(projectId, weekPackageId) {
-        const weekPackage = await exports.prisma.weekPackage.findUnique({
+        const weekPackage = await db_1.default.weekPackage.findUnique({
             where: { id: weekPackageId, project_id: projectId }
         });
         if (!weekPackage) {
             throw new Error('V2 WeekPackage not found');
         }
         // Check if a V1 week already exists for the same dates and project
-        let week = await exports.prisma.week.findFirst({
+        let week = await db_1.default.week.findFirst({
             where: {
                 project_id: projectId,
                 week_start: weekPackage.week_start,

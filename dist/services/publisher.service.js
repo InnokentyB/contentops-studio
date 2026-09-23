@@ -36,9 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const client_1 = require("@prisma/client");
-const pg_1 = require("pg");
-const adapter_pg_1 = require("@prisma/adapter-pg");
+const db_1 = __importStar(require("../db"));
 const telegram_service_1 = __importDefault(require("./telegram.service"));
 const vk_service_1 = __importDefault(require("./vk.service"));
 const storage_service_1 = __importDefault(require("./storage.service"));
@@ -57,6 +55,7 @@ const art_direction_service_1 = __importDefault(require("./art_direction.service
 const publication_runtime_helpers_1 = require("./publication_runtime.helpers");
 const publication_execution_route_1 = require("./publication_execution_route");
 const publication_content_state_1 = require("./publication_content_state");
+const channel_utils_1 = require("../utils/channel.utils");
 const publication_fact_service_1 = __importDefault(require("./publication_fact.service"));
 const telegram_delivery_payload_1 = require("./telegram_delivery_payload");
 const telegram_client_service_1 = __importDefault(require("./telegram_client.service"));
@@ -64,10 +63,6 @@ const dotenv_1 = require("dotenv");
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 (0, dotenv_1.config)();
-const connectionString = process.env.DATABASE_URL;
-const pool = new pg_1.Pool({ connectionString });
-const adapter = new adapter_pg_1.PrismaPg(pool);
-const prisma = new client_1.PrismaClient({ adapter });
 // --- Simple File Logger ---
 const LOGS_DIR = path.join(__dirname, '../../logs');
 if (!fs.existsSync(LOGS_DIR)) {
@@ -92,9 +87,65 @@ function logToFile(level, message, data) {
         console.log(message, data || '');
 }
 class PublisherService {
+    constructor() {
+        this.ongoingRulePlanCache = null;
+    }
+    ongoingRuleCacheTtlMs() {
+        const configured = Number(process.env.PUBLICATION_RULES_CACHE_TTL_MS || 300000);
+        return Number.isFinite(configured) && configured >= 1000 ? configured : 300000;
+    }
+    async loadOngoingRulePlans() {
+        const now = Date.now();
+        if (this.ongoingRulePlanCache && this.ongoingRulePlanCache.expiresAt > now) {
+            return this.ongoingRulePlanCache.plans;
+        }
+        const ruleSettings = await db_1.default.projectSettings.findMany({
+            where: { key: 'publication_plan_ongoing_rules' },
+            select: { project_id: true, value: true }
+        });
+        const projectIds = ruleSettings.map((setting) => setting.project_id);
+        if (projectIds.length === 0) {
+            this.ongoingRulePlanCache = {
+                expiresAt: now + this.ongoingRuleCacheTtlMs(),
+                plans: []
+            };
+            return [];
+        }
+        const supportingSettings = await db_1.default.projectSettings.findMany({
+            where: {
+                project_id: { in: projectIds },
+                key: { in: ['publication_plan_meta', 'publication_plan_measurement'] }
+            },
+            select: { project_id: true, key: true, value: true }
+        });
+        const settingsByProject = new Map();
+        for (const setting of supportingSettings) {
+            const projectSettings = settingsByProject.get(setting.project_id) || new Map();
+            projectSettings.set(setting.key, setting.value);
+            settingsByProject.set(setting.project_id, projectSettings);
+        }
+        const plans = ruleSettings.flatMap((ruleSetting) => {
+            const projectSettings = settingsByProject.get(ruleSetting.project_id);
+            const metaValue = projectSettings?.get('publication_plan_meta');
+            if (!metaValue)
+                return [];
+            const measurementValue = projectSettings?.get('publication_plan_measurement');
+            return [{
+                    projectId: ruleSetting.project_id,
+                    meta: JSON.parse(metaValue),
+                    ongoing_rules: JSON.parse(ruleSetting.value || '[]'),
+                    measurement: measurementValue ? JSON.parse(measurementValue) : {}
+                }];
+        });
+        this.ongoingRulePlanCache = {
+            expiresAt: now + this.ongoingRuleCacheTtlMs(),
+            plans
+        };
+        return plans;
+    }
     async closeConnections() {
-        await prisma.$disconnect();
-        await pool.end();
+        await db_1.default.$disconnect();
+        await db_1.pool.end();
     }
     async publishDirectTelegram(params) {
         const payload = (0, telegram_delivery_payload_1.normalizeTelegramDeliveryPayload)(params);
@@ -152,6 +203,25 @@ class PublisherService {
             metrics: { telegram_message_id: messageId }
         };
     }
+    async publishTelegramPersonalStoryMtproto(params) {
+        const initialized = await telegram_client_service_1.default.init(params.projectId);
+        if (!initialized) {
+            throw new Error('[MTPROTO_UNAVAILABLE] No active Telegram MTProto session is available for the project');
+        }
+        const story = await telegram_client_service_1.default.publishPersonalStory({
+            projectId: params.projectId,
+            caption: params.caption,
+            imageUrl: params.imageUrl,
+            idempotencyKey: params.idempotencyKey
+        });
+        return {
+            adapter: 'telegram_story',
+            deliveryMethod: 'mtproto_personal_story',
+            publishedLink: story.publicLink,
+            evidenceRef: story.publicLink || `telegram-story:self:${story.storyId}`,
+            metrics: { telegram_story_id: story.storyId }
+        };
+    }
     async routeToBrowserPublication(task, bundle, reason) {
         const now = new Date().toISOString();
         const qualityReport = {
@@ -164,7 +234,7 @@ class PublisherService {
                 content_revision: task.content_revision
             }
         };
-        await prisma.$transaction(async (tx) => {
+        await db_1.default.$transaction(async (tx) => {
             await tx.contentItem.update({
                 where: { id: task.id },
                 data: {
@@ -233,7 +303,7 @@ class PublisherService {
     async resolveTelegramDeliveryConfig(task, channelConfig) {
         const baseConfig = this.extractTelegramAccountConfig(channelConfig);
         const taskAccountRef = task.metrics?.account_ref || task.assets?.account_ref || task.channel?.name || null;
-        const candidates = await prisma.socialChannel.findMany({
+        const candidates = await db_1.default.socialChannel.findMany({
             where: {
                 project_id: task.project_id,
                 type: 'telegram',
@@ -422,7 +492,7 @@ class PublisherService {
     async findDependencyItems(projectId, dependencyTaskIds) {
         if (dependencyTaskIds.length === 0)
             return [];
-        return prisma.contentItem.findMany({
+        return db_1.default.contentItem.findMany({
             where: {
                 project_id: projectId,
                 OR: dependencyTaskIds.map((dep) => ({
@@ -442,7 +512,7 @@ class PublisherService {
         });
     }
     async loadPublicationPlanContext(projectId) {
-        const settings = await prisma.projectSettings.findMany({
+        const settings = await db_1.default.projectSettings.findMany({
             where: {
                 project_id: projectId,
                 key: {
@@ -492,7 +562,7 @@ class PublisherService {
         return current ?? null;
     }
     async getProjectGscChannel(projectId) {
-        return prisma.socialChannel.findFirst({
+        return db_1.default.socialChannel.findFirst({
             where: {
                 project_id: projectId,
                 type: 'google_search_console'
@@ -613,7 +683,7 @@ class PublisherService {
         return { ready: true, reason: null };
     }
     async ensureRuleTask(projectId, rule, instanceKey, scheduleAt, extra = {}) {
-        const existing = await prisma.contentItem.findFirst({
+        const existing = await db_1.default.contentItem.findFirst({
             where: {
                 project_id: projectId,
                 metrics: {
@@ -625,7 +695,7 @@ class PublisherService {
         if (existing) {
             return false;
         }
-        await prisma.contentItem.create({
+        await db_1.default.contentItem.create({
             data: {
                 project_id: projectId,
                 channel_id: null,
@@ -655,14 +725,9 @@ class PublisherService {
     }
     async processPublicationOngoingRules() {
         let createdCount = 0;
-        const ruleSettings = await prisma.projectSettings.findMany({
-            where: { key: 'publication_plan_ongoing_rules' }
-        });
-        for (const ruleSetting of ruleSettings) {
-            const projectId = ruleSetting.project_id;
-            const plan = await this.loadPublicationPlanContext(projectId);
-            if (!plan)
-                continue;
+        const plans = await this.loadOngoingRulePlans();
+        for (const plan of plans) {
+            const projectId = plan.projectId;
             const timezone = plan.meta.timezone_default || 'UTC';
             const rules = Array.isArray(plan.ongoing_rules) ? plan.ongoing_rules : [];
             for (const rule of rules) {
@@ -678,7 +743,7 @@ class PublisherService {
                 }
                 if (rule.trigger.startsWith('after_action:')) {
                     const actionId = rule.trigger.replace('after_action:', '');
-                    const sourceTask = await prisma.contentItem.findFirst({
+                    const sourceTask = await db_1.default.contentItem.findFirst({
                         where: {
                             project_id: projectId,
                             metrics: {
@@ -697,7 +762,7 @@ class PublisherService {
                     continue;
                 }
                 if (rule.trigger === 'after_any_linkedin_post' || rule.trigger === 'after_any_innokentiy_linkedin_post' || rule.trigger === 'after_any_publish_to_knowledge_section' || rule.trigger === 'after_any_article_publish_or_edit') {
-                    const sourceItems = await prisma.contentItem.findMany({
+                    const sourceItems = await db_1.default.contentItem.findMany({
                         where: {
                             project_id: projectId,
                             status: 'published'
@@ -746,7 +811,7 @@ class PublisherService {
     async executeMeasurementSnapshot(task, plan) {
         const measurement = task.assets?.measurement || plan.measurement || {};
         const metricDefs = Array.isArray(measurement.metrics) ? measurement.metrics : [];
-        const projectChannels = await prisma.socialChannel.findMany({
+        const projectChannels = await db_1.default.socialChannel.findMany({
             where: { project_id: task.project_id }
         });
         const gscChannel = projectChannels.find((channel) => channel.type === 'google_search_console') || null;
@@ -762,7 +827,7 @@ class PublisherService {
                 continue;
             }
             if (metricDef.source === 'linkedin_analytics') {
-                const linkedinTasks = await prisma.contentItem.findMany({
+                const linkedinTasks = await db_1.default.contentItem.findMany({
                     where: {
                         project_id: task.project_id,
                         status: 'published',
@@ -785,7 +850,7 @@ class PublisherService {
                 continue;
             }
             if (metricDef.source === 'reddit') {
-                const redditTasks = await prisma.contentItem.findMany({
+                const redditTasks = await db_1.default.contentItem.findMany({
                     where: {
                         project_id: task.project_id,
                         status: 'published',
@@ -806,7 +871,7 @@ class PublisherService {
         return results;
     }
     async executeGscHealthAudit(task, plan) {
-        const projectChannels = await prisma.socialChannel.findMany({
+        const projectChannels = await db_1.default.socialChannel.findMany({
             where: { project_id: task.project_id }
         });
         const gscChannel = projectChannels.find((channel) => channel.type === 'google_search_console') || null;
@@ -829,9 +894,9 @@ class PublisherService {
     async executeMediumCanonicalVerification(task, plan) {
         const sourceTaskId = task.assets?.source_task_id;
         const sourceTask = sourceTaskId
-            ? await prisma.contentItem.findUnique({ where: { id: sourceTaskId } })
+            ? await db_1.default.contentItem.findUnique({ where: { id: sourceTaskId } })
             : null;
-        const mediumTask = sourceTask || await prisma.contentItem.findFirst({
+        const mediumTask = sourceTask || await db_1.default.contentItem.findFirst({
             where: {
                 project_id: task.project_id,
                 type: 'medium:republish_with_canonical',
@@ -882,7 +947,7 @@ class PublisherService {
         };
     }
     async markInternalTaskAsManual(task, reason) {
-        await prisma.contentItem.update({
+        await db_1.default.contentItem.update({
             where: { id: task.id },
             data: {
                 status: 'awaiting_manual_publication',
@@ -898,7 +963,7 @@ class PublisherService {
         });
     }
     async createGeneratedPublicationTask(params) {
-        return prisma.contentItem.create({
+        return db_1.default.contentItem.create({
             data: {
                 project_id: params.projectId,
                 channel_id: params.channelId,
@@ -937,7 +1002,7 @@ class PublisherService {
     }
     async executeBrandRepostRule(task, plan) {
         const sourceTaskId = task.assets?.source_task_id;
-        const sourceTask = sourceTaskId ? await prisma.contentItem.findUnique({ where: { id: sourceTaskId } }) : null;
+        const sourceTask = sourceTaskId ? await db_1.default.contentItem.findUnique({ where: { id: sourceTaskId } }) : null;
         if (!sourceTask?.published_link) {
             return { skipped: true, reason: 'Source LinkedIn post is missing or not published yet.' };
         }
@@ -948,7 +1013,7 @@ class PublisherService {
         if (exclusions.some((exclusion) => exclusion.angle === sourceAngle)) {
             return { skipped: true, reason: `Source angle \`${sourceAngle}\` is excluded from brand reposts.` };
         }
-        const brandChannel = await prisma.socialChannel.findFirst({
+        const brandChannel = await db_1.default.socialChannel.findFirst({
             where: {
                 project_id: task.project_id,
                 type: 'linkedin',
@@ -957,7 +1022,7 @@ class PublisherService {
                     equals: 'company_page'
                 }
             }
-        }) || await prisma.socialChannel.findFirst({
+        }) || await db_1.default.socialChannel.findFirst({
             where: {
                 project_id: task.project_id,
                 type: 'linkedin'
@@ -1012,7 +1077,7 @@ class PublisherService {
             ? rule.rotation_slots_in_order
             : ['A', 'B', 'C', 'D'];
         const stateKey = 'brand_rotation_current_slot';
-        const storedState = await prisma.projectSettings.findUnique({
+        const storedState = await db_1.default.projectSettings.findUnique({
             where: {
                 project_id_key: {
                     project_id: task.project_id,
@@ -1026,7 +1091,7 @@ class PublisherService {
             return { skipped: true, reason: `No asset found for brand rotation slot ${currentSlot}.` };
         }
         const [assetRef, asset] = assetEntry;
-        const brandChannel = await prisma.socialChannel.findFirst({
+        const brandChannel = await db_1.default.socialChannel.findFirst({
             where: {
                 project_id: task.project_id,
                 type: 'linkedin',
@@ -1035,7 +1100,7 @@ class PublisherService {
                     equals: 'company_page'
                 }
             }
-        }) || await prisma.socialChannel.findFirst({
+        }) || await db_1.default.socialChannel.findFirst({
             where: {
                 project_id: task.project_id,
                 type: 'linkedin'
@@ -1044,7 +1109,7 @@ class PublisherService {
         if (!brandChannel) {
             return { skipped: true, reason: 'No LinkedIn brand page channel is configured.' };
         }
-        const existingGenerated = await prisma.contentItem.findFirst({
+        const existingGenerated = await db_1.default.contentItem.findFirst({
             where: {
                 project_id: task.project_id,
                 metrics: {
@@ -1094,7 +1159,7 @@ class PublisherService {
                 rule_generated_rotation_slot: currentSlot
             }
         });
-        await prisma.projectSettings.upsert({
+        await db_1.default.projectSettings.upsert({
             where: {
                 project_id_key: {
                     project_id: task.project_id,
@@ -1116,7 +1181,7 @@ class PublisherService {
     }
     async executeKnowledgeHubRule(task, plan) {
         const sourceTaskId = task.assets?.source_task_id;
-        const sourceTask = sourceTaskId ? await prisma.contentItem.findUnique({ where: { id: sourceTaskId } }) : null;
+        const sourceTask = sourceTaskId ? await db_1.default.contentItem.findUnique({ where: { id: sourceTaskId } }) : null;
         if (!sourceTask) {
             return { skipped: true, reason: 'Source knowledge task not found.' };
         }
@@ -1124,7 +1189,7 @@ class PublisherService {
         if (!hubAsset) {
             return { skipped: true, reason: 'knowledge_hub_page asset is missing from the plan.' };
         }
-        const tildaChannel = await prisma.socialChannel.findFirst({
+        const tildaChannel = await db_1.default.socialChannel.findFirst({
             where: {
                 project_id: task.project_id,
                 type: 'tilda'
@@ -1175,7 +1240,7 @@ class PublisherService {
     }
     async processOperationalTasks() {
         let processedCount = 0;
-        const tasks = await prisma.contentItem.findMany({
+        const tasks = await db_1.default.contentItem.findMany({
             where: {
                 layer: 'internal',
                 status: { in: ['planned', 'ready_for_execution'] },
@@ -1218,7 +1283,7 @@ class PublisherService {
                     await this.markInternalTaskAsManual(task, `No automated executor is implemented for ongoing rule action \`${action}\`.`);
                     continue;
                 }
-                await prisma.contentItem.update({
+                await db_1.default.contentItem.update({
                     where: { id: task.id },
                     data: {
                         status: 'published',
@@ -1236,7 +1301,7 @@ class PublisherService {
                 processedCount += 1;
             }
             catch (error) {
-                await prisma.contentItem.update({
+                await db_1.default.contentItem.update({
                     where: { id: task.id },
                     data: {
                         status: 'failed',
@@ -1253,7 +1318,7 @@ class PublisherService {
     }
     async processDeferredPublicationTasks() {
         let reactivatedCount = 0;
-        const deferredTasks = await prisma.contentItem.findMany({
+        const deferredTasks = await db_1.default.contentItem.findMany({
             where: {
                 status: 'deferred',
                 assets: { not: undefined }
@@ -1268,7 +1333,7 @@ class PublisherService {
                 continue;
             const reactivation = await this.shouldReactivateDeferredTask(task, plan);
             if (!reactivation.ready) {
-                await prisma.contentItem.update({
+                await db_1.default.contentItem.update({
                     where: { id: task.id },
                     data: {
                         quality_report: {
@@ -1280,7 +1345,7 @@ class PublisherService {
                 });
                 continue;
             }
-            await prisma.contentItem.update({
+            await db_1.default.contentItem.update({
                 where: { id: task.id },
                 data: {
                     status: 'planned',
@@ -1298,10 +1363,10 @@ class PublisherService {
     async processPublicationTasks() {
         const now = new Date();
         const staleAttemptCutoff = new Date(now.getTime() - 30 * 60 * 1000);
-        const dueTasks = await prisma.contentItem.findMany({
+        const dueTasks = await db_1.default.contentItem.findMany({
             where: {
                 schedule_at: { lte: now },
-                publication_mode: { not: 'browser_required' },
+                publication_mode: 'connector_auto',
                 type: { not: 'week_theme' },
                 OR: [
                     { assets: { not: undefined } },
@@ -1332,7 +1397,7 @@ class PublisherService {
         return dueTasks.length;
     }
     async processPublicationTaskNow(taskId, requestHost) {
-        const task = await prisma.contentItem.findUnique({
+        const task = await db_1.default.contentItem.findUnique({
             where: { id: taskId },
             include: { channel: true, selected_asset: true }
         });
@@ -1389,7 +1454,7 @@ class PublisherService {
         const bundle = plan && action
             ? publication_plan_service_1.default.buildHandoffBundle(plan, task)
             : publication_plan_service_1.default.buildGeneratedContentItemHandoff(task);
-        const channelConfig = task.channel?.config || {};
+        const channelConfig = (0, channel_utils_1.resolveEffectiveChannelConfig)(task.channel?.type || '', task.channel?.config || {});
         const executionMode = bundle.mode;
         const rawAccount = channelConfig.raw_account || channelConfig || {};
         const directExecutionSupported = publication_adapter_service_1.default.supportsDirectExecution({
@@ -1426,11 +1491,11 @@ class PublisherService {
                 next_route: 'browser_required'
             });
         }
-        const claimed = await prisma.contentItem.updateMany({
+        const claimed = await db_1.default.contentItem.updateMany({
             where: {
                 id: task.id,
                 status: { in: ['planned', 'ready_for_execution'] },
-                publication_mode: { not: 'browser_required' }
+                publication_mode: 'connector_auto'
             },
             data: {
                 status: 'publishing',
@@ -1461,7 +1526,8 @@ class PublisherService {
             }
             if (task.channel?.type === 'telegram'
                 && !automatedResult.publishedLink
-                && !automatedResult.metrics?.telegram_message_id) {
+                && !automatedResult.metrics?.telegram_message_id
+                && !automatedResult.metrics?.telegram_story_id) {
                 throw new Error('[PUBLICATION_IDENTITY_MISSING] Telegram provider did not confirm a message ID or permalink');
             }
         }
@@ -1470,7 +1536,7 @@ class PublisherService {
             logToFile('WARN', `[Publisher] Connector failed for task ${task.id}; routed to browser publication.`, fallback);
             return this.routeToBrowserPublication(task, bundle, fallback);
         }
-        await prisma.contentItem.update({
+        await db_1.default.contentItem.update({
             where: { id: task.id },
             data: {
                 status: 'published',
@@ -1490,9 +1556,14 @@ class PublisherService {
                 }
             }
         });
-        if (automatedResult.publishedLink) {
+        const providerObjectId = automatedResult.metrics?.telegram_story_id
+            || automatedResult.metrics?.telegram_message_id
+            || null;
+        const isStory = String(task.type || '').toLowerCase().includes('story')
+            || String(task.visual_placement || '').toLowerCase() === 'story';
+        if (automatedResult.publishedLink || (isStory && providerObjectId && automatedResult.evidenceRef)) {
             try {
-                const owner = await prisma.projectMember.findFirst({
+                const owner = await db_1.default.projectMember.findFirst({
                     where: { project_id: task.project_id, role: 'owner' },
                     orderBy: { id: 'asc' }
                 });
@@ -1511,8 +1582,12 @@ class PublisherService {
                         outcome: 'published',
                         publishedAt: new Date().toISOString(),
                         publicUrl: automatedResult.publishedLink,
+                        providerObjectId: providerObjectId ? String(providerObjectId) : undefined,
                         confirmationMode: 'automatic',
-                        evidence: { type: 'api', ref: automatedResult.publishedLink },
+                        evidence: {
+                            type: 'api',
+                            ref: automatedResult.evidenceRef || automatedResult.publishedLink
+                        },
                         note: `Published automatically via ${automatedResult.adapter || task.channel?.type || 'connector'}`
                     });
                 }
@@ -1576,7 +1651,7 @@ class PublisherService {
         }
         const linkedDeps = Array.isArray(task.cross_link_to) ? task.cross_link_to.filter((value) => typeof value === 'number') : [];
         if (linkedDeps.length > 0) {
-            const linkedItems = await prisma.contentItem.findMany({
+            const linkedItems = await db_1.default.contentItem.findMany({
                 where: {
                     id: { in: linkedDeps },
                     project_id: task.project_id,
@@ -1713,6 +1788,30 @@ class PublisherService {
             };
         }
         if (channelType === 'telegram') {
+            const isPersonalStory = String(task.type || '').toLowerCase().includes('story')
+                || String(task.visual_placement || '').toLowerCase() === 'story';
+            if (isPersonalStory) {
+                const handoffBundle = task.quality_report?.handoff_bundle;
+                const poll = handoffBundle?.placement_contract?.poll || handoffBundle?.poll;
+                if (poll?.supported === true && poll?.configuration_mode === 'native_manual') {
+                    throw new Error('[TELEGRAM_STORY_NATIVE_POLL_MANUAL] Native poll setup requires manual handoff');
+                }
+                if (!imageUrl)
+                    throw new Error('[TELEGRAM_STORY_MEDIA_REQUIRED] Personal Telegram story requires approved media');
+                const story = await telegram_client_service_1.default.publishPersonalStory({
+                    projectId: task.project_id,
+                    caption: text,
+                    imageUrl,
+                    idempotencyKey: `scheduled-personal-story:${task.id}:r${task.accepted_revision || task.content_revision}`
+                });
+                return {
+                    adapter: 'telegram_story',
+                    deliveryMethod: 'mtproto_personal_story',
+                    publishedLink: story.publicLink,
+                    evidenceRef: story.publicLink || `telegram-story:self:${story.storyId}`,
+                    metrics: { telegram_story_id: story.storyId }
+                };
+            }
             const resolvedTelegram = await this.resolveTelegramDeliveryConfig(task, channelConfig);
             const rawChannelId = resolvedTelegram.rawChannelId;
             const normalizedHandle = resolvedTelegram.normalizedHandle;
@@ -1909,14 +2008,23 @@ class PublisherService {
             };
         }
         if (['zen', 'zen_article', 'dzen'].includes(channelType)) {
-            const dzenConfig = channelConfig.raw_account || channelConfig;
+            const dzenConfig = (0, channel_utils_1.resolveEffectiveChannelConfig)(channelType, channelConfig);
             const title = bundle.publication?.html_bundle?.[0]?.asset?.title || task.title || 'Zen article';
+            const actionType = String(task.assets?.action?.action_type || task.type || '').toLowerCase();
+            const publicationType = actionType.includes('article') || channelType === 'zen_article'
+                ? 'article'
+                : actionType.includes('post')
+                    ? 'post'
+                    : dzenConfig.default_publication_type === 'post' ? 'post' : 'article';
             const publishedLink = await dzen_service_1.default.publishPost({
                 channel_id: dzenConfig.channel_id || dzenConfig.vk_id,
-                webhook_url: dzenConfig.webhook_url
-            }, text, imageUrl || undefined, title);
+                cookies: dzenConfig.cookies,
+                article_editor_url: dzenConfig.article_editor_url,
+                post_editor_url: dzenConfig.post_editor_url
+            }, text, imageUrl || undefined, title, publicationType);
             return {
                 adapter: 'dzen',
+                publicationType,
                 publishedLink
             };
         }
@@ -1928,7 +2036,7 @@ class PublisherService {
     }
     async publishDuePosts() {
         const now = new Date();
-        const duePosts = await prisma.post.findMany({
+        const duePosts = await db_1.default.post.findMany({
             where: {
                 status: {
                     in: ['scheduled', 'scheduled_native']
@@ -1945,7 +2053,7 @@ class PublisherService {
         logToFile('INFO', `[Publisher] Found ${duePosts.length} posts due (or past due) for publishing.`);
         // 🔒 LOCK POSTS immediately to prevent concurrent `setInterval` or `/jobs/publish-due` calls
         // from fetching and publishing the exact same posts simultaneously.
-        await prisma.post.updateMany({
+        await db_1.default.post.updateMany({
             where: { id: { in: duePosts.map(p => p.id) } },
             data: { status: 'publishing' }
         });
@@ -1956,14 +2064,14 @@ class PublisherService {
                 // Get the channel for this post
                 let channel = null;
                 if (post.channel_id) {
-                    channel = await prisma.socialChannel.findUnique({
+                    channel = await db_1.default.socialChannel.findUnique({
                         where: { id: post.channel_id }
                     });
                 }
                 // Fallback: Find first Telegram channel for project
                 if (!channel) {
                     logToFile('INFO', `[Publisher] Post ${post.id} has no channel_id or channel not found. Trying default...`);
-                    channel = await prisma.socialChannel.findFirst({
+                    channel = await db_1.default.socialChannel.findFirst({
                         where: { project_id: post.project_id, type: 'telegram' }
                     });
                 }
@@ -1996,7 +2104,7 @@ class PublisherService {
                 else if (channel.type === 'vk') {
                     // VK Publishing Logic
                     logToFile('INFO', `[Publisher] Publishing to VK for post ${post.id}`);
-                    const vkConfig = channel.config;
+                    const vkConfig = (0, channel_utils_1.resolveEffectiveChannelConfig)('vk', channel.config);
                     const vkId = vkConfig.vk_id;
                     const apiKey = vkConfig.publish_access_token || vkConfig.api_key;
                     if (!vkId || !apiKey) {
@@ -2072,7 +2180,7 @@ class PublisherService {
                         if (clientErr.message && clientErr.message.includes('FLOOD_WAIT')) {
                             console.warn(`[Publisher] FLOOD_WAIT detected: ${clientErr.message}. Skipping this run for post ${post.id}.`);
                             // ⚠️ ROLLBACK status since we skipped it
-                            await prisma.post.update({
+                            await db_1.default.post.update({
                                 where: { id: post.id },
                                 data: { status: 'scheduled' }
                             });
@@ -2162,7 +2270,7 @@ class PublisherService {
                     console.log(`[Publisher] Successfully published post ${post.id} to Telegram: ${targetChannelId}`);
                 }
                 // Update status to published
-                await prisma.post.update({
+                await db_1.default.post.update({
                     where: { id: post.id },
                     data: {
                         status: 'published',
@@ -2185,7 +2293,7 @@ class PublisherService {
             catch (err) {
                 console.error(`[Publisher] Failed to publish post ${post.id}:`, err);
                 // ⚠️ ROLLBACK status in case of an unexpected error
-                await prisma.post.update({
+                await db_1.default.post.update({
                     where: { id: post.id },
                     data: { status: 'scheduled' }
                 }).catch(e => console.error(`[Publisher] Failed to rollback status for post ${post.id}`, e));
@@ -2195,7 +2303,7 @@ class PublisherService {
     }
     async resetStuckPublishingPosts() {
         try {
-            const result = await prisma.post.updateMany({
+            const result = await db_1.default.post.updateMany({
                 where: { status: 'publishing' },
                 data: { status: 'scheduled' }
             });
@@ -2228,7 +2336,7 @@ class PublisherService {
     }
     async publishPostNow(postId, requestHost) {
         // 1. Fetch Post with Channel info
-        const post = await prisma.post.findUnique({
+        const post = await db_1.default.post.findUnique({
             where: { id: postId },
             include: { channel: true }
         });
@@ -2240,10 +2348,10 @@ class PublisherService {
             // 2. Get Channel info
             let channel = null;
             if (post.channel_id) {
-                channel = await prisma.socialChannel.findUnique({ where: { id: post.channel_id } });
+                channel = await db_1.default.socialChannel.findUnique({ where: { id: post.channel_id } });
             }
             if (!channel) {
-                channel = await prisma.socialChannel.findFirst({
+                channel = await db_1.default.socialChannel.findFirst({
                     where: { project_id: post.project_id, type: 'telegram' }
                 });
             }
@@ -2252,7 +2360,7 @@ class PublisherService {
             }
             // 🔒 LOCK POST to prevent concurrent running
             if (post.status === 'scheduled') {
-                await prisma.post.update({
+                await db_1.default.post.update({
                     where: { id: postId },
                     data: { status: 'publishing' }
                 });
@@ -2273,7 +2381,7 @@ class PublisherService {
                 publishedLink = await threads_service_1.default.publishPost(threadsUserId, accessToken, text, post.image_url || undefined);
             }
             else if (channel.type === 'vk') {
-                const vkConfig = channel.config;
+                const vkConfig = (0, channel_utils_1.resolveEffectiveChannelConfig)('vk', channel.config);
                 const vkId = vkConfig.vk_id;
                 const apiKey = vkConfig.publish_access_token || vkConfig.api_key;
                 if (!vkId || !apiKey) {
@@ -2413,7 +2521,7 @@ class PublisherService {
                 }
             }
             // Update post status
-            await prisma.post.update({
+            await db_1.default.post.update({
                 where: { id: postId },
                 data: {
                     status: 'published',
@@ -2436,7 +2544,7 @@ class PublisherService {
             // Rollback if we locked it at 'publishing' or if it failed mid-publish
             if (initialStatus === 'scheduled' || initialStatus === 'publishing') {
                 logToFile('WARN', `[Publisher] publishPostNow failed, rolling back status to scheduled for post ${postId}`);
-                await prisma.post.update({
+                await db_1.default.post.update({
                     where: { id: postId },
                     data: { status: 'scheduled' }
                 }).catch(e => logToFile('ERROR', 'Failed to rollback post status', e));
@@ -2448,7 +2556,7 @@ class PublisherService {
         const now = new Date();
         const lookahead = new Date(now.getTime() + 5 * 60 * 1000); // Posts due in > 5m
         // Find posts that are 'scheduled' but far enough in the future
-        const futurePosts = await prisma.post.findMany({
+        const futurePosts = await db_1.default.post.findMany({
             where: {
                 status: 'scheduled',
                 publish_at: { gt: lookahead }
@@ -2504,7 +2612,7 @@ class PublisherService {
                 if (result) {
                     logToFile('INFO', `[Publisher] Scheduled natively via MTProto: Message ID ${result.id}`);
                     // Update Status
-                    await prisma.post.update({
+                    await db_1.default.post.update({
                         where: { id: post.id },
                         data: {
                             status: 'scheduled_native',

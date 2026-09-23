@@ -5,107 +5,224 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deliveryService = exports.DeliveryService = void 0;
 const db_1 = __importDefault(require("../db"));
+const publisher_service_1 = __importDefault(require("./publisher.service"));
+const project_access_service_1 = require("./project_access.service");
+const dzen_service_1 = __importDefault(require("./dzen.service"));
+const publication_adapter_service_1 = __importDefault(require("./publication_adapter.service"));
+const channel_utils_1 = require("../utils/channel.utils");
+const iso = (value) => value ? value.toISOString() : null;
 class DeliveryService {
-    /**
-     * Executes publication delivery attempt. Enforces assisted mode by default
-     * and approval requirements for automatic mode.
-     */
-    async executeDelivery(args) {
-        const { projectId, contentItemId, channelId, forceAutomatic, unapproved, simulateFailure, idempotencyKey, scheduledAt, } = args;
-        // Approval Check
-        if (unapproved || (forceAutomatic && unapproved !== false)) {
-            throw new Error('[APPROVAL_REQUIRED] Automatic posting requires an approved decision');
-        }
-        // Idempotency check
-        if (idempotencyKey) {
-            const existing = await db_1.default.deliveryAttempt.findFirst({
-                where: { project_id: projectId, idempotency_key: idempotencyKey },
+    constructor(deps = {}) {
+        this.db = deps.prisma || db_1.default;
+        this.publishTask = deps.publishTask || ((taskId) => publisher_service_1.default.processPublicationTaskNow(taskId));
+        this.requireAccess = deps.requireAccess || project_access_service_1.requireProjectActorAccess;
+        this.requireOwner = deps.requireOwner || (async (projectId, actorId) => {
+            await (0, project_access_service_1.requireProjectActorAccess)(projectId, actorId);
+            const match = /^user:(\d+)$/.exec(actorId);
+            if (!match)
+                throw new Error('[Security] Access denied: Project owner is required');
+            const membership = await this.db.projectMember.findUnique({
+                where: { project_id_user_id: { project_id: projectId, user_id: Number(match[1]) } },
+                select: { role: true }
             });
-            if (existing) {
-                return {
-                    attempt_id: existing.id,
-                    mode: existing.mode,
-                    status: existing.status,
-                    requires_manual_confirmation: existing.requires_manual_confirmation,
-                    scheduled_at: existing.scheduled_at ? existing.scheduled_at.toISOString() : null,
-                    actual_published_at: existing.actual_published_at ? existing.actual_published_at.toISOString() : null,
-                };
-            }
-        }
-        const mode = forceAutomatic ? 'automatic' : 'assisted';
-        const requiresManualConfirmation = mode === 'assisted';
-        const scheduledDate = scheduledAt ? new Date(scheduledAt) : new Date(Date.now() - 3600000);
-        const actualPublishedDate = new Date();
-        if (simulateFailure) {
-            const attempt = await db_1.default.deliveryAttempt.create({
-                data: {
-                    project_id: projectId,
-                    content_item_id: contentItemId,
-                    channel_id: channelId,
-                    mode,
-                    status: 'failed',
-                    idempotency_key: idempotencyKey || null,
-                    scheduled_at: scheduledDate,
-                    requires_manual_confirmation: true,
-                    error_message: 'Social platform API 500 Internal Server Error',
-                },
-            });
-            return {
-                attempt_id: attempt.id,
-                mode: attempt.mode,
-                status: attempt.status,
-                requires_manual_confirmation: attempt.requires_manual_confirmation,
-                error_message: attempt.error_message,
-            };
-        }
-        const attempt = await db_1.default.deliveryAttempt.create({
-            data: {
-                project_id: projectId,
-                content_item_id: contentItemId,
-                channel_id: channelId,
-                mode,
-                status: 'delivered',
-                idempotency_key: idempotencyKey || null,
-                scheduled_at: scheduledDate,
-                actual_published_at: actualPublishedDate,
-                requires_manual_confirmation: requiresManualConfirmation,
-            },
+            if (membership?.role !== 'owner')
+                throw new Error('[Security] Access denied: Project owner is required');
         });
+        this.preflightDzen = deps.preflightDzen || ((config) => dzen_service_1.default.testConnection(config));
+        this.now = deps.now || (() => new Date());
+    }
+    response(attempt, extra = {}) {
         return {
-            attempt_id: attempt.id,
-            mode: attempt.mode,
-            status: attempt.status,
+            attempt_id: attempt.id, mode: attempt.mode, status: attempt.status,
             requires_manual_confirmation: attempt.requires_manual_confirmation,
-            scheduled_at: attempt.scheduled_at?.toISOString(),
-            actual_published_at: attempt.actual_published_at?.toISOString(),
+            scheduled_at: iso(attempt.scheduled_at), actual_published_at: iso(attempt.actual_published_at),
+            error_message: attempt.error_message || null, ...extra
         };
     }
-    /**
-     * Recover a failed delivery attempt manually or via retry worker.
-     */
-    async recoverDelivery(args) {
-        const { deliveryAttemptId } = args;
-        const attempt = await db_1.default.deliveryAttempt.findUnique({
-            where: { id: deliveryAttemptId },
+    async executeDelivery(args) {
+        const { projectId, actorId, contentItemId, channelId, forceAutomatic, unapproved, simulateFailure, idempotencyKey, scheduledAt } = args;
+        await this.requireAccess(projectId, actorId);
+        const task = await this.db.contentItem.findFirst({
+            where: { id: contentItemId, project_id: projectId }, include: { publication_fact: true, channel: true }
         });
-        if (!attempt) {
-            throw new Error(`DeliveryAttempt ${deliveryAttemptId} not found`);
+        if (!task)
+            throw new Error(`[PUBLICATION_TASK_NOT_FOUND] Task ${contentItemId} does not belong to project ${projectId}`);
+        if (task.channel_id !== channelId)
+            throw new Error('[CHANNEL_MISMATCH] Delivery channel does not match the publication task');
+        if (unapproved || !task.content_revision || task.accepted_revision !== task.content_revision || task.text_state !== 'accepted') {
+            throw new Error('[APPROVAL_REQUIRED] Automatic posting requires the current content revision to be accepted');
         }
-        const updated = await db_1.default.deliveryAttempt.update({
-            where: { id: deliveryAttemptId },
-            data: {
-                status: 'delivered',
-                actual_published_at: new Date(),
-                requires_manual_confirmation: false,
-                error_message: null,
-            },
-        });
-        return {
-            attempt_id: updated.id,
-            status: updated.status,
-            recovered: true,
-            actual_published_at: updated.actual_published_at?.toISOString(),
+        const channelType = String(task.channel?.type || '').toLowerCase();
+        const storedChannelConfig = task.channel?.config || {};
+        const rawChannelConfig = (0, channel_utils_1.resolveEffectiveChannelConfig)(channelType, storedChannelConfig);
+        const effectiveChannelConfig = {
+            ...rawChannelConfig,
+            workflow_mode: rawChannelConfig.workflow_mode,
+            platform: rawChannelConfig.platform || channelType
         };
+        const dzenAutomaticByDefault = publication_adapter_service_1.default.prefersAutomaticExecution(effectiveChannelConfig);
+        const automaticRequested = forceAutomatic === true || (forceAutomatic === undefined && dzenAutomaticByDefault);
+        if (task.publication_mode === 'browser_required' && automaticRequested) {
+            if (!['zen', 'zen_article', 'dzen'].includes(channelType)) {
+                throw new Error('[AUTOMATIC_ROUTE_NOT_ALLOWED] Only configured Dzen tasks support owner promotion from browser mode');
+            }
+            await this.requireOwner(projectId, actorId);
+            const dzenConfig = rawChannelConfig;
+            await this.preflightDzen({
+                channel_id: dzenConfig.channel_id || dzenConfig.vk_id,
+                channel_url: dzenConfig.channel_url,
+                cookies: dzenConfig.cookies,
+                article_editor_url: dzenConfig.article_editor_url,
+                post_editor_url: dzenConfig.post_editor_url
+            });
+            const promote = async (tx) => {
+                const updated = await tx.contentItem.updateMany({
+                    where: {
+                        id: task.id,
+                        project_id: projectId,
+                        channel_id: channelId,
+                        content_revision: task.content_revision,
+                        accepted_revision: task.accepted_revision,
+                        publication_mode: 'browser_required'
+                    },
+                    data: {
+                        status: 'ready_for_execution',
+                        publication_mode: 'connector_auto',
+                        quality_report: {
+                            ...(task.quality_report || {}),
+                            execution_mode: 'automatic',
+                            publication_route: 'connector_auto',
+                            dzen_preflight_passed_at: this.now().toISOString(),
+                            dzen_auto_promoted_by: actorId
+                        }
+                    }
+                });
+                if (updated.count !== 1)
+                    throw new Error('[DELIVERY_ROUTE_CONFLICT] Task changed during Dzen preflight');
+                await tx.event.create({ data: {
+                        entity_type: 'content_item', entity_id: task.id, event_type: 'delivery.dzen_auto_promoted',
+                        payload: { project_id: projectId, actor_id: actorId, channel_id: channelId,
+                            content_revision: task.content_revision, from: 'browser_required', to: 'connector_auto' }
+                    } });
+            };
+            if (typeof this.db.$transaction === 'function')
+                await this.db.$transaction(promote);
+            else
+                await promote(this.db);
+            task.status = 'ready_for_execution';
+            task.publication_mode = 'connector_auto';
+        }
+        else if (task.publication_mode === 'browser_required') {
+            throw new Error('[AUTOMATIC_ROUTE_NOT_ALLOWED] Browser-required task was not promoted to connector auto');
+        }
+        const now = this.now();
+        const scheduledDate = scheduledAt ? new Date(scheduledAt) : (task.publish_at || task.schedule_at || now);
+        if (Number.isNaN(scheduledDate.getTime()))
+            throw new Error('[INVALID_SCHEDULE] scheduledAt must be a valid timestamp');
+        if (scheduledDate.getTime() > now.getTime())
+            throw new Error('[DELIVERY_NOT_DUE] The publication is scheduled for the future');
+        if (idempotencyKey) {
+            const existing = await this.db.deliveryAttempt.findFirst({ where: { project_id: projectId, idempotency_key: idempotencyKey } });
+            if (existing) {
+                const canonicalIdentity = task.publication_fact?.outcome === 'published'
+                    && Boolean(task.publication_fact.public_url || task.publication_fact.provider_object_id);
+                if (existing.status === 'delivered' && !canonicalIdentity) {
+                    const invalidated = await this.db.deliveryAttempt.update({
+                        where: { id: existing.id },
+                        data: { status: 'invalidated', actual_published_at: null, requires_manual_confirmation: true,
+                            error_message: '[FALSE_DELIVERY_WITHOUT_PROVIDER_IDENTITY] Legacy delivery had no canonical provider evidence' }
+                    });
+                    return this.response(invalidated);
+                }
+                return this.response(existing, { published_link: task.publication_fact?.public_url || task.published_link || null });
+            }
+        }
+        const mode = automaticRequested ? 'automatic' : 'assisted';
+        const attempt = await this.db.deliveryAttempt.create({
+            data: { project_id: projectId, content_item_id: contentItemId, channel_id: channelId, mode, status: 'pending',
+                idempotency_key: idempotencyKey || null, scheduled_at: scheduledDate, actual_published_at: null,
+                requires_manual_confirmation: mode === 'assisted' }
+        });
+        if (simulateFailure) {
+            const failed = await this.db.deliveryAttempt.update({ where: { id: attempt.id }, data: {
+                    status: 'failed', requires_manual_confirmation: true, error_message: 'Simulated provider failure'
+                } });
+            return this.response(failed);
+        }
+        try {
+            const result = await this.publishTask(contentItemId);
+            const verifiedTask = await this.db.contentItem.findUnique({
+                where: { id: contentItemId }, include: { publication_fact: true }
+            });
+            const fact = verifiedTask?.publication_fact;
+            const publishedLink = fact?.public_url || result?.publishedLink || verifiedTask?.published_link || null;
+            const providerIdentity = fact?.public_url || fact?.provider_object_id;
+            if (!result?.success || result?.status !== 'published' || fact?.outcome !== 'published' || !providerIdentity) {
+                const verificationRequired = await this.db.deliveryAttempt.update({ where: { id: attempt.id }, data: {
+                        status: 'verification_required', actual_published_at: null, requires_manual_confirmation: true,
+                        error_message: '[PUBLICATION_IDENTITY_MISSING] Provider publication was not confirmed by a canonical fact'
+                    } });
+                const error = new Error(verificationRequired.error_message);
+                error.deliveryAttempt = this.response(verificationRequired);
+                throw error;
+            }
+            const delivered = await this.db.deliveryAttempt.update({ where: { id: attempt.id }, data: {
+                    status: 'delivered', actual_published_at: fact.published_at || this.now(),
+                    requires_manual_confirmation: false, error_message: null
+                } });
+            return this.response(delivered, { published_link: publishedLink });
+        }
+        catch (error) {
+            if (error?.deliveryAttempt)
+                throw error;
+            const failed = await this.db.deliveryAttempt.update({ where: { id: attempt.id }, data: {
+                    status: 'failed', actual_published_at: null, requires_manual_confirmation: true,
+                    error_message: String(error?.message || error).slice(0, 2000)
+                } });
+            const wrapped = new Error(error?.message || 'Delivery failed');
+            wrapped.deliveryAttempt = this.response(failed);
+            throw wrapped;
+        }
+    }
+    async invalidateFalseDeliveries(args) {
+        await this.requireOwner(args.projectId, args.actorId);
+        const existingAudit = await this.db.event.findFirst?.({
+            where: { entity_type: 'content_item', entity_id: args.contentItemId, event_type: 'delivery.false_success_invalidated',
+                payload: { path: ['idempotency_key'], equals: args.idempotencyKey } }
+        });
+        if (existingAudit?.payload?.result)
+            return existingAudit.payload.result;
+        const task = await this.db.contentItem.findFirst({
+            where: { id: args.contentItemId, project_id: args.projectId }, include: { publication_fact: true }
+        });
+        if (!task)
+            throw new Error('[PUBLICATION_TASK_NOT_FOUND]');
+        if (task.publication_fact?.outcome === 'published' && (task.publication_fact.public_url || task.publication_fact.provider_object_id)) {
+            throw new Error('[CANONICAL_PUBLICATION_EXISTS] Confirmed publications cannot have delivery evidence invalidated');
+        }
+        const attempts = await this.db.deliveryAttempt.findMany({ where: {
+                id: { in: args.attemptIds }, project_id: args.projectId, content_item_id: args.contentItemId, status: 'delivered'
+            } });
+        if (attempts.length !== new Set(args.attemptIds).size)
+            throw new Error('[DELIVERY_ATTEMPT_MISMATCH]');
+        const updated = await this.db.deliveryAttempt.updateMany({
+            where: { id: { in: args.attemptIds }, project_id: args.projectId, content_item_id: args.contentItemId, status: 'delivered' },
+            data: { status: 'invalidated', actual_published_at: null, requires_manual_confirmation: true,
+                error_message: `[FALSE_DELIVERY_INVALIDATED] ${args.reason}`.slice(0, 2000) }
+        });
+        const result = { project_id: args.projectId, content_item_id: args.contentItemId,
+            attempt_ids: [...args.attemptIds].sort((a, b) => a - b), invalidated_count: updated.count, status: 'invalidated' };
+        await this.db.event.create({ data: { entity_type: 'content_item', entity_id: args.contentItemId,
+                event_type: 'delivery.false_success_invalidated', payload: { project_id: args.projectId, actor_id: args.actorId,
+                    reason: args.reason, idempotency_key: args.idempotencyKey, result } } });
+        return result;
+    }
+    async recoverDelivery(args) {
+        await this.requireAccess(args.projectId, args.actorId);
+        const attempt = await this.db.deliveryAttempt.findFirst({ where: { id: args.deliveryAttemptId, project_id: args.projectId } });
+        if (!attempt)
+            throw new Error(`DeliveryAttempt ${args.deliveryAttemptId} not found`);
+        throw new Error('[UNSAFE_RECOVERY_DISABLED] Retry the canonical publication task with a new idempotency key');
     }
 }
 exports.DeliveryService = DeliveryService;

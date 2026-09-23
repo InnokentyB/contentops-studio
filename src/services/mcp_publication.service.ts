@@ -1080,6 +1080,15 @@ class McpPublicationService {
         const browserRequired = !directExecutionSupported
             || (bundleWithLanguage.mode === 'manual' && !publicationAdapterService.prefersAutomaticExecution(effectiveAccount));
 
+        // Preparing an approval-gated task must not silently authorize a connector.
+        if (item.publication_mode === 'approval_required') {
+            return {
+                item: { ...item, schedule_at: resolveTaskScheduleAt(item) },
+                bundle: bundleWithLanguage,
+                reused: false
+            };
+        }
+
         const updated = await prisma.contentItem.update({
             where: { id: item.id },
             data: {

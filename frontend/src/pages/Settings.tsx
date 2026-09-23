@@ -607,8 +607,9 @@ export default function Settings() {
     })
 
     const testChannelConnection = useMutation({
-        mutationFn: (channelId: number) => projectsApi.testChannelConnection(currentProject!.id, channelId),
-        onSuccess: (_result, channelId) => {
+        mutationFn: ({ channelId, config }: { channelId: number, config?: ApiJson }) => projectsApi.testChannelConnection(currentProject!.id, channelId, config),
+        onSuccess: (_result, variables) => {
+            const channelId = variables.channelId
             const channel = (projectData as ApiJson)?.channels?.find((item: ApiJson) => item.id === channelId)
             showToast(
                 channel?.type === 'vk'
@@ -1768,7 +1769,7 @@ export default function Settings() {
                                                                             : (locale === 'ru' ? 'Подключить VK' : 'Connect VK')}
                                                                 </button>
                                                                 {editingChannelConfig.publish_access_token === '******' && (
-                                                                    <button type="button" className="btn-secondary" onClick={() => testChannelConnection.mutate(channel.id)} disabled={testChannelConnection.isPending}>
+                                                                    <button type="button" className="btn-secondary" onClick={() => testChannelConnection.mutate({ channelId: channel.id })} disabled={testChannelConnection.isPending}>
                                                                         {locale === 'ru' ? 'Проверить доступ' : 'Test access'}
                                                                     </button>
                                                                 )}
@@ -2003,17 +2004,17 @@ export default function Settings() {
                                                             style={{ padding: '0.35rem', borderRadius: '6px', border: '1px solid var(--outline-variant)' }}
                                                         />
                                                         <div className="text-xs text-on-surface-variant mt-1">
-                                                            {locale === 'ru' ? 'Сначала сохраните изменения, затем запустите проверку подключения.' : 'Save changes first, then test the connection.'}
+                                                            {locale === 'ru' ? 'Можно вставить значение Cookie целиком из DevTools — с префиксом Cookie: или без него. Проверка не сохраняет сессию.' : 'Paste the complete Cookie value from DevTools, with or without the Cookie: prefix. Testing does not save the session.'}
                                                         </div>
                                                     </div>
-                                                    <div style={{ gridColumn: '1 / -1' }}>
+                                                    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end" style={{ gridColumn: '1 / -1' }}>
                                                         <button
                                                             type="button"
-                                                            className="btn-secondary w-full"
+                                                            className="btn-secondary sm:min-w-[12rem]"
                                                             disabled={testChannelConnection.isPending}
-                                                            onClick={() => testChannelConnection.mutate(channel.id)}
+                                                            onClick={() => testChannelConnection.mutate({ channelId: channel.id, config: editingChannelConfig })}
                                                         >
-                                                            {testChannelConnection.isPending ? (locale === 'ru' ? 'Проверяем Дзен…' : 'Checking Zen...') : (locale === 'ru' ? 'Проверить подключение к Дзену' : 'Test Zen connection')}
+                                                            {testChannelConnection.isPending ? (locale === 'ru' ? 'Проверяем…' : 'Checking...') : (locale === 'ru' ? 'Проверить без сохранения' : 'Test without saving')}
                                                         </button>
                                                     </div>
                                                 </>

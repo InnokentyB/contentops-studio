@@ -12,6 +12,7 @@ const project_routes_1 = __importDefault(require("../routes/project.routes"));
 const auth_service_1 = __importDefault(require("../services/auth.service"));
 const planner_service_1 = require("../services/planner.service");
 const planner_service_2 = __importDefault(require("../services/planner.service"));
+const dzen_service_1 = __importDefault(require("../services/dzen.service"));
 (0, node_test_1.default)('sanitizeChannelConfig masks sensitive fields', () => {
     const config = {
         telegram_channel_id: '-100123456',
@@ -72,6 +73,97 @@ const planner_service_2 = __importDefault(require("../services/planner.service")
     const merged = (0, channel_utils_1.mergeChannelConfig)(incomingConfig, existingConfig);
     strict_1.default.equal(merged.api_key, 'new-vk-key');
     strict_1.default.equal(merged.access_token, 'original-threads-token');
+});
+(0, node_test_1.default)('Dzen session cookies are encrypted at rest and masked in API responses', () => {
+    const previousKey = process.env.CHANNEL_SECRETS_KEY;
+    process.env.CHANNEL_SECRETS_KEY = 'test-only-channel-secret-key-at-least-32-chars';
+    try {
+        const stored = (0, channel_utils_1.prepareChannelConfigForStorage)('zen', {
+            channel_id: 'channel-1',
+            cookies: 'Session_id=secret-session; yandexuid=123'
+        });
+        strict_1.default.equal(stored.cookies, undefined);
+        strict_1.default.match(stored.cookies_encrypted, /^enc:v1:/);
+        strict_1.default.equal(JSON.stringify(stored).includes('secret-session'), false);
+        const sanitized = (0, channel_utils_1.sanitizeChannelConfig)('zen', stored);
+        strict_1.default.equal(sanitized.cookies, '******');
+        strict_1.default.equal(sanitized.cookies_encrypted, undefined);
+        const resolved = (0, channel_utils_1.resolveChannelConfigSecrets)('zen', stored);
+        strict_1.default.equal(resolved.cookies, 'Session_id=secret-session; yandexuid=123');
+        strict_1.default.equal(resolved.cookies_encrypted, undefined);
+    }
+    finally {
+        if (previousKey === undefined)
+            delete process.env.CHANNEL_SECRETS_KEY;
+        else
+            process.env.CHANNEL_SECRETS_KEY = previousKey;
+    }
+});
+(0, node_test_1.default)('Dzen credentials nested in raw_account are also encrypted and redacted', () => {
+    const previousKey = process.env.CHANNEL_SECRETS_KEY;
+    process.env.CHANNEL_SECRETS_KEY = 'test-only-channel-secret-key-at-least-32-chars';
+    try {
+        const stored = (0, channel_utils_1.prepareChannelConfigForStorage)('dzen', {
+            platform: 'dzen',
+            raw_account: { channel_id: 'nested', cookies: 'Session_id=nested-secret' }
+        });
+        strict_1.default.equal(stored.raw_account.cookies, undefined);
+        strict_1.default.match(stored.raw_account.cookies_encrypted, /^enc:v1:/);
+        const sanitized = (0, channel_utils_1.sanitizeChannelConfig)('dzen', stored);
+        strict_1.default.equal(sanitized.raw_account.cookies, '******');
+        strict_1.default.equal(sanitized.raw_account.cookies_encrypted, undefined);
+    }
+    finally {
+        if (previousKey === undefined)
+            delete process.env.CHANNEL_SECRETS_KEY;
+        else
+            process.env.CHANNEL_SECRETS_KEY = previousKey;
+    }
+});
+(0, node_test_1.default)('Dzen credentials nested in raw_account are resolved for connection checks', () => {
+    const previousKey = process.env.CHANNEL_SECRETS_KEY;
+    process.env.CHANNEL_SECRETS_KEY = 'test-channel-secret-key-at-least-32-chars';
+    try {
+        const stored = (0, channel_utils_1.prepareChannelConfigForStorage)('dzen', {
+            raw_account: { cookies: 'zen_session_id=nested-session' }
+        });
+        const resolved = (0, channel_utils_1.resolveChannelConfigSecrets)('dzen', stored);
+        strict_1.default.equal(resolved.cookies, 'zen_session_id=nested-session');
+        strict_1.default.equal(resolved.raw_account.cookies, 'zen_session_id=nested-session');
+    }
+    finally {
+        if (previousKey === undefined)
+            delete process.env.CHANNEL_SECRETS_KEY;
+        else
+            process.env.CHANNEL_SECRETS_KEY = previousKey;
+    }
+});
+(0, node_test_1.default)('effective Dzen config keeps legacy raw_account fields but prefers rotated top-level session', () => {
+    const previousKey = process.env.CHANNEL_SECRETS_KEY;
+    process.env.CHANNEL_SECRETS_KEY = 'test-channel-secret-key-at-least-32-chars';
+    try {
+        const stored = (0, channel_utils_1.prepareChannelConfigForStorage)('dzen', {
+            channel_id: 'current-channel',
+            cookies: 'Session_id=current-session; sessionid2=current-session-2',
+            workflow_mode: 'auto_publish',
+            raw_account: {
+                platform: 'dzen',
+                channel_id: 'legacy-channel'
+            }
+        });
+        const resolved = (0, channel_utils_1.resolveEffectiveChannelConfig)('dzen', stored);
+        strict_1.default.equal(resolved.platform, 'dzen');
+        strict_1.default.equal(resolved.channel_id, 'current-channel');
+        strict_1.default.equal(resolved.cookies, 'Session_id=current-session; sessionid2=current-session-2');
+        strict_1.default.equal(resolved.workflow_mode, 'auto_publish');
+        strict_1.default.equal(resolved.raw_account, undefined);
+    }
+    finally {
+        if (previousKey === undefined)
+            delete process.env.CHANNEL_SECRETS_KEY;
+        else
+            process.env.CHANNEL_SECRETS_KEY = previousKey;
+    }
 });
 (0, node_test_1.default)('GET /api/projects/:id masks secrets', async () => {
     // 1. Mock auth checks
@@ -226,6 +318,74 @@ const planner_service_2 = __importDefault(require("../services/planner.service")
     finally {
         auth_service_1.default.verifyToken = originalVerifyToken;
         auth_service_1.default.hasProjectAccess = originalHasAccess;
+    }
+});
+(0, node_test_1.default)('POST channel test-connection checks an unsaved Dzen session without mutating the channel', async () => {
+    const originalVerifyToken = auth_service_1.default.verifyToken;
+    const originalHasAccess = auth_service_1.default.hasProjectAccess;
+    const originalFindFirst = planner_service_1.prisma.socialChannel.findFirst;
+    const originalUpdate = planner_service_1.prisma.socialChannel.update;
+    const originalTestConnection = dzen_service_1.default.testConnection;
+    let receivedConfig = null;
+    let updateCalled = false;
+    auth_service_1.default.verifyToken = () => ({ id: 1, email: 'owner@example.com', name: 'Owner' });
+    auth_service_1.default.hasProjectAccess = async () => true;
+    Object.defineProperty(planner_service_1.prisma.socialChannel, 'findFirst', {
+        value: async () => ({
+            id: 10,
+            project_id: 1,
+            type: 'dzen',
+            name: 'Dzen',
+            config: { channel_id: 'saved-channel', cookies: 'saved-session' }
+        }),
+        configurable: true,
+        writable: true
+    });
+    Object.defineProperty(planner_service_1.prisma.socialChannel, 'update', {
+        value: async () => {
+            updateCalled = true;
+            throw new Error('test-connection must not save');
+        },
+        configurable: true,
+        writable: true
+    });
+    dzen_service_1.default.testConnection = async (config) => {
+        receivedConfig = config;
+        return { authenticated: true, editor_available: true };
+    };
+    const app = (0, fastify_1.default)();
+    app.register(project_routes_1.default);
+    try {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/projects/1/channels/10/test-connection',
+            headers: { authorization: 'Bearer mock-token' },
+            payload: {
+                config: {
+                    channel_id: 'draft-channel',
+                    cookies: 'Cookie: Session_id=draft-session'
+                }
+            }
+        });
+        strict_1.default.equal(response.statusCode, 200);
+        strict_1.default.equal(receivedConfig.channel_id, 'draft-channel');
+        strict_1.default.equal(receivedConfig.cookies, 'Cookie: Session_id=draft-session');
+        strict_1.default.equal(updateCalled, false);
+    }
+    finally {
+        auth_service_1.default.verifyToken = originalVerifyToken;
+        auth_service_1.default.hasProjectAccess = originalHasAccess;
+        dzen_service_1.default.testConnection = originalTestConnection;
+        Object.defineProperty(planner_service_1.prisma.socialChannel, 'findFirst', {
+            value: originalFindFirst,
+            configurable: true,
+            writable: true
+        });
+        Object.defineProperty(planner_service_1.prisma.socialChannel, 'update', {
+            value: originalUpdate,
+            configurable: true,
+            writable: true
+        });
     }
 });
 (0, node_test_1.default)('mergeChannelConfig keeps channel workflow mode', () => {

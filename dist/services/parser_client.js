@@ -76,6 +76,19 @@ class ParserClient {
             }
         });
     }
+    async createOrganizationSearchJob(input) {
+        return this.request('POST', '/search', {
+            workspaceId: `organization-${input.organizationId}`,
+            body: {
+                source: input.source || 'reddit', query: input.query, limit: input.limit ?? 25,
+                min_score: input.minScore ?? 0, include_comments: input.includeComments ?? true,
+                enrich: input.enrich ?? true, idempotency_key: input.idempotencyKey || (0, crypto_1.randomUUID)()
+            }
+        });
+    }
+    async getOrganizationSearchJob(organizationId, jobId) {
+        return this.request('GET', `/search/${encodeURIComponent(jobId)}`, { workspaceId: `organization-${organizationId}` });
+    }
     async getSearchJob(projectId, jobId) {
         return this.request('GET', `/search/${encodeURIComponent(jobId)}`, {
             workspaceId: this.getWorkspaceId(projectId)

@@ -32,6 +32,8 @@ function scopeRemoteMcpRequest(body, principal) {
         scopedArguments.userId = principal.userId;
     if (principal.projectId && 'projectId' in scopedArguments)
         scopedArguments.projectId = principal.projectId;
+    if (principal.organizationId && 'organizationId' in scopedArguments)
+        scopedArguments.organizationId = principal.organizationId;
     return {
         allowed: true,
         body: {

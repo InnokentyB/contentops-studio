@@ -5,12 +5,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const multi_agent_service_1 = __importDefault(require("./multi_agent.service"));
 const db_1 = __importDefault(require("../db"));
+const content_language_service_1 = require("./content_language.service");
 class SequentialWriterService {
     async generateWeekPosts(projectId, weekId) {
         console.log(`[SequentialWriter] Starting generation for week ${weekId}`);
         const week = await db_1.default.week.findUnique({
             where: { id: weekId },
-            include: { posts: { orderBy: { slot_index: 'asc' } } }
+            include: { posts: { orderBy: { slot_index: 'asc' }, include: { channel: true } } }
         });
         if (!week)
             throw new Error("Week not found");
@@ -41,6 +42,7 @@ class SequentialWriterService {
             const context = {
                 week_theme: week.theme,
                 topic: post.topic || "General Industry Update",
+                content_language: (0, content_language_service_1.channelContentLanguage)(post.channel),
                 week_memory: {
                     core_summary: memory.week_core_summary,
                     covered_angles: memory.covered_angles,
@@ -63,6 +65,7 @@ class SequentialWriterService {
             while (attempts <= maxAttempts && !approved) {
                 const criticResult = await multi_agent_service_1.default.runContentCritic(projectId, {
                     content: currentContent,
+                    content_language: context.content_language,
                     week_memory: context.week_memory
                 });
                 score = criticResult.score;
@@ -75,6 +78,7 @@ class SequentialWriterService {
                     const fixedContent = await multi_agent_service_1.default.runContentFixer(projectId, {
                         content: currentContent,
                         critique: criticResult.critique,
+                        content_language: context.content_language,
                         week_memory: context.week_memory
                     });
                     if (fixedContent) {

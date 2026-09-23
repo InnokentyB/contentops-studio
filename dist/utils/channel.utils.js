@@ -2,7 +2,15 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.sanitizeChannelConfig = sanitizeChannelConfig;
 exports.mergeChannelConfig = mergeChannelConfig;
+exports.prepareChannelConfigForStorage = prepareChannelConfigForStorage;
+exports.resolveChannelConfigSecrets = resolveChannelConfigSecrets;
+exports.resolveEffectiveChannelConfig = resolveEffectiveChannelConfig;
 exports.cleanAndFormatHashtags = cleanAndFormatHashtags;
+const channel_secrets_1 = require("./channel_secrets");
+const DZEN_TYPES = new Set(['zen', 'zen_article', 'dzen']);
+const ENCRYPTED_SECRET_FIELDS = {
+    vk: ['publish_access_token', 'stats_access_token', 'vk_refresh_token']
+};
 /**
  * Sanitize channel configuration before returning it to the client by masking secrets.
  */
@@ -10,6 +18,9 @@ function sanitizeChannelConfig(type, config) {
     if (!config || typeof config !== 'object')
         return config;
     const sanitized = { ...config };
+    if (sanitized.raw_account && typeof sanitized.raw_account === 'object') {
+        sanitized.raw_account = sanitizeChannelConfig(type, sanitized.raw_account);
+    }
     // Mask sensitive fields
     if (sanitized.api_key)
         sanitized.api_key = '******';
@@ -21,8 +32,19 @@ function sanitizeChannelConfig(type, config) {
         sanitized.access_token = '******';
     if (sanitized.cookies)
         sanitized.cookies = '******';
+    if (sanitized.cookies_encrypted) {
+        sanitized.cookies = '******';
+        delete sanitized.cookies_encrypted;
+    }
     if (sanitized.application_secret_key)
         sanitized.application_secret_key = '******';
+    for (const field of ENCRYPTED_SECRET_FIELDS[type] || []) {
+        const encryptedField = `${field}_encrypted`;
+        if (sanitized[encryptedField]) {
+            sanitized[field] = '******';
+            delete sanitized[encryptedField];
+        }
+    }
     return sanitized;
 }
 /**
@@ -32,13 +54,89 @@ function mergeChannelConfig(incomingConfig, existingConfig) {
     if (!existingConfig || typeof existingConfig !== 'object')
         return incomingConfig;
     const merged = { ...incomingConfig };
-    const secretKeys = ['api_key', 'publish_access_token', 'stats_access_token', 'access_token', 'cookies', 'application_secret_key'];
+    const secretKeys = ['api_key', 'publish_access_token', 'stats_access_token', 'vk_refresh_token', 'access_token', 'cookies', 'application_secret_key'];
     for (const key of secretKeys) {
         if (merged[key] === '******' && existingConfig[key]) {
             merged[key] = existingConfig[key];
         }
     }
+    if (merged.cookies === '******' && existingConfig.cookies_encrypted) {
+        delete merged.cookies;
+        merged.cookies_encrypted = existingConfig.cookies_encrypted;
+    }
+    for (const field of ENCRYPTED_SECRET_FIELDS.vk) {
+        const encryptedField = `${field}_encrypted`;
+        if ((merged[field] === '******' || merged[field] === undefined) && existingConfig[encryptedField]) {
+            delete merged[field];
+            merged[encryptedField] = existingConfig[encryptedField];
+        }
+    }
     return merged;
+}
+function prepareChannelConfigForStorage(type, config) {
+    const prepared = { ...(config || {}) };
+    if (type === 'vk') {
+        for (const field of ENCRYPTED_SECRET_FIELDS.vk) {
+            const value = typeof prepared[field] === 'string' ? prepared[field].trim() : '';
+            if (value && value !== '******')
+                prepared[`${field}_encrypted`] = (0, channel_secrets_1.encryptChannelSecret)(value);
+            delete prepared[field];
+        }
+        return prepared;
+    }
+    if (!DZEN_TYPES.has(type))
+        return prepared;
+    if (prepared.raw_account && typeof prepared.raw_account === 'object') {
+        prepared.raw_account = prepareChannelConfigForStorage(type, prepared.raw_account);
+    }
+    const cookies = typeof prepared.cookies === 'string' ? prepared.cookies.trim() : '';
+    if (cookies && cookies !== '******') {
+        prepared.cookies_encrypted = (0, channel_secrets_1.encryptChannelSecret)(cookies);
+    }
+    delete prepared.cookies;
+    return prepared;
+}
+function resolveChannelConfigSecrets(type, config) {
+    const resolved = { ...(config || {}) };
+    if (type === 'vk') {
+        for (const field of ENCRYPTED_SECRET_FIELDS.vk) {
+            const encryptedField = `${field}_encrypted`;
+            if (!resolved[field] && typeof resolved[encryptedField] === 'string') {
+                resolved[field] = (0, channel_secrets_1.decryptChannelSecret)(resolved[encryptedField]);
+            }
+            delete resolved[encryptedField];
+        }
+        return resolved;
+    }
+    if (!DZEN_TYPES.has(type))
+        return resolved;
+    if (resolved.raw_account && typeof resolved.raw_account === 'object') {
+        resolved.raw_account = resolveChannelConfigSecrets(type, resolved.raw_account);
+        if (!resolved.cookies && resolved.raw_account.cookies) {
+            resolved.cookies = resolved.raw_account.cookies;
+        }
+    }
+    if (!resolved.cookies && typeof resolved.cookies_encrypted === 'string') {
+        resolved.cookies = (0, channel_secrets_1.decryptChannelSecret)(resolved.cookies_encrypted);
+    }
+    delete resolved.cookies_encrypted;
+    return resolved;
+}
+/**
+ * Return the executable channel configuration from both legacy raw_account
+ * payloads and current top-level settings. Current settings win so an owner
+ * can rotate credentials without leaving workers on a stale nested snapshot.
+ */
+function resolveEffectiveChannelConfig(type, config) {
+    const topLevel = config && typeof config === 'object' ? config : {};
+    const rawAccount = topLevel.raw_account && typeof topLevel.raw_account === 'object'
+        ? topLevel.raw_account
+        : {};
+    const { raw_account: _rawAccount, ...currentSettings } = topLevel;
+    return resolveChannelConfigSecrets(type, {
+        ...rawAccount,
+        ...currentSettings
+    });
 }
 /**
  * Clean up, format, and append hashtags to a post text, ensuring no duplicates or double hashes.

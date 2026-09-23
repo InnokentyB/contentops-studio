@@ -10,6 +10,7 @@ const work_queue_service_1 = __importDefault(require("./work_queue.service"));
 const multi_agent_service_1 = __importDefault(require("./multi_agent.service"));
 const week_autogeneration_state_1 = require("./week_autogeneration_state");
 const publication_generation_stage_1 = require("./publication_generation_stage");
+const content_language_service_1 = require("./content_language.service");
 function isoDate(value, field) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(value))
         throw new Error(`[INVALID_${field.toUpperCase()}] Expected YYYY-MM-DD`);
@@ -215,7 +216,13 @@ class WeeklyThemePipelineService {
             if (normalizedDays.length !== 7 || normalizedDays.some((day, index) => day !== index + 1)) {
                 throw new Error('[INVALID_SCHEDULE_TEMPLATE] Preview requires seven unique day positions');
             }
-            return { weekPackage, theme };
+            const channel = await tx.socialChannel.findFirst({
+                where: { id: input.channelId, project_id: input.projectId },
+                select: { config: true }
+            });
+            if (!channel)
+                throw new Error('[CHANNEL_NOT_FOUND] Target channel was not found in the requested project');
+            return { weekPackage, theme, contentLanguage: (0, content_language_service_1.channelContentLanguage)(channel) };
         });
         if ('cached' in prepared)
             return prepared.cached;
@@ -243,7 +250,8 @@ class WeeklyThemePipelineService {
                 theme_body: prepared.theme.brief || '',
                 channel_name: String(input.channelId),
                 week_start: dateOnly(prepared.weekPackage.week_start),
-                week_end: dateOnly(prepared.weekPackage.week_end)
+                week_end: dateOnly(prepared.weekPackage.week_end),
+                content_language: prepared.contentLanguage
             });
             generated = validateGeneratedProposals(providerResult);
         }

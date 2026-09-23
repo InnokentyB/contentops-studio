@@ -120,6 +120,56 @@ export function extractDzenStudioMetrics(payload: any, postUrl: string): DzenPag
 
 type DzenPublicationType = 'article' | 'post';
 
+const COOKIE_ATTRIBUTE_NAMES = new Set([
+    'domain', 'expires', 'httponly', 'max-age', 'partitioned', 'path', 'priority', 'samesite', 'secure'
+]);
+
+/**
+ * Convert a copied browser Cookie header into a CDP-compatible cookie list.
+ * The UI intentionally accepts both the raw header value and a value prefixed
+ * with `Cookie:` so an owner can paste directly from DevTools.
+ */
+export function parseDzenCookieString(cookieStr: string, domain: string): any[] {
+    const normalizedDomain = domain.trim();
+    const cookieHeader = cookieStr
+        .replace(/^\s*cookie\s*:\s*/i, '')
+        .replace(/\r?\n\s*/g, ' ')
+        .trim();
+
+    return cookieHeader
+        .split(';')
+        .map((item) => {
+            const trimmed = item.trim();
+            const index = trimmed.indexOf('=');
+            if (index <= 0) return null;
+
+            const name = trimmed.substring(0, index).trim();
+            const value = trimmed.substring(index + 1).trim();
+            const lowerName = name.toLowerCase();
+            const validName = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/.test(name);
+            if (!validName || !value || COOKIE_ATTRIBUTE_NAMES.has(lowerName) || name.startsWith('$')) return null;
+
+            if (name.startsWith('__Host-')) {
+                return {
+                    name,
+                    value,
+                    url: `https://${normalizedDomain.replace(/^\./, '')}/`,
+                    path: '/',
+                    secure: true
+                };
+            }
+
+            return {
+                name,
+                value,
+                domain: normalizedDomain,
+                path: '/',
+                ...(name.startsWith('__Secure-') ? { secure: true } : {})
+            };
+        })
+        .filter((cookie) => cookie !== null) as any[];
+}
+
 class PuppeteerPublisherService {
     private async prepareDzenPage(page: Page, config: DzenPublishConfig) {
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
@@ -156,24 +206,7 @@ class PuppeteerPublisherService {
      * Parse raw browser Cookie header string into Puppeteer-compliant cookies.
      */
     private parseCookieString(cookieStr: string, domain: string): any[] {
-        return cookieStr
-            .split(';')
-            .map((item) => {
-                const trimmed = item.trim();
-                const index = trimmed.indexOf('=');
-                if (index === -1) return null;
-                const name = trimmed.substring(0, index);
-                const value = trimmed.substring(index + 1);
-                return {
-                    name,
-                    value,
-                    domain,
-                    path: '/'
-                };
-            })
-            .filter((c): c is { name: string; value: string; domain: string; path: string } => 
-                c !== null && c.name !== '' && c.value !== ''
-            );
+        return parseDzenCookieString(cookieStr, domain);
     }
 
     /**

@@ -5,16 +5,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.V2OrchestratorService = void 0;
 const openai_1 = __importDefault(require("openai"));
-const client_1 = require("@prisma/client");
-const pg_1 = require("pg");
-const adapter_pg_1 = require("@prisma/adapter-pg");
 const dotenv_1 = require("dotenv");
 const model_policy_service_1 = require("./model_policy.service");
+const db_1 = __importDefault(require("../db"));
 (0, dotenv_1.config)();
-const connectionString = process.env.DATABASE_URL;
-const pool = new pg_1.Pool({ connectionString });
-const adapter = new adapter_pg_1.PrismaPg(pool);
-const prisma = new client_1.PrismaClient({ adapter });
 class V2OrchestratorService {
     constructor() {
         this.openai = null;
@@ -48,7 +42,7 @@ class V2OrchestratorService {
     async planQuarter(projectId, quarterStart, goalHint = "", plannedChannels) {
         console.log(`[QSP] Planning quarter for project ${projectId} starting ${quarterStart.toISOString()}`);
         // Fetch known FAE preferences
-        const prefs = await prisma.projectSettings.findUnique({
+        const prefs = await db_1.default.projectSettings.findUnique({
             where: { project_id_key: { project_id: projectId, key: 'fae_strategy_preferences' } }
         });
         const strategyShifts = prefs ? prefs.value : 'Предпочтений от автора пока нет.';
@@ -86,7 +80,7 @@ ${plannedChannels ? JSON.stringify(plannedChannels, null, 2) : 'Стандарт
             console.error("Failed to parse QSP output", resultStr);
             throw new Error("QSP output invalid JSON");
         }
-        const qp = await prisma.quarterPlan.create({
+        const qp = await db_1.default.quarterPlan.create({
             data: {
                 project_id: projectId,
                 quarter_start: quarterStart,
@@ -104,7 +98,7 @@ ${plannedChannels ? JSON.stringify(plannedChannels, null, 2) : 'Стандарт
             const mEnd = new Date(currentMonthStart);
             mEnd.setMonth(mEnd.getMonth() + 1);
             const monthData = parsed.months[i];
-            const arc = await prisma.monthArc.create({
+            const arc = await db_1.default.monthArc.create({
                 data: {
                     project_id: projectId,
                     quarter_plan_id: qp.id,
@@ -125,7 +119,7 @@ ${plannedChannels ? JSON.stringify(plannedChannels, null, 2) : 'Стандарт
      */
     async planMonth(monthArcId) {
         console.log(`[MTA] Planning month arc ${monthArcId}`);
-        const arc = await prisma.monthArc.findUnique({
+        const arc = await db_1.default.monthArc.findUnique({
             where: { id: monthArcId },
             include: { quarter_plan: true }
         });
@@ -193,7 +187,7 @@ ${plannedChannels ? JSON.stringify(plannedChannels, null, 2) : 'Любые до�
     async planWeek(projectId, weekStart, weekEnd, themeHint = "", monthArcId, channelMix) {
         console.log(`[SMO] Planning week for project ${projectId}`);
         // Fetch known FAE preferences
-        const prefs = await prisma.projectSettings.findUnique({
+        const prefs = await db_1.default.projectSettings.findUnique({
             where: { project_id_key: { project_id: projectId, key: 'fae_strategy_preferences' } }
         });
         const strategyShifts = prefs ? prefs.value : 'Предпочтений или замечаний от автора пока нет.';
@@ -217,7 +211,7 @@ ${strategyShifts}
 Направление/пожелание от владельца: ${themeHint ? themeHint : 'На твое усмотрение, упор на системный анализ'}`;
         const resultStr = await this.callLLM(systemPrompt, userPrompt);
         const parsed = JSON.parse(resultStr);
-        return await prisma.weekPackage.create({
+        return await db_1.default.weekPackage.create({
             data: {
                 project_id: projectId,
                 month_arc_id: monthArcId || null,
@@ -241,7 +235,7 @@ ${strategyShifts}
      */
     async architectDistribution(weekPackageId, overrideChannelsSpec) {
         console.log(`[DA] Architecting distribution for week package ${weekPackageId}`);
-        const wp = await prisma.weekPackage.findUnique({
+        const wp = await db_1.default.weekPackage.findUnique({
             where: { id: weekPackageId },
             include: {
                 month_arc: {
@@ -307,7 +301,7 @@ ${plannedChannels ? JSON.stringify(plannedChannels, null, 2) : 'No specific role
             scheduleDate.setUTCHours(12, 0, 0, 0);
             const tId = parseInt(item.target_channel_id, 10);
             const validChannelId = !isNaN(tId) && tId > 0 ? tId : undefined;
-            const dbItem = await prisma.contentItem.create({
+            const dbItem = await db_1.default.contentItem.create({
                 data: {
                     project_id: wp.project_id,
                     week_package_id: wp.id,
@@ -324,7 +318,7 @@ ${plannedChannels ? JSON.stringify(plannedChannels, null, 2) : 'No specific role
             });
             createdItems.push(dbItem);
         }
-        await prisma.weekPackage.update({
+        await db_1.default.weekPackage.update({
             where: { id: wp.id },
             data: { cross_links: parsed.cross_links_strategy }
         });
@@ -337,7 +331,7 @@ ${plannedChannels ? JSON.stringify(plannedChannels, null, 2) : 'No specific role
     async validateContinuity(weekPackageId) {
         console.log(`[NCC] Validating continuity for week package ${weekPackageId}`);
         // For MVP, we'll just pull the data, ask NCC to review, and store its report.
-        const wp = await prisma.weekPackage.findUnique({
+        const wp = await db_1.default.weekPackage.findUnique({
             where: { id: weekPackageId },
             include: { content_items: { orderBy: { schedule_at: 'asc' } } }
         });
@@ -360,7 +354,7 @@ ${plannedChannels ? JSON.stringify(plannedChannels, null, 2) : 'No specific role
         const resultStr = await this.callLLM(systemPrompt, userPrompt);
         const report = JSON.parse(resultStr);
         if (!report.valid) {
-            await prisma.weekPackage.update({
+            await db_1.default.weekPackage.update({
                 where: { id: wp.id },
                 data: { approval_status: 'needs_review', risks: report.suggestions } // merge/replace
             });

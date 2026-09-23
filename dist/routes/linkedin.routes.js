@@ -5,13 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = linkedinRoutes;
 const linkedin_service_1 = __importDefault(require("../services/linkedin.service"));
-const client_1 = require("@prisma/client");
-const pg_1 = require("pg");
-const adapter_pg_1 = require("@prisma/adapter-pg");
-const connectionString = process.env.DATABASE_URL;
-const pool = new pg_1.Pool({ connectionString });
-const adapter = new adapter_pg_1.PrismaPg(pool);
-const prisma = new client_1.PrismaClient({ adapter });
+const db_1 = __importDefault(require("../db"));
 async function linkedinRoutes(fastify) {
     // GET /api/auth/linkedin/connect?projectId=123
     fastify.get('/api/auth/linkedin/connect', async (request, reply) => {
@@ -46,7 +40,7 @@ async function linkedinRoutes(fastify) {
             const token = await linkedin_service_1.default.exchangeCodeToToken(code);
             // 2. Fetch User Profile to get URN and Name
             const { urn, name } = await linkedin_service_1.default.getUserProfile(token);
-            const existingChannel = await prisma.socialChannel.findFirst({
+            const existingChannel = await db_1.default.socialChannel.findFirst({
                 where: {
                     project_id: projectId,
                     type: 'linkedin',
@@ -57,7 +51,7 @@ async function linkedinRoutes(fastify) {
                 }
             });
             if (existingChannel) {
-                await prisma.socialChannel.update({
+                await db_1.default.socialChannel.update({
                     where: { id: existingChannel.id },
                     data: {
                         name: `LinkedIn: ${name}`,
@@ -72,7 +66,7 @@ async function linkedinRoutes(fastify) {
                 });
             }
             else {
-                await prisma.socialChannel.create({
+                await db_1.default.socialChannel.create({
                     data: {
                         project_id: projectId,
                         type: 'linkedin',

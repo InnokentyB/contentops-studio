@@ -44,3 +44,9 @@ const ready = {
         publicationMode: 'browser_required'
     }), 'browser_required');
 });
+(0, node_test_1.default)('approval-required tasks cannot use an automated handoff as connector authorization', () => {
+    strict_1.default.equal((0, publication_execution_route_1.resolvePublicationExecutionRoute)({
+        ...ready,
+        publicationMode: 'approval_required'
+    }), 'waiting');
+});

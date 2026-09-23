@@ -748,15 +748,14 @@ ${languageInstruction}`;
         let finalImageUrl = imageUrl;
         if (imageUrl.startsWith('/uploads/')) {
             const fs = require('fs');
-            const path = require('path');
-            const filename = imageUrl.replace('/uploads/', '');
-            const localFilePath = path.join(process.cwd(), 'uploads', filename);
-            if (fs.existsSync(localFilePath)) {
+            const { safeResolveUploadPath } = require('../utils/path_safety');
+            const localFilePath = safeResolveUploadPath(imageUrl);
+            if (localFilePath && fs.existsSync(localFilePath)) {
                 const buffer = fs.readFileSync(localFilePath);
                 const base64Data = buffer.toString('base64');
                 finalImageUrl = `data:image/png;base64,${base64Data}`;
             } else {
-                console.warn(`[MultiAgent] Local file not found: ${localFilePath}`);
+                console.warn(`[MultiAgent] Local file access denied or not found: ${imageUrl}`);
             }
         }
 
@@ -775,6 +774,8 @@ ${languageInstruction}`;
                     }
                 ],
                 response_format: { type: 'json_object' }
+            }, {
+                timeout: 45000
             });
 
             const content = response.choices[0].message.content || '{}';
@@ -913,7 +914,8 @@ ${languageInstruction}`;
                     where: { id: keyId }
                 });
                 if (providerKey) {
-                    apiKey = providerKey.key;
+                    const { safeDecryptProviderKey } = require('../utils/channel_secrets');
+                    apiKey = safeDecryptProviderKey(providerKey.key);
                 } else {
                     console.warn(`Provider Key ${keyId} not found for project ${projectId}`);
                     apiKey = ''; // Or keep as is? Better to fail if key is missing.

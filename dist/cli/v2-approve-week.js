@@ -32,17 +32,14 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-const client_1 = require("@prisma/client");
 const readline = __importStar(require("readline"));
 const dotenv_1 = require("dotenv");
-const pg_1 = require("pg");
-const adapter_pg_1 = require("@prisma/adapter-pg");
+const db_1 = __importDefault(require("../db"));
 (0, dotenv_1.config)();
-const connectionString = process.env.DATABASE_URL;
-const pool = new pg_1.Pool({ connectionString });
-const adapter = new adapter_pg_1.PrismaPg(pool);
-const prisma = new client_1.PrismaClient({ adapter });
 const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
@@ -54,7 +51,7 @@ async function main() {
         process.exit(1);
     }
     try {
-        const wp = await prisma.weekPackage.findUnique({
+        const wp = await db_1.default.weekPackage.findUnique({
             where: { id: wpId },
             include: { content_items: { orderBy: { schedule_at: 'asc' } } }
         });
@@ -98,7 +95,7 @@ async function main() {
         }
         rl.question("Do you approve this plan? (yes/no/edit): ", async (answer) => {
             if (answer.toLowerCase() === 'yes' || answer.toLowerCase() === 'y') {
-                await prisma.weekPackage.update({
+                await db_1.default.weekPackage.update({
                     where: { id: wp.id },
                     data: { approval_status: 'approved' }
                 });
@@ -109,20 +106,20 @@ async function main() {
                 console.log("Edit mode is not fully interactive yet. Please manually edit the database or re-generate.");
             }
             else {
-                await prisma.weekPackage.update({
+                await db_1.default.weekPackage.update({
                     where: { id: wp.id },
                     data: { approval_status: 'rejected' }
                 });
                 console.log(`❌ WeekPackage ${wp.id} REJECTED.`);
             }
             rl.close();
-            await prisma.$disconnect();
+            await db_1.default.$disconnect();
         });
     }
     catch (e) {
         console.error(e);
         rl.close();
-        await prisma.$disconnect();
+        await db_1.default.$disconnect();
     }
 }
 main();

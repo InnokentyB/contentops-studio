@@ -4,6 +4,7 @@ import okService from '../services/ok.service';
 import habrService from '../services/habr.service';
 import vcService from '../services/vc.service';
 import dzenService, { isDzenPublishedUrl } from '../services/dzen.service';
+import { parseDzenCookieString } from '../services/puppeteer_publisher.service';
 import puppeteerPublisherService from '../services/puppeteer_publisher.service';
 import publicationAdapterService from '../services/publication_adapter.service';
 
@@ -123,6 +124,30 @@ test('Dzen permalink validation rejects editor and fabricated URLs', () => {
     assert.equal(isDzenPublishedUrl('https://example.com/a/real-looking-id'), false);
     assert.equal(isDzenPublishedUrl('https://dzen.ru/a/ZkExampleSlug'), true);
     assert.equal(isDzenPublishedUrl('https://dzen.ru/media/id/123456/example'), true);
+});
+
+test('Dzen cookie parser accepts a copied Cookie header and preserves prefixed cookie rules', () => {
+    const cookies = parseDzenCookieString(
+        'Cookie: Session_id=abc==; __Host-session=host-value; __Secure-token=secure-value; Path=/; HttpOnly',
+        '.dzen.ru'
+    );
+
+    assert.equal(cookies.length, 3);
+    assert.deepEqual(cookies[0], { name: 'Session_id', value: 'abc==', domain: '.dzen.ru', path: '/' });
+    assert.deepEqual(cookies[1], {
+        name: '__Host-session',
+        value: 'host-value',
+        url: 'https://dzen.ru/',
+        path: '/',
+        secure: true
+    });
+    assert.deepEqual(cookies[2], {
+        name: '__Secure-token',
+        value: 'secure-value',
+        domain: '.dzen.ru',
+        path: '/',
+        secure: true
+    });
 });
 
 test('Dzen connection supports current channel editor identifiers', () => {

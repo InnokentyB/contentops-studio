@@ -15,6 +15,8 @@ const api_routes_1 = __importDefault(require("./routes/api.routes"));
 const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
 const project_routes_1 = __importDefault(require("./routes/project.routes"));
 const linkedin_routes_1 = __importDefault(require("./routes/linkedin.routes"));
+const vk_routes_1 = __importDefault(require("./routes/vk.routes"));
+const organization_routes_1 = __importDefault(require("./routes/organization.routes"));
 const path_1 = __importDefault(require("path"));
 const health_service_1 = __importDefault(require("./services/health.service"));
 // Crash Logging
@@ -34,7 +36,21 @@ BigInt.prototype.toJSON = function () {
     return this.toString();
 };
 const server = (0, fastify_1.default)({
-    logger: true
+    logger: {
+        serializers: {
+            req(request) {
+                // Authorization codes and signed OAuth state arrive in the query
+                // string. Keep operational request logs useful without persisting them.
+                return {
+                    method: request.method,
+                    url: String(request.url || '').split('?')[0],
+                    host: request.headers?.host,
+                    remoteAddress: request.socket?.remoteAddress,
+                    remotePort: request.socket?.remotePort
+                };
+            }
+        }
+    }
 });
 server.addHook('onRequest', (request, reply, done) => {
     if (process.env.REQUEST_LOGGING_ENABLED === 'true') {
@@ -82,6 +98,8 @@ server.register(api_routes_1.default);
 server.register(webhook_1.default);
 server.register(jobs_1.default);
 server.register(linkedin_routes_1.default);
+server.register(vk_routes_1.default);
+server.register(organization_routes_1.default);
 // SPA fallback for non-API routes
 server.setNotFoundHandler((request, reply) => {
     if (request.raw.url && request.raw.url.startsWith('/api')) {
