@@ -1109,7 +1109,7 @@ export function registerPlannerTools(server: McpServer) {
     });
 
     server.registerTool('ba_claim_content_review', {
-        description: 'Claim only an available content_reviewer work item with a 30-minute reviewer-owned lease.',
+        description: 'Claim an available content_reviewer work item with a 30-minute reviewer-owned lease. A new idempotency key atomically recovers an expired reviewer lease and records that recovery in the workflow audit trail.',
         annotations: INTERNAL_MUTATION_ANNOTATIONS,
         inputSchema: {
             projectId: z.number().int().positive(),

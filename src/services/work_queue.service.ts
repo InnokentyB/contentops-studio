@@ -1528,8 +1528,13 @@ export class WorkQueueService {
                 include: { content_item: true }
             });
             if (!item) throw new Error('[CONTENT_REVIEW_NOT_FOUND] Review work item not found');
+            const now = new Date();
+            const expiredClaim = item.state === 'claimed'
+                && Boolean(item.lease_expires_at)
+                && item.lease_expires_at! < now;
             assertContentReviewInput({
-                kind: item.kind, assigneeRole: item.assignee_role, state: item.state,
+                kind: item.kind, assigneeRole: item.assignee_role,
+                state: expiredClaim ? 'available' : item.state,
                 resultVersion: item.result_version, expectedResultVersion: params.expectedResultVersion,
                 contentRevision: item.content_item?.content_revision ?? null,
                 expectedContentRevision: params.expectedContentRevision, phase: 'claim'
@@ -1540,7 +1545,9 @@ export class WorkQueueService {
                 where: {
                     id: item.id, project_id: params.projectId,
                     kind: 'content_review', assignee_role: 'content_reviewer',
-                    state: 'available', result_version: params.expectedResultVersion
+                    state: expiredClaim ? 'claimed' : 'available',
+                    result_version: params.expectedResultVersion,
+                    ...(expiredClaim ? { lease_expires_at: { lt: now } } : {})
                 },
                 data: {
                     state: 'claimed', lease_token: leaseToken,
@@ -1556,9 +1563,16 @@ export class WorkQueueService {
             await this.recordWorkflowEvent(tx, {
                 projectId: params.projectId, workItemId: item.id,
                 actorId: params.actorId, command, idempotencyKey: params.idempotencyKey,
-                beforeState: { state: item.state, result_version: item.result_version },
+                beforeState: {
+                    state: item.state,
+                    result_version: item.result_version,
+                    lease_actor_id: item.lease_actor_id,
+                    lease_expires_at: item.lease_expires_at?.toISOString() || null,
+                    expired_lease_recovered: expiredClaim
+                },
                 afterState: { work_item: result.work_item, lease_actor_id: params.actorId,
-                    lease_expires_at: result.lease_expires_at }
+                    lease_expires_at: result.lease_expires_at,
+                    expired_lease_recovered: expiredClaim }
             });
             return result;
         }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
