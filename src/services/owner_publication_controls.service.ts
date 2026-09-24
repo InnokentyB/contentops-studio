@@ -9,6 +9,7 @@ const DZEN_958_BODY_SHA256 = '78081837cecace18c91c01af0253b21ca502e611b63a016f9d
 const THREADS_953_BODY_SHA256 = 'e7d8c1f2f9cf4f7e3ca1ad6fb05e55153c2153739b3fcdf280e519f574b7f7a6';
 const THREADS_959_BODY_SHA256 = 'c3e7912e4f32aceafae19ea99751ef98f3f7d26554b9dfe160e78222eb64cf39';
 const TASK_972_BODY_SHA256 = 'b971d270d3a2deb2d21bbd1cb9e77598340e0426e84c4bf2219ad0a6d926d283';
+const TASK_973_BODY_SHA256 = '191ba9f5408ce30e9678cbe35ae5dc5b47168ebdd5069221c43f6a217374e65d';
 const TASK_972_TITLE = '@analysts_thinking 23.09 — 202 Accepted is not done';
 const TASK_972_BRIEF = 'C20 daily post 3/7. Synthetic S19 access-transfer example: 202 Accepted confirms queue admission, not business completion; follow terminal outcome, partial-result recovery and actual-state reconciliation. No CTA. Exact rev1 accepted; substantive revision-bound APPROVED visual required; no automatic release.';
 const TASK_960_BODY_SHA256 = '39791d0315ad8c02d1d71566b4a1b775916f2f26f25ba971051dae8d259c6c43';
@@ -190,6 +191,74 @@ export class OwnerPublicationControlsService {
                 visual_mode: 'required', status: task.status, handoff_state: 'ready',
                 publication_mode: 'approval_required', published: false };
             await tx.workflowEvent.create({ data: { project_id: 10, content_item_id: 972,
+                actor_id: args.actorId, command, idempotency_key: args.idempotencyKey,
+                before_state: { request_hash: requestHash, visual_mode: 'auto_assess',
+                    status: task.status, schedule_at: args.expectedScheduleAt }, after_state: result } });
+            return result;
+        }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    }
+
+    async requireTask973Visual(args: {
+        projectId: number; actorId: string; taskId: number; expectedChannelId: number;
+        expectedContentRevision: number; expectedAcceptedRevision: number;
+        expectedSelectedAssetId: number; expectedDecisionId: number;
+        expectedScheduleAt: string; expectedBodySha256: string;
+        expectedStatus: string; idempotencyKey: string;
+    }) {
+        if (args.projectId !== 10 || args.taskId !== 973 || args.expectedChannelId !== 111
+            || args.expectedContentRevision !== 1 || args.expectedAcceptedRevision !== 1
+            || args.expectedSelectedAssetId !== 80 || args.expectedDecisionId !== 155
+            || args.expectedBodySha256 !== TASK_973_BODY_SHA256) {
+            throw new Error('[TASK973_SCOPE_MISMATCH] Exact task/revision/asset/decision/body required');
+        }
+        const requestHash = sha256(args);
+        return this.db.$transaction(async (tx: any) => {
+            const project = await tx.project.findUnique({ where: { id: 10 }, select: { slug: true } });
+            if (project?.slug !== 'analystcraft-2') throw new Error('[MCP_PROJECT_SCOPE_MISMATCH]');
+            await this.requireOwner(tx, 10, args.actorId);
+            const command = 'ba_require_task973_publication_visual';
+            const prior = await tx.workflowEvent.findFirst({ where: {
+                project_id: 10, actor_id: args.actorId, command, idempotency_key: args.idempotencyKey
+            } });
+            if (prior) {
+                if (prior.before_state?.request_hash !== requestHash) throw new Error('[IDEMPOTENCY_CONFLICT]');
+                return prior.after_state;
+            }
+            const task = await tx.contentItem.findFirst({ where: { id: 973, project_id: 10 },
+                include: { selected_asset: true, publication_fact: true } });
+            const decision = await tx.artDirectionDecision.findFirst({ where: {
+                id: 155, project_id: 10, content_item_id: 973, source_content_revision: 1,
+                channel: 'telegram', placement: 'feed', decision: 'GENERATE', status: 'active'
+            } });
+            const bodyHash = this.hashBody(task?.draft_text || '');
+            if (!task || task.channel_id !== 111 || task.content_revision !== 1
+                || task.accepted_revision !== 1 || task.text_state !== 'accepted'
+                || task.visual_placement !== 'feed' || task.visual_mode !== 'auto_assess'
+                || task.visual_state !== 'APPROVED' || task.selected_asset_id !== 80
+                || task.selected_asset?.status !== 'approved' || task.selected_asset?.content_revision !== 1
+                || task.visual_decision_version !== decision?.decision_version
+                || task.handoff_state !== 'ready' || task.status !== args.expectedStatus
+                || task.publication_mode !== 'approval_required'
+                || task.schedule_at?.toISOString() !== args.expectedScheduleAt
+                || bodyHash !== TASK_973_BODY_SHA256 || !decision
+                || task.publication_fact || task.published_link) {
+                throw new Error('[TASK973_VISUAL_GUARD_FAILED]');
+            }
+            const changed = await tx.contentItem.updateMany({ where: {
+                id: 973, project_id: 10, channel_id: 111,
+                content_revision: 1, accepted_revision: 1, text_state: 'accepted',
+                visual_placement: 'feed', visual_mode: 'auto_assess', visual_state: 'APPROVED',
+                visual_decision_version: decision.decision_version, selected_asset_id: 80,
+                handoff_state: 'ready', status: args.expectedStatus,
+                publication_mode: 'approval_required', schedule_at: new Date(args.expectedScheduleAt)
+            }, data: { visual_mode: 'required' } });
+            if (changed.count !== 1) throw new Error('[TASK973_VISUAL_CAS_CONFLICT]');
+            const result = { task_id: 973, project_id: 10, channel_id: 111,
+                content_revision: 1, accepted_revision: 1, body_sha256: bodyHash,
+                decision_id: 155, selected_asset_id: 80, visual_state: 'APPROVED',
+                visual_mode: 'required', status: task.status, handoff_state: 'ready',
+                publication_mode: 'approval_required', published: false };
+            await tx.workflowEvent.create({ data: { project_id: 10, content_item_id: 973,
                 actor_id: args.actorId, command, idempotency_key: args.idempotencyKey,
                 before_state: { request_hash: requestHash, visual_mode: 'auto_assess',
                     status: task.status, schedule_at: args.expectedScheduleAt }, after_state: result } });
