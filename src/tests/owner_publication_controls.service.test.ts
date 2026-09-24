@@ -317,6 +317,50 @@ test('Dzen #958 owner release is exact, audited and does not send', async () => 
     await assert.rejects(service.releaseDzenTask958({ ...input, taskId: 959 }), /SCOPE_MISMATCH/);
 });
 
+test('Dzen #962 owner release is exact, audited and does not send', async () => {
+    const hash = '15c9b4a2e874439c4952900002ae5677fc3a6b6e8794dd34a0a4ae5f03dba798';
+    const task: any = {
+        id: 962, project_id: 10, channel_id: 116, channel: { type: 'dzen' },
+        content_revision: 1, accepted_revision: 1, text_state: 'accepted',
+        visual_placement: 'feed', visual_state: 'NO_VISUAL_NEEDED',
+        visual_decision_version: 2, selected_asset_id: null,
+        status: 'ready_for_execution', handoff_state: 'ready',
+        publication_mode: 'approval_required', schedule_at: schedule,
+        draft_text: 'exact accepted body', publication_fact: null, published_link: null
+    };
+    const events: any[] = [];
+    const tx = {
+        project: { findUnique: async () => ({ slug: 'analystcraft-2' }) },
+        projectMember: { findUnique: async () => ({ role: 'owner' }) },
+        workflowEvent: { findFirst: async () => null, create: async (event: any) => { events.push(event); return event; } },
+        contentItem: {
+            findFirst: async () => task,
+            updateMany: async ({ where, data }: any) => {
+                if (where.publication_mode !== task.publication_mode || where.status !== task.status) return { count: 0 };
+                Object.assign(task, data);
+                return { count: 1 };
+            }
+        },
+        artDirectionDecision: { findFirst: async ({ where }: any) => {
+            assert.equal(where.id, 146); assert.equal(where.channel, 'analystcraft_dzen');
+            return { id: 146, decision_version: 2 };
+        } },
+        deliveryAttempt: { findFirst: async () => null }
+    };
+    const service = new OwnerPublicationControlsService({ $transaction: async (fn: any) => fn(tx) } as any, () => hash);
+    const input = { projectId: 10, actorId: 'user:7', taskId: 962, expectedChannelId: 116,
+        expectedContentRevision: 1, expectedAcceptedRevision: 1,
+        expectedScheduleAt: schedule.toISOString(), expectedBodySha256: hash,
+        approvalReference: 'owner-command:hq-thread', idempotencyKey: 'release-962' };
+    const before = { ...task };
+    const result = await service.releaseDzenTask962(input);
+    assert.equal(result.published, false);
+    assert.deepEqual(task, { ...before, publication_mode: 'owner_released' });
+    assert.equal(events.length, 1);
+    assert.equal(events[0].data.before_state.approval_reference, input.approvalReference);
+    await assert.rejects(service.releaseDzenTask962({ ...input, taskId: 958 }), /SCOPE_MISMATCH/);
+});
+
 test('Threads replacement #959 release binds only accepted rev2 and decision 150', async () => {
     const hash = 'c3e7912e4f32aceafae19ea99751ef98f3f7d26554b9dfe160e78222eb64cf39';
     const task: any = { id: 959, project_id: 10, channel_id: 138, channel: { type: 'threads' },

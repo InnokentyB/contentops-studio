@@ -6,6 +6,7 @@ import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
 
 const C20_TASK_IDS = [968, 969, 971, 972, 973, 974];
 const DZEN_958_BODY_SHA256 = '78081837cecace18c91c01af0253b21ca502e611b63a016f9d9035567587dfd3';
+const DZEN_962_BODY_SHA256 = '15c9b4a2e874439c4952900002ae5677fc3a6b6e8794dd34a0a4ae5f03dba798';
 const THREADS_953_BODY_SHA256 = 'e7d8c1f2f9cf4f7e3ca1ad6fb05e55153c2153739b3fcdf280e519f574b7f7a6';
 const THREADS_959_BODY_SHA256 = 'c3e7912e4f32aceafae19ea99751ef98f3f7d26554b9dfe160e78222eb64cf39';
 const TASK_972_BODY_SHA256 = 'b971d270d3a2deb2d21bbd1cb9e77598340e0426e84c4bf2219ad0a6d926d283';
@@ -711,6 +712,83 @@ export class OwnerPublicationControlsService {
                 publication_mode: 'owner_released', explicit_send_required: true, published: false };
             await tx.workflowEvent.create({ data: {
                 project_id: 10, content_item_id: 958, actor_id: args.actorId,
+                command, idempotency_key: args.idempotencyKey,
+                before_state: { request_hash: requestHash, publication_mode: 'approval_required',
+                    approval_reference: args.approvalReference }, after_state: result
+            } });
+            return result;
+        }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    }
+
+    async releaseDzenTask962(args: {
+        projectId: number; actorId: string; taskId: number; expectedChannelId: number;
+        expectedContentRevision: number; expectedAcceptedRevision: number;
+        expectedScheduleAt: string; expectedBodySha256: string;
+        approvalReference: string; idempotencyKey: string;
+    }) {
+        if (args.projectId !== 10 || args.taskId !== 962 || args.expectedChannelId !== 116
+            || args.expectedContentRevision !== 1 || args.expectedAcceptedRevision !== 1
+            || args.expectedBodySha256 !== DZEN_962_BODY_SHA256) {
+            throw new Error('[DZEN_962_SCOPE_MISMATCH] Exact task/revision/body required');
+        }
+        if (!args.approvalReference.trim()) throw new Error('[OWNER_APPROVAL_REFERENCE_REQUIRED]');
+        const requestHash = sha256(args);
+        return this.db.$transaction(async (tx: any) => {
+            const project = await tx.project.findUnique({ where: { id: 10 }, select: { slug: true } });
+            if (project?.slug !== 'analystcraft-2') throw new Error('[MCP_PROJECT_SCOPE_MISMATCH]');
+            await this.requireOwner(tx, 10, args.actorId);
+            const command = 'ba_release_approved_dzen_task962';
+            const prior = await tx.workflowEvent.findFirst({ where: {
+                project_id: 10, actor_id: args.actorId, command, idempotency_key: args.idempotencyKey
+            } });
+            if (prior) {
+                if (prior.before_state?.request_hash !== requestHash) throw new Error('[IDEMPOTENCY_CONFLICT]');
+                return prior.after_state;
+            }
+            const task = await tx.contentItem.findFirst({
+                where: { id: 962, project_id: 10 },
+                include: { channel: true, publication_fact: true }
+            });
+            const decision = await tx.artDirectionDecision.findFirst({ where: {
+                id: 146, project_id: 10, content_item_id: 962,
+                source_content_revision: 1, channel: 'analystcraft_dzen', placement: 'feed',
+                decision: 'NO_VISUAL_NEEDED', status: 'active'
+            } });
+            const bodyHash = this.hashBody(task?.draft_text || '');
+            if (!task || task.channel_id !== 116 || task.channel?.type !== 'dzen'
+                || task.content_revision !== 1 || task.accepted_revision !== 1
+                || task.text_state !== 'accepted' || task.visual_placement !== 'feed'
+                || task.visual_state !== 'NO_VISUAL_NEEDED' || task.selected_asset_id !== null
+                || task.visual_decision_version !== decision?.decision_version
+                || task.status !== 'ready_for_execution' || task.handoff_state !== 'ready'
+                || task.publication_mode !== 'approval_required'
+                || task.schedule_at?.toISOString() !== args.expectedScheduleAt
+                || bodyHash !== DZEN_962_BODY_SHA256
+                || !decision || task.publication_fact || task.published_link) {
+                throw new Error('[DZEN_962_RELEASE_GUARD_FAILED]');
+            }
+            const attempt = await tx.deliveryAttempt.findFirst({ where: {
+                project_id: 10, content_item_id: 962
+            } });
+            if (attempt) throw new Error('[DELIVERY_ATTEMPT_EXISTS]');
+            const changed = await tx.contentItem.updateMany({
+                where: {
+                    id: 962, project_id: 10, channel_id: 116,
+                    content_revision: 1, accepted_revision: 1, text_state: 'accepted',
+                    visual_placement: 'feed', visual_state: 'NO_VISUAL_NEEDED',
+                    visual_decision_version: decision.decision_version,
+                    selected_asset_id: null, status: 'ready_for_execution',
+                    handoff_state: 'ready', publication_mode: 'approval_required',
+                    schedule_at: new Date(args.expectedScheduleAt)
+                }, data: { publication_mode: 'owner_released' }
+            });
+            if (changed.count !== 1) throw new Error('[DZEN_962_RELEASE_CAS_CONFLICT]');
+            const result = { task_id: 962, channel_id: 116, content_revision: 1,
+                accepted_revision: 1, body_sha256: bodyHash,
+                visual_decision_id: 146, schedule_at: args.expectedScheduleAt,
+                publication_mode: 'owner_released', explicit_send_required: true, published: false };
+            await tx.workflowEvent.create({ data: {
+                project_id: 10, content_item_id: 962, actor_id: args.actorId,
                 command, idempotency_key: args.idempotencyKey,
                 before_state: { request_hash: requestHash, publication_mode: 'approval_required',
                     approval_reference: args.approvalReference }, after_state: result

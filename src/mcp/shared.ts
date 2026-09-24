@@ -856,6 +856,19 @@ export function registerPlannerTools(server: McpServer) {
         }
     }, async (args) => asToolResult(await ownerPublicationControlsService.releaseDzenTask958(args)));
 
+    server.registerTool('ba_release_approved_dzen_task962', {
+        description: 'Owner-only audited release of exact accepted Dzen feed task #962 rev1 for separate task-native delivery. Does not publish.',
+        inputSchema: {
+            projectId: z.number().int().positive(), actorId: z.string(),
+            taskId: z.number().int().positive(), expectedChannelId: z.number().int().positive(),
+            expectedContentRevision: z.number().int().positive(),
+            expectedAcceptedRevision: z.number().int().positive(),
+            expectedScheduleAt: z.string().datetime({ offset: true }),
+            expectedBodySha256: z.string().regex(/^[a-f0-9]{64}$/),
+            approvalReference: z.string().min(10), idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await ownerPublicationControlsService.releaseDzenTask962(args)));
+
     server.registerTool('ba_release_approved_threads_task953', {
         description: 'Owner-only audited release of exact accepted Threads feed task #953 rev4 for separate task-native API delivery. Does not publish.',
         inputSchema: {
