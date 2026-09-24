@@ -1,16 +1,13 @@
 import prisma from '../../db';
 import gscService from '../gsc.service';
-import linkedinService from '../linkedin.service';
-import redditService from '../reddit.service';
 import { parseRecurringTrigger } from '../publication_runtime.helpers';
 import { logToFile } from './publisher_logger';
+import { operationalTaskActions, resolvePlanRef } from './operational_task_actions';
+import { OngoingRulePlan } from './types';
 
-export interface OngoingRulePlan {
-    projectId: number;
-    meta: Record<string, any>;
-    ongoing_rules: Array<Record<string, any>>;
-    measurement: Record<string, any>;
-}
+export { OngoingRulePlan };
+
+
 
 export class OngoingRulesProcessor {
     private ongoingRulePlanCache: {
@@ -78,15 +75,9 @@ export class OngoingRulesProcessor {
     }
 
     resolvePlanRef(plan: unknown, ref?: string | null): unknown {
-        if (!ref) return null;
-        const parts = ref.split('.');
-        let current: any = plan;
-        for (const part of parts) {
-            if (current == null) return null;
-            current = current[part];
-        }
-        return current ?? null;
+        return resolvePlanRef(plan, ref);
     }
+
 
     async findDependencyItems(projectId: number, dependencyTaskIds: string[]) {
         if (dependencyTaskIds.length === 0) return [];
@@ -344,13 +335,14 @@ export class OngoingRulesProcessor {
 
         for (const plan of plans) {
             const projectId = plan.projectId;
-            const timezone = plan.meta.timezone_default || 'UTC';
+            const timezone = typeof plan.meta.timezone_default === 'string' ? plan.meta.timezone_default : 'UTC';
             const rules = Array.isArray(plan.ongoing_rules) ? plan.ongoing_rules : [];
 
             for (const rule of rules) {
                 if (typeof rule?.trigger !== 'string' || !rule.id) continue;
 
                 const recurring = parseRecurringTrigger(rule.trigger, timezone);
+
                 if (recurring?.due) {
                     const instanceKey = `${rule.id}:${new Date().toISOString().slice(0, 10)}`;
                     const created = await this.ensureRuleTask(projectId, rule, instanceKey, recurring.scheduleAt);
@@ -411,8 +403,12 @@ export class OngoingRulesProcessor {
 
             const measurement = plan.measurement || {};
             const snapshotDays = Array.isArray(measurement.snapshot_days) ? measurement.snapshot_days : [];
-            const cycleStart = plan.meta.cycle_start ? new Date(plan.meta.cycle_start) : null;
+            const rawCycleStart = plan.meta.cycle_start;
+            const cycleStart = typeof rawCycleStart === 'string' || typeof rawCycleStart === 'number' || rawCycleStart instanceof Date
+                ? new Date(rawCycleStart)
+                : null;
             if (cycleStart) {
+
                 for (const snapshotDay of snapshotDays) {
                     const scheduleAt = new Date(cycleStart);
                     scheduleAt.setDate(scheduleAt.getDate() + Number(snapshotDay));
@@ -431,493 +427,41 @@ export class OngoingRulesProcessor {
     }
 
     async executeMeasurementSnapshot(task: any, plan: any) {
-        const measurement = (task.assets as any)?.measurement || plan.measurement || {};
-        const metricDefs = Array.isArray(measurement.metrics) ? measurement.metrics : [];
-        const projectChannels = await prisma.socialChannel.findMany({
-            where: { project_id: task.project_id }
-        });
-        const gscChannel = projectChannels.find((channel) => channel.type === 'google_search_console') || null;
-
-        const results: Record<string, any> = {};
-        for (const metricDef of metricDefs) {
-            if (!metricDef?.id) continue;
-
-            if (metricDef.source === 'gsc' && metricDef.url_ref && gscChannel) {
-                const url = this.resolvePlanRef(plan, metricDef.url_ref) as string | null;
-                results[metricDef.id] = url
-                    ? await gscService.queryPageMetrics((gscChannel.config as any).raw_account || gscChannel.config, url).catch((error: any) => ({ error: error.message }))
-                    : { error: 'Missing URL reference' };
-                continue;
-            }
-
-            if (metricDef.source === 'linkedin_analytics') {
-                const linkedinTasks = await prisma.contentItem.findMany({
-                    where: {
-                        project_id: task.project_id,
-                        status: 'published',
-                        channel: { type: 'linkedin' }
-                    },
-                    include: { channel: true }
-                });
-
-                results[metricDef.id] = await Promise.all(linkedinTasks.map(async (item) => {
-                    const config: any = item.channel?.config || {};
-                    if (!config.linkedin_urn || !config.access_token || !item.published_link) {
-                        return { task_id: (item.metrics as any)?.task_id || null, error: 'Missing LinkedIn credentials or link.' };
-                    }
-
-                    const metrics = await linkedinService.getMetrics(config.linkedin_urn, config.access_token, item.published_link).catch((error: any) => ({ error: error.message }));
-                    return {
-                        task_id: (item.metrics as any)?.task_id || null,
-                        title: item.title,
-                        metrics
-                    };
-                }));
-                continue;
-            }
-
-            if (metricDef.source === 'reddit') {
-                const redditTasks = await prisma.contentItem.findMany({
-                    where: {
-                        project_id: task.project_id,
-                        status: 'published',
-                        channel: { type: 'reddit' }
-                    }
-                });
-
-                results[metricDef.id] = await Promise.all(redditTasks.map(async (item) => ({
-                    task_id: (item.metrics as any)?.task_id || null,
-                    title: item.title,
-                    metrics: item.published_link
-                        ? await redditService.getPostMetrics(item.published_link).catch((error: any) => ({ error: error.message }))
-                        : { error: 'Missing Reddit permalink.' }
-                })));
-                continue;
-            }
-
-            results[metricDef.id] = { unsupported: true, source: metricDef.source };
-        }
-
-        return results;
+        return operationalTaskActions.executeMeasurementSnapshot(task, plan);
     }
 
     async executeGscHealthAudit(task: any, plan: any) {
-        const projectChannels = await prisma.socialChannel.findMany({
-            where: { project_id: task.project_id }
-        });
-        const gscChannel = projectChannels.find((channel) => channel.type === 'google_search_console') || null;
-        if (!gscChannel) {
-            return { error: 'No Google Search Console channel configured.' };
-        }
-
-        const candidateUrls = Object.values(plan.assets || {})
-            .map((asset: any) => asset?.target_url)
-            .filter((url): url is string => typeof url === 'string' && url.startsWith('https://'));
-
-        const uniqueUrls = Array.from(new Set(candidateUrls));
-        const inspections = await Promise.all(uniqueUrls.map(async (url) => ({
-            url,
-            inspection: await gscService.inspectUrl((gscChannel.config as any).raw_account || gscChannel.config, url).catch((error: any) => ({ error: error.message }))
-        })));
-
-        return {
-            checked_urls: inspections.length,
-            inspections
-        };
+        return operationalTaskActions.executeGscHealthAudit(task, plan);
     }
 
     async executeMediumCanonicalVerification(task: any, plan: any) {
-        const sourceTaskId = (task.assets as any)?.source_task_id;
-        const sourceTask = sourceTaskId
-            ? await prisma.contentItem.findUnique({ where: { id: sourceTaskId } })
-            : null;
-
-        const mediumTask = sourceTask || await prisma.contentItem.findFirst({
-            where: {
-                project_id: task.project_id,
-                type: 'medium:republish_with_canonical',
-                status: 'published'
-            },
-            orderBy: { updated_at: 'desc' }
-        });
-
-        if (!mediumTask?.published_link) {
-            return { error: 'No published Medium task found for canonical verification.' };
-        }
-
-        const response = await fetch(mediumTask.published_link).catch(() => null);
-        if (!response?.ok) {
-            return { error: `Unable to fetch Medium page: ${mediumTask.published_link}` };
-        }
-
-        const html = await response.text();
-        const canonicalMatch = html.match(/<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']/i);
-        const actualCanonical = canonicalMatch?.[1] || null;
-        const expectedCanonical = this.resolvePlanRef(plan, 'assets.article_blog.target_url') as string | null;
-
-        return {
-            medium_url: mediumTask.published_link,
-            expected_canonical: expectedCanonical,
-            actual_canonical: actualCanonical,
-            valid: Boolean(actualCanonical && expectedCanonical && actualCanonical === expectedCanonical)
-        };
+        return operationalTaskActions.executeMediumCanonicalVerification(task, plan);
     }
 
-    async executeInternalLinkCrawl(_task: any, plan: any) {
-        const candidateUrls = Object.values(plan.assets || {})
-            .map((asset: any) => asset?.target_url)
-            .filter((url): url is string => typeof url === 'string' && url.startsWith('https://seturon.com'));
-
-        const uniqueUrls = Array.from(new Set(candidateUrls));
-        const results = await Promise.all(uniqueUrls.map(async (url) => {
-            const response = await fetch(url).catch(() => null);
-            if (!response?.ok) {
-                return { url, ok: false, status: response?.status || null };
-            }
-            const html = await response.text();
-            const internalLinks = Array.from(html.matchAll(/href=["'](https:\/\/seturon\.com[^"']+)["']/g)).map((match) => match[1]);
-            return {
-                url,
-                ok: true,
-                status: response.status,
-                internal_link_count: internalLinks.length
-            };
-        }));
-
-        return {
-            checked_urls: results.length,
-            results
-        };
+    async executeInternalLinkCrawl(task: any, plan: any) {
+        return operationalTaskActions.executeInternalLinkCrawl(task, plan);
     }
 
     async markInternalTaskAsManual(task: any, reason: string) {
-        await prisma.contentItem.update({
-            where: { id: task.id },
-            data: {
-                status: 'awaiting_manual_publication',
-                quality_report: {
-                    ...((task.quality_report as any) || {}),
-                    execution_result: {
-                        mode: 'manual_required',
-                        reason
-                    },
-                    prepared_at: new Date().toISOString()
-                } as any
-            }
-        });
+        return operationalTaskActions.markInternalTaskAsManual(task, reason);
     }
 
-    async createGeneratedPublicationTask(params: {
-        projectId: number;
-        channelId: number | null;
-        type: string;
-        layer: string;
-        title: string;
-        brief: string;
-        scheduleAt?: Date | null;
-        draftText?: string | null;
-        sourceTaskId?: number | null;
-        action: any;
-        accountRef?: string | null;
-        assetRefs?: string[];
-        extraMetrics?: Record<string, any>;
-    }) {
-        return prisma.contentItem.create({
-            data: {
-                project_id: params.projectId,
-                channel_id: params.channelId,
-                type: params.type,
-                layer: params.layer,
-                title: params.title,
-                brief: params.brief,
-                draft_text: params.draftText || null,
-                status: 'planned',
-                schedule_at: params.scheduleAt || null,
-                cross_link_to: params.sourceTaskId ? [params.sourceTaskId] : [],
-                assets: {
-                    source: 'ongoing_rule_generated',
-                    action: params.action,
-                    account_ref: params.accountRef || null,
-                    asset_refs: params.assetRefs || [],
-                    source_task_id: params.sourceTaskId || null
-                } as any,
-                quality_report: {
-                    execution_mode: 'manual',
-                    generated_by_rule: true,
-                    blocking_conditions: params.action?.blocking_conditions || [],
-                    human_review: params.action?.human_review !== false,
-                    human_review_reason: params.action?.human_review_reason || null,
-                    display_name: params.action?.display_name || params.title
-                } as any,
-                metrics: {
-                    rule_generated: true,
-                    task_id: params.action?.id || null,
-                    task_display_name: params.action?.display_name || params.title,
-                    account_ref: params.accountRef || null,
-                    ...(params.extraMetrics || {})
-                } as any
-            }
-        });
+    async createGeneratedPublicationTask(params: any) {
+        return operationalTaskActions.createGeneratedPublicationTask(params);
     }
 
-    async executeBrandRepostRule(task: any, _plan: any) {
-        const sourceTaskId = (task.assets as any)?.source_task_id;
-        const sourceTask = sourceTaskId ? await prisma.contentItem.findUnique({ where: { id: sourceTaskId } }) : null;
-        if (!sourceTask?.published_link) {
-            return { skipped: true, reason: 'Source LinkedIn post is missing or not published yet.' };
-        }
-
-        const sourceAction = (sourceTask.assets as any)?.action || {};
-        const sourceAssets = (sourceTask.assets as any)?.resolved_assets || [];
-        const sourceAngle = sourceAssets.find((assetEntry: any) => assetEntry?.asset?.angle)?.asset?.angle || null;
-        const exclusions = Array.isArray((task.assets as any)?.rule?.exclusions) ? (task.assets as any).rule.exclusions : [];
-        if (exclusions.some((exclusion: any) => exclusion.angle === sourceAngle)) {
-            return { skipped: true, reason: `Source angle \`${sourceAngle}\` is excluded from brand reposts.` };
-        }
-
-        const brandChannel = await prisma.socialChannel.findFirst({
-            where: {
-                project_id: task.project_id,
-                type: 'linkedin',
-                config: {
-                    path: ['raw_account', 'type'],
-                    equals: 'company_page'
-                }
-            }
-        }) || await prisma.socialChannel.findFirst({
-            where: {
-                project_id: task.project_id,
-                type: 'linkedin'
-            }
-        });
-
-        if (!brandChannel) {
-            return { skipped: true, reason: 'No LinkedIn brand page channel is configured.' };
-        }
-
-        const frameTemplate = (task.assets as any)?.rule?.repost_frame_template || 'From our founder: {one_or_two_sentence_relevance_for_creators}';
-        const draftText = `${frameTemplate}\n\nSource post: ${sourceTask.published_link}`;
-        const scheduledAt = new Date(sourceTask.updated_at.getTime() + 2 * 60 * 60 * 1000);
-        const generatedActionId = `rule-repost-${sourceTask.id}`;
-
-        const createdTask = await this.createGeneratedPublicationTask({
-            projectId: task.project_id,
-            channelId: brandChannel.id,
-            type: 'linkedin:repost_with_frame',
-            layer: 'linkedin',
-            title: `LinkedIn Seturon page — Repost founder post: ${sourceTask.title || sourceAction.id || sourceTask.id}`,
-            brief: 'Brand repost generated from founder post per ongoing rule.',
-            scheduleAt: scheduledAt,
-            draftText,
-            sourceTaskId: sourceTask.id,
-            accountRef: brandChannel.name,
-            action: {
-                id: generatedActionId,
-                display_name: `LinkedIn Seturon page — Repost founder post`,
-                channel: 'linkedin',
-                action_type: 'repost_with_frame',
-                account_ref: brandChannel.name,
-                scheduled_date: scheduledAt.toISOString().slice(0, 10),
-                scheduled_time_window: null,
-                human_review: true,
-                human_review_reason: (task.assets as any)?.rule?.human_review_reason || 'Approve brand frame before reposting.',
-                parameters: {
-                    repost_source_url: sourceTask.published_link,
-                    frame_template: frameTemplate
-                },
-                asset_refs: []
-            },
-            extraMetrics: {
-                rule_generated_from_source_task: sourceTask.id
-            }
-        });
-
-        return {
-            created_task_id: createdTask.id,
-            source_task_id: sourceTask.id
-        };
+    async executeBrandRepostRule(task: any, plan: any) {
+        return operationalTaskActions.executeBrandRepostRule(task, plan);
     }
 
     async executeBrandRotationRule(task: any, plan: any) {
-        const rule = (task.assets as any)?.rule || {};
-        const slots = Array.isArray(rule.rotation_slots_in_order) && rule.rotation_slots_in_order.length > 0
-            ? rule.rotation_slots_in_order
-            : ['A', 'B', 'C', 'D'];
-        const stateKey = 'brand_rotation_current_slot';
-        const storedState = await prisma.projectSettings.findUnique({
-            where: {
-                project_id_key: {
-                    project_id: task.project_id,
-                    key: stateKey
-                }
-            }
-        });
-        const currentSlot = storedState?.value || slots[0];
-
-        const assetEntry = Object.entries(plan.assets || {}).find(([, asset]: any) => asset?.rotation_slot === currentSlot);
-        if (!assetEntry) {
-            return { skipped: true, reason: `No asset found for brand rotation slot ${currentSlot}.` };
-        }
-
-        const [assetRef, asset] = assetEntry as [string, any];
-        const brandChannel = await prisma.socialChannel.findFirst({
-            where: {
-                project_id: task.project_id,
-                type: 'linkedin',
-                config: {
-                    path: ['raw_account', 'type'],
-                    equals: 'company_page'
-                }
-            }
-        }) || await prisma.socialChannel.findFirst({
-            where: {
-                project_id: task.project_id,
-                type: 'linkedin'
-            }
-        });
-        if (!brandChannel) {
-            return { skipped: true, reason: 'No LinkedIn brand page channel is configured.' };
-        }
-
-        const existingGenerated = await prisma.contentItem.findFirst({
-            where: {
-                project_id: task.project_id,
-                metrics: {
-                    path: ['rule_generated_rotation_slot'],
-                    equals: currentSlot
-                },
-                status: { in: ['planned', 'ready_for_execution', 'awaiting_manual_publication', 'published'] }
-            }
-        });
-        if (existingGenerated) {
-            return { skipped: true, reason: `A task for rotation slot ${currentSlot} already exists.` };
-        }
-
-        const nextIndex = (slots.indexOf(currentSlot) + 1) % slots.length;
-        const nextSlot = slots[nextIndex] || slots[0];
-        const scheduleAt = task.schedule_at || new Date();
-
-        const createdTask = await this.createGeneratedPublicationTask({
-            projectId: task.project_id,
-            channelId: brandChannel.id,
-            type: 'linkedin:post_with_comment_link',
-            layer: 'linkedin',
-            title: `LinkedIn Seturon page — Rotation slot ${currentSlot}`,
-            brief: `Brand page post draft prepared for rotation slot ${currentSlot}.`,
-            scheduleAt,
-            sourceTaskId: null,
-            accountRef: brandChannel.name,
-            assetRefs: [assetRef],
-            action: {
-                id: `rule-brand-slot-${currentSlot}-${scheduleAt.toISOString().slice(0, 10)}`,
-                display_name: `LinkedIn Seturon page — Rotation slot ${currentSlot}`,
-                channel: 'linkedin',
-                action_type: 'post_with_comment_link',
-                account_ref: brandChannel.name,
-                scheduled_date: scheduleAt.toISOString().slice(0, 10),
-                scheduled_time_window: null,
-                human_review: true,
-                human_review_reason: rule.human_review_reason || 'Approve brand-page post draft before publishing.',
-                parameters: {
-                    post_body_source: asset.section_marker || asset.path,
-                    link_location: 'first_comment_only',
-                    link_url_ref: asset.links_to ? `assets.${asset.links_to}.target_url` : null,
-                    rotation_slot_used: currentSlot,
-                    rotation_slot_next: nextSlot
-                },
-                asset_refs: [assetRef]
-            },
-            extraMetrics: {
-                rule_generated_rotation_slot: currentSlot
-            }
-        });
-
-        await prisma.projectSettings.upsert({
-            where: {
-                project_id_key: {
-                    project_id: task.project_id,
-                    key: stateKey
-                }
-            },
-            update: { value: nextSlot },
-            create: {
-                project_id: task.project_id,
-                key: stateKey,
-                value: nextSlot
-            }
-        });
-
-        return {
-            created_task_id: createdTask.id,
-            used_slot: currentSlot,
-            next_slot: nextSlot
-        };
+        return operationalTaskActions.executeBrandRotationRule(task, plan);
     }
 
     async executeKnowledgeHubRule(task: any, plan: any) {
-        const sourceTaskId = (task.assets as any)?.source_task_id;
-        const sourceTask = sourceTaskId ? await prisma.contentItem.findUnique({ where: { id: sourceTaskId } }) : null;
-        if (!sourceTask) {
-            return { skipped: true, reason: 'Source knowledge task not found.' };
-        }
-
-        const hubAsset = (plan.assets || {}).knowledge_hub_page;
-        if (!hubAsset) {
-            return { skipped: true, reason: 'knowledge_hub_page asset is missing from the plan.' };
-        }
-
-        const tildaChannel = await prisma.socialChannel.findFirst({
-            where: {
-                project_id: task.project_id,
-                type: 'tilda'
-            }
-        });
-        if (!tildaChannel) {
-            return { skipped: true, reason: 'No Tilda channel is configured.' };
-        }
-
-        const sourceAction = (sourceTask.assets as any)?.action || {};
-        const publishedUrl = sourceTask.published_link || this.resolvePlanRef(plan, sourceAction.asset_refs?.[0] ? `assets.${sourceAction.asset_refs[0]}.target_url` : null);
-
-        const createdTask = await this.createGeneratedPublicationTask({
-            projectId: task.project_id,
-            channelId: tildaChannel.id,
-            type: 'tilda:append_article_card_to_knowledge_hub',
-            layer: 'tilda',
-            title: `Tilda — Update knowledge hub after ${sourceTask.title || sourceTask.id}`,
-            brief: 'Append the newly published knowledge article to the /knowledge/ hub page.',
-            scheduleAt: new Date(),
-            sourceTaskId: sourceTask.id,
-            accountRef: tildaChannel.name,
-            assetRefs: ['knowledge_hub_page'],
-            action: {
-                id: `rule-knowledge-hub-${sourceTask.id}`,
-                display_name: `Tilda — Append article card to /knowledge/ hub`,
-                channel: 'tilda',
-                action_type: 'append_article_card_to_knowledge_hub',
-                account_ref: tildaChannel.name,
-                scheduled_date: new Date().toISOString().slice(0, 10),
-                scheduled_time_window: null,
-                human_review: true,
-                human_review_reason: (task.assets as any)?.rule?.human_review_reason || 'Confirm category placement before updating the hub page.',
-                parameters: {
-                    target_asset_ref: 'knowledge_hub_page',
-                    article_url: publishedUrl,
-                    article_title: sourceTask.title
-                },
-                asset_refs: ['knowledge_hub_page']
-            },
-            extraMetrics: {
-                rule_generated_from_source_task: sourceTask.id,
-                target_url: hubAsset.target_url
-            }
-        });
-
-        return {
-            created_task_id: createdTask.id,
-            source_task_id: sourceTask.id
-        };
+        return operationalTaskActions.executeKnowledgeHubRule(task, plan);
     }
+
 
     async processOperationalTasks() {
         let processedCount = 0;

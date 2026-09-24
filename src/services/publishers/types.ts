@@ -89,3 +89,59 @@ export interface TelegramTaskParams {
     imageUrl?: string;
     requestHost?: string;
 }
+
+export interface OngoingRulePlan {
+    projectId: number;
+    meta: Record<string, unknown>;
+    ongoing_rules: Array<Record<string, unknown>>;
+    measurement: {
+        snapshot_days?: number[];
+        metrics?: Array<{
+            id: string;
+            source: string;
+            url_ref?: string;
+            [key: string]: unknown;
+        }>;
+        [key: string]: unknown;
+    };
+}
+
+export interface PublicationPlanContext {
+    meta: Record<string, unknown>;
+    assets: Record<string, {
+        target_url?: string;
+        rotation_slot?: string;
+        section_marker?: string;
+        path?: string;
+        links_to?: string;
+        angle?: string;
+        [key: string]: unknown;
+    }>;
+    accounts: Record<string, unknown>;
+    measurement: Record<string, unknown>;
+    ongoing_rules: Array<Record<string, unknown>>;
+}
+
+export interface TaskWithAssets {
+    id: number;
+    project_id: number;
+    channel_id?: number | null;
+    status: string;
+    type?: string | null;
+    layer?: string | null;
+    title?: string | null;
+    brief?: string | null;
+    schedule_at?: Date | null;
+    updated_at: Date;
+    published_link?: string | null;
+    assets?: Record<string, unknown> | null;
+    quality_report?: Record<string, unknown> | null;
+    metrics?: Record<string, unknown> | null;
+    channel?: {
+        id: number;
+        type: string;
+        name: string;
+        config?: Record<string, unknown> | null;
+    } | null;
+}
+
