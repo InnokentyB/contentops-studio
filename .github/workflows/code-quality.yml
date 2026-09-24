@@ -1,0 +1,42 @@
+name: 🛸 Code Quality & Security Audit
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  audit:
+    name: Code Quality & Security Gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 🔍 Run Automated Code Quality & Security Audit
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          node scripts/audit_code_quality.mjs --github-summary --comment-pr
+
+      # Optional: To fail the build when score is below threshold, uncomment:
+      # - name: 🛑 Quality Gate Assertion
+      #   run: |
+      #     node scripts/audit_code_quality.mjs --fail-under=60
