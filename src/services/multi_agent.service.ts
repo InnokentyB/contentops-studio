@@ -1008,7 +1008,9 @@ ${contentLanguageInstruction(context.content_language === 'en' ? 'en' : 'ru')}`;
                             where: { id: runLogId },
                             data: { final_score: currentScore, total_iterations: iterations }
                         });
-                    } catch (e) { }
+                    } catch (e) {
+                        console.warn('[MultiAgent Post] Failed to update intermediate agent run score:', (e as Error).message);
+                    }
                 }
 
                 if (currentScore >= TARGET_SCORE) {
@@ -1064,7 +1066,9 @@ ${contentLanguageInstruction(context.content_language === 'en' ? 'en' : 'ru')}`;
                             total_iterations: iterations
                         }
                     });
-                } catch (e) { }
+                } catch (e) {
+                    console.warn('[MultiAgent Post] Failed to record fatal error in agent run:', (e as Error).message);
+                }
             }
             throw error;
         }
@@ -1301,7 +1305,9 @@ ${contentLanguageInstruction(context.content_language === 'en' ? 'en' : 'ru')}`;
                     // Handle raw array return by wrapping it
                     currentTopicsJSON = JSON.stringify({ topics: parsed });
                 }
-            } catch (e) { }
+            } catch (e) {
+                console.warn('[MultiAgent Topics] Failed to parse initial topics JSON:', (e as Error).message);
+            }
 
             while (iterations < MAX_ITERATIONS) {
                 iterations++;
@@ -1323,7 +1329,9 @@ ${contentLanguageInstruction(context.content_language === 'en' ? 'en' : 'ru')}`;
                             where: { id: runLogId },
                             data: { final_score: currentScore, total_iterations: iterations }
                         });
-                    } catch (e) { }
+                    } catch (e) {
+                        console.warn('[MultiAgent Topics] Failed to update intermediate agent run score:', (e as Error).message);
+                    }
                 }
 
                 if (currentScore >= TARGET_SCORE) {
@@ -1364,7 +1372,9 @@ ${contentLanguageInstruction(context.content_language === 'en' ? 'en' : 'ru')}`;
                             total_iterations: iterations
                         }
                     });
-                } catch (e) { }
+                } catch (e) {
+                    console.warn('[MultiAgent Topics] Failed to record fatal error in agent run:', (e as Error).message);
+                }
             }
             throw error;
         }

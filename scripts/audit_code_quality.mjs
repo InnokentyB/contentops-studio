@@ -171,7 +171,7 @@ if (activeServerFile) {
   }
 
   // Check for setInterval without concurrency lock
-  if (/setInterval\s*\(\s*async/g.test(serverContent) && !serverContent.includes('isRunning') && !serverContent.includes('isPublishing')) {
+  if (/setInterval\s*\(\s*async/g.test(serverContent) && !serverContent.includes('isSchedulerRunning') && !serverContent.includes('isRunning') && !serverContent.includes('isPublishing')) {
     report.metrics.unprotectedSchedulers++;
     report.metrics.securityIssues.push({
       id: 'UNPROTECTED_ASYNC_SCHEDULER',
@@ -228,7 +228,7 @@ if (fs.existsSync(envExampleFile)) {
     }
   }
 
-  const ignoredVars = new Set(['NODE_ENV', 'PORT', 'PWD', 'PATH']);
+  const ignoredVars = new Set(['NODE_ENV', 'PORT', 'PWD', 'PATH', 'HOME', 'SHELL', 'LANG', 'CI', 'RAILWAY_ENVIRONMENT', 'RAILWAY_PUBLIC_DOMAIN', 'PGOPTIONS']);
   for (const v of usedEnvVars) {
     if (!ignoredVars.has(v) && !envExampleContent.includes(v)) {
       report.metrics.missingEnvVars.push(v);

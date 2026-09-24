@@ -82,8 +82,29 @@ server.addHook('preHandler', async (request, reply) => {
     }
 });
 
+server.register(require('@fastify/helmet'), {
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false
+});
+
+server.register(require('@fastify/rate-limit'), {
+    max: 300,
+    timeWindow: '1 minute'
+});
+
 server.register(require('@fastify/cors'), {
-    origin: true
+    origin: (origin: string | undefined, cb: (err: Error | null, allow: boolean) => void) => {
+        if (!origin || process.env.NODE_ENV !== 'production' || process.env.ALLOW_ALL_ORIGINS === 'true') {
+            cb(null, true);
+            return;
+        }
+        const allowed = [process.env.FRONTEND_URL, process.env.PUBLIC_APP_URL, process.env.APP_URL].filter(Boolean);
+        if (allowed.length === 0 || allowed.includes(origin)) {
+            cb(null, true);
+        } else {
+            cb(null, false);
+        }
+    }
 });
 server.register(require('@fastify/formbody'));
 server.register(require('@fastify/multipart'), {
@@ -178,7 +199,13 @@ const start = async () => {
         if (backgroundJobsEnabled) {
             // Internal Scheduler: Check for due posts every 60 seconds
             console.log('Starting internal scheduler (every 60s)...');
+            let isSchedulerRunning = false;
             setInterval(async () => {
+                if (isSchedulerRunning) {
+                    console.log('[Scheduler] Prior publication cycle still running, skipping interval tick.');
+                    return;
+                }
+                isSchedulerRunning = true;
                 try {
                     const count = await publisherService.publishDuePosts();
                     const createdRuleTasks = await publisherService.processPublicationOngoingRules();
@@ -195,6 +222,8 @@ const start = async () => {
                     if (preparedTasks > 0) console.log(`[Scheduler] Prepared ${preparedTasks} publication tasks.`);
                 } catch (e) {
                     console.error('[Scheduler] Error publishing due posts:', e);
+                } finally {
+                    isSchedulerRunning = false;
                 }
             }, 60000);
 
@@ -209,9 +238,21 @@ const start = async () => {
 
             const metricsService = require('./services/metrics.service').default;
             console.log('Starting metrics collection scheduler (every 12h)...');
+            let isMetricsCollecting = false;
             setInterval(async () => {
-                console.log('[MetricsService] Triggering scheduled metrics collection...');
-                await metricsService.collectAllMetrics();
+                if (isMetricsCollecting) {
+                    console.log('[MetricsService] Prior metrics collection still running, skipping interval tick.');
+                    return;
+                }
+                isMetricsCollecting = true;
+                try {
+                    console.log('[MetricsService] Triggering scheduled metrics collection...');
+                    await metricsService.collectAllMetrics();
+                } catch (e) {
+                    console.error('[MetricsService] Scheduled metrics collection failed:', e);
+                } finally {
+                    isMetricsCollecting = false;
+                }
             }, 43200000);
             setTimeout(() => {
                 console.log('[MetricsService] Running initial post-startup metrics collection check...');
@@ -256,6 +297,16 @@ const start = async () => {
             if (backgroundJobsEnabled) {
                 const { connection } = require('./queue/index');
                 await connection.quit();
+            }
+
+            // 4. Disconnect Prisma & close PostgreSQL connection pool
+            try {
+                const { prisma, pool } = require('./db');
+                await prisma.$disconnect();
+                await pool.end();
+                console.log('[Database] PostgreSQL pool and Prisma client disconnected.');
+            } catch (dbErr) {
+                console.error('[Database] Error closing database connections:', dbErr);
             }
             
             console.log('[Server] Graceful shutdown complete. Exiting.');

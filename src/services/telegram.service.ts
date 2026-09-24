@@ -596,7 +596,9 @@ class TelegramService {
         const projectId = await this.getProjectId(ctx) || 1;
         try {
             await ctx.deleteMessage();
-        } catch (e) { }
+        } catch (e) {
+            console.warn('[Telegram Service] Failed to delete user trigger message:', (e as Error).message);
+        }
 
         const providerName = provider === 'nano' ? 'Nano Banana' : 'GPT-Image';
         const loadingMsg = await ctx.reply(`🎨 (${providerName}) Придумываю промпт и рисую... (это займет около 15-30 сек)`);
@@ -605,7 +607,11 @@ class TelegramService {
             where: { id: postId, project_id: projectId }
         });
         if (!post || !post.generated_text || !post.topic) {
-            try { await ctx.telegram.deleteMessage(ctx.chat?.id!, loadingMsg.message_id); } catch (e) { }
+            try {
+                await ctx.telegram.deleteMessage(ctx.chat?.id!, loadingMsg.message_id);
+            } catch (e) {
+                console.warn('[Telegram Service] Failed to delete loading message:', (e as Error).message);
+            }
             return;
         }
 
@@ -633,7 +639,11 @@ class TelegramService {
             await plannerService.updatePost(postId, { image_url: imageUrl });
 
             // Delete loading message
-            try { await ctx.telegram.deleteMessage(ctx.chat?.id!, loadingMsg.message_id); } catch (e) { }
+            try {
+                await ctx.telegram.deleteMessage(ctx.chat?.id!, loadingMsg.message_id);
+            } catch (e) {
+                console.warn('[Telegram Service] Failed to delete loading message on success:', (e as Error).message);
+            }
 
             // Send preview
             let photoSource: any = imageUrl;
@@ -656,7 +666,11 @@ class TelegramService {
 
         } catch (e: any) {
             console.error('Image Gen Error:', e);
-            try { await ctx.telegram.deleteMessage(ctx.chat?.id!, loadingMsg.message_id); } catch (error) { }
+            try {
+                await ctx.telegram.deleteMessage(ctx.chat?.id!, loadingMsg.message_id);
+            } catch (error) {
+                console.warn('[Telegram Service] Failed to delete loading message on error:', (error as Error).message);
+            }
 
             await ctx.reply(`Ошибка при генерации картинки (${providerName}): ${e.message}`,
                 Markup.inlineKeyboard([
@@ -673,7 +687,9 @@ class TelegramService {
         const projectId = await this.getProjectId(ctx) || 1;
         try {
             await ctx.deleteMessage();
-        } catch (e) { }
+        } catch (e) {
+            console.warn('[Telegram Service] Failed to delete user trigger message in full pipeline:', (e as Error).message);
+        }
 
         let loadingMsg: any = await ctx.reply(`🧠 (Этап 1/3) Анализирую тему и генерирую базовую картинку в GPT-Image...`);
 
@@ -681,7 +697,11 @@ class TelegramService {
             where: { id: postId, project_id: projectId }
         });
         if (!post || !post.generated_text || !post.topic) {
-            try { await ctx.telegram.deleteMessage(ctx.chat?.id!, loadingMsg.message_id); } catch (e) { }
+            try {
+                await ctx.telegram.deleteMessage(ctx.chat?.id!, loadingMsg.message_id);
+            } catch (e) {
+                console.warn('[Telegram Service] Failed to delete loading message:', (e as Error).message);
+            }
             return;
         }
 
@@ -695,7 +715,11 @@ class TelegramService {
             const dalleUrl = await generatorService.generateImage(initialPrompt);
 
             // Show interim GPT-Image result
-            try { await ctx.telegram.deleteMessage(ctx.chat?.id!, loadingMsg.message_id); } catch (e) { }
+            try {
+                await ctx.telegram.deleteMessage(ctx.chat?.id!, loadingMsg.message_id);
+            } catch (e) {
+                console.warn('[Telegram Service] Failed to delete loading message on interim result:', (e as Error).message);
+            }
             loadingMsg = await ctx.replyWithPhoto(dalleUrl, {
                 caption: `🧠 (Этап 2/3) GPT-Image завершил черновик. Критик анализирует его...`
             });
@@ -709,7 +733,11 @@ class TelegramService {
             const feedbackMsg = `📝 **Анализ Критика:**\n\n**Оценка:** ${criticResult.critique || 'N/A'}\n\n**Рекомендации:** ${criticResult.recommendations || 'N/A'}\n\n**Новый промпт:** \`${newPromptToUse}\``;
             await ctx.reply(feedbackMsg, { parse_mode: 'Markdown' });
 
-            try { await ctx.telegram.editMessageCaption(ctx.chat?.id!, loadingMsg.message_id, undefined, '🧠 (Этап 3/3) Nano Banana генерирует финальную версию...'); } catch (e) { }
+            try {
+                await ctx.telegram.editMessageCaption(ctx.chat?.id!, loadingMsg.message_id, undefined, '🧠 (Этап 3/3) Nano Banana генерирует финальную версию...');
+            } catch (e) {
+                console.warn('[Telegram Service] Failed to edit loading message caption:', (e as Error).message);
+            }
 
             // Step 3: Nano Banana generates with reference and new prompt
             if (!newPromptToUse || newPromptToUse.trim() === '') throw new Error("Prompt generation failed, resulting string was empty.");
@@ -739,7 +767,11 @@ class TelegramService {
 
         } catch (e: any) {
             console.error('Image Gen Full Pipeline Error:', e);
-            try { await ctx.reply(`Ошибка полного цикла: ${e.message}`); } catch (error) { }
+            try {
+                await ctx.reply(`Ошибка полного цикла: ${e.message}`);
+            } catch (error) {
+                console.warn('[Telegram Service] Failed to reply error to chat:', (error as Error).message);
+            }
 
             await ctx.reply(`Что будем делать дальше?`,
                 Markup.inlineKeyboard([

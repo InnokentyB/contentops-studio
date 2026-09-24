@@ -96,3 +96,24 @@ export const StrategyChatMessageSchema = z.object({
 
 export type StrategyChatMessageInput = z.infer<typeof StrategyChatMessageSchema>;
 
+/**
+ * Zod validation schema for user registration.
+ */
+export const RegisterSchema = z.object({
+    email: z.string().trim().toLowerCase().email('Invalid email address'),
+    password: z.string().min(8, 'Password must be at least 8 characters long').max(100, 'Password cannot exceed 100 characters'),
+    name: z.string().trim().max(100, 'Name cannot exceed 100 characters').optional()
+});
+
+export type RegisterInput = z.infer<typeof RegisterSchema>;
+
+/**
+ * Zod validation schema for user login.
+ */
+export const LoginSchema = z.object({
+    email: z.string().trim().toLowerCase().email('Invalid email address'),
+    password: z.string().min(1, 'Password is required').max(100, 'Password cannot exceed 100 characters')
+});
+
+export type LoginInput = z.infer<typeof LoginSchema>;
+
