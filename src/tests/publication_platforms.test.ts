@@ -27,6 +27,19 @@ test('Dzen cookie parser reports malformed copied fields before CDP', () => {
         /Invalid cookie name "bad name"/
     );
 });
+
+test('Dzen cookie parser accepts a browser JSON export without duplicating domains', () => {
+    const exported = JSON.stringify([
+        { name: 'dzen_sess_id', value: 'secret', domain: '.dzen.ru', httpOnly: true, secure: true },
+        { name: 'empty-is-valid', value: '', domain: 'dzen.ru', secure: false },
+        { name: 'foreign', value: 'skip', domain: '.example.com', secure: true }
+    ]);
+    assert.deepEqual(parseBrowserCookieHeader(exported, 'dzen.ru'), [
+        { name: 'dzen_sess_id', value: 'secret', domain: '.dzen.ru', path: '/', secure: true },
+        { name: 'empty-is-valid', value: '', domain: 'dzen.ru', path: '/', secure: true }
+    ]);
+    assert.deepEqual(parseBrowserCookieHeader(exported, '.dzen.ru'), []);
+});
 import puppeteerPublisherService from '../services/puppeteer_publisher.service';
 import publicationAdapterService from '../services/publication_adapter.service';
 

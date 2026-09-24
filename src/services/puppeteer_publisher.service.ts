@@ -147,6 +147,36 @@ export function parseBrowserCookieHeader(cookieStr: string, domain: string): Bro
     const cookieAttributeNames = new Set(['domain', 'expires', 'httponly', 'max-age', 'path', 'samesite', 'secure']);
     const cookies: BrowserCookie[] = [];
 
+    if (normalized.startsWith('[')) {
+        let exported: unknown;
+        try {
+            exported = JSON.parse(normalized);
+        } catch {
+            throw new Error('Invalid cookie JSON export. Copy it again from the browser cookie exporter.');
+        }
+        if (!Array.isArray(exported)) throw new Error('Cookie JSON export must be an array.');
+        // prepareDzenPage calls the parser for three legacy header domains. A JSON
+        // export already carries canonical domains, so materialize it only once.
+        if (domain !== 'dzen.ru') return [];
+        const allowedDomains = new Set(['dzen.ru', '.dzen.ru', 'yandex.ru', '.yandex.ru']);
+        for (const candidate of exported) {
+            if (!candidate || typeof candidate !== 'object') continue;
+            const raw = candidate as Record<string, unknown>;
+            const name = typeof raw.name === 'string' ? raw.name.trim() : '';
+            const value = typeof raw.value === 'string' ? raw.value : '';
+            const cookieDomain = typeof raw.domain === 'string' ? raw.domain.trim().toLowerCase() : '';
+            if (!cookieNamePattern.test(name)) throw new Error(`Invalid cookie name "${name}" in JSON export.`);
+            if (!allowedDomains.has(cookieDomain)) continue;
+            if (/[\u0000-\u001F\u007F]/.test(value)) throw new Error(`Invalid value for cookie "${name}" in JSON export.`);
+            if (name.startsWith('__Host-')) {
+                cookies.push({ name, value, url: `https://${cookieDomain.replace(/^\./, '')}/`, path: '/', secure: true });
+            } else {
+                cookies.push({ name, value, domain: cookieDomain, path: '/', secure: true });
+            }
+        }
+        return cookies;
+    }
+
     for (const item of normalized.split(';').map((part) => part.trim()).filter(Boolean)) {
         const index = item.indexOf('=');
         if (index === -1) continue;
@@ -156,7 +186,7 @@ export function parseBrowserCookieHeader(cookieStr: string, domain: string): Bro
         if (!cookieNamePattern.test(name)) {
             throw new Error(`Invalid cookie name "${name}". Copy only the Cookie request-header value from DevTools.`);
         }
-        if (!value || /[\u0000-\u001F\u007F]/.test(value)) {
+        if (/[\u0000-\u001F\u007F]/.test(value)) {
             throw new Error(`Invalid value for cookie "${name}". Copy the Cookie request-header value again.`);
         }
         if (name.startsWith('__Host-')) {
