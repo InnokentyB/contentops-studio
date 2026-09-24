@@ -42,6 +42,10 @@ test('reviewer lease submits a revision-bound result for approval and rejects cr
         const claim = await workQueueService.claimContentReview({ ...base, idempotencyKey: 'claim-944' });
         assert.equal(item.state, 'claimed');
         assert.equal(events.length, 1);
+        const claimReplay = await workQueueService.claimContentReview({ ...base, idempotencyKey: 'claim-944' });
+        assert.equal(claimReplay.lease_token, claim.lease_token);
+        assert.equal(claimReplay.lease_expires_at, claim.lease_expires_at);
+        assert.equal(events.length, 1);
         const submitted = await workQueueService.submitContentReview({
             ...base, leaseToken: claim.lease_token as string,
             result: { recommendation: 'approve', summary: 'Revision checked' },

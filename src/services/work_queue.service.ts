@@ -1517,9 +1517,12 @@ export class WorkQueueService {
                     lease_expires_at: { gte: new Date() }
                 } });
                 const cachedResult = cached as { work_item?: { id?: number }; lease_token?: string };
-                if (lease?.lease_token && cachedResult.work_item?.id === params.workItemId
-                    && cachedResult.lease_token === lease.lease_token) {
-                    return cached as Record<string, unknown>;
+                if (lease?.lease_token && cachedResult.work_item?.id === params.workItemId) {
+                    return {
+                        ...(cached as Record<string, unknown>),
+                        lease_token: lease.lease_token,
+                        lease_expires_at: lease.lease_expires_at!.toISOString()
+                    };
                 }
                 throw new Error('[CONTENT_REVIEW_LEASE_EXPIRED] Idempotent claim has no active lease');
             }
