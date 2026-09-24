@@ -822,7 +822,7 @@ export function registerPlannerTools(server: McpServer) {
             dryRun: z.boolean().optional().describe('Validate and return the exact normalized provider payload without sending.'),
             idempotencyKey: z.string().min(1).max(500).optional().describe('Required for live publication and reused to safely replay a confirmed result.')
         }
-    }, async (args) => asToolResult(await (args.projectId === 10 && args.taskId === 958
+    }, async (args) => asToolResult(await (args.projectId === 10 && [958, 962].includes(args.taskId)
         ? dzenTaskPublicationService.execute(args)
         : args.projectId === 10 && args.taskId === 953
             ? threadsTaskPublicationService.execute(args)
@@ -898,6 +898,14 @@ export function registerPlannerTools(server: McpServer) {
         inputSchema: {
             projectId: z.number().int().positive(), taskId: z.number().int().positive(),
             actorId: z.string(), idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await dzenTaskPublicationService.verifyConnector(args)));
+
+    server.registerTool('ba_verify_dzen_task962_connector', {
+        description: 'Owner-only read-only authenticated editor probe for exact released Dzen task #962; records a 15-minute task-scoped connection proof without enabling the channel globally or publishing.',
+        inputSchema: {
+            projectId: z.number().int().positive(), actorId: z.string(), taskId: z.number().int().positive(),
+            idempotencyKey: z.string().min(1)
         }
     }, async (args) => asToolResult(await dzenTaskPublicationService.verifyConnector(args)));
 

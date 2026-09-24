@@ -4,11 +4,16 @@ import { DzenTaskPublicationService } from '../services/dzen_task_publication.se
 import { isToolAllowedForProfile } from '../mcp/capabilities';
 
 const hash = '78081837cecace18c91c01af0253b21ca502e611b63a016f9d9035567587dfd3';
+const hash962 = '15c9b4a2e874439c4952900002ae5677fc3a6b6e8794dd34a0a4ae5f03dba798';
 const schedule = new Date('2026-09-22T11:00:00.000Z');
 
-function harness(options: { released?: boolean; verified?: boolean; providerError?: boolean } = {}) {
+function harness(options: { released?: boolean; verified?: boolean; providerError?: boolean; taskId?: 958 | 962 } = {}) {
+    const taskId = options.taskId || 958;
+    const taskHash = taskId === 962 ? hash962 : hash;
+    const decisionId = taskId === 962 ? 146 : 147;
+    const verifyCommand = `ba_verify_dzen_task${taskId}_connector`;
     const task: any = {
-        id: 958, project_id: 10, channel_id: 116,
+        id: taskId, project_id: 10, channel_id: 116,
         channel: { type: 'dzen', config: { channel_id: 'dzen-channel', cookies: 'session=test',
             capability_flags: { api_publish: false } } },
         content_revision: 1, accepted_revision: 1, text_state: 'accepted',
@@ -37,32 +42,32 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
                 && event.data.idempotency_key === where.project_id_actor_id_command_idempotency_key.idempotency_key)
                 ? { after_state: events.find(event => event.data.command === where.project_id_actor_id_command_idempotency_key.command
                     && event.data.idempotency_key === where.project_id_actor_id_command_idempotency_key.idempotency_key).data.after_state } : null,
-            findFirst: async ({ where }: any) => where.command === 'ba_verify_dzen_task958_connector'
+            findFirst: async ({ where }: any) => where.command === verifyCommand
                 ? options.verified === false ? null : { after_state: {
-                    task_id: 958, channel_id: 116, body_sha256: hash,
+                    task_id: taskId, channel_id: 116, body_sha256: taskHash,
                     authenticated: true, editor_available: true, checked_at: new Date().toISOString()
                 } }
                 : options.released === false ? null : { after_state: {
-                    task_id: 958, channel_id: 116, content_revision: 1, accepted_revision: 1,
-                    body_sha256: hash, visual_decision_id: 147,
+                    task_id: taskId, channel_id: 116, content_revision: 1, accepted_revision: 1,
+                    body_sha256: taskHash, visual_decision_id: decisionId,
                     schedule_at: schedule.toISOString(), publication_mode: 'owner_released'
                 } },
             create: async (event: any) => { events.push(event); return event; }
         },
         artDirectionDecision: { findFirst: async ({ where }: any) => {
             assert.equal(where.channel, 'analystcraft_dzen');
-            return { id: 147, decision_version: 2 };
+            return { id: decisionId, decision_version: 2 };
         } },
         projectMember: { findFirst: async () => ({ user_id: 2 }), findUnique: async () => ({ role: 'owner' }) },
         project: { findUnique: async () => ({ slug: 'analystcraft-2' }) },
         $transaction: async (fn: any) => fn(db)
     };
     const service = new DzenTaskPublicationService({
-        db, hashBody: () => hash,
+        db, hashBody: () => taskHash,
         dzen: { publishPost: async () => {
             providerCalls += 1;
             if (options.providerError) throw new Error('unknown provider result');
-            return 'https://dzen.ru/b/approved-task958';
+            return `https://dzen.ru/b/approved-task${taskId}`;
         }, testConnection: async () => ({ authenticated: true, editor_available: true,
             editor_url: 'https://dzen.ru/profile/editor/id/dzen-channel' }) },
         facts: { record: async () => { factCalls += 1; return {}; } }
@@ -76,6 +81,20 @@ test('Dzen release tool is publisher-only and delivery rejects missing owner pro
     const h = harness({ released: false });
     await assert.rejects(h.service.execute({ projectId: 10, taskId: 958, dryRun: true }), /OWNER_RELEASE_PROOF_MISMATCH/);
     assert.equal(h.providerCalls, 0);
+});
+
+test('Dzen #962 uses its own release and connector proofs before task-native delivery', async () => {
+    assert.equal(isToolAllowedForProfile('publisher', 'ba_release_approved_dzen_task962'), true);
+    assert.equal(isToolAllowedForProfile('publisher', 'ba_verify_dzen_task962_connector'), true);
+    const h = harness({ taskId: 962 });
+    const dry = await h.service.execute({ projectId: 10, taskId: 962, dryRun: true });
+    assert.equal(dry.route_executable, true);
+    assert.equal(dry.payload_preview.visual_decision_id, 146);
+    const sent = await h.service.execute({ projectId: 10, taskId: 962, idempotencyKey: 'task962-dzen-live-20260924' });
+    assert.equal(sent.published_link, 'https://dzen.ru/b/approved-task962');
+    assert.equal(sent.visual_decision_id, 146);
+    assert.equal(h.providerCalls, 1);
+    assert.equal(h.factCalls, 1);
 });
 
 test('Dzen unverified connector blocks dry-run and live without provider call', async () => {
