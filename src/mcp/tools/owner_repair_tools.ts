@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import ownerPublicationControlsService from '../../services/owner_publication_controls.service';
 import publishedChannelRepairService from '../../services/published_channel_repair.service';
+import workQueueService from '../../services/work_queue.service';
 import { asToolResult } from './common';
 
 /**
@@ -10,6 +11,18 @@ import { asToolResult } from './common';
  * @param server - Target MCP server instance.
  */
 export function registerOwnerRepairTools(server: McpServer): void {
+    server.registerTool('ba_require_publication_visual', {
+        description: 'Owner-only audited CAS for one exact accepted unpublished task: require a visual and create its first revision-bound art-direction work item. Preserves channel binding (including null), copy, schedule, acceptance and publication state; never attaches or publishes.',
+        annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+        inputSchema: {
+            projectId: z.number().int().positive(), actorId: z.string(), taskId: z.number().int().positive(),
+            expectedContentRevision: z.number().int().positive(), expectedAcceptedRevision: z.number().int().positive(),
+            expectedChannelId: z.number().int().positive().nullable(), expectedScheduleAt: z.string().datetime({ offset: true }),
+            expectedVisualMode: z.string(), expectedVisualState: z.string(), expectedVisualPlacement: z.string(),
+            expectedStatus: z.string(), idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await workQueueService.requirePublicationVisual(args)));
+
     server.registerTool('ba_require_c20_publication_visuals', {
         description: 'Project-owner atomic repair of visual_mode=required for exactly six unpublished C20 channel-111 tasks. No content, art decision, schedule or publication change.',
         inputSchema: {

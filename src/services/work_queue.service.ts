@@ -6,7 +6,7 @@ import { assertContentReviewInput } from './content_review_gate';
 import { WorkQueueScope, DbClient } from './work_queue/types';
 import { requireProjectAccess, assertProjectAccess as _assertProjectAccess, requireProjectOwner, bindServiceIdentity, unbindServiceIdentity, listServiceBindings } from './work_queue/auth';
 import { checkIdempotency, recordWorkflowEvent } from './work_queue/infrastructure';
-import { recoverArtDirectionInput, repairPublicationPlacement, repairPublicationProjection, recoverMissingContentReview, recoverContentReview } from './work_queue/recovery_operations';
+import { recoverArtDirectionInput, requirePublicationVisual, repairPublicationPlacement, repairPublicationProjection, recoverMissingContentReview, recoverContentReview } from './work_queue/recovery_operations';
 import { claimWorkItem, completeWorkItem, blockWorkItem, releaseWorkItem, rescheduleWorkItem } from './work_queue/lifecycle_operations';
 import { listWorkItems, getWorkItem, getWorkItemContext, listScheduleExceptions, getWeekExecutionSummary } from './work_queue/query_operations';
 
@@ -20,6 +20,8 @@ export class WorkQueueService {
     // ── Recovery Operations ─────────────────────────────────────────────
     /** @see recoverArtDirectionInput in recovery_operations.ts */
     recoverArtDirectionInput = recoverArtDirectionInput;
+    /** @see requirePublicationVisual in recovery_operations.ts */
+    requirePublicationVisual = requirePublicationVisual;
     /** @see repairPublicationPlacement in recovery_operations.ts */
     repairPublicationPlacement = repairPublicationPlacement;
     /** @see repairPublicationProjection in recovery_operations.ts */

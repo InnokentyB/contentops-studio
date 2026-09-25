@@ -153,6 +153,79 @@ export async function recoverArtDirectionInput(params: {
 }
 
 /**
+ * Requires visual production for an exact accepted, unpublished task and creates
+ * the first revision-bound art-direction input. It does not bind a channel,
+ * alter copy/schedule, attach an asset, or grant publication authority.
+ */
+export async function requirePublicationVisual(params: {
+    projectId: number; actorId: string; taskId: number;
+    expectedContentRevision: number; expectedAcceptedRevision: number;
+    expectedChannelId: number | null; expectedScheduleAt: string;
+    expectedVisualMode: string; expectedVisualState: string;
+    expectedVisualPlacement: string; expectedStatus: string; idempotencyKey: string;
+}, database: typeof prisma = prisma): Promise<Record<string, unknown>> {
+    return database.$transaction(async (tx) => {
+        await requireProjectOwner(tx, params.projectId, params.actorId);
+        const command = 'ba_require_publication_visual';
+        const cached = await checkIdempotency(tx, { projectId: params.projectId, actorId: params.actorId,
+            command, idempotencyKey: params.idempotencyKey });
+        if (cached) return cached as Record<string, unknown>;
+        const task = await tx.contentItem.findFirst({
+            where: { id: params.taskId, project_id: params.projectId }, include: { publication_fact: true }
+        });
+        if (!task || task.channel_id !== params.expectedChannelId
+            || task.content_revision !== params.expectedContentRevision
+            || task.accepted_revision !== params.expectedAcceptedRevision
+            || task.content_revision !== task.accepted_revision || task.text_state !== 'accepted'
+            || task.status !== params.expectedStatus || ['published', 'removed', 'cancelled'].includes(task.status)
+            || task.visual_mode !== params.expectedVisualMode || task.visual_state !== params.expectedVisualState
+            || task.visual_placement !== params.expectedVisualPlacement || task.selected_asset_id !== null
+            || task.schedule_at?.toISOString() !== params.expectedScheduleAt
+            || task.publication_fact || task.published_link) {
+            throw new Error('[VISUAL_REQUIREMENT_TASK_CONFLICT] Exact accepted unpublished task guards are required');
+        }
+        const [decision, existingInput] = await Promise.all([
+            tx.artDirectionDecision.findFirst({ where: { project_id: params.projectId,
+                content_item_id: task.id, source_content_revision: params.expectedContentRevision } }),
+            tx.workItem.findFirst({ where: { project_id: params.projectId, content_item_id: task.id,
+                kind: 'art_direction', input_context_version: params.expectedContentRevision } })
+        ]);
+        if (decision || existingInput) throw new Error('[VISUAL_REQUIREMENT_ALREADY_MATERIALIZED] Existing visual workflow requires reconciliation');
+        const changed = await tx.contentItem.updateMany({ where: {
+            id: task.id, project_id: params.projectId, channel_id: params.expectedChannelId,
+            content_revision: params.expectedContentRevision, accepted_revision: params.expectedAcceptedRevision,
+            status: params.expectedStatus, text_state: 'accepted', visual_mode: params.expectedVisualMode,
+            visual_state: params.expectedVisualState, visual_placement: params.expectedVisualPlacement,
+            selected_asset_id: null, schedule_at: new Date(params.expectedScheduleAt)
+        }, data: { visual_mode: 'required', visual_state: 'PENDING_ASSESSMENT', handoff_state: 'blocked' } });
+        if (changed.count !== 1) throw new Error('[VISUAL_REQUIREMENT_CAS_CONFLICT] Task changed concurrently');
+        const dedupeKey = `art-direction:${task.id}:${params.expectedContentRevision}:${params.expectedVisualPlacement}:owner-required`;
+        const workItem = await tx.workItem.create({ data: {
+            project_id: params.projectId, week_package_id: task.week_package_id,
+            content_item_id: task.id, item_key: task.item_key || `content:${task.id}`,
+            kind: 'art_direction', state: 'available', assignee_role: 'art_director',
+            input_context_version: params.expectedContentRevision, result_version: 0,
+            dedupe_key: dedupeKey,
+            note: `Owner requires a visual for accepted revision ${params.expectedContentRevision}; assess placement ${params.expectedVisualPlacement}`,
+            result_payload: { recovery_kind: 'owner_visual_requirement', channel_id: params.expectedChannelId,
+                placement: params.expectedVisualPlacement }
+        } });
+        const result = { task_id: task.id, content_revision: task.content_revision,
+            accepted_revision: task.accepted_revision, channel_id: task.channel_id,
+            schedule_at: params.expectedScheduleAt, visual_mode: 'required', visual_state: 'PENDING_ASSESSMENT',
+            handoff_state: 'blocked', art_direction_work_item_id: workItem.id,
+            art_direction_state: workItem.state, input_context_version: workItem.input_context_version,
+            selected_asset_id: null, published: false };
+        await recordWorkflowEvent(tx, { projectId: params.projectId, workItemId: workItem.id,
+            weekPackageId: task.week_package_id || undefined, contentItemId: task.id, actorId: params.actorId,
+            command, idempotencyKey: params.idempotencyKey,
+            beforeState: { visual_mode: task.visual_mode, visual_state: task.visual_state,
+                selected_asset_id: task.selected_asset_id }, afterState: result });
+        return result;
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+}
+
+/**
  * Repairs a publication placement mismatch by re-binding channel/placement
  * and creating a fresh art_direction work item for the corrected contract.
  */
