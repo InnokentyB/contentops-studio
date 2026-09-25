@@ -23,6 +23,19 @@ export interface RecordPublicationFactArgs {
 
 const PERMALINK_KINDS = new Set<ArtifactKind>(['post', 'article', 'comment']);
 
+export function publicationFactChannelPolicy(item: {
+    channel_id?: number | null; content_revision?: number | null; accepted_revision?: number | null;
+    text_state?: string | null; status?: string | null;
+} & Record<string, unknown>) {
+    if (item.channel_id) return { channel_id: item.channel_id, create_metric_checkpoints: true };
+    const accepted = item.content_revision !== null
+        && item.content_revision === item.accepted_revision && item.text_state === 'accepted';
+    if (!accepted || ['published', 'removed', 'cancelled'].includes(String(item.status || ''))) {
+        throw new Error('PUBLICATION_FACT_TASK_NOT_ELIGIBLE');
+    }
+    return { channel_id: null, create_metric_checkpoints: false };
+}
+
 function validDate(value?: string | null) {
     if (!value) return null;
     const date = new Date(value);
@@ -103,12 +116,13 @@ export class PublicationFactService {
                 where: { id: args.taskId, project_id: args.projectId },
                 include: { channel: true, publication_fact: true }
             });
-            if (!item || !item.channel_id) throw new Error('PUBLICATION_TASK_NOT_FOUND');
+            if (!item) throw new Error('PUBLICATION_TASK_NOT_FOUND');
+            const channelPolicy = publicationFactChannelPolicy(item);
 
             const nextData = {
                 project_id: args.projectId,
                 content_item_id: item.id,
-                channel_id: item.channel_id,
+                channel_id: channelPolicy.channel_id,
                 artifact_kind: args.artifactKind,
                 outcome: args.outcome,
                 published_at: publishedAt,
@@ -176,7 +190,7 @@ export class PublicationFactService {
 
             let createdCheckpoints = 0;
             let createdMetricWorkItems = 0;
-            if (args.outcome === 'published' && publishedAt) {
+            if (args.outcome === 'published' && publishedAt && channelPolicy.create_metric_checkpoints && item.channel_id) {
                 const checkpoints = [
                     { checkpoint: 't24h', hours: args.artifactKind === 'story' ? 23 : 24 },
                     { checkpoint: 't7d', hours: 24 * 7 }
