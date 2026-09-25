@@ -4,6 +4,7 @@ import authService from '../../services/auth.service';
 import dzenService from '../../services/dzen.service';
 import vkOAuthService from '../../services/vk_oauth.service';
 import threadsService from '../../services/threads.service';
+import { prepareDraftDzenConnectionCheck } from '../../services/dzen_connection_check';
 import storageService from '../../services/storage.service';
 import generatorService from '../../services/generator.service';
 import workQueueService from '../../services/work_queue.service';
@@ -213,15 +214,15 @@ export default async function projectChannelsRoutes(fastify: FastifyInstance) {
             const unsavedConfig = requestedConfig && typeof requestedConfig === 'object'
                 ? requestedConfig
                 : {};
-            const cookies = typeof unsavedConfig.cookies === 'string' && unsavedConfig.cookies.trim() !== '' && unsavedConfig.cookies !== '******'
-                ? unsavedConfig.cookies.trim()
-                : savedConfig.cookies;
-            const result = await dzenService.testConnection({
-                ...savedConfig,
-                ...unsavedConfig,
-                cookies
-            });
-            return { success: true, result };
+            const check = prepareDraftDzenConnectionCheck(savedConfig, unsavedConfig);
+            const result = await dzenService.testConnection(check.config);
+            return {
+                success: true,
+                result,
+                persisted: check.persisted,
+                credential_source: check.credential_source,
+                input_format: check.input_format
+            };
         } catch (error: unknown) {
             const err = error as Error;
             const channelName = channel.type === 'vk' ? 'VK' : channel.type === 'threads' ? 'Threads' : 'Dzen';

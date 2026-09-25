@@ -1,4 +1,6 @@
 # Strategic Planner Environment Constraints
 
+The repository-wide contract in `../AGENTS.md` and `rules/code-quality-defaults.md` also apply.
+
 - **Execution Context:** The strategic planner tool runs inside a Docker container with the root directory `/app` and does not have access to the local host's project files.
 - **Content Files & Paths:** Because of this container isolation, referencing local file paths in `content_files` will hang/timeout. Always pass inline content/bodies in `assets` OR specify HTTP/HTTPS URLs (e.g. Supabase, S3, GitHub raw links) in `url` / `target_url`, which are automatically pre-fetched by the planner.

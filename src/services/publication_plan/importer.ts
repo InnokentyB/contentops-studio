@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import { Prisma } from '@prisma/client';
 import prisma from '../../db';
 import { PublicationPlan, PublicationPlanImportMode } from './types';
 import {
@@ -436,7 +437,7 @@ export async function importPlan(params: {
                         project_id: project.id,
                         type: account.platform as string,
                         name: accountRef,
-                        config: channelConfig
+                        config: channelConfig as Prisma.InputJsonObject
                     }
                 });
             })

@@ -17,16 +17,17 @@ export type PublicationAccount = Record<string, unknown>;
 
 class PublicationAdapterService {
     supportsDirectExecution(account: PublicationAccount) {
-        if (account.platform === 'vk') {
+        const platform = String(account.platform || '').toLowerCase();
+        if (platform === 'vk') {
             return Boolean(
                 account.vk_id
                 && (account.publish_access_token || account.api_key)
             );
         }
-        if (['zen', 'zen_article', 'dzen'].includes(account.platform)) {
+        if (['zen', 'zen_article', 'dzen'].includes(platform)) {
             return Boolean(account.cookies || account.cookies_encrypted);
         }
-        return ['telegram', 'vk', 'linkedin', 'reddit', 'tilda', 'ok', 'odnoklassniki', 'habr', 'habr_article', 'vc', 'vc_article', 'threads'].includes(account.platform);
+        return ['telegram', 'vk', 'linkedin', 'reddit', 'tilda', 'ok', 'odnoklassniki', 'habr', 'habr_article', 'vc', 'vc_article', 'threads'].includes(platform);
     }
 
     prefersAutomaticExecution(account: PublicationAccount) {
@@ -58,7 +59,7 @@ class PublicationAdapterService {
             return 'automated';
         }
 
-        if (['reddit', 'telegram', 'vk', 'linkedin', 'ok', 'odnoklassniki', 'habr', 'habr_article', 'vc', 'vc_article', 'zen', 'zen_article', 'dzen', 'threads'].includes(account.platform)) {
+        if (['reddit', 'telegram', 'vk', 'linkedin', 'ok', 'odnoklassniki', 'habr', 'habr_article', 'vc', 'vc_article', 'zen', 'zen_article', 'dzen', 'threads'].includes(String(account.platform || '').toLowerCase())) {
             return action.human_review ? 'manual' : 'automated';
         }
 

@@ -36,6 +36,9 @@ jobs:
         run: |
           node scripts/audit_code_quality.mjs --github-summary --comment-pr
 
+      - name: 🛑 Enforce no-regression and operational safety contracts
+        run: npm run quality:gate
+
       # Optional: To fail the build when score is below threshold, uncomment:
       # - name: 🛑 Quality Gate Assertion
       #   run: |
