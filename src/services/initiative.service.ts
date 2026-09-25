@@ -1,84 +1,50 @@
 import { Prisma } from '@prisma/client';
-import { createHash } from 'crypto';
 import prisma from '../db';
 import { assertMaterializationPreservesApproval } from './publication_approval_guard';
+import {
+    InitiativeKind,
+    DependencyType,
+    DependencyConfirmationState,
+    DependencyConfirmationInput,
+    ExternalOperationalPlan
+} from './initiatives/types';
+import {
+    validateDependencyConfirmation,
+    validateCalendarRange,
+    stableJson,
+    requestHash
+} from './initiatives/validation';
+import {
+    publicationTaskView,
+    fetchOperationalCalendar
+} from './initiatives/operational_calendar';
 
-export type InitiativeKind = 'publication' | 'event' | 'campaign' | 'infrastructure';
-export type DependencyType = 'blocks' | 'requires' | 'not_before' | 'informs';
-export type DependencyConfirmationState = 'none' | 'confirmed';
-
-type DependencyConfirmationInput = {
-    type: string;
-    sourceStatus: string;
-    sourceKey: string;
+export {
+    InitiativeKind,
+    DependencyType,
+    DependencyConfirmationState,
+    validateDependencyConfirmation
 };
 
-export function validateDependencyConfirmation(
-    state: DependencyConfirmationState,
-    incomingDependencies: DependencyConfirmationInput[]
-) {
-    const releaseDependencyTypes = new Set(['blocks', 'requires', 'not_before']);
-    const releaseDependencies = incomingDependencies.filter(dep => releaseDependencyTypes.has(dep.type));
-    const unresolvedReleaseDependencies = releaseDependencies.filter(dep => dep.sourceStatus !== 'completed');
-
-    if (state === 'none' && unresolvedReleaseDependencies.length > 0) {
-        const dependencyKeys = unresolvedReleaseDependencies.map(dep => dep.sourceKey).sort();
-        throw new Error(`[DEPENDENCIES_PRESENT] Cannot declare no dependencies while unresolved release dependencies exist: ${dependencyKeys.join(', ')}`);
-    }
-    if (state === 'confirmed' && releaseDependencies.length === 0) {
-        throw new Error('[DEPENDENCIES_ABSENT] Use state=none when the initiative has no release dependency links');
-    }
-
-    return {
-        releaseDependencyCount: releaseDependencies.length,
-        unresolvedReleaseDependencyCount: unresolvedReleaseDependencies.length
-    };
-}
 
 export class InitiativeService {
     private publicationTaskView(workItems: Array<{ content_item: any }>): Record<string, unknown> | null {
-        const task = workItems.find(item => item.content_item)?.content_item;
-        if (!task) return null;
-        return {
-            id: task.id,
-            status: task.status,
-            mode: task.publication_mode || 'manual_handoff',
-            has_draft: Boolean(task.draft_text?.trim()),
-            published_link: task.published_link || null,
-            channel_id: task.channel_id || null,
-            workspace_path: `/publication-tasks?taskId=${task.id}`
-        };
+        return publicationTaskView(workItems);
     }
 
-    private validateCalendarRange(fromDate: string, toDate: string): { from: Date; to: Date } {
-        const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-        if (!datePattern.test(fromDate) || !datePattern.test(toDate)) {
-            throw new Error('[INVALID_DATE_RANGE] fromDate and toDate must use YYYY-MM-DD');
-        }
 
-        const from = new Date(`${fromDate}T00:00:00.000Z`);
-        const to = new Date(`${toDate}T23:59:59.999Z`);
-        if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || fromDate > toDate) {
-            throw new Error('[INVALID_DATE_RANGE] fromDate must be on or before toDate');
-        }
-        return { from, to };
+    private validateCalendarRange(fromDate: string, toDate: string): { from: Date; to: Date } {
+        return validateCalendarRange(fromDate, toDate);
     }
 
     private stableJson(value: unknown): string {
-        if (value === undefined) return 'null';
-        if (Array.isArray(value)) return `[${value.map(item => this.stableJson(item)).join(',')}]`;
-        if (value && typeof value === 'object') {
-            return `{${Object.entries(value as Record<string, unknown>)
-                .sort(([left], [right]) => left.localeCompare(right))
-                .map(([key, item]) => `${JSON.stringify(key)}:${this.stableJson(item)}`)
-                .join(',')}}`;
-        }
-        return JSON.stringify(value);
+        return stableJson(value);
     }
 
     private requestHash(value: unknown): string {
-        return createHash('sha256').update(this.stableJson(value)).digest('hex');
+        return requestHash(value);
     }
+
 
     /**
      * Security check verifying actor project access.
@@ -959,45 +925,9 @@ export class InitiativeService {
         toDate: string;
     }): Promise<{ items: Record<string, unknown>[] }> {
         await this.requireProjectAccess(prisma, params.projectId, params.actorId);
-
-        const { from, to } = this.validateCalendarRange(params.fromDate, params.toDate);
-
-        const initiatives = await prisma.initiative.findMany({
-            where: { project_id: params.projectId },
-            include: { work_items: { where: { content_item_id: { not: null } }, include: { content_item: true } } },
-            orderBy: { id: 'asc' }
-        });
-
-        const items: Record<string, unknown>[] = [];
-
-        for (const item of initiatives) {
-            let dateVal: Date | null = null;
-            let dateType = 'due_at';
-
-            if (item.due_at) { dateVal = item.due_at; dateType = 'due_at'; }
-            else if (item.start_at) { dateVal = item.start_at; dateType = 'start_at'; }
-            else if (item.event_at) { dateVal = item.event_at; dateType = 'event_at'; }
-            else if (item.decision_at) { dateVal = item.decision_at; dateType = 'decision_at'; }
-            else if (item.end_at) { dateVal = item.end_at; dateType = 'end_at'; }
-            else if (item.measurement_at) { dateVal = item.measurement_at; dateType = 'measurement_at'; }
-
-            if (dateVal && dateVal.getTime() >= from.getTime() && dateVal.getTime() <= to.getTime()) {
-                items.push({
-                    id: item.id,
-                    external_key: item.external_key,
-                    kind: item.kind,
-                    subtype: item.subtype,
-                    title: item.title,
-                    status: item.status,
-                    date_type: dateType,
-                    date: dateVal.toISOString(),
-                    publication_task: this.publicationTaskView(item.work_items)
-                });
-            }
-        }
-
-        return { items };
+        return fetchOperationalCalendar(params);
     }
+
 
     /**
      * Returns the agent-facing operational view used by MCP and HTTP consumers.

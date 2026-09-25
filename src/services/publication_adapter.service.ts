@@ -1,4 +1,4 @@
-type PublicationAction = {
+export type PublicationAction = {
     id: string;
     channel: string;
     action_type: string;
@@ -13,7 +13,7 @@ type PublicationAction = {
     } | null;
 };
 
-type PublicationAccount = Record<string, any>;
+export type PublicationAccount = Record<string, unknown>;
 
 class PublicationAdapterService {
     supportsDirectExecution(account: PublicationAccount) {

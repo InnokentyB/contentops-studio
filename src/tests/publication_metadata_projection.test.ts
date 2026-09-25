@@ -50,11 +50,11 @@ test('repairs stale story action, handoff and metrics from the canonical channel
 });
 
 test('owner-only projection recovery is guarded, audited and does not mutate content or visual records', () => {
-    const queueService = readFileSync(resolve(process.cwd(), 'src/services/work_queue.service.ts'), 'utf8');
+    const queueRecovery = readFileSync(resolve(process.cwd(), 'src/services/work_queue/recovery_operations.ts'), 'utf8');
     const mcpServer = readFileSync(resolve(process.cwd(), 'src/mcp/shared.ts'), 'utf8');
-    const repairMethod = queueService.slice(
-        queueService.indexOf('async repairPublicationProjection'),
-        queueService.indexOf('async recoverMissingContentReview')
+    const repairMethod = queueRecovery.slice(
+        queueRecovery.indexOf('export async function repairPublicationProjection'),
+        queueRecovery.indexOf('export async function recoverMissingContentReview')
     );
 
     assert.ok(repairMethod.length > 0);

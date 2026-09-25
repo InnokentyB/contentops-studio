@@ -1,0 +1,253 @@
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { z } from 'zod';
+import mcpPublicationService from '../../services/mcp_publication.service';
+import { asToolResult } from './common';
+
+/**
+ * Registers project, user, and publication plan MCP tools.
+ *
+ * @param server - Target MCP server instance.
+ */
+export function registerProjectPlanTools(server: McpServer): void {
+    server.registerTool('ba_get_publication_plan_format', {
+        description: 'Return the preferred machine-readable publication-plan contract for chat/MCP authoring.',
+        annotations: {
+            readOnlyHint: true
+        },
+        inputSchema: {}
+    }, async () => {
+        const format = mcpPublicationService.getPublicationPlanFormat();
+        return asToolResult({ format });
+    });
+
+    server.registerTool('ba_get_publication_plan_template', {
+        description: 'Return a ready-to-fill publication-plan JSON template for chat-based authoring.',
+        annotations: {
+            readOnlyHint: true
+        },
+        inputSchema: {
+            planId: z.string().optional(),
+            projectName: z.string().optional(),
+            owner: z.string().optional(),
+            timezone: z.string().optional(),
+            channelRef: z.string().optional(),
+            channelPlatform: z.string().optional()
+        }
+    }, async (input) => {
+        const template = mcpPublicationService.getPublicationPlanTemplate(input);
+        return asToolResult({ template });
+    });
+
+    server.registerTool('ba_normalize_publication_plan_json', {
+        description: 'Validate and normalize a publication-plan JSON payload produced by chat before import.',
+        inputSchema: {
+            planJson: z.string().min(2)
+        }
+    }, async ({ planJson }) => {
+        const result = mcpPublicationService.normalizePublicationPlan(planJson);
+        return asToolResult(result);
+    });
+
+    server.registerTool('ba_list_users', {
+        description: 'List planner users with their IDs and linked umbrella projects.',
+        annotations: {
+            readOnlyHint: true
+        },
+        inputSchema: {
+            includeArchivedProjects: z.boolean().optional()
+        }
+    }, async ({ includeArchivedProjects }) => {
+        const users = await mcpPublicationService.listUsers({ includeArchivedProjects });
+        return asToolResult({ users });
+    });
+
+    server.registerTool('ba_get_user', {
+        description: 'Fetch one planner user by ID, including linked projects and roles.',
+        annotations: {
+            readOnlyHint: true
+        },
+        inputSchema: {
+            userId: z.number().int().positive(),
+            includeArchivedProjects: z.boolean().optional()
+        }
+    }, async ({ userId, includeArchivedProjects }) => {
+        const user = await mcpPublicationService.getUser(userId, { includeArchivedProjects });
+        return asToolResult({ user });
+    });
+
+    server.registerTool('ba_list_projects', {
+        description: 'List planner projects that can be used for publication workflows.',
+        annotations: {
+            readOnlyHint: true
+        },
+        inputSchema: {
+            userId: z.number().int().positive().optional(),
+            includeArchived: z.boolean().optional()
+        }
+    }, async ({ userId, includeArchived }) => {
+        const projects = await mcpPublicationService.listProjects({ userId, includeArchived });
+        return asToolResult({ projects });
+    });
+
+    server.registerTool('ba_create_project', {
+        description: 'Create a new umbrella project that can hold multiple channels, content items, parser results, and publication tasks.',
+        inputSchema: {
+            userId: z.number().int().positive(),
+            name: z.string().min(1),
+            slug: z.string().optional(),
+            description: z.string().optional(),
+            kind: z.string().optional().describe('Optional project kind. Defaults to content_network.')
+        }
+    }, async ({ userId, name, slug, description, kind }) => {
+        const result = await mcpPublicationService.createProject({ userId, name, slug, description, kind });
+        return asToolResult(result);
+    });
+
+    server.registerTool('ba_update_project', {
+        description: 'Update umbrella project metadata such as name, slug, description, or kind.',
+        inputSchema: {
+            userId: z.number().int().positive(),
+            projectId: z.number().int().positive(),
+            name: z.string().optional(),
+            slug: z.string().optional(),
+            description: z.string().nullable().optional(),
+            kind: z.string().optional()
+        }
+    }, async ({ userId, projectId, name, slug, description, kind }) => {
+        const result = await mcpPublicationService.updateProject({ userId, projectId, name, slug, description, kind });
+        return asToolResult(result);
+    });
+
+    server.registerTool('ba_archive_project', {
+        description: 'Archive or unarchive a project while keeping its channels and content network intact.',
+        inputSchema: {
+            userId: z.number().int().positive(),
+            projectId: z.number().int().positive(),
+            archived: z.boolean().optional().describe('Defaults to true. Pass false to unarchive a project.')
+        }
+    }, async ({ userId, projectId, archived }) => {
+        const result = await mcpPublicationService.archiveProject({ userId, projectId, archived });
+        return asToolResult(result);
+    });
+
+    server.registerTool('ba_import_publication_plan_json', {
+        description: 'Import a publication plan JSON payload into the planner. Default mode is delta_safe: add/update only the incoming delta and preserve existing runtime content. Use full_sync only when you explicitly want missing imported tasks to be removed.',
+        inputSchema: {
+            userId: z.number().int().positive().describe('Owner user ID used for project membership when a new project is created.'),
+            planJson: z.string().min(2).describe('Full publication plan JSON string with meta.plan_id, accounts, assets, and actions[].'),
+            workspaceRoots: z.array(z.string()).optional().describe('Optional local workspace roots where referenced content files can be resolved during import.'),
+            importMode: z.enum(['delta_safe', 'full_sync']).optional().describe('delta_safe preserves existing tasks/assets and only applies the incoming delta. full_sync also deletes missing imported tasks.')
+        }
+    }, async ({ userId, planJson, workspaceRoots, importMode }) => {
+        const result = await mcpPublicationService.importPublicationPlanJson(planJson, userId, workspaceRoots, importMode || 'delta_safe');
+        return asToolResult(result);
+    });
+
+    server.registerTool('ba_import_publication_plan_delta_json', {
+        description: 'Safely import only the incoming publication-plan delta from a JSON payload. Existing tasks stay in place, missing tasks are not removed, and published/completed runtime content is preserved.',
+        inputSchema: {
+            userId: z.number().int().positive().describe('Owner user ID used for project membership when a new project is created.'),
+            planJson: z.string().min(2).describe('Partial or full publication plan JSON string with meta.plan_id, accounts, assets, and actions[].'),
+            workspaceRoots: z.array(z.string()).optional().describe('Optional local workspace roots where referenced content files can be resolved during import.')
+        }
+    }, async ({ userId, planJson, workspaceRoots }) => {
+        const result = await mcpPublicationService.importPublicationPlanJson(planJson, userId, workspaceRoots, 'delta_safe');
+        return asToolResult(result);
+    });
+
+    server.registerTool('ba_import_publication_plan_file', {
+        description: 'Import a publication plan from a local JSON file path. Default mode is delta_safe: add/update only the incoming delta and preserve existing runtime content. Use full_sync only when you explicitly want missing imported tasks to be removed.',
+        inputSchema: {
+            userId: z.number().int().positive().describe('Owner user ID used for project membership when a new project is created.'),
+            planPath: z.string().min(1).describe('Absolute or local filesystem path to a publication plan JSON file.'),
+            workspaceRoots: z.array(z.string()).optional().describe('Optional local workspace roots where referenced content files can be resolved during import.'),
+            importMode: z.enum(['delta_safe', 'full_sync']).optional().describe('delta_safe preserves existing tasks/assets and only applies the incoming delta. full_sync also deletes missing imported tasks.')
+        }
+    }, async ({ userId, planPath, workspaceRoots, importMode }) => {
+        const result = await mcpPublicationService.importPublicationPlanFile(planPath, userId, workspaceRoots, importMode || 'delta_safe');
+        return asToolResult(result);
+    });
+
+    server.registerTool('ba_import_publication_plan_delta_file', {
+        description: 'Safely import only the incoming publication-plan delta from a local JSON file. Existing tasks stay in place, missing tasks are not removed, and published/completed runtime content is preserved.',
+        inputSchema: {
+            userId: z.number().int().positive().describe('Owner user ID used for project membership when a new project is created.'),
+            planPath: z.string().min(1).describe('Absolute or local filesystem path to a publication plan JSON file.'),
+            workspaceRoots: z.array(z.string()).optional().describe('Optional local workspace roots where referenced content files can be resolved during import.')
+        }
+    }, async ({ userId, planPath, workspaceRoots }) => {
+        const result = await mcpPublicationService.importPublicationPlanFile(planPath, userId, workspaceRoots, 'delta_safe');
+        return asToolResult(result);
+    });
+
+    server.registerTool('ba_list_publication_plan_assets', {
+        description: 'List file-backed assets from an imported publication plan for a project.',
+        annotations: {
+            readOnlyHint: true
+        },
+        inputSchema: {
+            projectId: z.number().int().positive()
+        }
+    }, async ({ projectId }) => {
+        const result = await mcpPublicationService.listPublicationPlanAssets(projectId);
+        return asToolResult(result);
+    });
+
+    server.registerTool('ba_read_publication_plan_asset', {
+        description: 'Read the content of a file-backed asset from an imported publication plan.',
+        annotations: {
+            readOnlyHint: true
+        },
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            assetRef: z.string().min(1),
+            maxChars: z.number().int().positive().optional().describe('Optional maximum characters to return, default 20000.')
+        }
+    }, async ({ projectId, assetRef, maxChars }) => {
+        const result = await mcpPublicationService.readPublicationPlanAsset(projectId, assetRef, maxChars);
+        return asToolResult(result);
+    });
+
+    server.registerTool('ba_refresh_publication_plan_asset_snapshots', {
+        description: 'Refresh stored publication-plan asset snapshots from the runtime filesystem and optional inline content or URL overrides. Use url for large binary/image assets that should be shown in the UI without embedding the full file body.',
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            assetContents: z.record(z.string(), z.object({
+                content: z.string().optional(),
+                contentType: z.string().optional(),
+                url: z.string().optional()
+            })).optional().describe('Optional assetRef -> { content?, contentType?, url? } map used when files are not available in the current runtime. For big images/files prefer url + contentType.')
+        }
+    }, async ({ projectId, assetContents }) => {
+        const result = await mcpPublicationService.refreshPublicationPlanAssetSnapshots(projectId, assetContents || {});
+        return asToolResult(result);
+    });
+
+    server.registerTool('ba_read_publication_plan_ref', {
+        description: 'Resolve a publication plan reference such as article_knowledge.target_url or an asset ref and return its value.',
+        annotations: {
+            readOnlyHint: true
+        },
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            ref: z.string().min(1),
+            maxChars: z.number().int().positive().optional().describe('Optional maximum characters to return when the ref resolves to file-backed content.')
+        }
+    }, async ({ projectId, ref, maxChars }) => {
+        const result = await mcpPublicationService.readPublicationPlanRef(projectId, ref, maxChars);
+        return asToolResult(result);
+    });
+
+    server.registerTool('ba_list_project_channels', {
+        description: 'List active and inactive social channels for a planner project. Sensitive config values are redacted.',
+        annotations: {
+            readOnlyHint: true
+        },
+        inputSchema: {
+            projectId: z.number().int().positive()
+        }
+    }, async ({ projectId }) => {
+        const channels = await mcpPublicationService.listChannels(projectId);
+        return asToolResult({ project_id: projectId, channels });
+    });
+}

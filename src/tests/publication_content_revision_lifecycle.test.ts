@@ -104,7 +104,7 @@ test('approval collision requires a fresh revision-bound review item', () => {
 
 test('publication content update and owner recovery are wired to the lifecycle contract', () => {
     const publicationService = readFileSync(resolve(process.cwd(), 'src/services/mcp_publication.service.ts'), 'utf8');
-    const queueService = readFileSync(resolve(process.cwd(), 'src/services/work_queue.service.ts'), 'utf8');
+    const queueRecovery = readFileSync(resolve(process.cwd(), 'src/services/work_queue/recovery_operations.ts'), 'utf8');
     const mcpServer = readFileSync(resolve(process.cwd(), 'src/mcp/shared.ts'), 'utf8');
 
     assert.match(publicationService, /planAcceptedContentEdit/);
@@ -114,8 +114,8 @@ test('publication content update and owner recovery are wired to the lifecycle c
     assert.match(publicationService, /kind: 'content_review'/);
     assert.match(publicationService, /state: lifecycle\.reviewState!/);
     assert.match(publicationService, /content_revision: lifecycle\.contentRevision/);
-    assert.match(queueService, /requireProjectOwner\(tx, params\.projectId, params\.actorId\)/);
-    assert.match(queueService, /command = 'ba_recover_content_review'/);
+    assert.match(queueRecovery, /requireProjectOwner\(tx, params\.projectId, params\.actorId\)/);
+    assert.match(queueRecovery, /command = 'ba_recover_content_review'/);
     assert.match(mcpServer, /registerTool\('ba_recover_content_review'/);
 });
 
