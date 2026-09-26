@@ -18,6 +18,7 @@
     "test:mcp:remote": "npm run build:backend >/dev/null && node scripts/test_remote_mcp.js",
     "test:tdpd:red": "npm run build:backend >/dev/null && node --env-file-if-exists=.env scripts/run_tdpd_red_tests.js",
     "test:tdpd:db": "npm run build:backend >/dev/null && TDPD_REQUIRE_DATABASE=1 node --env-file-if-exists=.env scripts/run_tdpd_red_tests.js",
+    "test:tdpd:camofox:red": "node --test experiments/camofox/camofox-security-contract.test.mjs",
     "test:mcp:plan": "npm run build:backend >/dev/null && node scripts/test_mcp_server.js",
     "test:parser": "npm run build:backend >/dev/null && node scripts/test_parser_chain.js",
     "demo:seed": "ts-node scripts/seed_product_demo.ts",
