@@ -181,6 +181,9 @@ export class TelegramTaskPublicationService {
                 || proof.accepted_revision !== task.accepted_revision
                 || proof.schedule_at !== task.schedule_at?.toISOString()
                 || proof.body_sha256 !== bodyHash
+                || (task.visual_placement === 'story'
+                    ? proof.placement !== task.visual_placement
+                    : proof.placement && proof.placement !== task.visual_placement)
                 || proof.publication_mode !== 'owner_released') {
                 throw new Error('[OWNER_RELEASE_PROOF_MISMATCH] Exact audited owner release is required');
             }
@@ -205,6 +208,7 @@ export class TelegramTaskPublicationService {
         const prepared = prepareTaskPayload(task, args.dryRun === true);
         const routeAuthorized = task.publication_mode === 'connector_auto'
             || (prepared.channelType === 'telegram' && !prepared.isStory && task.publication_mode === 'owner_released')
+            || (prepared.isTelegramStory && task.publication_mode === 'owner_released')
             || (prepared.isStory && task.publication_mode === 'browser_required');
         const { payload, selectedAsset } = prepared;
         const preview = {

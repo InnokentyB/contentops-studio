@@ -11,13 +11,14 @@ import { asToolResult } from './common';
  */
 export function registerReleaseControlTools(server: McpServer): void {
     server.registerTool('ba_release_approved_telegram_task', {
-        description: 'Project-owner audited release of one exact accepted Telegram feed task for a separate explicit send. Does not publish or enable scheduler discovery.',
+        description: 'Project-owner audited release of one exact accepted Telegram feed or personal-profile Story task for a separate explicit send. Does not publish or enable scheduler discovery.',
         inputSchema: {
             projectId: z.number().int().positive(), actorId: z.string(),
             taskId: z.number().int().positive(), expectedChannelId: z.number().int().positive(),
             expectedContentRevision: z.number().int().positive(),
             expectedAcceptedRevision: z.number().int().positive(),
             expectedVisualMode: z.string(), expectedVisualState: z.string(),
+            expectedPlacement: z.enum(['feed', 'story']).optional().default('feed'),
             expectedSelectedAssetId: z.number().int().positive().nullable(),
             expectedScheduleAt: z.string().datetime({ offset: true }),
             expectedBodySha256: z.string().regex(/^[a-f0-9]{64}$/),

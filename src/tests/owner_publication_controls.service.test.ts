@@ -203,7 +203,8 @@ test('task #973 visual repair changes only mode for exact decision, asset and ac
         expectedStatus: 'ready_for_execution', idempotencyKey: 'wrong-asset' }), /SCOPE_MISMATCH/);
 });
 
-function releaseHarness(options: { owner?: boolean; attempt?: boolean; visualState?: string } = {}) {
+function releaseHarness(options: { owner?: boolean; attempt?: boolean; visualState?: string; placement?: 'feed' | 'story'; session?: boolean } = {}) {
+    const placement = options.placement || 'feed';
     const task: any = {
         id: 971, project_id: 10, channel_id: 111,
         channel: { id: 111, type: 'telegram', config: {
@@ -212,7 +213,7 @@ function releaseHarness(options: { owner?: boolean; attempt?: boolean; visualSta
         status: 'ready_for_execution', publication_mode: 'approval_required',
         content_revision: 2, accepted_revision: 2, text_state: 'accepted',
         visual_mode: 'required', visual_state: options.visualState || 'APPROVED',
-        visual_placement: 'feed', selected_asset_id: 15,
+        visual_placement: placement, selected_asset_id: 15,
         selected_asset: { id: 15, status: 'approved', content_revision: 2,
             file_url: 'https://cdn.example/approved.png' },
         handoff_state: 'ready', schedule_at: schedule,
@@ -233,13 +234,15 @@ function releaseHarness(options: { owner?: boolean; attempt?: boolean; visualSta
                 return { count: 1 };
             }
         },
-        deliveryAttempt: { findFirst: async () => options.attempt ? { id: 1 } : null }
+        deliveryAttempt: { findFirst: async () => options.attempt ? { id: 1 } : null },
+        telegramAccount: { findFirst: async () => options.session === false ? null : { id: 5, project_id: 10, is_active: true } }
     };
     const service = new OwnerPublicationControlsService({ $transaction: async (callback: any) => callback(tx) } as any);
     const input = {
         projectId: 10, actorId: 'user:7', taskId: 971, expectedChannelId: 111,
         expectedContentRevision: 2, expectedAcceptedRevision: 2,
         expectedVisualMode: 'required', expectedVisualState: task.visual_state,
+        expectedPlacement: placement,
         expectedSelectedAssetId: 15, expectedScheduleAt: schedule.toISOString(),
         expectedBodySha256: createHash('sha256').update(task.draft_text).digest('hex'),
         approvalReference: 'owner-thread:exact-reply-971', idempotencyKey: 'release-971'
@@ -258,6 +261,25 @@ test('owner release changes only mode, records exact proof, and never sends', as
     assert.deepEqual(h.task, { ...before, publication_mode: 'owner_released' });
     assert.equal(h.events.length, 1);
     assert.equal(h.events[0].data.before_state.approval_reference, h.input.approvalReference);
+});
+
+test('owner release accepts canonical personal Telegram story without a channel target', async () => {
+    const h = releaseHarness({ placement: 'story' });
+    delete h.task.channel.config.telegram_channel_id;
+    const result = await h.service.releaseTelegramTask(h.input);
+    assert.equal(result.publication_mode, 'owner_released');
+    assert.equal(result.placement, 'story');
+    assert.equal(result.delivery_target, 'personal_profile');
+    assert.equal(result.published, false);
+});
+
+test('owner release keeps feed channel guard and requires active MTProto session for story', async () => {
+    const feed = releaseHarness();
+    delete feed.task.channel.config.telegram_channel_id;
+    await assert.rejects(feed.service.releaseTelegramTask(feed.input), /TELEGRAM_CONNECTOR_NOT_READY/);
+    const story = releaseHarness({ placement: 'story', session: false });
+    delete story.task.channel.config.telegram_channel_id;
+    await assert.rejects(story.service.releaseTelegramTask(story.input), /TELEGRAM_PERSONAL_STORY_ROUTE_NOT_READY/);
 });
 
 test('owner release rejects non-owner, body drift, existing attempt and required visual waiver', async () => {

@@ -33,6 +33,7 @@ type TelegramRelease = {
     expectedAcceptedRevision: number;
     expectedVisualMode: string;
     expectedVisualState: string;
+    expectedPlacement?: 'feed' | 'story';
     expectedSelectedAssetId: number | null;
     expectedScheduleAt: string;
     expectedBodySha256: string;
@@ -559,6 +560,7 @@ export class OwnerPublicationControlsService {
         if (args.projectId !== 10) throw new Error('[OWNER_RELEASE_PROJECT_MISMATCH] Project 10 required');
         if (!args.approvalReference.trim()) throw new Error('[OWNER_APPROVAL_REFERENCE_REQUIRED] Exact owner approval is required');
         const requestHash = sha256(args);
+        const expectedPlacement = args.expectedPlacement || 'feed';
         return this.db.$transaction(async (tx: any) => {
             await this.requireOwner(tx, args.projectId, args.actorId);
             const command = 'ba_release_approved_telegram_task';
@@ -576,7 +578,7 @@ export class OwnerPublicationControlsService {
             });
             if (!task || task.channel_id !== args.expectedChannelId
                 || task.channel?.type !== 'telegram'
-                || task.visual_placement !== 'feed'
+                || task.visual_placement !== expectedPlacement
                 || task.status !== 'ready_for_execution'
                 || task.publication_mode !== 'approval_required'
                 || task.content_revision !== args.expectedContentRevision
@@ -606,9 +608,19 @@ export class OwnerPublicationControlsService {
             }
             const bodyHash = createHash('sha256').update(task.draft_text).digest('hex');
             if (bodyHash !== args.expectedBodySha256) throw new Error('[OWNER_APPROVED_BODY_MISMATCH] Draft differs from approved preview');
-            const config = resolveEffectiveChannelConfig('telegram', task.channel.config || {});
-            if (config.capability_flags?.api_publish !== true || !config.telegram_channel_id) {
-                throw new Error('[TELEGRAM_CONNECTOR_NOT_READY] Channel lacks an authorized direct route');
+            if (expectedPlacement === 'story') {
+                const activeSession = await tx.telegramAccount.findFirst({
+                    where: { project_id: args.projectId, is_active: true },
+                    select: { id: true, project_id: true }
+                });
+                if (!activeSession) {
+                    throw new Error('[TELEGRAM_PERSONAL_STORY_ROUTE_NOT_READY] Active project MTProto session is required');
+                }
+            } else {
+                const config = resolveEffectiveChannelConfig('telegram', task.channel.config || {});
+                if (config.capability_flags?.api_publish !== true || !config.telegram_channel_id) {
+                    throw new Error('[TELEGRAM_CONNECTOR_NOT_READY] Channel lacks an authorized direct route');
+                }
             }
             const attempt = await tx.deliveryAttempt.findFirst({ where: {
                 project_id: args.projectId, content_item_id: task.id
@@ -622,6 +634,7 @@ export class OwnerPublicationControlsService {
                     accepted_revision: args.expectedAcceptedRevision,
                     visual_mode: args.expectedVisualMode,
                     visual_state: args.expectedVisualState,
+                    visual_placement: expectedPlacement,
                     selected_asset_id: args.expectedSelectedAssetId,
                     schedule_at: new Date(args.expectedScheduleAt)
                 },
@@ -631,13 +644,15 @@ export class OwnerPublicationControlsService {
             const result = { task_id: task.id, channel_id: task.channel_id,
                 content_revision: task.content_revision, accepted_revision: task.accepted_revision,
                 schedule_at: args.expectedScheduleAt, body_sha256: bodyHash,
+                placement: expectedPlacement,
+                delivery_target: expectedPlacement === 'story' ? 'personal_profile' : 'channel',
                 publication_mode: 'owner_released', explicit_send_required: true,
                 published: false };
             await tx.workflowEvent.create({ data: {
                 project_id: args.projectId, content_item_id: task.id,
                 actor_id: args.actorId, command, idempotency_key: args.idempotencyKey,
                 before_state: { request_hash: requestHash, publication_mode: 'approval_required',
-                    approval_reference: args.approvalReference }, after_state: result
+                    placement: expectedPlacement, approval_reference: args.approvalReference }, after_state: result
             } });
             return result;
         }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });

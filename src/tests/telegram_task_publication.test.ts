@@ -238,6 +238,22 @@ test('browser_required personal Telegram story dry-run and live claim use the pe
     assert.equal(live.calls.facts[0].providerObjectId, '42');
 });
 
+test('owner-released personal Telegram story is executable through MTProto personal profile', async () => {
+    const story: any = approvedTask({ status: 'ready_for_execution', publication_mode: 'owner_released',
+        type: 'telegram:story', visual_placement: 'story', channel_id: 111,
+        schedule_at: new Date('2026-09-25T14:30:00.000Z') });
+    const releaseEvent = { after_state: {
+        task_id: story.id, channel_id: story.channel_id, content_revision: story.content_revision,
+        accepted_revision: story.accepted_revision, schedule_at: story.schedule_at.toISOString(),
+        body_sha256: createHash('sha256').update(story.draft_text).digest('hex'),
+        placement: 'story', publication_mode: 'owner_released'
+    } };
+    const h = harness(story, { releaseEvent });
+    const preview = await h.service.execute({ projectId: 10, taskId: story.id, dryRun: true });
+    assert.equal(preview.delivery, 'mtproto_personal_story');
+    assert.equal(preview.route_executable, true);
+});
+
 test('browser-only feed and a real concurrent publication claim return different errors', async () => {
     const preview = await harness(approvedTask({ status: 'browser_required', publication_mode: 'browser_required' }))
         .service.execute({ projectId: 10, taskId: 779, dryRun: true });
