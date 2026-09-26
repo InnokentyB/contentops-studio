@@ -596,6 +596,9 @@ export class OwnerPublicationControlsService {
             if (task.visual_mode === 'required' && task.visual_state === 'NO_VISUAL_NEEDED') {
                 throw new Error('[VISUAL_REQUIRED] Required visual cannot be waived');
             }
+            if (expectedPlacement === 'story' && (task.visual_state !== 'APPROVED' || task.selected_asset_id === null)) {
+                throw new Error('[TELEGRAM_STORY_MEDIA_REQUIRED] Personal Story requires an approved selected image');
+            }
             const visual = calculateVisualReadiness({
                 enabled: true, textState: task.text_state,
                 acceptedRevision: task.accepted_revision, contentRevision: task.content_revision,
@@ -611,10 +614,11 @@ export class OwnerPublicationControlsService {
             if (expectedPlacement === 'story') {
                 const activeSession = await tx.telegramAccount.findFirst({
                     where: { project_id: args.projectId, is_active: true },
-                    select: { id: true, project_id: true }
+                    select: { id: true, api_id: true, api_hash: true, session_string: true }
                 });
-                if (!activeSession) {
-                    throw new Error('[TELEGRAM_PERSONAL_STORY_ROUTE_NOT_READY] Active project MTProto session is required');
+                if (!activeSession || activeSession.api_id <= 0
+                    || !activeSession.api_hash?.trim() || !activeSession.session_string?.trim()) {
+                    throw new Error('[TELEGRAM_PERSONAL_STORY_ROUTE_NOT_READY] Configured active project MTProto session is required');
                 }
             } else {
                 const config = resolveEffectiveChannelConfig('telegram', task.channel.config || {});
@@ -636,7 +640,9 @@ export class OwnerPublicationControlsService {
                     visual_state: args.expectedVisualState,
                     visual_placement: expectedPlacement,
                     selected_asset_id: args.expectedSelectedAssetId,
-                    schedule_at: new Date(args.expectedScheduleAt)
+                    schedule_at: new Date(args.expectedScheduleAt),
+                    draft_text: task.draft_text, type: task.type,
+                    text_state: 'accepted', handoff_state: 'ready', published_link: null
                 },
                 data: { publication_mode: 'owner_released' }
             });
@@ -645,6 +651,7 @@ export class OwnerPublicationControlsService {
                 content_revision: task.content_revision, accepted_revision: task.accepted_revision,
                 schedule_at: args.expectedScheduleAt, body_sha256: bodyHash,
                 placement: expectedPlacement,
+                selected_asset_id: task.selected_asset_id,
                 delivery_target: expectedPlacement === 'story' ? 'personal_profile' : 'channel',
                 publication_mode: 'owner_released', explicit_send_required: true,
                 published: false };
