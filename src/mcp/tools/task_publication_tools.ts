@@ -247,7 +247,7 @@ export function registerTaskPublicationTools(server: McpServer): void {
         }
     }, async (args) => asToolResult(await (args.projectId === 10 && [958, 962].includes(args.taskId)
         ? dzenTaskPublicationService.execute(args)
-        : args.projectId === 10 && args.taskId === 953
+        : args.projectId === 10 && [953, 966].includes(args.taskId)
             ? threadsTaskPublicationService.execute(args)
             : telegramTaskPublicationService.execute(args))));
 }

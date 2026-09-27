@@ -413,3 +413,67 @@ test('Threads replacement #959 release binds only accepted rev2 and decision 150
     assert.equal(task.publication_mode, 'owner_released');
     assert.equal(events.length, 1);
 });
+
+test('Threads #966 owner release is exact, audited and never publishes', async () => {
+    const hash = '83dd0fe0b2b354898b9fd3e5161d5ab05517c4c2b2304862d74c949ce1e2b123';
+    const task: any = { id: 966, project_id: 10, channel_id: 138, channel: { type: 'threads' },
+        content_revision: 1, accepted_revision: 1, text_state: 'accepted', draft_text: 'short body',
+        visual_placement: 'feed', visual_state: 'NO_VISUAL_NEEDED', visual_decision_version: 1,
+        selected_asset_id: null, status: 'ready_for_execution', handoff_state: 'ready',
+        publication_mode: 'approval_required', schedule_at: new Date('2026-09-26T18:00:00.000Z'),
+        publication_fact: null, published_link: null };
+    const events: any[] = [];
+    const tx = {
+        project: { findUnique: async () => ({ slug: 'analystcraft-2' }) },
+        projectMember: { findUnique: async () => ({ role: 'owner' }) },
+        workflowEvent: { findFirst: async () => null, create: async (e: any) => (events.push(e), e) },
+        contentItem: { findFirst: async () => task, updateMany: async ({ where, data }: any) =>
+            task.publication_mode === where.publication_mode ? (Object.assign(task, data), { count: 1 }) : { count: 0 } },
+        artDirectionDecision: { findFirst: async ({ where }: any) => {
+            assert.equal(where.id, 142); assert.equal(where.source_content_revision, 1);
+            return { id: 142, decision_version: 1 };
+        } },
+        deliveryAttempt: { findFirst: async () => null }
+    };
+    const service = new OwnerPublicationControlsService({ $transaction: async (fn: any) => fn(tx) } as any, () => hash);
+    const result = await service.releaseThreadsTask966({ projectId: 10, actorId: 'user:7', taskId: 966,
+        expectedChannelId: 138, expectedContentRevision: 1, expectedAcceptedRevision: 1,
+        expectedScheduleAt: task.schedule_at.toISOString(), expectedBodySha256: hash,
+        approvalReference: 'owner-command:portfolio-hq-966', idempotencyKey: 'release-966-rev1' });
+    assert.equal(result.publication_mode, 'owner_released');
+    assert.equal(result.published, false);
+    assert.equal(task.publication_mode, 'owner_released');
+    assert.equal(events[0].data.command, 'ba_release_approved_threads_task966');
+});
+
+test('task #969 reschedule changes only schedule and refreshes exact owner-release proof', async () => {
+    const hash = '43cff698cbb2597144a5fd696013b361961cd9d7c824809d6c4279d45391d1e9';
+    const oldSchedule = new Date('2026-09-27T09:00:00.000Z');
+    const newSchedule = new Date(Date.now() + 60_000);
+    const task: any = { id: 969, project_id: 10, channel_id: 111, channel: { type: 'telegram' },
+        content_revision: 1, accepted_revision: 1, text_state: 'accepted', draft_text: 'accepted body',
+        visual_placement: 'feed', visual_state: 'APPROVED', selected_asset_id: 88,
+        selected_asset: { id: 88, status: 'approved', content_revision: 1, file_url: 'https://cdn.example/88.jpg' },
+        status: 'ready_for_execution', handoff_state: 'ready', publication_mode: 'owner_released',
+        schedule_at: oldSchedule, publication_fact: null, published_link: null };
+    const events: any[] = [];
+    const tx = {
+        projectMember: { findUnique: async () => ({ role: 'owner' }) },
+        workflowEvent: { findFirst: async () => null, create: async (e: any) => (events.push(e), e) },
+        contentItem: { findFirst: async () => task, updateMany: async ({ where, data }: any) =>
+            task.schedule_at.getTime() === where.schedule_at.getTime()
+                ? (Object.assign(task, data), { count: 1 }) : { count: 0 } },
+        deliveryAttempt: { findFirst: async () => null }
+    };
+    const service = new OwnerPublicationControlsService({ $transaction: async (fn: any) => fn(tx) } as any, () => hash);
+    const result = await service.rescheduleOwnerReleasedTask969({ projectId: 10, actorId: 'user:7', taskId: 969,
+        expectedScheduleAt: oldSchedule.toISOString(), newScheduleAt: newSchedule.toISOString(),
+        expectedBodySha256: hash, expectedSelectedAssetId: 88,
+        approvalReference: 'owner-command:publish-now-969', idempotencyKey: 'reschedule-969-now' });
+    assert.equal(task.schedule_at.toISOString(), newSchedule.toISOString());
+    assert.equal(task.publication_mode, 'owner_released');
+    assert.equal(result.owner_release_refreshed, true);
+    assert.deepEqual(events.map(event => event.data.command), [
+        'ba_reschedule_owner_released_task969', 'ba_release_approved_telegram_task'
+    ]);
+});

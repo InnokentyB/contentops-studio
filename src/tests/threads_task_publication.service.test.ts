@@ -5,13 +5,17 @@ import { ThreadsTaskPublicationService } from '../services/threads_task_publicat
 const hash = 'e7d8c1f2f9cf4f7e3ca1ad6fb05e55153c2153739b3fcdf280e519f574b7f7a6';
 const schedule = new Date('2026-09-22T17:00:00.000Z');
 
-function harness(ready = true) {
-    const task: any = { id: 953, project_id: 10, channel_id: 138,
+function harness(ready = true, taskId: 953 | 966 = 953) {
+    const spec = taskId === 953
+        ? { revision: 4, hash, decisionId: 149, schedule, body: 'short body' }
+        : { revision: 1, hash: '83dd0fe0b2b354898b9fd3e5161d5ab05517c4c2b2304862d74c949ce1e2b123',
+            decisionId: 142, schedule: new Date('2026-09-26T18:00:00.000Z'), body: 'task 966 body' };
+    const task: any = { id: taskId, project_id: 10, channel_id: 138,
         channel: { type: 'threads', config: ready ? { threads_user_id: 'u1', access_token: 'secret' } : {} },
-        content_revision: 4, accepted_revision: 4, text_state: 'accepted', draft_text: 'short body',
+        content_revision: spec.revision, accepted_revision: spec.revision, text_state: 'accepted', draft_text: spec.body,
         visual_state: 'NO_VISUAL_NEEDED', visual_decision_version: 2, selected_asset_id: null,
         status: 'ready_for_execution', handoff_state: 'ready', publication_mode: 'owner_released',
-        schedule_at: schedule, published_link: null, publication_fact: null, quality_report: {} };
+        schedule_at: spec.schedule, published_link: null, publication_fact: null, quality_report: {} };
     const events: any[] = [];
     let calls = 0;
     const db: any = {
@@ -20,16 +24,16 @@ function harness(ready = true) {
                 ? (Object.assign(task, data), { count: 1 }) : { count: 0 },
             update: async ({ data }: any) => (Object.assign(task, data), task) },
         workflowEvent: { findUnique: async ({ where }: any) => events.find(e => e.data.command === where.project_id_actor_id_command_idempotency_key.command)?.data || null,
-            findFirst: async () => ({ after_state: { task_id: 953, channel_id: 138,
-                content_revision: 4, accepted_revision: 4, body_sha256: hash,
-                visual_decision_id: 149, schedule_at: schedule.toISOString() } }),
+            findFirst: async () => ({ after_state: { task_id: taskId, channel_id: 138,
+                content_revision: spec.revision, accepted_revision: spec.revision, body_sha256: spec.hash,
+                visual_decision_id: spec.decisionId, schedule_at: spec.schedule.toISOString() } }),
             create: async (e: any) => { events.push(e); return e; } },
-        artDirectionDecision: { findFirst: async () => ({ id: 149, decision_version: 2 }) },
+        artDirectionDecision: { findFirst: async () => ({ id: spec.decisionId, decision_version: 2 }) },
         projectMember: { findFirst: async () => ({ user_id: 2 }) },
         $transaction: async (fn: any) => fn(db)
     };
-    const service = new ThreadsTaskPublicationService({ db, hashBody: () => hash,
-        threads: { publishPost: async () => (calls++, 'https://www.threads.net/post/p953') },
+    const service = new ThreadsTaskPublicationService({ db, hashBody: () => spec.hash,
+        threads: { publishPost: async () => (calls++, `https://www.threads.net/post/p${taskId}`) },
         facts: { record: async () => ({}) } });
     return { service, task, get calls() { return calls; } };
 }
@@ -38,6 +42,14 @@ test('Threads #953 dry-run reports exact connector readiness', async () => {
     assert.equal((await harness().service.execute({ projectId: 10, taskId: 953, dryRun: true })).route_executable, true);
     const blocked = await harness(false).service.execute({ projectId: 10, taskId: 953, dryRun: true });
     assert.equal(blocked.route_blocker, 'THREADS_CONNECTOR_NOT_READY');
+});
+
+test('Threads #966 dry-run consumes only its exact owner-release proof', async () => {
+    const result = await harness(true, 966).service.execute({ projectId: 10, taskId: 966, dryRun: true });
+    assert.equal(result.route_executable, true);
+    assert.equal(result.task_id, 966);
+    assert.equal(result.payload_preview.accepted_revision, 1);
+    assert.equal(result.payload_preview.visual_decision_id, 142);
 });
 
 test('Threads #953 task-native send claims once and confirms URL', async () => {

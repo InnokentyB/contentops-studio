@@ -3,6 +3,12 @@ import { Prisma } from '@prisma/client';
 import prisma from '../db';
 import { calculateVisualReadiness } from './art_direction.service';
 import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
+import {
+    Threads966Release,
+    Task969Reschedule,
+    releaseThreadsTask966,
+    rescheduleOwnerReleasedTask969
+} from './owner_targeted_release_operations';
 
 const C20_TASK_IDS = [968, 969, 971, 972, 973, 974];
 const DZEN_958_BODY_SHA256 = '78081837cecace18c91c01af0253b21ca502e611b63a016f9d9035567587dfd3';
@@ -939,6 +945,21 @@ export class OwnerPublicationControlsService {
             return result;
         }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     }
+
+    async releaseThreadsTask966(args: Threads966Release) {
+        return releaseThreadsTask966({
+            db: this.db, hashBody: this.hashBody,
+            requireOwner: (tx, projectId, actorId) => this.requireOwner(tx, projectId, actorId)
+        }, args);
+    }
+
+    async rescheduleOwnerReleasedTask969(args: Task969Reschedule) {
+        return rescheduleOwnerReleasedTask969({
+            db: this.db, hashBody: this.hashBody,
+            requireOwner: (tx, projectId, actorId) => this.requireOwner(tx, projectId, actorId)
+        }, args);
+    }
+
 }
 
 export default new OwnerPublicationControlsService();

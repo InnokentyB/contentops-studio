@@ -76,6 +76,30 @@ export function registerReleaseControlTools(server: McpServer): void {
         }
     }, async (args) => asToolResult(await ownerPublicationControlsService.releaseThreadsTask959(args)));
 
+    server.registerTool('ba_release_approved_threads_task966', {
+        description: 'Owner-only audited release of exact accepted Threads task #966 rev1 and immutable NO_VISUAL_NEEDED decision #142. Does not publish.',
+        inputSchema: {
+            projectId: z.number().int().positive(), actorId: z.string(),
+            taskId: z.number().int().positive(), expectedChannelId: z.number().int().positive(),
+            expectedContentRevision: z.number().int().positive(), expectedAcceptedRevision: z.number().int().positive(),
+            expectedScheduleAt: z.string().datetime({ offset: true }),
+            expectedBodySha256: z.string().regex(/^[a-f0-9]{64}$/),
+            approvalReference: z.string().min(10), idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await ownerPublicationControlsService.releaseThreadsTask966(args)));
+
+    server.registerTool('ba_reschedule_owner_released_task969', {
+        description: 'Owner-only audited near-now reschedule of exact owner-released Telegram task #969 rev1/asset88. Changes only schedule_at and refreshes its exact release proof; never publishes.',
+        inputSchema: {
+            projectId: z.number().int().positive(), actorId: z.string(), taskId: z.number().int().positive(),
+            expectedScheduleAt: z.string().datetime({ offset: true }),
+            newScheduleAt: z.string().datetime({ offset: true }),
+            expectedBodySha256: z.string().regex(/^[a-f0-9]{64}$/),
+            expectedSelectedAssetId: z.number().int().positive(),
+            approvalReference: z.string().min(10), idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await ownerPublicationControlsService.rescheduleOwnerReleasedTask969(args)));
+
     server.registerTool('ba_verify_dzen_task958_connector', {
         description: 'Owner-only read-only authenticated editor probe for exact released Dzen task #958; records a 15-minute task-scoped connection proof without enabling the channel globally or publishing.',
         inputSchema: {
