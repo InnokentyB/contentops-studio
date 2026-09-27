@@ -1,3 +1,5 @@
+import { validateLinkedInNativeText, type LinkedInContentValidation } from './linkedin_content_contract';
+
 export type PublicationAction = {
     id: string;
     channel: string;
@@ -16,6 +18,14 @@ export type PublicationAction = {
 export type PublicationAccount = Record<string, unknown>;
 
 class PublicationAdapterService {
+    /** Validates content only when a channel has a shared native-format contract. */
+    validateChannelContent(channel: string, text: string): LinkedInContentValidation {
+        if (channel.trim().toLowerCase() === 'linkedin') {
+            return validateLinkedInNativeText(text);
+        }
+        return { valid: true, issues: [] };
+    }
+
     supportsDirectExecution(account: PublicationAccount) {
         const platform = String(account.platform || '').toLowerCase();
         if (platform === 'vk') {
@@ -114,6 +124,13 @@ class PublicationAdapterService {
         if (action.channel === 'medium') {
             checklist.push('Upload the approved image into the Medium article before opening the publish menu.');
             checklist.push('Set the uploaded image as the featured image and keep its focal point inside the approved safe area.');
+        }
+
+        if (action.channel === 'linkedin') {
+            checklist.push('Use plain text only: no Markdown headings, emphasis, links, code, blockquotes, or Markdown list markers.');
+            checklist.push('Separate short mobile-readable paragraphs with one blank line (double newline).');
+            checklist.push('Use only •, ◦, or ▪ for bullet lists.');
+            checklist.push('After posting, compare the live text to the accepted revision by semantic blocks; whitespace normalization may differ, but blocks must not be merged, removed, changed, or reordered.');
         }
 
         return checklist;

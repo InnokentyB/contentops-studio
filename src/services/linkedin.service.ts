@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { validateLinkedInNativeText } from './linkedin_content_contract';
 
 class LinkedInService {
     private getApiVersion(): string {
@@ -169,6 +170,12 @@ class LinkedInService {
      * Publishes a post to LinkedIn using the ugcPosts API.
      */
     async publishPost(urn: string, token: string, text: string, imageUrl?: string): Promise<string> {
+        const contentValidation = validateLinkedInNativeText(text);
+        if (!contentValidation.valid) {
+            const issueCodes = contentValidation.issues.map((issue) => issue.code).join(',');
+            throw new Error(`[LINKEDIN_NATIVE_FORMAT_INVALID] ${issueCodes}`);
+        }
+
         let mediaAsset: string | undefined;
 
         if (imageUrl) {
