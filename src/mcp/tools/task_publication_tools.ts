@@ -250,4 +250,15 @@ export function registerTaskPublicationTools(server: McpServer): void {
         : args.projectId === 10 && [953, 966].includes(args.taskId)
             ? threadsTaskPublicationService.execute(args)
             : telegramTaskPublicationService.execute(args))));
+
+    server.registerTool('ba_publish_threads_task', {
+        description: 'Task-native audited Threads publication for the explicitly supported owner-released Planner tasks. Dry-run validates the exact revision, immutable visual decision, owner-release proof, and connector without sending.',
+        annotations: EXTERNAL_PUBLICATION_ANNOTATIONS,
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            taskId: z.union([z.literal(953), z.literal(966)]),
+            dryRun: z.boolean().optional(),
+            idempotencyKey: z.string().min(1).max(500).optional()
+        }
+    }, async (args) => asToolResult(await threadsTaskPublicationService.execute(args)));
 }

@@ -142,6 +142,7 @@ const PUBLISHER_TOOLS = new Set([
     'ba_list_release_blockers',
     'ba_prepare_publication_task',
     'ba_publish_publication_task',
+    'ba_publish_threads_task',
     'ba_release_approved_telegram_task',
     'ba_release_approved_dzen_task958',
     'ba_release_approved_dzen_task962',
