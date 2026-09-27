@@ -1,4 +1,5 @@
 import { config } from 'dotenv';
+import { resolveDatabasePoolMax } from './database_pool_config';
 
 config();
 
@@ -139,7 +140,8 @@ export function getDatabaseRuntimeInfo() {
             usingPooler: parsed.port === '6543',
             usingRailwayInternalHost: parsed.hostname.includes('railway.internal'),
             sslmode: parsed.searchParams.get('sslmode'),
-            pgoptions: process.env.PGOPTIONS || null
+            pgoptions: process.env.PGOPTIONS || null,
+            pool_max: resolveDatabasePoolMax(process.env.DATABASE_POOL_MAX)
         };
     } catch {
         return {
@@ -157,7 +159,8 @@ export function getDatabaseRuntimeInfo() {
             usingPooler: false,
             usingRailwayInternalHost: databaseUrl.includes('railway.internal'),
             sslmode: null,
-            pgoptions: process.env.PGOPTIONS || null
+            pgoptions: process.env.PGOPTIONS || null,
+            pool_max: resolveDatabasePoolMax(process.env.DATABASE_POOL_MAX)
         };
     }
 }

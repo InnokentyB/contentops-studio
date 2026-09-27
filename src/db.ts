@@ -6,6 +6,7 @@ import './bootstrap-env';
 import { PrismaClient } from '@prisma/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { resolveDatabasePoolMax } from './database_pool_config';
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -14,7 +15,7 @@ const connectionString = process.env.DATABASE_URL;
  */
 export const pool = new Pool({
     connectionString,
-    max: 15,
+    max: resolveDatabasePoolMax(process.env.DATABASE_POOL_MAX),
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 5000
 });
@@ -32,4 +33,3 @@ const adapter = new PrismaPg(pool);
 export const prisma = new PrismaClient({ adapter });
 
 export default prisma;
-
