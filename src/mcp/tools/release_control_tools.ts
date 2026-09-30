@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import ownerPublicationControlsService from '../../services/owner_publication_controls.service';
 import dzenTaskPublicationService from '../../services/dzen_task_publication.service';
+import dzenDraftFinalizationService from '../../services/dzen_draft_finalization.service';
 import { asToolResult } from './common';
 
 /**
@@ -115,4 +116,15 @@ export function registerReleaseControlTools(server: McpServer): void {
             idempotencyKey: z.string().min(1)
         }
     }, async (args) => asToolResult(await dzenTaskPublicationService.verifyConnector(args)));
+
+    server.registerTool('ba_finalize_dzen_task992_draft', {
+        description: 'Finalize the one exact owner-released Dzen article draft for task #992 revision 3. Refuses missing or duplicate draft matches, stale copy/visual state, and unverified provider results. Never opens a new composer.',
+        inputSchema: {
+            projectId: z.literal(10),
+            taskId: z.literal(992),
+            draftEditorUrl: z.literal('https://dzen.ru/profile/editor/id/6a8029aba055ec36033bf81c/6abbee89489dee41e9c88d2c/edit'),
+            dryRun: z.boolean().optional(),
+            idempotencyKey: z.string().min(1).max(500).optional()
+        }
+    }, async (args) => asToolResult(await dzenDraftFinalizationService.finalizeTask992(args)));
 }

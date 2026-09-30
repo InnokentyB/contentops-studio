@@ -3,6 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import dns from 'dns/promises';
 import net from 'net';
+import type { DzenDraftFinalizationInput } from './dzen.service';
+import { finalizeDzenExistingDraft } from './puppeteer/dzen_draft_finalizer';
 
 interface HabrPublishConfig {
     cookies: string;
@@ -582,6 +584,23 @@ class PuppeteerPublisherService {
             await browser.close();
             throw new Error(`Dzen Puppeteer automation failed: ${err.message} (Diagnostic screenshot: logs/${screenshotFile})`);
         }
+    }
+
+    /**
+     * Finalize one already-existing Dzen article draft without opening a new composer.
+     * The operation refuses duplicate title matches, verifies the canonical title/body
+     * hash in the editor, and only reports success after the public permalink appears
+     * in the channel's published list.
+     */
+    async finalizeDzenExistingDraft(config: DzenPublishConfig, input: DzenDraftFinalizationInput) {
+        return finalizeDzenExistingDraft({
+            launchBrowser: () => this.launchBrowser(),
+            parseCookies: (cookieString, domain) => this.parseCookieString(cookieString, domain),
+            assertAuthenticated: (page) => this.assertDzenAuthenticated(page),
+            isPublicUrl: (value) => this.isPublicDzenUrl(value),
+            saveErrorScreenshot: (page, platform) => this.saveErrorScreenshot(page, platform),
+            channelId: (draftConfig) => this.dzenChannelId(draftConfig)
+        }, config, input);
     }
 
     async testDzenConnection(config: DzenPublishConfig) {

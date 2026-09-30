@@ -10,6 +10,14 @@ export interface DzenConfig {
     post_editor_url?: string;
 }
 
+export interface DzenDraftFinalizationInput {
+    draftEditorUrl: string;
+    expectedTitle: string;
+    expectedCanonicalBodySha256: string;
+    expectedImageUrl?: string | null;
+    dryRun?: boolean;
+}
+
 export function parseDzenCompactNumber(value: unknown): number | null {
     if (typeof value === 'number') return Number.isFinite(value) ? value : null;
     if (typeof value !== 'string') return null;
@@ -84,6 +92,23 @@ class DzenService {
             throw new Error('An authenticated Dzen session is required');
         }
         return puppeteerPublisherService.testDzenConnection({ ...config, cookies: config.cookies.trim() });
+    }
+
+    async finalizeExistingDraft(config: DzenConfig, input: DzenDraftFinalizationInput) {
+        if (!config.cookies?.trim()) {
+            throw new Error('An authenticated Dzen session is required for draft finalization');
+        }
+        if (!config.channel_id?.trim()) {
+            throw new Error('Dzen channel ID is required for draft finalization');
+        }
+        if (!input.draftEditorUrl?.trim() || !input.expectedTitle?.trim()
+            || !/^[a-f0-9]{64}$/.test(input.expectedCanonicalBodySha256)) {
+            throw new Error('[DZEN_DRAFT_FINALIZATION_INPUT_INVALID] Exact draft URL, title, and body hash required');
+        }
+        return puppeteerPublisherService.finalizeDzenExistingDraft(
+            { ...config, cookies: config.cookies.trim() },
+            input
+        );
     }
 
     async collectPostMetrics(config: DzenConfig, postUrl: string) {
