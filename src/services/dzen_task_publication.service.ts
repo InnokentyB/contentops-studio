@@ -159,7 +159,7 @@ export class DzenTaskPublicationService {
             || proof.body_sha256 !== spec.bodySha256 || proof.body_sha256 !== bodyHash
             || proof.visual_decision_id !== spec.decisionId
             || (spec.assetSha256 !== null && proof.asset_sha256 !== spec.assetSha256)
-            || proof.schedule_at !== task.schedule_at?.toISOString()
+            || proof.schedule_at !== (task.schedule_at ? task.schedule_at.toISOString() : null)
             || proof.publication_mode !== 'owner_released'
             || task.content_revision !== spec.revision || task.accepted_revision !== spec.revision
             || task.text_state !== 'accepted' || task.visual_placement !== spec.placement
