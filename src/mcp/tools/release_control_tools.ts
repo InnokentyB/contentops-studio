@@ -134,4 +134,11 @@ export function registerReleaseControlTools(server: McpServer): void {
         description: 'Read-only reconciliation of the durable LinkedIn #995 UNKNOWN attempt. Records a fact only for one exact accepted-body provider match; never sends.',
         inputSchema: { projectId: z.literal(7), taskId: z.literal(995) }
     }, async () => asToolResult(await linkedinTask995RecoveryService.reconcile()));
+
+    server.registerTool('ba_repair_linkedin_task995_browser_routing', {
+        description: 'Owner-only metadata repair for the historical LinkedIn #995 incident. Makes personal LinkedIn browser-assisted, preserves UNKNOWN attempt history, and never sends or reconciles a provider publication.',
+        inputSchema: {
+            projectId: z.literal(7), taskId: z.literal(995), actorId: z.string(), idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await linkedinTask995RecoveryService.repairBrowserAssistedRouting(args)));
 }

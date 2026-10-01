@@ -40,6 +40,61 @@ export class LinkedInTask995RecoveryService {
         return task;
     }
 
+    async repairBrowserAssistedRouting(args: { actorId: string; idempotencyKey: string }) {
+        const match = /^user:(\d+)$/.exec(args.actorId);
+        if (!match) throw new Error('[OWNER_REQUIRED]');
+        const member = await this.deps.db.projectMember.findUnique({ where: {
+            project_id_user_id: { project_id: PROJECT_ID, user_id: Number(match[1]) }
+        } });
+        if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
+        const prior = await this.deps.db.workflowEvent.findUnique({ where: {
+            project_id_actor_id_command_idempotency_key: {
+                project_id: PROJECT_ID, actor_id: args.actorId,
+                command: 'repair_linkedin_995_browser_assisted_routing', idempotency_key: args.idempotencyKey
+            }
+        } });
+        if (prior?.after_state) return { ...prior.after_state, replayed: true };
+        const task = await this.loadTask();
+        const attempt = await this.deps.db.deliveryAttempt.findFirst({ where: {
+            project_id: PROJECT_ID, content_item_id: TASK_ID, idempotency_key: IDEMPOTENCY_KEY
+        }, orderBy: { id: 'desc' } });
+        if (!attempt || attempt.status !== 'verification_required') throw new Error('[LINKEDIN_995_ATTEMPT_REQUIRED]');
+        const channelConfig = task.channel.config || {};
+        if (String(channelConfig.account_type || '').toLowerCase() !== 'personal') {
+            throw new Error('[LINKEDIN_995_CHANNEL_GUARD_FAILED] Personal LinkedIn channel required');
+        }
+        const result = await this.deps.db.$transaction(async (tx: any) => {
+            const repairedConfig = {
+                ...channelConfig,
+                connector_mode: 'browser_assisted', workflow_mode: 'browser_required', execution_modes: ['manual'],
+                capability_flags: { ...(channelConfig.capability_flags || {}), api_publish: false,
+                    browser_publish: true, manual_handoff: true }
+            };
+            await tx.socialChannel.update({ where: { id: CHANNEL_ID }, data: { config: repairedConfig } });
+            const changed = await tx.contentItem.updateMany({ where: {
+                id: TASK_ID, project_id: PROJECT_ID, channel_id: CHANNEL_ID,
+                status: 'publishing', content_revision: REVISION, accepted_revision: REVISION
+            }, data: { publication_mode: 'browser_required', quality_report: {
+                ...((task.quality_report as any) || {}), publication_route: 'browser_required',
+                execution_mode: 'browser', browser_readback: 'canonical',
+                publication_task_delivery: (task.quality_report as any)?.publication_task_delivery
+            } } });
+            if (changed.count !== 1) throw new Error('[LINKEDIN_995_ROUTE_REPAIR_CAS_CONFLICT]');
+            const after = { task_id: TASK_ID, channel_id: CHANNEL_ID, attempt_id: attempt.id,
+                publication_mode: 'browser_required', connector_mode: 'browser_assisted',
+                api_publish: false, browser_publish: true, history_preserved: true, resend_allowed: false };
+            await tx.workflowEvent.create({ data: {
+                project_id: PROJECT_ID, content_item_id: TASK_ID, actor_id: args.actorId,
+                command: 'repair_linkedin_995_browser_assisted_routing', idempotency_key: args.idempotencyKey,
+                before_state: { publication_mode: task.publication_mode,
+                    api_publish: Boolean(channelConfig.capability_flags?.api_publish), attempt_id: attempt.id },
+                after_state: after
+            } });
+            return after;
+        });
+        return { ...result, replayed: false };
+    }
+
     async protectHistoricalAttempt() {
         const task = await this.loadTask();
         const existing = await this.deps.db.deliveryAttempt.findFirst({ where: {
@@ -91,6 +146,11 @@ export class LinkedInTask995RecoveryService {
             throw new Error('[LINKEDIN_995_ATTEMPT_REQUIRED] Protect the historical attempt first');
         }
         const config = resolveEffectiveChannelConfig('linkedin', task.channel.config || {});
+        const browserAssisted = String(config.connector_mode || '').toLowerCase() === 'browser_assisted'
+            || (String(config.account_type || '').toLowerCase() === 'personal'
+                && String(config.connector_mode || '').toLowerCase() !== 'linkedin_api');
+        if (browserAssisted) return { state: 'UNKNOWN', attempt_id: attempt.id, resend_allowed: false,
+            reconciliation: 'browser_required', reason: 'browser_reconciliation_delegated' };
         if (!config.linkedin_urn || !config.access_token) throw new Error('[LINKEDIN_RECONCILIATION_UNAVAILABLE] Missing read credentials');
         const readback = await this.deps.linkedin.findRecentPublishedPosts(config.linkedin_urn, config.access_token);
         if (!readback.available) return { state: 'UNKNOWN', attempt_id: attempt.id, resend_allowed: false,

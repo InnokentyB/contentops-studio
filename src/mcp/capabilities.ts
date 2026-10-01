@@ -155,6 +155,7 @@ const PUBLISHER_TOOLS = new Set([
     'ba_verify_dzen_task992_connector',
     'ba_register_linkedin_task995_unconfirmed_attempt',
     'ba_reconcile_linkedin_task995_attempt',
+    'ba_repair_linkedin_task995_browser_routing',
     'ba_execute_delivery',
     'ba_confirm_publication',
     'ba_record_publication_fact',

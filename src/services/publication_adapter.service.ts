@@ -17,6 +17,17 @@ export type PublicationAction = {
 
 export type PublicationAccount = Record<string, unknown>;
 
+function isPersonalLinkedIn(account: PublicationAccount) {
+    return String(account.platform || '').toLowerCase() === 'linkedin'
+        && String(account.type || account.account_type || '').toLowerCase() === 'personal';
+}
+
+function usesExplicitLinkedInApi(account: PublicationAccount) {
+    const mode = String(account.connector_mode || account.publication_transport || '').toLowerCase();
+    return ['linkedin_api', 'api'].includes(mode)
+        && Boolean(account.linkedin_urn && account.access_token);
+}
+
 class PublicationAdapterService {
     /** Validates content only when a channel has a shared native-format contract. */
     validateChannelContent(channel: string, text: string): LinkedInContentValidation {
@@ -37,7 +48,8 @@ class PublicationAdapterService {
         if (['zen', 'zen_article', 'dzen'].includes(platform)) {
             return Boolean(account.cookies || account.cookies_encrypted);
         }
-        return ['telegram', 'vk', 'linkedin', 'reddit', 'tilda', 'ok', 'odnoklassniki', 'habr', 'habr_article', 'vc', 'vc_article', 'threads'].includes(platform);
+        if (platform === 'linkedin') return usesExplicitLinkedInApi(account);
+        return ['telegram', 'vk', 'reddit', 'tilda', 'ok', 'odnoklassniki', 'habr', 'habr_article', 'vc', 'vc_article', 'threads'].includes(platform);
     }
 
     prefersAutomaticExecution(account: PublicationAccount) {
@@ -57,6 +69,7 @@ class PublicationAdapterService {
     }
 
     inferExecutionMode(account: PublicationAccount, action: PublicationAction): 'manual' | 'automated' {
+        if (isPersonalLinkedIn(account) && !usesExplicitLinkedInApi(account)) return 'manual';
         if (action.human_review) {
             return 'manual';
         }
@@ -77,7 +90,10 @@ class PublicationAdapterService {
     }
 
     buildAdapterConfig(accountRef: string, account: PublicationAccount, actionSamples: PublicationAction[] = []) {
-        const executionModes = Array.from(new Set(actionSamples.map((action) => this.inferExecutionMode(account, action))));
+        const browserAssistedLinkedIn = isPersonalLinkedIn(account) && !usesExplicitLinkedInApi(account);
+        const executionModes = browserAssistedLinkedIn
+            ? ['manual' as const]
+            : Array.from(new Set(actionSamples.map((action) => this.inferExecutionMode(account, action))));
 
         return {
             adapter_kind: 'publication_source',
@@ -92,11 +108,13 @@ class PublicationAdapterService {
             capability_flags: {
                 api_publish: account.cms_api_enabled === true
                     || this.supportsDirectExecution(account),
+                browser_publish: browserAssistedLinkedIn,
                 manual_handoff: account.platform === 'linkedin' || account.platform === 'medium' || account.platform === 'indiehackers' || account.platform === 'reddit' || account.platform === 'threads',
                 analytics_supported: account.platform === 'linkedin' || account.platform === 'reddit' || account.platform === 'google_search_console' || account.platform === 'threads',
                 auto_canvas_generation: account.planner_generation_mode === 'auto_canvas'
             },
-            workflow_mode: account.planner_generation_mode || 'standard',
+            workflow_mode: browserAssistedLinkedIn ? 'browser_required' : account.planner_generation_mode || 'standard',
+            connector_mode: browserAssistedLinkedIn ? 'browser_assisted' : account.connector_mode || null,
             week_theme_source: account.week_theme_source || null,
             raw_account: account
         };
