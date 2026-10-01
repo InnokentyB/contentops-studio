@@ -9,6 +9,7 @@ export type EvidenceStatus = typeof EVIDENCE_STATUSES[number];
 export const EVIDENCE_TYPES = [
     'observable_product', 'reproducible_test', 'real_screenshot_or_recording',
     'metric', 'commit_or_release', 'publication_fact', 'other_verifiable_artifact',
+    'external_source_signal',
     'mockup', 'prototype', 'presentation', 'ai_generated_demo'
 ] as const;
 export type EvidenceType = typeof EVIDENCE_TYPES[number];
@@ -19,6 +20,14 @@ export type EvidenceRef = {
     contentRevision: number;
     claim?: string;
     metric?: { period?: string; baseline?: string | number; comparator?: string | number };
+    source?: {
+        signalId?: number;
+        sourceType: string;
+        canonicalUrl: string;
+        snapshotHash: string;
+        observedAt: string;
+        accessClass: 'public' | 'authenticated_read';
+    };
 };
 
 export type ClaimEvidenceInput = {
@@ -59,7 +68,27 @@ export function evaluateClaimEvidence(
     contentRevision: number
 ): ClaimEvidenceAssessment {
     const issueCodes = new Set<string>();
-    const evidenceRefs = Array.isArray(input.evidenceRefs) ? input.evidenceRefs : [];
+    const evidenceRefs = Array.isArray(input.evidenceRefs)
+        ? input.evidenceRefs.map((ref): EvidenceRef => ({
+            type: ref.type,
+            ref: ref.ref,
+            contentRevision: ref.contentRevision,
+            ...(ref.claim ? { claim: ref.claim } : {}),
+            ...(ref.metric ? { metric: {
+                ...(ref.metric.period ? { period: ref.metric.period } : {}),
+                ...(ref.metric.baseline != null ? { baseline: ref.metric.baseline } : {}),
+                ...(ref.metric.comparator != null ? { comparator: ref.metric.comparator } : {})
+            } } : {}),
+            ...(ref.source ? { source: {
+                ...(ref.source.signalId != null ? { signalId: ref.source.signalId } : {}),
+                sourceType: ref.source.sourceType,
+                canonicalUrl: ref.source.canonicalUrl,
+                snapshotHash: ref.source.snapshotHash,
+                observedAt: ref.source.observedAt,
+                accessClass: ref.source.accessClass
+            } } : {})
+        }))
+        : [];
 
     if (input.headlineStage && STAGE_STRENGTH[input.headlineStage] > STAGE_STRENGTH[input.claimStage]) {
         issueCodes.add('HEADLINE_EXCEEDS_EVIDENCE');
@@ -85,6 +114,16 @@ export function evaluateClaimEvidence(
         && (!ref.metric?.period?.trim()
             || (ref.metric.baseline == null && ref.metric.comparator == null)))) {
         issueCodes.add('INCOMPLETE_METRIC_EVIDENCE');
+    }
+
+    if (evidenceRefs.some(ref => ref.type === 'external_source_signal'
+        && (!ref.source?.sourceType?.trim()
+            || !ref.source.canonicalUrl?.trim()
+            || !/^https:\/\//i.test(ref.source.canonicalUrl)
+            || !/^[a-f0-9]{64}$/i.test(ref.source.snapshotHash || '')
+            || !ref.source.observedAt?.trim()
+            || Number.isNaN(Date.parse(ref.source.observedAt))))) {
+        issueCodes.add('INCOMPLETE_SOURCE_PROVENANCE');
     }
 
     const issue_codes = [...issueCodes];

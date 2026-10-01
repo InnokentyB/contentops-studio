@@ -66,3 +66,41 @@ test('metric claims require a period and comparator', () => {
     assert.equal(result.alignment_status, 'revise');
     assert.ok(result.issue_codes.includes('INCOMPLETE_METRIC_EVIDENCE'));
 });
+
+test('organization research evidence keeps safe source provenance inside content review', () => {
+    const aligned = evaluateClaimEvidence({
+        claimStage: 'verified_result', evidenceStatus: 'verified',
+        evidenceRefs: [{
+            type: 'external_source_signal', ref: 'signal://42', contentRevision: revision,
+            source: {
+                signalId: 42,
+                sourceType: 'indie_hackers',
+                canonicalUrl: 'https://www.indiehackers.com/post/example',
+                snapshotHash: 'a'.repeat(64),
+                observedAt: '2026-10-01T10:00:00.000Z',
+                accessClass: 'authenticated_read',
+                cookies: 'must-not-survive-review-boundary'
+            } as never
+        }]
+    }, revision);
+
+    assert.equal(aligned.alignment_status, 'aligned');
+    assert.equal(aligned.evidence_refs[0].source?.accessClass, 'authenticated_read');
+    assert.equal('cookies' in (aligned.evidence_refs[0].source || {}), false);
+});
+
+test('external research evidence without canonical provenance cannot approve a result claim', () => {
+    const result = evaluateClaimEvidence({
+        claimStage: 'verified_result', evidenceStatus: 'verified',
+        evidenceRefs: [{
+            type: 'external_source_signal', ref: 'signal://42', contentRevision: revision,
+            source: {
+                sourceType: 'reddit', canonicalUrl: '', snapshotHash: '',
+                observedAt: '', accessClass: 'authenticated_read'
+            }
+        }]
+    }, revision);
+
+    assert.equal(result.alignment_status, 'revise');
+    assert.ok(result.issue_codes.includes('INCOMPLETE_SOURCE_PROVENANCE'));
+});

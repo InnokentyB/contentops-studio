@@ -1,6 +1,6 @@
 # TDPD 011 — Evidence-backed content contract
 
-**Статус:** RED specification; production schema и publication gates не изменяются  
+**Статус:** ENGINEERING COMPLETE / GREEN; awaiting owner UAT
 **Дата:** 2026-09-27  
 **Владелец:** ContentOps / Chief Editor  
 **Источник сигнала:** авторское наблюдение, [brainshare/2651](https://t.me/brainshare/2651); не исследование и не доказательство эффекта
@@ -44,7 +44,11 @@ Claim/evidence check является частью редакционного п
 
 Допустимые evidence types для slice: `observable_product`, `reproducible_test`,
 `real_screenshot_or_recording`, `metric`, `commit_or_release`,
-`publication_fact`, `other_verifiable_artifact`. Для metric обязательны period и
+`publication_fact`, `other_verifiable_artifact`, `external_source_signal`. Для
+`external_source_signal` обязательны безопасные provenance-поля: тип источника,
+канонический HTTPS URL, snapshot hash, время наблюдения и access class
+`public | authenticated_read`. Поисковые cookies, токены и account identity в
+review result не переносятся. Для metric обязательны period и
 baseline/comparator, если текст утверждает изменение.
 
 Прототип, презентация, mockup и AI-generated demo могут быть source material, но
@@ -243,5 +247,7 @@ work-item kind, отдельная очередь или автоматичес�
 5. Только после UAT проектировать A/B instrumentation. Эффект гипотезы нельзя
    объявлять доказанным по unit/integration tests.
 
-До решения открытых вопросов документ остаётся RED specification. Он не разрешает
-миграцию production schema, изменение approval gate или публикацию.
+Первый slice реализован внутри существующего `content_review` без отдельной
+очереди и без миграции production schema. Approval gate принимает только aligned,
+revision-bound assessment. Остальные открытые вопросы остаются последующими
+итерациями и не расширяют право публикации.

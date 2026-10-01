@@ -104,6 +104,7 @@ export function registerWorkQueueTools(server: McpServer): void {
                         type: z.enum([
                             'observable_product', 'reproducible_test', 'real_screenshot_or_recording',
                             'metric', 'commit_or_release', 'publication_fact', 'other_verifiable_artifact',
+                            'external_source_signal',
                             'mockup', 'prototype', 'presentation', 'ai_generated_demo'
                         ]),
                         ref: z.string().min(1),
@@ -113,7 +114,15 @@ export function registerWorkQueueTools(server: McpServer): void {
                             period: z.string().min(1).optional(),
                             baseline: z.union([z.string(), z.number()]).optional(),
                             comparator: z.union([z.string(), z.number()]).optional()
-                        }).optional()
+                        }).optional(),
+                        source: z.object({
+                            signalId: z.number().int().positive().optional(),
+                            sourceType: z.string().min(1).max(80),
+                            canonicalUrl: z.string().url().startsWith('https://'),
+                            snapshotHash: z.string().regex(/^[a-f0-9]{64}$/i),
+                            observedAt: z.string().datetime(),
+                            accessClass: z.enum(['public', 'authenticated_read'])
+                        }).strict().optional()
                     })).default([])
                 }).optional()
             }),
