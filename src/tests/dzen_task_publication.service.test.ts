@@ -11,7 +11,8 @@ const actual992IncidentKey = 'dzen-992-owner-confirmed-retry-20261001-v2';
 const schedule = new Date('2026-09-22T11:00:00.000Z');
 
 function harness(options: { released?: boolean; verified?: boolean; providerError?: boolean;
-    taskId?: 958 | 962 | 992; studioTitles?: string[]; studioTitleReadbackComplete?: boolean } = {}) {
+    taskId?: 958 | 962 | 992; studioTitles?: string[]; studioTitleReadbackComplete?: boolean;
+    studioPublishedAt?: string | null } = {}) {
     const taskId = options.taskId || 958;
     const taskHash = taskId === 992 ? hash992 : taskId === 962 ? hash962 : hash;
     const decisionId = taskId === 992 ? 186 : taskId === 962 ? 146 : 147;
@@ -95,10 +96,14 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
             editor_url: 'https://dzen.ru/profile/editor/id/dzen-channel/publications',
             publications_payload_received: true,
             title_readback_complete: options.studioTitleReadbackComplete !== false,
+            publication_timestamp_readback_complete: options.studioPublishedAt !== null,
             publications: (options.studioTitles || []).map((title, index) => ({
                 provider_object_id: `publication-${index + 1}`,
                 title,
-                public_url: `https://dzen.ru/a/publication-${index + 1}`
+                public_url: `https://dzen.ru/a/publication-${index + 1}`,
+                published_at: options.studioPublishedAt === null
+                    ? null
+                    : options.studioPublishedAt || '2026-10-01T18:21:55.809Z'
             })),
             checked_at: new Date().toISOString()
         }) },
@@ -277,6 +282,7 @@ test('exact-title Studio match keeps frozen #992 blocked from recovery and retry
         actorId: 'user:2', idempotencyKey: 'dzen-992-exact-match-v1' });
     assert.equal(result.reconciliation.classification, 'exact_match_found');
     assert.equal(result.reconciliation.exact_title_matches, 1);
+    assert.deepEqual(result.reconciliation.matching_published_at, ['2026-10-01T18:21:55.809Z']);
 
     await assert.rejects(h.service.confirmAbsentAndAuthorizeRetry({
         projectId: 10, taskId: 992, actorId: 'user:2',
@@ -284,6 +290,22 @@ test('exact-title Studio match keeps frozen #992 blocked from recovery and retry
         evidenceReference: 'authenticated-studio:exact-match-found'
     }), /DZEN_992_PROVIDER_READBACK_REQUIRED/);
     assert.equal(h.task.status, 'publishing');
+    assert.equal(h.providerCalls, 0);
+});
+
+test('exact-title Studio match without provider publishTime fails closed and never records reconciliation', async () => {
+    const h = harness({ taskId: 992, studioTitles: ['Exact accepted title'],
+        studioPublishedAt: null, verified: false });
+    h.task.status = 'ready_for_execution';
+    h.task.quality_report = { publication_task_delivery: {
+        state: 'provider_result_uncertain', idempotency_key: actual992IncidentKey,
+        retry_via_api: false
+    } };
+
+    await assert.rejects(h.service.verifyConnector({ projectId: 10, taskId: 992,
+        actorId: 'user:2', idempotencyKey: 'dzen-992-match-without-publish-time-v1'
+    }), /DZEN_992_PROVIDER_TIMESTAMP_READBACK_INCOMPLETE/);
+    assert.equal(h.events.length, 0);
     assert.equal(h.providerCalls, 0);
 });
 
