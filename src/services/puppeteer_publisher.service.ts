@@ -272,7 +272,12 @@ class PuppeteerPublisherService {
                 input = await page.waitForSelector('input[type="file"][accept*="image"], input[type="file"]', { timeout: 10_000 });
             }
             if (!input) throw new Error('Dzen image upload control was not found');
-            await uploadDzenFileAndVerify(page, input, tempPath, previousImageCount);
+            await uploadDzenFileAndVerify(
+                page,
+                input as ElementHandle<HTMLInputElement>,
+                tempPath,
+                previousImageCount
+            );
         } finally {
             fs.rmSync(tempPath, { force: true });
         }
