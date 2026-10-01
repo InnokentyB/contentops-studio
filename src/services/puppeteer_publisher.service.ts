@@ -29,6 +29,8 @@ export {
     navigateDzenInteractionPage,
     extractDzenStudioMetrics,
     extractDzenStudioPublications,
+    classifyDzenImageUploadOutcome,
+    DzenImageUploadOutcome,
     DzenStudioPublication,
     DzenPublicationType,
     DZEN_EDITOR_SELECTORS,
@@ -50,6 +52,7 @@ import {
     classifyDzenStudioLocation,
     typeDzenContentEditableText
 } from './puppeteer/dzen_dom_helpers';
+import { uploadDzenFileAndVerify } from './puppeteer/dzen_image_upload';
 import {
     canonicalPublicDzenUrl,
     clickDzenPublicationConfirm,
@@ -246,6 +249,10 @@ class PuppeteerPublisherService {
         fs.mkdirSync(path.dirname(tempPath), { recursive: true });
         fs.writeFileSync(tempPath, bytes);
         try {
+            const previousImageCount = await page.$$eval(
+                'figure[itemprop="image"] img, [class*="article-image-item__image"]',
+                (images) => images.length
+            );
             let input = await page.$('input[type="file"][accept*="image"], input[type="file"]');
             if (!input) {
                 await page.evaluate((iconFragment) => {
@@ -265,11 +272,7 @@ class PuppeteerPublisherService {
                 input = await page.waitForSelector('input[type="file"][accept*="image"], input[type="file"]', { timeout: 10_000 });
             }
             if (!input) throw new Error('Dzen image upload control was not found');
-            await input.uploadFile(tempPath);
-            await page.waitForFunction(
-                () => Boolean(document.querySelector('img[src^="blob:"], img[src*="avatars"], img[src*="dzeninfra"]')),
-                { timeout: 20_000 }
-            ).catch(() => undefined);
+            await uploadDzenFileAndVerify(page, input, tempPath, previousImageCount);
         } finally {
             fs.rmSync(tempPath, { force: true });
         }

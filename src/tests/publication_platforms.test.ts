@@ -7,6 +7,7 @@ import dzenService, { isDzenPublishedUrl } from '../services/dzen.service';
 import {
     classifyDzenStudioLocation,
     extractDzenStudioPublications,
+    classifyDzenImageUploadOutcome,
     parseBrowserCookieHeader,
     DZEN_EDITOR_SELECTORS,
     typeDzenContentEditableText
@@ -338,6 +339,30 @@ test('Dzen Studio readback accepts the current API content.preview title shape',
         titleForUrl: 'not-authoritative-readable-title',
         commonUrl: '/a/provider-with-slug-only'
     }] })?.title_readback_complete, false);
+});
+
+test('Dzen image upload blocks publication on the observed provider rejection', () => {
+    assert.deepEqual(classifyDzenImageUploadOutcome({
+        responseStatus: 200,
+        insertedImage: false,
+        pageText: 'Не удалось загрузить изображение\nЗагружено с ошибкой.'
+    }), {
+        kind: 'rejected',
+        message: 'Не удалось загрузить изображение'
+    });
+    assert.deepEqual(classifyDzenImageUploadOutcome({
+        responseStatus: 200,
+        insertedImage: false,
+        pageText: 'Редактор статьи'
+    }), {
+        kind: 'uncertain',
+        reason: 'Dzen accepted the upload request but did not render the image in the article.'
+    });
+    assert.deepEqual(classifyDzenImageUploadOutcome({
+        responseStatus: 200,
+        insertedImage: true,
+        pageText: 'Редактор статьи'
+    }), { kind: 'uploaded' });
 });
 
 test('publicationAdapterService recognizes new platforms as direct-execution friendly', () => {
