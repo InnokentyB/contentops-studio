@@ -5,20 +5,27 @@ import { isToolAllowedForProfile } from '../mcp/capabilities';
 
 const hash = '78081837cecace18c91c01af0253b21ca502e611b63a016f9d9035567587dfd3';
 const hash962 = '15c9b4a2e874439c4952900002ae5677fc3a6b6e8794dd34a0a4ae5f03dba798';
+const hash992 = '62af2b8e32d3aabb2b3d6f7029ee2b7ec64a7f9329eef01e52d6c4591e7eb150';
+const asset992Hash = '6061c4e53210de240d840e85e39990d7af5e496544f0cda4dd010048d33ebe25';
 const schedule = new Date('2026-09-22T11:00:00.000Z');
 
-function harness(options: { released?: boolean; verified?: boolean; providerError?: boolean; taskId?: 958 | 962 } = {}) {
+function harness(options: { released?: boolean; verified?: boolean; providerError?: boolean; taskId?: 958 | 962 | 992 } = {}) {
     const taskId = options.taskId || 958;
-    const taskHash = taskId === 962 ? hash962 : hash;
-    const decisionId = taskId === 962 ? 146 : 147;
+    const taskHash = taskId === 992 ? hash992 : taskId === 962 ? hash962 : hash;
+    const decisionId = taskId === 992 ? 186 : taskId === 962 ? 146 : 147;
+    const revision = taskId === 992 ? 3 : 1;
+    const hasVisual = taskId === 992;
     const verifyCommand = `ba_verify_dzen_task${taskId}_connector`;
     const task: any = {
         id: taskId, project_id: 10, channel_id: 116,
         channel: { type: 'dzen', config: { channel_id: 'dzen-channel', cookies: 'session=test',
             capability_flags: { api_publish: false } } },
-        content_revision: 1, accepted_revision: 1, text_state: 'accepted',
-        draft_text: 'exact accepted body', visual_placement: 'feed',
-        visual_state: 'NO_VISUAL_NEEDED', selected_asset_id: null,
+        content_revision: revision, accepted_revision: revision, text_state: 'accepted',
+        draft_text: 'exact accepted body', title: 'Exact accepted title', visual_placement: hasVisual ? 'article_cover' : 'feed',
+        visual_state: hasVisual ? 'APPROVED' : 'NO_VISUAL_NEEDED', selected_asset_id: hasVisual ? 97 : null,
+        selected_asset: hasVisual ? { id: 97, status: 'approved', content_revision: 3,
+            file_url: 'https://cdn.example.test/task992.png',
+            provenance: { planner_storage: { sha256: asset992Hash } } } : null,
         visual_decision_version: 2, handoff_state: 'ready',
         status: 'ready_for_execution', publication_mode: 'owner_released',
         schedule_at: schedule, published_link: null, publication_fact: null,
@@ -48,8 +55,9 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
                     authenticated: true, editor_available: true, checked_at: new Date().toISOString()
                 } }
                 : options.released === false ? null : { after_state: {
-                    task_id: taskId, channel_id: 116, content_revision: 1, accepted_revision: 1,
+                    task_id: taskId, channel_id: 116, content_revision: revision, accepted_revision: revision,
                     body_sha256: taskHash, visual_decision_id: decisionId,
+                    ...(taskId === 992 ? { asset_sha256: asset992Hash } : {}),
                     schedule_at: schedule.toISOString(), publication_mode: 'owner_released'
                 } },
             create: async (event: any) => { events.push(event); return event; }
@@ -80,6 +88,25 @@ test('Dzen release tool is publisher-only and delivery rejects missing owner pro
     assert.equal(isToolAllowedForProfile('planner', 'ba_release_approved_dzen_task958'), false);
     const h = harness({ released: false });
     await assert.rejects(h.service.execute({ projectId: 10, taskId: 958, dryRun: true }), /OWNER_RELEASE_PROOF_MISMATCH/);
+    assert.equal(h.providerCalls, 0);
+});
+
+test('Dzen #992 dry-run binds accepted revision, approved remote visual and article payload', async () => {
+    assert.equal(isToolAllowedForProfile('publisher', 'ba_verify_dzen_task992_connector'), true);
+    const h = harness({ taskId: 992 });
+    const dry = await h.service.execute({ projectId: 10, taskId: 992, dryRun: true });
+    assert.equal(dry.route_executable, true);
+    assert.deepEqual(dry.payload_preview, {
+        text: 'exact accepted body', title: 'Exact accepted title', has_image: true,
+        image_url: 'https://cdn.example.test/task992.png', publication_type: 'article',
+        channel_id: 116, accepted_revision: 3, visual_decision_id: 186, selected_asset_id: 97
+    });
+});
+
+test('Dzen #992 refuses a stale accepted visual without provider call', async () => {
+    const h = harness({ taskId: 992 });
+    h.task.selected_asset.content_revision = 2;
+    await assert.rejects(h.service.execute({ projectId: 10, taskId: 992, dryRun: true }), /OWNER_RELEASE_PROOF_MISMATCH/);
     assert.equal(h.providerCalls, 0);
 });
 

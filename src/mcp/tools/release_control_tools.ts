@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import ownerPublicationControlsService from '../../services/owner_publication_controls.service';
 import dzenTaskPublicationService from '../../services/dzen_task_publication.service';
+import linkedinTask995RecoveryService from '../../services/linkedin_task995_recovery.service';
 import { asToolResult } from './common';
 
 /**
@@ -115,4 +116,22 @@ export function registerReleaseControlTools(server: McpServer): void {
             idempotencyKey: z.string().min(1)
         }
     }, async (args) => asToolResult(await dzenTaskPublicationService.verifyConnector(args)));
+
+    server.registerTool('ba_verify_dzen_task992_connector', {
+        description: 'Owner-only read-only authenticated editor probe for exact owner-released Dzen article #992 rev3. Records a short-lived task-scoped proof and never publishes.',
+        inputSchema: {
+            projectId: z.number().int().positive(), actorId: z.string(), taskId: z.literal(992),
+            idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await dzenTaskPublicationService.verifyConnector(args)));
+
+    server.registerTool('ba_register_linkedin_task995_unconfirmed_attempt', {
+        description: 'Registers the already-observed LinkedIn #995 adapter call as one durable UNKNOWN attempt. Never sends or retries provider publication.',
+        inputSchema: { projectId: z.literal(7), taskId: z.literal(995) }
+    }, async () => asToolResult(await linkedinTask995RecoveryService.protectHistoricalAttempt()));
+
+    server.registerTool('ba_reconcile_linkedin_task995_attempt', {
+        description: 'Read-only reconciliation of the durable LinkedIn #995 UNKNOWN attempt. Records a fact only for one exact accepted-body provider match; never sends.',
+        inputSchema: { projectId: z.literal(7), taskId: z.literal(995) }
+    }, async () => asToolResult(await linkedinTask995RecoveryService.reconcile()));
 }

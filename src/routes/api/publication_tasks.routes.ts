@@ -13,6 +13,7 @@ import commentService from '../../services/comment.service';
 import storageService from '../../services/storage.service';
 import imageAssetService from '../../services/image_asset.service';
 import initiativeService from '../../services/initiative.service';
+import linkedinTask995RecoveryService from '../../services/linkedin_task995_recovery.service';
 import { assertVisualGenerationGate, hardenEditorialVisualPrompt } from '../../services/visual_generation_policy';
 import { isPublicationTaskActive } from '../../services/publication_task_activity';
 import { derivePublicationContentState } from '../../services/publication_content_state';
@@ -369,6 +370,18 @@ export default async function publicationTasksRoutes(fastify: FastifyInstance): 
         }
 
         try {
+            if (projectId === 7 && taskId === 995) {
+                const incident = await linkedinTask995RecoveryService.protectHistoricalAttempt();
+                return {
+                    success: true,
+                    result: {
+                        ...incident,
+                        manualFallback: true,
+                        reason: 'The earlier LinkedIn adapter call is unconfirmed. Resend is blocked until read-only reconciliation finds a canonical post permalink.'
+                    },
+                    item: await prisma.contentItem.findFirst({ where: { id: taskId, project_id: projectId }, include: { channel: true } })
+                };
+            }
             const host = request.headers.host || undefined;
             const result = await publisherService.processPublicationTaskNow(taskId, host);
             const refreshed = await prisma.contentItem.findFirst({

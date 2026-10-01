@@ -406,7 +406,7 @@ export async function importPlan(params: {
                         ? (existingChannel.config as Record<string, unknown>)
                         : {};
                     const chanConf = (channelConfig as Record<string, unknown>) || {};
-                    const mergedConfig = {
+                    const mergedBase = {
                         ...existingConf,
                         ...chanConf,
                         telegram_channel_id: existingConf.telegram_channel_id || chanConf.telegram_channel_id || null,
@@ -419,7 +419,19 @@ export async function importPlan(params: {
                         vk_id: existingConf.vk_id || chanConf.vk_id || null,
                         group_id: existingConf.group_id || chanConf.group_id || null,
                         cookies: existingConf.cookies || chanConf.cookies || null,
+                        cookies_encrypted: existingConf.cookies_encrypted || chanConf.cookies_encrypted || null,
                         webhook_url: existingConf.webhook_url || chanConf.webhook_url || null
+                    };
+                    const mergedConfig = {
+                        ...mergedBase,
+                        capability_flags: {
+                            ...((chanConf.capability_flags as Record<string, unknown> | undefined) || {}),
+                            ...((existingConf.capability_flags as Record<string, unknown> | undefined) || {}),
+                            api_publish: publicationAdapterService.supportsDirectExecution({
+                                ...mergedBase,
+                                platform: account.platform
+                            })
+                        }
                     };
 
                     return tx.socialChannel.update({

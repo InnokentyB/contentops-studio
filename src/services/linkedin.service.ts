@@ -229,17 +229,49 @@ class LinkedInService {
             throw new Error(`LinkedIn publish failed: ${errorText}`);
         }
 
-        const data: any = await response.json();
+        const responseText = await response.text();
+        let data: any = {};
+        if (responseText.trim()) {
+            try { data = JSON.parse(responseText); } catch { data = {}; }
+        }
         // Return LinkedIn activity URL or ID
         // The id is e.g. "urn:li:share:61231231231"
-        const postIdStr = data.id || '';
+        const postIdStr = data.id || response.headers.get('x-restli-id') || '';
         const numericIdMatch = postIdStr.match(/:(\d+)$/);
         
         if (numericIdMatch) {
             return `https://www.linkedin.com/feed/update/${postIdStr}`;
         }
         
-        return `https://www.linkedin.com/`;
+        throw new Error('[LINKEDIN_PROVIDER_ID_MISSING] Provider accepted the request without a stable post identity; reconcile before retry');
+    }
+
+    /** Read-only recent-post lookup used to reconcile an uncertain write. */
+    async findRecentPublishedPosts(urn: string, token: string): Promise<{
+        available: boolean;
+        reason?: string;
+        posts: Array<{ urn: string; permalink: string; text: string }>;
+    }> {
+        const authors = encodeURIComponent(`List(${urn})`);
+        const response = await fetch(`https://api.linkedin.com/v2/ugcPosts?q=authors&authors=${authors}&sortBy=LAST_MODIFIED&count=20`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'X-Restli-Protocol-Version': '2.0.0',
+                'Linkedin-Version': this.getApiVersion()
+            }
+        });
+        if (!response.ok) {
+            return { available: false, reason: `provider_readback_http_${response.status}`, posts: [] };
+        }
+        const payload: any = await response.json();
+        const posts = (Array.isArray(payload?.elements) ? payload.elements : []).flatMap((element: any) => {
+            const id = typeof element?.id === 'string' ? element.id : '';
+            const text = element?.specificContent?.['com.linkedin.ugc.ShareContent']?.shareCommentary?.text;
+            if (!/^urn:li:(ugcPost|share):\d+$/.test(id) || typeof text !== 'string'
+                || element?.lifecycleState !== 'PUBLISHED') return [];
+            return [{ urn: id, permalink: `https://www.linkedin.com/feed/update/${id}`, text }];
+        });
+        return { available: true, posts };
     }
 
     /**
