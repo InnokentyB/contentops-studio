@@ -33,7 +33,6 @@ const TASKS = {
     }
 } as const;
 
-const DZEN_992_UNCERTAIN_KEY = 'dzen-992-prod-20261001-rev3-v1';
 const DZEN_992_RECOVERY_COMMAND = 'ba_confirm_dzen_task992_absent_and_authorize_retry';
 
 function taskSpec(taskId: number) {
@@ -103,6 +102,9 @@ export class DzenTaskPublicationService {
         const assetSha = task?.selected_asset?.provenance?.planner_storage?.sha256
             || task?.selected_asset?.provenance?.sha256 || null;
         const delivery = task?.quality_report?.publication_task_delivery;
+        const priorIncidentKey = typeof delivery?.idempotency_key === 'string'
+            ? delivery.idempotency_key.trim()
+            : '';
         if (!task || task.channel_id !== 116 || task.channel?.type !== 'dzen'
             || task.status !== 'publishing' || task.publication_mode !== 'owner_released'
             || task.content_revision !== spec.revision || task.accepted_revision !== spec.revision
@@ -112,8 +114,16 @@ export class DzenTaskPublicationService {
             || assetSha !== spec.assetSha256 || bodyHash !== spec.bodySha256
             || task.publication_fact || task.published_link
             || delivery?.state !== 'provider_result_uncertain'
-            || delivery?.idempotency_key !== DZEN_992_UNCERTAIN_KEY || delivery?.retry_via_api !== false) {
+            || !priorIncidentKey || delivery?.retry_via_api !== false) {
             throw new Error('[DZEN_992_CONFIRMED_ABSENT_GUARD_FAILED]');
+        }
+        const priorClaim = await db.workflowEvent.findFirst({ where: {
+            project_id: 10, content_item_id: 992, command: spec.claimCommand,
+            idempotency_key: priorIncidentKey
+        }, orderBy: { id: 'desc' } });
+        if (priorClaim?.after_state?.status !== 'publishing'
+            || priorClaim?.after_state?.channel_id !== 116) {
+            throw new Error('[DZEN_992_DURABLE_INCIDENT_CLAIM_REQUIRED]');
         }
         const reconciliation = await db.workflowEvent.findFirst({ where: {
             project_id: 10, content_item_id: 992, command: 'reconcile_dzen_task992_uncertain_attempt'
@@ -121,13 +131,19 @@ export class DzenTaskPublicationService {
         const readback = reconciliation?.after_state;
         if (readback?.classification !== 'not_confirmed' || readback?.exact_title_matches !== 0
             || readback?.publication_fact_id !== null || readback?.studio_authenticated !== true
-            || readback?.publications_payload_received !== true || readback?.title_readback_complete !== true) {
+            || readback?.publications_payload_received !== true || readback?.title_readback_complete !== true
+            || readback?.previous_idempotency_key !== priorIncidentKey
+            || readback?.prior_claim_event_id !== priorClaim.id) {
             throw new Error('[DZEN_992_PROVIDER_READBACK_REQUIRED]');
+        }
+        const resendKey = args.resendIdempotencyKey.trim();
+        if (!resendKey || resendKey === priorIncidentKey) {
+            throw new Error('[DZEN_992_RETRY_KEY_MUST_BE_NEW]');
         }
         const after = { task_id: 992, channel_id: 116, content_revision: 3, accepted_revision: 3,
             visual_decision_id: 186, selected_asset_id: 97, classification: 'confirmed_absent',
-            previous_idempotency_key: DZEN_992_UNCERTAIN_KEY,
-            authorized_idempotency_key: args.resendIdempotencyKey,
+            previous_idempotency_key: priorIncidentKey,
+            authorized_idempotency_key: resendKey,
             resend_safe: true, publication_fact_id: null, history_preserved: true };
         await db.$transaction(async (tx: typeof db) => {
             const changed = await tx.contentItem.updateMany({ where: {
@@ -137,8 +153,8 @@ export class DzenTaskPublicationService {
             }, data: { status: 'ready_for_execution', quality_report: {
                 ...(task.quality_report || {}), publication_task_delivery: {
                     state: 'confirmed_absent_retry_authorized', channel_type: 'dzen',
-                    previous_idempotency_key: DZEN_992_UNCERTAIN_KEY,
-                    authorized_idempotency_key: args.resendIdempotencyKey, retry_via_api: true,
+                    previous_idempotency_key: priorIncidentKey,
+                    authorized_idempotency_key: resendKey, retry_via_api: true,
                     owner_evidence: { type: 'owner_provider_readback', ref: args.evidenceReference },
                     prior_reconciliation_event_id: reconciliation.id,
                     authorized_at: new Date().toISOString()
@@ -179,10 +195,20 @@ export class DzenTaskPublicationService {
         const assetSha = task?.selected_asset?.provenance?.planner_storage?.sha256
             || task?.selected_asset?.provenance?.sha256 || null;
         const delivery = task?.quality_report?.publication_task_delivery;
-        const frozen992 = spec.taskId === 992 && task?.status === 'publishing'
+        const frozenIncidentKey = typeof delivery?.idempotency_key === 'string'
+            ? delivery.idempotency_key.trim()
+            : '';
+        const frozen992Candidate = spec.taskId === 992 && task?.status === 'publishing'
             && delivery?.state === 'provider_result_uncertain'
-            && delivery?.idempotency_key === DZEN_992_UNCERTAIN_KEY
+            && Boolean(frozenIncidentKey)
             && delivery?.retry_via_api === false;
+        const frozenClaim = frozen992Candidate ? await db.workflowEvent.findFirst({ where: {
+            project_id: 10, content_item_id: 992, command: spec.claimCommand,
+            idempotency_key: frozenIncidentKey
+        }, orderBy: { id: 'desc' } }) : null;
+        const frozen992 = frozen992Candidate
+            && frozenClaim?.after_state?.status === 'publishing'
+            && frozenClaim?.after_state?.channel_id === 116;
         if (prior?.after_state && (!frozen992 || prior.after_state.reconciliation)) return prior.after_state;
         if (!task || task.channel_id !== 116 || task.channel?.type !== 'dzen'
             || task.publication_mode !== 'owner_released'
@@ -219,7 +245,8 @@ export class DzenTaskPublicationService {
             );
             reconciliation = {
                 task_id: 992, channel_id: 116, accepted_revision: 3,
-                previous_idempotency_key: DZEN_992_UNCERTAIN_KEY,
+                previous_idempotency_key: frozenIncidentKey,
+                prior_claim_event_id: frozenClaim.id,
                 retry_via_api: false,
                 classification: exactMatches.length === 0 ? 'not_confirmed' : 'exact_match_found',
                 exact_title_matches: exactMatches.length,
