@@ -25,11 +25,13 @@ export interface DzenStudioPublication {
     provider_object_id: string | null;
     title: string | null;
     public_url: string | null;
+    published_at: string | null;
 }
 
 export interface DzenStudioPublicationPayload {
     publications: DzenStudioPublication[];
     title_readback_complete: boolean;
+    publication_timestamp_readback_complete: boolean;
 }
 
 export type DzenImageUploadOutcome =
@@ -140,15 +142,25 @@ export function extractDzenStudioPublications(payload: unknown): DzenStudioPubli
         const urlCandidate = [raw.commonUrl, raw.publicUrl, raw.url]
             .find((candidate): candidate is string => typeof candidate === 'string') || '';
         const providerId = typeof raw.id === 'string' || typeof raw.id === 'number' ? String(raw.id) : null;
+        const publishTime = raw.isPublished === true && raw.status === 'published'
+            && typeof raw.publishTime === 'number' && Number.isSafeInteger(raw.publishTime)
+            ? raw.publishTime
+            : null;
+        const publishedAt = publishTime !== null && publishTime >= Date.UTC(2000, 0, 1)
+            && publishTime < Date.UTC(2100, 0, 1)
+            ? new Date(publishTime).toISOString()
+            : null;
         return {
             provider_object_id: providerId,
             title,
-            public_url: canonicalPublicDzenUrl(urlCandidate)
+            public_url: canonicalPublicDzenUrl(urlCandidate),
+            published_at: publishedAt
         };
     });
     return {
         publications,
-        title_readback_complete: publications.every((publication) => publication.title !== null)
+        title_readback_complete: publications.every((publication) => publication.title !== null),
+        publication_timestamp_readback_complete: publications.every((publication) => publication.published_at !== null)
     };
 }
 

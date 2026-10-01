@@ -683,6 +683,7 @@ class PuppeteerPublisherService {
                 editor_url: page.url(),
                 publications_payload_received: true,
                 title_readback_complete: parsed.title_readback_complete,
+                publication_timestamp_readback_complete: parsed.publication_timestamp_readback_complete,
                 publications: parsed.publications,
                 checked_at: new Date().toISOString()
             };

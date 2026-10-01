@@ -52,6 +52,7 @@ type DzenStudioPublicationReadback = {
     title: string | null;
     public_url: string | null;
     provider_object_id: string | null;
+    published_at: string | null;
 };
 type Dependencies = {
     db: any;
@@ -64,6 +65,7 @@ type Dependencies = {
             editor_url: string;
             publications_payload_received: boolean;
             title_readback_complete: boolean;
+            publication_timestamp_readback_complete: boolean;
             publications: DzenStudioPublicationReadback[];
             checked_at: string;
         }>;
@@ -262,6 +264,9 @@ export class DzenTaskPublicationService {
             const exactMatches = publications.filter((publication) =>
                 typeof publication?.title === 'string' && normalizeTitle(publication.title) === acceptedTitle
             );
+            if (exactMatches.some((publication) => !publication.published_at)) {
+                throw new Error('[DZEN_992_PROVIDER_TIMESTAMP_READBACK_INCOMPLETE] Fact recording remains forbidden');
+            }
             reconciliation = {
                 task_id: 992, channel_id: 116, accepted_revision: 3,
                 previous_idempotency_key: frozenIncidentKey,
@@ -273,11 +278,13 @@ export class DzenTaskPublicationService {
                 exact_title_matches: exactMatches.length,
                 matching_public_urls: exactMatches.map((publication) => publication.public_url).filter(Boolean),
                 matching_provider_object_ids: exactMatches.map((publication) => publication.provider_object_id).filter(Boolean),
+                matching_published_at: exactMatches.map((publication) => publication.published_at).filter(Boolean),
                 publications_scanned: check.publications.length,
                 publication_fact_id: null,
                 studio_authenticated: true,
                 publications_payload_received: true,
                 title_readback_complete: true,
+                publication_timestamp_readback_complete: check.publication_timestamp_readback_complete === true,
                 checked_at: check.checked_at || new Date().toISOString()
             };
         }

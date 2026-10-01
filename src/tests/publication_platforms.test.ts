@@ -301,36 +301,42 @@ test('Dzen Studio readback extracts canonical title identity and fails closed on
         publications: [{
             provider_object_id: 'provider-992',
             title: 'Exact accepted title',
-            public_url: 'https://dzen.ru/a/provider-992'
+            public_url: 'https://dzen.ru/a/provider-992',
+            published_at: null
         }],
-        title_readback_complete: true
+        title_readback_complete: true,
+        publication_timestamp_readback_complete: false
     });
     assert.equal(extractDzenStudioPublications({ publications: [{
         id: 'provider-without-readable-title', commonUrl: '/a/provider-without-readable-title'
     }] })?.title_readback_complete, false);
 });
 
-test('Dzen Studio readback accepts the current API content.preview title shape', () => {
+test('Dzen Studio readback extracts authoritative publishTime from the observed #992 payload', () => {
     assert.deepEqual(extractDzenStudioPublications({ publications: [{
         isPublished: true,
         status: 'published',
-        id: '6ab50010b83df05d67e9f90e',
+        id: '6abea4a2978ea5735f7d2938',
+        addTime: 1790878915809,
+        publishTime: 1790878915809,
         content: {
             type: 'article',
             preview: {
-                title: 'Что делать, если документация проекта противоречит сама себе?',
-                snippet: 'Provider preview'
+                title: 'Почему набор AI-чатов не становится операционной системой',
+                snippet: ''
             }
         },
-        titleForUrl: 'chto-delat-esli-dokumentaciia-proekta-protivorechit-sama-sebe',
-        commonUrl: '/b/arUAELg98F1n6fkO'
+        titleForUrl: 'pochemu-nabor-aichatov-ne-stanovitsia-operacionnoi-sistemoi',
+        commonUrl: '/a/ar6kopeOpXNffSk4'
     }] }), {
         publications: [{
-            provider_object_id: '6ab50010b83df05d67e9f90e',
-            title: 'Что делать, если документация проекта противоречит сама себе?',
-            public_url: 'https://dzen.ru/b/arUAELg98F1n6fkO'
+            provider_object_id: '6abea4a2978ea5735f7d2938',
+            title: 'Почему набор AI-чатов не становится операционной системой',
+            public_url: 'https://dzen.ru/a/ar6kopeOpXNffSk4',
+            published_at: '2026-10-01T18:21:55.809Z'
         }],
-        title_readback_complete: true
+        title_readback_complete: true,
+        publication_timestamp_readback_complete: true
     });
 
     assert.equal(extractDzenStudioPublications({ publications: [{
@@ -339,6 +345,12 @@ test('Dzen Studio readback accepts the current API content.preview title shape',
         titleForUrl: 'not-authoritative-readable-title',
         commonUrl: '/a/provider-with-slug-only'
     }] })?.title_readback_complete, false);
+
+    assert.equal(extractDzenStudioPublications({ publications: [{
+        isPublished: true, status: 'published', publishTime: '1790878915809',
+        id: 'provider-with-untyped-time', content: { preview: { title: 'Title' } },
+        commonUrl: '/a/provider-with-untyped-time'
+    }] })?.publications[0].published_at, null);
 });
 
 test('Dzen image upload blocks publication on the observed provider rejection', () => {
