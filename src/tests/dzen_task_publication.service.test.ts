@@ -63,7 +63,7 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
             create: async (event: any) => { events.push(event); return event; }
         },
         artDirectionDecision: { findFirst: async ({ where }: any) => {
-            assert.equal(where.channel, 'analystcraft_dzen');
+            assert.equal(where.channel, taskId === 992 ? 'dzen' : 'analystcraft_dzen');
             return { id: decisionId, decision_version: 2 };
         } },
         projectMember: { findFirst: async () => ({ user_id: 2 }), findUnique: async () => ({ role: 'owner' }) },
