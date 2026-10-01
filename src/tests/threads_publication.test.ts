@@ -83,6 +83,33 @@ test('ThreadsService.publishPost publishes image post successfully', async () =>
     }
 });
 
+test('ThreadsService.publishThread creates a root and ordered replies', async () => {
+    const originalFetch = globalThis.fetch;
+    const createBodies: any[] = [];
+    let sequence = 0;
+    globalThis.fetch = async (url: any, options: any) => {
+        const body = JSON.parse(options.body || '{}');
+        if (url.toString().endsWith('/threads')) {
+            createBodies.push(body);
+            sequence += 1;
+            return { ok: true, json: async () => ({ id: `container-${sequence}` }) } as any;
+        }
+        if (url.toString().endsWith('/threads_publish')) {
+            return { ok: true, json: async () => ({ id: `post-${sequence}` }) } as any;
+        }
+        return { ok: false, statusText: 'Not Found' } as any;
+    };
+    try {
+        const result = await threadsService.publishThread('user123', 'token456', ['one', 'two', 'three']);
+        assert.equal(result.rootUrl, 'https://www.threads.net/post/post-1');
+        assert.equal(createBodies[0].reply_to_id, undefined);
+        assert.equal(createBodies[1].reply_to_id, 'post-1');
+        assert.equal(createBodies[2].reply_to_id, 'post-2');
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
 test('ThreadsService.getMetrics retrieves insights successfully', async () => {
     const originalFetch = globalThis.fetch;
     let requestedUrl = '';

@@ -6,10 +6,16 @@ import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
 
 const TASK_SPECS = {
     953: { revision: 4, bodySha256: 'e7d8c1f2f9cf4f7e3ca1ad6fb05e55153c2153739b3fcdf280e519f574b7f7a6',
-        decisionId: 149, releaseCommand: 'ba_release_approved_threads_task953' },
+        decisionId: 149, releaseCommand: 'ba_release_approved_threads_task953', decisionChannel: 'innokenty_threads', chain: false },
     966: { revision: 1, bodySha256: '83dd0fe0b2b354898b9fd3e5161d5ab05517c4c2b2304862d74c949ce1e2b123',
-        decisionId: 142, releaseCommand: 'ba_release_approved_threads_task966' }
+        decisionId: 142, releaseCommand: 'ba_release_approved_threads_task966', decisionChannel: 'innokenty_threads', chain: false },
+    997: { revision: 1, bodySha256: '53abc96f1fc3287ca47ff5be457335fed2e33c0955e11f527dbe23d8299cf94b',
+        decisionId: 181, releaseCommand: 'ba_release_approved_threads_task997', decisionChannel: 'threads', chain: true }
 } as const;
+
+function splitNativeThread(body: string) {
+    return body.split(/\n\s*---\s*\n/).map(post => post.trim()).filter(Boolean);
+}
 
 export class ThreadsTaskPublicationService {
     constructor(private readonly deps: any) {}
@@ -42,23 +48,31 @@ export class ThreadsTaskPublicationService {
         const bodyHash = (this.deps.hashBody || ((body: string) => createHash('sha256').update(body).digest('hex')))(task.draft_text || '');
         const decision = await db.artDirectionDecision.findFirst({ where: {
             id: spec.decisionId, project_id: 10, content_item_id: args.taskId, source_content_revision: spec.revision,
-            channel: 'innokenty_threads', placement: 'feed', decision: 'NO_VISUAL_NEEDED', status: 'active'
+            channel: spec.decisionChannel, placement: 'feed', decision: 'NO_VISUAL_NEEDED', status: 'active'
         } });
+        const posts = spec.chain ? splitNativeThread(task.draft_text || '') : [task.draft_text || ''];
+        const validNativeChain = !spec.chain || (posts.length === 3
+            && posts.every((post, index) => post.startsWith(`${index + 1}/3`) && post.length <= 500));
         if (!proof || proof.task_id !== args.taskId || proof.channel_id !== 138
             || proof.content_revision !== spec.revision || proof.accepted_revision !== spec.revision
             || proof.body_sha256 !== spec.bodySha256 || proof.body_sha256 !== bodyHash
-            || proof.visual_decision_id !== spec.decisionId || proof.schedule_at !== task.schedule_at?.toISOString()
+            || proof.visual_decision_id !== spec.decisionId
+            || (proof.schedule_at ?? null) !== (task.schedule_at?.toISOString() ?? null)
+            || (args.taskId === 997 && (proof.publication_authorized !== true || release?.id !== 1887))
             || task.publication_mode !== 'owner_released' || task.status !== 'ready_for_execution'
             || task.content_revision !== spec.revision || task.accepted_revision !== spec.revision || task.text_state !== 'accepted'
             || task.visual_state !== 'NO_VISUAL_NEEDED' || task.selected_asset_id !== null
             || task.visual_decision_version !== decision?.decision_version || !decision
-            || task.handoff_state !== 'ready' || task.published_link || (task.draft_text?.length || 0) > 500) {
+            || task.handoff_state !== 'ready' || task.published_link || !validNativeChain
+            || (!spec.chain && (task.draft_text?.length || 0) > 500)) {
             throw new Error('[THREADS_OWNER_RELEASE_PROOF_MISMATCH]');
         }
         const config = resolveEffectiveChannelConfig('threads', task.channel.config || {});
         const connectorReady = Boolean(config.threads_user_id && config.access_token);
-        const preview = { text: task.draft_text, character_count: task.draft_text.length,
+        const preview = { ...(spec.chain ? { posts, post_count: posts.length } : { text: task.draft_text }),
+            character_count: task.draft_text.length,
             has_image: false, channel_id: 138, accepted_revision: spec.revision, visual_decision_id: spec.decisionId };
+        if (args.taskId === 997) Object.assign(preview, { release_event_id: release.id, account_ref: '@innokentybo' });
         if (args.dryRun) return { mode: 'dry_run', task_id: args.taskId, project_id: 10,
             route_executable: connectorReady, connector_ready: connectorReady,
             ...(!connectorReady ? { route_blocker: 'THREADS_CONNECTOR_NOT_READY' } : {}),
@@ -73,7 +87,10 @@ export class ThreadsTaskPublicationService {
         if (claim.count !== 1) throw new Error('[THREADS_PUBLICATION_ALREADY_CLAIMED]');
         let url: string;
         try {
-            url = await this.deps.threads.publishPost(config.threads_user_id, config.access_token, task.draft_text);
+            const published = spec.chain
+                ? await this.deps.threads.publishThread(config.threads_user_id, config.access_token, posts)
+                : { rootUrl: await this.deps.threads.publishPost(config.threads_user_id, config.access_token, task.draft_text) };
+            url = published.rootUrl;
             if (!/^https:\/\/(?:www\.)?threads\.net\/post\//.test(url)) throw new Error('Unverified Threads URL');
         } catch (error: any) {
             await db.contentItem.update({ where: { id: args.taskId }, data: { status: 'publishing',
