@@ -245,6 +245,23 @@ test('VK direct execution is available only with a provider target and publish c
     }), true);
 });
 
+test('personal LinkedIn is browser-assisted unless an API transport is explicitly configured', () => {
+    const personal = { platform: 'linkedin', type: 'personal', linkedin_urn: 'urn:li:person:test', access_token: 'token' };
+    assert.equal(publicationAdapterService.supportsDirectExecution(personal), false);
+    assert.equal(publicationAdapterService.inferExecutionMode(personal, {
+        id: 'personal-linkedin', channel: 'linkedin', action_type: 'publish_post', human_review: false
+    }), 'manual');
+    const config = publicationAdapterService.buildAdapterConfig('personal_linkedin', personal, []);
+    assert.equal(config.capability_flags.api_publish, false);
+    assert.equal(config.capability_flags.browser_publish, true);
+    assert.equal(config.workflow_mode, 'browser_required');
+    assert.deepEqual(config.execution_modes, ['manual']);
+
+    assert.equal(publicationAdapterService.supportsDirectExecution({
+        ...personal, connector_mode: 'linkedin_api'
+    }), true);
+});
+
 test('configured Dzen channels prefer connector auto when workflow mode is not explicitly overridden', () => {
     assert.equal(publicationAdapterService.prefersAutomaticExecution({ platform: 'dzen', cookies_encrypted: 'enc:v1:test' }), true);
     assert.equal(publicationAdapterService.prefersAutomaticExecution({ platform: 'dzen', cookies_encrypted: 'enc:v1:test', workflow_mode: 'approval_required' }), false);
