@@ -11,7 +11,7 @@ const TASKS = {
         releaseCommand: 'ba_release_approved_dzen_task958',
         verifyCommand: 'ba_verify_dzen_task958_connector', revision: 1, placement: 'feed',
         visualState: 'NO_VISUAL_NEEDED', selectedAssetId: null, publicationType: 'post' as const,
-        allowedStatuses: ['ready_for_execution'], assetSha256: null
+        allowedStatuses: ['ready_for_execution'], assetSha256: null, decisionChannel: 'analystcraft_dzen'
     },
     962: {
         bodySha256: '15c9b4a2e874439c4952900002ae5677fc3a6b6e8794dd34a0a4ae5f03dba798',
@@ -19,7 +19,7 @@ const TASKS = {
         releaseCommand: 'ba_release_approved_dzen_task962',
         verifyCommand: 'ba_verify_dzen_task962_connector', revision: 1, placement: 'feed',
         visualState: 'NO_VISUAL_NEEDED', selectedAssetId: null, publicationType: 'post' as const,
-        allowedStatuses: ['ready_for_execution'], assetSha256: null
+        allowedStatuses: ['ready_for_execution'], assetSha256: null, decisionChannel: 'analystcraft_dzen'
     },
     992: {
         bodySha256: '62af2b8e32d3aabb2b3d6f7029ee2b7ec64a7f9329eef01e52d6c4591e7eb150',
@@ -28,7 +28,8 @@ const TASKS = {
         verifyCommand: 'ba_verify_dzen_task992_connector', revision: 3, placement: 'article_cover',
         visualState: 'APPROVED', selectedAssetId: 97, publicationType: 'article' as const,
         allowedStatuses: ['awaiting_manual_publication', 'ready_for_execution'],
-        assetSha256: '6061c4e53210de240d840e85e39990d7af5e496544f0cda4dd010048d33ebe25'
+        assetSha256: '6061c4e53210de240d840e85e39990d7af5e496544f0cda4dd010048d33ebe25',
+        decisionChannel: 'dzen'
     }
 } as const;
 
@@ -142,7 +143,7 @@ export class DzenTaskPublicationService {
         const bodyHash = (this.dependencies.hashBody || ((body: string) => createHash('sha256').update(body).digest('hex')))(task.draft_text || '');
         const decision = await db.artDirectionDecision.findFirst({ where: {
             id: spec.decisionId, project_id: 10, content_item_id: spec.taskId,
-            source_content_revision: spec.revision, channel: 'analystcraft_dzen', placement: spec.placement,
+            source_content_revision: spec.revision, channel: spec.decisionChannel, placement: spec.placement,
             ...(spec.visualState === 'NO_VISUAL_NEEDED' ? { decision: 'NO_VISUAL_NEEDED' } : {}), status: 'active'
         } });
         const selectedAsset = task.selected_asset;
