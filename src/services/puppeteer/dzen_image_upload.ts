@@ -7,7 +7,7 @@ const UPLOAD_ERROR_PATTERN = /не удалось загрузить изобр�
 /** Select a local image and require provider plus editor confirmation before publication can continue. */
 export async function uploadDzenFileAndVerify(
     page: Page,
-    input: ElementHandle<Element>,
+    input: ElementHandle<HTMLInputElement>,
     filePath: string,
     previousImageCount: number
 ): Promise<void> {
