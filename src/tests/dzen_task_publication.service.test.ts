@@ -28,7 +28,7 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
             provenance: { planner_storage: { sha256: asset992Hash } } } : null,
         visual_decision_version: 2, handoff_state: 'ready',
         status: 'ready_for_execution', publication_mode: 'owner_released',
-        schedule_at: schedule, published_link: null, publication_fact: null,
+        schedule_at: taskId === 992 ? null : schedule, published_link: null, publication_fact: null,
         quality_report: {}
     };
     const events: any[] = [];
@@ -58,7 +58,7 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
                     task_id: taskId, channel_id: 116, content_revision: revision, accepted_revision: revision,
                     body_sha256: taskHash, visual_decision_id: decisionId,
                     ...(taskId === 992 ? { asset_sha256: asset992Hash } : {}),
-                    schedule_at: schedule.toISOString(), publication_mode: 'owner_released'
+                    schedule_at: taskId === 992 ? null : schedule.toISOString(), publication_mode: 'owner_released'
                 } },
             create: async (event: any) => { events.push(event); return event; }
         },
