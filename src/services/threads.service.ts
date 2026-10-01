@@ -2,6 +2,36 @@ import fs from 'fs';
 import path from 'path';
 
 class ThreadsService {
+    private async publishTextPost(threadsUserId: string, accessToken: string, text: string, replyToId?: string) {
+        const createRes = await fetch(`https://graph.threads.net/v1.0/${threadsUserId}/threads`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ access_token: accessToken, media_type: 'TEXT', text,
+                ...(replyToId ? { reply_to_id: replyToId } : {}) })
+        });
+        if (!createRes.ok) throw new Error(`Failed to create Threads container: ${createRes.statusText} - ${await createRes.text()}`);
+        const container = (await createRes.json()) as { id: string };
+        const publishRes = await fetch(`https://graph.threads.net/v1.0/${threadsUserId}/threads_publish`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ access_token: accessToken, creation_id: container.id })
+        });
+        if (!publishRes.ok) throw new Error(`Failed to publish Threads container: ${publishRes.statusText} - ${await publishRes.text()}`);
+        const published = (await publishRes.json()) as { id: string };
+        return { id: published.id, url: `https://www.threads.net/post/${published.id}` };
+    }
+
+    async publishThread(threadsUserId: string, accessToken: string, posts: string[]) {
+        if (posts.length < 2 || posts.some(post => !post.trim() || post.length > 500)) {
+            throw new Error('Threads chain requires at least two non-empty posts of at most 500 characters each');
+        }
+        const published: Array<{ id: string; url: string }> = [];
+        for (const post of posts) {
+            const item = await this.publishTextPost(threadsUserId, accessToken, post,
+                published.length ? published[published.length - 1].id : undefined);
+            published.push(item);
+        }
+        return { rootUrl: published[0].url, postUrls: published.map(item => item.url) };
+    }
+
     /**
      * Publishes a post to Meta Threads.
      * @param threadsUserId The Threads User ID.
