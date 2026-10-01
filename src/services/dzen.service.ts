@@ -86,6 +86,14 @@ class DzenService {
         return puppeteerPublisherService.testDzenConnection({ ...config, cookies: config.cookies.trim() });
     }
 
+    /** Read the authenticated Studio publication list for duplicate-safe incident reconciliation. */
+    async readStudioPublications(config: DzenConfig) {
+        if (!config.cookies?.trim()) {
+            throw new Error('An authenticated Dzen session is required');
+        }
+        return puppeteerPublisherService.readDzenStudioPublications({ ...config, cookies: config.cookies.trim() });
+    }
+
     async collectPostMetrics(config: DzenConfig, postUrl: string) {
         const raw = await puppeteerPublisherService.collectDzenPostMetrics(config, postUrl);
         return {

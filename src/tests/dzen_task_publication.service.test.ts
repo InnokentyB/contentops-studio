@@ -9,7 +9,8 @@ const hash992 = '62af2b8e32d3aabb2b3d6f7029ee2b7ec64a7f9329eef01e52d6c4591e7eb15
 const asset992Hash = '6061c4e53210de240d840e85e39990d7af5e496544f0cda4dd010048d33ebe25';
 const schedule = new Date('2026-09-22T11:00:00.000Z');
 
-function harness(options: { released?: boolean; verified?: boolean; providerError?: boolean; taskId?: 958 | 962 | 992 } = {}) {
+function harness(options: { released?: boolean; verified?: boolean; providerError?: boolean;
+    taskId?: 958 | 962 | 992; studioTitles?: string[]; studioTitleReadbackComplete?: boolean } = {}) {
     const taskId = options.taskId || 958;
     const taskHash = taskId === 992 ? hash992 : taskId === 962 ? hash962 : hash;
     const decisionId = taskId === 992 ? 186 : taskId === 962 ? 146 : 147;
@@ -53,10 +54,6 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
                 const stored = [...events].reverse().find(event => event.data.command === where.command
                     && (where.idempotency_key === undefined || event.data.idempotency_key === where.idempotency_key));
                 if (stored) return { ...stored.data, after_state: stored.data.after_state };
-                if (where.command === 'reconcile_dzen_task992_uncertain_attempt') return { id: 1867, after_state: {
-                    retry_via_api: false, classification: 'not_confirmed', exact_title_matches: 0,
-                    publication_fact_id: null, studio_authenticated: true, publications_payload_received: true
-                } };
                 return where.command === verifyCommand
                 ? options.verified === false ? null : { after_state: {
                     task_id: taskId, channel_id: 116, body_sha256: taskHash,
@@ -86,7 +83,19 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
             if (options.providerError) throw new Error('unknown provider result');
             return `https://dzen.ru/b/approved-task${taskId}`;
         }, testConnection: async () => ({ authenticated: true, editor_available: true,
-            editor_url: 'https://dzen.ru/profile/editor/id/dzen-channel' }) },
+            editor_url: 'https://dzen.ru/profile/editor/id/dzen-channel' }),
+        readStudioPublications: async () => ({
+            authenticated: true, editor_available: true,
+            editor_url: 'https://dzen.ru/profile/editor/id/dzen-channel/publications',
+            publications_payload_received: true,
+            title_readback_complete: options.studioTitleReadbackComplete !== false,
+            publications: (options.studioTitles || []).map((title, index) => ({
+                provider_object_id: `publication-${index + 1}`,
+                title,
+                public_url: `https://dzen.ru/a/publication-${index + 1}`
+            })),
+            checked_at: new Date().toISOString()
+        }) },
         facts: { record: async () => { factCalls += 1; return {}; } }
     });
     return { service, task, events, get providerCalls() { return providerCalls; }, get factCalls() { return factCalls; } };
@@ -179,13 +188,88 @@ test('uncertain Dzen result freezes task and never retries provider', async () =
     assert.equal(h.factCalls, 0);
 });
 
-test('owner-confirmed absence authorizes exactly one new #992 task-native claim and preserves incident history', async () => {
-    const h = harness({ taskId: 992 });
+test('frozen #992 allows an owner read-only Studio probe without changing task state or sending', async () => {
+    const h = harness({ taskId: 992, studioTitles: [], verified: false });
     h.task.status = 'publishing';
     h.task.quality_report = { publication_task_delivery: {
         state: 'provider_result_uncertain', idempotency_key: 'dzen-992-prod-20261001-rev3-v1',
         retry_via_api: false, error: 'detached frame'
     } };
+
+    const result = await h.service.verifyConnector({ projectId: 10, taskId: 992,
+        actorId: 'user:2', idempotencyKey: 'dzen-992-frozen-readback-v1' });
+
+    assert.equal(result.reconciliation.classification, 'not_confirmed');
+    assert.equal(result.reconciliation.exact_title_matches, 0);
+    assert.equal(h.task.status, 'publishing');
+    assert.equal(h.providerCalls, 0);
+    assert.equal(h.events.some(event => event.data.command === 'reconcile_dzen_task992_uncertain_attempt'), true);
+});
+
+test('frozen #992 remains forbidden for live send after a successful read-only probe', async () => {
+    const h = harness({ taskId: 992, studioTitles: [], verified: false });
+    h.task.status = 'publishing';
+    h.task.quality_report = { publication_task_delivery: {
+        state: 'provider_result_uncertain', idempotency_key: 'dzen-992-prod-20261001-rev3-v1',
+        retry_via_api: false
+    } };
+    await h.service.verifyConnector({ projectId: 10, taskId: 992,
+        actorId: 'user:2', idempotencyKey: 'dzen-992-frozen-readback-v1' });
+
+    await assert.rejects(h.service.execute({ projectId: 10, taskId: 992,
+        idempotencyKey: 'forbidden-retry' }), /DZEN_PUBLICATION_STATE_CHANGED/);
+    assert.equal(h.providerCalls, 0);
+    assert.equal(h.task.status, 'publishing');
+});
+
+test('exact-title Studio match keeps frozen #992 blocked from recovery and retry', async () => {
+    const h = harness({ taskId: 992, studioTitles: ['Exact accepted title'], verified: false });
+    h.task.status = 'publishing';
+    h.task.quality_report = { publication_task_delivery: {
+        state: 'provider_result_uncertain', idempotency_key: 'dzen-992-prod-20261001-rev3-v1',
+        retry_via_api: false
+    } };
+    const result = await h.service.verifyConnector({ projectId: 10, taskId: 992,
+        actorId: 'user:2', idempotencyKey: 'dzen-992-exact-match-v1' });
+    assert.equal(result.reconciliation.classification, 'exact_match_found');
+    assert.equal(result.reconciliation.exact_title_matches, 1);
+
+    await assert.rejects(h.service.confirmAbsentAndAuthorizeRetry({
+        projectId: 10, taskId: 992, actorId: 'user:2',
+        idempotencyKey: 'must-not-recover', resendIdempotencyKey: 'must-not-send',
+        evidenceReference: 'authenticated-studio:exact-match-found'
+    }), /DZEN_992_PROVIDER_READBACK_REQUIRED/);
+    assert.equal(h.task.status, 'publishing');
+    assert.equal(h.providerCalls, 0);
+});
+
+test('incomplete Studio title readback cannot be used as zero-match recovery evidence', async () => {
+    const h = harness({ taskId: 992, studioTitles: [], studioTitleReadbackComplete: false, verified: false });
+    h.task.status = 'publishing';
+    h.task.quality_report = { publication_task_delivery: {
+        state: 'provider_result_uncertain', idempotency_key: 'dzen-992-prod-20261001-rev3-v1',
+        retry_via_api: false
+    } };
+
+    await assert.rejects(h.service.verifyConnector({ projectId: 10, taskId: 992,
+        actorId: 'user:2', idempotencyKey: 'dzen-992-incomplete-readback-v1'
+    }), /DZEN_992_PROVIDER_READBACK_INCOMPLETE/);
+    assert.equal(h.events.length, 0);
+    assert.equal(h.task.status, 'publishing');
+    assert.equal(h.providerCalls, 0);
+});
+
+test('owner-confirmed absence authorizes exactly one new #992 task-native claim and preserves incident history', async () => {
+    const h = harness({ taskId: 992, studioTitles: [], verified: false });
+    h.task.status = 'publishing';
+    h.task.quality_report = { publication_task_delivery: {
+        state: 'provider_result_uncertain', idempotency_key: 'dzen-992-prod-20261001-rev3-v1',
+        retry_via_api: false, error: 'detached frame'
+    } };
+
+    const readback = await h.service.verifyConnector({ projectId: 10, taskId: 992,
+        actorId: 'user:2', idempotencyKey: 'dzen-992-zero-match-v1' });
+    assert.equal(readback.reconciliation.exact_title_matches, 0);
 
     const recovery = await h.service.confirmAbsentAndAuthorizeRetry({
         projectId: 10, taskId: 992, actorId: 'user:2',
