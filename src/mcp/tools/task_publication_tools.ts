@@ -245,7 +245,7 @@ export function registerTaskPublicationTools(server: McpServer): void {
             dryRun: z.boolean().optional().describe('Validate and return the exact normalized provider payload without sending.'),
             idempotencyKey: z.string().min(1).max(500).optional().describe('Required for live publication and reused to safely replay a confirmed result.')
         }
-    }, async (args) => asToolResult(await (args.projectId === 10 && [958, 962].includes(args.taskId)
+    }, async (args) => asToolResult(await (args.projectId === 10 && [958, 962, 992].includes(args.taskId)
         ? dzenTaskPublicationService.execute(args)
         : args.projectId === 10 && [953, 966].includes(args.taskId)
             ? threadsTaskPublicationService.execute(args)

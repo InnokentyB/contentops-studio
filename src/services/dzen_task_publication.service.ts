@@ -9,13 +9,26 @@ const TASKS = {
         bodySha256: '78081837cecace18c91c01af0253b21ca502e611b63a016f9d9035567587dfd3',
         decisionId: 147,
         releaseCommand: 'ba_release_approved_dzen_task958',
-        verifyCommand: 'ba_verify_dzen_task958_connector'
+        verifyCommand: 'ba_verify_dzen_task958_connector', revision: 1, placement: 'feed',
+        visualState: 'NO_VISUAL_NEEDED', selectedAssetId: null, publicationType: 'post' as const,
+        allowedStatuses: ['ready_for_execution'], assetSha256: null
     },
     962: {
         bodySha256: '15c9b4a2e874439c4952900002ae5677fc3a6b6e8794dd34a0a4ae5f03dba798',
         decisionId: 146,
         releaseCommand: 'ba_release_approved_dzen_task962',
-        verifyCommand: 'ba_verify_dzen_task962_connector'
+        verifyCommand: 'ba_verify_dzen_task962_connector', revision: 1, placement: 'feed',
+        visualState: 'NO_VISUAL_NEEDED', selectedAssetId: null, publicationType: 'post' as const,
+        allowedStatuses: ['ready_for_execution'], assetSha256: null
+    },
+    992: {
+        bodySha256: '62af2b8e32d3aabb2b3d6f7029ee2b7ec64a7f9329eef01e52d6c4591e7eb150',
+        decisionId: 186,
+        releaseCommand: 'ba_release_approved_dzen_task992',
+        verifyCommand: 'ba_verify_dzen_task992_connector', revision: 3, placement: 'article_cover',
+        visualState: 'APPROVED', selectedAssetId: 97, publicationType: 'article' as const,
+        allowedStatuses: ['awaiting_manual_publication', 'ready_for_execution'],
+        assetSha256: '6061c4e53210de240d840e85e39990d7af5e496544f0cda4dd010048d33ebe25'
     }
 } as const;
 
@@ -63,12 +76,19 @@ export class DzenTaskPublicationService {
         } });
         if (prior) return prior.after_state;
         const task = await db.contentItem.findFirst({
-            where: { id: spec.taskId, project_id: 10 }, include: { channel: true, publication_fact: true }
+            where: { id: spec.taskId, project_id: 10 }, include: { channel: true, selected_asset: true, publication_fact: true }
         });
         const hash = (this.dependencies.hashBody || ((body: string) => createHash('sha256').update(body).digest('hex')))(task?.draft_text || '');
+        const assetSha = task?.selected_asset?.provenance?.planner_storage?.sha256
+            || task?.selected_asset?.provenance?.sha256 || null;
         if (!task || task.channel_id !== 116 || task.channel?.type !== 'dzen'
-            || task.publication_mode !== 'owner_released' || task.status !== 'ready_for_execution'
-            || task.content_revision !== 1 || task.accepted_revision !== 1
+            || task.publication_mode !== 'owner_released' || !spec.allowedStatuses.includes(task.status)
+            || task.content_revision !== spec.revision || task.accepted_revision !== spec.revision
+            || task.visual_placement !== spec.placement || task.visual_state !== spec.visualState
+            || task.selected_asset_id !== spec.selectedAssetId
+            || (spec.selectedAssetId !== null && (task.selected_asset?.status !== 'approved'
+                || task.selected_asset?.content_revision !== spec.revision
+                || assetSha !== spec.assetSha256 || !/^https:\/\//.test(task.selected_asset?.file_url || '')))
             || hash !== spec.bodySha256 || task.publication_fact || task.published_link) {
             throw new Error('[DZEN_CONNECTOR_PREFLIGHT_GUARD_FAILED]');
         }
@@ -106,7 +126,7 @@ export class DzenTaskPublicationService {
         }
         const task = await db.contentItem.findFirst({
             where: { id: spec.taskId, project_id: 10 },
-            include: { channel: true, publication_fact: true }
+            include: { channel: true, selected_asset: true, publication_fact: true }
         });
         if (!task || task.channel_id !== 116 || task.channel?.type !== 'dzen') {
             throw new Error('[DZEN_TASK_MISMATCH]');
@@ -122,18 +142,28 @@ export class DzenTaskPublicationService {
         const bodyHash = (this.dependencies.hashBody || ((body: string) => createHash('sha256').update(body).digest('hex')))(task.draft_text || '');
         const decision = await db.artDirectionDecision.findFirst({ where: {
             id: spec.decisionId, project_id: 10, content_item_id: spec.taskId,
-            source_content_revision: 1, channel: 'analystcraft_dzen', placement: 'feed',
-            decision: 'NO_VISUAL_NEEDED', status: 'active'
+            source_content_revision: spec.revision, channel: 'analystcraft_dzen', placement: spec.placement,
+            ...(spec.visualState === 'NO_VISUAL_NEEDED' ? { decision: 'NO_VISUAL_NEEDED' } : {}), status: 'active'
         } });
+        const selectedAsset = task.selected_asset;
+        const selectedAssetSha = selectedAsset?.provenance?.planner_storage?.sha256
+            || selectedAsset?.provenance?.sha256 || null;
+        const validSelectedAsset = spec.selectedAssetId === null
+            ? task.selected_asset_id === null
+            : task.selected_asset_id === spec.selectedAssetId && selectedAsset?.id === spec.selectedAssetId
+                && selectedAsset.status === 'approved' && selectedAsset.content_revision === spec.revision
+                && /^https:\/\//.test(selectedAsset.file_url || '')
+                && selectedAssetSha === spec.assetSha256;
         if (!proof || proof.task_id !== spec.taskId || proof.channel_id !== 116
-            || proof.content_revision !== 1 || proof.accepted_revision !== 1
+            || proof.content_revision !== spec.revision || proof.accepted_revision !== spec.revision
             || proof.body_sha256 !== spec.bodySha256 || proof.body_sha256 !== bodyHash
             || proof.visual_decision_id !== spec.decisionId
+            || (spec.assetSha256 !== null && proof.asset_sha256 !== spec.assetSha256)
             || proof.schedule_at !== task.schedule_at?.toISOString()
             || proof.publication_mode !== 'owner_released'
-            || task.content_revision !== 1 || task.accepted_revision !== 1
-            || task.text_state !== 'accepted' || task.visual_placement !== 'feed'
-            || task.visual_state !== 'NO_VISUAL_NEEDED' || task.selected_asset_id !== null
+            || task.content_revision !== spec.revision || task.accepted_revision !== spec.revision
+            || task.text_state !== 'accepted' || task.visual_placement !== spec.placement
+            || task.visual_state !== spec.visualState || !validSelectedAsset
             || task.visual_decision_version !== decision?.decision_version
             || task.handoff_state !== 'ready' || task.publication_mode !== 'owner_released'
             || !decision || task.published_link) {
@@ -150,25 +180,27 @@ export class DzenTaskPublicationService {
             && verified?.body_sha256 === spec.bodySha256 && verified?.authenticated === true
             && verified?.editor_available === true
             && Date.now() - new Date(verified.checked_at || 0).getTime() < 15 * 60_000;
-        const preview = { text: task.draft_text, has_image: false, publication_type: 'post',
-            channel_id: 116, accepted_revision: 1, visual_decision_id: spec.decisionId };
+        const preview = { text: task.draft_text, ...(spec.publicationType === 'article' ? { title: task.title } : {}),
+            has_image: Boolean(selectedAsset), ...(selectedAsset ? { image_url: selectedAsset.file_url } : {}),
+            publication_type: spec.publicationType, channel_id: 116, accepted_revision: spec.revision,
+            visual_decision_id: spec.decisionId, ...(selectedAsset ? { selected_asset_id: selectedAsset.id } : {}) };
         if (args.dryRun) return { mode: 'dry_run', task_id: spec.taskId, project_id: 10,
-            route_executable: connectorReady && task.status === 'ready_for_execution',
+            route_executable: connectorReady && spec.allowedStatuses.includes(task.status),
             connector_ready: connectorReady,
             ...(!connectorReady ? { route_blocker: 'DZEN_CONNECTOR_NOT_READY' }
-                : task.status !== 'ready_for_execution' ? { route_blocker: 'PUBLICATION_ROUTE_NOT_EXECUTABLE' } : {}),
+                : !spec.allowedStatuses.includes(task.status) ? { route_blocker: 'PUBLICATION_ROUTE_NOT_EXECUTABLE' } : {}),
             payload_preview: preview };
         if (!connectorReady) throw new Error('[DZEN_CONNECTOR_NOT_READY] Channel requires enabled API publication and authenticated session');
-        if (task.status !== 'ready_for_execution') throw new Error('[DZEN_PUBLICATION_STATE_CHANGED]');
+        if (!spec.allowedStatuses.includes(task.status)) throw new Error('[DZEN_PUBLICATION_STATE_CHANGED]');
         if (task.schedule_at && new Date(task.schedule_at).getTime() > Date.now()) throw new Error('[PUBLICATION_NOT_DUE]');
         const owner = await db.projectMember.findFirst({ where: { project_id: 10, role: 'owner' }, orderBy: { id: 'asc' } });
         if (!owner) throw new Error('[PROJECT_OWNER_REQUIRED]');
         const claimed = await db.$transaction(async (tx: any) => {
             const changed = await tx.contentItem.updateMany({ where: {
                 id: spec.taskId, project_id: 10, channel_id: 116,
-                status: 'ready_for_execution', publication_mode: 'owner_released',
-                content_revision: 1, accepted_revision: 1,
-                visual_state: 'NO_VISUAL_NEEDED', selected_asset_id: null,
+                status: task.status, publication_mode: 'owner_released',
+                content_revision: spec.revision, accepted_revision: spec.revision,
+                visual_state: spec.visualState, selected_asset_id: spec.selectedAssetId,
                 schedule_at: task.schedule_at
             }, data: {
                 status: 'publishing', quality_report: {
@@ -180,7 +212,7 @@ export class DzenTaskPublicationService {
             if (changed.count === 1) await tx.workflowEvent.create({ data: {
                 project_id: 10, content_item_id: spec.taskId, actor_id: spec.actor,
                 command: spec.claimCommand, idempotency_key: key,
-                before_state: { status: 'ready_for_execution' },
+                before_state: { status: task.status },
                 after_state: { status: 'publishing', channel_id: 116 }
             } });
             return changed.count;
@@ -188,7 +220,9 @@ export class DzenTaskPublicationService {
         if (claimed !== 1) throw new Error('[DZEN_PUBLICATION_ALREADY_CLAIMED] Reconcile before retry');
         let url: string;
         try {
-            url = await dzen.publishPost(config, task.draft_text, undefined, undefined, 'post');
+            url = await dzen.publishPost(config, task.draft_text,
+                selectedAsset?.file_url || undefined, spec.publicationType === 'article' ? task.title : undefined,
+                spec.publicationType);
             if (!isDzenPublishedUrl(url)) throw new Error('Provider did not confirm a public Dzen URL');
         } catch (error: any) {
             await db.contentItem.update({ where: { id: spec.taskId }, data: {
@@ -220,8 +254,9 @@ export class DzenTaskPublicationService {
             throw new Error('[DZEN_FACT_PENDING] Provider URL confirmed but fact write failed; reconcile without sending again');
         }
         const result = { mode: 'published', task_id: spec.taskId, project_id: 10, channel_id: 116,
-            accepted_revision: 1, published_link: url, external_id: providerId,
-            delivery_method: 'dzen_browser', visual_decision_id: spec.decisionId };
+            accepted_revision: spec.revision, published_link: url, external_id: providerId,
+            delivery_method: 'dzen_browser', visual_decision_id: spec.decisionId,
+            ...(selectedAsset ? { selected_asset_id: selectedAsset.id } : {}) };
         await db.$transaction(async (tx: any) => {
             await tx.contentItem.update({ where: { id: spec.taskId }, data: {
                 status: 'published', publication_mode: 'owner_released', published_link: url,
@@ -233,7 +268,7 @@ export class DzenTaskPublicationService {
             await tx.workflowEvent.create({ data: {
                 project_id: 10, content_item_id: spec.taskId, actor_id: spec.actor,
                 command: spec.command, idempotency_key: key,
-                before_state: { status: 'ready_for_execution' }, after_state: result
+                before_state: { status: task.status }, after_state: result
             } });
         });
         return result;
