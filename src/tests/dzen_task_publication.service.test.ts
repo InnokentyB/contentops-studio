@@ -49,7 +49,15 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
                 && event.data.idempotency_key === where.project_id_actor_id_command_idempotency_key.idempotency_key)
                 ? { after_state: events.find(event => event.data.command === where.project_id_actor_id_command_idempotency_key.command
                     && event.data.idempotency_key === where.project_id_actor_id_command_idempotency_key.idempotency_key).data.after_state } : null,
-            findFirst: async ({ where }: any) => where.command === verifyCommand
+            findFirst: async ({ where }: { where: { command: string; idempotency_key?: string } }) => {
+                const stored = [...events].reverse().find(event => event.data.command === where.command
+                    && (where.idempotency_key === undefined || event.data.idempotency_key === where.idempotency_key));
+                if (stored) return { ...stored.data, after_state: stored.data.after_state };
+                if (where.command === 'reconcile_dzen_task992_uncertain_attempt') return { id: 1867, after_state: {
+                    retry_via_api: false, classification: 'not_confirmed', exact_title_matches: 0,
+                    publication_fact_id: null, studio_authenticated: true, publications_payload_received: true
+                } };
+                return where.command === verifyCommand
                 ? options.verified === false ? null : { after_state: {
                     task_id: taskId, channel_id: 116, body_sha256: taskHash,
                     authenticated: true, editor_available: true, checked_at: new Date().toISOString()
@@ -59,7 +67,8 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
                     body_sha256: taskHash, visual_decision_id: decisionId,
                     ...(taskId === 992 ? { asset_sha256: asset992Hash } : {}),
                     schedule_at: taskId === 992 ? null : schedule.toISOString(), publication_mode: 'owner_released'
-                } },
+                } };
+            },
             create: async (event: any) => { events.push(event); return event; }
         },
         artDirectionDecision: { findFirst: async ({ where }: any) => {
@@ -168,4 +177,36 @@ test('uncertain Dzen result freezes task and never retries provider', async () =
     await assert.rejects(h.service.execute({ projectId: 10, taskId: 958, idempotencyKey: 'send958' }), /DZEN_PUBLICATION_STATE_CHANGED/);
     assert.equal(h.providerCalls, 1);
     assert.equal(h.factCalls, 0);
+});
+
+test('owner-confirmed absence authorizes exactly one new #992 task-native claim and preserves incident history', async () => {
+    const h = harness({ taskId: 992 });
+    h.task.status = 'publishing';
+    h.task.quality_report = { publication_task_delivery: {
+        state: 'provider_result_uncertain', idempotency_key: 'dzen-992-prod-20261001-rev3-v1',
+        retry_via_api: false, error: 'detached frame'
+    } };
+
+    const recovery = await h.service.confirmAbsentAndAuthorizeRetry({
+        projectId: 10, taskId: 992, actorId: 'user:2',
+        idempotencyKey: 'dzen-992-owner-absent-20261001-v1',
+        resendIdempotencyKey: 'dzen-992-owner-confirmed-retry-20261001-v1',
+        evidenceReference: 'owner_provider_readback:2026-10-01:no-new-material'
+    });
+
+    assert.equal(recovery.classification, 'confirmed_absent');
+    assert.equal(recovery.resend_safe, true);
+    assert.equal(h.task.status, 'ready_for_execution');
+    assert.equal(h.task.quality_report.publication_task_delivery.authorized_idempotency_key,
+        'dzen-992-owner-confirmed-retry-20261001-v1');
+    assert.equal(h.events.some(event => event.data.command === 'ba_confirm_dzen_task992_absent_and_authorize_retry'), true);
+    await assert.rejects(h.service.execute({ projectId: 10, taskId: 992,
+        idempotencyKey: 'another-key' }), /DZEN_RETRY_NOT_AUTHORIZED/);
+    assert.equal(h.providerCalls, 0);
+
+    const sent = await h.service.execute({ projectId: 10, taskId: 992,
+        idempotencyKey: 'dzen-992-owner-confirmed-retry-20261001-v1' });
+    assert.equal(sent.published_link, 'https://dzen.ru/b/approved-task992');
+    assert.equal(h.providerCalls, 1);
+    assert.equal(h.factCalls, 1);
 });

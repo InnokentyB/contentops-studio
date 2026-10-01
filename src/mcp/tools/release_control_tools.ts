@@ -125,6 +125,15 @@ export function registerReleaseControlTools(server: McpServer): void {
         }
     }, async (args) => asToolResult(await dzenTaskPublicationService.verifyConnector(args)));
 
+    server.registerTool('ba_confirm_dzen_task992_absent_and_authorize_retry', {
+        description: 'Owner-only audited recovery for the exact frozen Dzen #992 rev3 incident. Records confirmed absence and authorizes one stable task-native retry key; never publishes.',
+        inputSchema: {
+            projectId: z.literal(10), taskId: z.literal(992), actorId: z.string(),
+            idempotencyKey: z.string().min(1), resendIdempotencyKey: z.string().min(1),
+            evidenceReference: z.string().min(10)
+        }
+    }, async (args) => asToolResult(await dzenTaskPublicationService.confirmAbsentAndAuthorizeRetry(args)));
+
     server.registerTool('ba_register_linkedin_task995_unconfirmed_attempt', {
         description: 'Registers the already-observed LinkedIn #995 adapter call as one durable UNKNOWN attempt. Never sends or retries provider publication.',
         inputSchema: { projectId: z.literal(7), taskId: z.literal(995) }
