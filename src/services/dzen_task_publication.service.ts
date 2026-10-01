@@ -33,6 +33,9 @@ const TASKS = {
     }
 } as const;
 
+const DZEN_992_UNCERTAIN_KEY = 'dzen-992-prod-20261001-rev3-v1';
+const DZEN_992_RECOVERY_COMMAND = 'ba_confirm_dzen_task992_absent_and_authorize_retry';
+
 function taskSpec(taskId: number) {
     const spec = TASKS[taskId as keyof typeof TASKS];
     if (!spec) throw new Error('[DZEN_TASK_SCOPE_MISMATCH] Exact released Dzen task required');
@@ -58,6 +61,86 @@ type Dependencies = {
 
 export class DzenTaskPublicationService {
     constructor(private readonly dependencies: Dependencies) {}
+
+    async confirmAbsentAndAuthorizeRetry(args: { projectId: number; taskId: 992; actorId: string;
+        idempotencyKey: string; resendIdempotencyKey: string; evidenceReference: string }) {
+        if (args.projectId !== 10 || args.taskId !== 992) throw new Error('[DZEN_TASK_SCOPE_MISMATCH]');
+        const match = /^user:(\d+)$/.exec(args.actorId);
+        if (!match) throw new Error('[OWNER_REQUIRED]');
+        const { db } = this.dependencies;
+        const member = await db.projectMember.findUnique({ where: {
+            project_id_user_id: { project_id: 10, user_id: Number(match[1]) }
+        } });
+        if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
+        const prior = await db.workflowEvent.findUnique({ where: {
+            project_id_actor_id_command_idempotency_key: {
+                project_id: 10, actor_id: args.actorId, command: DZEN_992_RECOVERY_COMMAND,
+                idempotency_key: args.idempotencyKey
+            }
+        } });
+        if (prior?.after_state) return { ...prior.after_state, replayed: true };
+        const task = await db.contentItem.findFirst({
+            where: { id: 992, project_id: 10 },
+            include: { channel: true, selected_asset: true, publication_fact: true }
+        });
+        const spec = taskSpec(992);
+        const bodyHash = (this.dependencies.hashBody
+            || ((body: string) => createHash('sha256').update(body).digest('hex')))(task?.draft_text || '');
+        const assetSha = task?.selected_asset?.provenance?.planner_storage?.sha256
+            || task?.selected_asset?.provenance?.sha256 || null;
+        const delivery = task?.quality_report?.publication_task_delivery;
+        if (!task || task.channel_id !== 116 || task.channel?.type !== 'dzen'
+            || task.status !== 'publishing' || task.publication_mode !== 'owner_released'
+            || task.content_revision !== spec.revision || task.accepted_revision !== spec.revision
+            || task.text_state !== 'accepted' || task.visual_placement !== spec.placement
+            || task.visual_state !== spec.visualState || task.selected_asset_id !== spec.selectedAssetId
+            || task.selected_asset?.status !== 'approved' || task.selected_asset?.content_revision !== spec.revision
+            || assetSha !== spec.assetSha256 || bodyHash !== spec.bodySha256
+            || task.publication_fact || task.published_link
+            || delivery?.state !== 'provider_result_uncertain'
+            || delivery?.idempotency_key !== DZEN_992_UNCERTAIN_KEY || delivery?.retry_via_api !== false) {
+            throw new Error('[DZEN_992_CONFIRMED_ABSENT_GUARD_FAILED]');
+        }
+        const reconciliation = await db.workflowEvent.findFirst({ where: {
+            project_id: 10, content_item_id: 992, command: 'reconcile_dzen_task992_uncertain_attempt'
+        }, orderBy: { id: 'desc' } });
+        const readback = reconciliation?.after_state;
+        if (readback?.classification !== 'not_confirmed' || readback?.exact_title_matches !== 0
+            || readback?.publication_fact_id !== null || readback?.studio_authenticated !== true
+            || readback?.publications_payload_received !== true) {
+            throw new Error('[DZEN_992_PROVIDER_READBACK_REQUIRED]');
+        }
+        const after = { task_id: 992, channel_id: 116, content_revision: 3, accepted_revision: 3,
+            visual_decision_id: 186, selected_asset_id: 97, classification: 'confirmed_absent',
+            previous_idempotency_key: DZEN_992_UNCERTAIN_KEY,
+            authorized_idempotency_key: args.resendIdempotencyKey,
+            resend_safe: true, publication_fact_id: null, history_preserved: true };
+        await db.$transaction(async (tx: typeof db) => {
+            const changed = await tx.contentItem.updateMany({ where: {
+                id: 992, project_id: 10, channel_id: 116, status: 'publishing',
+                publication_mode: 'owner_released', content_revision: 3, accepted_revision: 3,
+                selected_asset_id: 97
+            }, data: { status: 'ready_for_execution', quality_report: {
+                ...(task.quality_report || {}), publication_task_delivery: {
+                    state: 'confirmed_absent_retry_authorized', channel_type: 'dzen',
+                    previous_idempotency_key: DZEN_992_UNCERTAIN_KEY,
+                    authorized_idempotency_key: args.resendIdempotencyKey, retry_via_api: true,
+                    owner_evidence: { type: 'owner_provider_readback', ref: args.evidenceReference },
+                    prior_reconciliation_event_id: reconciliation.id,
+                    authorized_at: new Date().toISOString()
+                }
+            } } });
+            if (changed.count !== 1) throw new Error('[DZEN_992_CONFIRMED_ABSENT_CAS_CONFLICT]');
+            await tx.workflowEvent.create({ data: {
+                project_id: 10, content_item_id: 992, actor_id: args.actorId,
+                command: DZEN_992_RECOVERY_COMMAND, idempotency_key: args.idempotencyKey,
+                before_state: { status: task.status, publication_task_delivery: delivery,
+                    reconciliation_event_id: reconciliation.id },
+                after_state: { ...after, evidence_reference: args.evidenceReference }
+            } });
+        });
+        return { ...after, replayed: false };
+    }
 
     async verifyConnector(args: { projectId: number; taskId: number; actorId: string; idempotencyKey: string }) {
         if (args.projectId !== 10) throw new Error('[DZEN_TASK_SCOPE_MISMATCH]');
@@ -193,6 +276,11 @@ export class DzenTaskPublicationService {
             payload_preview: preview };
         if (!connectorReady) throw new Error('[DZEN_CONNECTOR_NOT_READY] Channel requires enabled API publication and authenticated session');
         if (!spec.allowedStatuses.includes(task.status)) throw new Error('[DZEN_PUBLICATION_STATE_CHANGED]');
+        const delivery = task.quality_report?.publication_task_delivery;
+        if (spec.taskId === 992 && delivery?.state === 'confirmed_absent_retry_authorized'
+            && delivery?.authorized_idempotency_key !== key) {
+            throw new Error('[DZEN_RETRY_NOT_AUTHORIZED] Use the single owner-authorized retry key');
+        }
         if (task.schedule_at && new Date(task.schedule_at).getTime() > Date.now()) throw new Error('[PUBLICATION_NOT_DUE]');
         const owner = await db.projectMember.findFirst({ where: { project_id: 10, role: 'owner' }, orderBy: { id: 'asc' } });
         if (!owner) throw new Error('[PROJECT_OWNER_REQUIRED]');
