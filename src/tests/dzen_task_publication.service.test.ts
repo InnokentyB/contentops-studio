@@ -6,8 +6,8 @@ import { isToolAllowedForProfile } from '../mcp/capabilities';
 const hash = '78081837cecace18c91c01af0253b21ca502e611b63a016f9d9035567587dfd3';
 const hash962 = '15c9b4a2e874439c4952900002ae5677fc3a6b6e8794dd34a0a4ae5f03dba798';
 const hash992 = '62af2b8e32d3aabb2b3d6f7029ee2b7ec64a7f9329eef01e52d6c4591e7eb150';
-const asset992Hash = '6061c4e53210de240d840e85e39990d7af5e496544f0cda4dd010048d33ebe25';
-const actual992IncidentKey = 'dzen-992-owner-confirmed-retry-20261001-v1';
+const asset992Hash = 'b5eafee417e13a2f1becc14a4b66629f31f11cfd68b4b887a240d3e552b3b944';
+const actual992IncidentKey = 'dzen-992-owner-confirmed-retry-20261001-v2';
 const schedule = new Date('2026-09-22T11:00:00.000Z');
 
 function harness(options: { released?: boolean; verified?: boolean; providerError?: boolean;
@@ -24,8 +24,8 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
             capability_flags: { api_publish: false } } },
         content_revision: revision, accepted_revision: revision, text_state: 'accepted',
         draft_text: 'exact accepted body', title: 'Exact accepted title', visual_placement: hasVisual ? 'article_cover' : 'feed',
-        visual_state: hasVisual ? 'APPROVED' : 'NO_VISUAL_NEEDED', selected_asset_id: hasVisual ? 97 : null,
-        selected_asset: hasVisual ? { id: 97, status: 'approved', content_revision: 3,
+        visual_state: hasVisual ? 'APPROVED' : 'NO_VISUAL_NEEDED', selected_asset_id: hasVisual ? 102 : null,
+        selected_asset: hasVisual ? { id: 102, status: 'approved', content_revision: 3,
             file_url: 'https://cdn.example.test/task992.png',
             provenance: { planner_storage: { sha256: asset992Hash } } } : null,
         visual_decision_version: 2, handoff_state: 'ready',
@@ -62,12 +62,13 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
                 return where.command === verifyCommand
                 ? options.verified === false ? null : { after_state: {
                     task_id: taskId, channel_id: 116, body_sha256: taskHash,
+                    ...(taskId === 992 ? { selected_asset_id: 102, asset_sha256: asset992Hash } : {}),
                     authenticated: true, editor_available: true, checked_at: new Date().toISOString()
                 } }
                 : options.released === false ? null : { after_state: {
                     task_id: taskId, channel_id: 116, content_revision: revision, accepted_revision: revision,
                     body_sha256: taskHash, visual_decision_id: decisionId,
-                    ...(taskId === 992 ? { asset_sha256: asset992Hash } : {}),
+                    ...(taskId === 992 ? { selected_asset_id: 102, asset_sha256: asset992Hash } : {}),
                     schedule_at: taskId === 992 ? null : schedule.toISOString(), publication_mode: 'owner_released'
                 } };
             },
@@ -122,7 +123,7 @@ test('Dzen #992 dry-run binds accepted revision, approved remote visual and arti
     assert.deepEqual(dry.payload_preview, {
         text: 'exact accepted body', title: 'Exact accepted title', has_image: true,
         image_url: 'https://cdn.example.test/task992.png', publication_type: 'article',
-        channel_id: 116, accepted_revision: 3, visual_decision_id: 186, selected_asset_id: 97
+        channel_id: 116, accepted_revision: 3, visual_decision_id: 186, selected_asset_id: 102
     });
 });
 
@@ -209,6 +210,44 @@ test('actual durable frozen #992 incident key allows read-only Studio probe with
     assert.equal(h.task.status, 'publishing');
     assert.equal(h.providerCalls, 0);
     assert.equal(h.events.some(event => event.data.command === 'reconcile_dzen_task992_uncertain_attempt'), true);
+});
+
+test('corrected asset selection may leave #992 ready but still permits only read-only frozen reconciliation', async () => {
+    const h = harness({ taskId: 992, studioTitles: [], verified: false });
+    h.task.status = 'ready_for_execution';
+    h.task.quality_report = { publication_task_delivery: {
+        state: 'provider_result_uncertain', idempotency_key: actual992IncidentKey,
+        retry_via_api: false, error: 'DZEN_PUBLICATION_REJECTED: Не удалось загрузить изображение'
+    } };
+
+    const result = await h.service.verifyConnector({ projectId: 10, taskId: 992,
+        actorId: 'user:2', idempotencyKey: 'dzen-992-corrected-asset-readback-v1' });
+    assert.equal(result.reconciliation.classification, 'not_confirmed');
+    assert.equal(result.reconciliation.selected_asset_id, 102);
+    assert.equal(result.reconciliation.asset_sha256, asset992Hash);
+
+    await assert.rejects(h.service.execute({ projectId: 10, taskId: 992,
+        idempotencyKey: 'must-not-send-before-recovery' }), /DZEN_RETRY_NOT_AUTHORIZED/);
+    assert.equal(h.providerCalls, 0);
+    assert.equal(h.task.status, 'ready_for_execution');
+});
+
+test('former #992 asset97 binding is rejected by connector without provider interaction', async () => {
+    const h = harness({ taskId: 992, studioTitles: [], verified: false });
+    h.task.selected_asset_id = 97;
+    h.task.selected_asset.id = 97;
+    h.task.selected_asset.provenance.planner_storage.sha256 =
+        '6061c4e53210de240d840e85e39990d7af5e496544f0cda4dd010048d33ebe25';
+    h.task.quality_report = { publication_task_delivery: {
+        state: 'provider_result_uncertain', idempotency_key: actual992IncidentKey,
+        retry_via_api: false
+    } };
+
+    await assert.rejects(h.service.verifyConnector({ projectId: 10, taskId: 992,
+        actorId: 'user:2', idempotencyKey: 'dzen-992-stale-asset97-readback-v1'
+    }), /DZEN_CONNECTOR_PREFLIGHT_GUARD_FAILED/);
+    assert.equal(h.providerCalls, 0);
+    assert.equal(h.events.length, 0);
 });
 
 test('frozen #992 remains forbidden for live send after a successful read-only probe', async () => {
@@ -302,7 +341,7 @@ test('zero-match recovery rejects prior-key reuse and authorizes exactly one new
     const recovery = await h.service.confirmAbsentAndAuthorizeRetry({
         projectId: 10, taskId: 992, actorId: 'user:2',
         idempotencyKey: 'dzen-992-owner-absent-20261001-v1',
-        resendIdempotencyKey: 'dzen-992-owner-confirmed-retry-20261001-v2',
+        resendIdempotencyKey: 'dzen-992-owner-confirmed-retry-20261001-v3',
         evidenceReference: 'owner_provider_readback:2026-10-01:no-new-material'
     });
 
@@ -310,14 +349,17 @@ test('zero-match recovery rejects prior-key reuse and authorizes exactly one new
     assert.equal(recovery.resend_safe, true);
     assert.equal(h.task.status, 'ready_for_execution');
     assert.equal(h.task.quality_report.publication_task_delivery.authorized_idempotency_key,
-        'dzen-992-owner-confirmed-retry-20261001-v2');
+        'dzen-992-owner-confirmed-retry-20261001-v3');
     assert.equal(h.events.some(event => event.data.command === 'ba_confirm_dzen_task992_absent_and_authorize_retry'), true);
+    const reboundRelease = h.events.find(event => event.data.command === 'ba_release_approved_dzen_task992');
+    assert.equal(reboundRelease.data.after_state.selected_asset_id, 102);
+    assert.equal(reboundRelease.data.after_state.asset_sha256, asset992Hash);
     await assert.rejects(h.service.execute({ projectId: 10, taskId: 992,
         idempotencyKey: 'another-key' }), /DZEN_RETRY_NOT_AUTHORIZED/);
     assert.equal(h.providerCalls, 0);
 
     const sent = await h.service.execute({ projectId: 10, taskId: 992,
-        idempotencyKey: 'dzen-992-owner-confirmed-retry-20261001-v2' });
+        idempotencyKey: 'dzen-992-owner-confirmed-retry-20261001-v3' });
     assert.equal(sent.published_link, 'https://dzen.ru/b/approved-task992');
     assert.equal(h.providerCalls, 1);
     assert.equal(h.factCalls, 1);
