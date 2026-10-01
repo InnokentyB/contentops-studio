@@ -126,9 +126,12 @@ export function extractDzenStudioPublications(payload: unknown): DzenStudioPubli
     const publications = root.publications.map((entry): DzenStudioPublication => {
         const raw = recordValue(entry) || {};
         const content = recordValue(raw.content) || {};
+        const preview = recordValue(content.preview) || {};
         const meta = recordValue(raw.meta) || {};
-        const titleCandidates = [raw.title, raw.publicationTitle, content.title, meta.title];
-        const title = titleCandidates.find((candidate): candidate is string => typeof candidate === 'string') ?? null;
+        const titleCandidates = [raw.title, raw.publicationTitle, content.title, preview.title, meta.title];
+        const title = titleCandidates.find((candidate): candidate is string =>
+            typeof candidate === 'string' && candidate.trim().length > 0
+        ) ?? null;
         const urlCandidate = [raw.commonUrl, raw.publicUrl, raw.url]
             .find((candidate): candidate is string => typeof candidate === 'string') || '';
         const providerId = typeof raw.id === 'string' || typeof raw.id === 'number' ? String(raw.id) : null;

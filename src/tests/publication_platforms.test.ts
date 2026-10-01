@@ -309,6 +309,37 @@ test('Dzen Studio readback extracts canonical title identity and fails closed on
     }] })?.title_readback_complete, false);
 });
 
+test('Dzen Studio readback accepts the current API content.preview title shape', () => {
+    assert.deepEqual(extractDzenStudioPublications({ publications: [{
+        isPublished: true,
+        status: 'published',
+        id: '6ab50010b83df05d67e9f90e',
+        content: {
+            type: 'article',
+            preview: {
+                title: 'Что делать, если документация проекта противоречит сама себе?',
+                snippet: 'Provider preview'
+            }
+        },
+        titleForUrl: 'chto-delat-esli-dokumentaciia-proekta-protivorechit-sama-sebe',
+        commonUrl: '/b/arUAELg98F1n6fkO'
+    }] }), {
+        publications: [{
+            provider_object_id: '6ab50010b83df05d67e9f90e',
+            title: 'Что делать, если документация проекта противоречит сама себе?',
+            public_url: 'https://dzen.ru/b/arUAELg98F1n6fkO'
+        }],
+        title_readback_complete: true
+    });
+
+    assert.equal(extractDzenStudioPublications({ publications: [{
+        id: 'provider-with-slug-only',
+        content: { preview: { title: '   ' } },
+        titleForUrl: 'not-authoritative-readable-title',
+        commonUrl: '/a/provider-with-slug-only'
+    }] })?.title_readback_complete, false);
+});
+
 test('publicationAdapterService recognizes new platforms as direct-execution friendly', () => {
     const okAccount = { platform: 'ok' };
     const habrAccount = { platform: 'habr_article' };
