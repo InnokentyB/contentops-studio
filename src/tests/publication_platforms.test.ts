@@ -10,6 +10,12 @@ import {
     DZEN_EDITOR_SELECTORS,
     typeDzenContentEditableText
 } from '../services/puppeteer_publisher.service';
+import {
+    classifyDzenPublicationOutcome,
+    clickDzenPublicationConfirm,
+    extractPublicDzenUrlsFromPayload
+} from '../services/puppeteer/dzen_publication_outcome';
+import type { Page } from 'puppeteer';
 
 test('Dzen cookie parser accepts a copied Cookie request header', () => {
     assert.deepEqual(
@@ -219,6 +225,71 @@ test('Dzen Draft.js input uses native element typing without document selection'
         ['type', 'Scoped text', { delay: 1 }]
     ]);
     assert.equal(calls.some((call) => call.includes('execCommand') || call.includes('selectAll')), false);
+});
+
+test('Dzen publication outcome confirms the canonical permalink returned by the provider', () => {
+    const providerUrls = extractPublicDzenUrlsFromPayload({
+        result: {
+            publication: {
+                commonUrl: '/a/ZkNewArticle?utm_source=studio',
+                editorUrl: '/profile/editor/id/channel/publication/edit'
+            }
+        }
+    });
+
+    assert.deepEqual(providerUrls, ['https://dzen.ru/a/ZkNewArticle']);
+    assert.deepEqual(classifyDzenPublicationOutcome({
+        currentUrl: 'https://dzen.ru/profile/editor/id/channel/publications',
+        linkedUrls: [],
+        providerUrls,
+        previousUrls: [],
+        errorMessages: [],
+        confirmationVisible: false
+    }), {
+        kind: 'published',
+        permalink: 'https://dzen.ru/a/ZkNewArticle'
+    });
+});
+
+test('Dzen final submit uses a trusted Puppeteer click on the visible enabled control', async () => {
+    const calls: string[] = [];
+    const page = {
+        waitForSelector: async () => ({
+            evaluate: async () => ({ disabled: false, ariaDisabled: false }),
+            click: async () => { calls.push('click'); }
+        })
+    } as unknown as Page;
+
+    await clickDzenPublicationConfirm(page, '[data-testid="publish-btn"]');
+    assert.deepEqual(calls, ['click']);
+});
+
+test('Dzen publication outcome reports a visible provider rejection without inventing a permalink', () => {
+    assert.deepEqual(classifyDzenPublicationOutcome({
+        currentUrl: 'https://dzen.ru/profile/editor/id/channel/post/edit',
+        linkedUrls: [],
+        providerUrls: [],
+        previousUrls: [],
+        errorMessages: ['Не удалось опубликовать. Исправьте ошибки и попробуйте снова.'],
+        confirmationVisible: true
+    }), {
+        kind: 'rejected',
+        message: 'Не удалось опубликовать. Исправьте ошибки и попробуйте снова.'
+    });
+});
+
+test('Dzen publication outcome stays uncertain when the modal closes without provider identity', () => {
+    assert.deepEqual(classifyDzenPublicationOutcome({
+        currentUrl: 'https://dzen.ru/profile/editor/id/channel/publications',
+        linkedUrls: ['https://dzen.ru/a/ExistingArticle'],
+        providerUrls: [],
+        previousUrls: ['https://dzen.ru/a/ExistingArticle'],
+        errorMessages: [],
+        confirmationVisible: false
+    }), {
+        kind: 'uncertain',
+        reason: 'Dzen closed the publication dialog without returning a new public permalink.'
+    });
 });
 
 test('publicationAdapterService recognizes new platforms as direct-execution friendly', () => {
