@@ -6,6 +6,7 @@ import vcService from '../services/vc.service';
 import dzenService, { isDzenPublishedUrl } from '../services/dzen.service';
 import {
     classifyDzenStudioLocation,
+    extractDzenStudioPublications,
     parseBrowserCookieHeader,
     DZEN_EDITOR_SELECTORS,
     typeDzenContentEditableText
@@ -290,6 +291,22 @@ test('Dzen publication outcome stays uncertain when the modal closes without pro
         kind: 'uncertain',
         reason: 'Dzen closed the publication dialog without returning a new public permalink.'
     });
+});
+
+test('Dzen Studio readback extracts canonical title identity and fails closed on missing titles', () => {
+    assert.deepEqual(extractDzenStudioPublications({ publications: [{
+        id: 'provider-992', title: 'Exact accepted title', commonUrl: '/a/provider-992?from=studio'
+    }] }), {
+        publications: [{
+            provider_object_id: 'provider-992',
+            title: 'Exact accepted title',
+            public_url: 'https://dzen.ru/a/provider-992'
+        }],
+        title_readback_complete: true
+    });
+    assert.equal(extractDzenStudioPublications({ publications: [{
+        id: 'provider-without-readable-title', commonUrl: '/a/provider-without-readable-title'
+    }] })?.title_readback_complete, false);
 });
 
 test('publicationAdapterService recognizes new platforms as direct-execution friendly', () => {

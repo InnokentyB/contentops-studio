@@ -28,6 +28,8 @@ export {
     scoreDzenCommentSubmit,
     navigateDzenInteractionPage,
     extractDzenStudioMetrics,
+    extractDzenStudioPublications,
+    DzenStudioPublication,
     DzenPublicationType,
     DZEN_EDITOR_SELECTORS,
     BrowserCookie,
@@ -40,6 +42,7 @@ import {
     DzenPageMetrics,
     DzenSearchResult,
     extractDzenStudioMetrics,
+    extractDzenStudioPublications,
     navigateDzenInteractionPage,
     DzenPublicationType,
     DZEN_EDITOR_SELECTORS,
@@ -640,6 +643,39 @@ class PuppeteerPublisherService {
                 authenticated: true,
                 editor_available: true,
                 editor_url: currentUrl,
+                checked_at: new Date().toISOString()
+            };
+        } finally {
+            await browser.close();
+        }
+    }
+
+    /** Read the authenticated Studio publication list without invoking any publication control. */
+    async readDzenStudioPublications(config: DzenPublishConfig) {
+        const browser = await this.launchBrowser();
+        const page = await browser.newPage();
+        try {
+            await this.prepareDzenPage(page, config);
+            if (!config.cookies?.trim() || !this.dzenChannelId(config)) {
+                throw new Error('Dzen authenticated channel ID is required for Studio reconciliation');
+            }
+            const responsePromise = page.waitForResponse(
+                (response) => /\/editor-api\/v3\/publications\?/.test(response.url()) && response.status() === 200,
+                { timeout: 30_000 }
+            );
+            await page.goto(this.dzenChannelEditorUrl(config), { waitUntil: 'domcontentloaded', timeout: 30_000 });
+            await this.assertDzenAuthenticated(page);
+            const response = await responsePromise;
+            const payload: unknown = await response.json();
+            const parsed = extractDzenStudioPublications(payload);
+            if (!parsed) throw new Error('DZEN_STUDIO_PUBLICATIONS_PAYLOAD_INVALID');
+            return {
+                authenticated: true,
+                editor_available: true,
+                editor_url: page.url(),
+                publications_payload_received: true,
+                title_readback_complete: parsed.title_readback_complete,
+                publications: parsed.publications,
                 checked_at: new Date().toISOString()
             };
         } finally {

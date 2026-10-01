@@ -1,4 +1,5 @@
 import type { Page } from 'puppeteer';
+import { canonicalPublicDzenUrl } from './dzen_publication_outcome';
 
 export interface DzenPageMetrics {
     views: number | null;
@@ -18,6 +19,17 @@ export interface DzenSearchResult {
     url: string;
     title: string;
     snippet: string;
+}
+
+export interface DzenStudioPublication {
+    provider_object_id: string | null;
+    title: string | null;
+    public_url: string | null;
+}
+
+export interface DzenStudioPublicationPayload {
+    publications: DzenStudioPublication[];
+    title_readback_complete: boolean;
 }
 
 export interface DzenCommentControlDescriptor {
@@ -98,6 +110,37 @@ export function extractDzenStudioMetrics(payload: any, postUrl: string): DzenPag
         subscriptions: numberOrNull(counters.subscriptions),
         sumViewTimeSec: numberOrNull(counters.sumViewTimeSec),
         ctr: numberOrNull(counters.ctr)
+    };
+}
+
+function recordValue(value: unknown): Record<string, unknown> | null {
+    return value !== null && typeof value === 'object' && !Array.isArray(value)
+        ? value as Record<string, unknown>
+        : null;
+}
+
+/** Parse the authenticated Studio list without treating missing title fields as proof of absence. */
+export function extractDzenStudioPublications(payload: unknown): DzenStudioPublicationPayload | null {
+    const root = recordValue(payload);
+    if (!root || !Array.isArray(root.publications)) return null;
+    const publications = root.publications.map((entry): DzenStudioPublication => {
+        const raw = recordValue(entry) || {};
+        const content = recordValue(raw.content) || {};
+        const meta = recordValue(raw.meta) || {};
+        const titleCandidates = [raw.title, raw.publicationTitle, content.title, meta.title];
+        const title = titleCandidates.find((candidate): candidate is string => typeof candidate === 'string') ?? null;
+        const urlCandidate = [raw.commonUrl, raw.publicUrl, raw.url]
+            .find((candidate): candidate is string => typeof candidate === 'string') || '';
+        const providerId = typeof raw.id === 'string' || typeof raw.id === 'number' ? String(raw.id) : null;
+        return {
+            provider_object_id: providerId,
+            title,
+            public_url: canonicalPublicDzenUrl(urlCandidate)
+        };
+    });
+    return {
+        publications,
+        title_readback_complete: publications.every((publication) => publication.title !== null)
     };
 }
 

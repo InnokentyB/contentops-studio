@@ -49,11 +49,25 @@ function taskSpec(taskId: number) {
 }
 
 type Args = { projectId: number; taskId: number; dryRun?: boolean; idempotencyKey?: string };
+type DzenStudioPublicationReadback = {
+    title: string | null;
+    public_url: string | null;
+    provider_object_id: string | null;
+};
 type Dependencies = {
     db: any;
     dzen: {
         publishPost(config: any, text: string, imageUrl?: string, title?: string, type?: 'article' | 'post'): Promise<string>;
         testConnection(config: any): Promise<any>;
+        readStudioPublications(config: { cookies?: string; channel_id?: string; [key: string]: unknown }): Promise<{
+            authenticated: boolean;
+            editor_available: boolean;
+            editor_url: string;
+            publications_payload_received: boolean;
+            title_readback_complete: boolean;
+            publications: DzenStudioPublicationReadback[];
+            checked_at: string;
+        }>;
     };
     facts: { record(args: any): Promise<any> };
     hashBody?: (body: string) => string;
@@ -107,7 +121,7 @@ export class DzenTaskPublicationService {
         const readback = reconciliation?.after_state;
         if (readback?.classification !== 'not_confirmed' || readback?.exact_title_matches !== 0
             || readback?.publication_fact_id !== null || readback?.studio_authenticated !== true
-            || readback?.publications_payload_received !== true) {
+            || readback?.publications_payload_received !== true || readback?.title_readback_complete !== true) {
             throw new Error('[DZEN_992_PROVIDER_READBACK_REQUIRED]');
         }
         const after = { task_id: 992, channel_id: 116, content_revision: 3, accepted_revision: 3,
@@ -158,15 +172,21 @@ export class DzenTaskPublicationService {
             project_id: 10, actor_id: args.actorId,
             command: spec.verifyCommand, idempotency_key: args.idempotencyKey
         } });
-        if (prior) return prior.after_state;
         const task = await db.contentItem.findFirst({
             where: { id: spec.taskId, project_id: 10 }, include: { channel: true, selected_asset: true, publication_fact: true }
         });
         const hash = (this.dependencies.hashBody || ((body: string) => createHash('sha256').update(body).digest('hex')))(task?.draft_text || '');
         const assetSha = task?.selected_asset?.provenance?.planner_storage?.sha256
             || task?.selected_asset?.provenance?.sha256 || null;
+        const delivery = task?.quality_report?.publication_task_delivery;
+        const frozen992 = spec.taskId === 992 && task?.status === 'publishing'
+            && delivery?.state === 'provider_result_uncertain'
+            && delivery?.idempotency_key === DZEN_992_UNCERTAIN_KEY
+            && delivery?.retry_via_api === false;
+        if (prior?.after_state && (!frozen992 || prior.after_state.reconciliation)) return prior.after_state;
         if (!task || task.channel_id !== 116 || task.channel?.type !== 'dzen'
-            || task.publication_mode !== 'owner_released' || !spec.allowedStatuses.includes(task.status)
+            || task.publication_mode !== 'owner_released'
+            || (!spec.allowedStatuses.includes(task.status) && !frozen992)
             || task.content_revision !== spec.revision || task.accepted_revision !== spec.revision
             || task.visual_placement !== spec.placement || task.visual_state !== spec.visualState
             || task.selected_asset_id !== spec.selectedAssetId
@@ -178,19 +198,59 @@ export class DzenTaskPublicationService {
         }
         const config = resolveEffectiveChannelConfig('dzen', task.channel.config || {});
         if (!config.cookies?.trim() || !config.channel_id) throw new Error('[DZEN_CONNECTOR_NOT_READY] Missing authenticated session or channel ID');
-        const check = await dzen.testConnection(config);
+        const check = frozen992
+            ? await dzen.readStudioPublications(config)
+            : await dzen.testConnection(config);
         if (check?.authenticated !== true || check?.editor_available !== true
             || !String(check?.editor_url || '').includes(`/id/${config.channel_id}`)) {
             throw new Error('[DZEN_CONNECTOR_NOT_READY] Authenticated channel editor was not verified');
         }
+        let reconciliation: Record<string, unknown> | undefined;
+        if (frozen992) {
+            if (check?.publications_payload_received !== true || check?.title_readback_complete !== true
+                || !Array.isArray(check?.publications) || !task.title?.trim()) {
+                throw new Error('[DZEN_992_PROVIDER_READBACK_INCOMPLETE] Retry remains forbidden');
+            }
+            const normalizeTitle = (value: string) => value.normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleLowerCase('ru');
+            const acceptedTitle = normalizeTitle(task.title);
+            const publications = check.publications as DzenStudioPublicationReadback[];
+            const exactMatches = publications.filter((publication) =>
+                typeof publication?.title === 'string' && normalizeTitle(publication.title) === acceptedTitle
+            );
+            reconciliation = {
+                task_id: 992, channel_id: 116, accepted_revision: 3,
+                previous_idempotency_key: DZEN_992_UNCERTAIN_KEY,
+                retry_via_api: false,
+                classification: exactMatches.length === 0 ? 'not_confirmed' : 'exact_match_found',
+                exact_title_matches: exactMatches.length,
+                matching_public_urls: exactMatches.map((publication) => publication.public_url).filter(Boolean),
+                matching_provider_object_ids: exactMatches.map((publication) => publication.provider_object_id).filter(Boolean),
+                publications_scanned: check.publications.length,
+                publication_fact_id: null,
+                studio_authenticated: true,
+                publications_payload_received: true,
+                title_readback_complete: true,
+                checked_at: check.checked_at || new Date().toISOString()
+            };
+        }
         const result = { task_id: spec.taskId, channel_id: 116, body_sha256: hash,
-            authenticated: true, editor_available: true, checked_at: new Date().toISOString() };
-        await db.workflowEvent.create({ data: {
-            project_id: 10, content_item_id: spec.taskId, actor_id: args.actorId,
-            command: spec.verifyCommand, idempotency_key: args.idempotencyKey,
-            before_state: { task_id: spec.taskId, channel_id: 116, body_sha256: hash },
-            after_state: result
-        } });
+            authenticated: true, editor_available: true, checked_at: new Date().toISOString(),
+            ...(reconciliation ? { reconciliation } : {}) };
+        await db.$transaction(async (tx: typeof db) => {
+            await tx.workflowEvent.create({ data: {
+                project_id: 10, content_item_id: spec.taskId, actor_id: args.actorId,
+                command: spec.verifyCommand, idempotency_key: args.idempotencyKey,
+                before_state: { task_id: spec.taskId, channel_id: 116, body_sha256: hash, status: task.status },
+                after_state: result
+            } });
+            if (reconciliation) await tx.workflowEvent.create({ data: {
+                project_id: 10, content_item_id: 992, actor_id: args.actorId,
+                command: 'reconcile_dzen_task992_uncertain_attempt',
+                idempotency_key: args.idempotencyKey,
+                before_state: { status: task.status, publication_task_delivery: delivery },
+                after_state: reconciliation
+            } });
+        });
         return result;
     }
 
