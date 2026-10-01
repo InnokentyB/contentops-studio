@@ -32,6 +32,11 @@ export interface DzenStudioPublicationPayload {
     title_readback_complete: boolean;
 }
 
+export type DzenImageUploadOutcome =
+    | { kind: 'uploaded' }
+    | { kind: 'rejected'; message: string }
+    | { kind: 'uncertain'; reason: string };
+
 export interface DzenCommentControlDescriptor {
     tag: string;
     type?: string;
@@ -145,6 +150,30 @@ export function extractDzenStudioPublications(payload: unknown): DzenStudioPubli
         publications,
         title_readback_complete: publications.every((publication) => publication.title !== null)
     };
+}
+
+/** Require both a successful provider response and a rendered editor image before publication. */
+export function classifyDzenImageUploadOutcome(observation: {
+    responseStatus: number | null;
+    insertedImage: boolean;
+    pageText: string;
+}): DzenImageUploadOutcome {
+    const error = observation.pageText
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .find((line) => /не удалось загрузить изображение|загружено с ошибкой|image upload failed|failed to upload image/i.test(line));
+    if (error) return { kind: 'rejected', message: error };
+    if (observation.responseStatus !== null
+        && (observation.responseStatus < 200 || observation.responseStatus >= 300)) {
+        return { kind: 'rejected', message: `Dzen image upload returned HTTP ${observation.responseStatus}` };
+    }
+    if (observation.responseStatus === null) {
+        return { kind: 'uncertain', reason: 'Dzen image upload did not return a provider response.' };
+    }
+    if (!observation.insertedImage) {
+        return { kind: 'uncertain', reason: 'Dzen accepted the upload request but did not render the image in the article.' };
+    }
+    return { kind: 'uploaded' };
 }
 
 export type DzenPublicationType = 'article' | 'post';
