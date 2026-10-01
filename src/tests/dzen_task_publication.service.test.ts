@@ -7,6 +7,7 @@ const hash = '78081837cecace18c91c01af0253b21ca502e611b63a016f9d9035567587dfd3';
 const hash962 = '15c9b4a2e874439c4952900002ae5677fc3a6b6e8794dd34a0a4ae5f03dba798';
 const hash992 = '62af2b8e32d3aabb2b3d6f7029ee2b7ec64a7f9329eef01e52d6c4591e7eb150';
 const asset992Hash = '6061c4e53210de240d840e85e39990d7af5e496544f0cda4dd010048d33ebe25';
+const actual992IncidentKey = 'dzen-992-owner-confirmed-retry-20261001-v1';
 const schedule = new Date('2026-09-22T11:00:00.000Z');
 
 function harness(options: { released?: boolean; verified?: boolean; providerError?: boolean;
@@ -54,6 +55,10 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
                 const stored = [...events].reverse().find(event => event.data.command === where.command
                     && (where.idempotency_key === undefined || event.data.idempotency_key === where.idempotency_key));
                 if (stored) return { ...stored.data, after_state: stored.data.after_state };
+                if (where.command === 'ba_publish_dzen_task992_claim') return where.idempotency_key === actual992IncidentKey
+                    ? { id: 1901, actor_id: 'system:planner-mcp:dzen-task992',
+                        after_state: { status: 'publishing', channel_id: 116 } }
+                    : null;
                 return where.command === verifyCommand
                 ? options.verified === false ? null : { after_state: {
                     task_id: taskId, channel_id: 116, body_sha256: taskHash,
@@ -188,11 +193,11 @@ test('uncertain Dzen result freezes task and never retries provider', async () =
     assert.equal(h.factCalls, 0);
 });
 
-test('frozen #992 allows an owner read-only Studio probe without changing task state or sending', async () => {
+test('actual durable frozen #992 incident key allows read-only Studio probe without state change or send', async () => {
     const h = harness({ taskId: 992, studioTitles: [], verified: false });
     h.task.status = 'publishing';
     h.task.quality_report = { publication_task_delivery: {
-        state: 'provider_result_uncertain', idempotency_key: 'dzen-992-prod-20261001-rev3-v1',
+        state: 'provider_result_uncertain', idempotency_key: actual992IncidentKey,
         retry_via_api: false, error: 'detached frame'
     } };
 
@@ -210,7 +215,7 @@ test('frozen #992 remains forbidden for live send after a successful read-only p
     const h = harness({ taskId: 992, studioTitles: [], verified: false });
     h.task.status = 'publishing';
     h.task.quality_report = { publication_task_delivery: {
-        state: 'provider_result_uncertain', idempotency_key: 'dzen-992-prod-20261001-rev3-v1',
+        state: 'provider_result_uncertain', idempotency_key: actual992IncidentKey,
         retry_via_api: false
     } };
     await h.service.verifyConnector({ projectId: 10, taskId: 992,
@@ -226,7 +231,7 @@ test('exact-title Studio match keeps frozen #992 blocked from recovery and retry
     const h = harness({ taskId: 992, studioTitles: ['Exact accepted title'], verified: false });
     h.task.status = 'publishing';
     h.task.quality_report = { publication_task_delivery: {
-        state: 'provider_result_uncertain', idempotency_key: 'dzen-992-prod-20261001-rev3-v1',
+        state: 'provider_result_uncertain', idempotency_key: actual992IncidentKey,
         retry_via_api: false
     } };
     const result = await h.service.verifyConnector({ projectId: 10, taskId: 992,
@@ -243,11 +248,26 @@ test('exact-title Studio match keeps frozen #992 blocked from recovery and retry
     assert.equal(h.providerCalls, 0);
 });
 
+test('stale hard-coded #992 incident key is rejected when it has no matching durable claim', async () => {
+    const h = harness({ taskId: 992, studioTitles: [], verified: false });
+    h.task.status = 'publishing';
+    h.task.quality_report = { publication_task_delivery: {
+        state: 'provider_result_uncertain', idempotency_key: 'dzen-992-prod-20261001-rev3-v1',
+        retry_via_api: false
+    } };
+
+    await assert.rejects(h.service.verifyConnector({ projectId: 10, taskId: 992,
+        actorId: 'user:2', idempotencyKey: 'dzen-992-stale-key-probe-v1'
+    }), /DZEN_CONNECTOR_PREFLIGHT_GUARD_FAILED/);
+    assert.equal(h.events.length, 0);
+    assert.equal(h.providerCalls, 0);
+});
+
 test('incomplete Studio title readback cannot be used as zero-match recovery evidence', async () => {
     const h = harness({ taskId: 992, studioTitles: [], studioTitleReadbackComplete: false, verified: false });
     h.task.status = 'publishing';
     h.task.quality_report = { publication_task_delivery: {
-        state: 'provider_result_uncertain', idempotency_key: 'dzen-992-prod-20261001-rev3-v1',
+        state: 'provider_result_uncertain', idempotency_key: actual992IncidentKey,
         retry_via_api: false
     } };
 
@@ -259,11 +279,11 @@ test('incomplete Studio title readback cannot be used as zero-match recovery evi
     assert.equal(h.providerCalls, 0);
 });
 
-test('owner-confirmed absence authorizes exactly one new #992 task-native claim and preserves incident history', async () => {
+test('zero-match recovery rejects prior-key reuse and authorizes exactly one new #992 claim', async () => {
     const h = harness({ taskId: 992, studioTitles: [], verified: false });
     h.task.status = 'publishing';
     h.task.quality_report = { publication_task_delivery: {
-        state: 'provider_result_uncertain', idempotency_key: 'dzen-992-prod-20261001-rev3-v1',
+        state: 'provider_result_uncertain', idempotency_key: actual992IncidentKey,
         retry_via_api: false, error: 'detached frame'
     } };
 
@@ -271,10 +291,18 @@ test('owner-confirmed absence authorizes exactly one new #992 task-native claim 
         actorId: 'user:2', idempotencyKey: 'dzen-992-zero-match-v1' });
     assert.equal(readback.reconciliation.exact_title_matches, 0);
 
+    await assert.rejects(h.service.confirmAbsentAndAuthorizeRetry({
+        projectId: 10, taskId: 992, actorId: 'user:2',
+        idempotencyKey: 'dzen-992-owner-mismatched-key-v1',
+        resendIdempotencyKey: actual992IncidentKey,
+        evidenceReference: 'owner_provider_readback:2026-10-01:no-new-material'
+    }), /DZEN_992_RETRY_KEY_MUST_BE_NEW/);
+    assert.equal(h.task.status, 'publishing');
+
     const recovery = await h.service.confirmAbsentAndAuthorizeRetry({
         projectId: 10, taskId: 992, actorId: 'user:2',
         idempotencyKey: 'dzen-992-owner-absent-20261001-v1',
-        resendIdempotencyKey: 'dzen-992-owner-confirmed-retry-20261001-v1',
+        resendIdempotencyKey: 'dzen-992-owner-confirmed-retry-20261001-v2',
         evidenceReference: 'owner_provider_readback:2026-10-01:no-new-material'
     });
 
@@ -282,14 +310,14 @@ test('owner-confirmed absence authorizes exactly one new #992 task-native claim 
     assert.equal(recovery.resend_safe, true);
     assert.equal(h.task.status, 'ready_for_execution');
     assert.equal(h.task.quality_report.publication_task_delivery.authorized_idempotency_key,
-        'dzen-992-owner-confirmed-retry-20261001-v1');
+        'dzen-992-owner-confirmed-retry-20261001-v2');
     assert.equal(h.events.some(event => event.data.command === 'ba_confirm_dzen_task992_absent_and_authorize_retry'), true);
     await assert.rejects(h.service.execute({ projectId: 10, taskId: 992,
         idempotencyKey: 'another-key' }), /DZEN_RETRY_NOT_AUTHORIZED/);
     assert.equal(h.providerCalls, 0);
 
     const sent = await h.service.execute({ projectId: 10, taskId: 992,
-        idempotencyKey: 'dzen-992-owner-confirmed-retry-20261001-v1' });
+        idempotencyKey: 'dzen-992-owner-confirmed-retry-20261001-v2' });
     assert.equal(sent.published_link, 'https://dzen.ru/b/approved-task992');
     assert.equal(h.providerCalls, 1);
     assert.equal(h.factCalls, 1);

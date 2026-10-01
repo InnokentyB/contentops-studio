@@ -19,6 +19,7 @@ This repair may persist attempts, audit records, read-only reconciliation result
 - Owner release and a fresh task-scoped connector proof are required. Missing credentials, stale proof, changed revision/body/asset/decision or an existing fact blocks execution.
 - Provider uncertainty freezes the claim and forbids retry. A successful result requires a canonical Dzen public URL before fact creation.
 - A frozen `provider_result_uncertain` claim may run only an owner-authenticated, read-only Studio list probe. The probe records exact-title reconciliation evidence without changing task state or invoking publication.
+- The prior attempt key is derived from the frozen task delivery record and must match its persisted task-native claim event. Probe and recovery arguments cannot replace that incident identity, and the authorized resend key must be new.
 - An exact title match, an unreadable title field, or an incomplete Studio payload keeps retry forbidden. Only a complete zero-match readback plus a separate owner recovery command may mark the prior attempt `confirmed_absent` and authorize one new idempotency key.
 
 ## Acceptance tests
