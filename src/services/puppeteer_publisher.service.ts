@@ -1,4 +1,4 @@
-import puppeteer, { type ElementHandle, type Page } from 'puppeteer';
+import puppeteer, { type ElementHandle, type HTTPResponse, type Page } from 'puppeteer';
 import fs from 'fs';
 import path from 'path';
 import dns from 'dns/promises';
@@ -47,6 +47,12 @@ import {
     classifyDzenStudioLocation,
     typeDzenContentEditableText
 } from './puppeteer/dzen_dom_helpers';
+import {
+    canonicalPublicDzenUrl,
+    clickDzenPublicationConfirm,
+    extractPublicDzenUrlsFromPayload,
+    waitForDzenPublicationOutcome
+} from './puppeteer/dzen_publication_outcome';
 
 
 
@@ -82,7 +88,11 @@ class PuppeteerPublisherService {
             : (config.article_editor_url || 'https://dzen.ru/studio/editor/create/article');
     }
 
-    private async openDzenComposer(page: Page, config: DzenPublishConfig, publicationType: DzenPublicationType) {
+    private async openDzenComposer(
+        page: Page,
+        config: DzenPublishConfig,
+        publicationType: DzenPublicationType
+    ): Promise<string[]> {
         const channelId = this.dzenChannelId(config);
         if (!channelId) {
             const configuredUrl = publicationType === 'article'
@@ -92,13 +102,16 @@ class PuppeteerPublisherService {
                 throw new Error('Dzen channel ID is required to open the current publication editor');
             }
             await page.goto(configuredUrl, { waitUntil: 'networkidle2', timeout: 30_000 });
-            return;
+            return [];
         }
 
         const publicationsUrl = `https://dzen.ru/profile/editor/id/${encodeURIComponent(channelId)}/publications`;
         await page.goto(publicationsUrl, { waitUntil: 'networkidle2', timeout: 30_000 });
         await this.assertDzenAuthenticated(page);
         await page.waitForSelector(DZEN_EDITOR_SELECTORS.addPublication, { timeout: 15_000 });
+        const previousPublicUrls = (await this.listPublicDzenUrls(page))
+            .map(canonicalPublicDzenUrl)
+            .filter((url): url is string => Boolean(url));
         await page.click(DZEN_EDITOR_SELECTORS.addPublication);
 
         const menuSelector = publicationType === 'article'
@@ -119,6 +132,7 @@ class PuppeteerPublisherService {
             await helpClose.click();
             await page.waitForSelector(DZEN_EDITOR_SELECTORS.helpClose, { hidden: true, timeout: 5_000 });
         }
+        return previousPublicUrls;
     }
 
     /**
@@ -180,16 +194,7 @@ class PuppeteerPublisherService {
     }
 
     private isPublicDzenUrl(value: string) {
-        try {
-            const url = new URL(value);
-            return ['dzen.ru', 'www.dzen.ru'].includes(url.hostname)
-                && !url.pathname.startsWith('/studio')
-                && !url.pathname.includes('/editor/')
-                && !/\bmock[-_/]/i.test(url.pathname)
-                && (/\/(?:a|b)\//.test(url.pathname) || /\/media\/id\//.test(url.pathname));
-        } catch {
-            return false;
-        }
+        return canonicalPublicDzenUrl(value) !== null;
     }
 
     private async uploadDzenImage(page: Page, imageUrl: string) {
@@ -481,7 +486,7 @@ class PuppeteerPublisherService {
             await page.setCookie(...cookiesMain, ...cookiesDot, ...cookiesYandex);
 
             console.log('[PuppeteerPublisher] Opening Dzen composer from the channel publications page...');
-            await this.openDzenComposer(page, config, publicationType);
+            const existingPublicUrls = new Set(await this.openDzenComposer(page, config, publicationType));
 
             await this.assertDzenAuthenticated(page);
 
@@ -509,10 +514,6 @@ class PuppeteerPublisherService {
                 await this.uploadDzenImage(page, imageUrl);
             }
 
-            const existingPublicUrls = new Set(
-                (await this.listPublicDzenUrls(page)).filter((url) => this.isPublicDzenUrl(url))
-            );
-
             // Click "Опубликовать" (Publish) button in editor header
             console.log('[PuppeteerPublisher] Triggering Dzen publication modal...');
             const clickedPubHeader = publicationType === 'article'
@@ -537,50 +538,73 @@ class PuppeteerPublisherService {
                 throw new Error('Could not find initial Publish button in Dzen Editor');
             }
 
-            // Wait for drawer/drawer settings to overlay
-            await new Promise((resolve) => setTimeout(resolve, 3000));
-
-            // Optional: Click the final publish confirmation inside the settings drawer
+            // Wait for the settings dialog, then perform a trusted browser click on its enabled submit control.
             console.log('[PuppeteerPublisher] Confirming publication in drawer settings...');
-            const clickedConfirm = Boolean(await page.$eval(DZEN_EDITOR_SELECTORS.publicationConfirm, (button: any) => {
-                button.click();
-                return true;
-            }).catch(() => false)) || await page.evaluate(() => {
-                // Find all buttons inside the sidebar/drawer.
-                // Yandex Dzen studio sidebar has button elements for final submit.
-                const buttons = Array.from(document.querySelectorAll('button'));
-                const btn = buttons.find((b) => {
-                    const txt = b.textContent?.trim() || '';
-                    // The final confirm button usually has text "Опубликовать" as well or "Опубликовать сейчас"
-                    return txt === 'Опубликовать' || txt.includes('Опубликовать сейчас') || txt === 'Publish';
-                });
-                if (btn) {
-                    btn.click();
-                    return true;
+            const providerUrls = new Set<string>();
+            const captureProviderResult = (response: HTTPResponse): void => {
+                const requestMethod = response.request().method().toUpperCase();
+                const contentType = response.headers()['content-type'] || '';
+                let hostname = '';
+                try {
+                    hostname = new URL(response.url()).hostname;
+                } catch {
+                    return;
                 }
-                return false;
-            });
+                if (!['POST', 'PUT', 'PATCH'].includes(requestMethod)
+                    || !contentType.includes('json')
+                    || !(hostname === 'dzen.ru' || hostname.endsWith('.dzen.ru'))) return;
+                void response.json()
+                    .then((payload: unknown) => extractPublicDzenUrlsFromPayload(payload)
+                        .forEach((url) => providerUrls.add(url)))
+                    .catch((error: unknown) => console.warn(
+                        `[PuppeteerPublisher] Could not inspect Dzen publication response from ${hostname}: ${error instanceof Error ? error.message : String(error)}`
+                    ));
+            };
+            page.on('response', captureProviderResult);
+            await clickDzenPublicationConfirm(page, DZEN_EDITOR_SELECTORS.publicationConfirm);
 
-            if (!clickedConfirm) {
-                throw new Error('Could not find confirmation Publish button in Dzen Settings panel');
-            }
-
-            // Wait for publication and require an actual public permalink.
+            // Require a provider response, a new public link, or a redirect to the canonical public URL.
             console.log('[PuppeteerPublisher] Waiting for Dzen success response...');
-            await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 45_000 }).catch(() => {});
-            await this.assertDzenAuthenticated(page);
-            const publishedUrl = await this.findDzenPublishedUrl(page, existingPublicUrls);
-            if (!publishedUrl) {
-                throw new Error('Dzen publication could not be verified: no public permalink was found');
+            let outcome = await waitForDzenPublicationOutcome(
+                page,
+                DZEN_EDITOR_SELECTORS.publicationConfirm,
+                Array.from(existingPublicUrls),
+                providerUrls,
+                30_000
+            );
+            if (outcome.kind === 'uncertain') {
+                const channelId = this.dzenChannelId(config);
+                if (channelId) {
+                    await page.goto(
+                        `https://dzen.ru/profile/editor/id/${encodeURIComponent(channelId)}/publications`,
+                        { waitUntil: 'networkidle2', timeout: 30_000 }
+                    );
+                    await this.assertDzenAuthenticated(page);
+                    outcome = await waitForDzenPublicationOutcome(
+                        page,
+                        DZEN_EDITOR_SELECTORS.publicationConfirm,
+                        Array.from(existingPublicUrls),
+                        providerUrls,
+                        15_000
+                    );
+                }
             }
-            console.log(`[PuppeteerPublisher] Dzen publication success! URL: ${publishedUrl}`);
-            await browser.close();
-            return publishedUrl;
+            page.off('response', captureProviderResult);
+            if (outcome.kind === 'rejected') {
+                throw new Error(`[DZEN_PUBLICATION_REJECTED] ${outcome.message}`);
+            }
+            if (outcome.kind === 'uncertain') {
+                throw new Error(`[DZEN_PUBLICATION_UNCERTAIN] ${outcome.reason}`);
+            }
+            console.log(`[PuppeteerPublisher] Dzen publication success! URL: ${outcome.permalink}`);
+            return outcome.permalink;
 
-        } catch (err: any) {
+        } catch (err: unknown) {
             const screenshotFile = await this.saveErrorScreenshot(page, 'dzen');
+            const message = err instanceof Error ? err.message : String(err);
+            throw new Error(`Dzen Puppeteer automation failed: ${message} (Diagnostic screenshot: logs/${screenshotFile})`);
+        } finally {
             await browser.close();
-            throw new Error(`Dzen Puppeteer automation failed: ${err.message} (Diagnostic screenshot: logs/${screenshotFile})`);
         }
     }
 
