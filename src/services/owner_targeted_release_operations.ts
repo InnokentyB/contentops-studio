@@ -8,6 +8,7 @@ type Dependencies = {
     db: any;
     hashBody: (body: string) => string;
     requireOwner: (tx: any, projectId: number, actorId: string) => Promise<void>;
+    getManifestChecksum?: (projectId: number, actorId: string) => Promise<string>;
 };
 
 export type Threads966Release = {
@@ -22,6 +23,15 @@ export type Task969Reschedule = {
     expectedScheduleAt: string; newScheduleAt: string;
     expectedBodySha256: string; expectedSelectedAssetId: number;
     approvalReference: string; idempotencyKey: string;
+};
+
+export type OwnerReleasedScheduleCorrection = {
+    projectId: number; actorId: string; taskId: number; expectedChannelId: number;
+    expectedContentRevision: number; expectedAcceptedRevision: number;
+    expectedSelectedAssetId: number | null; expectedVisualMode: string; expectedVisualState: string;
+    expectedPlacement: 'feed' | 'story'; expectedScheduleAt: string; expectedPublishAt: string;
+    newScheduleAt: string; newPublishAt: string; expectedBodySha256: string;
+    expectedManifestChecksum: string; correctionReference: string; idempotencyKey: string;
 };
 
 function requestHash(value: unknown) {
@@ -149,6 +159,106 @@ export async function rescheduleOwnerReleasedTask969(deps: Dependencies, args: T
             before_state: { request_hash: hash, publication_mode: 'owner_released',
                 schedule_at: args.expectedScheduleAt, approval_reference: args.approvalReference,
                 refreshed_by: command }, after_state: releaseProof } });
+        return result;
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+}
+
+/**
+ * Supersedes one exact owner-release proof before correcting its schedule.
+ * The task returns to approval_required so a fresh owner release is always explicit.
+ */
+export async function correctOwnerReleasedTaskSchedule(
+    deps: Dependencies,
+    args: OwnerReleasedScheduleCorrection
+) {
+    if (!args.correctionReference.trim()) throw new Error('[OWNER_CORRECTION_REFERENCE_REQUIRED]');
+    if (!args.expectedManifestChecksum.match(/^sha256:[a-f0-9]{64}$/i)) throw new Error('[INVALID_MANIFEST_CHECKSUM]');
+    const oldSchedule = new Date(args.expectedScheduleAt);
+    const oldPublishAt = new Date(args.expectedPublishAt);
+    const newSchedule = new Date(args.newScheduleAt);
+    const newPublishAt = new Date(args.newPublishAt);
+    if ([oldSchedule, oldPublishAt, newSchedule, newPublishAt].some(value => !Number.isFinite(value.getTime()))) {
+        throw new Error('[INVALID_SCHEDULE]');
+    }
+    const hash = requestHash(args);
+    return deps.db.$transaction(async (tx: any) => {
+        await deps.requireOwner(tx, args.projectId, args.actorId);
+        const checksum = await deps.getManifestChecksum?.(args.projectId, args.actorId);
+        if (!checksum || checksum !== args.expectedManifestChecksum) throw new Error('[STALE_MANIFEST] Workspace manifest changed');
+        const command = 'ba_correct_owner_released_task_schedule';
+        const prior = await tx.workflowEvent.findFirst({ where: {
+            project_id: args.projectId, actor_id: args.actorId, command, idempotency_key: args.idempotencyKey
+        } });
+        if (prior) {
+            if (prior.before_state?.request_hash !== hash) throw new Error('[IDEMPOTENCY_CONFLICT]');
+            return prior.after_state;
+        }
+        const task = await tx.contentItem.findFirst({ where: { id: args.taskId, project_id: args.projectId },
+            include: { channel: true, selected_asset: true, publication_fact: true } });
+        const bodyHash = deps.hashBody(task?.draft_text || '');
+        if (!task || task.channel_id !== args.expectedChannelId || task.channel?.type !== 'telegram'
+            || task.content_revision !== args.expectedContentRevision
+            || task.accepted_revision !== args.expectedAcceptedRevision
+            || task.content_revision !== task.accepted_revision || task.text_state !== 'accepted'
+            || task.visual_mode !== args.expectedVisualMode || task.visual_state !== args.expectedVisualState
+            || task.visual_placement !== args.expectedPlacement
+            || task.selected_asset_id !== args.expectedSelectedAssetId
+            || (args.expectedSelectedAssetId !== null && (task.selected_asset?.status !== 'approved'
+                || task.selected_asset?.content_revision !== args.expectedContentRevision || !task.selected_asset?.file_url))
+            || task.status !== 'ready_for_execution' || task.handoff_state !== 'ready'
+            || task.publication_mode !== 'owner_released'
+            || task.schedule_at?.toISOString() !== args.expectedScheduleAt
+            || task.publish_at?.toISOString() !== args.expectedPublishAt
+            || bodyHash !== args.expectedBodySha256 || task.publication_fact || task.published_link) {
+            throw new Error('[SCHEDULE_CORRECTION_GUARD_FAILED] Exact released task state is required');
+        }
+        const release = await tx.workflowEvent.findFirst({ where: {
+            project_id: args.projectId, content_item_id: args.taskId,
+            command: 'ba_release_approved_telegram_task'
+        }, orderBy: { id: 'desc' } });
+        const proof = release?.after_state;
+        if (!proof || proof.task_id !== args.taskId || proof.channel_id !== args.expectedChannelId
+            || proof.content_revision !== args.expectedContentRevision
+            || proof.accepted_revision !== args.expectedAcceptedRevision
+            || proof.schedule_at !== args.expectedScheduleAt || proof.body_sha256 !== args.expectedBodySha256
+            || proof.placement !== args.expectedPlacement || proof.publication_mode !== 'owner_released') {
+            throw new Error('[OWNER_RELEASE_PROOF_MISMATCH] Current release proof does not match task');
+        }
+        const attempt = await tx.deliveryAttempt.findFirst({ where: {
+            project_id: args.projectId, content_item_id: args.taskId
+        } });
+        if (attempt) throw new Error('[DELIVERY_ATTEMPT_EXISTS] Existing attempt requires reconciliation');
+        const checksumBeforeCas = await deps.getManifestChecksum?.(args.projectId, args.actorId);
+        if (checksumBeforeCas !== args.expectedManifestChecksum) {
+            throw new Error('[STALE_MANIFEST] Workspace manifest changed before correction');
+        }
+        const changed = await tx.contentItem.updateMany({ where: {
+            id: args.taskId, project_id: args.projectId, channel_id: args.expectedChannelId,
+            content_revision: args.expectedContentRevision, accepted_revision: args.expectedAcceptedRevision,
+            text_state: 'accepted', visual_mode: args.expectedVisualMode, visual_state: args.expectedVisualState,
+            visual_placement: args.expectedPlacement, selected_asset_id: args.expectedSelectedAssetId,
+            status: 'ready_for_execution', handoff_state: 'ready', publication_mode: 'owner_released',
+            schedule_at: oldSchedule, publish_at: oldPublishAt
+        }, data: { schedule_at: newSchedule, publish_at: newPublishAt, publication_mode: 'approval_required' } });
+        if (changed.count !== 1) throw new Error('[SCHEDULE_CORRECTION_CAS_CONFLICT] Task changed during correction');
+        const result = {
+            task_id: args.taskId, project_id: args.projectId, channel_id: args.expectedChannelId,
+            content_revision: args.expectedContentRevision, accepted_revision: args.expectedAcceptedRevision,
+            selected_asset_id: args.expectedSelectedAssetId, body_sha256: bodyHash,
+            previous_schedule_at: args.expectedScheduleAt, schedule_at: newSchedule.toISOString(),
+            previous_publish_at: args.expectedPublishAt, publish_at: newPublishAt.toISOString(),
+            publication_mode: 'approval_required', release_superseded: true,
+            fresh_owner_release_required: true, published: false
+        };
+        await tx.workflowEvent.create({ data: {
+            project_id: args.projectId, content_item_id: args.taskId, actor_id: args.actorId,
+            command, idempotency_key: args.idempotencyKey,
+            before_state: { request_hash: hash, manifest_checksum: checksum,
+                approval_reference: args.correctionReference, superseded_release_event_id: release.id,
+                schedule_at: args.expectedScheduleAt, publish_at: args.expectedPublishAt,
+                publication_mode: 'owner_released' },
+            after_state: result
+        } });
         return result;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
