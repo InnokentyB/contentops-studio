@@ -3,9 +3,12 @@ import { Prisma } from '@prisma/client';
 import prisma from '../db';
 import { calculateVisualReadiness } from './art_direction.service';
 import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
+import { loadAgentWorkspaceManifest } from './agent_workspace_manifest.service';
 import {
+    OwnerReleasedScheduleCorrection,
     Threads966Release,
     Task969Reschedule,
+    correctOwnerReleasedTaskSchedule,
     releaseThreadsTask966,
     rescheduleOwnerReleasedTask969
 } from './owner_targeted_release_operations';
@@ -957,6 +960,18 @@ export class OwnerPublicationControlsService {
         return rescheduleOwnerReleasedTask969({
             db: this.db, hashBody: this.hashBody,
             requireOwner: (tx, projectId, actorId) => this.requireOwner(tx, projectId, actorId)
+        }, args);
+    }
+
+    async correctOwnerReleasedTaskSchedule(args: OwnerReleasedScheduleCorrection) {
+        return correctOwnerReleasedTaskSchedule({
+            db: this.db, hashBody: this.hashBody,
+            requireOwner: (tx, projectId, actorId) => this.requireOwner(tx, projectId, actorId),
+            getManifestChecksum: async (projectId, actorId) => {
+                const match = /^user:(\d+)$/.exec(actorId);
+                if (!match) throw new Error('[OWNER_REQUIRED] Authenticated project-owner user is required');
+                return (await loadAgentWorkspaceManifest(projectId, Number(match[1]))).checksum;
+            }
         }, args);
     }
 

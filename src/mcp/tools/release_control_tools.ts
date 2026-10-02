@@ -101,6 +101,23 @@ export function registerReleaseControlTools(server: McpServer): void {
         }
     }, async (args) => asToolResult(await ownerPublicationControlsService.rescheduleOwnerReleasedTask969(args)));
 
+    server.registerTool('ba_correct_owner_released_task_schedule', {
+        description: 'Project-owner audited CAS correction for an unpublished owner-released Telegram task. Verifies the current manifest, revision, body, channel, visual and absence of provider attempts; supersedes the old release, changes only schedule_at/publish_at, and requires a fresh owner release. Never publishes.',
+        inputSchema: {
+            projectId: z.number().int().positive(), actorId: z.string(), taskId: z.number().int().positive(),
+            expectedChannelId: z.number().int().positive(),
+            expectedContentRevision: z.number().int().positive(), expectedAcceptedRevision: z.number().int().positive(),
+            expectedSelectedAssetId: z.number().int().positive().nullable(),
+            expectedVisualMode: z.string().min(1), expectedVisualState: z.string().min(1),
+            expectedPlacement: z.enum(['feed', 'story']),
+            expectedScheduleAt: z.string().datetime({ offset: true }), expectedPublishAt: z.string().datetime({ offset: true }),
+            newScheduleAt: z.string().datetime({ offset: true }), newPublishAt: z.string().datetime({ offset: true }),
+            expectedBodySha256: z.string().regex(/^[a-f0-9]{64}$/),
+            expectedManifestChecksum: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+            correctionReference: z.string().min(10), idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await ownerPublicationControlsService.correctOwnerReleasedTaskSchedule(args)));
+
     server.registerTool('ba_verify_dzen_task958_connector', {
         description: 'Owner-only read-only authenticated editor probe for exact released Dzen task #958; records a 15-minute task-scoped connection proof without enabling the channel globally or publishing.',
         inputSchema: {
