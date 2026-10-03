@@ -87,3 +87,9 @@ test('LinkedIn browser release remains owner-only', () => {
         assert.equal(isToolAllowedForProfile(profile, tool), false, `${profile} must not release owner authority`);
     }
 });
+
+test('Publisher sees only the browser-publication-specific claim', () => {
+    assert.equal(isToolAllowedForProfile('publisher', 'ba_claim_linkedin_browser_publication'), true);
+    assert.equal(isToolAllowedForProfile('publisher', 'ba_claim_work_item'), false);
+    assert.equal(isToolAllowedForProfile('writer', 'ba_claim_linkedin_browser_publication'), false);
+});

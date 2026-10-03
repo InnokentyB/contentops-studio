@@ -3,7 +3,7 @@ import { z } from 'zod';
 import ownerPublicationControlsService from '../../services/owner_publication_controls.service';
 import dzenTaskPublicationService from '../../services/dzen_task_publication.service';
 import linkedinTask995RecoveryService from '../../services/linkedin_task995_recovery.service';
-import { releaseLinkedInBrowserTaskWithPrisma } from '../../services/linkedin_browser_owner_release.service';
+import { claimLinkedInBrowserPublication, releaseLinkedInBrowserTaskWithPrisma } from '../../services/linkedin_browser_owner_release.service';
 import { asToolResult } from './common';
 
 /**
@@ -27,6 +27,15 @@ export function registerReleaseControlTools(server: McpServer): void {
             approvalReference: z.string().min(10), idempotencyKey: z.string().min(1)
         }
     }, async (args) => asToolResult(await releaseLinkedInBrowserTaskWithPrisma(args)));
+
+    server.registerTool('ba_claim_linkedin_browser_publication', {
+        description: 'Publisher claim for an existing owner-released LinkedIn browser publication work item. Refuses all other work kinds, channels and unreleased tasks.',
+        inputSchema: {
+            projectId: z.number().int().positive(), actorId: z.string(),
+            workItemId: z.number().int().positive(), leaseSeconds: z.number().int().positive().optional(),
+            idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await claimLinkedInBrowserPublication(args)));
 
     server.registerTool('ba_release_approved_telegram_task', {
         description: 'Project-owner audited release of one exact accepted Telegram feed or personal-profile Story task for a separate explicit send. Does not publish or enable scheduler discovery.',

@@ -141,6 +141,7 @@ const PUBLISHER_TOOLS = new Set([
     'ba_get_release_readiness',
     'ba_list_release_blockers',
     'ba_prepare_publication_task',
+    'ba_claim_linkedin_browser_publication',
     'ba_publish_publication_task',
     'ba_publish_threads_task',
     'ba_release_approved_telegram_task',

@@ -167,6 +167,8 @@ test('editor, publisher and growth profiles expose only their governed lifecycle
 
     const publisherTools = Object.keys((createPlannerMcpServer({ profile: 'publisher' } as any) as any)._registeredTools || {});
     assert.ok(publisherTools.includes('ba_prepare_publication_task'));
+    assert.ok(publisherTools.includes('ba_claim_linkedin_browser_publication'));
+    assert.ok(!publisherTools.includes('ba_claim_work_item'));
     assert.ok(publisherTools.includes('ba_publish_publication_task'));
     assert.ok(publisherTools.includes('ba_publish_threads_task'));
     assert.ok(publisherTools.includes('ba_confirm_publication'));
