@@ -83,7 +83,7 @@ export function registerWorkQueueTools(server: McpServer): void {
     }, async (args) => asToolResult(await workQueueService.claimContentReview(args)));
 
     server.registerTool('ba_submit_content_review', {
-        description: 'Submit a lease-bound content review for editor approval without changing copy or accepting the revision.',
+        description: 'Submit a lease-bound content review without changing copy or accepting the revision. New approve recommendations require an aligned, revision-bound claimEvidence assessment; ideas and hypotheses may explicitly use evidenceStatus=not_required.',
         annotations: INTERNAL_MUTATION_ANNOTATIONS,
         inputSchema: {
             projectId: z.number().int().positive(),
@@ -95,7 +95,36 @@ export function registerWorkQueueTools(server: McpServer): void {
             result: z.object({
                 recommendation: z.enum(['approve', 'revise']),
                 summary: z.string().min(1),
-                findings: z.array(z.string()).optional()
+                findings: z.array(z.string()).optional(),
+                claimEvidence: z.object({
+                    claimStage: z.enum(['idea', 'hypothesis', 'experiment', 'verified_result']),
+                    headlineStage: z.enum(['idea', 'hypothesis', 'experiment', 'verified_result']).optional(),
+                    evidenceStatus: z.enum(['not_required', 'missing', 'attached', 'verified', 'invalid']),
+                    evidenceRefs: z.array(z.object({
+                        type: z.enum([
+                            'observable_product', 'reproducible_test', 'real_screenshot_or_recording',
+                            'metric', 'commit_or_release', 'publication_fact', 'other_verifiable_artifact',
+                            'external_source_signal',
+                            'mockup', 'prototype', 'presentation', 'ai_generated_demo'
+                        ]),
+                        ref: z.string().min(1),
+                        contentRevision: z.number().int().positive(),
+                        claim: z.string().min(1).optional(),
+                        metric: z.object({
+                            period: z.string().min(1).optional(),
+                            baseline: z.union([z.string(), z.number()]).optional(),
+                            comparator: z.union([z.string(), z.number()]).optional()
+                        }).optional(),
+                        source: z.object({
+                            signalId: z.number().int().positive().optional(),
+                            sourceType: z.string().min(1).max(80),
+                            canonicalUrl: z.string().url().startsWith('https://'),
+                            snapshotHash: z.string().regex(/^[a-f0-9]{64}$/i),
+                            observedAt: z.string().datetime(),
+                            accessClass: z.enum(['public', 'authenticated_read'])
+                        }).strict().optional()
+                    })).default([])
+                }).optional()
             }),
             idempotencyKey: z.string()
         }
