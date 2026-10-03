@@ -4,6 +4,7 @@ import prisma from '../db';
 import publicationAdapterService from './publication_adapter.service';
 import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
 import { loadAgentWorkspaceManifest } from './agent_workspace_manifest.service';
+import workQueueService from './work_queue.service';
 
 export type LinkedInBrowserReleaseArgs = {
     projectId: number;
@@ -226,4 +227,35 @@ export async function releaseLinkedInBrowserTaskWithPrisma(args: LinkedInBrowser
         },
         hashBody: (body) => createHash('sha256').update(body).digest('hex')
     }, args);
+}
+
+/**
+ * Publisher-scoped claim for an owner-released LinkedIn browser work item.
+ * The generic work queue claim stays hidden from Publisher so other roles' work cannot be claimed.
+ */
+export async function claimLinkedInBrowserPublication(args: {
+    projectId: number;
+    actorId: string;
+    workItemId: number;
+    leaseSeconds?: number;
+    idempotencyKey: string;
+}) {
+    const item = await prisma.workItem.findFirst({
+        where: {
+            id: args.workItemId,
+            project_id: args.projectId,
+            kind: 'browser_publish',
+            assignee_role: 'browser_publisher',
+            content_item: {
+                channel: { type: 'linkedin' },
+                status: 'browser_required',
+                publication_mode: 'browser_required',
+                publication_fact: null,
+                published_link: null
+            }
+        },
+        select: { id: true }
+    });
+    if (!item) throw new Error('[LINKEDIN_BROWSER_WORK_ITEM_REQUIRED]');
+    return workQueueService.claimWorkItem(args);
 }
