@@ -4,6 +4,7 @@ import ownerPublicationControlsService from '../../services/owner_publication_co
 import dzenTaskPublicationService from '../../services/dzen_task_publication.service';
 import linkedinTask995RecoveryService from '../../services/linkedin_task995_recovery.service';
 import { claimLinkedInBrowserPublication, releaseLinkedInBrowserTaskWithPrisma } from '../../services/linkedin_browser_owner_release.service';
+import { releaseDzenTaskWithPrisma } from '../../services/dzen_owner_release.service';
 import { asToolResult } from './common';
 
 /**
@@ -12,6 +13,26 @@ import { asToolResult } from './common';
  * @param server - Target MCP server instance.
  */
 export function registerReleaseControlTools(server: McpServer): void {
+    server.registerTool('ba_release_approved_dzen_task', {
+        description: 'Project-owner audited release of one exact accepted Dzen package. Verifies manifest, revision, body, channel, visual decision, asset and schedule; never contacts Dzen or records a publication fact.',
+        inputSchema: {
+            projectId: z.number().int().positive(), taskId: z.number().int().positive(), actorId: z.string(),
+            expectedChannelId: z.number().int().positive(),
+            expectedContentRevision: z.number().int().positive(),
+            expectedAcceptedRevision: z.number().int().positive(),
+            expectedBodySha256: z.string().regex(/^[a-f0-9]{64}$/),
+            expectedVisualState: z.enum(['NO_VISUAL_NEEDED', 'APPROVED']),
+            expectedPlacement: z.string().min(1),
+            expectedVisualDecisionVersion: z.number().int().positive(),
+            expectedSelectedAssetId: z.number().int().positive().nullable(),
+            expectedAssetSha256: z.string().regex(/^[a-f0-9]{64}$/).nullable(),
+            expectedScheduleAt: z.string().datetime({ offset: true }),
+            expectedPublishAt: z.string().datetime({ offset: true }),
+            expectedManifestChecksum: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+            approvalReference: z.string().min(10), idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await releaseDzenTaskWithPrisma(args)));
+
     server.registerTool('ba_release_approved_linkedin_browser_task', {
         description: 'Project-owner audited release of one exact accepted LinkedIn revision to the browser-publisher queue. Verifies manifest, body, asset, schedule, channel and absence of prior delivery; never contacts LinkedIn or records a publication fact.',
         inputSchema: {
