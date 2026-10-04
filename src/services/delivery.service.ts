@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import prisma from '../db';
 import publisherService from './publisher.service';
 import { requireProjectActorAccess } from './project_access.service';
@@ -70,10 +71,6 @@ export class DeliveryService {
         if (task.publication_mode === 'approval_required') {
             throw new Error('[OWNER_RELEASE_REQUIRED] Accepted content is not authorization to deliver this task');
         }
-        if (task.publication_mode === 'owner_released') {
-            throw new Error('[EXPLICIT_TASK_SEND_ONLY] Owner release permits only task-native explicit publication');
-        }
-
         const channelType = String(task.channel?.type || '').toLowerCase();
         const storedChannelConfig = task.channel?.config || {};
         const rawChannelConfig = resolveEffectiveChannelConfig(channelType, storedChannelConfig);
@@ -84,6 +81,54 @@ export class DeliveryService {
         };
         const dzenAutomaticByDefault = publicationAdapterService.prefersAutomaticExecution(effectiveChannelConfig);
         const automaticRequested = forceAutomatic === true || (forceAutomatic === undefined && dzenAutomaticByDefault);
+        if (task.publication_mode === 'owner_released') {
+            if (!['zen', 'zen_article', 'dzen'].includes(channelType) || !automaticRequested || !idempotencyKey) {
+                throw new Error('[EXPLICIT_TASK_SEND_ONLY] Owner release permits only an idempotent explicit Dzen send');
+            }
+            const release = await this.db.workflowEvent.findFirst({ where: {
+                project_id: projectId, content_item_id: contentItemId,
+                command: 'ba_release_approved_dzen_task'
+            }, orderBy: { id: 'desc' } });
+            const proof = release?.after_state as Record<string, unknown> | undefined;
+            const bodyHash = createHash('sha256').update(task.draft_text || '').digest('hex');
+            if (!proof || proof.task_id !== task.id || proof.channel_id !== task.channel_id
+                || proof.content_revision !== task.content_revision
+                || proof.accepted_revision !== task.accepted_revision
+                || proof.body_sha256 !== bodyHash || proof.visual_state !== task.visual_state
+                || proof.placement !== task.visual_placement
+                || proof.visual_decision_version !== task.visual_decision_version
+                || proof.selected_asset_id !== task.selected_asset_id
+                || proof.publication_mode !== 'owner_released'
+                || proof.explicit_send_required !== true || proof.published !== false) {
+                throw new Error('[OWNER_RELEASE_PROOF_MISMATCH] Exact generic Dzen release proof is required');
+            }
+            await this.preflightDzen({
+                channel_id: rawChannelConfig.channel_id || rawChannelConfig.vk_id,
+                channel_url: rawChannelConfig.channel_url,
+                cookies: rawChannelConfig.cookies,
+                article_editor_url: rawChannelConfig.article_editor_url,
+                post_editor_url: rawChannelConfig.post_editor_url
+            });
+            const promote = async (tx: typeof this.db) => {
+                const updated = await tx.contentItem.updateMany({ where: {
+                    id: task.id, project_id: projectId, channel_id: channelId,
+                    content_revision: task.content_revision, accepted_revision: task.accepted_revision,
+                    publication_mode: 'owner_released'
+                }, data: { status: 'ready_for_execution', publication_mode: 'connector_auto' } });
+                if (updated.count !== 1) throw new Error('[DELIVERY_ROUTE_CONFLICT] Task changed after owner release');
+                await tx.event.create({ data: {
+                    entity_type: 'content_item', entity_id: task.id,
+                    event_type: 'delivery.dzen_owner_release_consumed',
+                    payload: { project_id: projectId, actor_id: actorId, channel_id: channelId,
+                        content_revision: task.content_revision, release_event_id: release.id,
+                        idempotency_key: idempotencyKey, from: 'owner_released', to: 'connector_auto' }
+                } });
+            };
+            if (typeof this.db.$transaction === 'function') await this.db.$transaction(promote);
+            else await promote(this.db);
+            task.status = 'ready_for_execution';
+            task.publication_mode = 'connector_auto';
+        }
 
         if (task.publication_mode === 'browser_required' && automaticRequested) {
             if (!['zen', 'zen_article', 'dzen'].includes(channelType)) {
