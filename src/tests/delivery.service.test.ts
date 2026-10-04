@@ -14,6 +14,11 @@ function createHarness(overrides: Record<string, any> = {}) {
         text_state: 'accepted',
         status: 'ready_for_execution',
         publication_mode: 'connector_auto',
+        draft_text: 'accepted dzen body',
+        visual_state: 'NO_VISUAL_NEEDED',
+        visual_placement: 'article_cover',
+        visual_decision_version: 1,
+        selected_asset_id: null,
         quality_report: {},
         channel: { id: 116, type: 'dzen', config: { workflow_mode: 'auto_publish', cookies: 'session=valid' } },
         publication_fact: null as any
@@ -62,6 +67,7 @@ function createHarness(overrides: Record<string, any> = {}) {
             findFirst: async () => null,
             create: async ({ data }: any) => ({ id: 99, ...data })
         },
+        workflowEvent: { findFirst: async () => overrides.ownerRelease || null },
         ...overrides.db
     };
     const accessChecks: any[] = [];
@@ -255,14 +261,42 @@ test('approval-required delivery is rejected before preflight, attempt creation 
     assert.equal(h.task.publication_mode, 'approval_required');
 });
 
-test('owner-released task cannot use generic delivery even with forceAutomatic', async () => {
+test('owner-released task without the exact generic Dzen proof cannot use delivery', async () => {
     let publishCalls = 0;
     const h = createHarness({ publishTask: async () => { publishCalls += 1; return { success: true, status: 'published' }; } });
     h.task.publication_mode = 'owner_released';
     await assert.rejects(h.service.executeDelivery({
         projectId: 10, actorId: 'user:1', contentItemId: 815, channelId: 116,
         forceAutomatic: true, idempotencyKey: 'owner-release-generic-denied'
-    }), /EXPLICIT_TASK_SEND_ONLY/);
+    }), /OWNER_RELEASE_PROOF_MISMATCH/);
     assert.equal(publishCalls, 0);
     assert.equal(h.attempts.size, 0);
+});
+
+test('exact generic Dzen owner release permits one idempotent connector send', async () => {
+    let publishCalls = 0;
+    const h = createHarness({
+        ownerRelease: {
+            after_state: {
+                task_id: 815, channel_id: 116, content_revision: 1, accepted_revision: 1,
+                body_sha256: '939b27b79036dc636d273b02f4986e637cdc84eabbc1f11c90e884e7c1b12681',
+                visual_state: 'NO_VISUAL_NEEDED', placement: 'article_cover',
+                visual_decision_version: 1, selected_asset_id: null,
+                publication_mode: 'owner_released', explicit_send_required: true, published: false
+            }
+        },
+        publishTask: async () => {
+            publishCalls += 1;
+            h.task.publication_fact = { outcome: 'published', public_url: 'https://dzen.ru/a/exact-proof' };
+            return { success: true, status: 'published', publishedLink: 'https://dzen.ru/a/exact-proof' };
+        }
+    });
+    h.task.publication_mode = 'owner_released';
+    const result = await h.service.executeDelivery({
+        projectId: 10, actorId: 'service:publisher', contentItemId: 815, channelId: 116,
+        forceAutomatic: true, idempotencyKey: 'dzen-exact-owner-release-send-v1'
+    });
+    assert.equal(result.status, 'delivered');
+    assert.equal(publishCalls, 1);
+    assert.equal(h.task.publication_mode, 'connector_auto');
 });
