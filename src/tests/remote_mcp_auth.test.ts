@@ -156,6 +156,7 @@ test('only the owner MCP profile discovers audited content review recovery', () 
     assert.ok(tools.includes('ba_repair_publication_projection'));
     assert.ok(tools.includes('ba_preview_published_channel_repair'));
     assert.ok(tools.includes('ba_apply_published_channel_repair'));
+    assert.ok(tools.includes('ba_release_approved_dzen_task'));
 });
 
 test('editor, publisher and growth profiles expose only their governed lifecycle tools', () => {
