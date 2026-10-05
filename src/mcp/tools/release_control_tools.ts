@@ -136,6 +136,18 @@ export function registerReleaseControlTools(server: McpServer): void {
         }
     }, async (args) => asToolResult(await ownerPublicationControlsService.releaseThreadsTask966(args)));
 
+    server.registerTool('ba_release_approved_threads_task1021', {
+        description: 'Owner-only audited release of exact accepted Threads task #1021 rev1 and immutable NO_VISUAL_NEEDED decision #197. Does not publish.',
+        inputSchema: {
+            projectId: z.literal(10), actorId: z.string(), taskId: z.literal(1021),
+            expectedChannelId: z.literal(138), expectedContentRevision: z.literal(1),
+            expectedAcceptedRevision: z.literal(1),
+            expectedScheduleAt: z.string().datetime({ offset: true }),
+            expectedBodySha256: z.literal('f505415d56f83b199ae501ac825694cff849331bf29849b672ea89f732fa9e6b'),
+            approvalReference: z.string().min(10), idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await ownerPublicationControlsService.releaseThreadsTask1021(args)));
+
     server.registerTool('ba_reschedule_owner_released_task969', {
         description: 'Owner-only audited near-now reschedule of exact owner-released Telegram task #969 rev1/asset88. Changes only schedule_at and refreshes its exact release proof; never publishes.',
         inputSchema: {
