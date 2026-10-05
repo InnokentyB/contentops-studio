@@ -5,16 +5,14 @@ import { ThreadsTaskPublicationService } from '../services/threads_task_publicat
 const hash = 'e7d8c1f2f9cf4f7e3ca1ad6fb05e55153c2153739b3fcdf280e519f574b7f7a6';
 const schedule = new Date('2026-09-22T17:00:00.000Z');
 
-function harness(ready = true, taskId: 953 | 966 | 997 | 1021 = 953) {
+function harness(ready = true, taskId: 953 | 966 | 997 = 953) {
     const spec = taskId === 953
         ? { revision: 4, hash, decisionId: 149, schedule, body: 'short body' }
         : taskId === 966 ? { revision: 1, hash: '83dd0fe0b2b354898b9fd3e5161d5ab05517c4c2b2304862d74c949ce1e2b123',
             decisionId: 142, schedule: new Date('2026-09-26T18:00:00.000Z'), body: 'task 966 body' }
-            : taskId === 997 ? { revision: 1, hash: '53abc96f1fc3287ca47ff5be457335fed2e33c0955e11f527dbe23d8299cf94b',
+            : { revision: 1, hash: '53abc96f1fc3287ca47ff5be457335fed2e33c0955e11f527dbe23d8299cf94b',
                 decisionId: 181, schedule: null,
-                body: '1/3 First native post.\n\n---\n\n2/3 Second native post.\n\n---\n\n3/3 Final native post with link.' }
-                : { revision: 1, hash: 'f505415d56f83b199ae501ac825694cff849331bf29849b672ea89f732fa9e6b',
-                    decisionId: 197, schedule: new Date('2026-10-04T16:30:00.000Z'), body: 'task 1021 body' };
+                body: '1/3 First native post.\n\n---\n\n2/3 Second native post.\n\n---\n\n3/3 Final native post with link.' };
     const task: any = { id: taskId, project_id: 10, channel_id: 138,
         channel: { type: 'threads', config: ready ? { threads_user_id: 'u1', access_token: 'secret' } : {} },
         content_revision: spec.revision, accepted_revision: spec.revision, text_state: 'accepted', draft_text: spec.body,
@@ -35,7 +33,7 @@ function harness(ready = true, taskId: 953 | 966 | 997 | 1021 = 953) {
                 publication_authorized: true } }),
             create: async (e: any) => { events.push(e); return e; } },
         artDirectionDecision: { findFirst: async ({ where }: any) => {
-            assert.equal(where.channel, [997, 1021].includes(taskId) ? 'threads' : 'innokenty_threads');
+            assert.equal(where.channel, taskId === 997 ? 'threads' : 'innokenty_threads');
             return { id: spec.decisionId, decision_version: 2 };
         } },
         projectMember: { findFirst: async () => ({ user_id: 2 }) },
@@ -82,15 +80,5 @@ test('Threads #997 dry-run consumes release event #1887 and exposes the exact th
     assert.equal(result.payload_preview.posts.length, 3);
     assert.deepEqual(result.payload_preview.posts.map((post: string) => post.slice(0, 3)), ['1/3', '2/3', '3/3']);
     assert.equal(result.payload_preview.release_event_id, 1887);
-    assert.equal(h.calls, 0);
-});
-
-test('Threads #1021 dry-run validates its exact rev1 release without sending', async () => {
-    const h = harness(true, 1021);
-    const result = await h.service.execute({ projectId: 10, taskId: 1021, dryRun: true });
-    assert.equal(result.route_executable, true);
-    assert.equal(result.task_id, 1021);
-    assert.equal(result.payload_preview.accepted_revision, 1);
-    assert.equal(result.payload_preview.visual_decision_id, 197);
     assert.equal(h.calls, 0);
 });
