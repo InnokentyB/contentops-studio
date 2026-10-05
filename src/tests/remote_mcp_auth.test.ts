@@ -157,6 +157,7 @@ test('only the owner MCP profile discovers audited content review recovery', () 
     assert.ok(tools.includes('ba_preview_published_channel_repair'));
     assert.ok(tools.includes('ba_apply_published_channel_repair'));
     assert.ok(tools.includes('ba_release_approved_dzen_task'));
+    assert.ok(tools.includes('ba_repair_task1069_telegram_video_route'));
 });
 
 test('editor, publisher and growth profiles expose only their governed lifecycle tools', () => {
@@ -176,6 +177,7 @@ test('editor, publisher and growth profiles expose only their governed lifecycle
     assert.ok(!publisherTools.includes('ba_configure_vk_story_poll'));
     assert.ok(!publisherTools.includes('ba_publish_direct'));
     assert.ok(!publisherTools.includes('ba_repair_publication_placement'));
+    assert.ok(!publisherTools.includes('ba_repair_task1069_telegram_video_route'));
 
     const growthTools = Object.keys((createPlannerMcpServer({ profile: 'growth_analyst' } as any) as any)._registeredTools || {});
     assert.ok(growthTools.includes('ba_get_content_metrics'));

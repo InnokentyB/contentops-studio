@@ -6,7 +6,7 @@ import { assertContentReviewInput } from './content_review_gate';
 import { WorkQueueScope, DbClient } from './work_queue/types';
 import { requireProjectAccess, assertProjectAccess as _assertProjectAccess, requireProjectOwner, bindServiceIdentity, unbindServiceIdentity, listServiceBindings } from './work_queue/auth';
 import { checkIdempotency, recordWorkflowEvent } from './work_queue/infrastructure';
-import { recoverArtDirectionInput, requirePublicationVisual, repairPublicationPlacement, repairPublicationProjection, recoverMissingContentReview, recoverContentReview } from './work_queue/recovery_operations';
+import { recoverArtDirectionInput, requirePublicationVisual, repairPublicationPlacement, repairPublicationProjection, recoverMissingContentReview, recoverContentReview, repairTask1069TelegramVideoRoute } from './work_queue/recovery_operations';
 import { claimWorkItem, completeWorkItem, blockWorkItem, releaseWorkItem, rescheduleWorkItem } from './work_queue/lifecycle_operations';
 import { listWorkItems, getWorkItem, getWorkItemContext, listScheduleExceptions, getWeekExecutionSummary } from './work_queue/query_operations';
 
@@ -24,6 +24,7 @@ export class WorkQueueService {
     requirePublicationVisual = requirePublicationVisual;
     /** @see repairPublicationPlacement in recovery_operations.ts */
     repairPublicationPlacement = repairPublicationPlacement;
+    repairTask1069TelegramVideoRoute = repairTask1069TelegramVideoRoute;
     /** @see repairPublicationProjection in recovery_operations.ts */
     repairPublicationProjection = repairPublicationProjection;
     /** @see recoverMissingContentReview in recovery_operations.ts */

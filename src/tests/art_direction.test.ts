@@ -7,6 +7,7 @@ import {
     defaultVisualMode,
     validateArtDirectionDecision
 } from '../services/art_direction.service';
+import { inspectVisualBinary } from '../services/visual_asset_binding.service';
 
 test('VK article art context exposes cover dimensions and safe area', () => {
     const contract = buildArtDirectionPlacementContext('vk', 'article_cover');
@@ -150,4 +151,12 @@ test('H: art-director MCP can assess visuals but cannot rewrite publication copy
     assert.equal(isToolAllowedForProfile('art_director', 'ba_review_image_asset'), true);
     assert.equal(isToolAllowedForProfile('art_director', 'ba_update_publication_content'), false);
     assert.equal(isToolAllowedForProfile('art_director', 'ba_import_publication_plan'), false);
+});
+
+test('revision-bound source inspection accepts MP4 and records checksum', () => {
+    const payload = Buffer.concat([Buffer.from([0, 0, 0, 24]), Buffer.from('ftypisom'), Buffer.alloc(32)]);
+    const metadata = inspectVisualBinary(payload, 'video/mp4');
+    assert.equal(metadata.mime_type, 'video/mp4');
+    assert.equal(metadata.byte_size, payload.length);
+    assert.match(metadata.sha256, /^[a-f0-9]{64}$/);
 });

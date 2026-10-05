@@ -153,6 +153,17 @@ export function registerWorkQueueTools(server: McpServer): void {
         return asToolResult(result);
     });
 
+    server.registerTool('ba_repair_task1069_telegram_video_route', {
+        description: 'Owner-only audited exact repair for task 1069: move the accepted video publication wrapper from channel 140 to Telegram channel 109 without changing copy, schedule, decision or publication fact.',
+        inputSchema: {
+            projectId: z.literal(10), actorId: z.string(), taskId: z.literal(1069),
+            expectedChannelId: z.literal(140), targetChannelId: z.literal(109),
+            expectedContentRevision: z.literal(1), expectedAcceptedRevision: z.literal(1),
+            expectedBodySha256: z.literal('9ad97b47449be9fff39291f5d8669492d0021bbfff1a6a750a9a92db1a3b9dfa'),
+            decisionId: z.literal(227), sourceWorkItemId: z.literal(1463), idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await workQueueService.repairTask1069TelegramVideoRoute(args)));
+
     server.registerTool('ba_list_schedule_exceptions', {
         description: 'List schedule exceptions (overdue content, missed publication slots, unavailable sources).',
         inputSchema: {

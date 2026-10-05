@@ -20,6 +20,7 @@ import {
 config();
 
 const MAX_TELEGRAM_IMAGE_BYTES = 10 * 1024 * 1024;
+const MAX_TELEGRAM_VIDEO_BYTES = 50 * 1024 * 1024;
 
 function assertSafeRemoteImageUrl(rawUrl: string) {
     const parsed = new URL(rawUrl);
@@ -59,6 +60,22 @@ export async function loadTelegramRemoteImage(rawUrl: string, fetchImpl: typeof 
         : contentType === 'image/webp' ? 'webp'
             : contentType === 'image/gif' ? 'gif' : 'jpg';
     return new CustomFile(`approved-visual.${extension}`, buffer.length, '', buffer);
+}
+
+export async function loadTelegramRemoteMedia(rawUrl: string, fetchImpl: typeof fetch = fetch) {
+    const parsed = assertSafeRemoteImageUrl(rawUrl);
+    const response = await fetchImpl(parsed, { redirect: 'error', signal: AbortSignal.timeout(30_000) });
+    if (!response.ok) throw new Error(`[TELEGRAM_MEDIA_FETCH_FAILED] Media server returned ${response.status}`);
+    const contentType = response.headers.get('content-type')?.split(';')[0].trim().toLowerCase() || '';
+    if (contentType.startsWith('image/')) return loadTelegramRemoteImage(rawUrl, fetchImpl);
+    if (contentType !== 'video/mp4') throw new Error('[TELEGRAM_MEDIA_TYPE_INVALID] Approved asset is not an image or MP4 video');
+    const declaredSize = Number(response.headers.get('content-length') || 0);
+    if (declaredSize > MAX_TELEGRAM_VIDEO_BYTES) throw new Error('[TELEGRAM_VIDEO_TOO_LARGE] Approved video exceeds 50 MB');
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (!buffer.length || buffer.length > MAX_TELEGRAM_VIDEO_BYTES || buffer.subarray(4, 8).toString('ascii') !== 'ftyp') {
+        throw new Error('[TELEGRAM_VIDEO_INVALID] Approved video is empty, oversized or not MP4');
+    }
+    return new CustomFile('approved-video.mp4', buffer.length, '', buffer);
 }
 
 
@@ -275,7 +292,7 @@ export class TelegramClientService {
                     fileSource = tempFilePath;
                 } else if (imageUrl.startsWith('http')) {
                     fileSource = options.forceMediaUpload
-                        ? await loadTelegramRemoteImage(imageUrl)
+                        ? await loadTelegramRemoteMedia(imageUrl)
                         : imageUrl;
                 } else if (imageUrl.startsWith('/uploads/')) {
                     const { safeResolveUploadPath } = require('../utils/path_safety');
