@@ -157,7 +157,6 @@ test('only the owner MCP profile discovers audited content review recovery', () 
     assert.ok(tools.includes('ba_preview_published_channel_repair'));
     assert.ok(tools.includes('ba_apply_published_channel_repair'));
     assert.ok(tools.includes('ba_release_approved_dzen_task'));
-    assert.ok(tools.includes('ba_release_approved_threads_task1021'));
 });
 
 test('editor, publisher and growth profiles expose only their governed lifecycle tools', () => {
@@ -173,7 +172,6 @@ test('editor, publisher and growth profiles expose only their governed lifecycle
     assert.ok(!publisherTools.includes('ba_claim_work_item'));
     assert.ok(publisherTools.includes('ba_publish_publication_task'));
     assert.ok(publisherTools.includes('ba_publish_threads_task'));
-    assert.ok(!publisherTools.includes('ba_release_approved_threads_task1021'));
     assert.ok(publisherTools.includes('ba_confirm_publication'));
     assert.ok(!publisherTools.includes('ba_configure_vk_story_poll'));
     assert.ok(!publisherTools.includes('ba_publish_direct'));

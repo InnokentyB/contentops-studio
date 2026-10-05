@@ -6,12 +6,10 @@ import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
 import { loadAgentWorkspaceManifest } from './agent_workspace_manifest.service';
 import {
     OwnerReleasedScheduleCorrection,
-    Threads1021Release,
     Threads966Release,
     Task969Reschedule,
     correctOwnerReleasedTaskSchedule,
     releaseThreadsTask966,
-    releaseThreadsTask1021,
     rescheduleOwnerReleasedTask969
 } from './owner_targeted_release_operations';
 
@@ -953,13 +951,6 @@ export class OwnerPublicationControlsService {
 
     async releaseThreadsTask966(args: Threads966Release) {
         return releaseThreadsTask966({
-            db: this.db, hashBody: this.hashBody,
-            requireOwner: (tx, projectId, actorId) => this.requireOwner(tx, projectId, actorId)
-        }, args);
-    }
-
-    async releaseThreadsTask1021(args: Threads1021Release) {
-        return releaseThreadsTask1021({
             db: this.db, hashBody: this.hashBody,
             requireOwner: (tx, projectId, actorId) => this.requireOwner(tx, projectId, actorId)
         }, args);

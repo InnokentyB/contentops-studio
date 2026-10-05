@@ -247,7 +247,7 @@ export function registerTaskPublicationTools(server: McpServer): void {
         }
     }, async (args) => asToolResult(await (args.projectId === 10 && [958, 962, 992].includes(args.taskId)
         ? dzenTaskPublicationService.execute(args)
-        : args.projectId === 10 && [953, 966, 997, 1021].includes(args.taskId)
+        : args.projectId === 10 && [953, 966, 997].includes(args.taskId)
             ? threadsTaskPublicationService.execute(args)
             : telegramTaskPublicationService.execute(args))));
 
@@ -256,7 +256,7 @@ export function registerTaskPublicationTools(server: McpServer): void {
         annotations: EXTERNAL_PUBLICATION_ANNOTATIONS,
         inputSchema: {
             projectId: z.number().int().positive(),
-            taskId: z.union([z.literal(953), z.literal(966), z.literal(997), z.literal(1021)]),
+            taskId: z.union([z.literal(953), z.literal(966), z.literal(997)]),
             dryRun: z.boolean().optional(),
             idempotencyKey: z.string().min(1).max(500).optional()
         }
