@@ -7,6 +7,7 @@ import { claimLinkedInBrowserPublication, releaseLinkedInBrowserTaskWithPrisma }
 import { releaseDzenTaskWithPrisma } from '../../services/dzen_owner_release.service';
 import { asToolResult } from './common';
 import { releaseLinkedInTask1075 } from '../../services/linkedin_task1075_release.service';
+import { claimXBrowserPublication, releaseXTask1025 } from '../../services/x_task1025_release.service';
 
 /**
  * Registers release publication execution and connector verification tools.
@@ -14,6 +15,27 @@ import { releaseLinkedInTask1075 } from '../../services/linkedin_task1075_releas
  * @param server - Target MCP server instance.
  */
 export function registerReleaseControlTools(server: McpServer): void {
+    server.registerTool('ba_release_x_task1025_browser', {
+        description: 'Owner-only exact audited release for project 10 Personal X task 1025. Creates one browser publication work item and never publishes.',
+        inputSchema: {
+            projectId: z.literal(10), taskId: z.literal(1025), actorId: z.string(),
+            expectedChannelId: z.literal(164), expectedContentRevision: z.literal(1),
+            expectedAcceptedRevision: z.literal(1),
+            expectedBodySha256: z.literal('2e0af78370143fbc4604726a70c3ebc70f63167f608da5413b5029181afe785c'),
+            expectedDecisionId: z.literal(230), expectedReviewWorkItemId: z.literal(1475),
+            expectedArtWorkItemId: z.literal(1477), expectedScheduleAt: z.literal('2026-10-05T15:00:00.000Z'),
+            expectedManifestChecksum: z.literal('sha256:5500db954642b50ac4077ce9ef6ae8bd78f9382cc87d7911b0baacdaf95860d3'),
+            approvalReference: z.string().min(10), idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await releaseXTask1025(args)));
+
+    server.registerTool('ba_claim_x_browser_publication', {
+        description: 'Publisher claim for the exact owner-released Personal X task 1025 browser work item. Refuses other tasks and channels.',
+        inputSchema: {
+            projectId: z.literal(10), actorId: z.string(), workItemId: z.number().int().positive(),
+            leaseSeconds: z.number().int().positive().optional(), idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await claimXBrowserPublication(args)));
     server.registerTool('ba_release_linkedin_task1075_browser', {
         description: 'Owner-only exact audited release for project 7 LinkedIn task 1075. Reconciles stale upstream work item 1408 and atomically creates one browser publication work item; never publishes.',
         inputSchema: {
