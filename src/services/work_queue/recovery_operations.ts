@@ -529,7 +529,7 @@ export async function repairTask1069TelegramVideoRoute(params: {
         if (!task || task.channel_id !== 140 || task.content_revision !== 1 || task.accepted_revision !== 1
             || task.text_state !== 'accepted' || task.visual_placement !== 'video_cover'
             || task.selected_asset_id !== null || task.publication_fact || task.published_link
-            || bodyHash !== exactHash || channel?.type !== 'telegram' || channel.name !== 'analystcraft'
+            || bodyHash !== exactHash || channel?.type !== 'telegram' || channel.name !== 'analystcraft_tg'
             || decision?.decision !== 'MANUAL_ASSET_REQUIRED' || decision.work_item_id !== 1462
             || !sourceItem || !['available', 'blocked'].includes(sourceItem.state)) {
             throw new Error('[TASK1069_ROUTE_GUARD_FAILED] Production task no longer matches the approved video contract');
