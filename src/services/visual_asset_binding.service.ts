@@ -1,7 +1,7 @@
 import { createHash } from 'crypto';
 
 const MAX_VISUAL_BYTES = 10 * 1024 * 1024;
-const MANAGED_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
+const MANAGED_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'video/mp4']);
 
 export type VisualBinaryMetadata = {
     sha256: string;
@@ -63,12 +63,17 @@ function webpMetadata(buffer: Buffer) {
     return { mimeType: 'image/webp', width: null, height: null, colorMode: 'RGB' };
 }
 
+function mp4Metadata(buffer: Buffer) {
+    if (buffer.length < 12 || buffer.subarray(4, 8).toString('ascii') !== 'ftyp') return null;
+    return { mimeType: 'video/mp4', width: null, height: null, colorMode: null };
+}
+
 export function inspectVisualBinary(buffer: Buffer, declaredMimeType?: string | null): VisualBinaryMetadata {
     if (!buffer.length) throw new Error('[VISUAL_SOURCE_EMPTY] Visual source is empty');
     if (buffer.length > MAX_VISUAL_BYTES) throw new Error('[VISUAL_SOURCE_TOO_LARGE] Visual source exceeds 10 MB');
-    const detected = pngMetadata(buffer) || jpegMetadata(buffer) || gifMetadata(buffer) || webpMetadata(buffer);
+    const detected = pngMetadata(buffer) || jpegMetadata(buffer) || gifMetadata(buffer) || webpMetadata(buffer) || mp4Metadata(buffer);
     if (!detected || !MANAGED_MIME_TYPES.has(detected.mimeType)) {
-        throw new Error('[VISUAL_SOURCE_TYPE_UNSUPPORTED] Only PNG, JPEG, GIF and WebP images are supported');
+        throw new Error('[VISUAL_SOURCE_TYPE_UNSUPPORTED] Only PNG, JPEG, GIF, WebP and MP4 sources are supported');
     }
     const declared = declaredMimeType?.split(';')[0].trim().toLowerCase();
     if (declared && declared !== detected.mimeType) {
@@ -97,4 +102,3 @@ export function visualMetadataFromProvenance(provenance: unknown): Partial<Visua
     const storage = (provenance as any).planner_storage;
     return storage && typeof storage === 'object' ? storage : {};
 }
-

@@ -392,6 +392,20 @@ test('MTProto media loader rejects local hosts and non-image responses', async (
     );
 });
 
+test('MTProto media loader accepts an approved MP4 without image downgrade', async () => {
+    const { loadTelegramRemoteMedia } = require('../services/telegram_client.service');
+    const payload = Buffer.concat([Buffer.from([0, 0, 0, 24]), Buffer.from('ftypisom'), Buffer.alloc(32)]);
+    const remoteFile = await loadTelegramRemoteMedia(
+        'https://cdn.example/task-1069.mp4',
+        async () => new Response(payload, {
+            status: 200,
+            headers: { 'content-type': 'video/mp4', 'content-length': String(payload.length) }
+        })
+    );
+    assert.equal(remoteFile.name, 'approved-video.mp4');
+    assert.equal(remoteFile.size, payload.length);
+});
+
 test('MTProto personal story uses self peer, deterministic identity and provider readback', async (t) => {
     const { TelegramClientService } = require('../services/telegram_client.service');
     const { Api } = require('telegram/tl');
