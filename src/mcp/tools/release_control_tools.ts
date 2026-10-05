@@ -6,6 +6,7 @@ import linkedinTask995RecoveryService from '../../services/linkedin_task995_reco
 import { claimLinkedInBrowserPublication, releaseLinkedInBrowserTaskWithPrisma } from '../../services/linkedin_browser_owner_release.service';
 import { releaseDzenTaskWithPrisma } from '../../services/dzen_owner_release.service';
 import { asToolResult } from './common';
+import { releaseLinkedInTask1075 } from '../../services/linkedin_task1075_release.service';
 
 /**
  * Registers release publication execution and connector verification tools.
@@ -13,6 +14,19 @@ import { asToolResult } from './common';
  * @param server - Target MCP server instance.
  */
 export function registerReleaseControlTools(server: McpServer): void {
+    server.registerTool('ba_release_linkedin_task1075_browser', {
+        description: 'Owner-only exact audited release for project 7 LinkedIn task 1075. Reconciles stale upstream work item 1408 and atomically creates one browser publication work item; never publishes.',
+        inputSchema: {
+            projectId: z.literal(7), taskId: z.literal(1075), actorId: z.string(),
+            expectedChannelId: z.literal(5), expectedContentRevision: z.literal(1),
+            expectedAcceptedRevision: z.literal(1),
+            expectedBodySha256: z.literal('24ce0bc8c6863662a8af115bef9a200dc3d75ca5b051b9d3ba6a04fc7109fb4f'),
+            expectedDecisionId: z.literal(234), expectedScheduleAt: z.literal('2026-10-05T09:00:00.000Z'),
+            staleUpstreamWorkItemId: z.literal(1408), expectedEditorWorkItemId: z.literal(1483),
+            expectedArtWorkItemId: z.literal(1484), approvalReference: z.string().min(10),
+            idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await releaseLinkedInTask1075(args)));
     server.registerTool('ba_release_approved_dzen_task', {
         description: 'Project-owner audited release of one exact accepted Dzen package. Verifies manifest, revision, body, channel, visual decision, asset and schedule; never contacts Dzen or records a publication fact.',
         inputSchema: {
