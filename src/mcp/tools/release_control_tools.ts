@@ -14,6 +14,10 @@ import {
     markVkBrowserSubmissionUncertainWithPrisma,
     startVkBrowserSubmissionWithPrisma
 } from '../../services/vk_browser_submission_control.service';
+import {
+    applyVkBrowserPreProviderRecoveryWithPrisma,
+    previewVkBrowserPreProviderRecoveryWithPrisma
+} from '../../services/vk_browser_pre_provider_recovery.service';
 
 /**
  * Registers release publication execution and connector verification tools.
@@ -87,6 +91,33 @@ export function registerReleaseControlTools(server: McpServer): void {
             idempotencyKey: z.string().min(1)
         }
     }, async (args) => asToolResult(await markVkBrowserSubmissionUncertainWithPrisma(args)));
+
+    const vkPreProviderRecoveryGuards = {
+        projectId: z.number().int().positive(), taskId: z.number().int().positive(), actorId: z.string(),
+        expectedChannelId: z.number().int().positive(),
+        expectedContentRevision: z.number().int().positive(),
+        expectedAcceptedRevision: z.number().int().positive(),
+        expectedBodySha256: z.string().regex(/^[a-f0-9]{64}$/),
+        expectedSelectedAssetId: z.number().int().positive(),
+        expectedAssetSha256: z.string().regex(/^[a-f0-9]{64}$/),
+        expectedWorkItemId: z.number().int().positive(),
+        expectedFailureCode: z.string().min(1)
+    };
+    server.registerTool('ba_preview_vk_browser_pre_provider_recovery', {
+        description: 'Owner-only read-only preview for rearming one VK browser attempt proven to have stopped before provider upload. Returns an exact hash-bound diff and never contacts VK.',
+        inputSchema: vkPreProviderRecoveryGuards
+    }, async (args) => asToolResult(await previewVkBrowserPreProviderRecoveryWithPrisma(args)));
+
+    server.registerTool('ba_apply_vk_browser_pre_provider_recovery', {
+        description: 'Owner-only audited apply for an exact previewed VK pre-provider abort. It preserves content and facts, closes the failed attempt, and returns the same work item to available without contacting VK.',
+        inputSchema: {
+            ...vkPreProviderRecoveryGuards,
+            expectedAttemptId: z.number().int().positive(),
+            previewToken: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+            reason: z.string().min(20),
+            idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await applyVkBrowserPreProviderRecoveryWithPrisma(args)));
 
     server.registerTool('ba_release_x_task1025_browser', {
         description: 'Owner-only exact audited release for project 10 Personal X task 1025. Creates one browser publication work item and never publishes.',

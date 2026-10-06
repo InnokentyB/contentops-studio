@@ -84,7 +84,7 @@ function sha256(value: string | Buffer) {
     return createHash('sha256').update(value).digest('hex');
 }
 
-function validatedTarget(rawUrl: string) {
+function validatedTarget(rawUrl: string, communityId?: number) {
     let url: URL;
     try {
         url = new URL(rawUrl);
@@ -98,6 +98,9 @@ function validatedTarget(rawUrl: string) {
         throw new Error('[VK_BROWSER_TARGET_INVALID] Community target must be a valid VK HTTPS URL');
     }
     url.hash = '';
+    if (Number.isSafeInteger(communityId) && Number(communityId) < 0) {
+        return `https://vk.com/club${Math.abs(Number(communityId))}`;
+    }
     return url.toString();
 }
 
@@ -153,7 +156,7 @@ function assertSubmitAuthorization(job: VkBrowserJob) {
 
 async function resolveBundle(job: VkBrowserJob, dependencies: SharedDependencies) {
     assertBaseJob(job);
-    const communityUrl = validatedTarget(job.target.community_url);
+    const communityUrl = validatedTarget(job.target.community_url, job.target.community_id);
     const text = typeof job.payload?.text === 'string' ? job.payload.text.trim() : '';
     if (!text) throw new Error('[VK_BROWSER_TEXT_REQUIRED] Accepted publication text must not be empty');
 
@@ -277,35 +280,35 @@ export async function submitVkBrowserPublication(job: VkBrowserJob, dependencies
     if (await dependencies.ui.loginRequired()) {
         throw new Error('[VK_BROWSER_LOGIN_REQUIRED] Sign in to the dedicated VK browser profile and retry');
     }
-    const started = await dependencies.control.start({
-        project_id: job.project_id,
-        task_id: job.task_id,
-        channel_id: job.channel_id,
-        work_item_id: authorization.work_item_id,
-        lease_token: authorization.lease_token,
-        approval_reference: authorization.approval_reference,
-        idempotency_key: authorization.attempt_idempotency_key,
-        content_revision: job.approval.content_revision,
-        text_sha256: bundle.textSha256,
-        image_sha256: bundle.imageSha256,
-        selected_asset_id: job.approval.selected_asset_id || null
-    });
-    if (started.status === 'confirmed') {
-        return {
-            status: 'confirmed_published' as const,
-            attempt_id: started.attempt_id,
-            publication_fact_id: started.publication_fact_id,
-            public_url: started.public_url,
-            replayed: true
-        };
-    }
-    if (started.status === 'verification_required') {
-        throw new Error('[VK_BROWSER_EXISTING_ATTEMPT_REQUIRES_RECONCILIATION] Existing provider attempt must be reconciled; automatic retry is forbidden');
-    }
-
+    let started: Awaited<ReturnType<VkBrowserSubmissionControl['start']>> | null = null;
     try {
         await dependencies.ui.openWallComposer();
         await dependencies.ui.setPostText(bundle.text);
+        started = await dependencies.control.start({
+            project_id: job.project_id,
+            task_id: job.task_id,
+            channel_id: job.channel_id,
+            work_item_id: authorization.work_item_id,
+            lease_token: authorization.lease_token,
+            approval_reference: authorization.approval_reference,
+            idempotency_key: authorization.attempt_idempotency_key,
+            content_revision: job.approval.content_revision,
+            text_sha256: bundle.textSha256,
+            image_sha256: bundle.imageSha256,
+            selected_asset_id: job.approval.selected_asset_id || null
+        });
+        if (started.status === 'confirmed') {
+            return {
+                status: 'confirmed_published' as const,
+                attempt_id: started.attempt_id,
+                publication_fact_id: started.publication_fact_id,
+                public_url: started.public_url,
+                replayed: true
+            };
+        }
+        if (started.status === 'verification_required') {
+            throw new Error('[VK_BROWSER_EXISTING_ATTEMPT_REQUIRES_RECONCILIATION] Existing provider attempt must be reconciled; automatic retry is forbidden');
+        }
         if (bundle.imagePath) await dependencies.ui.attachImage(bundle.imagePath);
         const screenshotPath = path.join(bundle.evidenceDir, `${sha256(job.job_id).slice(0, 16)}-pre-submit.png`);
         await dependencies.ui.captureScreenshot(screenshotPath);
@@ -338,6 +341,7 @@ export async function submitVkBrowserPublication(job: VkBrowserJob, dependencies
             replayed: false
         };
     } catch (error: any) {
+        if (!started || started.status !== 'started') throw error;
         await dependencies.control.markUncertain({
             project_id: job.project_id,
             task_id: job.task_id,

@@ -3,7 +3,8 @@ import test from 'node:test';
 import {
     confirmVkBrowserSubmission,
     markVkBrowserSubmissionUncertain,
-    startVkBrowserSubmission
+    startVkBrowserSubmission,
+    VK_BROWSER_PRE_PROVIDER_ABORT_CONFIRMED
 } from '../services/vk_browser_submission_control.service';
 
 function harness() {
@@ -169,4 +170,27 @@ test('VK browser uncertain result never records a fact and cannot create a secon
         startVkBrowserSubmission(h.dependencies, { ...startArgs, idempotencyKey: 'retry-is-forbidden' }),
         /VK_BROWSER_ATTEMPT_EXISTS/
     );
+});
+
+test('VK browser start permits one new attempt only after audited pre-provider recovery', async () => {
+    const h = harness();
+    h.state.attempt = {
+        id: 77,
+        project_id: 10,
+        content_item_id: 900,
+        channel_id: 117,
+        mode: 'assisted',
+        status: 'failed',
+        attempt_number: 1,
+        idempotency_key: startArgs.idempotencyKey,
+        requires_manual_confirmation: false,
+        error_message: VK_BROWSER_PRE_PROVIDER_ABORT_CONFIRMED
+    };
+    const result = await startVkBrowserSubmission(h.dependencies, {
+        ...startArgs,
+        idempotencyKey: 'vk-browser-submit:10:900:r3:retry-1'
+    });
+    assert.equal(result.status, 'started');
+    assert.equal(h.state.attempt.attempt_number, 2);
+    assert.equal(h.state.attempt.status, 'pending');
 });
