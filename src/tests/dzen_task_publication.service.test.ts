@@ -8,18 +8,22 @@ const hash = '78081837cecace18c91c01af0253b21ca502e611b63a016f9d9035567587dfd3';
 const hash962 = '15c9b4a2e874439c4952900002ae5677fc3a6b6e8794dd34a0a4ae5f03dba798';
 const hash992 = '62af2b8e32d3aabb2b3d6f7029ee2b7ec64a7f9329eef01e52d6c4591e7eb150';
 const hash1031 = '077cee100dbd11648050febacc6f071a407998753855ae3b2e82551175990b6e';
+const hash999 = '78ffd5316ab3ffc4679d67788ec57f39558760917e70522d8ba0647a1f68b130';
+const asset999Hash = 'd06c7ce1c3533dc1db76799bda8eff1395a9dde4e05684c593b16bd064479b1c';
 const asset992Hash = 'b5eafee417e13a2f1becc14a4b66629f31f11cfd68b4b887a240d3e552b3b944';
 const actual992IncidentKey = 'dzen-992-owner-confirmed-retry-20261001-v2';
 const schedule = new Date('2026-09-22T11:00:00.000Z');
 
 function harness(options: { released?: boolean; verified?: boolean; providerError?: boolean;
-    taskId?: 958 | 962 | 992 | 1031; studioTitles?: string[]; studioTitleReadbackComplete?: boolean;
+    taskId?: 958 | 962 | 992 | 999 | 1031; studioTitles?: string[]; studioTitleReadbackComplete?: boolean;
     studioPublishedAt?: string | null } = {}) {
     const taskId = options.taskId || 958;
-    const taskHash = taskId === 1031 ? hash1031 : taskId === 992 ? hash992 : taskId === 962 ? hash962 : hash;
-    const decisionId = taskId === 1031 ? 214 : taskId === 992 ? 186 : taskId === 962 ? 146 : 147;
-    const revision = taskId === 1031 || taskId === 992 ? 3 : 1;
-    const hasVisual = taskId === 992;
+    const taskHash = taskId === 999 ? hash999 : taskId === 1031 ? hash1031 : taskId === 992 ? hash992 : taskId === 962 ? hash962 : hash;
+    const decisionId = taskId === 999 ? 241 : taskId === 1031 ? 214 : taskId === 992 ? 186 : taskId === 962 ? 146 : 147;
+    const revision = taskId === 999 ? 2 : taskId === 1031 || taskId === 992 ? 3 : 1;
+    const hasVisual = taskId === 992 || taskId === 999;
+    const assetId = taskId === 999 ? 114 : 102;
+    const assetHash = taskId === 999 ? asset999Hash : asset992Hash;
     const verifyCommand = `ba_verify_dzen_task${taskId}_connector`;
     const task: any = {
         id: taskId, project_id: 10, channel_id: 116,
@@ -27,12 +31,12 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
             capability_flags: { api_publish: false } } },
         content_revision: revision, accepted_revision: revision, text_state: 'accepted',
         draft_text: taskId === 1031 ? 'Как проверить новый формат урока без маркетинговой самооценки\n\nexact accepted body' : 'exact accepted body',
-        title: taskId === 1031 ? 'W41 allocation #6 — Dzen' : 'Exact accepted title',
-        visual_placement: taskId === 992 || taskId === 1031 ? 'article_cover' : 'feed',
-        visual_state: hasVisual ? 'APPROVED' : 'NO_VISUAL_NEEDED', selected_asset_id: hasVisual ? 102 : null,
-        selected_asset: hasVisual ? { id: 102, status: 'approved', content_revision: 3,
+        title: taskId === 999 ? 'Почему метрика без контекста ведёт к ложному решению' : taskId === 1031 ? 'W41 allocation #6 — Dzen' : 'Exact accepted title',
+        visual_placement: hasVisual || taskId === 1031 ? 'article_cover' : 'feed',
+        visual_state: hasVisual ? 'APPROVED' : 'NO_VISUAL_NEEDED', selected_asset_id: hasVisual ? assetId : null,
+        selected_asset: hasVisual ? { id: assetId, status: 'approved', content_revision: revision,
             file_url: 'https://cdn.example.test/task992.png',
-            provenance: { planner_storage: { sha256: asset992Hash } } } : null,
+            provenance: { planner_storage: { sha256: assetHash } } } : null,
         visual_decision_version: 2, handoff_state: 'ready',
         status: 'ready_for_execution', publication_mode: 'owner_released',
         schedule_at: taskId === 992 ? null : schedule, published_link: null, publication_fact: null,
@@ -67,20 +71,20 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
                 return where.command === verifyCommand
                 ? options.verified === false ? null : { after_state: {
                     task_id: taskId, channel_id: 116, body_sha256: taskHash,
-                    ...(taskId === 992 ? { selected_asset_id: 102, asset_sha256: asset992Hash } : {}),
+                    ...(hasVisual ? { selected_asset_id: assetId, asset_sha256: assetHash } : {}),
                     authenticated: true, editor_available: true, checked_at: new Date().toISOString()
                 } }
                 : options.released === false ? null : { after_state: {
                     task_id: taskId, channel_id: 116, content_revision: revision, accepted_revision: revision,
                     body_sha256: taskHash, visual_decision_id: decisionId,
-                    ...(taskId === 992 ? { selected_asset_id: 102, asset_sha256: asset992Hash } : {}),
+                    ...(hasVisual ? { selected_asset_id: assetId, asset_sha256: assetHash } : {}),
                     schedule_at: taskId === 992 ? null : schedule.toISOString(), publication_mode: 'owner_released'
                 } };
             },
             create: async (event: any) => { events.push(event); return event; }
         },
         artDirectionDecision: { findFirst: async ({ where }: any) => {
-            assert.equal(where.channel, taskId === 992 || taskId === 1031 ? 'dzen' : 'analystcraft_dzen');
+            assert.equal(where.channel, hasVisual || taskId === 1031 ? 'dzen' : 'analystcraft_dzen');
             return { id: decisionId, decision_version: 2 };
         } },
         projectMember: { findFirst: async () => ({ user_id: 2 }), findUnique: async () => ({ role: 'owner' }) },
@@ -121,6 +125,24 @@ test('Dzen release tool is publisher-only and delivery rejects missing owner pro
     assert.equal(isToolAllowedForProfile('planner', 'ba_release_approved_dzen_task958'), false);
     const h = harness({ released: false });
     await assert.rejects(h.service.execute({ projectId: 10, taskId: 958, dryRun: true }), /OWNER_RELEASE_PROOF_MISMATCH/);
+    assert.equal(h.providerCalls, 0);
+});
+
+test('Dzen #999 routes only its approved revision-bound cover through generic owner proof', async () => {
+    assert.equal(isTaskNativeDzenPublication(10, 999), true);
+    assert.equal(isTaskNativeDzenPublication(11, 999), false);
+    assert.equal(isToolAllowedForProfile('publisher', 'ba_verify_dzen_task999_connector'), true);
+    const h = harness({ taskId: 999 });
+    const dry = await h.service.execute({ projectId: 10, taskId: 999, dryRun: true });
+    assert.equal(dry.route_executable, true);
+    assert.equal(dry.payload_preview.selected_asset_id, 114);
+    assert.equal(dry.payload_preview.accepted_revision, 2);
+    assert.equal(dry.payload_preview.title, 'Почему метрика без контекста ведёт к ложному решению');
+    h.task.title = 'Wrong operational title';
+    await assert.rejects(h.service.execute({ projectId: 10, taskId: 999, dryRun: true }), /DZEN_PUBLIC_TITLE_CHANGED/);
+    h.task.title = 'Почему метрика без контекста ведёт к ложному решению';
+    h.task.selected_asset.provenance.planner_storage.sha256 = 'changed';
+    await assert.rejects(h.service.execute({ projectId: 10, taskId: 999, dryRun: true }), /OWNER_RELEASE_PROOF_MISMATCH/);
     assert.equal(h.providerCalls, 0);
 });
 

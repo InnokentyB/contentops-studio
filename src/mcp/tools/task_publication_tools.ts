@@ -13,7 +13,7 @@ import {
     asTelegramRouteToolError
 } from './common';
 
-const TASK_NATIVE_DZEN_PUBLICATION_IDS = new Set([958, 962, 992, 1031]);
+const TASK_NATIVE_DZEN_PUBLICATION_IDS = new Set([958, 962, 992, 999, 1031]);
 
 export function isTaskNativeDzenPublication(projectId: number, taskId: number): boolean {
     return projectId === 10 && TASK_NATIVE_DZEN_PUBLICATION_IDS.has(taskId);
