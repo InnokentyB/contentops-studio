@@ -19,6 +19,37 @@ export function isTaskNativeDzenPublication(projectId: number, taskId: number): 
     return projectId === 10 && TASK_NATIVE_DZEN_PUBLICATION_IDS.has(taskId);
 }
 
+type PublicationTaskArgs = {
+    projectId: number;
+    taskId: number;
+    dryRun?: boolean;
+    idempotencyKey?: string;
+};
+
+type TaskExecutor = { execute(args: PublicationTaskArgs): Promise<Record<string, unknown>> };
+type ThreadsTaskExecutor = TaskExecutor & { isThreadsTask(args: Pick<PublicationTaskArgs, 'projectId' | 'taskId'>): Promise<boolean> };
+
+type PublicationTaskRoutingDependencies = {
+    isDzenTask(projectId: number, taskId: number): boolean;
+    dzen: TaskExecutor;
+    threads: ThreadsTaskExecutor;
+    telegram: TaskExecutor;
+};
+
+export async function executePublicationTaskByChannel(
+    args: PublicationTaskArgs,
+    dependencies: PublicationTaskRoutingDependencies = {
+        isDzenTask: isTaskNativeDzenPublication,
+        dzen: dzenTaskPublicationService,
+        threads: threadsTaskPublicationService,
+        telegram: telegramTaskPublicationService
+    }
+): Promise<Record<string, unknown>> {
+    if (dependencies.isDzenTask(args.projectId, args.taskId)) return dependencies.dzen.execute(args);
+    if (await dependencies.threads.isThreadsTask(args)) return dependencies.threads.execute(args);
+    return dependencies.telegram.execute(args);
+}
+
 /**
  * Registers publication task management, direct publishing, VK story polls, and publication facts tools.
  *
@@ -251,18 +282,14 @@ export function registerTaskPublicationTools(server: McpServer): void {
             dryRun: z.boolean().optional().describe('Validate and return the exact normalized provider payload without sending.'),
             idempotencyKey: z.string().min(1).max(500).optional().describe('Required for live publication and reused to safely replay a confirmed result.')
         }
-    }, async (args) => asToolResult(await (isTaskNativeDzenPublication(args.projectId, args.taskId)
-        ? dzenTaskPublicationService.execute(args)
-        : args.projectId === 10 && [953, 966, 997].includes(args.taskId)
-            ? threadsTaskPublicationService.execute(args)
-            : telegramTaskPublicationService.execute(args))));
+    }, async (args) => asToolResult(await executePublicationTaskByChannel(args)));
 
     server.registerTool('ba_publish_threads_task', {
-        description: 'Task-native audited Threads publication for the explicitly supported owner-released Planner tasks. Dry-run validates the exact revision, immutable visual decision, owner-release proof, and connector without sending.',
+        description: 'Read-only dry-run resolves any canonical Threads task dynamically and reports its accepted payload plus connector identity readiness. Live publication remains limited to explicitly supported owner-released task-native specs.',
         annotations: EXTERNAL_PUBLICATION_ANNOTATIONS,
         inputSchema: {
             projectId: z.number().int().positive(),
-            taskId: z.union([z.literal(953), z.literal(966), z.literal(997)]),
+            taskId: z.number().int().positive(),
             dryRun: z.boolean().optional(),
             idempotencyKey: z.string().min(1).max(500).optional()
         }

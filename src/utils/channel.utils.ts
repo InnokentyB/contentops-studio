@@ -2,7 +2,8 @@ import { decryptChannelSecret, encryptChannelSecret } from './channel_secrets';
 
 const DZEN_TYPES = new Set(['zen', 'zen_article', 'dzen']);
 const ENCRYPTED_SECRET_FIELDS: Record<string, string[]> = {
-    vk: ['publish_access_token', 'user_access_token', 'vk_oauth_access_token', 'stats_access_token', 'vk_refresh_token', 'vk_device_id']
+    vk: ['publish_access_token', 'user_access_token', 'vk_oauth_access_token', 'stats_access_token', 'vk_refresh_token', 'vk_device_id'],
+    threads: ['access_token']
 };
 
 /**
@@ -47,11 +48,21 @@ export function sanitizeChannelConfig(type: string, config: any): any {
 export function mergeChannelConfig(incomingConfig: any, existingConfig: any): any {
     if (!existingConfig || typeof existingConfig !== 'object') return incomingConfig;
     const merged = { ...incomingConfig };
+
+    if (merged.raw_account && existingConfig.raw_account
+        && typeof merged.raw_account === 'object' && typeof existingConfig.raw_account === 'object') {
+        merged.raw_account = mergeChannelConfig(merged.raw_account, existingConfig.raw_account);
+    }
     
     const secretKeys = ['api_key', 'publish_access_token', 'user_access_token', 'vk_oauth_access_token', 'stats_access_token', 'vk_refresh_token', 'vk_device_id', 'access_token', 'cookies', 'application_secret_key'];
     for (const key of secretKeys) {
         if (merged[key] === '******' && existingConfig[key]) {
             merged[key] = existingConfig[key];
+        }
+        const encryptedKey = `${key}_encrypted`;
+        if (merged[key] === '******' && existingConfig[encryptedKey]) {
+            delete merged[key];
+            merged[encryptedKey] = existingConfig[encryptedKey];
         }
     }
 
@@ -72,6 +83,17 @@ export function mergeChannelConfig(incomingConfig: any, existingConfig: any): an
 
 export function prepareChannelConfigForStorage(type: string, config: any): any {
     const prepared = { ...(config || {}) };
+    if (type === 'threads') {
+        if (prepared.raw_account && typeof prepared.raw_account === 'object') {
+            prepared.raw_account = prepareChannelConfigForStorage(type, prepared.raw_account);
+        }
+        const accessToken = typeof prepared.access_token === 'string' ? prepared.access_token.trim() : '';
+        if (accessToken && accessToken !== '******') {
+            prepared.access_token_encrypted = encryptChannelSecret(accessToken);
+        }
+        delete prepared.access_token;
+        return prepared;
+    }
     if (type === 'vk') {
         for (const field of ['publish_access_token', 'user_access_token']) {
             const value = typeof prepared[field] === 'string' ? prepared[field].trim() : '';
@@ -102,6 +124,16 @@ export function prepareChannelConfigForStorage(type: string, config: any): any {
 
 export function resolveChannelConfigSecrets(type: string, config: any): any {
     const resolved = { ...(config || {}) };
+    if (type === 'threads') {
+        if (resolved.raw_account && typeof resolved.raw_account === 'object') {
+            resolved.raw_account = resolveChannelConfigSecrets(type, resolved.raw_account);
+        }
+        if (!resolved.access_token && typeof resolved.access_token_encrypted === 'string') {
+            resolved.access_token = decryptChannelSecret(resolved.access_token_encrypted);
+        }
+        delete resolved.access_token_encrypted;
+        return resolved;
+    }
     if (type === 'vk') {
         for (const field of ENCRYPTED_SECRET_FIELDS.vk) {
             const encryptedField = `${field}_encrypted`;

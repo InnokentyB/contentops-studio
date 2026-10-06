@@ -94,6 +94,71 @@ test('mergeChannelConfig updates secrets when incoming has actual new values', (
     assert.equal(merged.access_token, 'original-threads-token');
 });
 
+test('Threads access token is encrypted at rest, masked in responses, and resolved for execution', () => {
+    const previousKey = process.env.CHANNEL_SECRETS_KEY;
+    process.env.CHANNEL_SECRETS_KEY = 'test-only-channel-secret-key-at-least-32-chars';
+    try {
+        const stored = prepareChannelConfigForStorage('threads', {
+            threads_user_id: '39420001',
+            access_token: 'threads-long-lived-secret'
+        });
+
+        assert.equal(stored.access_token, undefined);
+        assert.match(stored.access_token_encrypted, /^enc:v1:/);
+        assert.equal(JSON.stringify(stored).includes('threads-long-lived-secret'), false);
+
+        const sanitized = sanitizeChannelConfig('threads', stored);
+        assert.equal(sanitized.access_token, '******');
+        assert.equal(sanitized.access_token_encrypted, undefined);
+
+        const resolved = resolveEffectiveChannelConfig('threads', stored);
+        assert.equal(resolved.access_token, 'threads-long-lived-secret');
+        assert.equal(resolved.access_token_encrypted, undefined);
+        assert.equal(resolved.threads_user_id, '39420001');
+    } finally {
+        if (previousKey === undefined) delete process.env.CHANNEL_SECRETS_KEY;
+        else process.env.CHANNEL_SECRETS_KEY = previousKey;
+    }
+});
+
+test('Threads encrypted token in raw_account remains compatible and a masked edit preserves it', () => {
+    const previousKey = process.env.CHANNEL_SECRETS_KEY;
+    process.env.CHANNEL_SECRETS_KEY = 'test-only-channel-secret-key-at-least-32-chars';
+    try {
+        const stored = prepareChannelConfigForStorage('threads', {
+            workflow_mode: 'approval_required',
+            raw_account: {
+                threads_user_id: '39420001',
+                access_token: 'nested-threads-secret'
+            }
+        });
+        const sanitized = sanitizeChannelConfig('threads', stored);
+        const merged = mergeChannelConfig({
+            ...sanitized,
+            workflow_mode: 'auto_publish'
+        }, stored);
+
+        assert.equal(merged.raw_account.access_token, undefined);
+        assert.match(merged.raw_account.access_token_encrypted, /^enc:v1:/);
+        const resolved = resolveEffectiveChannelConfig('threads', merged);
+        assert.equal(resolved.access_token, 'nested-threads-secret');
+        assert.equal(resolved.workflow_mode, 'auto_publish');
+    } finally {
+        if (previousKey === undefined) delete process.env.CHANNEL_SECRETS_KEY;
+        else process.env.CHANNEL_SECRETS_KEY = previousKey;
+    }
+});
+
+test('Threads legacy plaintext token remains readable until an explicit migration rewrites it', () => {
+    const legacy = resolveEffectiveChannelConfig('threads', {
+        threads_user_id: '39420001',
+        access_token: 'legacy-plaintext-token'
+    });
+
+    assert.equal(legacy.access_token, 'legacy-plaintext-token');
+    assert.equal(legacy.threads_user_id, '39420001');
+});
+
 test('Dzen session cookies are encrypted at rest and masked in API responses', () => {
     const previousKey = process.env.CHANNEL_SECRETS_KEY;
     process.env.CHANNEL_SECRETS_KEY = 'test-only-channel-secret-key-at-least-32-chars';

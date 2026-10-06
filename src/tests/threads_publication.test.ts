@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import threadsService from '../services/threads.service';
+import threadsService, { ThreadsProviderError, ThreadsService } from '../services/threads.service';
 
 test('ThreadsService.publishPost publishes text post successfully', async () => {
     const originalFetch = globalThis.fetch;
@@ -25,14 +25,18 @@ test('ThreadsService.publishPost publishes text post successfully', async () => 
             } as any;
         }
 
+        if (url.toString().includes('/mock_post_id_456?fields=id%2Cpermalink')) {
+            return { ok: true, json: async () => ({ id: 'mock_post_id_456', permalink: 'https://www.threads.net/@alice/post/REAL456' }) } as any;
+        }
+
         return { ok: false, statusText: 'Not Found' } as any;
     };
 
     try {
         const postUrl = await threadsService.publishPost('user123', 'token456', 'Hello Threads!');
         
-        assert.equal(postUrl, 'https://www.threads.net/post/mock_post_id_456');
-        assert.equal(requestedUrls.length, 2);
+        assert.equal(postUrl, 'https://www.threads.net/@alice/post/REAL456');
+        assert.equal(requestedUrls.length, 3);
         assert.ok(requestedUrls[0].includes('/user123/threads'));
         assert.ok(requestedUrls[1].includes('/user123/threads_publish'));
 
@@ -44,12 +48,13 @@ test('ThreadsService.publishPost publishes text post successfully', async () => 
     }
 });
 
-test('ThreadsService.publishPost publishes image post successfully', async () => {
+test('ThreadsService.publishPost waits for an image container and returns the provider permalink', async () => {
     const originalFetch = globalThis.fetch;
     const requestedUrls: string[] = [];
     const requestBodies: any[] = [];
 
-    globalThis.fetch = async (url: any, options: any) => {
+    let statusChecks = 0;
+    globalThis.fetch = async (url: any, options: any = {}) => {
         requestedUrls.push(url.toString());
         requestBodies.push(JSON.parse(options.body || '{}'));
 
@@ -67,14 +72,24 @@ test('ThreadsService.publishPost publishes image post successfully', async () =>
             } as any;
         }
 
+        if (url.toString().includes('/mock_container_id_789?fields=status%2Cerror_message')) {
+            statusChecks += 1;
+            return { ok: true, json: async () => ({ status: statusChecks === 1 ? 'IN_PROGRESS' : 'FINISHED' }) } as any;
+        }
+
+        if (url.toString().includes('/mock_post_id_999?fields=id%2Cpermalink')) {
+            return { ok: true, json: async () => ({ id: 'mock_post_id_999', permalink: 'https://www.threads.net/@alice/post/REAL999' }) } as any;
+        }
+
         return { ok: false, statusText: 'Not Found' } as any;
     };
 
     try {
-        const postUrl = await threadsService.publishPost('user123', 'token456', 'Check this out!', 'https://example.com/image.jpg');
+        const service = new ThreadsService({ pollIntervalMs: 0 });
+        const postUrl = await service.publishPost('user123', 'token456', 'Check this out!', 'https://example.com/image.jpg');
         
-        assert.equal(postUrl, 'https://www.threads.net/post/mock_post_id_999');
-        assert.equal(requestedUrls.length, 2);
+        assert.equal(postUrl, 'https://www.threads.net/@alice/post/REAL999');
+        assert.equal(statusChecks, 2);
         assert.equal(requestBodies[0].media_type, 'IMAGE');
         assert.equal(requestBodies[0].image_url, 'https://example.com/image.jpg');
         assert.equal(requestBodies[0].text, 'Check this out!');
@@ -97,11 +112,15 @@ test('ThreadsService.publishThread creates a root and ordered replies', async ()
         if (url.toString().endsWith('/threads_publish')) {
             return { ok: true, json: async () => ({ id: `post-${sequence}` }) } as any;
         }
+        const postMatch = url.toString().match(/\/(post-\d+)\?fields=id%2Cpermalink$/);
+        if (postMatch) {
+            return { ok: true, json: async () => ({ id: postMatch[1], permalink: `https://www.threads.net/@alice/post/${postMatch[1]}` }) } as any;
+        }
         return { ok: false, statusText: 'Not Found' } as any;
     };
     try {
         const result = await threadsService.publishThread('user123', 'token456', ['one', 'two', 'three']);
-        assert.equal(result.rootUrl, 'https://www.threads.net/post/post-1');
+        assert.equal(result.rootUrl, 'https://www.threads.net/@alice/post/post-1');
         assert.equal(createBodies[0].reply_to_id, undefined);
         assert.equal(createBodies[1].reply_to_id, 'post-1');
         assert.equal(createBodies[2].reply_to_id, 'post-2');
@@ -110,12 +129,14 @@ test('ThreadsService.publishThread creates a root and ordered replies', async ()
     }
 });
 
-test('ThreadsService.getMetrics retrieves insights successfully', async () => {
+test('ThreadsService never puts the access token in request URLs', async () => {
     const originalFetch = globalThis.fetch;
     let requestedUrl = '';
 
-    globalThis.fetch = async (url: any) => {
+    let authorization = '';
+    globalThis.fetch = async (url: any, options: any = {}) => {
         requestedUrl = url.toString();
+        authorization = options.headers?.Authorization;
         return {
             ok: true,
             json: async () => ({
@@ -131,8 +152,11 @@ test('ThreadsService.getMetrics retrieves insights successfully', async () => {
     try {
         const metrics = await threadsService.getMetrics('post_id_abc', 'token456');
 
+        assert.ok(metrics);
         assert.ok(requestedUrl.includes('/post_id_abc/insights'));
         assert.ok(requestedUrl.includes('metric=likes,replies,reposts,quotes'));
+        assert.ok(!requestedUrl.includes('token456'));
+        assert.equal(authorization, 'Bearer token456');
         assert.equal(metrics.likes, 42);
         assert.equal(metrics.comments, 7);
         assert.equal(metrics.reposts, 3);
@@ -150,9 +174,10 @@ test('ThreadsService.testConnection rejects missing access token', async () => {
 
 test('ThreadsService.testConnection succeeds with valid token and matching user id', async () => {
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = async (url: any) => {
+    globalThis.fetch = async (url: any, options: any = {}) => {
         assert.ok(url.toString().includes('graph.threads.net/v1.0/me'));
-        assert.ok(url.toString().includes('valid_token_xyz'));
+        assert.ok(!url.toString().includes('valid_token_xyz'));
+        assert.equal(options.headers?.Authorization, 'Bearer valid_token_xyz');
         return {
             ok: true,
             json: async () => ({
@@ -201,7 +226,7 @@ test('ThreadsService.testConnection flags user id mismatch', async () => {
     }
 });
 
-test('ThreadsService.testConnection handles Meta API error response', async () => {
+test('ThreadsService redacts provider response bodies in typed errors', async () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = async () => ({
         ok: false,
@@ -215,7 +240,43 @@ test('ThreadsService.testConnection handles Meta API error response', async () =
         });
         assert.equal(res.success, false);
         assert.ok(res.error?.includes('401'));
-        assert.ok(res.error?.includes('Invalid OAuth 2.0 Access Token'));
+        assert.ok(!res.error?.includes('Invalid OAuth 2.0 Access Token'));
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test('ThreadsService rejects a missing or untrusted provider permalink', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (url: any) => {
+        if (url.toString().endsWith('/threads')) return { ok: true, json: async () => ({ id: 'container' }) } as any;
+        if (url.toString().endsWith('/threads_publish')) return { ok: true, json: async () => ({ id: 'post' }) } as any;
+        return { ok: true, json: async () => ({ id: 'post', permalink: 'https://evil.example/post/post' }) } as any;
+    };
+    try {
+        await assert.rejects(
+            threadsService.publishPost('user123', 'super-secret-token', 'hello'),
+            (error: unknown) => error instanceof ThreadsProviderError
+                && error.code === 'THREADS_INVALID_PERMALINK'
+                && !error.message.includes('super-secret-token')
+        );
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test('ThreadsService bounds image container polling', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (url: any) => {
+        if (url.toString().endsWith('/threads')) return { ok: true, json: async () => ({ id: 'container' }) } as any;
+        return { ok: true, json: async () => ({ status: 'IN_PROGRESS' }) } as any;
+    };
+    try {
+        const service = new ThreadsService({ pollAttempts: 2, pollIntervalMs: 0 });
+        await assert.rejects(
+            service.publishPost('user123', 'token456', 'image', 'https://example.com/image.jpg'),
+            (error: unknown) => error instanceof ThreadsProviderError && error.code === 'THREADS_CONTAINER_TIMEOUT'
+        );
     } finally {
         globalThis.fetch = originalFetch;
     }

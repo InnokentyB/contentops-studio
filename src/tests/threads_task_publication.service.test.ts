@@ -51,18 +51,58 @@ function harness(ready = true, taskId: 953 | 966 | 997 = 953) {
     return { service, task, get calls() { return calls; } };
 }
 
+function genericHarness(ready = true) {
+    const task: any = {
+        id: 1021, project_id: 10, channel_id: 777,
+        channel: { type: 'threads', config: ready ? { threads_user_id: 'dynamic-user', access_token: 'secret' } : {} },
+        content_revision: 6, accepted_revision: 6, text_state: 'accepted', draft_text: 'A canonical dynamic Threads post.',
+        visual_state: 'NO_VISUAL_NEEDED', visual_decision_version: 4, selected_asset_id: null,
+        status: 'ready_for_execution', handoff_state: 'ready', publication_mode: 'approval_required',
+        schedule_at: new Date('2026-10-08T10:00:00.000Z'), published_link: null, publication_fact: null
+    };
+    let providerCalls = 0;
+    const db: any = {
+        contentItem: { findFirst: async () => task },
+        workflowEvent: { findUnique: async () => { throw new Error('dry-run must not read release proof'); } }
+    };
+    const service = new ThreadsTaskPublicationService({ db,
+        threads: { publishPost: async () => { providerCalls += 1; return 'unexpected'; } },
+        facts: { record: async () => ({}) } });
+    return { service, get providerCalls() { return providerCalls; } };
+}
+
+test('generic Threads dry-run resolves canonical task, channel, revision, and identity without owner release', async () => {
+    const h = genericHarness();
+    const result = await h.service.execute({ projectId: 10, taskId: 1021, dryRun: true });
+    assert.equal(result.task_id, 1021);
+    assert.equal(result.channel_id, 777);
+    assert.equal(result.payload_preview.accepted_revision, 6);
+    assert.equal(result.payload_preview.text, 'A canonical dynamic Threads post.');
+    assert.equal(result.credential_readiness.access_token, true);
+    assert.equal(result.identity_readiness.threads_user_id, 'dynamic-user');
+    assert.equal(result.live_publish_supported, false);
+    assert.equal(h.providerCalls, 0);
+});
+
+test('generic Threads live send remains fail-closed without an exact task-native spec', async () => {
+    await assert.rejects(
+        genericHarness().service.execute({ projectId: 10, taskId: 1021, idempotencyKey: 'must-not-send' }),
+        /THREADS_TASK_SCOPE_MISMATCH/
+    );
+});
+
 test('Threads #953 dry-run reports exact connector readiness', async () => {
     assert.equal((await harness().service.execute({ projectId: 10, taskId: 953, dryRun: true })).route_executable, true);
     const blocked = await harness(false).service.execute({ projectId: 10, taskId: 953, dryRun: true });
     assert.equal(blocked.route_blocker, 'THREADS_CONNECTOR_NOT_READY');
 });
 
-test('Threads #966 dry-run consumes only its exact owner-release proof', async () => {
+test('Threads #966 dry-run resolves the accepted revision without owner-release proof', async () => {
     const result = await harness(true, 966).service.execute({ projectId: 10, taskId: 966, dryRun: true });
     assert.equal(result.route_executable, true);
     assert.equal(result.task_id, 966);
     assert.equal(result.payload_preview.accepted_revision, 1);
-    assert.equal(result.payload_preview.visual_decision_id, 142);
+    assert.equal(result.payload_preview.visual_decision_version, 2);
 });
 
 test('Threads #953 task-native send claims once and confirms URL', async () => {
@@ -73,12 +113,12 @@ test('Threads #953 task-native send claims once and confirms URL', async () => {
     assert.equal(h.task.status, 'published');
 });
 
-test('Threads #997 dry-run consumes release event #1887 and exposes the exact three-post chain without sending', async () => {
+test('Threads #997 dry-run exposes the accepted three-post chain without sending', async () => {
     const h = harness(true, 997);
     const result = await h.service.execute({ projectId: 10, taskId: 997, dryRun: true });
     assert.equal(result.route_executable, true);
     assert.equal(result.payload_preview.posts.length, 3);
     assert.deepEqual(result.payload_preview.posts.map((post: string) => post.slice(0, 3)), ['1/3', '2/3', '3/3']);
-    assert.equal(result.payload_preview.release_event_id, 1887);
+    assert.equal(result.live_publish_supported, true);
     assert.equal(h.calls, 0);
 });

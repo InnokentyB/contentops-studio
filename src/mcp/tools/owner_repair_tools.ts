@@ -3,6 +3,7 @@ import { z } from 'zod';
 import ownerPublicationControlsService from '../../services/owner_publication_controls.service';
 import publishedChannelRepairService from '../../services/published_channel_repair.service';
 import workQueueService from '../../services/work_queue.service';
+import threadsCredentialAllocationService from '../../services/threads_credential_allocation.service';
 import { asToolResult } from './common';
 
 /**
@@ -11,6 +12,33 @@ import { asToolResult } from './common';
  * @param server - Target MCP server instance.
  */
 export function registerOwnerRepairTools(server: McpServer): void {
+    server.registerTool('ba_encrypt_legacy_threads_source_credential', {
+        description: 'Owner-only audited in-place encryption of the exact legacy Threads token in project 32/channel 176. Uses CAS and idempotency, never returns the token and never publishes.',
+        annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+        inputSchema: {
+            actorId: z.string().regex(/^user:\d+$/),
+            projectId: z.literal(32),
+            channelId: z.literal(176),
+            expectedUpdatedAt: z.string().datetime({ offset: true }),
+            idempotencyKey: z.string().trim().min(1).max(500)
+        }
+    }, async args => asToolResult({ ...await threadsCredentialAllocationService.migrateLegacySource(args) }));
+
+    server.registerTool('ba_allocate_threads_channel_credential', {
+        description: 'Owner-only audited server-side allocation of the verified encrypted Threads identity from project 32/channel 176 to project 10/channel 138. Requires ownership of both projects, exact channel versions and idempotency; never returns the token or publishes.',
+        annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+        inputSchema: {
+            actorId: z.string().regex(/^user:\d+$/),
+            sourceProjectId: z.literal(32),
+            sourceChannelId: z.literal(176),
+            targetProjectId: z.literal(10),
+            targetChannelId: z.literal(138),
+            expectedSourceUpdatedAt: z.string().datetime({ offset: true }),
+            expectedTargetUpdatedAt: z.string().datetime({ offset: true }),
+            idempotencyKey: z.string().trim().min(1).max(500)
+        }
+    }, async args => asToolResult({ ...await threadsCredentialAllocationService.allocate(args) }));
+
     server.registerTool('ba_require_publication_visual', {
         description: 'Owner-only audited CAS for one exact accepted unpublished task: require a visual and create its first revision-bound art-direction work item. Preserves channel binding (including null), copy, schedule, acceptance and publication state; never attaches or publishes.',
         annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },

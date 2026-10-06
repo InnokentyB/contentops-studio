@@ -19,25 +19,74 @@ function splitNativeThread(body: string) {
 
 export class ThreadsTaskPublicationService {
     constructor(private readonly deps: any) {}
+
+    async isThreadsTask(args: { projectId: number; taskId: number }): Promise<boolean> {
+        const task = await this.deps.db.contentItem.findFirst({
+            where: { id: args.taskId, project_id: args.projectId },
+            select: { channel: { select: { type: true } } }
+        });
+        return task?.channel?.type === 'threads';
+    }
+
     async execute(args: { projectId: number; taskId: number; dryRun?: boolean; idempotencyKey?: string }) {
         const spec = TASK_SPECS[args.taskId as keyof typeof TASK_SPECS];
-        if (args.projectId !== 10 || !spec) throw new Error('[THREADS_TASK_SCOPE_MISMATCH]');
+        const db = this.deps.db;
+        const task = await db.contentItem.findFirst({ where: { id: args.taskId, project_id: args.projectId },
+            include: { channel: true, publication_fact: true } });
+        if (!task || task.channel?.type !== 'threads') throw new Error('[THREADS_TASK_MISMATCH]');
+
+        const config = resolveEffectiveChannelConfig('threads', task.channel.config || {});
+        const hasToken = Boolean(config.access_token);
+        const hasIdentity = Boolean(config.threads_user_id);
+        const connectorReady = hasToken && hasIdentity;
+        if (args.dryRun) {
+            const acceptedRevision = task.accepted_revision;
+            if (!Number.isInteger(acceptedRevision) || acceptedRevision < 1
+                || task.content_revision !== acceptedRevision || task.text_state !== 'accepted'
+                || typeof task.draft_text !== 'string' || !task.draft_text.trim()) {
+                throw new Error('[THREADS_TASK_NOT_CANONICAL]');
+            }
+            const posts = splitNativeThread(task.draft_text);
+            const isChain = posts.length > 1;
+            const nativeContentReady = isChain
+                ? posts.every((post: string) => post.length <= 500)
+                : task.draft_text.length <= 500;
+            const livePublishSupported = args.projectId === 10 && Boolean(spec) && task.channel_id === 138;
+            return {
+                mode: 'dry_run', task_id: args.taskId, project_id: args.projectId, channel_id: task.channel_id,
+                route_executable: connectorReady && nativeContentReady,
+                connector_ready: connectorReady,
+                live_publish_supported: livePublishSupported,
+                credential_readiness: { access_token: hasToken },
+                identity_readiness: { threads_user_id: config.threads_user_id || null, ready: hasIdentity },
+                ...(!connectorReady ? { route_blocker: 'THREADS_CONNECTOR_NOT_READY' } : {}),
+                ...(connectorReady && !nativeContentReady ? { route_blocker: 'THREADS_CONTENT_NOT_NATIVE' } : {}),
+                payload_preview: {
+                    ...(isChain ? { posts, post_count: posts.length } : { text: task.draft_text }),
+                    character_count: task.draft_text.length,
+                    has_image: Boolean(task.selected_asset_id),
+                    channel_id: task.channel_id,
+                    accepted_revision: acceptedRevision,
+                    content_revision: task.content_revision,
+                    visual_state: task.visual_state,
+                    visual_decision_version: task.visual_decision_version,
+                    selected_asset_id: task.selected_asset_id,
+                    schedule_at: task.schedule_at?.toISOString() ?? null
+                }
+            };
+        }
+
+        if (args.projectId !== 10 || !spec || task.channel_id !== 138) throw new Error('[THREADS_TASK_SCOPE_MISMATCH]');
         const command = `ba_publish_threads_task${args.taskId}`;
         const actor = `system:planner-mcp:threads-task${args.taskId}`;
-        const db = this.deps.db;
         const key = args.idempotencyKey?.trim() || null;
-        if (!args.dryRun && !key) throw new Error('[IDEMPOTENCY_KEY_REQUIRED]');
-        if (key) {
-            const prior = await db.workflowEvent.findUnique({ where: {
-                project_id_actor_id_command_idempotency_key: {
-                    project_id: 10, actor_id: actor, command, idempotency_key: key
-                }
-            } });
-            if (prior?.after_state) return { ...prior.after_state, replayed: true };
-        }
-        const task = await db.contentItem.findFirst({ where: { id: args.taskId, project_id: 10 },
-            include: { channel: true, publication_fact: true } });
-        if (!task || task.channel_id !== 138 || task.channel?.type !== 'threads') throw new Error('[THREADS_TASK_MISMATCH]');
+        if (!key) throw new Error('[IDEMPOTENCY_KEY_REQUIRED]');
+        const prior = await db.workflowEvent.findUnique({ where: {
+            project_id_actor_id_command_idempotency_key: {
+                project_id: 10, actor_id: actor, command, idempotency_key: key
+            }
+        } });
+        if (prior?.after_state) return { ...prior.after_state, replayed: true };
         if (task.publication_fact?.outcome === 'published' && task.publication_fact.public_url) {
             return { mode: 'published', task_id: args.taskId, published_link: task.publication_fact.public_url, replayed: true };
         }
@@ -67,16 +116,6 @@ export class ThreadsTaskPublicationService {
             || (!spec.chain && (task.draft_text?.length || 0) > 500)) {
             throw new Error('[THREADS_OWNER_RELEASE_PROOF_MISMATCH]');
         }
-        const config = resolveEffectiveChannelConfig('threads', task.channel.config || {});
-        const connectorReady = Boolean(config.threads_user_id && config.access_token);
-        const preview = { ...(spec.chain ? { posts, post_count: posts.length } : { text: task.draft_text }),
-            character_count: task.draft_text.length,
-            has_image: false, channel_id: 138, accepted_revision: spec.revision, visual_decision_id: spec.decisionId };
-        if (args.taskId === 997) Object.assign(preview, { release_event_id: release.id, account_ref: '@innokentybo' });
-        if (args.dryRun) return { mode: 'dry_run', task_id: args.taskId, project_id: 10,
-            route_executable: connectorReady, connector_ready: connectorReady,
-            ...(!connectorReady ? { route_blocker: 'THREADS_CONNECTOR_NOT_READY' } : {}),
-            payload_preview: preview };
         if (!connectorReady) throw new Error('[THREADS_CONNECTOR_NOT_READY]');
         const owner = await db.projectMember.findFirst({ where: { project_id: 10, role: 'owner' }, orderBy: { id: 'asc' } });
         if (!owner) throw new Error('[PROJECT_OWNER_REQUIRED]');
