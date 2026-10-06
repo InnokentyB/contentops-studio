@@ -8,6 +8,7 @@ import { releaseDzenTaskWithPrisma } from '../../services/dzen_owner_release.ser
 import { asToolResult } from './common';
 import { releaseLinkedInTask1075 } from '../../services/linkedin_task1075_release.service';
 import { claimXBrowserPublication, releaseXTask1025 } from '../../services/x_task1025_release.service';
+import { releaseXTask1079 } from '../../services/x_task1079_release.service';
 import { claimVkBrowserPublication, releaseVkBrowserTaskWithPrisma } from '../../services/vk_browser_owner_release.service';
 import {
     confirmVkBrowserSubmissionWithPrisma,
@@ -165,8 +166,22 @@ export function registerReleaseControlTools(server: McpServer): void {
         }
     }, async (args) => asToolResult(await releaseXTask1025(args)));
 
+    server.registerTool('ba_release_x_task1079_browser', {
+        description: 'Owner-only audited release of accepted revision 1 of Personal X task 1079, project 10/channel 164. Creates one browser work item after checking history; does not send.',
+        inputSchema: {
+            projectId: z.literal(10), taskId: z.literal(1079), actorId: z.string(),
+            expectedChannelId: z.literal(164), expectedContentRevision: z.literal(1),
+            expectedAcceptedRevision: z.literal(1),
+            expectedBodySha256: z.literal('286f4cba8795f2a64e439dff096866bf4dfa17a864a3e50788d9d95bfd8b3217'),
+            expectedDecisionId: z.literal(228), expectedReviewWorkItemId: z.literal(1465),
+            expectedArtWorkItemId: z.literal(1466), expectedScheduleAt: z.literal('2026-10-04T17:30:00.000Z'),
+            expectedManifestChecksum: z.literal('sha256:dc5831717f09ee68f339ccb5b9e63ca00ce4b68edae810b80308fd09e11bcc71'),
+            approvalReference: z.string().min(10), idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await releaseXTask1079(args)));
+
     server.registerTool('ba_claim_x_browser_publication', {
-        description: 'Publisher claim for the exact owner-released Personal X task 1025 browser work item. Refuses other tasks and channels.',
+        description: 'Publisher claim for owner-released Personal X tasks 1025 or 1079 on project 10/channel 164.',
         inputSchema: {
             projectId: z.literal(10), actorId: z.string(), workItemId: z.number().int().positive(),
             leaseSeconds: z.number().int().positive().optional(), idempotencyKey: z.string().min(1)
