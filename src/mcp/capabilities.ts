@@ -150,6 +150,8 @@ const PUBLISHER_TOOLS = new Set([
     'ba_mark_vk_browser_submission_uncertain',
     'ba_preview_vk_browser_pre_provider_recovery',
     'ba_apply_vk_browser_pre_provider_recovery',
+    'ba_preview_vk_browser_pre_submit_recovery',
+    'ba_apply_vk_browser_pre_submit_recovery',
     'ba_publish_publication_task',
     'ba_publish_threads_task',
     'ba_release_approved_telegram_task',

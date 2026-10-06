@@ -92,15 +92,18 @@ export class PlaywrightVkBrowserUi implements VkBrowserUi {
     async submitPost() {
         const next = this.page.getByRole('button', { name: /^Далее$|^Next$/i }).last();
         await next.click({ timeout: 15_000 });
-        const dialog = this.page.locator('[role="dialog"]').last();
-        const publish = dialog.getByRole('button', {
-            name: /^Опубликовать$|^Разместить$|^Publish$/i
-        }).last();
-        const finalActionVisible = await publish
-            .waitFor({ state: 'visible', timeout: 30_000 })
+        const currentPublish = this.page.locator('[data-testid="posting_submit_button"]').last();
+        const currentReady = await currentPublish
+            .waitFor({ state: 'visible', timeout: 15_000 })
             .then(() => true)
             .catch(() => false);
-        if (finalActionVisible) await publish.click({ timeout: 15_000 });
+        const publish = currentReady
+            ? currentPublish
+            : this.page.getByRole('button', {
+                name: /^Опубликовать$|^Разместить$|^Publish$/i
+            }).last();
+        await publish.waitFor({ state: 'visible', timeout: 15_000 });
+        await publish.click({ timeout: 15_000 });
     }
 
     async readbackPost() {

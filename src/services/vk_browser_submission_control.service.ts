@@ -45,6 +45,7 @@ type Dependencies = {
 };
 
 export const VK_BROWSER_PRE_PROVIDER_ABORT_CONFIRMED = '[VK_BROWSER_PRE_PROVIDER_ABORT_CONFIRMED]';
+export const VK_BROWSER_PRE_SUBMIT_ABORT_CONFIRMED = '[VK_BROWSER_PRE_SUBMIT_ABORT_CONFIRMED]';
 
 function assetSha256(task: any) {
     const provenance = task?.selected_asset?.provenance;
@@ -142,7 +143,8 @@ export async function startVkBrowserSubmission(dependencies: Dependencies, args:
         });
         const rearmedPreProviderFailure = existing?.status === 'failed'
             && existing.requires_manual_confirmation === false
-            && existing.error_message === VK_BROWSER_PRE_PROVIDER_ABORT_CONFIRMED;
+            && [VK_BROWSER_PRE_PROVIDER_ABORT_CONFIRMED, VK_BROWSER_PRE_SUBMIT_ABORT_CONFIRMED]
+                .includes(existing.error_message || '');
         if (existing && !rearmedPreProviderFailure) {
             if (existing.idempotency_key !== args.idempotencyKey) throw new Error('[VK_BROWSER_ATTEMPT_EXISTS] Retry is forbidden');
             if (task?.publication_fact?.outcome === 'published' && task.publication_fact.public_url) {

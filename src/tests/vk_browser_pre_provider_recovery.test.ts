@@ -41,7 +41,7 @@ function harness() {
             lease_expires_at: new Date('2026-10-06T13:00:00.000Z')
         },
         attempt: {
-            id: 88,
+            id: 28,
             project_id: 10,
             content_item_id: 1019,
             channel_id: 117,
@@ -55,7 +55,7 @@ function harness() {
             id: 70,
             command: 'ba_mark_vk_browser_submission_uncertain',
             after_state: {
-                delivery_attempt_id: 88,
+                delivery_attempt_id: 28,
                 retry_allowed: false,
                 reason_code: '[VK_BROWSER_SUBMIT_UNCERTAIN]'
             }
@@ -123,7 +123,7 @@ const guards = {
 test('VK pre-provider recovery preview returns an exact no-provider bounded diff', async () => {
     const h = harness();
     const preview = await previewVkBrowserPreProviderRecovery(h.dependencies, guards);
-    assert.equal(preview.attempt_id, 88);
+    assert.equal(preview.attempt_id, 28);
     assert.equal(preview.before.task_status, 'publishing');
     assert.equal(preview.after.task_status, 'browser_required');
     assert.equal(preview.after.attempt_status, 'failed');
@@ -138,10 +138,10 @@ test('VK pre-provider recovery apply atomically rearms the same work item and is
     const preview = await previewVkBrowserPreProviderRecovery(h.dependencies, guards);
     const args = {
         ...guards,
-        expectedAttemptId: 88,
+        expectedAttemptId: 28,
         previewToken: preview.preview_token,
         reason: 'Confirmed from local worker trace: composer failed before text or image upload.',
-        idempotencyKey: 'vk-browser-pre-provider-recovery:10:1019:attempt-88'
+        idempotencyKey: 'vk-browser-pre-provider-recovery:10:1019:attempt-28'
     };
     const applied = await applyVkBrowserPreProviderRecovery(h.dependencies, args);
     assert.equal(applied.replayed, false);
