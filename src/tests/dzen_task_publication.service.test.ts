@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { DzenTaskPublicationService } from '../services/dzen_task_publication.service';
 import { isToolAllowedForProfile } from '../mcp/capabilities';
+import { isTaskNativeDzenPublication } from '../mcp/tools/task_publication_tools';
 
 const hash = '78081837cecace18c91c01af0253b21ca502e611b63a016f9d9035567587dfd3';
 const hash962 = '15c9b4a2e874439c4952900002ae5677fc3a6b6e8794dd34a0a4ae5f03dba798';
@@ -156,6 +157,9 @@ test('Dzen #962 uses its own release and connector proofs before task-native del
 });
 
 test('Dzen #1031 uses the generic owner release proof and current article-cover no-visual decision', async () => {
+    assert.equal(isTaskNativeDzenPublication(10, 1031), true);
+    assert.equal(isTaskNativeDzenPublication(10, 953), false);
+    assert.equal(isTaskNativeDzenPublication(11, 1031), false);
     assert.equal(isToolAllowedForProfile('publisher', 'ba_verify_dzen_task1031_connector'), true);
     const h = harness({ taskId: 1031 });
     const dry = await h.service.execute({ projectId: 10, taskId: 1031, dryRun: true });
