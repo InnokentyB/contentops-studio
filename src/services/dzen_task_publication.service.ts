@@ -30,6 +30,14 @@ const TASKS = {
         allowedStatuses: ['awaiting_manual_publication', 'ready_for_execution'],
         assetSha256: 'b5eafee417e13a2f1becc14a4b66629f31f11cfd68b4b887a240d3e552b3b944',
         decisionChannel: 'dzen'
+    },
+    1031: {
+        bodySha256: '077cee100dbd11648050febacc6f071a407998753855ae3b2e82551175990b6e',
+        decisionId: null,
+        releaseCommand: 'ba_release_approved_dzen_task',
+        verifyCommand: 'ba_verify_dzen_task1031_connector', revision: 3, placement: 'article_cover',
+        visualState: 'NO_VISUAL_NEEDED', selectedAssetId: null, publicationType: 'article' as const,
+        allowedStatuses: ['ready_for_execution'], assetSha256: null, decisionChannel: 'dzen'
     }
 } as const;
 
@@ -343,10 +351,11 @@ export class DzenTaskPublicationService {
         const proof = release?.after_state as any;
         const bodyHash = (this.dependencies.hashBody || ((body: string) => createHash('sha256').update(body).digest('hex')))(task.draft_text || '');
         const decision = await db.artDirectionDecision.findFirst({ where: {
-            id: spec.decisionId, project_id: 10, content_item_id: spec.taskId,
+            ...(spec.decisionId !== null ? { id: spec.decisionId } : {}),
+            project_id: 10, content_item_id: spec.taskId,
             source_content_revision: spec.revision, channel: spec.decisionChannel, placement: spec.placement,
             ...(spec.visualState === 'NO_VISUAL_NEEDED' ? { decision: 'NO_VISUAL_NEEDED' } : {}), status: 'active'
-        } });
+        }, orderBy: { decision_version: 'desc' } });
         const selectedAsset = task.selected_asset;
         const selectedAssetSha = selectedAsset?.provenance?.planner_storage?.sha256
             || selectedAsset?.provenance?.sha256 || null;
@@ -359,7 +368,7 @@ export class DzenTaskPublicationService {
         if (!proof || proof.task_id !== spec.taskId || proof.channel_id !== 116
             || proof.content_revision !== spec.revision || proof.accepted_revision !== spec.revision
             || proof.body_sha256 !== spec.bodySha256 || proof.body_sha256 !== bodyHash
-            || proof.visual_decision_id !== spec.decisionId
+            || proof.visual_decision_id !== decision?.id
             || (spec.selectedAssetId !== null && proof.selected_asset_id !== spec.selectedAssetId)
             || (spec.assetSha256 !== null && proof.asset_sha256 !== spec.assetSha256)
             || proof.schedule_at !== (task.schedule_at ? task.schedule_at.toISOString() : null)
@@ -388,7 +397,7 @@ export class DzenTaskPublicationService {
         const preview = { text: task.draft_text, ...(spec.publicationType === 'article' ? { title: task.title } : {}),
             has_image: Boolean(selectedAsset), ...(selectedAsset ? { image_url: selectedAsset.file_url } : {}),
             publication_type: spec.publicationType, channel_id: 116, accepted_revision: spec.revision,
-            visual_decision_id: spec.decisionId, ...(selectedAsset ? { selected_asset_id: selectedAsset.id } : {}) };
+            visual_decision_id: decision?.id, ...(selectedAsset ? { selected_asset_id: selectedAsset.id } : {}) };
         if (args.dryRun) return { mode: 'dry_run', task_id: spec.taskId, project_id: 10,
             route_executable: connectorReady && spec.allowedStatuses.includes(task.status),
             connector_ready: connectorReady,

@@ -61,6 +61,7 @@ test('generic Dzen release authorizes one exact accepted package without publish
     assert.equal(result.publication_mode, 'owner_released');
     assert.equal(result.explicit_send_required, true);
     assert.equal(result.published, false);
+    assert.equal(result.visual_decision_id, 196);
     assert.equal(h.task.publication_mode, 'owner_released');
     assert.equal(h.events[0].command, 'ba_release_approved_dzen_task');
 });

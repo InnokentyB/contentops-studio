@@ -2,7 +2,7 @@ import { createHash } from 'crypto';
 import { Prisma } from '@prisma/client';
 import prisma from '../../db';
 import { planContentReviewRecovery, planMissingContentReviewRecovery } from '../publication_content_revision_lifecycle';
-import { isLegacyArticleCoverAliasMismatchEvidence, isLegacyDzen958FeedMismatchEvidence, isLegacySiteBlogCoverMismatchEvidence, isPublicationPlacementMismatchEvidence, placementRepairProvenance, planPublicationPlacementRepair, repairMaterializedPublicationProjection } from '../publication_metadata_repair';
+import { isCompletedArtDecisionPlacementMismatchEvidence, isLegacyArticleCoverAliasMismatchEvidence, isLegacyDzen958FeedMismatchEvidence, isLegacySiteBlogCoverMismatchEvidence, isPublicationPlacementMismatchEvidence, placementRepairProvenance, planPublicationPlacementRepair, repairMaterializedPublicationProjection } from '../publication_metadata_repair';
 import { assertCanonicalPublicationPlacement } from '../publication_placement_contract';
 import { requireProjectOwner } from './auth';
 import { checkIdempotency, recordWorkflowEvent } from './infrastructure';
@@ -286,6 +286,15 @@ export async function repairPublicationPlacement(params: {
             },
             orderBy: { decision_version: 'desc' }
         }) : null;
+        const activeDecision = blockedItem ? await tx.artDirectionDecision.findFirst({
+            where: {
+                project_id: params.projectId,
+                content_item_id: params.taskId,
+                work_item_id: blockedItem.id,
+                status: 'active'
+            },
+            orderBy: { decision_version: 'desc' }
+        }) : null;
         if (!content) throw new Error(`Publication task ${params.taskId} not found for project ${params.projectId}`);
         if (!targetChannel) throw new Error(`Target channel ${params.targetChannelId} not found for project ${params.projectId}`);
         assertCanonicalPublicationPlacement(targetChannel, params.targetPlacement);
@@ -349,11 +358,31 @@ export async function repairPublicationPlacement(params: {
                 decision: legacySiteBlogDecision
             })
             : false;
-        if (!blockedItem || (!blockedMismatch && !legacyDzen958Mismatch && !legacySiteBlogMismatch && !legacyArticleCoverAliasMismatch)) {
+        const completedDecisionPlacementMismatch = blockedItem && content
+            ? isCompletedArtDecisionPlacementMismatchEvidence({
+                workItemState: blockedItem.state,
+                workItemRevision: blockedItem.input_context_version,
+                expectedRevision: params.expectedContentRevision,
+                currentChannelId: content.channel_id,
+                targetChannelId: targetChannel.id,
+                currentPlacement: content.visual_placement,
+                targetPlacement: params.targetPlacement,
+                taskStatus: content.status,
+                visualState: content.visual_state,
+                handoffState: content.handoff_state,
+                selectedAssetId: content.selected_asset_id,
+                decision: activeDecision
+            })
+            : false;
+        if (!blockedItem || (!blockedMismatch && !legacyDzen958Mismatch && !legacySiteBlogMismatch
+            && !legacyArticleCoverAliasMismatch && !completedDecisionPlacementMismatch)) {
             throw new Error('[BLOCKED_INPUT_MISMATCH] Expected immutable channel-placement mismatch evidence');
         }
-        const legacyGenerateMismatch = legacySiteBlogMismatch || legacyArticleCoverAliasMismatch;
-        const supersededDecision = legacyGenerateMismatch ? legacySiteBlogDecision : blockedDecision;
+        const legacyGenerateMismatch = legacySiteBlogMismatch || legacyArticleCoverAliasMismatch
+            || completedDecisionPlacementMismatch;
+        const supersededDecision = completedDecisionPlacementMismatch
+            ? activeDecision
+            : legacyGenerateMismatch ? legacySiteBlogDecision : blockedDecision;
         if (content.status === 'published' || content.published_link || content.publication_fact?.outcome === 'published') {
             throw new Error('[PUBLICATION_READ_ONLY] Published tasks cannot be repaired');
         }
@@ -375,6 +404,8 @@ export async function repairPublicationPlacement(params: {
             targetPlacement: params.targetPlacement,
             replacementKeySuffix: legacyArticleCoverAliasMismatch
                 ? `contract-recovery:${blockedItem.id}`
+                : completedDecisionPlacementMismatch
+                ? `decision-placement-recovery:${supersededDecision?.id}`
                 : blockedItem.reason_code === 'missing_feed_asset_contract'
                 ? `contract-recovery:${blockedItem.id}`
                 : undefined
@@ -402,9 +433,11 @@ export async function repairPublicationPlacement(params: {
                 accepted_revision: params.expectedAcceptedRevision,
                 channel_id: params.expectedChannelId,
                 visual_placement: params.expectedPlacement,
-                ...(legacyGenerateMismatch ? {
-                    status: 'approved', visual_state: 'BRIEFED',
-                    handoff_state: 'blocked', selected_asset_id: null
+                ...(legacySiteBlogMismatch || legacyArticleCoverAliasMismatch ? {
+                    status: 'approved', visual_state: 'BRIEFED', handoff_state: 'blocked', selected_asset_id: null
+                } : completedDecisionPlacementMismatch ? {
+                    status: content.status, visual_state: content.visual_state,
+                    handoff_state: content.handoff_state, selected_asset_id: null
                 } : {})
             },
             data: {
@@ -418,7 +451,7 @@ export async function repairPublicationPlacement(params: {
         });
         if (update.count !== 1) throw new Error('[PLACEMENT_CONFLICT] Metadata changed concurrently');
 
-        if (legacyArticleCoverAliasMismatch && supersededDecision) {
+        if ((legacyArticleCoverAliasMismatch || completedDecisionPlacementMismatch) && supersededDecision) {
             await tx.artDirectionDecision.updateMany({
                 where: { id: supersededDecision.id, status: 'active' },
                 data: { status: 'stale' }
@@ -466,6 +499,8 @@ export async function repairPublicationPlacement(params: {
                         ? 'legacy_site_blog_cover'
                         : legacyArticleCoverAliasMismatch
                             ? 'legacy_article_cover_alias'
+                            : completedDecisionPlacementMismatch
+                                ? 'completed_decision_placement_mismatch'
                             : 'blocked_mismatch'
                 }) as Prisma.InputJsonValue
             }

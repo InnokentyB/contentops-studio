@@ -6,17 +6,18 @@ import { isToolAllowedForProfile } from '../mcp/capabilities';
 const hash = '78081837cecace18c91c01af0253b21ca502e611b63a016f9d9035567587dfd3';
 const hash962 = '15c9b4a2e874439c4952900002ae5677fc3a6b6e8794dd34a0a4ae5f03dba798';
 const hash992 = '62af2b8e32d3aabb2b3d6f7029ee2b7ec64a7f9329eef01e52d6c4591e7eb150';
+const hash1031 = '077cee100dbd11648050febacc6f071a407998753855ae3b2e82551175990b6e';
 const asset992Hash = 'b5eafee417e13a2f1becc14a4b66629f31f11cfd68b4b887a240d3e552b3b944';
 const actual992IncidentKey = 'dzen-992-owner-confirmed-retry-20261001-v2';
 const schedule = new Date('2026-09-22T11:00:00.000Z');
 
 function harness(options: { released?: boolean; verified?: boolean; providerError?: boolean;
-    taskId?: 958 | 962 | 992; studioTitles?: string[]; studioTitleReadbackComplete?: boolean;
+    taskId?: 958 | 962 | 992 | 1031; studioTitles?: string[]; studioTitleReadbackComplete?: boolean;
     studioPublishedAt?: string | null } = {}) {
     const taskId = options.taskId || 958;
-    const taskHash = taskId === 992 ? hash992 : taskId === 962 ? hash962 : hash;
-    const decisionId = taskId === 992 ? 186 : taskId === 962 ? 146 : 147;
-    const revision = taskId === 992 ? 3 : 1;
+    const taskHash = taskId === 1031 ? hash1031 : taskId === 992 ? hash992 : taskId === 962 ? hash962 : hash;
+    const decisionId = taskId === 1031 ? 214 : taskId === 992 ? 186 : taskId === 962 ? 146 : 147;
+    const revision = taskId === 1031 || taskId === 992 ? 3 : 1;
     const hasVisual = taskId === 992;
     const verifyCommand = `ba_verify_dzen_task${taskId}_connector`;
     const task: any = {
@@ -24,7 +25,8 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
         channel: { type: 'dzen', config: { channel_id: 'dzen-channel', cookies: 'session=test',
             capability_flags: { api_publish: false } } },
         content_revision: revision, accepted_revision: revision, text_state: 'accepted',
-        draft_text: 'exact accepted body', title: 'Exact accepted title', visual_placement: hasVisual ? 'article_cover' : 'feed',
+        draft_text: 'exact accepted body', title: 'Exact accepted title',
+        visual_placement: taskId === 992 || taskId === 1031 ? 'article_cover' : 'feed',
         visual_state: hasVisual ? 'APPROVED' : 'NO_VISUAL_NEEDED', selected_asset_id: hasVisual ? 102 : null,
         selected_asset: hasVisual ? { id: 102, status: 'approved', content_revision: 3,
             file_url: 'https://cdn.example.test/task992.png',
@@ -76,7 +78,7 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
             create: async (event: any) => { events.push(event); return event; }
         },
         artDirectionDecision: { findFirst: async ({ where }: any) => {
-            assert.equal(where.channel, taskId === 992 ? 'dzen' : 'analystcraft_dzen');
+            assert.equal(where.channel, taskId === 992 || taskId === 1031 ? 'dzen' : 'analystcraft_dzen');
             return { id: decisionId, decision_version: 2 };
         } },
         projectMember: { findFirst: async () => ({ user_id: 2 }), findUnique: async () => ({ role: 'owner' }) },
@@ -151,6 +153,16 @@ test('Dzen #962 uses its own release and connector proofs before task-native del
     assert.equal(sent.visual_decision_id, 146);
     assert.equal(h.providerCalls, 1);
     assert.equal(h.factCalls, 1);
+});
+
+test('Dzen #1031 uses the generic owner release proof and current article-cover no-visual decision', async () => {
+    assert.equal(isToolAllowedForProfile('publisher', 'ba_verify_dzen_task1031_connector'), true);
+    const h = harness({ taskId: 1031 });
+    const dry = await h.service.execute({ projectId: 10, taskId: 1031, dryRun: true });
+    assert.equal(dry.route_executable, true);
+    assert.equal(dry.payload_preview.visual_decision_id, 214);
+    assert.equal(dry.payload_preview.publication_type, 'article');
+    assert.equal(dry.payload_preview.has_image, false);
 });
 
 test('Dzen unverified connector blocks dry-run and live without provider call', async () => {

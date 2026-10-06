@@ -55,6 +55,38 @@ export function isPublicationPlacementMismatchEvidence(input: {
         && input.decision.source_content_revision === input.expectedRevision;
 }
 
+/** A completed decision may be immutable but invalid for the task's current
+ * canonical placement. Owner recovery must supersede it with a new work item. */
+export function isCompletedArtDecisionPlacementMismatchEvidence(input: {
+    workItemState: string;
+    workItemRevision: number;
+    expectedRevision: number;
+    currentChannelId: number | null;
+    targetChannelId: number;
+    currentPlacement: string | null;
+    targetPlacement: string;
+    taskStatus: string;
+    visualState: string;
+    handoffState: string;
+    selectedAssetId: number | null;
+    decision?: {
+        id: number; decision: string; status: string; channel: string;
+        placement: string; source_content_revision: number;
+    } | null;
+}) {
+    return input.workItemState === 'completed'
+        && input.workItemRevision === input.expectedRevision
+        && input.currentChannelId === input.targetChannelId
+        && input.currentPlacement === input.targetPlacement
+        && ['approved', 'ready_for_execution'].includes(input.taskStatus)
+        && ['NO_VISUAL_NEEDED', 'APPROVED', 'BRIEFED'].includes(input.visualState)
+        && ['ready', 'blocked'].includes(input.handoffState)
+        && input.selectedAssetId === null
+        && input.decision?.status === 'active'
+        && input.decision.source_content_revision === input.expectedRevision
+        && input.decision.placement !== input.targetPlacement;
+}
+
 /** One immutable pre-contract Dzen decision recorded its requested feed placement,
  * while the task still carried the obsolete article_cover placement. */
 export function isLegacyDzen958FeedMismatchEvidence(input: {
@@ -185,7 +217,8 @@ export function placementRepairProvenance(input: {
     blockedDecisionId: number | null;
     fromChannelId: number | null;
     fromPlacement: string | null;
-    kind?: 'blocked_mismatch' | 'legacy_site_blog_cover' | 'legacy_article_cover_alias';
+    kind?: 'blocked_mismatch' | 'legacy_site_blog_cover' | 'legacy_article_cover_alias'
+        | 'completed_decision_placement_mismatch';
 }) {
     const superseded = {
         work_item_id: input.blockedWorkItemId,
@@ -199,6 +232,9 @@ export function placementRepairProvenance(input: {
     }
     if (input.kind === 'legacy_article_cover_alias') {
         return { superseded_input: { ...superseded, reason: 'legacy_article_cover_alias_mismatch' } };
+    }
+    if (input.kind === 'completed_decision_placement_mismatch') {
+        return { superseded_input: { ...superseded, reason: 'completed_decision_placement_mismatch' } };
     }
     return {
         superseded_blocker: superseded

@@ -355,6 +355,14 @@ export function registerReleaseControlTools(server: McpServer): void {
         }
     }, async (args) => asToolResult(await dzenTaskPublicationService.verifyConnector(args)));
 
+    server.registerTool('ba_verify_dzen_task1031_connector', {
+        description: 'Owner-only read-only authenticated editor probe for exact owner-released Dzen article #1031 rev3. Records a short-lived task-scoped proof and never publishes.',
+        inputSchema: {
+            projectId: z.literal(10), actorId: z.string(), taskId: z.literal(1031),
+            idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await dzenTaskPublicationService.verifyConnector(args)));
+
     server.registerTool('ba_confirm_dzen_task992_absent_and_authorize_retry', {
         description: 'Owner-only audited recovery for the exact frozen Dzen #992 rev3 incident. Records confirmed absence and authorizes one stable task-native retry key; never publishes.',
         inputSchema: {
