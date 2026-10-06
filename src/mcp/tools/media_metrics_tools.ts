@@ -4,6 +4,7 @@ import imageAssetService from '../../services/image_asset.service';
 import artDirectionService from '../../services/art_direction.service';
 import metricsService from '../../services/metrics.service';
 import dzenEngagementService from '../../services/dzen_engagement.service';
+import threadsEngagementService from '../../services/threads_engagement.service';
 import prisma from '../../db';
 import { asToolResult, INTERNAL_MUTATION_ANNOTATIONS } from './common';
 
@@ -212,6 +213,39 @@ export function registerMediaMetricsTools(server: McpServer): void {
             confirm: z.boolean().optional()
         }
     }, async (args) => asToolResult(await dzenEngagementService.comment(args)));
+
+    server.registerTool('ba_threads_search_posts', {
+        description: 'Search public Threads posts by keyword. Read-only; does not publish or comment.',
+        annotations: { readOnlyHint: true, openWorldHint: true },
+        inputSchema: {
+            projectId: z.number().int().positive(), actorId: z.string().min(1),
+            channelId: z.number().int().positive(), query: z.string().trim().min(2).max(300),
+            searchType: z.enum(['TOP', 'RECENT']).optional(), limit: z.number().int().min(1).max(50).optional(),
+            after: z.string().min(1).max(500).optional()
+        }
+    }, async (args) => asToolResult(await threadsEngagementService.searchPosts(args)));
+
+    server.registerTool('ba_threads_get_replies', {
+        description: 'Read direct replies or the full conversation for a Threads post. Read-only.',
+        annotations: { readOnlyHint: true, openWorldHint: true },
+        inputSchema: {
+            projectId: z.number().int().positive(), actorId: z.string().min(1),
+            channelId: z.number().int().positive(), threadId: z.string().trim().min(1).max(200),
+            mode: z.enum(['replies', 'conversation']).optional(), reverse: z.boolean().optional(),
+            limit: z.number().int().min(1).max(100).optional(), after: z.string().min(1).max(500).optional()
+        }
+    }, async (args) => asToolResult(await threadsEngagementService.getReplies(args)));
+
+    server.registerTool('ba_threads_comment', {
+        description: 'Preview or publish one reply to a Threads post. Defaults to preview; live publication requires confirm=true and an idempotency key.',
+        annotations: { idempotentHint: true, openWorldHint: true },
+        inputSchema: {
+            projectId: z.number().int().positive(), actorId: z.string().min(1),
+            channelId: z.number().int().positive(), threadId: z.string().trim().min(1).max(200),
+            text: z.string().trim().min(1).max(500), idempotencyKey: z.string().min(8).max(200),
+            confirm: z.boolean().optional()
+        }
+    }, async (args) => asToolResult(await threadsEngagementService.comment(args)));
 
     server.registerTool('ba_rollup_campaign_metrics', {
         description: 'Aggregate and rollup campaign metrics across channels and content items.',

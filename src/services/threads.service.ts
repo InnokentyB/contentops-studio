@@ -2,6 +2,13 @@ const API = 'https://graph.threads.net/v1.0';
 
 type Options = { pollAttempts?: number; pollIntervalMs?: number };
 type Profile = { id: string; username?: string; name?: string; threads_profile_picture_url?: string };
+export type ThreadsPost = {
+    id: string; text?: string; username?: string; permalink?: string; timestamp?: string;
+    media_type?: string; media_url?: string; thumbnail_url?: string; has_replies?: boolean;
+    is_reply?: boolean; is_reply_owned_by_me?: boolean;
+    root_post?: { id?: string }; replied_to?: { id?: string };
+};
+type ThreadsPage = { data?: ThreadsPost[]; paging?: { cursors?: { after?: string } } };
 
 export class ThreadsProviderError extends Error {
     constructor(public readonly code: string, public readonly operation: string, public readonly status?: number) {
@@ -89,6 +96,48 @@ class ThreadsService {
                 published.length ? published[published.length - 1].id : undefined));
         }
         return { rootUrl: published[0].url, postUrls: published.map(item => item.url) };
+    }
+
+    async searchPosts(token: string, args: { query: string; searchType?: 'TOP' | 'RECENT'; limit?: number; after?: string }) {
+        const query = args.query.trim();
+        if (query.length < 2 || query.length > 300) throw new Error('Threads search query must contain 2-300 characters');
+        const limit = Math.min(50, Math.max(1, args.limit ?? 20));
+        const params = new URLSearchParams({
+            q: query,
+            search_type: args.searchType ?? 'TOP',
+            limit: String(limit),
+            fields: 'id,media_type,media_url,permalink,username,text,timestamp,shortcode,thumbnail_url,has_replies,is_quote_post'
+        });
+        if (args.after) params.set('after', args.after);
+        const result = await this.request<ThreadsPage>('search_posts', `${API}/keyword_search?${params}`, token);
+        return { items: result.data || [], after: result.paging?.cursors?.after || null };
+    }
+
+    async getPost(token: string, postId: string): Promise<ThreadsPost> {
+        return this.request<ThreadsPost>('read_post',
+            `${API}/${encodeURIComponent(postId)}?fields=${encodeURIComponent('id,text,username,permalink,timestamp,media_type,has_replies')}`, token);
+    }
+
+    async getReplies(token: string, postId: string, args: {
+        mode?: 'replies' | 'conversation'; reverse?: boolean; limit?: number; after?: string;
+    } = {}) {
+        const limit = Math.min(100, Math.max(1, args.limit ?? 25));
+        const params = new URLSearchParams({
+            fields: 'id,text,timestamp,media_type,permalink,shortcode,username,is_quote_post,has_replies,is_reply,is_reply_owned_by_me,root_post{id},replied_to{id}',
+            reverse: String(args.reverse ?? false),
+            limit: String(limit)
+        });
+        if (args.after) params.set('after', args.after);
+        const mode = args.mode ?? 'replies';
+        const result = await this.request<ThreadsPage>('read_replies',
+            `${API}/${encodeURIComponent(postId)}/${mode}?${params}`, token);
+        return { items: result.data || [], after: result.paging?.cursors?.after || null, mode };
+    }
+
+    async publishReply(userId: string, token: string, postId: string, text: string) {
+        const normalized = text.trim();
+        if (!normalized || normalized.length > 500) throw new Error('Threads reply must contain 1-500 characters');
+        return this.publishTextPost(userId, token, normalized, postId);
     }
 
     async publishPost(userId: string, token: string, text: string, imageUrl?: string): Promise<string> {

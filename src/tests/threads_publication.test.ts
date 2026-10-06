@@ -297,3 +297,66 @@ test('ThreadsService bounds image container polling', async () => {
         globalThis.fetch = originalFetch;
     }
 });
+
+test('ThreadsService searches public posts with bounded encoded parameters and Bearer auth', async () => {
+    const originalFetch = globalThis.fetch;
+    let requestedUrl = '';
+    let authorization = '';
+    globalThis.fetch = async (url: any, options: any = {}) => {
+        requestedUrl = url.toString();
+        authorization = options.headers?.Authorization;
+        return { ok: true, json: async () => ({
+            data: [{ id: 'post-1', text: 'AI agents', username: 'alice', permalink: 'https://www.threads.com/@alice/post/one' }],
+            paging: { cursors: { after: 'cursor-2' } }
+        }) } as Response;
+    };
+    try {
+        const result = await new ThreadsService().searchPosts('secret-token', {
+            query: 'AI agents & product', searchType: 'RECENT', limit: 7
+        });
+        const url = new URL(requestedUrl);
+        assert.equal(url.pathname, '/v1.0/keyword_search');
+        assert.equal(url.searchParams.get('q'), 'AI agents & product');
+        assert.equal(url.searchParams.get('search_type'), 'RECENT');
+        assert.equal(url.searchParams.get('limit'), '7');
+        assert.equal(url.searchParams.has('access_token'), false);
+        assert.equal(authorization, 'Bearer secret-token');
+        assert.equal(result.items[0].id, 'post-1');
+        assert.equal(result.after, 'cursor-2');
+    } finally { globalThis.fetch = originalFetch; }
+});
+
+test('ThreadsService reads direct replies and full conversation through distinct endpoints', async () => {
+    const originalFetch = globalThis.fetch;
+    const urls: string[] = [];
+    globalThis.fetch = async (url: any) => {
+        urls.push(url.toString());
+        return { ok: true, json: async () => ({ data: [{ id: 'reply-1', is_reply: true }] }) } as Response;
+    };
+    try {
+        const service = new ThreadsService();
+        await service.getReplies('token', 'root/unsafe', { mode: 'replies', reverse: true, limit: 5 });
+        await service.getReplies('token', 'root/unsafe', { mode: 'conversation', reverse: false, limit: 10 });
+        assert.match(urls[0], /root%2Funsafe\/replies\?/);
+        assert.match(urls[1], /root%2Funsafe\/conversation\?/);
+        assert.equal(new URL(urls[0]).searchParams.get('reverse'), 'true');
+        assert.equal(new URL(urls[1]).searchParams.get('reverse'), 'false');
+    } finally { globalThis.fetch = originalFetch; }
+});
+
+test('ThreadsService publishes a reply as a reply container and returns provider identity', async () => {
+    const originalFetch = globalThis.fetch;
+    const bodies: Array<Record<string, unknown>> = [];
+    globalThis.fetch = async (url: any, options: any = {}) => {
+        const value = url.toString();
+        if (options.body) bodies.push(JSON.parse(options.body));
+        if (value.endsWith('/threads')) return { ok: true, json: async () => ({ id: 'container-1' }) } as Response;
+        if (value.endsWith('/threads_publish')) return { ok: true, json: async () => ({ id: 'reply-9' }) } as Response;
+        return { ok: true, json: async () => ({ id: 'reply-9', permalink: 'https://www.threads.com/@me/post/reply9' }) } as Response;
+    };
+    try {
+        const result = await new ThreadsService().publishReply('me-1', 'token', 'target-7', 'Useful point');
+        assert.deepEqual(bodies[0], { media_type: 'TEXT', text: 'Useful point', reply_to_id: 'target-7' });
+        assert.deepEqual(result, { id: 'reply-9', url: 'https://www.threads.com/@me/post/reply9' });
+    } finally { globalThis.fetch = originalFetch; }
+});
