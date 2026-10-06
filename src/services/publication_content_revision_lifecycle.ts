@@ -30,9 +30,10 @@ export function planContentReviewRecovery(input: {
     acceptedRevision: number | null;
     textState: string;
     reviewResultVersion: number;
-    currentRevisionAlreadyApproved: boolean;
+    currentRevisionDecision: 'approved' | 'rejected' | null;
+    submittedReviewAvailable: boolean;
 }) {
-    if (input.currentRevisionAlreadyApproved
+    if (input.currentRevisionDecision === 'approved'
         && input.acceptedRevision === input.contentRevision
         && input.textState === 'accepted') {
         return {
@@ -45,13 +46,31 @@ export function planContentReviewRecovery(input: {
         };
     }
 
+    if (input.currentRevisionDecision === null
+        && input.submittedReviewAvailable
+        && input.reviewResultVersion >= input.contentRevision) {
+        return {
+            needsRecovery: false,
+            textState: input.textState,
+            acceptedRevision: input.acceptedRevision,
+            reviewState: 'waiting_approval',
+            reviewResultVersion: input.reviewResultVersion,
+            replacementReviewRequired: false
+        };
+    }
+
+    const decisionVersionCollision = input.currentRevisionDecision !== null;
+    const preserveSubmittedReview = decisionVersionCollision && input.submittedReviewAvailable;
+
     return {
         needsRecovery: true,
         textState: 'draft',
         acceptedRevision: null,
         reviewState: 'waiting_approval',
-        reviewResultVersion: input.contentRevision,
-        replacementReviewRequired: input.currentRevisionAlreadyApproved
+        reviewResultVersion: preserveSubmittedReview
+            ? input.reviewResultVersion + 1
+            : input.contentRevision,
+        replacementReviewRequired: decisionVersionCollision && !preserveSubmittedReview
     };
 }
 

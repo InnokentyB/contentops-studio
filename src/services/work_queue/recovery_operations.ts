@@ -842,7 +842,7 @@ export async function recoverContentReview(params: {
             where: {
                 work_item_id_result_version: {
                     work_item_id: review.id,
-                    result_version: content.content_revision
+                    result_version: review.result_version
                 }
             }
         });
@@ -851,7 +851,10 @@ export async function recoverContentReview(params: {
             acceptedRevision: content.accepted_revision,
             textState: content.text_state,
             reviewResultVersion: review.result_version,
-            currentRevisionAlreadyApproved: currentApproval?.decision === 'approved'
+            currentRevisionDecision: currentApproval?.decision === 'approved'
+                ? 'approved'
+                : currentApproval?.decision === 'rejected' ? 'rejected' : null,
+            submittedReviewAvailable: review.state === 'waiting_approval' && review.result_payload !== null
         });
         const beforeState = {
             content_revision: content.content_revision,
@@ -919,7 +922,7 @@ export async function recoverContentReview(params: {
                     note: params.evidence || `Fresh review required for content revision ${content.content_revision}`
                 }
             })
-            : review;
+            : await tx.workItem.findUniqueOrThrow({ where: { id: review.id } });
 
         const afterState = {
             recovered: lifecycle.needsRecovery,
