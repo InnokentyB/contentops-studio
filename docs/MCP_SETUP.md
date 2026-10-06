@@ -115,6 +115,17 @@ The owner or writer MCP profile can add a native poll with `ba_configure_vk_stor
 
 Run `ba_publish_publication_task` with `dryRun: true` before any live call and provide a unique `idempotencyKey` for the live publication. A started provider call is never retried automatically because VK may have created the poll or Story even if the response was interrupted.
 
+### Local VK browser preparation
+
+When VK does not issue the required API permissions, the project includes a
+local Playwright worker that prepares an accepted wall post in a dedicated
+Chrome profile. Prepare-only is fully local and does not open VK or upload
+media. Live execution requires the owner-only
+`ba_release_approved_vk_browser_task`, Publisher claim, one durable attempt and
+exact permalink readback before a publication fact can be recorded. See
+[Local VK browser worker](VK_BROWSER_WORKER.md) for the private job format,
+profile isolation, submit lease and no-retry rules.
+
 ## Revoke or rotate access
 
 Open **Project settings → MCP → Personal access** and select **Revoke** next to the affected token. Issue a new device-specific token when a computer is replaced, a person leaves the project, or a token may have been exposed. Revocation is immediate and does not require a redeploy.
