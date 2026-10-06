@@ -306,6 +306,28 @@ test('current VK composer uses its own uploader and waits for a rendered preview
     ]);
 });
 
+test('current VK composer submits through the page-level posting submit control', async () => {
+    const calls: string[] = [];
+    const next = { click: async () => { calls.push('next'); } };
+    const publish = {
+        waitFor: async () => { calls.push('publish_visible'); },
+        click: async () => { calls.push('publish'); }
+    };
+    const page = {
+        getByRole: () => ({ last: () => next }),
+        locator: (selector: string) => ({
+            last: () => {
+                assert.equal(selector, '[data-testid="posting_submit_button"]');
+                return publish;
+            }
+        })
+    };
+
+    await new PlaywrightVkBrowserUi(page as any).submitPost();
+
+    assert.deepEqual(calls, ['next', 'publish_visible', 'publish_visible', 'publish']);
+});
+
 function submitFixture(imagePath: string) {
     return fixture(imagePath, {
         target: {

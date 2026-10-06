@@ -127,8 +127,9 @@ Live browser execution is intentionally a separate workflow:
    `VK_BROWSER_LOGIN_REQUIRED`; sign in manually through the dedicated profile,
    close the window, and rerun while the lease is still active.
 
-The worker calls `ba_start_vk_browser_submission` before typing or uploading,
-then executes one browser submit. Exact readback calls
+The worker opens the composer and verifies the exact text locally, then calls
+`ba_start_vk_browser_submission` immediately before the first image upload.
+Exact readback calls
 `ba_confirm_vk_browser_submission`; an unavailable or mismatched readback calls
 `ba_mark_vk_browser_submission_uncertain`. A started attempt is never retried
 automatically. Passwords, cookies and MCP tokens must never be stored in the job
@@ -145,3 +146,10 @@ with `ba_apply_vk_browser_pre_provider_recovery`. The recovery keeps the failed
 attempt in history, writes an immutable audit event, creates no publication fact,
 and does not contact VK. A new public submit still requires a separate explicit
 owner confirmation.
+
+For the separately audited task-1019 incident where the approved image upload
+completed but the current page-level final submit control was not invoked, use
+`ba_preview_vk_browser_pre_submit_recovery` and apply only its exact hash with
+`ba_apply_vk_browser_pre_submit_recovery`. This path requires the local evidence
+hash and a timestamped public-absence observation, records that provider upload
+did occur, and is not valid for a genuinely ambiguous post-submit outcome.

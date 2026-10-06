@@ -18,6 +18,10 @@ import {
     applyVkBrowserPreProviderRecoveryWithPrisma,
     previewVkBrowserPreProviderRecoveryWithPrisma
 } from '../../services/vk_browser_pre_provider_recovery.service';
+import {
+    applyVkBrowserPreSubmitRecoveryWithPrisma,
+    previewVkBrowserPreSubmitRecoveryWithPrisma
+} from '../../services/vk_browser_pre_submit_recovery.service';
 
 /**
  * Registers release publication execution and connector verification tools.
@@ -118,6 +122,28 @@ export function registerReleaseControlTools(server: McpServer): void {
             idempotencyKey: z.string().min(1)
         }
     }, async (args) => asToolResult(await applyVkBrowserPreProviderRecoveryWithPrisma(args)));
+
+    const vkPreSubmitRecoveryGuards = {
+        ...vkPreProviderRecoveryGuards,
+        expectedFailureCode: z.literal('[VK_BROWSER_READBACK_UNCONFIRMED]'),
+        evidenceSha256: z.string().regex(/^[a-f0-9]{64}$/),
+        absenceObservedAt: z.string().datetime({ offset: true }),
+        expectedLatestProviderObjectId: z.string().regex(/^-\d+_\d+$/)
+    };
+    server.registerTool('ba_preview_vk_browser_pre_submit_recovery', {
+        description: 'Owner-only read-only preview for the exact VK task 1019 incident where the approved image uploaded but the final submit control was not invoked. Requires screenshot evidence and a recent exact public-absence observation; never contacts VK.',
+        inputSchema: vkPreSubmitRecoveryGuards
+    }, async (args) => asToolResult(await previewVkBrowserPreSubmitRecoveryWithPrisma(args)));
+    server.registerTool('ba_apply_vk_browser_pre_submit_recovery', {
+        description: 'Owner-only audited apply for an exact previewed VK pre-submit abort. Preserves content and facts, records provider upload without final submit, and rearms the same work item without contacting VK.',
+        inputSchema: {
+            ...vkPreSubmitRecoveryGuards,
+            expectedAttemptId: z.number().int().positive(),
+            previewToken: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+            reason: z.string().min(20),
+            idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await applyVkBrowserPreSubmitRecoveryWithPrisma(args)));
 
     server.registerTool('ba_release_x_task1025_browser', {
         description: 'Owner-only exact audited release for project 10 Personal X task 1025. Creates one browser publication work item and never publishes.',
