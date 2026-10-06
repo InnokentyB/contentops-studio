@@ -53,6 +53,8 @@ import {
     typeDzenContentEditableText
 } from './puppeteer/dzen_dom_helpers';
 import { uploadDzenFileAndVerify } from './puppeteer/dzen_image_upload';
+import { resumeDzen999InExistingPage } from './puppeteer/dzen999_existing_draft';
+import type { Dzen999Proof } from './dzen_task999_resume_contract';
 import {
     canonicalPublicDzenUrl,
     clickDzenPublicationConfirm,
@@ -63,6 +65,18 @@ import {
 
 
 class PuppeteerPublisherService {
+    async resumeDzen999(config: DzenPublishConfig, acceptedBody: string,
+        args: { confirm: boolean; idempotencyKey: string }, claim: (proof: Dzen999Proof) => Promise<boolean>) {
+        const browser = await this.launchBrowser();
+        try {
+            const page = await browser.newPage();
+            await page.setViewport({ width: 1280, height: 800 });
+            await this.prepareDzenPage(page, config);
+            return await resumeDzen999InExistingPage(page, acceptedBody, args, claim);
+        } finally {
+            await browser.close();
+        }
+    }
     private async prepareDzenPage(page: Page, config: DzenPublishConfig) {
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
         if (!config.cookies?.trim()) return;

@@ -11,6 +11,7 @@ import { claimXBrowserPublication, releaseXTask1025 } from '../../services/x_tas
 import { releaseXTask1079 } from '../../services/x_task1079_release.service';
 import { releaseXTask1025Revision3 } from '../../services/x_task1025_rev3_release.service';
 import { releasePendingThreadsTask } from '../../services/threads_pending_release.service';
+import { resumeDzenTask999 } from '../../services/dzen_task999_resume.service';
 import { claimVkBrowserPublication, releaseVkBrowserTaskWithPrisma } from '../../services/vk_browser_owner_release.service';
 import {
     confirmVkBrowserSubmissionWithPrisma,
@@ -32,6 +33,14 @@ import {
  * @param server - Target MCP server instance.
  */
 export function registerReleaseControlTools(server: McpServer): void {
+    server.registerTool('ba_resume_dzen_task999_existing_draft', {
+        description: 'Owner-authorized exact existing Dzen999 draft recovery. Defaults to read-only package/cover/final-stage preview; confirm true performs one original-key CAS-bound final submit, never opens a new composer.',
+        inputSchema: {
+            projectId: z.literal(10), taskId: z.literal(999), actorId: z.string(),
+            idempotencyKey: z.literal('dzen-999-owner-approved-live-20261006-v1'),
+            confirm: z.boolean().optional().default(false)
+        }
+    }, async args => asToolResult(await resumeDzenTask999(args)));
     server.registerTool('ba_release_approved_vk_browser_task', {
         description: 'Project-owner audited release of one exact accepted VK feed, article, video or Story revision to the local browser-publisher queue. It never opens VK, uploads media, publishes, or records a publication fact.',
         inputSchema: {
