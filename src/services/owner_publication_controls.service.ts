@@ -7,9 +7,11 @@ import { loadAgentWorkspaceManifest } from './agent_workspace_manifest.service';
 import {
     OwnerReleasedScheduleCorrection,
     Threads966Release,
+    Threads1029Release,
     Task969Reschedule,
     correctOwnerReleasedTaskSchedule,
     releaseThreadsTask966,
+    releaseThreadsTask1029,
     rescheduleOwnerReleasedTask969
 } from './owner_targeted_release_operations';
 
@@ -951,6 +953,13 @@ export class OwnerPublicationControlsService {
 
     async releaseThreadsTask966(args: Threads966Release) {
         return releaseThreadsTask966({
+            db: this.db, hashBody: this.hashBody,
+            requireOwner: (tx, projectId, actorId) => this.requireOwner(tx, projectId, actorId)
+        }, args);
+    }
+
+    async releaseThreadsTask1029(args: Threads1029Release) {
+        return releaseThreadsTask1029({
             db: this.db, hashBody: this.hashBody,
             requireOwner: (tx, projectId, actorId) => this.requireOwner(tx, projectId, actorId)
         }, args);

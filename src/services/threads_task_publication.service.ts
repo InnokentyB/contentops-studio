@@ -10,7 +10,9 @@ const TASK_SPECS = {
     966: { revision: 1, bodySha256: '83dd0fe0b2b354898b9fd3e5161d5ab05517c4c2b2304862d74c949ce1e2b123',
         decisionId: 142, releaseCommand: 'ba_release_approved_threads_task966', decisionChannel: 'innokenty_threads', chain: false },
     997: { revision: 1, bodySha256: '53abc96f1fc3287ca47ff5be457335fed2e33c0955e11f527dbe23d8299cf94b',
-        decisionId: 181, releaseCommand: 'ba_release_approved_threads_task997', decisionChannel: 'threads', chain: true }
+        decisionId: 181, releaseCommand: 'ba_release_approved_threads_task997', decisionChannel: 'threads', chain: true },
+    1029: { revision: 3, bodySha256: 'f59a4e27a001c2b6fd297683d626c1f2479125d184896036d91c2e3edae6666e',
+        decisionId: 212, releaseCommand: 'ba_release_approved_threads_task1029', decisionChannel: 'threads', chain: false }
 } as const;
 
 function splitNativeThread(body: string) {

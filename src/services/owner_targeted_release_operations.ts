@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 import { Prisma } from '@prisma/client';
 
 const THREADS_966_BODY_SHA256 = '83dd0fe0b2b354898b9fd3e5161d5ab05517c4c2b2304862d74c949ce1e2b123';
+const THREADS_1029_BODY_SHA256 = 'f59a4e27a001c2b6fd297683d626c1f2479125d184896036d91c2e3edae6666e';
 const TASK_969_BODY_SHA256 = '43cff698cbb2597144a5fd696013b361961cd9d7c824809d6c4279d45391d1e9';
 
 type Dependencies = {
@@ -17,6 +18,65 @@ export type Threads966Release = {
     expectedScheduleAt: string; expectedBodySha256: string;
     approvalReference: string; idempotencyKey: string;
 };
+
+export type Threads1029Release = Threads966Release;
+
+export async function releaseThreadsTask1029(deps: Dependencies, args: Threads1029Release) {
+    if (args.projectId !== 10 || args.taskId !== 1029 || args.expectedChannelId !== 138
+        || args.expectedContentRevision !== 3 || args.expectedAcceptedRevision !== 3
+        || args.expectedBodySha256 !== THREADS_1029_BODY_SHA256) {
+        throw new Error('[THREADS_1029_SCOPE_MISMATCH] Exact task/revision/body required');
+    }
+    if (!args.approvalReference.trim()) throw new Error('[OWNER_APPROVAL_REFERENCE_REQUIRED]');
+    const hash = requestHash(args);
+    return deps.db.$transaction(async (tx: any) => {
+        await deps.requireOwner(tx, 10, args.actorId);
+        const command = 'ba_release_approved_threads_task1029';
+        const prior = await tx.workflowEvent.findFirst({ where: {
+            project_id: 10, actor_id: args.actorId, command, idempotency_key: args.idempotencyKey
+        } });
+        if (prior) {
+            if (prior.before_state?.request_hash !== hash) throw new Error('[IDEMPOTENCY_CONFLICT]');
+            return prior.after_state;
+        }
+        const task = await tx.contentItem.findFirst({ where: { id: 1029, project_id: 10 },
+            include: { channel: true, publication_fact: true } });
+        const decision = await tx.artDirectionDecision.findFirst({ where: {
+            id: 212, project_id: 10, content_item_id: 1029, source_content_revision: 3,
+            channel: 'threads', placement: 'feed', decision: 'NO_VISUAL_NEEDED', status: 'active'
+        } });
+        const bodyHash = deps.hashBody(task?.draft_text || '');
+        if (!task || task.channel_id !== 138 || task.channel?.type !== 'threads'
+            || task.content_revision !== 3 || task.accepted_revision !== 3 || task.text_state !== 'accepted'
+            || task.visual_placement !== 'feed' || task.visual_state !== 'NO_VISUAL_NEEDED'
+            || task.selected_asset_id !== null || task.visual_decision_version !== decision?.decision_version
+            || task.status !== 'ready_for_execution' || task.handoff_state !== 'ready'
+            || task.publication_mode !== 'approval_required'
+            || task.schedule_at?.toISOString() !== args.expectedScheduleAt
+            || bodyHash !== THREADS_1029_BODY_SHA256 || (task.draft_text?.length || 0) > 500
+            || !decision || task.publication_fact || task.published_link) {
+            throw new Error('[THREADS_1029_RELEASE_GUARD_FAILED]');
+        }
+        const attempt = await tx.deliveryAttempt.findFirst({ where: { project_id: 10, content_item_id: 1029 } });
+        if (attempt) throw new Error('[DELIVERY_ATTEMPT_EXISTS]');
+        const changed = await tx.contentItem.updateMany({ where: {
+            id: 1029, project_id: 10, channel_id: 138, content_revision: 3, accepted_revision: 3,
+            text_state: 'accepted', visual_placement: 'feed', visual_state: 'NO_VISUAL_NEEDED',
+            visual_decision_version: decision.decision_version, selected_asset_id: null,
+            status: 'ready_for_execution', handoff_state: 'ready', publication_mode: 'approval_required',
+            schedule_at: new Date(args.expectedScheduleAt)
+        }, data: { publication_mode: 'owner_released' } });
+        if (changed.count !== 1) throw new Error('[THREADS_1029_RELEASE_CAS_CONFLICT]');
+        const result = { task_id: 1029, channel_id: 138, content_revision: 3, accepted_revision: 3,
+            body_sha256: bodyHash, visual_decision_id: 212, schedule_at: args.expectedScheduleAt,
+            publication_mode: 'owner_released', explicit_send_required: true, published: false };
+        await tx.workflowEvent.create({ data: { project_id: 10, content_item_id: 1029,
+            actor_id: args.actorId, command, idempotency_key: args.idempotencyKey,
+            before_state: { request_hash: hash, publication_mode: 'approval_required',
+                approval_reference: args.approvalReference }, after_state: result } });
+        return result;
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+}
 
 export type Task969Reschedule = {
     projectId: number; actorId: string; taskId: number;
