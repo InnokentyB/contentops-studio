@@ -3,8 +3,10 @@ import prisma from '../db';
 import threadsService from './threads.service';
 import publicationFactService from './publication_fact.service';
 import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
+import { PENDING_THREADS_PACKAGES } from './threads_pending_release.service';
 
 const TASK_SPECS = {
+    ...PENDING_THREADS_PACKAGES,
     953: { revision: 4, bodySha256: 'e7d8c1f2f9cf4f7e3ca1ad6fb05e55153c2153739b3fcdf280e519f574b7f7a6',
         decisionId: 149, releaseCommand: 'ba_release_approved_threads_task953', decisionChannel: 'innokenty_threads', chain: false },
     966: { revision: 1, bodySha256: '83dd0fe0b2b354898b9fd3e5161d5ab05517c4c2b2304862d74c949ce1e2b123',

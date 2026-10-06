@@ -26,7 +26,8 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
         channel: { type: 'dzen', config: { channel_id: 'dzen-channel', cookies: 'session=test',
             capability_flags: { api_publish: false } } },
         content_revision: revision, accepted_revision: revision, text_state: 'accepted',
-        draft_text: 'exact accepted body', title: 'Exact accepted title',
+        draft_text: taskId === 1031 ? 'Как проверить новый формат урока без маркетинговой самооценки\n\nexact accepted body' : 'exact accepted body',
+        title: taskId === 1031 ? 'W41 allocation #6 — Dzen' : 'Exact accepted title',
         visual_placement: taskId === 992 || taskId === 1031 ? 'article_cover' : 'feed',
         visual_state: hasVisual ? 'APPROVED' : 'NO_VISUAL_NEEDED', selected_asset_id: hasVisual ? 102 : null,
         selected_asset: hasVisual ? { id: 102, status: 'approved', content_revision: 3,
@@ -167,6 +168,7 @@ test('Dzen #1031 uses the generic owner release proof and current article-cover 
     assert.equal(dry.payload_preview.visual_decision_id, 214);
     assert.equal(dry.payload_preview.publication_type, 'article');
     assert.equal(dry.payload_preview.has_image, false);
+    assert.equal(dry.payload_preview.title, 'Как проверить новый формат урока без маркетинговой самооценки');
 });
 
 test('Dzen unverified connector blocks dry-run and live without provider call', async () => {

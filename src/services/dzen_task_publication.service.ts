@@ -3,6 +3,7 @@ import prisma from '../db';
 import dzenService, { isDzenPublishedUrl } from './dzen.service';
 import publicationFactService from './publication_fact.service';
 import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
+import { publicDzenArticleTitle } from './dzen_public_title';
 
 const TASKS = {
     958: {
@@ -267,7 +268,7 @@ export class DzenTaskPublicationService {
                 throw new Error('[DZEN_992_PROVIDER_READBACK_INCOMPLETE] Retry remains forbidden');
             }
             const normalizeTitle = (value: string) => value.normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleLowerCase('ru');
-            const acceptedTitle = normalizeTitle(task.title);
+            const acceptedTitle = normalizeTitle(publicDzenArticleTitle(spec.taskId, task.draft_text, task.title) || '');
             const publications = check.publications as DzenStudioPublicationReadback[];
             const exactMatches = publications.filter((publication) =>
                 typeof publication?.title === 'string' && normalizeTitle(publication.title) === acceptedTitle
@@ -394,7 +395,9 @@ export class DzenTaskPublicationService {
                 && verified?.asset_sha256 === spec.assetSha256))
             && verified?.editor_available === true
             && Date.now() - new Date(verified.checked_at || 0).getTime() < 15 * 60_000;
-        const preview = { text: task.draft_text, ...(spec.publicationType === 'article' ? { title: task.title } : {}),
+        const publicTitle = spec.publicationType === 'article'
+            ? publicDzenArticleTitle(spec.taskId, task.draft_text, task.title) : null;
+        const preview = { text: task.draft_text, ...(spec.publicationType === 'article' ? { title: publicTitle } : {}),
             has_image: Boolean(selectedAsset), ...(selectedAsset ? { image_url: selectedAsset.file_url } : {}),
             publication_type: spec.publicationType, channel_id: 116, accepted_revision: spec.revision,
             visual_decision_id: decision?.id, ...(selectedAsset ? { selected_asset_id: selectedAsset.id } : {}) };
@@ -443,7 +446,7 @@ export class DzenTaskPublicationService {
         let url: string;
         try {
             url = await dzen.publishPost(config, task.draft_text,
-                selectedAsset?.file_url || undefined, spec.publicationType === 'article' ? task.title : undefined,
+                selectedAsset?.file_url || undefined, publicTitle || undefined,
                 spec.publicationType);
             if (!isDzenPublishedUrl(url)) throw new Error('Provider did not confirm a public Dzen URL');
         } catch (error: any) {

@@ -1,12 +1,17 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { ThreadsTaskPublicationService } from '../services/threads_task_publication.service';
+import { PENDING_THREADS_PACKAGES } from '../services/threads_pending_release.service';
 
 const hash = 'e7d8c1f2f9cf4f7e3ca1ad6fb05e55153c2153739b3fcdf280e519f574b7f7a6';
 const schedule = new Date('2026-09-22T17:00:00.000Z');
 
-function harness(ready = true, taskId: 953 | 966 | 997 | 1029 = 953) {
-    const spec = taskId === 953
+function harness(ready = true, taskId: 953 | 966 | 997 | 1029 | 1021 | 1026 = 953) {
+    const spec = taskId === 1021 || taskId === 1026
+        ? { revision: 1, hash: PENDING_THREADS_PACKAGES[taskId].bodySha256,
+            decisionId: PENDING_THREADS_PACKAGES[taskId].decisionId,
+            schedule: new Date(PENDING_THREADS_PACKAGES[taskId].schedule), body: `accepted task ${taskId}` }
+        : taskId === 953
         ? { revision: 4, hash, decisionId: 149, schedule, body: 'short body' }
         : taskId === 966 ? { revision: 1, hash: '83dd0fe0b2b354898b9fd3e5161d5ab05517c4c2b2304862d74c949ce1e2b123',
             decisionId: 142, schedule: new Date('2026-09-26T18:00:00.000Z'), body: 'task 966 body' }
@@ -35,7 +40,7 @@ function harness(ready = true, taskId: 953 | 966 | 997 | 1029 = 953) {
                 publication_authorized: true } }),
             create: async (e: any) => { events.push(e); return e; } },
         artDirectionDecision: { findFirst: async ({ where }: any) => {
-            assert.equal(where.channel, taskId === 997 || taskId === 1029 ? 'threads' : 'innokenty_threads');
+            assert.equal(where.channel, [997, 1029, 1021, 1026].includes(taskId) ? 'threads' : 'innokenty_threads');
             return { id: spec.decisionId, decision_version: 2 };
         } },
         projectMember: { findFirst: async () => ({ user_id: 2 }) },
@@ -72,6 +77,16 @@ function genericHarness(ready = true) {
         facts: { record: async () => ({}) } });
     return { service, get providerCalls() { return providerCalls; } };
 }
+
+test('owner released 1021 and 1026 use native API once and replay without sending', async () => {
+    for (const taskId of [1021, 1026] as const) {
+        const h = harness(true, taskId);
+        assert.equal((await h.service.execute({ projectId: 10, taskId, dryRun: true })).live_publish_supported, true);
+        await h.service.execute({ projectId: 10, taskId, idempotencyKey: `send-${taskId}` });
+        await h.service.execute({ projectId: 10, taskId, idempotencyKey: `send-${taskId}` });
+        assert.equal(h.calls, 1);
+    }
+});
 
 test('generic Threads dry-run resolves canonical task, channel, revision, and identity without owner release', async () => {
     const h = genericHarness();

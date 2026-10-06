@@ -118,6 +118,14 @@ class ThreadsService {
             `${API}/${encodeURIComponent(postId)}?fields=${encodeURIComponent('id,text,username,permalink,timestamp,media_type,has_replies')}`, token);
     }
 
+    async getOwnPosts(token: string, userId: string, after?: string) {
+        const params = new URLSearchParams({ fields: 'id,text,permalink,timestamp,username', limit: '100' });
+        if (after) params.set('after', after);
+        const result = await this.request<ThreadsPage>('read_own_posts',
+            `${API}/${encodeURIComponent(userId)}/threads?${params}`, token);
+        return { items: result.data || [], after: result.paging?.cursors?.after || null };
+    }
+
     async getReplies(token: string, postId: string, args: {
         mode?: 'replies' | 'conversation'; reverse?: boolean; limit?: number; after?: string;
     } = {}) {

@@ -9,6 +9,7 @@ import { asToolResult } from './common';
 import { releaseLinkedInTask1075 } from '../../services/linkedin_task1075_release.service';
 import { claimXBrowserPublication, releaseXTask1025 } from '../../services/x_task1025_release.service';
 import { releaseXTask1079 } from '../../services/x_task1079_release.service';
+import { releasePendingThreadsTask } from '../../services/threads_pending_release.service';
 import { claimVkBrowserPublication, releaseVkBrowserTaskWithPrisma } from '../../services/vk_browser_owner_release.service';
 import {
     confirmVkBrowserSubmissionWithPrisma,
@@ -179,6 +180,14 @@ export function registerReleaseControlTools(server: McpServer): void {
             approvalReference: z.string().min(10), idempotencyKey: z.string().min(1)
         }
     }, async (args) => asToolResult(await releaseXTask1079(args)));
+
+    server.registerTool('ba_release_pending_threads_task', {
+        description: 'Owner-only audited release of the fixed accepted rev1 packages for Threads tasks 1021 and 1026. Verifies provider identity and history guards; does not publish.',
+        inputSchema: {
+            projectId: z.literal(10), taskId: z.union([z.literal(1021), z.literal(1026)]),
+            actorId: z.string(), approvalReference: z.string().min(10), idempotencyKey: z.string().min(1)
+        }
+    }, async args => asToolResult(await releasePendingThreadsTask(args)));
 
     server.registerTool('ba_claim_x_browser_publication', {
         description: 'Publisher claim for owner-released Personal X tasks 1025 or 1079 on project 10/channel 164.',
