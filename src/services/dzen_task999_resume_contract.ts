@@ -1,5 +1,6 @@
 export const DZEN999 = {
     taskId: 999, projectId: 10, channelId: 116, revision: 2, assetId: 114,
+    artifactKind: 'article',
     draftId: '6ac547ad5113b334aeff83d2',
     providerImageId: '6ac547c237e6ee15c5d71fc5',
     publisherId: '6a8029aba055ec36033bf81c',

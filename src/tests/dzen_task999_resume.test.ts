@@ -15,6 +15,7 @@ test('exact draft resume orchestration is available without the full composer', 
 });
 
 test('existing Dzen999 resume requires exact cover, body, unpublished draft and final stage', () => {
+    assert.equal(DZEN999.artifactKind, 'article');
     assert.doesNotThrow(() => assertDzen999Proof(proof));
     const changes: Partial<Dzen999Proof>[] = [{ draftId: 'different' }, { bodyMatches: false },
         { coverSha: 'different' }, { coverId: 'different' }, { title: 'different' },

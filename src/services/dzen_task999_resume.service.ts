@@ -87,7 +87,7 @@ export async function resumeDzenTask999(args: { projectId: number; taskId: numbe
             actor_id: args.actorId, command: 'dzen999_existing_draft_provider_confirmed',
             idempotency_key: DZEN999.key, after_state: publication
         } });
-        await facts.record({ projectId: 10, taskId: 999, actorId: args.actorId, artifactKind: 'post', outcome: 'published',
+        await facts.record({ projectId: 10, taskId: 999, actorId: args.actorId, artifactKind: DZEN999.artifactKind, outcome: 'published',
             publicUrl: publication.public_url!, providerObjectId: DZEN999.draftId,
             publishedAt: publication.published_at!, confirmationMode: 'automatic',
             evidence: { type: 'public_url', ref: publication.public_url! },
