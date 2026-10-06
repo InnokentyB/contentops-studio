@@ -25,3 +25,10 @@ After a claimed resume, all further resume calls are blocked, including after an
 uncertain response or fact-write failure. Reconcile the existing provider object;
 do not reuse the full publication route or remove the gate manually. Reverting
 this code disables the capability but must not revert audit events or facts.
+
+If a desktop catalog is stale, the configured publisher-profile SDK client can
+run a preview without exposing secrets:
+`railway run --service planner-mcp node scripts/resume_dzen999_publisher.js`.
+Only the designated SMM sender adds `--confirm`, once, after preview passes.
+The script reads the existing `MCP_PUBLISHER_AUTH_TOKEN` in memory and connects
+only to the canonical scoped publisher endpoint; it does not bypass MCP auth.
