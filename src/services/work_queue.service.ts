@@ -3,6 +3,11 @@ import { Prisma } from '@prisma/client';
 import prisma from '../db';
 import artDirectionService from './art_direction.service';
 import { assertContentReviewInput } from './content_review_gate';
+import {
+    CLAIM_EVIDENCE_CONTRACT_VERSION,
+    ClaimEvidenceInput,
+    evaluateClaimEvidence
+} from './claim_evidence_contract';
 import { WorkQueueScope, DbClient } from './work_queue/types';
 import { requireProjectAccess, assertProjectAccess as _assertProjectAccess, requireProjectOwner, bindServiceIdentity, unbindServiceIdentity, listServiceBindings } from './work_queue/auth';
 import { checkIdempotency, recordWorkflowEvent } from './work_queue/infrastructure';
@@ -311,7 +316,12 @@ export class WorkQueueService {
         projectId: number; actorId: string; workItemId: number;
         expectedResultVersion: number; expectedContentRevision: number;
         leaseToken: string;
-        result: { recommendation: 'approve' | 'revise'; summary: string; findings?: string[] };
+        result: {
+            recommendation: 'approve' | 'revise';
+            summary: string;
+            findings?: string[];
+            claimEvidence?: ClaimEvidenceInput;
+        };
         idempotencyKey: string;
     }): Promise<Record<string, unknown>> {
         return prisma.$transaction(async (tx) => {
@@ -345,6 +355,24 @@ export class WorkQueueService {
                 || !item.lease_expires_at || item.lease_expires_at < now) {
                 throw new Error('[CONTENT_REVIEW_INVALID_LEASE] Active reviewer-owned lease required');
             }
+            if (params.result.recommendation === 'approve' && !params.result.claimEvidence) {
+                throw new Error('[CLAIM_EVIDENCE_REVIEW_REQUIRED] New approval recommendations require a claim-evidence assessment');
+            }
+            const claimEvidence = params.result.claimEvidence
+                ? evaluateClaimEvidence(params.result.claimEvidence, params.expectedContentRevision)
+                : null;
+            if (params.result.recommendation === 'approve' && claimEvidence?.alignment_status !== 'aligned') {
+                throw new Error(`[CLAIM_EVIDENCE_MISMATCH] ${(claimEvidence?.issue_codes || []).join(',')}`);
+            }
+            const persistedResult = {
+                recommendation: params.result.recommendation,
+                summary: params.result.summary,
+                ...(params.result.findings ? { findings: params.result.findings } : {}),
+                ...(claimEvidence ? {
+                    claim_evidence_contract_version: CLAIM_EVIDENCE_CONTRACT_VERSION,
+                    claim_evidence: claimEvidence
+                } : {})
+            };
             const nextVersion = item.result_version + 1;
             const updated = await tx.workItem.updateMany({
                 where: {
@@ -356,13 +384,23 @@ export class WorkQueueService {
                 },
                 data: {
                     state: 'waiting_approval', result_version: nextVersion,
-                    result_payload: params.result as Prisma.InputJsonValue,
+                    result_payload: persistedResult as Prisma.InputJsonValue,
                     lease_token: null, lease_expires_at: null, lease_actor_id: null
                 }
             });
             if (updated.count !== 1) throw new Error('[CONTENT_REVIEW_SUBMIT_CONFLICT] Review changed concurrently');
-            const result = { work_item: { id: item.id, state: 'waiting_approval', result_version: nextVersion },
-                content_revision: params.expectedContentRevision };
+            const result = {
+                work_item: { id: item.id, state: 'waiting_approval', result_version: nextVersion },
+                content_revision: params.expectedContentRevision,
+                ...(claimEvidence ? { claim_evidence: {
+                    contract_version: claimEvidence.contract_version,
+                    claim_stage: claimEvidence.claim_stage,
+                    evidence_status: claimEvidence.evidence_status,
+                    alignment_status: claimEvidence.alignment_status,
+                    issue_codes: claimEvidence.issue_codes,
+                    evidence_count: claimEvidence.evidence_refs.length
+                } } : {})
+            };
             await recordWorkflowEvent(tx, {
                 projectId: params.projectId, workItemId: item.id,
                 actorId: params.actorId, command, idempotencyKey: params.idempotencyKey,
@@ -414,6 +452,16 @@ export class WorkQueueService {
 
             if (item.result_version !== params.resultVersion) {
                 throw new Error(`[STALE_RESULT_VERSION] Cannot decide on version ${params.resultVersion}; current item version is ${item.result_version}`);
+            }
+
+            const resultPayload = (item.result_payload || {}) as {
+                claim_evidence_contract_version?: unknown;
+                claim_evidence?: { alignment_status?: unknown };
+            };
+            if (params.decision === 'approved'
+                && resultPayload.claim_evidence_contract_version === CLAIM_EVIDENCE_CONTRACT_VERSION
+                && resultPayload.claim_evidence?.alignment_status !== 'aligned') {
+                throw new Error('[CLAIM_EVIDENCE_REVIEW_UNRESOLVED] Resolve claim-evidence findings before approval');
             }
 
             if (params.decision === 'rejected' && (!params.comment || !params.comment.trim())) {

@@ -3,6 +3,12 @@ import assert from 'node:assert/strict';
 import prisma from '../db';
 import workQueueService from '../services/work_queue.service';
 
+const alignedClaimEvidence = {
+    claimStage: 'hypothesis' as const,
+    evidenceStatus: 'not_required' as const,
+    evidenceRefs: []
+};
+
 test('reviewer lease submits a revision-bound result for approval and rejects cross-kind reuse', async () => {
     const db = prisma as any;
     const originalTransaction = db.$transaction;
@@ -48,16 +54,19 @@ test('reviewer lease submits a revision-bound result for approval and rejects cr
         assert.equal(events.length, 1);
         const submitted = await workQueueService.submitContentReview({
             ...base, leaseToken: claim.lease_token as string,
-            result: { recommendation: 'approve', summary: 'Revision checked' },
+            result: { recommendation: 'approve', summary: 'Revision checked', claimEvidence: alignedClaimEvidence },
             idempotencyKey: 'submit-944'
         });
         assert.deepEqual(submitted.work_item, { id: 944, state: 'waiting_approval', result_version: 2 });
         assert.equal(item.result_payload.summary, 'Revision checked');
+        assert.equal(item.result_payload.claim_evidence_contract_version, 1);
+        assert.equal(item.result_payload.claim_evidence.alignment_status, 'aligned');
+        assert.equal((submitted.claim_evidence as any).evidence_count, 0);
         assert.equal(item.lease_token, null);
         assert.equal(events.length, 2);
         const replay = await workQueueService.submitContentReview({
             ...base, leaseToken: claim.lease_token as string,
-            result: { recommendation: 'approve', summary: 'Revision checked' },
+            result: { recommendation: 'approve', summary: 'Revision checked', claimEvidence: alignedClaimEvidence },
             idempotencyKey: 'submit-944'
         });
         assert.deepEqual(replay.work_item, submitted.work_item);
@@ -68,6 +77,73 @@ test('reviewer lease submits a revision-bound result for approval and rejects cr
             ...base, idempotencyKey: 'cross-kind'
         }), /CONTENT_REVIEW_ROLE_MISMATCH/);
         assert.equal(events.length, 2);
+    } finally {
+        db.$transaction = originalTransaction;
+    }
+});
+
+test('new approval recommendations require an aligned claim-evidence report', async () => {
+    const db = prisma as any;
+    const originalTransaction = db.$transaction;
+    const item: any = {
+        id: 1001, project_id: 10, kind: 'content_review', assignee_role: 'content_reviewer',
+        state: 'claimed', result_version: 1, content_item_id: 980,
+        content_item: { id: 980, content_revision: 3 },
+        lease_token: 'lease-1001', lease_actor_id: 'user:7',
+        lease_expires_at: new Date(Date.now() + 60_000)
+    };
+    let updates = 0;
+    const tx = {
+        project: { findUnique: async () => ({ id: 10 }) },
+        projectMember: { findUnique: async () => ({ id: 1 }) },
+        workflowEvent: { findFirst: async () => null, create: async () => ({}) },
+        workItem: {
+            findFirst: async () => ({ ...item }),
+            updateMany: async ({ data }: any) => { updates += 1; Object.assign(item, data); return { count: 1 }; }
+        }
+    };
+    db.$transaction = async (callback: any) => callback(tx);
+    const base = { projectId: 10, actorId: 'user:7', workItemId: 1001,
+        expectedResultVersion: 1, expectedContentRevision: 3, leaseToken: 'lease-1001' };
+    try {
+        await assert.rejects(workQueueService.submitContentReview({
+            ...base, result: { recommendation: 'approve', summary: 'Looks fine' },
+            idempotencyKey: 'missing-evidence-contract'
+        }), /CLAIM_EVIDENCE_REVIEW_REQUIRED/);
+        await assert.rejects(workQueueService.submitContentReview({
+            ...base, result: { recommendation: 'approve', summary: 'Looks fine', claimEvidence: {
+                claimStage: 'verified_result', evidenceStatus: 'missing', evidenceRefs: []
+            } }, idempotencyKey: 'misaligned-evidence-contract'
+        }), /CLAIM_EVIDENCE_MISMATCH/);
+        assert.equal(updates, 0);
+    } finally {
+        db.$transaction = originalTransaction;
+    }
+});
+
+test('owner approval cannot bypass an unresolved versioned claim-evidence report', async () => {
+    const db = prisma as any;
+    const originalTransaction = db.$transaction;
+    let decisions = 0;
+    const tx = {
+        project: { findUnique: async () => ({ id: 10 }) },
+        projectMember: { findUnique: async () => ({ id: 1 }) },
+        workflowEvent: { findFirst: async () => null },
+        workItem: { findFirst: async () => ({
+            id: 1002, project_id: 10, kind: 'content_review', assignee_role: 'content_reviewer',
+            state: 'waiting_approval', result_version: 2, content_item_id: 980,
+            result_payload: { recommendation: 'approve', claim_evidence_contract_version: 1,
+                claim_evidence: { alignment_status: 'revise', issue_codes: ['VERIFIED_RESULT_EVIDENCE_REQUIRED'] } }
+        }) },
+        approvalDecision: { create: async () => { decisions += 1; return {}; } }
+    };
+    db.$transaction = async (callback: any) => callback(tx);
+    try {
+        await assert.rejects(workQueueService.decideApproval({
+            projectId: 10, actorId: 'user:7', workItemId: 1002, resultVersion: 2,
+            decision: 'approved', idempotencyKey: 'cannot-bypass-evidence'
+        }), /CLAIM_EVIDENCE_REVIEW_UNRESOLVED/);
+        assert.equal(decisions, 0);
     } finally {
         db.$transaction = originalTransaction;
     }
