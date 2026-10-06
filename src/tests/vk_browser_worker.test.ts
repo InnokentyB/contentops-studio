@@ -350,7 +350,10 @@ test('VK browser submit starts one durable attempt, verifies exact readback, the
     const trace: string[] = [];
     const acceptedText = 'Accepted VK publication text';
     const ui = {
-        navigate: async () => { trace.push('navigate'); },
+        navigate: async (url: string) => {
+            assert.equal(url, 'https://vk.com/club240051152');
+            trace.push('navigate');
+        },
         loginRequired: async () => false,
         openWallComposer: async () => { trace.push('open'); },
         setPostText: async (text: string) => {
@@ -396,7 +399,7 @@ test('VK browser submit starts one durable attempt, verifies exact readback, the
     });
 
     assert.deepEqual(trace, [
-        'navigate', 'start', 'open', 'text', 'upload', 'screenshot',
+        'navigate', 'open', 'text', 'start', 'upload', 'screenshot',
         'submit', 'readback', 'confirm'
     ]);
     assert.equal(result.status, 'confirmed_published');
@@ -437,6 +440,43 @@ test('VK browser submit freezes an ambiguous provider result and never confirms 
     assert.equal(confirmed, false);
 });
 
+test('VK browser composer failure happens before a durable attempt or provider upload', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vk-worker-pre-provider-'));
+    const imagePath = path.join(root, 'approved.png');
+    fs.writeFileSync(imagePath, 'approved-image');
+    const calls: string[] = [];
+
+    await assert.rejects(
+        submitVkBrowserPublication(submitFixture(imagePath), {
+            approvedAssetRoots: [root],
+            evidenceDir: path.join(root, 'evidence'),
+            ui: {
+                navigate: async () => { calls.push('navigate'); },
+                loginRequired: async () => false,
+                openWallComposer: async () => {
+                    calls.push('composer');
+                    throw new Error('[VK_BROWSER_COMPOSER_NOT_FOUND]');
+                },
+                setPostText: async () => { calls.push('text'); },
+                attachImage: async () => { calls.push('upload'); },
+                captureScreenshot: async () => { calls.push('screenshot'); },
+                submitPost: async () => { calls.push('submit'); },
+                readbackPost: async () => null
+            },
+            control: {
+                start: async () => {
+                    calls.push('start');
+                    return { status: 'started' as const, attempt_id: 79 };
+                },
+                confirm: async () => ({ publication_fact_id: 1 }),
+                markUncertain: async () => { calls.push('uncertain'); }
+            }
+        }),
+        /VK_BROWSER_COMPOSER_NOT_FOUND/
+    );
+    assert.deepEqual(calls, ['navigate', 'composer']);
+});
+
 test('VK browser submit never retries an existing unresolved provider attempt', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vk-worker-no-retry-'));
     const imagePath = path.join(root, 'approved.png');
@@ -473,7 +513,7 @@ test('VK browser submit never retries an existing unresolved provider attempt', 
         }),
         /VK_BROWSER_EXISTING_ATTEMPT_REQUIRES_RECONCILIATION/
     );
-    assert.deepEqual(calls, ['navigate']);
+    assert.deepEqual(calls, ['navigate', 'composer', 'text']);
 });
 
 test('CLI prepare-only runs locally without opening Chrome or requiring an MCP token', async () => {

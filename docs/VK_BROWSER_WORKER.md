@@ -12,7 +12,8 @@ readback.
 - Planner remains the control plane and source of the accepted revision.
 - The job must name the exact project, task, channel, revision and selected asset.
 - The worker accepts only `https://vk.com/...` targets and canonical negative
-  VK community IDs.
+  VK community IDs. Submit resolves the final community path from that numeric
+  ID, so a stale vanity alias cannot redirect the worker to a different page.
 - Local images must be inside an explicitly configured approved asset root.
 - Approved HTTPS assets are downloaded with the same size, type, redirect and
   private-host protections as the VK API adapter.
@@ -22,7 +23,9 @@ readback.
 - The result contains hashes and screenshot evidence, not publication text,
   cookies or browser storage.
 - The first provider-side upload happens only after a durable delivery attempt
-  exists. Any ambiguous submit or readback freezes that attempt and forbids retry.
+- Opening the composer and verifying the exact text happen before the durable
+  attempt. The attempt starts immediately before the first image upload; any
+  ambiguous upload, submit or readback freezes it and forbids automatic retry.
 - Only one exact `wall<owner_id>_<post_id>` permalink with matching accepted text
   and visual may create the publication fact.
 
@@ -134,3 +137,11 @@ file or Planner.
 Prepare success is `status: prepared_not_submitted`. Submit success is
 `status: confirmed_published` with the canonical permalink and publication fact
 ID. A button click alone is never reported as success.
+
+If an older worker already created an attempt and then stopped before the
+composer opened, the project owner must first run
+`ba_preview_vk_browser_pre_provider_recovery` and then apply that exact preview
+with `ba_apply_vk_browser_pre_provider_recovery`. The recovery keeps the failed
+attempt in history, writes an immutable audit event, creates no publication fact,
+and does not contact VK. A new public submit still requires a separate explicit
+owner confirmation.
