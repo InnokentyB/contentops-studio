@@ -24,6 +24,29 @@ import {
 } from './helpers';
 
 export default async function projectChannelsRoutes(fastify: FastifyInstance) {
+    // Resolve a new Threads channel identity before the channel (and its encrypted token) exists.
+    // This endpoint never persists the supplied token.
+    fastify.post('/api/projects/:id/channels/test-connection', async (request, reply) => {
+        const user = (request as unknown as { user: AuthenticatedUser }).user;
+        const { id } = request.params as { id: string };
+        const projectId = parseInt(id, 10);
+        const body = request.body as { type?: unknown; config?: { access_token?: unknown } } | undefined;
+        const hasAccess = await authService.hasProjectAccess(user.id, projectId, 'owner');
+        if (!hasAccess) return reply.code(403).send({ error: 'No access' });
+        if (body?.type !== 'threads') {
+            return reply.code(400).send({ error: 'Draft connection test is supported only for Threads' });
+        }
+        const token = typeof body.config?.access_token === 'string' ? body.config.access_token.trim() : '';
+        if (!token) {
+            return reply.code(400).send({ error: 'Access token is required to test Threads connection', code: 'THREADS_TOKEN_REQUIRED' });
+        }
+        const result = await threadsService.testConnection({ access_token: token });
+        if (!result.success) {
+            return reply.code(400).send({ error: result.error || 'Failed to connect to Threads', code: 'THREADS_CONNECTION_TEST_FAILED' });
+        }
+        return { success: true, result: result.details };
+    });
+
     // Add channel
     fastify.post('/api/projects/:id/channels', async (request, reply) => {
         const user = (request as unknown as { user: AuthenticatedUser }).user;

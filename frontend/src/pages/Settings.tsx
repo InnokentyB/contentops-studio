@@ -571,6 +571,7 @@ export default function Settings() {
     const [newChannelId, setNewChannelId] = useState('')
     const [newChannelUsername, setNewChannelUsername] = useState('')
     const [newChannelApiKey, setNewChannelApiKey] = useState('')
+    const [newThreadsConnectionFeedback, setNewThreadsConnectionFeedback] = useState<string | null>(null)
     const [newChannelWorkflowMode, setNewChannelWorkflowMode] = useState<'prepare_only' | 'manual_handoff' | 'approval_required' | 'auto_publish'>('approval_required')
     const [newChannelContentLanguage, setNewChannelContentLanguage] = useState<'ru' | 'en'>('ru')
     const [linkedinConnecting, setLinkedinConnecting] = useState(false)
@@ -864,6 +865,25 @@ export default function Settings() {
             setConnectionTestFeedback({ channelId, type: 'error', message })
             showToast(locale === 'ru' ? 'Проверка подключения не прошла' : 'Connection check failed', 'error', message)
         }
+    })
+
+    const testNewThreadsConnection = useMutation({
+        mutationFn: () => projectsApi.testDraftChannelConnection(currentProject!.id, 'threads', {
+            access_token: newChannelApiKey
+        }),
+        onMutate: () => setNewThreadsConnectionFeedback(null),
+        onSuccess: (response: ApiJson) => {
+            if (!response?.result?.id) {
+                setNewThreadsConnectionFeedback(locale === 'ru' ? 'Threads API не вернул User ID.' : 'Threads API did not return a User ID.')
+                return
+            }
+            setNewChannelId(response.result.id)
+            const profile = response.result.username ? `@${response.result.username}` : response.result.id
+            setNewThreadsConnectionFeedback(
+                locale === 'ru' ? `Профиль найден: ${profile}. User ID заполнен автоматически.` : `Profile found: ${profile}. User ID was filled automatically.`
+            )
+        },
+        onError: (error: Error) => setNewThreadsConnectionFeedback(error.message)
     })
 
     const connectVk = useMutation({
@@ -1681,6 +1701,7 @@ export default function Settings() {
                             <select value={newChannelType} onChange={(e: ApiJson) => {
                                 const nextType = e.target.value;
                                 setNewChannelType(nextType);
+                                setNewThreadsConnectionFeedback(null);
                                 if (nextType === 'zen') setNewChannelWorkflowMode('auto_publish');
                                 if (nextType === 'medium') {
                                     setNewChannelWorkflowMode('manual_handoff');
@@ -1955,9 +1976,10 @@ export default function Settings() {
                                     <div>
                                         <label>Threads User ID</label>
                                         <input
-                                            placeholder="e.g. 123456789012345"
+                                            placeholder={locale === 'ru' ? 'ID будет определён по токену' : 'ID will be resolved from the token'}
                                             value={newChannelId}
                                             onChange={e => setNewChannelId(e.target.value)}
+                                            readOnly
                                         />
                                     </div>
                                     <div>
@@ -1966,8 +1988,29 @@ export default function Settings() {
                                             type="password"
                                             placeholder="Token..."
                                             value={newChannelApiKey}
-                                            onChange={e => setNewChannelApiKey(e.target.value)}
+                                            onChange={e => {
+                                                setNewChannelApiKey(e.target.value)
+                                                setNewChannelId('')
+                                                setNewThreadsConnectionFeedback(null)
+                                            }}
                                         />
+                                    </div>
+                                    <div style={{ gridColumn: '1 / -1' }}>
+                                        <button
+                                            type="button"
+                                            className="btn-secondary w-full"
+                                            disabled={!newChannelApiKey || testNewThreadsConnection.isPending}
+                                            onClick={() => testNewThreadsConnection.mutate()}
+                                        >
+                                            {testNewThreadsConnection.isPending
+                                                ? (locale === 'ru' ? 'Проверяем Threads…' : 'Checking Threads…')
+                                                : (locale === 'ru' ? 'Проверить и определить профиль' : 'Test and resolve profile')}
+                                        </button>
+                                        {newThreadsConnectionFeedback && (
+                                            <p role="status" className="text-muted" style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>
+                                                {newThreadsConnectionFeedback}
+                                            </p>
+                                        )}
                                     </div>
                                 </>
                             ) : newChannelType === 'medium' ? (

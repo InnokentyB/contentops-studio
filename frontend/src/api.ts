@@ -210,6 +210,8 @@ export const projectsApi = {
         api.post(`/api/projects/${projectId}/channels/${channelId}/auto-canvas-generate`, { limit }),
     testChannelConnection: (projectId: number, channelId: number, config?: Record<string, unknown>) =>
         api.post(`/api/projects/${projectId}/channels/${channelId}/test-connection`, { config }),
+    testDraftChannelConnection: (projectId: number, type: 'threads', config: Record<string, unknown>) =>
+        api.post(`/api/projects/${projectId}/channels/test-connection`, { type, config }),
     update: (id: number, data: { name: string; description: string }) => api.put(`/api/projects/${id}`, data),
     addMember: (id: number, email: string, role: string) => api.post(`/api/projects/${id}/members`, { email, role }),
     removeMember: (id: number, userId: number) => api.delete(`/api/projects/${id}/members/${userId}`)
