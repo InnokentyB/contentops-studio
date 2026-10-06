@@ -57,7 +57,8 @@ test('recovery exposes the current content revision as a separately approvable r
         acceptedRevision: 1,
         textState: 'accepted',
         reviewResultVersion: 1,
-        currentRevisionAlreadyApproved: false
+        currentRevisionDecision: null,
+        submittedReviewAvailable: false
     }), {
         needsRecovery: true,
         textState: 'draft',
@@ -74,7 +75,8 @@ test('recovery is idempotent after the current revision has already been approve
         acceptedRevision: 2,
         textState: 'accepted',
         reviewResultVersion: 2,
-        currentRevisionAlreadyApproved: true
+        currentRevisionDecision: 'approved',
+        submittedReviewAvailable: false
     }), {
         needsRecovery: false,
         textState: 'accepted',
@@ -85,13 +87,50 @@ test('recovery is idempotent after the current revision has already been approve
     });
 });
 
-test('approval collision requires a fresh revision-bound review item', () => {
+test('a submitted review collision advances to a new decision version without another review pass', () => {
     assert.deepEqual(planContentReviewRecovery({
         contentRevision: 2,
         acceptedRevision: null,
         textState: 'draft',
         reviewResultVersion: 2,
-        currentRevisionAlreadyApproved: true
+        currentRevisionDecision: 'rejected',
+        submittedReviewAvailable: true
+    }), {
+        needsRecovery: true,
+        textState: 'draft',
+        acceptedRevision: null,
+        reviewState: 'waiting_approval',
+        reviewResultVersion: 3,
+        replacementReviewRequired: false
+    });
+});
+
+test('a recovered submitted review is idempotent while awaiting the owner decision', () => {
+    assert.deepEqual(planContentReviewRecovery({
+        contentRevision: 2,
+        acceptedRevision: null,
+        textState: 'draft',
+        reviewResultVersion: 3,
+        currentRevisionDecision: null,
+        submittedReviewAvailable: true
+    }), {
+        needsRecovery: false,
+        textState: 'draft',
+        acceptedRevision: null,
+        reviewState: 'waiting_approval',
+        reviewResultVersion: 3,
+        replacementReviewRequired: false
+    });
+});
+
+test('a collision without a submitted result still requires a fresh revision-bound review item', () => {
+    assert.deepEqual(planContentReviewRecovery({
+        contentRevision: 2,
+        acceptedRevision: null,
+        textState: 'draft',
+        reviewResultVersion: 2,
+        currentRevisionDecision: 'rejected',
+        submittedReviewAvailable: false
     }), {
         needsRecovery: true,
         textState: 'draft',
