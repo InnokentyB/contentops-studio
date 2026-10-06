@@ -13,6 +13,7 @@ export interface VkBrowserJob {
     target: {
         community_url: string;
         placement: 'wall_post';
+        community_id?: number;
     };
     payload: {
         text: string;
@@ -27,8 +28,22 @@ export interface VkBrowserJob {
         selected_asset_id?: number | null;
     };
     execution: {
-        mode: 'prepare_only';
+        mode: 'prepare_only' | 'submit';
+        authorization?: {
+            work_item_id: number;
+            lease_token: string;
+            approval_reference: string;
+            attempt_idempotency_key: string;
+        };
     };
+}
+
+export interface VkBrowserReadback {
+    public_url: string;
+    provider_object_id: string;
+    published_at: string;
+    text: string;
+    image_present: boolean;
 }
 
 export interface VkBrowserUi {
@@ -38,14 +53,31 @@ export interface VkBrowserUi {
     setPostText(text: string): Promise<void>;
     attachImage(imagePath: string): Promise<void>;
     captureScreenshot(screenshotPath: string): Promise<void>;
+    submitPost?(): Promise<void>;
+    readbackPost?(): Promise<VkBrowserReadback | null>;
 }
 
-interface PrepareDependencies {
-    ui: VkBrowserUi;
+interface SharedDependencies {
+    ui?: VkBrowserUi;
     approvedAssetRoots: string[];
     evidenceDir: string;
     now?: () => Date;
     loadRemoteImage?: (url: string) => Promise<{ buffer: Buffer; filename: string }>;
+}
+
+export interface VkBrowserSubmissionControl {
+    start(args: Record<string, unknown>): Promise<
+        { status: 'started'; attempt_id: number }
+        | { status: 'confirmed'; attempt_id: number; publication_fact_id: number; public_url: string }
+        | { status: 'verification_required'; attempt_id: number; retry_allowed: false }
+    >;
+    confirm(args: Record<string, unknown>): Promise<{ publication_fact_id: number }>;
+    markUncertain(args: Record<string, unknown>): Promise<void>;
+}
+
+interface SubmitDependencies extends SharedDependencies {
+    ui: VkBrowserUi;
+    control: VkBrowserSubmissionControl;
 }
 
 function sha256(value: string | Buffer) {
@@ -84,7 +116,7 @@ function approvedImagePath(rawPath: string, roots: string[]) {
     return resolvedFile;
 }
 
-function assertJob(job: VkBrowserJob) {
+function assertBaseJob(job: VkBrowserJob) {
     if (job?.schema_version !== 1
         || !Number.isSafeInteger(job.project_id) || job.project_id <= 0
         || !Number.isSafeInteger(job.task_id) || job.task_id <= 0
@@ -92,11 +124,8 @@ function assertJob(job: VkBrowserJob) {
         || !job.job_id?.trim() || !job.idempotency_key?.trim()) {
         throw new Error('[VK_BROWSER_JOB_INVALID] Job identity is incomplete');
     }
-    if ((job.execution as any)?.mode !== 'prepare_only') {
-        throw new Error('[VK_BROWSER_SUBMIT_DISABLED] The MVP may prepare a post but cannot submit it');
-    }
     if (job.target?.placement !== 'wall_post') {
-        throw new Error('[VK_BROWSER_PLACEMENT_UNSUPPORTED] The MVP supports VK wall posts only');
+        throw new Error('[VK_BROWSER_PLACEMENT_UNSUPPORTED] The worker supports VK wall posts only');
     }
     if (job.approval?.text_state !== 'accepted'
         || !Number.isSafeInteger(job.approval.content_revision)
@@ -106,8 +135,24 @@ function assertJob(job: VkBrowserJob) {
     }
 }
 
-export async function prepareVkBrowserPublication(job: VkBrowserJob, dependencies: PrepareDependencies) {
-    assertJob(job);
+function assertSubmitAuthorization(job: VkBrowserJob) {
+    const authorization = job.execution?.authorization;
+    if (job.execution?.mode !== 'submit'
+        || !Number.isSafeInteger(job.target?.community_id)
+        || Number(job.target.community_id) >= 0
+        || !authorization
+        || !Number.isSafeInteger(authorization.work_item_id)
+        || authorization.work_item_id <= 0
+        || !authorization.lease_token?.trim()
+        || !authorization.approval_reference?.trim()
+        || !authorization.attempt_idempotency_key?.trim()) {
+        throw new Error('[VK_BROWSER_SUBMIT_AUTHORIZATION_REQUIRED] Owner-released active browser lease is required');
+    }
+    return authorization;
+}
+
+async function resolveBundle(job: VkBrowserJob, dependencies: SharedDependencies) {
+    assertBaseJob(job);
     const communityUrl = validatedTarget(job.target.community_url);
     const text = typeof job.payload?.text === 'string' ? job.payload.text.trim() : '';
     if (!text) throw new Error('[VK_BROWSER_TEXT_REQUIRED] Accepted publication text must not be empty');
@@ -148,19 +193,47 @@ export async function prepareVkBrowserPublication(job: VkBrowserJob, dependencie
         fs.writeFileSync(imagePath, imageBuffer, { mode: 0o600 });
         assetResolution = 'https_approved_asset';
     }
+    return {
+        communityUrl,
+        text,
+        textSha256: sha256(text),
+        imagePath,
+        imageSha256: imageBuffer ? sha256(imageBuffer) : null,
+        expectsImage,
+        assetResolution,
+        evidenceDir
+    };
+}
 
-    await dependencies.ui.navigate(communityUrl);
-    if (await dependencies.ui.loginRequired()) {
-        throw new Error('[VK_BROWSER_LOGIN_REQUIRED] Sign in to the dedicated VK browser profile and retry');
+function validateReadback(job: VkBrowserJob, bundle: Awaited<ReturnType<typeof resolveBundle>>, readback: VkBrowserReadback | null) {
+    if (!readback) throw new Error('[VK_BROWSER_READBACK_UNCONFIRMED] Provider object was not confirmed');
+    let publicUrl: URL;
+    try {
+        publicUrl = new URL(readback.public_url);
+    } catch {
+        throw new Error('[VK_BROWSER_READBACK_UNCONFIRMED] Provider permalink is invalid');
     }
-    await dependencies.ui.openWallComposer();
-    await dependencies.ui.setPostText(text);
-    if (imagePath) await dependencies.ui.attachImage(imagePath);
+    const match = /^\/wall(-\d+)_(\d+)$/.exec(publicUrl.pathname);
+    const expectedOwnerId = String(job.target.community_id);
+    const expectedObjectId = match ? `${match[1]}_${match[2]}` : '';
+    const publishedAt = new Date(readback.published_at);
+    if (publicUrl.protocol !== 'https:'
+        || !['vk.com', 'www.vk.com', 'vk.ru', 'www.vk.ru'].includes(publicUrl.hostname.toLowerCase())
+        || !match || match[1] !== expectedOwnerId
+        || readback.provider_object_id !== expectedObjectId
+        || !Number.isFinite(publishedAt.getTime())
+        || sha256(readback.text.trim()) !== bundle.textSha256
+        || (bundle.expectsImage && readback.image_present !== true)) {
+        throw new Error('[VK_BROWSER_READBACK_UNCONFIRMED] Exact accepted provider object was not confirmed');
+    }
+    return { ...readback, public_url: publicUrl.toString(), published_at: publishedAt.toISOString() };
+}
 
-    const screenshotName = `${sha256(job.job_id).slice(0, 16)}-prepared.png`;
-    const screenshotPath = path.join(evidenceDir, screenshotName);
-    await dependencies.ui.captureScreenshot(screenshotPath);
-
+export async function prepareVkBrowserPublication(job: VkBrowserJob, dependencies: SharedDependencies) {
+    if (job.execution?.mode !== 'prepare_only') {
+        throw new Error('[VK_BROWSER_PREPARE_MODE_REQUIRED] Prepare-only execution is required');
+    }
+    const bundle = await resolveBundle(job, dependencies);
     const preparedAt = (dependencies.now || (() => new Date()))().toISOString();
     return {
         schema_version: 1,
@@ -172,22 +245,108 @@ export async function prepareVkBrowserPublication(job: VkBrowserJob, dependencie
         status: 'prepared_not_submitted' as const,
         route_trace: {
             eligibility: 'accepted_revision',
-            session_target: new URL(communityUrl).hostname,
-            asset_resolution: assetResolution,
+            session_target: new URL(bundle.communityUrl).hostname,
+            asset_resolution: bundle.assetResolution,
             fallback_reason: 'vk_api_credentials_unavailable',
             final_adapter: 'vk_browser_local'
         },
         payload: {
-            text_sha256: sha256(text),
-            text_length: text.length,
-            image_sha256: imageBuffer ? sha256(imageBuffer) : null,
+            text_sha256: bundle.textSha256,
+            text_length: bundle.text.length,
+            image_sha256: bundle.imageSha256,
             selected_asset_id: job.approval.selected_asset_id || null,
             content_revision: job.approval.content_revision
         },
         evidence: {
             prepared_at: preparedAt,
-            screenshot_path: screenshotPath,
-            submitted: false
+            screenshot_path: null,
+            submitted: false,
+            provider_upload: false
         }
     };
+}
+
+export async function submitVkBrowserPublication(job: VkBrowserJob, dependencies: SubmitDependencies) {
+    const authorization = assertSubmitAuthorization(job);
+    const bundle = await resolveBundle(job, dependencies);
+    if (!dependencies.ui.submitPost || !dependencies.ui.readbackPost) {
+        throw new Error('[VK_BROWSER_SUBMIT_UI_REQUIRED] Submit and readback UI are required');
+    }
+
+    await dependencies.ui.navigate(bundle.communityUrl);
+    if (await dependencies.ui.loginRequired()) {
+        throw new Error('[VK_BROWSER_LOGIN_REQUIRED] Sign in to the dedicated VK browser profile and retry');
+    }
+    const started = await dependencies.control.start({
+        project_id: job.project_id,
+        task_id: job.task_id,
+        channel_id: job.channel_id,
+        work_item_id: authorization.work_item_id,
+        lease_token: authorization.lease_token,
+        approval_reference: authorization.approval_reference,
+        idempotency_key: authorization.attempt_idempotency_key,
+        content_revision: job.approval.content_revision,
+        text_sha256: bundle.textSha256,
+        image_sha256: bundle.imageSha256,
+        selected_asset_id: job.approval.selected_asset_id || null
+    });
+    if (started.status === 'confirmed') {
+        return {
+            status: 'confirmed_published' as const,
+            attempt_id: started.attempt_id,
+            publication_fact_id: started.publication_fact_id,
+            public_url: started.public_url,
+            replayed: true
+        };
+    }
+    if (started.status === 'verification_required') {
+        throw new Error('[VK_BROWSER_EXISTING_ATTEMPT_REQUIRES_RECONCILIATION] Existing provider attempt must be reconciled; automatic retry is forbidden');
+    }
+
+    try {
+        await dependencies.ui.openWallComposer();
+        await dependencies.ui.setPostText(bundle.text);
+        if (bundle.imagePath) await dependencies.ui.attachImage(bundle.imagePath);
+        const screenshotPath = path.join(bundle.evidenceDir, `${sha256(job.job_id).slice(0, 16)}-pre-submit.png`);
+        await dependencies.ui.captureScreenshot(screenshotPath);
+        const evidenceSha256 = sha256(fs.readFileSync(screenshotPath));
+        await dependencies.ui.submitPost();
+        const readback = validateReadback(job, bundle, await dependencies.ui.readbackPost());
+        const confirmed = await dependencies.control.confirm({
+            project_id: job.project_id,
+            task_id: job.task_id,
+            channel_id: job.channel_id,
+            work_item_id: authorization.work_item_id,
+            lease_token: authorization.lease_token,
+            approval_reference: authorization.approval_reference,
+            attempt_id: started.attempt_id,
+            public_url: readback.public_url,
+            provider_object_id: readback.provider_object_id,
+            published_at: readback.published_at,
+            text_sha256: bundle.textSha256,
+            image_sha256: bundle.imageSha256,
+            selected_asset_id: job.approval.selected_asset_id || null,
+            content_revision: job.approval.content_revision,
+            evidence_sha256: evidenceSha256,
+            idempotency_key: authorization.attempt_idempotency_key
+        });
+        return {
+            status: 'confirmed_published' as const,
+            attempt_id: started.attempt_id,
+            publication_fact_id: confirmed.publication_fact_id,
+            public_url: readback.public_url,
+            replayed: false
+        };
+    } catch (error: any) {
+        await dependencies.control.markUncertain({
+            project_id: job.project_id,
+            task_id: job.task_id,
+            work_item_id: authorization.work_item_id,
+            lease_token: authorization.lease_token,
+            attempt_id: started.attempt_id,
+            reason_code: String(error?.message || error).match(/^\[[A-Z0-9_]+\]/)?.[0] || '[VK_BROWSER_SUBMIT_UNCERTAIN]',
+            idempotency_key: authorization.attempt_idempotency_key
+        });
+        throw error;
+    }
 }

@@ -119,9 +119,12 @@ Run `ba_publish_publication_task` with `dryRun: true` before any live call and p
 
 When VK does not issue the required API permissions, the project includes a
 local Playwright worker that prepares an accepted wall post in a dedicated
-Chrome profile without pressing Publish. See [Local VK browser worker](VK_BROWSER_WORKER.md)
-for the private job format, profile isolation and evidence rules. This is a
-prepare-only fallback; it does not create a publication fact.
+Chrome profile. Prepare-only is fully local and does not open VK or upload
+media. Live execution requires the owner-only
+`ba_release_approved_vk_browser_task`, Publisher claim, one durable attempt and
+exact permalink readback before a publication fact can be recorded. See
+[Local VK browser worker](VK_BROWSER_WORKER.md) for the private job format,
+profile isolation, submit lease and no-retry rules.
 
 ## Revoke or rotate access
 

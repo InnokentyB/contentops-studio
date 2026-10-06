@@ -8,6 +8,12 @@ import { releaseDzenTaskWithPrisma } from '../../services/dzen_owner_release.ser
 import { asToolResult } from './common';
 import { releaseLinkedInTask1075 } from '../../services/linkedin_task1075_release.service';
 import { claimXBrowserPublication, releaseXTask1025 } from '../../services/x_task1025_release.service';
+import { claimVkBrowserPublication, releaseVkBrowserTaskWithPrisma } from '../../services/vk_browser_owner_release.service';
+import {
+    confirmVkBrowserSubmissionWithPrisma,
+    markVkBrowserSubmissionUncertainWithPrisma,
+    startVkBrowserSubmissionWithPrisma
+} from '../../services/vk_browser_submission_control.service';
 
 /**
  * Registers release publication execution and connector verification tools.
@@ -15,6 +21,73 @@ import { claimXBrowserPublication, releaseXTask1025 } from '../../services/x_tas
  * @param server - Target MCP server instance.
  */
 export function registerReleaseControlTools(server: McpServer): void {
+    server.registerTool('ba_release_approved_vk_browser_task', {
+        description: 'Project-owner audited release of one exact accepted VK feed revision to the local browser-publisher queue. It never opens VK, uploads media, publishes, or records a publication fact.',
+        inputSchema: {
+            projectId: z.number().int().positive(), taskId: z.number().int().positive(), actorId: z.string(),
+            expectedChannelId: z.number().int().positive(),
+            expectedContentRevision: z.number().int().positive(),
+            expectedAcceptedRevision: z.number().int().positive(),
+            expectedBodySha256: z.string().regex(/^[a-f0-9]{64}$/),
+            expectedSelectedAssetId: z.number().int().positive(),
+            expectedAssetSha256: z.string().regex(/^[a-f0-9]{64}$/),
+            expectedScheduleAt: z.string().datetime({ offset: true }),
+            expectedManifestChecksum: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+            approvalReference: z.string().min(10), idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await releaseVkBrowserTaskWithPrisma(args)));
+
+    server.registerTool('ba_claim_vk_browser_publication', {
+        description: 'Publisher claim for one owner-released VK browser work item. Returns a short-lived lease; it does not contact VK.',
+        inputSchema: {
+            projectId: z.number().int().positive(), actorId: z.string(),
+            workItemId: z.number().int().positive(), leaseSeconds: z.number().int().positive().optional(),
+            idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await claimVkBrowserPublication(args)));
+
+    server.registerTool('ba_start_vk_browser_submission', {
+        description: 'Durably starts one claimed VK browser delivery attempt immediately before any provider-side upload or submit. Existing attempts block retry.',
+        inputSchema: {
+            projectId: z.number().int().positive(), taskId: z.number().int().positive(),
+            channelId: z.number().int().positive(), actorId: z.string(),
+            workItemId: z.number().int().positive(), leaseToken: z.string().min(1),
+            approvalReference: z.string().min(10), idempotencyKey: z.string().min(1),
+            contentRevision: z.number().int().positive(),
+            textSha256: z.string().regex(/^[a-f0-9]{64}$/),
+            imageSha256: z.string().regex(/^[a-f0-9]{64}$/).nullable(),
+            selectedAssetId: z.number().int().positive().nullable()
+        }
+    }, async (args) => asToolResult(await startVkBrowserSubmissionWithPrisma(args)));
+
+    server.registerTool('ba_confirm_vk_browser_submission', {
+        description: 'Confirms a started VK browser attempt only from an exact provider permalink/object readback, then records the canonical publication fact.',
+        inputSchema: {
+            projectId: z.number().int().positive(), taskId: z.number().int().positive(),
+            channelId: z.number().int().positive(), actorId: z.string(),
+            workItemId: z.number().int().positive(), leaseToken: z.string().min(1),
+            approvalReference: z.string().min(10), idempotencyKey: z.string().min(1),
+            contentRevision: z.number().int().positive(),
+            textSha256: z.string().regex(/^[a-f0-9]{64}$/),
+            imageSha256: z.string().regex(/^[a-f0-9]{64}$/).nullable(),
+            selectedAssetId: z.number().int().positive().nullable(),
+            attemptId: z.number().int().positive(), publicUrl: z.string().url(),
+            providerObjectId: z.string().regex(/^-\d+_\d+$/),
+            publishedAt: z.string().datetime({ offset: true }),
+            evidenceSha256: z.string().regex(/^[a-f0-9]{64}$/)
+        }
+    }, async (args) => asToolResult(await confirmVkBrowserSubmissionWithPrisma(args)));
+
+    server.registerTool('ba_mark_vk_browser_submission_uncertain', {
+        description: 'Freezes a started VK browser attempt when submit or readback is ambiguous. It records no publication fact and never authorizes retry.',
+        inputSchema: {
+            projectId: z.number().int().positive(), taskId: z.number().int().positive(), actorId: z.string(),
+            workItemId: z.number().int().positive(), leaseToken: z.string().min(1),
+            attemptId: z.number().int().positive(), reasonCode: z.string().min(1),
+            idempotencyKey: z.string().min(1)
+        }
+    }, async (args) => asToolResult(await markVkBrowserSubmissionUncertainWithPrisma(args)));
+
     server.registerTool('ba_release_x_task1025_browser', {
         description: 'Owner-only exact audited release for project 10 Personal X task 1025. Creates one browser publication work item and never publishes.',
         inputSchema: {

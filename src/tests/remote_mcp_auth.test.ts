@@ -160,6 +160,7 @@ test('only the owner MCP profile discovers audited content review recovery', () 
     assert.ok(tools.includes('ba_repair_task1069_telegram_video_route'));
     assert.ok(tools.includes('ba_release_linkedin_task1075_browser'));
     assert.ok(tools.includes('ba_release_x_task1025_browser'));
+    assert.ok(tools.includes('ba_release_approved_vk_browser_task'));
 });
 
 test('editor, publisher and growth profiles expose only their governed lifecycle tools', () => {
@@ -173,6 +174,10 @@ test('editor, publisher and growth profiles expose only their governed lifecycle
     assert.ok(publisherTools.includes('ba_prepare_publication_task'));
     assert.ok(publisherTools.includes('ba_claim_linkedin_browser_publication'));
     assert.ok(publisherTools.includes('ba_claim_x_browser_publication'));
+    assert.ok(publisherTools.includes('ba_claim_vk_browser_publication'));
+    assert.ok(publisherTools.includes('ba_start_vk_browser_submission'));
+    assert.ok(publisherTools.includes('ba_confirm_vk_browser_submission'));
+    assert.ok(publisherTools.includes('ba_mark_vk_browser_submission_uncertain'));
     assert.ok(!publisherTools.includes('ba_claim_work_item'));
     assert.ok(publisherTools.includes('ba_publish_publication_task'));
     assert.ok(publisherTools.includes('ba_publish_threads_task'));
@@ -183,6 +188,7 @@ test('editor, publisher and growth profiles expose only their governed lifecycle
     assert.ok(!publisherTools.includes('ba_repair_task1069_telegram_video_route'));
     assert.ok(!publisherTools.includes('ba_release_linkedin_task1075_browser'));
     assert.ok(!publisherTools.includes('ba_release_x_task1025_browser'));
+    assert.ok(!publisherTools.includes('ba_release_approved_vk_browser_task'));
 
     const growthTools = Object.keys((createPlannerMcpServer({ profile: 'growth_analyst' } as any) as any)._registeredTools || {});
     assert.ok(growthTools.includes('ba_get_content_metrics'));

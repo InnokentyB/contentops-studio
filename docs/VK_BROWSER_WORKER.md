@@ -1,23 +1,30 @@
 # Local VK browser worker
 
-The local worker is the first browser-assisted publishing milestone for VK. It
-uses a dedicated Chrome profile to prepare an accepted wall post in the real VK
-composer. The MVP deliberately **cannot press Publish** and cannot write a
-publication fact.
+The local worker is the browser-assisted VK feed adapter used when the official
+API route is unavailable. Prepare-only validates and materializes the accepted
+bundle locally without opening VK. Submit is a separate owner-released,
+Publisher-claimed execution that starts a durable attempt before opening the
+composer, submits once, and records a publication fact only after exact provider
+readback.
 
 ## Safety boundary
 
 - Planner remains the control plane and source of the accepted revision.
 - The job must name the exact project, task, channel, revision and selected asset.
-- The worker accepts only `https://vk.com/...` targets.
+- The worker accepts only `https://vk.com/...` targets and canonical negative
+  VK community IDs.
 - Local images must be inside an explicitly configured approved asset root.
 - Approved HTTPS assets are downloaded with the same size, type, redirect and
   private-host protections as the VK API adapter.
 - The browser profile stays outside the repository and is never returned to Planner.
+- Prepare-only never opens Chrome, types into VK, selects a file or uploads media.
+- Submit requires an active browser-publication lease and a Publisher MCP token.
 - The result contains hashes and screenshot evidence, not publication text,
   cookies or browser storage.
-- A login screen, stale revision, unapproved visual or requested live submit
-  stops the run.
+- The first provider-side upload happens only after a durable delivery attempt
+  exists. Any ambiguous submit or readback freezes that attempt and forbids retry.
+- Only one exact `wall<owner_id>_<post_id>` permalink with matching accepted text
+  and visual may create the publication fact.
 
 ## One-time setup
 
@@ -48,7 +55,8 @@ from the same accepted Planner bundle.
   "idempotency_key": "vk-browser:10:900:r3",
   "target": {
     "community_url": "https://vk.com/analystcraft",
-    "placement": "wall_post"
+    "placement": "wall_post",
+    "community_id": -240051152
   },
   "payload": {
     "text": "Exact accepted text",
@@ -82,11 +90,47 @@ For an approved local file, use `image_path` instead of `image_url` and add one
 or more `--asset-root "/absolute/approved-assets"` arguments. Supplying both
 image fields is rejected.
 
-On the first run the worker may return `VK_BROWSER_LOGIN_REQUIRED`. Open the
-same dedicated profile, sign in to VK manually, complete any 2FA or CAPTCHA,
-close it, and rerun the worker. Passwords and cookies must never be placed in a
-job file or Planner.
+Prepare-only returns payload hashes and `provider_upload: false`; it does not
+require a browser login and does not return a VK screenshot.
 
-Success means `status: prepared_not_submitted` plus a screenshot and payload
-hashes. Review the prepared composer manually. Publishing remains disabled
-until a separately reviewed submit/readback phase is implemented.
+## Owner release and submit
+
+Live browser execution is intentionally a separate workflow:
+
+1. The project owner calls `ba_release_approved_vk_browser_task` with the exact
+   manifest, revision, body hash, approved asset hash, channel and schedule.
+   This creates one `browser_publish` work item but does not contact VK.
+2. The Publisher calls `ba_claim_vk_browser_publication` and receives a
+   short-lived lease token.
+3. Create a new private job with the same accepted bundle and replace execution
+   with:
+
+```json
+{
+  "mode": "submit",
+  "authorization": {
+    "work_item_id": 501,
+    "lease_token": "lease-returned-by-planner",
+    "approval_reference": "owner approval reference",
+    "attempt_idempotency_key": "vk-browser-submit:10:900:r3"
+  }
+}
+```
+
+4. Put the project-scoped Publisher token in `VK_BROWSER_MCP_TOKEN`. Optionally
+   override `VK_BROWSER_MCP_ENDPOINT`; the hosted default is
+   `https://planner-mcp-production.up.railway.app/mcp/publisher`.
+5. Run the same CLI command. On the first submit run it may return
+   `VK_BROWSER_LOGIN_REQUIRED`; sign in manually through the dedicated profile,
+   close the window, and rerun while the lease is still active.
+
+The worker calls `ba_start_vk_browser_submission` before typing or uploading,
+then executes one browser submit. Exact readback calls
+`ba_confirm_vk_browser_submission`; an unavailable or mismatched readback calls
+`ba_mark_vk_browser_submission_uncertain`. A started attempt is never retried
+automatically. Passwords, cookies and MCP tokens must never be stored in the job
+file or Planner.
+
+Prepare success is `status: prepared_not_submitted`. Submit success is
+`status: confirmed_published` with the canonical permalink and publication fact
+ID. A button click alone is never reported as success.
