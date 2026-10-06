@@ -188,7 +188,7 @@ test('editor, publisher and growth profiles expose only their governed lifecycle
     assert.ok(!publisherTools.includes('ba_repair_task1069_telegram_video_route'));
     assert.ok(!publisherTools.includes('ba_release_linkedin_task1075_browser'));
     assert.ok(!publisherTools.includes('ba_release_x_task1025_browser'));
-    assert.ok(!publisherTools.includes('ba_release_approved_vk_browser_task'));
+    assert.ok(publisherTools.includes('ba_release_approved_vk_browser_task'));
 
     const growthTools = Object.keys((createPlannerMcpServer({ profile: 'growth_analyst' } as any) as any)._registeredTools || {});
     assert.ok(growthTools.includes('ba_get_content_metrics'));

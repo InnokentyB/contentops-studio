@@ -84,9 +84,9 @@ test('VK release fails closed on owner, revision, asset, fact and manifest drift
     await assert.rejects(() => releaseVkBrowserTask(stale.deps as any, args), /STALE_MANIFEST/);
 });
 
-test('VK browser release stays owner-only while Publisher receives claim and submit controls', () => {
+test('Publisher can request VK browser release while the service keeps the owner membership guard', () => {
     assert.equal(isToolAllowedForProfile('owner', 'ba_release_approved_vk_browser_task'), true);
-    assert.equal(isToolAllowedForProfile('publisher', 'ba_release_approved_vk_browser_task'), false);
+    assert.equal(isToolAllowedForProfile('publisher', 'ba_release_approved_vk_browser_task'), true);
     for (const tool of [
         'ba_claim_vk_browser_publication',
         'ba_start_vk_browser_submission',
