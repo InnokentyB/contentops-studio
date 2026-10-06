@@ -219,7 +219,7 @@ export async function confirmVkBrowserSubmission(dependencies: Dependencies, arg
         if (task?.publication_fact?.outcome === 'published' && task.publication_fact.public_url) {
             return { replayedFactId: task.publication_fact.id, task, identity: validateProviderIdentity(task, args) };
         }
-        assertExactTask(task, workItem, args, ['publishing']);
+        assertExactTask(task, workItem, args, ['publishing', 'browser_required']);
         if (dependencies.hashBody(task.draft_text || '') !== args.textSha256
             || assetSha256(task) !== args.imageSha256) {
             throw new Error('[VK_BROWSER_PAYLOAD_HASH_MISMATCH]');

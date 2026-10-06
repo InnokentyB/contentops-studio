@@ -428,6 +428,42 @@ test('VK browser submit starts one durable attempt, verifies exact readback, the
     assert.equal(result.publication_fact_id, 901);
 });
 
+test('VK browser readback accepts provider-added blank lines without changing words', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vk-worker-newlines-'));
+    const imagePath = path.join(root, 'approved.png');
+    fs.writeFileSync(imagePath, 'approved-image');
+    const job = submitFixture(imagePath);
+    job.payload.text = 'First paragraph\n\nSecond paragraph';
+    let confirmed = false;
+    const result = await submitVkBrowserPublication(job, {
+        approvedAssetRoots: [root],
+        evidenceDir: path.join(root, 'evidence'),
+        ui: {
+            navigate: async () => undefined,
+            loginRequired: async () => false,
+            openWallComposer: async () => undefined,
+            setPostText: async () => undefined,
+            attachImage: async () => undefined,
+            captureScreenshot: async (file: string) => fs.writeFileSync(file, 'evidence'),
+            submitPost: async () => undefined,
+            readbackPost: async () => ({
+                public_url: 'https://vk.com/wall-240051152_30',
+                provider_object_id: '-240051152_30',
+                published_at: '2026-10-06T16:35:34.018Z',
+                text: 'First paragraph\n\n\nSecond paragraph',
+                image_present: true
+            })
+        },
+        control: {
+            start: async () => ({ status: 'started' as const, attempt_id: 30 }),
+            confirm: async () => { confirmed = true; return { publication_fact_id: 902 }; },
+            markUncertain: async () => { throw new Error('must not freeze equivalent VK text'); }
+        }
+    });
+    assert.equal(result.publication_fact_id, 902);
+    assert.equal(confirmed, true);
+});
+
 test('VK browser submit freezes an ambiguous provider result and never confirms it', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vk-worker-uncertain-'));
     const imagePath = path.join(root, 'approved.png');

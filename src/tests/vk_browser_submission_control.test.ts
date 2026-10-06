@@ -135,6 +135,7 @@ test('VK browser start atomically creates one pending attempt before provider mu
 test('VK browser confirmation records a fact only for the exact provider identity and lease', async () => {
     const h = harness();
     await startVkBrowserSubmission(h.dependencies, startArgs);
+    h.state.task.status = 'browser_required';
     const result = await confirmVkBrowserSubmission(h.dependencies, {
         ...startArgs,
         attemptId: 77,
