@@ -48,6 +48,22 @@ test('ThreadsService.publishPost publishes text post successfully', async () => 
     }
 });
 
+test('ThreadsService accepts the current provider threads.com permalink', async () => {
+    const originalFetch = globalThis.fetch;
+    const responses = [
+        { id: 'container-1' },
+        { id: 'post-1' },
+        { id: 'post-1', permalink: 'https://www.threads.com/@owner/post/current-code' }
+    ];
+    globalThis.fetch = async () => ({ ok: true, json: async () => responses.shift() }) as Response;
+    try {
+        assert.equal(await new ThreadsService().publishPost('user-1', 'token', 'hello'),
+            'https://www.threads.com/@owner/post/current-code');
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
 test('ThreadsService.publishPost waits for an image container and returns the provider permalink', async () => {
     const originalFetch = globalThis.fetch;
     const requestedUrls: string[] = [];

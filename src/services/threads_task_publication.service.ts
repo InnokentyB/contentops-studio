@@ -132,7 +132,7 @@ export class ThreadsTaskPublicationService {
                 ? await this.deps.threads.publishThread(config.threads_user_id, config.access_token, posts)
                 : { rootUrl: await this.deps.threads.publishPost(config.threads_user_id, config.access_token, task.draft_text) };
             url = published.rootUrl;
-            if (!/^https:\/\/(?:www\.)?threads\.net\/post\//.test(url)) throw new Error('Unverified Threads URL');
+            if (!/^https:\/\/(?:www\.)?threads\.(?:net|com)\/(?:@[^/]+\/)?post\//.test(url)) throw new Error('Unverified Threads URL');
         } catch (error: any) {
             await db.contentItem.update({ where: { id: args.taskId }, data: { status: 'publishing',
                 quality_report: { ...((task.quality_report as any) || {}), publication_task_delivery: {

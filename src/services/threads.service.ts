@@ -47,7 +47,7 @@ class ThreadsService {
         try { url = new URL(result.permalink); } catch {
             throw new ThreadsProviderError('THREADS_INVALID_PERMALINK', 'read_permalink');
         }
-        if (url.protocol !== 'https:' || !['threads.net', 'www.threads.net'].includes(url.hostname)
+        if (url.protocol !== 'https:' || !['threads.net', 'www.threads.net', 'threads.com', 'www.threads.com'].includes(url.hostname)
             || !url.pathname.includes('/post/')) {
             throw new ThreadsProviderError('THREADS_INVALID_PERMALINK', 'read_permalink');
         }
