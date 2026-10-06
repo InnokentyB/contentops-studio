@@ -13,7 +13,7 @@ function harness(overrides: Record<string, unknown> = {}, membershipRole = 'owne
         id: 1019, project_id: 10, week_package_id: 61, item_key: 'vk-task-1019',
         channel_id: 117, channel: { type: 'vk', name: 'analystcraft_vk_group', config: { vk_id: '-240051152' } },
         status: 'ready_for_execution', handoff_state: 'ready', publication_mode: 'approval_required',
-        content_revision: 1, accepted_revision: 1, text_state: 'accepted', draft_text: 'accepted body',
+        content_revision: 1, accepted_revision: 1, text_state: 'accepted', title: 'accepted title', draft_text: 'accepted body',
         visual_state: 'APPROVED', visual_placement: 'feed', selected_asset_id: 104,
         selected_asset: { id: 104, status: 'approved', content_revision: 1,
             file_url: 'https://cdn.example/104.jpg', provenance: { planner_storage: { sha256: assetHash } } },
@@ -72,6 +72,21 @@ test('owner release creates one exact VK browser work item without contacting VK
     assert.equal(h.workItems[0].dedupe_key, 'browser_publish:1019:r1');
     assert.equal(h.workItems[0].result_payload.approval_reference, args.approvalReference);
     assert.equal(h.events[0].command, 'ba_release_approved_vk_browser_task');
+});
+
+test('owner release preserves the exact article, video or Story placement in the browser lease', async () => {
+    for (const placement of ['article_cover', 'video_cover', 'story'] as const) {
+        const h = harness({ visual_placement: placement });
+        const result = await releaseVkBrowserTask(h.deps as any, {
+            ...args,
+            expectedPlacement: placement,
+            ...(['article_cover', 'video_cover'].includes(placement) ? { expectedTitleSha256: bodyHash } : {}),
+            idempotencyKey: `${args.idempotencyKey}:${placement}`
+        });
+        assert.equal(result.placement, placement);
+        assert.equal(h.workItems[0].result_payload.placement, placement);
+        assert.equal((h.task.quality_report as any).owner_release.placement, placement);
+    }
 });
 
 test('VK release fails closed on owner, revision, asset, fact and manifest drift', async () => {

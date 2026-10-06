@@ -1,7 +1,7 @@
 # Local VK browser worker
 
-The local worker is the browser-assisted VK feed adapter used when the official
-API route is unavailable. Prepare-only validates and materializes the accepted
+The local worker is the browser-assisted VK feed, article, video and community
+Story adapter used when the official API route is unavailable. Prepare-only validates and materializes the accepted
 bundle locally without opening VK. Submit is a separate owner-released,
 Publisher-claimed execution that starts a durable attempt before opening the
 composer, submits once, and records a publication fact only after exact provider
@@ -14,20 +14,21 @@ readback.
 - The worker accepts only `https://vk.com/...` targets and canonical negative
   VK community IDs. Submit resolves the final community path from that numeric
   ID, so a stale vanity alias cannot redirect the worker to a different page.
-- Local images must be inside an explicitly configured approved asset root.
-- Approved HTTPS assets are downloaded with the same size, type, redirect and
-  private-host protections as the VK API adapter.
+- Local media must be inside an explicitly configured approved asset root.
+- Approved HTTPS images use the VK API adapter limits. Video and Story media use
+  a redirect-free, private-host-protected streaming download capped at 200 MB.
 - The browser profile stays outside the repository and is never returned to Planner.
 - Prepare-only never opens Chrome, types into VK, selects a file or uploads media.
 - Submit requires an active browser-publication lease and a Publisher MCP token.
 - The result contains hashes and screenshot evidence, not publication text,
   cookies or browser storage.
-- The first provider-side upload happens only after a durable delivery attempt
+- The first provider-side upload happens only after a durable delivery attempt.
 - Opening the composer and verifying the exact text happen before the durable
   attempt. The attempt starts immediately before the first image upload; any
   ambiguous upload, submit or readback freezes it and forbids automatic retry.
-- Only one exact `wall<owner_id>_<post_id>` permalink with matching accepted text
-  and visual may create the publication fact.
+- Feed, article and video publication facts require an exact provider permalink,
+  matching accepted content and provider ownership. A Story requires an exact
+  provider object ID plus screenshot evidence; a click alone is never sufficient.
 
 ## One-time setup
 
@@ -45,7 +46,7 @@ used by an already running Chrome instance.
 
 ## Job format
 
-Store a job as a private JSON file (`chmod 600`). The text and asset must come
+Store a job as a private JSON file (`chmod 600`). The title, text and asset must come
 from the same accepted Planner bundle.
 
 ```json
@@ -76,6 +77,20 @@ from the same accepted Planner bundle.
 }
 ```
 
+`target.placement` selects the provider editor and must match the Planner
+placement used during owner release:
+
+| Worker placement | Planner placement | Required payload |
+| --- | --- | --- |
+| `wall_post` | `feed` | non-empty `text`; approved image is optional |
+| `article` | `article_cover` | non-empty `title` and `text`; approved image cover |
+| `video` | `video_cover` | non-empty `title` and `text`; approved MP4 video |
+| `story` | `story` | approved image or video; `text` may be empty |
+
+Use `media_url` or `media_path` for new jobs. The legacy `image_url` and
+`image_path` fields remain accepted for existing wall-post jobs. Supplying more
+than one source is rejected.
+
 ## Run
 
 Build the backend, close any worker Chrome window using the same dedicated
@@ -89,9 +104,9 @@ npm run vk:browser:worker -- \
   --evidence-dir "$HOME/Library/Application Support/ContentOps/vk-browser/evidence"
 ```
 
-For an approved local file, use `image_path` instead of `image_url` and add one
+For an approved local file, use `media_path` instead of `media_url` and add one
 or more `--asset-root "/absolute/approved-assets"` arguments. Supplying both
-image fields is rejected.
+media fields is rejected.
 
 Prepare-only returns payload hashes and `provider_upload: false`; it does not
 require a browser login and does not return a VK screenshot.
@@ -101,7 +116,8 @@ require a browser login and does not return a VK screenshot.
 Live browser execution is intentionally a separate workflow:
 
 1. The project owner calls `ba_release_approved_vk_browser_task` with the exact
-   manifest, revision, body hash, approved asset hash, channel and schedule.
+   manifest, revision, body hash, approved asset hash, placement, channel and
+   schedule. Article and video releases additionally bind the title hash.
    This creates one `browser_publish` work item but does not contact VK.
 2. The Publisher calls `ba_claim_vk_browser_publication` and receives a
    short-lived lease token.
@@ -127,7 +143,8 @@ Live browser execution is intentionally a separate workflow:
    `VK_BROWSER_LOGIN_REQUIRED`; sign in manually through the dedicated profile,
    close the window, and rerun while the lease is still active.
 
-The worker opens the composer and verifies the exact text locally, then calls
+The worker opens the placement-specific editor and verifies the exact title and
+text locally, then calls
 `ba_start_vk_browser_submission` immediately before the first image upload.
 Exact readback calls
 `ba_confirm_vk_browser_submission`; an unavailable or mismatched readback calls

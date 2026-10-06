@@ -14,9 +14,11 @@ export type VkBrowserReleaseArgs = {
     expectedContentRevision: number;
     expectedAcceptedRevision: number;
     expectedBodySha256: string;
+    expectedTitleSha256?: string;
     expectedSelectedAssetId: number;
     expectedAssetSha256: string;
     expectedScheduleAt: string;
+    expectedPlacement?: 'feed' | 'article_cover' | 'video_cover' | 'story';
     expectedManifestChecksum: string;
     approvalReference: string;
     idempotencyKey: string;
@@ -50,6 +52,7 @@ export async function releaseVkBrowserTask(dependencies: VkBrowserReleaseDepende
     const userMatch = /^user:(\d+)$/.exec(args.actorId);
     if (!userMatch) throw new Error('[OWNER_REQUIRED]');
     const hash = requestHash(args);
+    const expectedPlacement = args.expectedPlacement || 'feed';
 
     return dependencies.transaction(async (tx) => {
         const membership = await tx.projectMember.findUnique({ where: {
@@ -82,6 +85,8 @@ export async function releaseVkBrowserTask(dependencies: VkBrowserReleaseDepende
                 platform: 'vk'
             });
         const bodyHash = dependencies.hashBody(task?.draft_text || '');
+        const titleHash = dependencies.hashBody(task?.title || '');
+        const titleRequired = ['article_cover', 'video_cover'].includes(expectedPlacement);
         if (!task
             || task.channel_id !== args.expectedChannelId
             || !browserAssisted
@@ -93,7 +98,7 @@ export async function releaseVkBrowserTask(dependencies: VkBrowserReleaseDepende
             || task.content_revision !== task.accepted_revision
             || task.text_state !== 'accepted'
             || task.visual_state !== 'APPROVED'
-            || task.visual_placement !== 'feed'
+            || task.visual_placement !== expectedPlacement
             || task.selected_asset_id !== args.expectedSelectedAssetId
             || task.selected_asset?.status !== 'approved'
             || task.selected_asset?.content_revision !== args.expectedContentRevision
@@ -101,6 +106,7 @@ export async function releaseVkBrowserTask(dependencies: VkBrowserReleaseDepende
             || assetSha256(task) !== args.expectedAssetSha256
             || task.schedule_at?.toISOString() !== args.expectedScheduleAt
             || bodyHash !== args.expectedBodySha256
+            || (titleRequired && (!args.expectedTitleSha256 || titleHash !== args.expectedTitleSha256))
             || task.publication_fact
             || task.published_link) {
             throw new Error('[OWNER_RELEASE_GUARD_FAILED] Exact accepted VK browser task is required');
@@ -130,7 +136,7 @@ export async function releaseVkBrowserTask(dependencies: VkBrowserReleaseDepende
                 accepted_revision: args.expectedAcceptedRevision,
                 text_state: 'accepted',
                 visual_state: 'APPROVED',
-                visual_placement: 'feed',
+                visual_placement: expectedPlacement,
                 selected_asset_id: args.expectedSelectedAssetId,
                 schedule_at: expectedSchedule
             },
@@ -146,8 +152,10 @@ export async function releaseVkBrowserTask(dependencies: VkBrowserReleaseDepende
                         approval_reference: args.approvalReference,
                         content_revision: args.expectedContentRevision,
                         body_sha256: bodyHash,
+                        title_sha256: titleRequired ? titleHash : null,
                         selected_asset_id: args.expectedSelectedAssetId,
                         asset_sha256: args.expectedAssetSha256,
+                        placement: expectedPlacement,
                         released_at: new Date().toISOString()
                     }
                 }
@@ -170,8 +178,10 @@ export async function releaseVkBrowserTask(dependencies: VkBrowserReleaseDepende
                 approval_reference: args.approvalReference,
                 content_revision: args.expectedContentRevision,
                 body_sha256: bodyHash,
+                title_sha256: titleRequired ? titleHash : null,
                 selected_asset_id: args.expectedSelectedAssetId,
                 asset_sha256: args.expectedAssetSha256,
+                placement: expectedPlacement,
                 channel_id: args.expectedChannelId
             },
             input_context_version: args.expectedContentRevision,
@@ -184,8 +194,10 @@ export async function releaseVkBrowserTask(dependencies: VkBrowserReleaseDepende
             content_revision: args.expectedContentRevision,
             accepted_revision: args.expectedAcceptedRevision,
             body_sha256: bodyHash,
+            title_sha256: titleRequired ? titleHash : null,
             selected_asset_id: args.expectedSelectedAssetId,
             asset_sha256: args.expectedAssetSha256,
+            placement: expectedPlacement,
             schedule_at: args.expectedScheduleAt,
             publication_authorized: true as const,
             publication_mode: 'browser_required' as const,

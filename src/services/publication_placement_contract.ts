@@ -7,7 +7,7 @@ const DEFAULT_PLACEMENTS: Record<string, string[]> = {
     setka: ['feed'],
     telegram: ['feed', 'story'],
     telegram_chat: ['feed', 'story'],
-    vk: ['feed', 'story', 'article_cover'],
+    vk: ['feed', 'story', 'article_cover', 'video_cover'],
     linkedin: ['feed', 'carousel'],
     threads: ['feed'],
     x: ['feed'],
@@ -21,12 +21,12 @@ const DEFAULT_PLACEMENTS: Record<string, string[]> = {
 
 export type PublicationPlacementAssetContract = {
     placement: string;
-    artifact_kind: 'feed' | 'story' | 'article_cover' | 'other';
+    artifact_kind: 'feed' | 'story' | 'article_cover' | 'video' | 'other';
     dimensions: { width: number; height: number; aspect_ratio: string } | null;
     safe_area: { unit: 'px'; top: number; right: number; bottom: number; left: number } | null;
-    accepted_mime_types?: Array<'image/png' | 'image/jpeg'>;
+    accepted_mime_types?: Array<'image/png' | 'image/jpeg' | 'video/mp4'>;
     poll: { supported: boolean; configuration_mode: 'native_configured' | 'native_manual' | 'not_supported' | 'not_applicable'; render_in_asset: boolean };
-    transport: { materialization: 'feed_post' | 'story' | 'article' | 'asset'; connector_authority: 'configured' | 'manual_only' };
+    transport: { materialization: 'feed_post' | 'story' | 'article' | 'video' | 'asset'; connector_authority: 'configured' | 'manual_only' };
 };
 
 export function publicationPlacementAssetContract(
@@ -62,6 +62,17 @@ export function publicationPlacementAssetContract(
             safe_area: { unit: 'px', top: 72, right: 96, bottom: 72, left: 96 },
             poll: { supported: false, configuration_mode: 'not_applicable', render_in_asset: false },
             transport: { materialization: 'article', connector_authority: 'manual_only' }
+        };
+    }
+    if (normalizedType === 'vk' && placement === 'video_cover') {
+        return {
+            placement,
+            artifact_kind: 'video',
+            dimensions: null,
+            safe_area: null,
+            accepted_mime_types: ['video/mp4'],
+            poll: { supported: false, configuration_mode: 'not_applicable', render_in_asset: false },
+            transport: { materialization: 'video', connector_authority: 'manual_only' }
         };
     }
     if (normalizedType === 'setka' && placement === 'feed') {

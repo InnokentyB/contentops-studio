@@ -118,8 +118,9 @@ Run `ba_publish_publication_task` with `dryRun: true` before any live call and p
 ### Local VK browser preparation
 
 When VK does not issue the required API permissions, the project includes a
-local Playwright worker that prepares an accepted wall post in a dedicated
-Chrome profile. Prepare-only is fully local and does not open VK or upload
+local Playwright worker that prepares an accepted publication in a dedicated
+Chrome profile. The same governed route supports feed posts, articles, approved
+MP4 videos and community Stories. Prepare-only is fully local and does not open VK or upload
 media. Live execution requires the owner-only
 `ba_release_approved_vk_browser_task`, Publisher claim, one durable attempt and
 exact permalink readback before a publication fact can be recorded. See

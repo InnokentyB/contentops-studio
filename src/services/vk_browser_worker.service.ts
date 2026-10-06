@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { loadVkRemoteImage } from './vk.service';
+import { loadVkRemoteImage, loadVkRemoteMedia } from './vk.service';
 
 export interface VkBrowserJob {
     schema_version: 1;
@@ -12,12 +12,17 @@ export interface VkBrowserJob {
     idempotency_key: string;
     target: {
         community_url: string;
-        placement: 'wall_post';
+        placement: 'wall_post' | 'article' | 'video' | 'story';
         community_id?: number;
     };
     payload: {
         text: string;
+        title?: string | null;
+        media_path?: string | null;
+        media_url?: string | null;
+        /** @deprecated Use media_path. Retained for wall-post job compatibility. */
         image_path?: string | null;
+        /** @deprecated Use media_url. Retained for wall-post job compatibility. */
         image_url?: string | null;
     };
     approval: {
@@ -39,11 +44,14 @@ export interface VkBrowserJob {
 }
 
 export interface VkBrowserReadback {
-    public_url: string;
+    public_url: string | null;
     provider_object_id: string;
     published_at: string;
     text: string;
-    image_present: boolean;
+    title?: string | null;
+    owner_id?: string | null;
+    media_present?: boolean;
+    image_present?: boolean;
 }
 
 export interface VkBrowserUi {
@@ -55,6 +63,11 @@ export interface VkBrowserUi {
     captureScreenshot(screenshotPath: string): Promise<void>;
     submitPost?(): Promise<void>;
     readbackPost?(): Promise<VkBrowserReadback | null>;
+    openComposer?(placement: VkBrowserJob['target']['placement']): Promise<void>;
+    setContent?(content: { placement: VkBrowserJob['target']['placement']; title: string; text: string }): Promise<void>;
+    attachMedia?(mediaPath: string, kind: VkBrowserMediaKind): Promise<void>;
+    submit?(placement: VkBrowserJob['target']['placement']): Promise<void>;
+    readback?(placement: VkBrowserJob['target']['placement']): Promise<VkBrowserReadback | null>;
 }
 
 interface SharedDependencies {
@@ -62,17 +75,23 @@ interface SharedDependencies {
     approvedAssetRoots: string[];
     evidenceDir: string;
     now?: () => Date;
-    loadRemoteImage?: (url: string) => Promise<{ buffer: Buffer; filename: string }>;
+    loadRemoteImage?: (url: string) => Promise<{ buffer: Buffer; filename: string; contentType?: string }>;
 }
 
 export interface VkBrowserSubmissionControl {
     start(args: Record<string, unknown>): Promise<
         { status: 'started'; attempt_id: number }
-        | { status: 'confirmed'; attempt_id: number; publication_fact_id: number; public_url: string }
+        | { status: 'confirmed'; attempt_id: number; publication_fact_id: number; public_url: string | null }
         | { status: 'verification_required'; attempt_id: number; retry_allowed: false }
     >;
     confirm(args: Record<string, unknown>): Promise<{ publication_fact_id: number }>;
     markUncertain(args: Record<string, unknown>): Promise<void>;
+}
+
+function plannerPlacement(placement: VkBrowserJob['target']['placement']) {
+    return placement === 'wall_post' ? 'feed'
+        : placement === 'article' ? 'article_cover'
+            : placement === 'video' ? 'video_cover' : 'story';
 }
 
 interface SubmitDependencies extends SharedDependencies {
@@ -114,9 +133,9 @@ function validatedTarget(rawUrl: string, communityId?: number) {
     return url.toString();
 }
 
-function approvedImagePath(rawPath: string, roots: string[]) {
+function approvedMediaPath(rawPath: string, roots: string[]) {
     if (!path.isAbsolute(rawPath) || !fs.existsSync(rawPath) || !fs.statSync(rawPath).isFile()) {
-        throw new Error('[VK_BROWSER_ASSET_INVALID] Approved image must be an existing absolute file');
+        throw new Error('[VK_BROWSER_ASSET_INVALID] Approved media must be an existing absolute file');
     }
     const resolvedFile = fs.realpathSync(rawPath);
     const allowed = roots.some((root) => {
@@ -125,8 +144,31 @@ function approvedImagePath(rawPath: string, roots: string[]) {
         const relative = path.relative(resolvedRoot, resolvedFile);
         return relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative);
     });
-    if (!allowed) throw new Error('[VK_BROWSER_ASSET_OUTSIDE_APPROVED_ROOT] Image is outside approved asset roots');
+    if (!allowed) throw new Error('[VK_BROWSER_ASSET_OUTSIDE_APPROVED_ROOT] Media is outside approved asset roots');
     return resolvedFile;
+}
+
+type VkBrowserMediaKind = 'image' | 'video';
+
+function mediaKind(filename: string, contentType?: string): VkBrowserMediaKind | null {
+    const normalizedType = contentType?.toLowerCase() || '';
+    if (normalizedType.startsWith('image/')) return 'image';
+    if (normalizedType.startsWith('video/')) return 'video';
+    const extension = path.extname(filename).toLowerCase();
+    if (['.png', '.jpg', '.jpeg', '.webp', '.gif'].includes(extension)) return 'image';
+    if (['.mp4', '.mov', '.m4v', '.webm'].includes(extension)) return 'video';
+    return null;
+}
+
+function assertMediaContract(placement: VkBrowserJob['target']['placement'], kind: VkBrowserMediaKind | null) {
+    if (!kind) throw new Error('[VK_BROWSER_MEDIA_TYPE_INVALID] Approved media type is unsupported');
+    if (placement === 'video' && kind !== 'video') {
+        throw new Error('[VK_BROWSER_MEDIA_TYPE_INVALID] VK video publication requires an approved video asset');
+    }
+    if (['wall_post', 'article'].includes(placement) && kind !== 'image') {
+        throw new Error('[VK_BROWSER_MEDIA_TYPE_INVALID] This VK placement requires an approved image asset');
+    }
+    return kind;
 }
 
 function assertBaseJob(job: VkBrowserJob) {
@@ -137,8 +179,8 @@ function assertBaseJob(job: VkBrowserJob) {
         || !job.job_id?.trim() || !job.idempotency_key?.trim()) {
         throw new Error('[VK_BROWSER_JOB_INVALID] Job identity is incomplete');
     }
-    if (job.target?.placement !== 'wall_post') {
-        throw new Error('[VK_BROWSER_PLACEMENT_UNSUPPORTED] The worker supports VK wall posts only');
+    if (!['wall_post', 'article', 'video', 'story'].includes(job.target?.placement)) {
+        throw new Error('[VK_BROWSER_PLACEMENT_UNSUPPORTED] Unsupported VK browser placement');
     }
     if (job.approval?.text_state !== 'accepted'
         || !Number.isSafeInteger(job.approval.content_revision)
@@ -168,51 +210,76 @@ async function resolveBundle(job: VkBrowserJob, dependencies: SharedDependencies
     assertBaseJob(job);
     const communityUrl = validatedTarget(job.target.community_url, job.target.community_id);
     const text = typeof job.payload?.text === 'string' ? job.payload.text.trim() : '';
-    if (!text) throw new Error('[VK_BROWSER_TEXT_REQUIRED] Accepted publication text must not be empty');
+    const title = typeof job.payload?.title === 'string' ? job.payload.title.trim() : '';
+    if (job.target.placement !== 'story' && !text) {
+        throw new Error('[VK_BROWSER_TEXT_REQUIRED] Accepted publication text must not be empty');
+    }
+    if (['article', 'video'].includes(job.target.placement) && !title) {
+        throw new Error('[VK_BROWSER_TITLE_REQUIRED] Accepted title must not be empty');
+    }
 
-    const expectsImage = Number.isSafeInteger(job.approval.selected_asset_id)
+    const mediaPathInput = job.payload.media_path || job.payload.image_path || null;
+    const mediaUrlInput = job.payload.media_url || job.payload.image_url || null;
+    if ((job.payload.media_path && job.payload.image_path)
+        || (job.payload.media_url && job.payload.image_url)) {
+        throw new Error('[VK_BROWSER_ASSET_AMBIGUOUS] Provide one approved media source');
+    }
+
+    const expectsMedia = Number.isSafeInteger(job.approval.selected_asset_id)
         && Number(job.approval.selected_asset_id) > 0;
-    if (expectsImage && job.approval.visual_state !== 'APPROVED') {
+    const mediaRequired = ['article', 'video', 'story'].includes(job.target.placement);
+    if (expectsMedia && job.approval.visual_state !== 'APPROVED') {
         throw new Error('[VK_BROWSER_VISUAL_NOT_APPROVED] Selected visual must be approved');
     }
-    if (job.payload.image_path && job.payload.image_url) {
-        throw new Error('[VK_BROWSER_ASSET_AMBIGUOUS] Provide one approved image source');
+    if (mediaPathInput && mediaUrlInput) {
+        throw new Error('[VK_BROWSER_ASSET_AMBIGUOUS] Provide one approved media source');
     }
-    if ((job.payload.image_path || job.payload.image_url) && !expectsImage) {
-        throw new Error('[VK_BROWSER_ASSET_BINDING_REQUIRED] Browser image must match a selected approved asset');
+    if ((mediaPathInput || mediaUrlInput) && !expectsMedia) {
+        throw new Error('[VK_BROWSER_ASSET_BINDING_REQUIRED] Browser media must match a selected approved asset');
     }
-    if (expectsImage && !job.payload.image_path && !job.payload.image_url) {
-        throw new Error('[VK_BROWSER_ASSET_MISSING] Selected approved visual is missing from the browser bundle');
+    if ((expectsMedia || mediaRequired) && !mediaPathInput && !mediaUrlInput) {
+        throw new Error('[VK_BROWSER_MEDIA_REQUIRED] Selected approved media is missing from the browser bundle');
     }
 
     const evidenceDir = path.resolve(dependencies.evidenceDir);
     fs.mkdirSync(evidenceDir, { recursive: true, mode: 0o700 });
-    let imagePath: string | null = null;
-    let imageBuffer: Buffer | null = null;
+    let resolvedMediaPath: string | null = null;
+    let mediaBuffer: Buffer | null = null;
+    let resolvedMediaKind: VkBrowserMediaKind | null = null;
     let assetResolution = 'text_only';
-    if (job.payload.image_path) {
-        imagePath = approvedImagePath(job.payload.image_path, dependencies.approvedAssetRoots);
-        imageBuffer = fs.readFileSync(imagePath);
+    if (mediaPathInput) {
+        resolvedMediaPath = approvedMediaPath(mediaPathInput, dependencies.approvedAssetRoots);
+        mediaBuffer = fs.readFileSync(resolvedMediaPath);
+        resolvedMediaKind = assertMediaContract(job.target.placement, mediaKind(resolvedMediaPath));
         assetResolution = 'local_approved_file';
-    } else if (job.payload.image_url) {
-        const remote = await (dependencies.loadRemoteImage || loadVkRemoteImage)(job.payload.image_url);
-        imageBuffer = remote.buffer;
-        const extension = ['.png', '.jpg', '.jpeg', '.webp', '.gif'].includes(path.extname(remote.filename).toLowerCase())
-            ? path.extname(remote.filename).toLowerCase()
-            : '.img';
+    } else if (mediaUrlInput) {
+        const defaultLoader = ['video', 'story'].includes(job.target.placement)
+            ? loadVkRemoteMedia
+            : loadVkRemoteImage;
+        const remote = await (dependencies.loadRemoteImage || defaultLoader)(mediaUrlInput);
+        mediaBuffer = remote.buffer;
+        resolvedMediaKind = assertMediaContract(job.target.placement, mediaKind(remote.filename, remote.contentType));
+        const rawExtension = path.extname(remote.filename).toLowerCase();
+        const extension = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp4', '.mov', '.m4v', '.webm'].includes(rawExtension)
+            ? rawExtension
+            : resolvedMediaKind === 'video' ? '.mp4' : '.img';
         const assetsDir = path.join(evidenceDir, 'assets');
         fs.mkdirSync(assetsDir, { recursive: true, mode: 0o700 });
-        imagePath = path.join(assetsDir, `${sha256(imageBuffer).slice(0, 20)}${extension}`);
-        fs.writeFileSync(imagePath, imageBuffer, { mode: 0o600 });
+        resolvedMediaPath = path.join(assetsDir, `${sha256(mediaBuffer).slice(0, 20)}${extension}`);
+        fs.writeFileSync(resolvedMediaPath, mediaBuffer, { mode: 0o600 });
         assetResolution = 'https_approved_asset';
     }
     return {
         communityUrl,
+        placement: job.target.placement,
+        title,
+        titleSha256: title ? sha256(title) : null,
         text,
         textSha256: sha256(text),
-        imagePath,
-        imageSha256: imageBuffer ? sha256(imageBuffer) : null,
-        expectsImage,
+        mediaPath: resolvedMediaPath,
+        mediaKind: resolvedMediaKind,
+        mediaSha256: mediaBuffer ? sha256(mediaBuffer) : null,
+        expectsMedia,
         assetResolution,
         evidenceDir
     };
@@ -220,26 +287,45 @@ async function resolveBundle(job: VkBrowserJob, dependencies: SharedDependencies
 
 function validateReadback(job: VkBrowserJob, bundle: Awaited<ReturnType<typeof resolveBundle>>, readback: VkBrowserReadback | null) {
     if (!readback) throw new Error('[VK_BROWSER_READBACK_UNCONFIRMED] Provider object was not confirmed');
-    let publicUrl: URL;
-    try {
-        publicUrl = new URL(readback.public_url);
-    } catch {
-        throw new Error('[VK_BROWSER_READBACK_UNCONFIRMED] Provider permalink is invalid');
-    }
-    const match = /^\/wall(-\d+)_(\d+)$/.exec(publicUrl.pathname);
     const expectedOwnerId = String(job.target.community_id);
-    const expectedObjectId = match ? `${match[1]}_${match[2]}` : '';
     const publishedAt = new Date(readback.published_at);
-    if (publicUrl.protocol !== 'https:'
-        || !['vk.com', 'www.vk.com', 'vk.ru', 'www.vk.ru'].includes(publicUrl.hostname.toLowerCase())
-        || !match || match[1] !== expectedOwnerId
-        || readback.provider_object_id !== expectedObjectId
+    let publicUrl: URL | null = null;
+    if (readback.public_url) {
+        try {
+            publicUrl = new URL(readback.public_url);
+        } catch {
+            throw new Error('[VK_BROWSER_READBACK_UNCONFIRMED] Provider permalink is invalid');
+        }
+        if (publicUrl.protocol !== 'https:'
+            || !['vk.com', 'www.vk.com', 'vk.ru', 'www.vk.ru'].includes(publicUrl.hostname.toLowerCase())) {
+            throw new Error('[VK_BROWSER_READBACK_UNCONFIRMED] Provider permalink is invalid');
+        }
+    }
+    const wallMatch = publicUrl ? /^\/wall(-\d+)_(\d+)$/.exec(publicUrl.pathname) : null;
+    const videoMatch = publicUrl ? /^\/video(-\d+)_(\d+)$/.exec(publicUrl.pathname) : null;
+    const identityMatches = bundle.placement === 'wall_post'
+        ? Boolean(wallMatch && wallMatch[1] === expectedOwnerId
+            && readback.provider_object_id === `${wallMatch[1]}_${wallMatch[2]}`)
+        : bundle.placement === 'video'
+            ? Boolean(videoMatch && videoMatch[1] === expectedOwnerId
+                && readback.provider_object_id === `video${videoMatch[1]}_${videoMatch[2]}`)
+            : bundle.placement === 'article'
+                ? Boolean(publicUrl && /^\/@[^/]+/.test(publicUrl.pathname)
+                    && readback.owner_id === expectedOwnerId && readback.provider_object_id.trim())
+                : Boolean(readback.owner_id === expectedOwnerId && readback.provider_object_id.trim());
+    const textMatches = bundle.placement === 'story'
+        || normalizedVkText(readback.text) === normalizedVkText(bundle.text);
+    const titleMatches = !bundle.title
+        || normalizedVkText(readback.title || '') === normalizedVkText(bundle.title);
+    const mediaPresent = readback.media_present === true || readback.image_present === true;
+    if (!identityMatches
         || !Number.isFinite(publishedAt.getTime())
-        || normalizedVkText(readback.text) !== normalizedVkText(bundle.text)
-        || (bundle.expectsImage && readback.image_present !== true)) {
+        || !textMatches
+        || !titleMatches
+        || (bundle.expectsMedia && !mediaPresent)) {
         throw new Error('[VK_BROWSER_READBACK_UNCONFIRMED] Exact accepted provider object was not confirmed');
     }
-    return { ...readback, public_url: publicUrl.toString(), published_at: publishedAt.toISOString() };
+    return { ...readback, public_url: publicUrl?.toString() || null, published_at: publishedAt.toISOString() };
 }
 
 export async function prepareVkBrowserPublication(job: VkBrowserJob, dependencies: SharedDependencies) {
@@ -264,9 +350,14 @@ export async function prepareVkBrowserPublication(job: VkBrowserJob, dependencie
             final_adapter: 'vk_browser_local'
         },
         payload: {
+            placement: bundle.placement,
+            title_sha256: bundle.titleSha256,
+            title_length: bundle.title.length,
             text_sha256: bundle.textSha256,
             text_length: bundle.text.length,
-            image_sha256: bundle.imageSha256,
+            media_kind: bundle.mediaKind,
+            media_sha256: bundle.mediaSha256,
+            image_sha256: bundle.mediaKind === 'image' ? bundle.mediaSha256 : null,
             selected_asset_id: job.approval.selected_asset_id || null,
             content_revision: job.approval.content_revision
         },
@@ -282,7 +373,12 @@ export async function prepareVkBrowserPublication(job: VkBrowserJob, dependencie
 export async function submitVkBrowserPublication(job: VkBrowserJob, dependencies: SubmitDependencies) {
     const authorization = assertSubmitAuthorization(job);
     const bundle = await resolveBundle(job, dependencies);
-    if (!dependencies.ui.submitPost || !dependencies.ui.readbackPost) {
+    const richMedia = bundle.placement !== 'wall_post';
+    if (richMedia && (!dependencies.ui.openComposer || !dependencies.ui.setContent
+        || !dependencies.ui.attachMedia || !dependencies.ui.submit || !dependencies.ui.readback)) {
+        throw new Error('[VK_BROWSER_SUBMIT_UI_REQUIRED] Format-specific submit and readback UI are required');
+    }
+    if (!richMedia && (!dependencies.ui.submitPost || !dependencies.ui.readbackPost)) {
         throw new Error('[VK_BROWSER_SUBMIT_UI_REQUIRED] Submit and readback UI are required');
     }
 
@@ -292,8 +388,13 @@ export async function submitVkBrowserPublication(job: VkBrowserJob, dependencies
     }
     let started: Awaited<ReturnType<VkBrowserSubmissionControl['start']>> | null = null;
     try {
-        await dependencies.ui.openWallComposer();
-        await dependencies.ui.setPostText(bundle.text);
+        if (richMedia) {
+            await dependencies.ui.openComposer!(bundle.placement);
+            await dependencies.ui.setContent!({ placement: bundle.placement, title: bundle.title, text: bundle.text });
+        } else {
+            await dependencies.ui.openWallComposer();
+            await dependencies.ui.setPostText(bundle.text);
+        }
         started = await dependencies.control.start({
             project_id: job.project_id,
             task_id: job.task_id,
@@ -304,8 +405,10 @@ export async function submitVkBrowserPublication(job: VkBrowserJob, dependencies
             idempotency_key: authorization.attempt_idempotency_key,
             content_revision: job.approval.content_revision,
             text_sha256: bundle.textSha256,
-            image_sha256: bundle.imageSha256,
-            selected_asset_id: job.approval.selected_asset_id || null
+            title_sha256: bundle.titleSha256,
+            image_sha256: bundle.mediaSha256,
+            selected_asset_id: job.approval.selected_asset_id || null,
+            placement: plannerPlacement(bundle.placement)
         });
         if (started.status === 'confirmed') {
             return {
@@ -319,12 +422,18 @@ export async function submitVkBrowserPublication(job: VkBrowserJob, dependencies
         if (started.status === 'verification_required') {
             throw new Error('[VK_BROWSER_EXISTING_ATTEMPT_REQUIRES_RECONCILIATION] Existing provider attempt must be reconciled; automatic retry is forbidden');
         }
-        if (bundle.imagePath) await dependencies.ui.attachImage(bundle.imagePath);
+        if (bundle.mediaPath) {
+            if (richMedia) await dependencies.ui.attachMedia!(bundle.mediaPath, bundle.mediaKind!);
+            else await dependencies.ui.attachImage(bundle.mediaPath);
+        }
         const screenshotPath = path.join(bundle.evidenceDir, `${sha256(job.job_id).slice(0, 16)}-pre-submit.png`);
         await dependencies.ui.captureScreenshot(screenshotPath);
         const evidenceSha256 = sha256(fs.readFileSync(screenshotPath));
-        await dependencies.ui.submitPost();
-        const readback = validateReadback(job, bundle, await dependencies.ui.readbackPost());
+        if (richMedia) await dependencies.ui.submit!(bundle.placement);
+        else await dependencies.ui.submitPost!();
+        const readback = validateReadback(job, bundle, richMedia
+            ? await dependencies.ui.readback!(bundle.placement)
+            : await dependencies.ui.readbackPost!());
         const confirmed = await dependencies.control.confirm({
             project_id: job.project_id,
             task_id: job.task_id,
@@ -337,9 +446,11 @@ export async function submitVkBrowserPublication(job: VkBrowserJob, dependencies
             provider_object_id: readback.provider_object_id,
             published_at: readback.published_at,
             text_sha256: bundle.textSha256,
-            image_sha256: bundle.imageSha256,
+            title_sha256: bundle.titleSha256,
+            image_sha256: bundle.mediaSha256,
             selected_asset_id: job.approval.selected_asset_id || null,
             content_revision: job.approval.content_revision,
+            placement: plannerPlacement(bundle.placement),
             evidence_sha256: evidenceSha256,
             idempotency_key: authorization.attempt_idempotency_key
         });

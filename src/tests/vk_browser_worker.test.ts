@@ -82,6 +82,82 @@ test('local VK worker prepare-only validates the exact approved payload without 
     assert.equal(result.evidence.provider_upload, false);
 });
 
+test('VK browser prepare supports article, video and story with format-specific approved media', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vk-worker-rich-media-'));
+    const cover = path.join(root, 'cover.png');
+    const video = path.join(root, 'clip.mp4');
+    const story = path.join(root, 'story.jpg');
+    fs.writeFileSync(cover, 'approved-cover');
+    fs.writeFileSync(video, 'approved-video');
+    fs.writeFileSync(story, 'approved-story');
+
+    const cases = [
+        {
+            placement: 'article' as const,
+            payload: { title: 'Accepted article title', text: 'Accepted article body', media_path: cover },
+            expectedKind: 'image'
+        },
+        {
+            placement: 'video' as const,
+            payload: { title: 'Accepted video title', text: 'Accepted video description', media_path: video },
+            expectedKind: 'video'
+        },
+        {
+            placement: 'story' as const,
+            payload: { text: '', media_path: story },
+            expectedKind: 'image'
+        }
+    ];
+
+    for (const entry of cases) {
+        const job = fixture('', {
+            target: { community_url: 'https://vk.com/analystcraft', placement: entry.placement },
+            payload: entry.payload,
+            approval: {
+                content_revision: 3,
+                accepted_revision: 3,
+                text_state: 'accepted',
+                visual_state: 'APPROVED',
+                selected_asset_id: 18
+            }
+        });
+        const result = await prepareVkBrowserPublication(job, {
+            approvedAssetRoots: [root],
+            evidenceDir: path.join(root, `evidence-${entry.placement}`)
+        });
+        assert.equal(result.payload.placement, entry.placement);
+        assert.equal(result.payload.media_kind, entry.expectedKind);
+        assert.match(result.payload.media_sha256 || '', /^[a-f0-9]{64}$/);
+        assert.equal(result.evidence.provider_upload, false);
+    }
+});
+
+test('VK browser rich-media contracts fail closed on missing title, media or wrong media kind', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vk-worker-rich-media-guards-'));
+    const image = path.join(root, 'approved.png');
+    const video = path.join(root, 'approved.mp4');
+    fs.writeFileSync(image, 'approved-image');
+    fs.writeFileSync(video, 'approved-video');
+    const dependencies = { approvedAssetRoots: [root], evidenceDir: path.join(root, 'evidence') };
+
+    await assert.rejects(prepareVkBrowserPublication(fixture('', {
+        target: { community_url: 'https://vk.com/analystcraft', placement: 'article' },
+        payload: { text: 'Body', media_path: image }
+    }), dependencies), /VK_BROWSER_TITLE_REQUIRED/);
+    await assert.rejects(prepareVkBrowserPublication(fixture('', {
+        target: { community_url: 'https://vk.com/analystcraft', placement: 'story' },
+        payload: { text: '' }
+    }), dependencies), /VK_BROWSER_MEDIA_REQUIRED/);
+    await assert.rejects(prepareVkBrowserPublication(fixture('', {
+        target: { community_url: 'https://vk.com/analystcraft', placement: 'video' },
+        payload: { title: 'Video', text: 'Description', media_path: image }
+    }), dependencies), /VK_BROWSER_MEDIA_TYPE_INVALID/);
+    await assert.rejects(prepareVkBrowserPublication(fixture('', {
+        target: { community_url: 'https://vk.com/analystcraft', placement: 'article' },
+        payload: { title: 'Article', text: 'Body', media_path: video }
+    }), dependencies), /VK_BROWSER_MEDIA_TYPE_INVALID/);
+});
+
 test('local VK worker materializes the approved HTTPS asset before opening the composer', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vk-worker-remote-'));
     const { ui, calls } = fakeUi();
@@ -260,6 +336,25 @@ test('current VK community UI opens the wall composer through Create then Post',
     assert.deepEqual(calls, ['create_visible', 'create', 'post', 'editor_visible', 'editor']);
 });
 
+test('current VK community UI routes article, video and Story through distinct Create menu items', async () => {
+    for (const placement of ['article', 'video', 'story'] as const) {
+        const calls: string[] = [];
+        const attached = { waitFor: async ({ state }: any) => { calls.push(`ready:${state}`); } };
+        const page = {
+            locator: (selector: string) => ({
+                first: () => selector === '[data-testid="group_publish_create_button"]'
+                    ? { waitFor: async () => { calls.push('create:ready'); }, click: async () => { calls.push('create'); } }
+                    : selector === `[data-testid="group_publish_${placement}_menu_item"]`
+                        ? { waitFor: async () => { calls.push(`${placement}:ready`); }, click: async () => { calls.push(placement); } }
+                        : attached
+            })
+        };
+        await new PlaywrightVkBrowserUi(page as any).openComposer(placement);
+        assert.deepEqual(calls.slice(0, 4), ['create:ready', 'create', `${placement}:ready`, placement]);
+        assert.ok(calls.includes(placement === 'article' ? 'ready:visible' : 'ready:attached'));
+    }
+});
+
 test('current VK contenteditable verifies exact visible text including paragraph breaks', async () => {
     let filled = '';
     const acceptedText = 'First paragraph\n\nSecond paragraph';
@@ -426,6 +521,63 @@ test('VK browser submit starts one durable attempt, verifies exact readback, the
     ]);
     assert.equal(result.status, 'confirmed_published');
     assert.equal(result.publication_fact_id, 901);
+});
+
+test('VK browser article submit uses the same format-specific bundle validated by prepare', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vk-worker-article-submit-'));
+    const cover = path.join(root, 'cover.png');
+    fs.writeFileSync(cover, 'approved-cover');
+    const job = submitFixture(cover) as any;
+    job.target.placement = 'article';
+    job.payload = { title: 'Exact accepted title', text: 'Exact accepted body', media_path: cover };
+    const trace: string[] = [];
+    const result = await submitVkBrowserPublication(job, {
+        approvedAssetRoots: [root],
+        evidenceDir: path.join(root, 'evidence'),
+        ui: {
+            navigate: async () => { trace.push('navigate'); },
+            loginRequired: async () => false,
+            openWallComposer: async () => { throw new Error('wall path forbidden'); },
+            setPostText: async () => { throw new Error('wall path forbidden'); },
+            attachImage: async () => { throw new Error('wall path forbidden'); },
+            openComposer: async (placement) => { assert.equal(placement, 'article'); trace.push('open:article'); },
+            setContent: async (content) => {
+                assert.deepEqual(content, { placement: 'article', title: 'Exact accepted title', text: 'Exact accepted body' });
+                trace.push('content');
+            },
+            attachMedia: async (file, kind) => {
+                assert.equal(file, fs.realpathSync(cover));
+                assert.equal(kind, 'image');
+                trace.push('media');
+            },
+            captureScreenshot: async (file) => { fs.writeFileSync(file, 'evidence'); trace.push('screenshot'); },
+            submit: async () => { trace.push('submit'); },
+            readback: async () => ({
+                public_url: 'https://vk.com/@analystcraft-exact-accepted-title',
+                provider_object_id: 'article-240051152_81',
+                owner_id: '-240051152',
+                published_at: '2026-10-06T10:00:00.000Z',
+                title: 'Exact accepted title',
+                text: 'Exact accepted body',
+                media_present: true
+            })
+        },
+        control: {
+            start: async (args) => {
+                assert.equal(args.placement, 'article_cover');
+                trace.push('start');
+                return { status: 'started' as const, attempt_id: 81 };
+            },
+            confirm: async (args) => {
+                assert.equal(args.placement, 'article_cover');
+                trace.push('confirm');
+                return { publication_fact_id: 981 };
+            },
+            markUncertain: async () => { trace.push('uncertain'); }
+        }
+    });
+    assert.equal(result.publication_fact_id, 981);
+    assert.deepEqual(trace, ['navigate', 'open:article', 'content', 'start', 'media', 'screenshot', 'submit', 'confirm']);
 });
 
 test('VK browser readback accepts provider-added blank lines without changing words', async () => {
