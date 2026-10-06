@@ -14,13 +14,15 @@ type StartArgs = {
     idempotencyKey: string;
     contentRevision: number;
     textSha256: string;
+    titleSha256?: string | null;
     imageSha256: string | null;
     selectedAssetId: number | null;
+    placement?: 'feed' | 'article_cover' | 'video_cover' | 'story';
 };
 
 type ConfirmArgs = StartArgs & {
     attemptId: number;
-    publicUrl: string;
+    publicUrl: string | null;
     providerObjectId: string;
     publishedAt: string;
     evidenceSha256: string;
@@ -82,6 +84,8 @@ function assertLease(workItem: any, args: { projectId: number; taskId: number; a
 
 function assertExactTask(task: any, workItem: any, args: StartArgs, allowedStatuses: string[]) {
     const release = releasePayload(workItem);
+    const placement = args.placement || 'feed';
+    const titleRequired = ['article_cover', 'video_cover'].includes(placement);
     if (!task
         || task.id !== args.taskId
         || task.project_id !== args.projectId
@@ -92,6 +96,7 @@ function assertExactTask(task: any, workItem: any, args: StartArgs, allowedStatu
         || task.content_revision !== args.contentRevision
         || task.accepted_revision !== args.contentRevision
         || task.text_state !== 'accepted'
+        || (task.visual_placement || 'feed') !== placement
         || task.selected_asset_id !== args.selectedAssetId
         || (args.selectedAssetId !== null && (task.selected_asset?.status !== 'approved'
             || task.selected_asset?.content_revision !== args.contentRevision))
@@ -100,32 +105,52 @@ function assertExactTask(task: any, workItem: any, args: StartArgs, allowedStatu
         || release.approval_reference !== args.approvalReference
         || release.content_revision !== args.contentRevision
         || release.body_sha256 !== args.textSha256
+        || (titleRequired && (!args.titleSha256 || release.title_sha256 !== args.titleSha256))
         || release.selected_asset_id !== args.selectedAssetId
         || (release.asset_sha256 ?? null) !== args.imageSha256
+        || (release.placement || 'feed') !== placement
         || release.channel_id !== args.channelId) {
         throw new Error('[VK_BROWSER_SUBMISSION_GUARD_FAILED] Exact owner-released VK task is required');
     }
 }
 
 function validateProviderIdentity(task: any, args: ConfirmArgs) {
-    let url: URL;
-    try {
-        url = new URL(args.publicUrl);
-    } catch {
-        throw new Error('[VK_BROWSER_PROVIDER_IDENTITY_INVALID]');
+    const placement = args.placement || 'feed';
+    let url: URL | null = null;
+    if (args.publicUrl) {
+        try {
+            url = new URL(args.publicUrl);
+        } catch {
+            throw new Error('[VK_BROWSER_PROVIDER_IDENTITY_INVALID]');
+        }
     }
-    const match = /^\/wall(-\d+)_(\d+)$/.exec(url.pathname);
     const ownerId = String(task?.channel?.config?.vk_id || '');
     const publishedAt = new Date(args.publishedAt);
-    if (url.protocol !== 'https:'
-        || !['vk.com', 'www.vk.com', 'vk.ru', 'www.vk.ru'].includes(url.hostname.toLowerCase())
-        || !match || match[1] !== ownerId
-        || args.providerObjectId !== `${match[1]}_${match[2]}`
+    const validHost = !url || (url.protocol === 'https:'
+        && ['vk.com', 'www.vk.com', 'vk.ru', 'www.vk.ru'].includes(url.hostname.toLowerCase()));
+    const wallMatch = url ? /^\/wall(-\d+)_(\d+)$/.exec(url.pathname) : null;
+    const videoMatch = url ? /^\/video(-\d+)_(\d+)$/.exec(url.pathname) : null;
+    const exactIdentity = placement === 'feed'
+        ? Boolean(wallMatch && wallMatch[1] === ownerId
+            && args.providerObjectId === `${wallMatch[1]}_${wallMatch[2]}`)
+        : placement === 'video_cover'
+            ? Boolean(videoMatch && videoMatch[1] === ownerId
+                && args.providerObjectId === `video${videoMatch[1]}_${videoMatch[2]}`)
+            : placement === 'article_cover'
+                ? Boolean(url && /^\/@[^/]+/.test(url.pathname)
+                    && new RegExp(`^article${ownerId.replace('-', '\\-')}_\\d+$`).test(args.providerObjectId))
+                : new RegExp(`^story${ownerId.replace('-', '\\-')}_\\d+$`).test(args.providerObjectId);
+    if (!validHost || !exactIdentity
         || !Number.isFinite(publishedAt.getTime())
         || !/^[a-f0-9]{64}$/.test(args.evidenceSha256)) {
         throw new Error('[VK_BROWSER_PROVIDER_IDENTITY_INVALID]');
     }
-    return { publicUrl: `https://vk.com/wall${args.providerObjectId}`, publishedAt: publishedAt.toISOString() };
+    const canonicalUrl = placement === 'feed'
+        ? `https://vk.com/wall${args.providerObjectId}`
+        : placement === 'video_cover'
+            ? `https://vk.com/${args.providerObjectId}`
+            : url?.toString() || null;
+    return { publicUrl: canonicalUrl, publishedAt: publishedAt.toISOString(), placement };
 }
 
 export async function startVkBrowserSubmission(dependencies: Dependencies, args: StartArgs) {
@@ -165,6 +190,8 @@ export async function startVkBrowserSubmission(dependencies: Dependencies, args:
         }
         assertExactTask(task, workItem, args, ['browser_required']);
         if (dependencies.hashBody(task.draft_text || '') !== args.textSha256
+            || (['article_cover', 'video_cover'].includes(args.placement || 'feed')
+                && dependencies.hashBody(task.title || '') !== args.titleSha256)
             || assetSha256(task) !== args.imageSha256) {
             throw new Error('[VK_BROWSER_PAYLOAD_HASH_MISMATCH]');
         }
@@ -216,11 +243,14 @@ export async function confirmVkBrowserSubmission(dependencies: Dependencies, arg
             where: { id: args.taskId, project_id: args.projectId },
             include: { channel: true, selected_asset: true, publication_fact: true }
         });
-        if (task?.publication_fact?.outcome === 'published' && task.publication_fact.public_url) {
+        if (task?.publication_fact?.outcome === 'published'
+            && (task.publication_fact.public_url || task.publication_fact.provider_object_id)) {
             return { replayedFactId: task.publication_fact.id, task, identity: validateProviderIdentity(task, args) };
         }
         assertExactTask(task, workItem, args, ['publishing', 'browser_required']);
         if (dependencies.hashBody(task.draft_text || '') !== args.textSha256
+            || (['article_cover', 'video_cover'].includes(args.placement || 'feed')
+                && dependencies.hashBody(task.title || '') !== args.titleSha256)
             || assetSha256(task) !== args.imageSha256) {
             throw new Error('[VK_BROWSER_PAYLOAD_HASH_MISMATCH]');
         }
@@ -243,7 +273,9 @@ export async function confirmVkBrowserSubmission(dependencies: Dependencies, arg
         projectId: args.projectId,
         taskId: args.taskId,
         actorId: args.actorId,
-        artifactKind: 'post',
+        artifactKind: checked.identity.placement === 'article_cover' ? 'article'
+            : checked.identity.placement === 'video_cover' ? 'video'
+                : checked.identity.placement === 'story' ? 'story' : 'post',
         outcome: 'published',
         publishedAt: checked.identity.publishedAt,
         publicUrl: checked.identity.publicUrl,

@@ -19,6 +19,7 @@ function harness() {
             accepted_revision: 3,
             text_state: 'accepted',
             draft_text: 'Accepted VK publication text',
+            title: 'Accepted VK title',
             selected_asset_id: 18,
             selected_asset: {
                 id: 18,
@@ -149,6 +150,54 @@ test('VK browser confirmation records a fact only for the exact provider identit
     assert.equal(h.state.factCalls[0].publicUrl, 'https://vk.com/wall-240051152_13');
     assert.equal(h.state.attempt.status, 'delivered');
     assert.equal(h.state.attempt.requires_manual_confirmation, false);
+});
+
+test('VK browser confirmation binds article, video and Story facts to their exact placement identity', async () => {
+    const cases = [
+        {
+            placement: 'article_cover' as const,
+            publicUrl: 'https://vk.com/@analystcraft-accepted-article',
+            providerObjectId: 'article-240051152_81',
+            artifactKind: 'article'
+        },
+        {
+            placement: 'video_cover' as const,
+            publicUrl: 'https://vk.com/video-240051152_82',
+            providerObjectId: 'video-240051152_82',
+            artifactKind: 'video'
+        },
+        {
+            placement: 'story' as const,
+            publicUrl: null,
+            providerObjectId: 'story-240051152_83',
+            artifactKind: 'story'
+        }
+    ];
+    for (const entry of cases) {
+        const h = harness();
+        h.state.task.visual_placement = entry.placement;
+        h.state.workItem.result_payload.placement = entry.placement;
+        if (['article_cover', 'video_cover'].includes(entry.placement)) {
+            h.state.workItem.result_payload.title_sha256 = 'a'.repeat(64);
+        }
+        const args = {
+            ...startArgs,
+            placement: entry.placement,
+            titleSha256: ['article_cover', 'video_cover'].includes(entry.placement) ? 'a'.repeat(64) : null
+        };
+        await startVkBrowserSubmission(h.dependencies, args);
+        h.state.task.status = 'browser_required';
+        await confirmVkBrowserSubmission(h.dependencies, {
+            ...args,
+            attemptId: 77,
+            publicUrl: entry.publicUrl,
+            providerObjectId: entry.providerObjectId,
+            publishedAt: '2026-10-06T10:01:00.000Z',
+            evidenceSha256: 'c'.repeat(64)
+        });
+        assert.equal(h.state.factCalls[0].artifactKind, entry.artifactKind);
+        assert.equal(h.state.factCalls[0].providerObjectId, entry.providerObjectId);
+    }
 });
 
 test('VK browser uncertain result never records a fact and cannot create a second attempt', async () => {

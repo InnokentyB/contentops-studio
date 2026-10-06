@@ -50,6 +50,7 @@ export interface VkPostMetricsResult {
 const VK_API_BASE_URL = 'https://api.vk.com/method';
 const VK_API_VERSION = '5.199';
 const MAX_VK_IMAGE_BYTES = 10 * 1024 * 1024;
+const MAX_VK_VIDEO_BYTES = 200 * 1024 * 1024;
 
 type VkServiceDependencies = {
     createClient: (token: string) => any;
@@ -91,6 +92,42 @@ export async function loadVkRemoteImage(rawUrl: string) {
         : contentType === 'image/webp' ? 'webp'
             : contentType === 'image/gif' ? 'gif' : 'jpg';
     return { buffer, filename: `approved-visual.${extension}`, contentType };
+}
+
+/** Downloads one approved VK browser asset with a hard streaming size cap. */
+export async function loadVkRemoteMedia(rawUrl: string) {
+    const url = assertSafeVkImageUrl(rawUrl);
+    const response = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(60_000) });
+    if (!response.ok) throw new Error(`[VK_MEDIA_FETCH_FAILED] Media server returned ${response.status}`);
+    const contentType = response.headers.get('content-type')?.split(';')[0].trim().toLowerCase() || '';
+    const isImage = contentType.startsWith('image/');
+    const isVideo = ['video/mp4', 'video/quicktime', 'video/webm'].includes(contentType);
+    if (!isImage && !isVideo) throw new Error('[VK_MEDIA_TYPE_INVALID] Approved asset is not supported media');
+    const maximum = isVideo ? MAX_VK_VIDEO_BYTES : MAX_VK_IMAGE_BYTES;
+    const declaredSize = Number(response.headers.get('content-length') || 0);
+    if (declaredSize > maximum) throw new Error('[VK_MEDIA_TOO_LARGE] Approved asset exceeds the worker limit');
+    if (!response.body) throw new Error('[VK_MEDIA_FETCH_FAILED] Media server returned an empty body');
+    const reader = response.body.getReader();
+    const chunks: Buffer[] = [];
+    let size = 0;
+    while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        size += value.byteLength;
+        if (size > maximum) {
+            await reader.cancel();
+            throw new Error('[VK_MEDIA_TOO_LARGE] Approved asset exceeds the worker limit');
+        }
+        chunks.push(Buffer.from(value));
+    }
+    if (!size) throw new Error('[VK_MEDIA_TOO_LARGE] Approved asset is empty');
+    const extension = contentType === 'image/png' ? 'png'
+        : contentType === 'image/webp' ? 'webp'
+            : contentType === 'image/gif' ? 'gif'
+                : contentType === 'video/quicktime' ? 'mov'
+                    : contentType === 'video/webm' ? 'webm'
+                        : isVideo ? 'mp4' : 'jpg';
+    return { buffer: Buffer.concat(chunks), filename: `approved-media.${extension}`, contentType };
 }
 
 const emptyMetrics = (): VkNormalizedMetrics => ({

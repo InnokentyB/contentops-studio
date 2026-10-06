@@ -133,6 +133,8 @@ export function buildHandoffBundle(
                 ? canonicalStoryActionType(canonicalChannelType, placement)
                 : canonicalChannelType === 'vk' && placement === 'article_cover'
                     ? 'vk_article:publish'
+                    : canonicalChannelType === 'vk' && placement === 'video_cover'
+                        ? 'vk_video:publish'
                     : importedAction.action_type
         } : {})
     };
@@ -284,8 +286,8 @@ export function buildHandoffBundle(
     const resourceFiles = dedupeResourceFiles<ResourceFileEntry>([
         ...(selectedAsset ? [{
             ref: 'selected_asset',
-            type: 'image',
-            role: 'publication_image',
+            type: placement === 'video_cover' ? 'video' : 'image',
+            role: placement === 'video_cover' ? 'publication_video' : 'publication_image',
             purpose: 'approved_visual',
             file_name: ((selectedAsset.provenance as Record<string, unknown>)?.planner_storage as { original_file_name?: string } | undefined)?.original_file_name || null,
             relative_path: null,
@@ -302,7 +304,7 @@ export function buildHandoffBundle(
             height: selectedAssetMetadata.height || null,
             color_mode: selectedAssetMetadata.color_mode || null,
             provenance: selectedAsset.provenance || null,
-            content_source: 'selected_image_asset'
+            content_source: placement === 'video_cover' ? 'selected_video_asset' : 'selected_image_asset'
         }] : []),
         ...resolvedContentFiles,
         ...resolvedAssets.map((entry: AssetRuntimeResolution) => ({
@@ -430,6 +432,8 @@ export function buildGeneratedContentItemHandoff(
             content_item_id: item.id,
             action_type: channelType === 'vk' && placement === 'article_cover'
                 ? 'vk_article:publish'
+                : channelType === 'vk' && placement === 'video_cover'
+                    ? 'vk_video:publish'
                 : `${channelType}_${placement}:publish`,
             channel: channelType,
             placement,
@@ -450,8 +454,8 @@ export function buildGeneratedContentItemHandoff(
         },
         resource_files: selectedAsset ? [{
             ref: 'selected_asset',
-            type: 'image',
-            role: 'publication_image',
+            type: placement === 'video_cover' ? 'video' : 'image',
+            role: placement === 'video_cover' ? 'publication_video' : 'publication_image',
             purpose: 'approved_visual',
             file_name: ((selectedAsset.provenance as Record<string, unknown>)?.planner_storage as { original_file_name?: string } | undefined)?.original_file_name || null,
             exists: true,
@@ -465,7 +469,7 @@ export function buildGeneratedContentItemHandoff(
             height: selectedAssetMetadata.height || null,
             color_mode: selectedAssetMetadata.color_mode || null,
             provenance: selectedAsset.provenance || null,
-            content_source: 'selected_image_asset'
+            content_source: placement === 'video_cover' ? 'selected_video_asset' : 'selected_image_asset'
         }] : [],
         checklist: [
             ...publicationAdapterService.buildManualChecklist({

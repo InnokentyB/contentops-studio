@@ -72,6 +72,15 @@ test('VK longread uses a distinct manual article-cover contract', () => {
     assert.deepEqual(contract.transport, { materialization: 'article', connector_authority: 'manual_only' });
 });
 
+test('VK exposes approved MP4 video as a canonical browser-capable placement', () => {
+    assert.ok(canonicalPlacementsForChannel({ type: 'vk' }).includes('video_cover'));
+    assert.equal(assertCanonicalPublicationPlacement({ type: 'vk' }, 'video_cover'), 'video_cover');
+    const contract = publicationPlacementAssetContract({ type: 'vk' }, 'video_cover');
+    assert.equal(contract.artifact_kind, 'video');
+    assert.equal(contract.transport.materialization, 'video');
+    assert.deepEqual(contract.accepted_mime_types, ['video/mp4']);
+});
+
 test('Setka feed exposes the established 4:3 asset contract', () => {
     assert.deepEqual(canonicalPlacementsForChannel({ type: 'setka' }), ['feed']);
     assert.equal(assertCanonicalPublicationPlacement({ type: 'setka' }, 'feed'), 'feed');

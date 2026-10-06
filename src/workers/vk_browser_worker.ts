@@ -104,8 +104,10 @@ async function connectSubmissionControl(options: Options) {
             idempotencyKey: args.idempotency_key,
             contentRevision: args.content_revision,
             textSha256: args.text_sha256,
+            titleSha256: args.title_sha256,
             imageSha256: args.image_sha256,
-            selectedAssetId: args.selected_asset_id
+            selectedAssetId: args.selected_asset_id,
+            placement: args.placement
         }),
         confirm: (args: any) => call('ba_confirm_vk_browser_submission', {
             projectId: args.project_id,
@@ -118,8 +120,10 @@ async function connectSubmissionControl(options: Options) {
             idempotencyKey: args.idempotency_key,
             contentRevision: args.content_revision,
             textSha256: args.text_sha256,
+            titleSha256: args.title_sha256,
             imageSha256: args.image_sha256,
             selectedAssetId: args.selected_asset_id,
+            placement: args.placement,
             attemptId: args.attempt_id,
             publicUrl: args.public_url,
             providerObjectId: args.provider_object_id,

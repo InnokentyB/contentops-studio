@@ -30,16 +30,18 @@ import {
  */
 export function registerReleaseControlTools(server: McpServer): void {
     server.registerTool('ba_release_approved_vk_browser_task', {
-        description: 'Project-owner audited release of one exact accepted VK feed revision to the local browser-publisher queue. It never opens VK, uploads media, publishes, or records a publication fact.',
+        description: 'Project-owner audited release of one exact accepted VK feed, article, video or Story revision to the local browser-publisher queue. It never opens VK, uploads media, publishes, or records a publication fact.',
         inputSchema: {
             projectId: z.number().int().positive(), taskId: z.number().int().positive(), actorId: z.string(),
             expectedChannelId: z.number().int().positive(),
             expectedContentRevision: z.number().int().positive(),
             expectedAcceptedRevision: z.number().int().positive(),
             expectedBodySha256: z.string().regex(/^[a-f0-9]{64}$/),
+            expectedTitleSha256: z.string().regex(/^[a-f0-9]{64}$/).optional(),
             expectedSelectedAssetId: z.number().int().positive(),
             expectedAssetSha256: z.string().regex(/^[a-f0-9]{64}$/),
             expectedScheduleAt: z.string().datetime({ offset: true }),
+            expectedPlacement: z.enum(['feed', 'article_cover', 'video_cover', 'story']).optional().default('feed'),
             expectedManifestChecksum: z.string().regex(/^sha256:[a-f0-9]{64}$/),
             approvalReference: z.string().min(10), idempotencyKey: z.string().min(1)
         }
@@ -63,8 +65,10 @@ export function registerReleaseControlTools(server: McpServer): void {
             approvalReference: z.string().min(10), idempotencyKey: z.string().min(1),
             contentRevision: z.number().int().positive(),
             textSha256: z.string().regex(/^[a-f0-9]{64}$/),
+            titleSha256: z.string().regex(/^[a-f0-9]{64}$/).nullable().optional(),
             imageSha256: z.string().regex(/^[a-f0-9]{64}$/).nullable(),
-            selectedAssetId: z.number().int().positive().nullable()
+            selectedAssetId: z.number().int().positive().nullable(),
+            placement: z.enum(['feed', 'article_cover', 'video_cover', 'story']).optional().default('feed')
         }
     }, async (args) => asToolResult(await startVkBrowserSubmissionWithPrisma(args)));
 
@@ -77,10 +81,12 @@ export function registerReleaseControlTools(server: McpServer): void {
             approvalReference: z.string().min(10), idempotencyKey: z.string().min(1),
             contentRevision: z.number().int().positive(),
             textSha256: z.string().regex(/^[a-f0-9]{64}$/),
+            titleSha256: z.string().regex(/^[a-f0-9]{64}$/).nullable().optional(),
             imageSha256: z.string().regex(/^[a-f0-9]{64}$/).nullable(),
             selectedAssetId: z.number().int().positive().nullable(),
-            attemptId: z.number().int().positive(), publicUrl: z.string().url(),
-            providerObjectId: z.string().regex(/^-\d+_\d+$/),
+            placement: z.enum(['feed', 'article_cover', 'video_cover', 'story']).optional().default('feed'),
+            attemptId: z.number().int().positive(), publicUrl: z.string().url().nullable(),
+            providerObjectId: z.string().regex(/^(?:-\d+_\d+|(?:video|article|story)-\d+_\d+)$/),
             publishedAt: z.string().datetime({ offset: true }),
             evidenceSha256: z.string().regex(/^[a-f0-9]{64}$/)
         }

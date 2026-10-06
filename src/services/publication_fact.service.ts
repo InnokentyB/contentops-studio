@@ -1,7 +1,7 @@
 import prisma from '../db';
 import { requireProjectActorAccess } from './project_access.service';
 
-export type ArtifactKind = 'post' | 'article' | 'story' | 'email' | 'comment' | 'other';
+export type ArtifactKind = 'post' | 'article' | 'video' | 'story' | 'email' | 'comment' | 'other';
 export type PublicationOutcome = 'published' | 'blocked' | 'removed' | 'restricted';
 
 export interface RecordPublicationFactArgs {
@@ -21,7 +21,7 @@ export interface RecordPublicationFactArgs {
     correctionReason?: string | null;
 }
 
-const PERMALINK_KINDS = new Set<ArtifactKind>(['post', 'article', 'comment']);
+const PERMALINK_KINDS = new Set<ArtifactKind>(['post', 'article', 'video', 'comment']);
 
 export function publicationFactChannelPolicy(item: {
     channel_id?: number | null; content_revision?: number | null; accepted_revision?: number | null;
