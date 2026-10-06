@@ -84,6 +84,16 @@ function sha256(value: string | Buffer) {
     return createHash('sha256').update(value).digest('hex');
 }
 
+function normalizedVkText(value: string) {
+    return value
+        .replace(/\r/g, '')
+        .replace(/[\u00a0\u202f]/g, ' ')
+        .replace(/[ \t]+/g, ' ')
+        .replace(/ *\n */g, '\n')
+        .replace(/\n{2,}/g, '\n\n')
+        .trim();
+}
+
 function validatedTarget(rawUrl: string, communityId?: number) {
     let url: URL;
     try {
@@ -225,7 +235,7 @@ function validateReadback(job: VkBrowserJob, bundle: Awaited<ReturnType<typeof r
         || !match || match[1] !== expectedOwnerId
         || readback.provider_object_id !== expectedObjectId
         || !Number.isFinite(publishedAt.getTime())
-        || sha256(readback.text.trim()) !== bundle.textSha256
+        || normalizedVkText(readback.text) !== normalizedVkText(bundle.text)
         || (bundle.expectsImage && readback.image_present !== true)) {
         throw new Error('[VK_BROWSER_READBACK_UNCONFIRMED] Exact accepted provider object was not confirmed');
     }
