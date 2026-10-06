@@ -9,6 +9,7 @@ import { asToolResult } from './common';
 import { releaseLinkedInTask1075 } from '../../services/linkedin_task1075_release.service';
 import { claimXBrowserPublication, releaseXTask1025 } from '../../services/x_task1025_release.service';
 import { releaseXTask1079 } from '../../services/x_task1079_release.service';
+import { releaseXTask1025Revision3 } from '../../services/x_task1025_rev3_release.service';
 import { releasePendingThreadsTask } from '../../services/threads_pending_release.service';
 import { claimVkBrowserPublication, releaseVkBrowserTaskWithPrisma } from '../../services/vk_browser_owner_release.service';
 import {
@@ -188,6 +189,19 @@ export function registerReleaseControlTools(server: McpServer): void {
             actorId: z.string(), approvalReference: z.string().min(10), idempotencyKey: z.string().min(1)
         }
     }, async args => asToolResult(await releasePendingThreadsTask(args)));
+
+    server.registerTool('ba_release_x_task1025_revision3_browser', {
+        description: 'Owner-only audited release of accepted X task 1025 revision 3; cancels only the expired revision 1 browser lease and creates one revision 3 item, without sending.',
+        inputSchema: {
+            projectId: z.literal(10), taskId: z.literal(1025), actorId: z.string(),
+            expectedChannelId: z.literal(164), expectedContentRevision: z.literal(3), expectedAcceptedRevision: z.literal(3),
+            expectedBodySha256: z.literal('c95ceb3e4e5218abe1df74b496ee6b8e54550d0123663c84f3062d33ea396c6b'),
+            expectedDecisionId: z.literal(240), expectedReviewWorkItemId: z.literal(1475), expectedArtWorkItemId: z.literal(1535),
+            expectedScheduleAt: z.literal('2026-10-05T15:00:00.000Z'),
+            expectedManifestChecksum: z.literal('sha256:dc5831717f09ee68f339ccb5b9e63ca00ce4b68edae810b80308fd09e11bcc71'),
+            approvalReference: z.string().min(10), idempotencyKey: z.string().min(1)
+        }
+    }, async args => asToolResult(await releaseXTask1025Revision3(args)));
 
     server.registerTool('ba_claim_x_browser_publication', {
         description: 'Publisher claim for owner-released Personal X tasks 1025 or 1079 on project 10/channel 164.',
