@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+    isCompletedArtDecisionPlacementMismatchEvidence,
     isLegacyArticleCoverAliasMismatchEvidence,
     isLegacyDzen958FeedMismatchEvidence,
     isLegacySiteBlogCoverMismatchEvidence,
@@ -9,6 +10,22 @@ import {
     planPublicationPlacementRepair,
     repairMaterializedPublicationProjection
 } from '../services/publication_metadata_repair';
+
+test('completed active art decision with the wrong placement can be recovered without rewriting it', () => {
+    const evidence = {
+        workItemState: 'completed', workItemRevision: 3, expectedRevision: 3,
+        currentChannelId: 116, targetChannelId: 116,
+        currentPlacement: 'article_cover', targetPlacement: 'article_cover',
+        taskStatus: 'ready_for_execution', visualState: 'NO_VISUAL_NEEDED',
+        handoffState: 'ready', selectedAssetId: null,
+        decision: { id: 213, decision: 'NO_VISUAL_NEEDED', status: 'active', channel: 'dzen',
+            placement: 'feed', source_content_revision: 3 }
+    };
+    assert.equal(isCompletedArtDecisionPlacementMismatchEvidence(evidence), true);
+    assert.equal(isCompletedArtDecisionPlacementMismatchEvidence({ ...evidence,
+        decision: { ...evidence.decision, placement: 'article_cover' } }), false);
+    assert.equal(isCompletedArtDecisionPlacementMismatchEvidence({ ...evidence, selectedAssetId: 12 }), false);
+});
 import {
     assertCanonicalPublicationPlacement,
     publicationPlacementAssetContract

@@ -27,6 +27,7 @@ type DzenReleaseResult = {
     project_id: number; task_id: number; channel_id: number;
     content_revision: number; accepted_revision: number; body_sha256: string;
     visual_state: string; placement: string; visual_decision_version: number;
+    visual_decision_id: number;
     selected_asset_id: number | null; asset_sha256: string | null;
     schedule_at: string; publish_at: string; publication_mode: 'owner_released';
     explicit_send_required: true; published: false; replayed: boolean;
@@ -45,7 +46,7 @@ type DzenReleaseTask = {
 };
 
 type DzenVisualDecision = {
-    decision: string; source_content_revision: number; decision_version: number;
+    id: number; decision: string; source_content_revision: number; decision_version: number;
     placement: string; channel: string; status: string;
 };
 
@@ -181,6 +182,7 @@ export async function releaseDzenTask(
             content_revision: args.expectedContentRevision, accepted_revision: args.expectedAcceptedRevision,
             body_sha256: bodyHash, visual_state: args.expectedVisualState,
             placement: args.expectedPlacement, visual_decision_version: args.expectedVisualDecisionVersion,
+            visual_decision_id: decision!.id,
             selected_asset_id: args.expectedSelectedAssetId, asset_sha256: args.expectedAssetSha256,
             schedule_at: args.expectedScheduleAt, publish_at: args.expectedPublishAt,
             publication_mode: 'owner_released', explicit_send_required: true,
