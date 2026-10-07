@@ -4,6 +4,14 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { isToolAllowedForProfile } from '../mcp/capabilities';
 
+test('publisher can access exact task1076 owner release without opening generic LinkedIn administration', () => {
+    assert.equal(isToolAllowedForProfile('publisher', 'ba_release_linkedin_task1076_browser'), true);
+    assert.equal(isToolAllowedForProfile('publisher', 'ba_release_approved_linkedin_browser_task'), false);
+    for (const profile of ['planner', 'writer', 'editor', 'art_director', 'growth_analyst', 'strategist'] as const) {
+        assert.equal(isToolAllowedForProfile(profile, 'ba_release_linkedin_task1076_browser'), false);
+    }
+});
+
 test('new project-scoped roles cannot reach owner administration or direct publication', () => {
     for (const profile of ['editor', 'publisher', 'growth_analyst'] as const) {
         assert.equal(isToolAllowedForProfile(profile, 'ba_list_users'), false);

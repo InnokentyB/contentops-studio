@@ -1,4 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerLinkedInTask1076ReleaseTool } from './linkedin_task1076_release_tool';
 import { z } from 'zod';
 import ownerPublicationControlsService from '../../services/owner_publication_controls.service';
 import dzenTaskPublicationService from '../../services/dzen_task_publication.service';
@@ -33,6 +34,7 @@ import {
  * @param server - Target MCP server instance.
  */
 export function registerReleaseControlTools(server: McpServer): void {
+    registerLinkedInTask1076ReleaseTool(server);
     server.registerTool('ba_resume_dzen_task999_existing_draft', {
         description: 'Owner-authorized exact existing Dzen999 draft recovery. Defaults to read-only package/cover/final-stage preview; confirm true performs one original-key CAS-bound final submit, never opens a new composer.',
         inputSchema: {
