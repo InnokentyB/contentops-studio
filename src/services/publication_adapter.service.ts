@@ -123,11 +123,14 @@ class PublicationAdapterService {
     buildManualChecklist(action: PublicationAction, resolvedContext: {
         linkUrl?: string | null;
         accountRef?: string | null;
+        mediaKind?: 'video';
     }) {
         const checklist = [
             `Post from account: ${resolvedContext.accountRef || 'specified account in plan'}`,
             'Use the prepared body exactly as provided unless human review explicitly approves a change.',
-            'Attach the prepared image/carousel bundle if the action requires visuals.',
+            resolvedContext.mediaKind === 'video'
+                ? 'Upload the approved video as native feed video, not a story, clip or image.'
+                : 'Attach the prepared image/carousel bundle if the action requires visuals.',
             'After posting, record the public URL back into the task.'
         ];
 

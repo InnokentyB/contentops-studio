@@ -44,4 +44,6 @@ test('VK feed MP4 is a video resource without granting automatic authority', () 
     assert.equal(bundle.publication.image_url, null);
     assert.equal(bundle.resource_files[0]?.type, 'video');
     assert.equal(bundle.publication.body, 'Accepted body');
+    assert.ok(bundle.checklist.some(line => line.includes('approved video')));
+    assert.equal(bundle.checklist.some(line => line.includes('image/carousel')), false);
 });

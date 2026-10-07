@@ -386,7 +386,8 @@ export function buildHandoffBundle(
         manual_checklist: [
             ...publicationAdapterService.buildManualChecklist(action as unknown as PublicationAction, {
                 linkUrl: linkUrl as string | null,
-                accountRef
+                accountRef,
+                ...(isVideo ? { mediaKind: 'video' as const } : {})
             }),
             ...publicationPlacementManualChecklistNotes(placementContract)
         ],
@@ -483,7 +484,8 @@ export function buildGeneratedContentItemHandoff(
                 action_type: `${channelType}_post:publish`
             }, {
                 accountRef: channel?.name || null,
-                linkUrl: null
+                linkUrl: null,
+                ...(isVideo ? { mediaKind: 'video' as const } : {})
             }),
             ...publicationPlacementManualChecklistNotes(placementContract)
         ],
