@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import prisma from '../db';
 import threadsService from './threads.service';
 import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
+import { loadAgentWorkspaceManifest } from './agent_workspace_manifest.service';
 
 export const PENDING_THREADS_PACKAGES = {
     1021: { revision: 1, decisionId: 197, decisionChannel: 'threads', chain: false,
@@ -10,33 +11,44 @@ export const PENDING_THREADS_PACKAGES = {
         releaseCommand: 'ba_release_approved_threads_task1021', schedule: '2026-10-04T16:30:00.000Z' },
     1026: { revision: 1, decisionId: 231, decisionChannel: 'threads', chain: false,
         bodySha256: '8e7fba9f35b5ea6fef5c27b1a206cf2b0e7ce1afa98e9a949ba1586628f41605',
-        releaseCommand: 'ba_release_approved_threads_task1026', schedule: '2026-10-05T16:30:00.000Z' }
+        releaseCommand: 'ba_release_approved_threads_task1026', schedule: '2026-10-05T16:30:00.000Z' },
+    1035: { revision: 1, decisionId: 244, decisionChannel: 'threads', chain: false,
+        bodySha256: 'f5b3c7e3e23f355d2e478cd2c7436da3a31cf64ae3a8b6a3aa2fc4cfa1a82d41',
+        releaseCommand: 'ba_release_approved_threads_task1035', schedule: '2026-10-07T16:30:00.000Z' }
 } as const;
 
-/** Releases only the owner's two accepted pending Threads packages after identity verification. */
+/** Releases only fixed owner-approved Threads packages after identity/history verification. */
 export async function releasePendingThreadsTask(args: {
     projectId: number; taskId: number; actorId: string; approvalReference: string; idempotencyKey: string;
-}) {
+}, dependencies = { database: prisma, threads: threadsService, manifestLoader: loadAgentWorkspaceManifest,
+    hashBody: (body: string) => createHash('sha256').update(body).digest('hex') }) {
+    const { database, threads, manifestLoader, hashBody } = dependencies;
     const spec = PENDING_THREADS_PACKAGES[args.taskId as keyof typeof PENDING_THREADS_PACKAGES];
     if (args.projectId !== 10 || !spec) throw new Error('[THREADS_PENDING_SCOPE_MISMATCH]');
     const match = /^user:(\d+)$/.exec(args.actorId);
     if (!match || !args.approvalReference?.trim() || !args.idempotencyKey?.trim()) throw new Error('[OWNER_APPROVAL_REQUIRED]');
-    const owner = await prisma.projectMember.findUnique({ where: { project_id_user_id: {
+    const owner = await database.projectMember.findUnique({ where: { project_id_user_id: {
         project_id: 10, user_id: Number(match[1])
     } } });
     if (owner?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
-    const channel = await prisma.socialChannel.findFirst({ where: {
+    if (args.taskId === 1035) {
+        const manifest = await manifestLoader(10, Number(match[1]));
+        if (manifest.checksum !== 'sha256:e7f837d363d88c6a30c5e5daac002894f85ccd7e73249fa45ef07d7efc27e46f') {
+            throw new Error('[STALE_MANIFEST]');
+        }
+    }
+    const channel = await database.socialChannel.findFirst({ where: {
         id: 138, project_id: 10, type: 'threads', is_active: true
     } });
-    if (!channel) throw new Error('[THREADS_CHANNEL_NOT_READY]');
+    if (!channel || (args.taskId === 1035 && channel.name !== 'innokenty_threads')) throw new Error('[THREADS_CHANNEL_NOT_READY]');
     const config = resolveEffectiveChannelConfig('threads', channel.config) as {
         access_token?: string; threads_user_id?: string;
     };
-    const connection = await threadsService.testConnection(config);
+    const connection = await threads.testConnection(config);
     if (!connection.success || connection.details?.username !== 'innokentybo') throw new Error('[THREADS_IDENTITY_NOT_VERIFIED]');
     let after: string | undefined;
     for (let page = 0; page < 5; page += 1) {
-        const history = await threadsService.getOwnPosts(config.access_token || '', connection.details.id, after);
+        const history = await threads.getOwnPosts(config.access_token || '', connection.details.id, after);
         if (history.items.some(post => createHash('sha256').update(post.text || '').digest('hex') === spec.bodySha256)) {
             throw new Error('[THREADS_PROVIDER_DUPLICATE_FOUND] Reconcile the existing provider post');
         }
@@ -45,7 +57,13 @@ export async function releasePendingThreadsTask(args: {
         after = history.after;
     }
     const requestHash = createHash('sha256').update(JSON.stringify(args)).digest('hex');
-    return prisma.$transaction(async tx => {
+    return database.$transaction(async tx => {
+        if (args.taskId === 1035) {
+            const currentOwner = await tx.projectMember.findUnique({ where: { project_id_user_id: {
+                project_id: 10, user_id: Number(match[1])
+            } } });
+            if (currentOwner?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
+        }
         const prior = await tx.workflowEvent.findFirst({ where: {
             project_id: 10, content_item_id: args.taskId, command: spec.releaseCommand,
             actor_id: args.actorId, idempotency_key: args.idempotencyKey
@@ -60,7 +78,17 @@ export async function releasePendingThreadsTask(args: {
             id: spec.decisionId, project_id: 10, content_item_id: args.taskId,
             source_content_revision: 1, status: 'active', decision: 'NO_VISUAL_NEEDED', placement: 'feed'
         } });
-        const hash = createHash('sha256').update(task?.draft_text || '').digest('hex');
+        const hash = hashBody(task?.draft_text || '');
+        if (args.taskId === 1035) {
+            const [review, art] = await Promise.all([
+                tx.workItem.findFirst({ where: { id: 1550, project_id: 10, content_item_id: 1035,
+                    kind: 'content_review', state: 'completed', input_context_version: 1, result_version: 1 } }),
+                tx.workItem.findFirst({ where: { id: 1561, project_id: 10, content_item_id: 1035,
+                    kind: 'art_direction', state: 'completed', input_context_version: 1, result_version: 1 } })
+            ]);
+            if (!review || !art || decision?.decision_version !== 1 || task?.visual_placement !== 'feed'
+                || task?.publish_at?.toISOString() !== spec.schedule) throw new Error('[THREADS_PENDING_PACKAGE_CHANGED]');
+        }
         if (!task || task.channel_id !== 138 || task.content_revision !== 1 || task.accepted_revision !== 1
             || task.text_state !== 'accepted' || task.visual_state !== 'NO_VISUAL_NEEDED'
             || task.selected_asset_id !== null || task.visual_decision_version !== decision?.decision_version

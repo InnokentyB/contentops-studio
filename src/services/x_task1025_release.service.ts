@@ -147,7 +147,7 @@ export async function claimXBrowserPublication(args: {
     const item = await prisma.workItem.findFirst({ where: {
         id: args.workItemId, project_id: args.projectId, kind: 'browser_publish',
         assignee_role: 'browser_publisher', content_item: {
-            id: { in: [1025, 1079] }, project_id: 10, channel_id: 164,
+            id: { in: [1025, 1079, 1033] }, project_id: 10, channel_id: 164,
             channel: { type: 'x' }, status: 'browser_required',
             publication_mode: 'browser_required', publication_fact: null, published_link: null
         }
