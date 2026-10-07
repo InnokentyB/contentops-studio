@@ -31,7 +31,8 @@ export type PublicationPlacementAssetContract = {
 
 export function publicationPlacementAssetContract(
     channel: { type: string; config?: unknown },
-    placement: string
+    placement: string,
+    media: { mime_type?: string; width?: number | null; height?: number | null } = {}
 ): PublicationPlacementAssetContract {
     const normalizedType = channel.type.trim().toLowerCase();
     if (placement === 'story') {
@@ -64,11 +65,14 @@ export function publicationPlacementAssetContract(
             transport: { materialization: 'article', connector_authority: 'manual_only' }
         };
     }
-    if (normalizedType === 'vk' && placement === 'video_cover') {
+    if (normalizedType === 'vk' && (placement === 'video_cover'
+        || (placement === 'feed' && media.mime_type === 'video/mp4'))) {
         return {
             placement,
             artifact_kind: 'video',
-            dimensions: null,
+            dimensions: media.width && media.height
+                ? { width: media.width, height: media.height, aspect_ratio: `${media.width}:${media.height}` }
+                : null,
             safe_area: null,
             accepted_mime_types: ['video/mp4'],
             poll: { supported: false, configuration_mode: 'not_applicable', render_in_asset: false },

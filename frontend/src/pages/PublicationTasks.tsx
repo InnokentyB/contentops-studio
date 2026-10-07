@@ -475,10 +475,11 @@ function generationStageLabel(stage: string | undefined, locale: 'ru' | 'en') {
         ready_for_publication: 'Готово к публикации',
         publishing: 'Публикуется',
         browser_required: 'Нужен браузер',
+        blocked: 'Публикация заблокирована',
         published: 'Опубликовано',
         failed: 'Ошибка'
     }
-    const english: Record<string, string> = { topic_approval: 'Topic approval', writing: 'Content generation', content_review: 'Content review', visual_production: 'Visual production', ready_for_publication: 'Ready to publish', publishing: 'Publishing', browser_required: 'Browser required', published: 'Published', failed: 'Failed' }
+    const english: Record<string, string> = { topic_approval: 'Topic approval', writing: 'Content generation', content_review: 'Content review', visual_production: 'Visual production', ready_for_publication: 'Ready to publish', publishing: 'Publishing', browser_required: 'Browser required', blocked: 'Publication blocked', published: 'Published', failed: 'Failed' }
     return (locale === 'ru' ? labels : english)[stage || ''] || stage || ''
 }
 

@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { registerLinkedInTask1076ReleaseTool } from './linkedin_task1076_release_tool';
 import { registerThreadsTask1035ReleaseTool } from './threads_task1035_release_tool';
 import { registerXTask1033ReleaseTool } from './x_task1033_release_tool';
+import { registerVkTask1084HoldTool } from './vk_task1084_hold_tool';
 import { z } from 'zod';
 import ownerPublicationControlsService from '../../services/owner_publication_controls.service';
 import dzenTaskPublicationService from '../../services/dzen_task_publication.service';
@@ -39,6 +40,7 @@ export function registerReleaseControlTools(server: McpServer): void {
     registerLinkedInTask1076ReleaseTool(server);
     registerThreadsTask1035ReleaseTool(server);
     registerXTask1033ReleaseTool(server);
+    registerVkTask1084HoldTool(server);
     server.registerTool('ba_resume_dzen_task999_existing_draft', {
         description: 'Owner-authorized exact existing Dzen999 draft recovery. Defaults to read-only package/cover/final-stage preview; confirm true performs one original-key CAS-bound final submit, never opens a new composer.',
         inputSchema: {

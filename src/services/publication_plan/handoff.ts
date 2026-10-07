@@ -155,6 +155,8 @@ export function buildHandoffBundle(
         ? bindVkStoryPollToRevision(nativePollCandidate, Number(item.content_revision))
         : null;
     const selectedAssetMetadata = selectedAsset ? visualMetadataFromProvenance(selectedAsset.provenance) : {};
+    const isVideo = canonicalChannelType === 'vk'
+        && (placement === 'video_cover' || (placement === 'feed' && selectedAssetMetadata.mime_type === 'video/mp4'));
     const inferPersistedFileName = (runtimeFileName: string | null | undefined, persistedAsset: Record<string, unknown>) => {
         if (runtimeFileName) return runtimeFileName;
         if (typeof persistedAsset?.path === 'string' && persistedAsset.path.trim()) {
@@ -286,8 +288,8 @@ export function buildHandoffBundle(
     const resourceFiles = dedupeResourceFiles<ResourceFileEntry>([
         ...(selectedAsset ? [{
             ref: 'selected_asset',
-            type: placement === 'video_cover' ? 'video' : 'image',
-            role: placement === 'video_cover' ? 'publication_video' : 'publication_image',
+            type: isVideo ? 'video' : 'image',
+            role: isVideo ? 'publication_video' : 'publication_image',
             purpose: 'approved_visual',
             file_name: ((selectedAsset.provenance as Record<string, unknown>)?.planner_storage as { original_file_name?: string } | undefined)?.original_file_name || null,
             relative_path: null,
@@ -304,7 +306,7 @@ export function buildHandoffBundle(
             height: selectedAssetMetadata.height || null,
             color_mode: selectedAssetMetadata.color_mode || null,
             provenance: selectedAsset.provenance || null,
-            content_source: placement === 'video_cover' ? 'selected_video_asset' : 'selected_image_asset'
+            content_source: isVideo ? 'selected_video_asset' : 'selected_image_asset'
         }] : []),
         ...resolvedContentFiles,
         ...resolvedAssets.map((entry: AssetRuntimeResolution) => ({
@@ -326,7 +328,7 @@ export function buildHandoffBundle(
 
     const placementContract = publicationPlacementAssetContract(
         { type: canonicalChannelType, config: channel?.config },
-        placement
+        placement, selectedAssetMetadata
     );
 
     const itemScheduleAt = item.schedule_at as { toISOString?: () => string } | string | null | undefined;
@@ -346,7 +348,7 @@ export function buildHandoffBundle(
             id: action.id || item.id,
             display_name: action.display_name || item.title || null,
             channel: canonicalChannelType,
-            action_type: action.action_type || item.type,
+            action_type: isVideo ? 'vk_video:publish' : action.action_type || item.type,
             schedule_at: scheduleAtString,
             scheduled_date: action.scheduled_date || item.schedule_at,
             time_window: action.scheduled_time_window || null,
@@ -359,7 +361,8 @@ export function buildHandoffBundle(
             content_binding: acceptedContent.binding,
             html_bundle: resolvedAssets.filter((entry: AssetRuntimeResolution) => (entry.asset?.type as string)?.includes('html')),
             link_url: linkUrl,
-            image_url: selectedAsset?.file_url || null,
+            image_url: isVideo ? null : selectedAsset?.file_url || null,
+            video_url: isVideo ? selectedAsset?.file_url || null : null,
             alt_text: selectedAsset?.alt_text || null,
             native_poll: nativePoll,
             visuals: selectedAsset
@@ -403,9 +406,11 @@ export function buildGeneratedContentItemHandoff(
     const channel = item.channel as { type?: string; name?: string; config?: Record<string, unknown> } | undefined;
     const channelType = channel?.type || (item.layer as string) || 'unknown';
     const placement = (item.visual_placement as string) || 'feed';
+    const selectedAsset = resolveApprovedSelectedAsset(item);
+    const selectedAssetMetadata = selectedAsset ? visualMetadataFromProvenance(selectedAsset.provenance) : {};
     const placementContract = publicationPlacementAssetContract(
         { type: channelType, config: channel?.config },
-        placement
+        placement, selectedAssetMetadata
     );
     const acceptedContent = resolveAcceptedPublicationBody(item, options.requireAcceptedContent);
     const body = acceptedContent.body;
@@ -413,8 +418,7 @@ export function buildGeneratedContentItemHandoff(
         || ['manual', 'manual_handoff', 'browser_required'].includes(String(item.publication_mode || ''))
         ? 'manual'
         : 'automated';
-    const selectedAsset = resolveApprovedSelectedAsset(item);
-    const selectedAssetMetadata = selectedAsset ? visualMetadataFromProvenance(selectedAsset.provenance) : {};
+    const isVideo = placementContract.artifact_kind === 'video';
     const itemAssets = (item.assets as Record<string, unknown>) || {};
     const nativePollCandidate = channelType === 'vk' && placement === 'story'
         ? (itemAssets.vk_story_poll ?? null)
@@ -432,7 +436,7 @@ export function buildGeneratedContentItemHandoff(
             content_item_id: item.id,
             action_type: channelType === 'vk' && placement === 'article_cover'
                 ? 'vk_article:publish'
-                : channelType === 'vk' && placement === 'video_cover'
+                : channelType === 'vk' && isVideo
                     ? 'vk_video:publish'
                 : `${channelType}_${placement}:publish`,
             channel: channelType,
@@ -448,14 +452,15 @@ export function buildGeneratedContentItemHandoff(
             content_binding: acceptedContent.binding,
             link_url: null,
             html_bundle: [{ asset: { title: item.title || null, content: body } }],
-            image_url: selectedAsset?.file_url || null,
+            image_url: isVideo ? null : selectedAsset?.file_url || null,
+            video_url: isVideo ? selectedAsset?.file_url || null : null,
             alt_text: selectedAsset?.alt_text || null,
             native_poll: nativePoll
         },
         resource_files: selectedAsset ? [{
             ref: 'selected_asset',
-            type: placement === 'video_cover' ? 'video' : 'image',
-            role: placement === 'video_cover' ? 'publication_video' : 'publication_image',
+            type: isVideo ? 'video' : 'image',
+            role: isVideo ? 'publication_video' : 'publication_image',
             purpose: 'approved_visual',
             file_name: ((selectedAsset.provenance as Record<string, unknown>)?.planner_storage as { original_file_name?: string } | undefined)?.original_file_name || null,
             exists: true,
@@ -469,7 +474,7 @@ export function buildGeneratedContentItemHandoff(
             height: selectedAssetMetadata.height || null,
             color_mode: selectedAssetMetadata.color_mode || null,
             provenance: selectedAsset.provenance || null,
-            content_source: placement === 'video_cover' ? 'selected_video_asset' : 'selected_image_asset'
+            content_source: isVideo ? 'selected_video_asset' : 'selected_image_asset'
         }] : [],
         checklist: [
             ...publicationAdapterService.buildManualChecklist({

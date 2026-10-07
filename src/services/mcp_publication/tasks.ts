@@ -87,7 +87,7 @@ export async function listPublicationTasks(projectId: number, status?: string, m
     };
 
     if (status === 'active') {
-        where.status = { in: ['planned', 'drafted', 'revised', 'approved', 'scheduled', 'ready_for_execution', 'browser_required', 'awaiting_manual_publication', 'failed'] };
+        where.status = { in: ['planned', 'drafted', 'revised', 'approved', 'scheduled', 'ready_for_execution', 'browser_required', 'awaiting_manual_publication', 'failed', 'blocked'] };
     } else if (status) {
         where.status = status;
     }
@@ -471,6 +471,8 @@ export async function preparePublicationTask(projectId: number, taskId: number) 
     }
 
     assertPublicationTaskMutableForMcp(item, 'prepare_publication_task');
+    const hold = (item.quality_report as Record<string, unknown> | null)?.publication_hold;
+    if (hold) throw new Error('[PUBLICATION_HOLD_ACTIVE] Audited owner recovery is required before preparation');
     await artDirectionService.assertPublicationReady(projectId, taskId);
 
     const plan = await loadPublicationPlanContext(projectId);

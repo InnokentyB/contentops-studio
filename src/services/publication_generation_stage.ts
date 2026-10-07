@@ -7,6 +7,7 @@ export type PublicationGenerationStage =
     | 'publishing'
     | 'browser_required'
     | 'published'
+    | 'blocked'
     | 'failed';
 
 type WorkItemLike = { kind: string; state: string };
@@ -25,6 +26,7 @@ const ACTIVE_WORK_STATES = new Set(['available', 'claimed', 'blocked', 'waiting_
 
 export function derivePublicationGenerationStage(input: PublicationGenerationStageInput): PublicationGenerationStage {
     if (input.status === 'published') return 'published';
+    if (input.status === 'blocked') return 'blocked';
     if (input.status === 'browser_required' || input.publicationMode === 'browser_required') return 'browser_required';
     if (input.status === 'publishing') return 'publishing';
     if (input.status === 'failed') return 'failed';

@@ -5,6 +5,7 @@ import { normalizeTelegramDeliveryPayload } from './telegram_delivery_payload';
 import { resolveVkStoryPollFromTask, type VkStoryPoll } from './vk_story_poll';
 import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
 import { createHash } from 'crypto';
+import { visualMetadataFromProvenance } from './visual_asset_binding.service';
 
 type PublicationTaskArgs = { projectId: number; taskId: number; dryRun?: boolean; idempotencyKey?: string };
 type Dependencies = {
@@ -76,7 +77,12 @@ function extractVkConfig(channel: any) {
 
 function prepareTaskPayload(task: any, allowUnsupportedDryRun = false) {
     const channelType = task.channel?.type;
-    const directSupported = ['telegram', 'vk'].includes(channelType);
+    const isVkVideo = channelType === 'vk'
+        && visualMetadataFromProvenance(task.selected_asset?.provenance).mime_type === 'video/mp4';
+    const directSupported = ['telegram', 'vk'].includes(channelType) && !isVkVideo;
+    if (isVkVideo && !allowUnsupportedDryRun) {
+        throw new Error('[VK_NATIVE_VIDEO_ADAPTER_UNSUPPORTED] Native video transport is not enabled; do not use the photo adapter');
+    }
     if (!directSupported && !allowUnsupportedDryRun) {
         throw new Error('[SUPPORTED_PUBLICATION_TASK_REQUIRED] Task must target Telegram or VK');
     }
@@ -84,11 +90,11 @@ function prepareTaskPayload(task: any, allowUnsupportedDryRun = false) {
         throw new Error('[ACCEPTED_REVISION_REQUIRED] Publication requires the current accepted text revision');
     }
     let connectorReady = directSupported;
-    let connectorReason: string | null = null;
+    let connectorReason: string | null = isVkVideo ? 'vk_native_video_adapter_unsupported' : null;
     const isTelegramStory = isTelegramStoryTask(task);
     const isVkPersonalStory = isVkPersonalStoryTask(task);
     const isStory = isTelegramStory || isVkPersonalStory;
-    if (channelType === 'vk') {
+    if (channelType === 'vk' && !isVkVideo) {
         const config = extractVkConfig(task.channel);
         const hasSelectedVisual = Boolean(task.selected_asset_id || task.selected_asset);
         const hasStoryToken = Boolean(config.userToken || (
@@ -131,10 +137,10 @@ function prepareTaskPayload(task: any, allowUnsupportedDryRun = false) {
     if (channelType === 'vk' && !isVkPersonalStory && !text) throw new Error('[VK_TEXT_REQUIRED] VK publication text must not be empty');
     const payload = channelType === 'telegram'
         ? normalizeTelegramDeliveryPayload({ text, imageUrl: selectedAsset?.file_url })
-        : { text: isVkPersonalStory ? '' : text, imageUrl: selectedAsset?.file_url || null };
+        : { text: isVkPersonalStory ? '' : text, imageUrl: isVkVideo ? null : selectedAsset?.file_url || null };
     return {
         channelType, payload, selectedAsset, directSupported, connectorReady, connectorReason,
-        isStory, isTelegramStory, isVkPersonalStory, nativePoll
+        isStory, isTelegramStory, isVkPersonalStory, isVkVideo, nativePoll
     };
 }
 
@@ -215,6 +221,7 @@ export class TelegramTaskPublicationService {
             text: payload.text,
             image_url: payload.imageUrl,
             has_image: Boolean(payload.imageUrl),
+            ...(prepared.isVkVideo ? { video_url: selectedAsset?.file_url, has_video: true } : {}),
             ...(prepared.nativePoll ? { native_poll: prepared.nativePoll } : {})
         };
         if (args.dryRun) {
