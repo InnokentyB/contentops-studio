@@ -1,5 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import { registerVkSearchTools } from './tools/vk_search_tools';
 import prisma, { pool } from '../db';
 import workQueueService from '../services/work_queue.service';
 import { filterMcpServerTools, McpCapabilityProfile } from './capabilities';
@@ -126,6 +127,7 @@ export function registerPlannerTools(server: McpServer): void {
 
     // 12. Media assets, art direction, metrics & Dzen engagement
     registerMediaMetricsTools(server);
+    registerVkSearchTools(server);
 }
 
 /**

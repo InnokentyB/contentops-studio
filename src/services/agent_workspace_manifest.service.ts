@@ -36,8 +36,8 @@ const chats: AgentWorkspaceChat[] = [
         purpose: 'Turn project goals and evidence into initiatives, themes and planning constraints.',
         mcp_profile: 'strategist',
         responsibilities: ['Maintain strategic initiatives', 'Set measurable priorities and constraints', 'Hand an accepted direction to planning'],
-        permissions: ['read_workspace', 'manage_initiatives', 'propose_week_theme'],
-        startup_instructions: ['Load the latest workspace manifest', 'Ground recommendations in project evidence', 'Never publish or use deployment-owner provider keys']
+        permissions: ['read_workspace', 'manage_initiatives', 'propose_week_theme', 'search_public_vk_posts'],
+        startup_instructions: ['Load the latest workspace manifest', 'Ground recommendations in project evidence', 'Use ba_vk_search_relevant_posts for public VK discovery; evidence_limited does not verify owned activity', 'Never publish or use deployment-owner provider keys']
     },
     {
         id: 'planning_hq',
@@ -45,8 +45,8 @@ const chats: AgentWorkspaceChat[] = [
         purpose: 'Own the operating plan, publication slots, themes, dates, dependencies and approvals.',
         mcp_profile: 'planner',
         responsibilities: ['Create and maintain publication slots', 'Set themes, channels and schedule', 'Resolve overdue work and blockers'],
-        permissions: ['read_plan', 'change_schedule', 'change_slot_metadata', 'confirm_dependencies', 'approve_week_plan'],
-        startup_instructions: ['Load the latest workspace manifest', 'Read schedule exceptions before changing the plan', 'Never write publication copy']
+        permissions: ['read_plan', 'change_schedule', 'change_slot_metadata', 'confirm_dependencies', 'approve_week_plan', 'search_public_vk_posts'],
+        startup_instructions: ['Load the latest workspace manifest', 'Read schedule exceptions before changing the plan', 'Use ba_vk_search_relevant_posts for public VK discovery; preserve per-query blockers and UNKNOWN owned activity', 'Never write publication copy']
     },
     {
         id: 'content_writer',

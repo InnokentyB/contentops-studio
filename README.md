@@ -57,6 +57,8 @@ flowchart LR
 
 The application and MCP gateway share the same project-scoped domain model. PostgreSQL remains the system of record; agents receive capabilities, not database access. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for boundaries and deployment details.
 
+Read-only VK public discovery is available to Planner and Strategist MCP roles. See the [VK search operator contract](docs/vk-public-search-operator-contract.md) for route queries, evidence limits and rollout requirements.
+
 ## Safety model
 
 - Every project operation is checked against membership and role.
