@@ -1,5 +1,7 @@
 # ContentOps Studio
 
+Dzen External Radar coverage and search-screening semantics: [read-only operator contract](docs/dzen-radar-readonly-contract.md).
+
 ContentOps Studio is a governed content operations workspace for teams that need to turn research into an approved cross-channel plan, coordinate human and AI contributors, publish safely, and learn from outcomes.
 
 [Open the product demo](https://publishplanner-production.up.railway.app) | [5-minute walkthrough](docs/PRODUCT_DEMO.md) | [Connect an MCP agent](docs/MCP_SETUP.md) | [Architecture](docs/ARCHITECTURE.md)

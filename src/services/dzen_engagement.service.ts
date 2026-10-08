@@ -4,6 +4,7 @@ import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
 import dzenService, { type DzenConfig, isDzenPublishedUrl } from './dzen.service';
 import metricsService from './metrics.service';
 import { requireProjectActorAccess } from './project_access.service';
+import { buildDzenRadarCoverage, dzenReadFailure, screenDzenCard, type DzenRadarCoverage } from './dzen_radar';
 
 const DZEN_TYPES = new Set(['dzen', 'zen', 'zen_article']);
 
@@ -33,7 +34,7 @@ class DzenEngagementService {
         }));
         const day = collected.captured_at.slice(0, 10);
         const checkpoint = args.checkpoint || `dzen_daily_${day}`;
-        const observedCount = Object.values(values).filter((metric: any) => metric.status === 'observed').length;
+        const observedCount = Object.values(values).filter((metric) => metric.status === 'observed').length;
         const snapshot = await metricsService.recordMetricSnapshot({
             ...args,
             checkpoint,
@@ -48,10 +49,33 @@ class DzenEngagementService {
         return { collected, snapshot };
     }
 
+    /** Return adapter coverage, not a live session or owned-channel scan. */
+    async getRadarCoverage(args: { projectId: number; actorId: string; channelId: number }): Promise<DzenRadarCoverage> {
+        await this.getChannel(args.projectId, args.channelId, args.actorId);
+        return buildDzenRadarCoverage(args.projectId, args.channelId, new Date().toISOString());
+    }
+
     async searchRelevantPosts(args: { projectId: number; actorId: string; channelId: number; query: string; limit?: number; minScore?: number }) {
         const config = await this.getChannel(args.projectId, args.channelId, args.actorId);
-        const posts = await dzenService.searchRelevantPosts(config, args.query.trim(), args.limit, args.minScore);
-        return { query: args.query, posts, count: posts.length, source: 'dzen_public_search' };
+        const checkedAt = new Date().toISOString();
+        const coverage = buildDzenRadarCoverage(args.projectId, args.channelId, checkedAt);
+        const provenance = { captured_at: checkedAt, source: 'dzen_search_cards',
+            evidence_ref: `https://dzen.ru/search?query=${encodeURIComponent(args.query.trim())}`,
+            count_scope: 'returned_relevance_filtered_cards', limit: args.limit ?? 10, min_score: args.minScore ?? 25 };
+        try {
+            const results = await dzenService.searchRelevantPosts(config, args.query.trim(), args.limit, args.minScore);
+            const capturedAt = new Date().toISOString();
+            const posts = results.map(post => screenDzenCard(post, capturedAt));
+            provenance.captured_at = capturedAt;
+            coverage.surfaces.public_discovery = { status: 'observed', count: posts.length,
+                reason: { code: 'bounded_cards_observed', evidence: [provenance.evidence_ref],
+                    next_step: 'Read candidate bodies and native dates; this bounded result is not a complete feed scan.' } };
+            return { query: args.query, posts, count: posts.length, source: 'dzen_public_search',
+                status: 'observed' as const, error: null, coverage, provenance };
+        } catch (error: unknown) {
+            return { query: args.query, posts: [], count: null, source: 'dzen_public_search',
+                status: 'unknown' as const, error: dzenReadFailure(error), coverage, provenance };
+        }
     }
 
     async comment(args: { projectId: number; actorId: string; channelId: number; postUrl: string; text: string; idempotencyKey: string; confirm?: boolean }) {
