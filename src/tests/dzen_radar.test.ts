@@ -27,9 +27,22 @@ test('absence of heuristic flags is not an acceptance verdict', () => {
     assert.deepEqual(card.screening.quality.flags, []);
 });
 
+test('search provenance strips provider tracking and rejects credential-bearing or foreign links', () => {
+    const card = { url: 'https://dzen.ru/a/test?secdata=private-tracking&token=private-value#fragment',
+        title: 'Приемка агента', snippet: 'Наблюдения', score: 75, matched_terms: ['агента'] };
+    const screened = screenDzenCard(card, '2026-10-08T16:00:00Z');
+    assert.equal(screened.url, 'https://dzen.ru/a/test');
+    assert.equal(screened.provenance.evidence_ref, screened.url);
+    assert.doesNotMatch(JSON.stringify(screened), /private-|secdata|token|fragment/);
+    for (const url of ['https://example.com/a/test', 'https://user:password@dzen.ru/a/test', 'file://dzen.ru/a/test', 'https://dzen.ru/studio/test']) {
+        assert.throws(() => screenDzenCard({ ...card, url }, '2026-10-08T16:00:00Z'), /DZEN_SEARCH_RESULT_URL_INVALID/);
+    }
+});
+
 test('read failures classify gaps without leaking provider error payloads', () => {
     assert.equal(dzenReadFailure(new Error('DZEN_SEARCH_INTERFACE_CHANGED')).code, 'interface_changed');
     assert.equal(dzenReadFailure(new Error('DZEN_AUTH_REQUIRED')).code, 'auth_required');
+    assert.equal(dzenReadFailure(new Error('DZEN_SEARCH_RESULT_URL_INVALID')).code, 'invalid_result');
     assert.equal(dzenReadFailure(new Error('Dzen authentication failed: the saved session is invalid or expired')).code, 'auth_required');
     assert.equal(dzenReadFailure(new Error('Dzen requires a CAPTCHA or interactive account verification')).code, 'interactive_verification_required');
     assert.equal(dzenReadFailure(new Error('Navigation timeout of 30000 ms exceeded')).code, 'timeout');

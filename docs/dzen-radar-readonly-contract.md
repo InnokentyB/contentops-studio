@@ -31,7 +31,7 @@ Search keeps its `query`, `posts`, `count`, `source` success fields and existing
 
 - `status=observed` for successful reads; `count` means **returned relevance-filtered cards**, never total platform results or owned activity. An empty filtered set establishes no qualifying returned cards only.
 - Search URL, capture timestamp, requested limit and minimum score as provenance; timestamps identify collection, not publication. Coverage remains `complete=false` even after a successful search.
-- Per-card `evidence_ref`, `article_body_read=false`, version `dzen_card_screen_v1` and `freshness.status=unknown` / `published_at=null` / `publication_date_not_extracted`. Relative dates or years embedded in snippets are not trusted dates.
+- Per-card canonical public Dzen permalink for `url`/`evidence_ref` (query/tracking parameters and fragments removed), `article_body_read=false`, version `dzen_card_screen_v1` and `freshness.status=unknown` / `published_at=null` / `publication_date_not_extracted`. Relative dates or years embedded in snippets are not trusted dates. Foreign/editor URLs, credential-bearing links and unsupported protocols fail closed.
 - Transparent title/snippet flags: `promotional_language`, `seo_listicle_language`, `limited_snippet` (under 40 characters). These are conservative heuristics with false positives/negatives. All cards remain `review_required`; absence of flags is not editorial acceptance, and flagged cards are not silently dropped. Read the native body/date before calling a hit fresh, useful or action-ready.
 
 On browser/provider failure search returns `status=unknown`, `count=null`, `posts=[]`, typed `error` and coverage. Consumers must check status/count and must not turn `posts.length=0` into “no activity.” Authorization, missing/foreign/inactive channels and wrong channel types still throw before provider execution. This intentional read-error response change replaces generic provider exceptions; clients relying on exceptions need updating before rollout.
@@ -45,6 +45,7 @@ On browser/provider failure search returns `status=unknown`, `count=null`, `post
 | `auth_required` | No | Restore owner-authorized saved session |
 | `interactive_verification_required` | No | Owner completes native verification; never bypass |
 | `interface_changed` | No | Missing search markup; inspect the interface, not a zero-result verdict |
+| `invalid_result` | No | Unsafe search-card URL; fail the read rather than exposing provider tracking/credentials |
 | `timeout` | Yes | Retry read later; leave UNKNOWN |
 | `session_busy` | Yes | Wait for scoped browser lease release |
 | `unsafe_profile` | No | Repair trusted browser scope/profile configuration |
