@@ -89,22 +89,25 @@ export async function readDzenThread(config: DzenConfig, postUrl: string, maxRep
     if (!Number.isInteger(maxReplyThreads) || maxReplyThreads < 0 || maxReplyThreads > 5) throw new Error('DZEN_READ_URL_INVALID');
     const url = dzenReadUrl(postUrl);
     return withDzenReadonlyPage(config, async (page, _publisherId, ownerUid) => {
+        // Native /a and /b permalinks encode the 12-byte publication ID used by the comments API.
+        const encodedId = new URL(url).pathname.match(/^\/[ab]\/([a-zA-Z0-9_-]{16})$/)?.[1];
+        if (!encodedId) throw new Error('DZEN_THREAD_INTERFACE_CHANGED');
+        const documentId = `native:${Buffer.from(encodedId, 'base64url').toString('hex')}`;
+        // Short publications preload comments while navigating; arm before goto and bind the exact document/frame.
+        const responsePromise = page.waitForResponse(response => {
+            const native = new URL(response.url());
+            return native.origin === 'https://dzen.ru' && native.pathname === '/api/comments/v2/root-comments' &&
+                native.searchParams.get('documentId') === documentId && response.request().frame() === page.mainFrame();
+        }, { timeout: 55_000 });
+        const pending = responsePromise.then(response => ({ response }), () => ({ response: null }));
         await page.goto(url, { waitUntil: 'networkidle2', timeout: 30_000 });
         if (dzenReadUrl(page.url()) !== url) throw new Error('DZEN_READ_URL_INVALID');
         await page.waitForSelector('[aria-label="Комментировать"]', { timeout: 15_000 });
-        const responsePromise = page.waitForResponse(response => {
-            const native = new URL(response.url());
-            return native.origin === 'https://dzen.ru' && native.pathname === '/api/comments/v2/root-comments';
-        }, { timeout: 20_000 });
-        // Handle the waiter immediately so click/navigation failures cannot leave an unhandled rejection.
-        const pending = responsePromise.then(response => ({ response }), () => ({ response: null }));
         await page.click('[aria-label="Комментировать"]');
         const { response } = await pending;
         if (!response) throw new Error('DZEN_THREAD_INTERFACE_CHANGED');
         if ([401,403].includes(response.status())) throw new Error('DZEN_AUTH_REQUIRED');
         if (response.status() !== 200) throw new Error('DZEN_THREAD_INTERFACE_CHANGED');
-        const documentId = new URL(response.url()).searchParams.get('documentId');
-        if (!documentId) throw new Error('DZEN_THREAD_INTERFACE_CHANGED');
         const rootResult = parseDzenPublicThread(await response.json(), documentId, ownerUid);
         const replies = [...rootResult.replies.items];
         const failures = [];
