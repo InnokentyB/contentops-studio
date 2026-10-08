@@ -159,6 +159,7 @@ const PUBLISHER_TOOLS = new Set([
     'ba_release_approved_threads_task1040',
     'ba_release_x_task1033_browser',
     'ba_hold_vk_task1084',
+    'ba_restore_vk_task1084_from_erroneous_retirement',
     'ba_claim_x_browser_publication',
     'ba_claim_vk_browser_publication',
     'ba_start_vk_browser_submission',
