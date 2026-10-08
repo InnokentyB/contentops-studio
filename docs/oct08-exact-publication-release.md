@@ -26,6 +26,8 @@ The owning Publisher re-reads manifest/task/decision/asset and calls, in order:
 2. `ba_verify_dzen_task1036_connector` with p10/task1036/owner actor and stable
    verification key. It probes the authenticated editor and records a 15-minute proof.
 3. `ba_publish_publication_task` with p10/task1036/dryRun=true.
+   Its payload title must be `65% решений автоматизировано. Почему этого мало для оценки системы`,
+   the pinned first line of the accepted body, never `W41 allocation #16 — Dzen`.
 4. Only the owning Publisher performs the separately authorized live call with
    dryRun=false and one stable send key. Unknown outcomes require reconciliation,
    never an alternative send key. Read back the confirmed provider identity/fact.

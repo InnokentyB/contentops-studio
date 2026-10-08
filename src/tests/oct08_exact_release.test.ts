@@ -45,7 +45,9 @@ test('1036 dry-run checks exact release and cover, never calls the provider or m
     const forbidden = async () => { sideEffects++; throw new Error('unexpected side effect'); };
     const task = { id: 1036, project_id: 10, channel_id: 116,
         channel: { type: 'dzen', config: { cookies: 'test-fixture', channel_id: 'test-channel' } },
-        content_revision: 2, accepted_revision: 2, text_state: 'accepted', draft_text: 'fixture', title: 'Fixture',
+        content_revision: 2, accepted_revision: 2, text_state: 'accepted',
+        draft_text: '65% решений автоматизировано. Почему этого мало для оценки системы\n\nFixture',
+        title: 'W41 allocation #16 — Dzen',
         visual_state: 'APPROVED', visual_placement: 'article_cover', visual_decision_version: 1,
         selected_asset_id: 122, selected_asset: { id: 122, status: 'approved', content_revision: 2,
             file_url: 'https://example.test/122.jpg', provenance: { planner_storage: { sha256: dzen.expectedAssetSha256 } } },
@@ -70,6 +72,8 @@ test('1036 dry-run checks exact release and cover, never calls the provider or m
     });
     const result = await service.execute({ projectId: 10, taskId: 1036, dryRun: true });
     assert.equal(result.mode, 'dry_run');
+    assert.equal((result.payload_preview as Record<string, unknown>).title,
+        '65% решений автоматизировано. Почему этого мало для оценки системы');
     assert.equal(sideEffects, 0);
     task.selected_asset_id = 123;
     await assert.rejects(() => service.execute({ projectId: 10, taskId: 1036, dryRun: true }), /DZEN_OWNER_RELEASE_PROOF_MISMATCH/);

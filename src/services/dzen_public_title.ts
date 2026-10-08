@@ -3,6 +3,13 @@ export function publicDzenArticleTitle(taskId: number, acceptedBody: string | nu
     if (taskId === 999 && slotTitle !== 'Почему метрика без контекста ведёт к ложному решению') {
         throw new Error('[DZEN_PUBLIC_TITLE_CHANGED]');
     }
+    if (taskId === 1036) {
+        const title = acceptedBody?.split('\n')[0]?.trim();
+        if (title !== '65% решений автоматизировано. Почему этого мало для оценки системы') {
+            throw new Error('[DZEN_PUBLIC_TITLE_CHANGED]');
+        }
+        return title;
+    }
     if (taskId !== 1031) return slotTitle;
     const title = acceptedBody?.split('\n')[0]?.trim();
     if (!title || title !== 'Как проверить новый формат урока без маркетинговой самооценки') {
