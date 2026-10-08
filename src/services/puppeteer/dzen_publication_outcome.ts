@@ -86,7 +86,14 @@ type ConfirmButtonState = { disabled: boolean; ariaDisabled: boolean };
 
 /** Submit the final Dzen dialog through a trusted Puppeteer click after checking readiness. */
 export async function clickDzenPublicationConfirm(page: Page, selector: string): Promise<void> {
-    const button = await page.waitForSelector(selector, { visible: true, timeout: 15_000 });
+    // This boundary does not authorize replay: an earlier provider draft may already exist.
+    const button = await page.waitForSelector(selector, { visible: true, timeout: 15_000 })
+        .catch((error: unknown) => {
+            if (error instanceof Error && /timeout|waiting for selector/i.test(error.message)) {
+                throw new Error('[DZEN_FINAL_SUBMIT_NOT_ATTEMPTED] Final control wait timed out before click; reconcile existing draft, do not resend');
+            }
+            throw error;
+        });
     if (!button) throw new Error('[DZEN_CONFIRM_NOT_FOUND] Final publication control was not found');
     const state = await (button as ElementHandle<Element>).evaluate((element): ConfirmButtonState => ({
         disabled: element instanceof HTMLButtonElement ? element.disabled : element.hasAttribute('disabled'),
