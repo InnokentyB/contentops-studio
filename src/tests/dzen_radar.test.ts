@@ -84,7 +84,7 @@ test('MCP registers the diagnostic with a validated scope and read-only annotati
     }
 });
 
-test('operator receives UNKNOWN/null for unimplemented owned surfaces; search failure cannot become zero', async t => {
+test('local diagnostic retains UNKNOWN/null until native surfaces are scanned; search failure cannot become zero', async t => {
     let member = true;
     let channel = true;
     let lookups = 0;
@@ -106,7 +106,8 @@ test('operator receives UNKNOWN/null for unimplemented owned surfaces; search fa
     for (const surface of ['owned_channel', 'comments', 'replies', 'activity'] as const) {
         assert.equal(result.surfaces[surface].status, 'unknown');
         assert.equal(result.surfaces[surface].count, null);
-        assert.equal(result.surfaces[surface].reason.code, 'reader_not_implemented');
+        assert.equal(result.surfaces[surface].reason.code, 'not_scanned');
+        assert.match(result.surfaces[surface].reason.next_step, /ba_dzen_read_inbound/);
         assert.ok(result.surfaces[surface].reason.evidence.length > 0);
     }
     assert.doesNotMatch(JSON.stringify(result), /SECRET|provider"/);

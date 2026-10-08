@@ -144,3 +144,7 @@ ContentOps Studio is an actively developed portfolio product running in producti
 ## License
 
 ISC License. See [LICENSE](LICENSE).
+
+### Dzen inbound evidence
+
+Planner/strategist can use `ba_dzen_read_inbound` for scoped Studio comments/replies and Activity, then `ba_dzen_read_thread` for an exact public thread. All provider writes and notification read-state changes are blocked. Returned counts are bounded; preserve pagination and coverage gaps. See [reader contract](docs/dzen-inbound-readonly-contract.md).

@@ -6,6 +6,8 @@ import metricsService from './metrics.service';
 import { requireProjectActorAccess } from './project_access.service';
 import { buildDzenRadarCoverage, dzenReadFailure, screenDzenCard, type DzenRadarCoverage } from './dzen_radar';
 
+import { readDzenInbound, readDzenThread } from './puppeteer/dzen_inbound_reader';
+
 const DZEN_TYPES = new Set(['dzen', 'zen', 'zen_article']);
 
 class DzenEngagementService {
@@ -53,6 +55,22 @@ class DzenEngagementService {
     async getRadarCoverage(args: { projectId: number; actorId: string; channelId: number }): Promise<DzenRadarCoverage> {
         await this.getChannel(args.projectId, args.channelId, args.actorId);
         return buildDzenRadarCoverage(args.projectId, args.channelId, new Date().toISOString());
+    }
+
+    /** Read native inbound surfaces only after authorizing the active project channel. */
+    async readInbound(args: { projectId: number; actorId: string; channelId: number; maxPages?: number; knownThreadUrls?: string[] }) {
+        const config = await this.getChannel(args.projectId, args.channelId, args.actorId);
+        try { return { project_id: args.projectId, channel_id: args.channelId, ...await readDzenInbound(config, args) }; }
+        catch (error: unknown) { return { project_id: args.projectId, channel_id: args.channelId, status: 'unknown', complete: false,
+            count: null, error: dzenReadFailure(error), captured_at: new Date().toISOString() }; }
+    }
+
+    /** Read one exact public comment thread through the authorized connection. */
+    async readThread(args: { projectId: number; actorId: string; channelId: number; postUrl: string; maxReplyThreads?: number }) {
+        const config = await this.getChannel(args.projectId, args.channelId, args.actorId);
+        try { return { project_id: args.projectId, channel_id: args.channelId, ...await readDzenThread(config, args.postUrl, args.maxReplyThreads) }; }
+        catch (error: unknown) { return { project_id: args.projectId, channel_id: args.channelId, status: 'unknown', complete: false,
+            count: null, error: dzenReadFailure(error), captured_at: new Date().toISOString() }; }
     }
 
     async searchRelevantPosts(args: { projectId: number; actorId: string; channelId: number; query: string; limit?: number; minScore?: number }) {
