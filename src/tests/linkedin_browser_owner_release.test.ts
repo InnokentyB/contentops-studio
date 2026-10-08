@@ -33,6 +33,8 @@ function harness(overrides: Record<string, unknown> = {}) {
             updateMany: async ({ data }: { data: Record<string, unknown> }) => (Object.assign(task, data), { count: 1 })
         },
         deliveryAttempt: { findFirst: async () => null },
+        artDirectionDecision: { findFirst: async () => ({ id: 252, decision: 'NO_VISUAL_NEEDED',
+            source_content_revision: 1, decision_version: 1, channel: 'linkedin', placement: 'feed', status: 'active' }) },
         workItem: {
             findFirst: async () => null,
             create: async ({ data }: { data: Record<string, unknown> }) => {
@@ -92,4 +94,20 @@ test('Publisher sees only the browser-publication-specific claim', () => {
     assert.equal(isToolAllowedForProfile('publisher', 'ba_claim_linkedin_browser_publication'), true);
     assert.equal(isToolAllowedForProfile('publisher', 'ba_claim_work_item'), false);
     assert.equal(isToolAllowedForProfile('writer', 'ba_claim_linkedin_browser_publication'), false);
+});
+
+test('explicit no-visual release requires an active revision-bound waiver, not a missing asset', async () => {
+    const h = harness({ visual_state: 'NO_VISUAL_NEEDED', visual_decision_version: 1,
+        selected_asset_id: null, selected_asset: null });
+    const noVisualArgs = { ...args, expectedSelectedAssetId: null,
+        expectedAssetSha256: null };
+    const result = await releaseLinkedInBrowserTask(h.deps, noVisualArgs);
+    assert.equal(result.selected_asset_id, null);
+    assert.equal(result.asset_sha256, null);
+    assert.equal(h.workItems.length, 1);
+    const stale = harness({ visual_state: 'NO_VISUAL_NEEDED', visual_decision_version: 2,
+        selected_asset_id: null, selected_asset: null });
+    await assert.rejects(() => releaseLinkedInBrowserTask(stale.deps, noVisualArgs), /OWNER_RELEASE_GUARD_FAILED/);
+    await assert.rejects(() => releaseLinkedInBrowserTask(harness({ selected_asset_id: null,
+        selected_asset: null }).deps, noVisualArgs), /OWNER_RELEASE_GUARD_FAILED/);
 });

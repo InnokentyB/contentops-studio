@@ -14,8 +14,9 @@ export type LinkedInBrowserReleaseArgs = {
     expectedContentRevision: number;
     expectedAcceptedRevision: number;
     expectedBodySha256: string;
-    expectedSelectedAssetId: number;
-    expectedAssetSha256: string;
+    expectedSelectedAssetId: number | null;
+    expectedAssetSha256: string | null;
+    expectedVisualDecisionId?: number;
     expectedScheduleAt: string;
     expectedManifestChecksum: string;
     approvalReference: string;
@@ -28,6 +29,7 @@ type ReleaseTask = {
     status: string; handoff_state: string; publication_mode: string;
     content_revision: number; accepted_revision: number | null; text_state: string; draft_text: string | null;
     visual_state: string; visual_placement: string | null; selected_asset_id: number | null;
+    visual_decision_version?: number;
     selected_asset: { id: number; status: string; content_revision: number; file_url: string | null;
         provenance: unknown } | null;
     schedule_at: Date | null; publish_at: Date | null; publication_fact: unknown; published_link: string | null;
@@ -46,6 +48,10 @@ type ReleaseTransaction = {
         updateMany(args: unknown): Promise<{ count: number }>;
     };
     deliveryAttempt: { findFirst(args: unknown): Promise<unknown> };
+    artDirectionDecision?: { findFirst(args: unknown): Promise<{
+        id: number; decision: string; source_content_revision: number; decision_version: number;
+        channel: string; placement: string; status: string;
+    } | null> };
     workItem: {
         findFirst(args: unknown): Promise<{ id: number } | null>;
         create(args: { data: Record<string, unknown> }): Promise<{ id: number }>;
@@ -65,8 +71,8 @@ export type LinkedInBrowserReleaseResult = {
     content_revision: number;
     accepted_revision: number;
     body_sha256: string;
-    selected_asset_id: number;
-    asset_sha256: string;
+    selected_asset_id: number | null;
+    asset_sha256: string | null;
     schedule_at: string;
     publication_authorized: true;
     publication_mode: 'browser_required';
@@ -100,6 +106,7 @@ export async function releaseLinkedInBrowserTask(
     args: LinkedInBrowserReleaseArgs
 ): Promise<LinkedInBrowserReleaseResult> {
     if (!args.approvalReference.trim()) throw new Error('[OWNER_APPROVAL_REFERENCE_REQUIRED]');
+    if (!args.idempotencyKey.trim()) throw new Error('[IDEMPOTENCY_KEY_REQUIRED]');
     if (!/^sha256:[a-f0-9]{64}$/i.test(args.expectedManifestChecksum)) throw new Error('[INVALID_MANIFEST_CHECKSUM]');
     const expectedSchedule = new Date(args.expectedScheduleAt);
     if (!Number.isFinite(expectedSchedule.getTime())) throw new Error('[INVALID_SCHEDULE]');
@@ -126,6 +133,25 @@ export async function releaseLinkedInBrowserTask(
         const task = await tx.contentItem.findFirst({ where: { id: args.taskId, project_id: args.projectId },
             include: { channel: true, selected_asset: true, publication_fact: true } });
         const bodyHash = dependencies.hashBody(task?.draft_text || '');
+        const noVisual = args.expectedSelectedAssetId === null;
+        const decision = noVisual ? await tx.artDirectionDecision?.findFirst({ where: {
+            project_id: args.projectId, content_item_id: args.taskId, status: 'active',
+            source_content_revision: args.expectedContentRevision,
+            decision_version: task?.visual_decision_version
+        } }) : null;
+        const visualMatches = noVisual
+            ? args.expectedAssetSha256 === null && task?.visual_state === 'NO_VISUAL_NEEDED'
+                && task.selected_asset_id === null && task.selected_asset === null
+                && decision?.decision === 'NO_VISUAL_NEEDED' && decision.status === 'active'
+                && (args.expectedVisualDecisionId === undefined || decision.id === args.expectedVisualDecisionId)
+                && decision.source_content_revision === args.expectedContentRevision
+                && decision.decision_version === task.visual_decision_version
+                && decision.placement === 'feed'
+                && ['linkedin', task.channel?.name].includes(decision.channel)
+            : task?.visual_state === 'APPROVED' && task.selected_asset_id === args.expectedSelectedAssetId
+                && task.selected_asset?.status === 'approved'
+                && task.selected_asset.content_revision === args.expectedContentRevision
+                && Boolean(task.selected_asset.file_url) && assetSha256(task) === args.expectedAssetSha256;
         const channelConfig = task?.channel
             ? resolveEffectiveChannelConfig('linkedin', task.channel.config || {})
             : {};
@@ -141,11 +167,7 @@ export async function releaseLinkedInBrowserTask(
             || task.content_revision !== args.expectedContentRevision
             || task.accepted_revision !== args.expectedAcceptedRevision
             || task.content_revision !== task.accepted_revision || task.text_state !== 'accepted'
-            || task.visual_state !== 'APPROVED' || task.visual_placement !== 'feed'
-            || task.selected_asset_id !== args.expectedSelectedAssetId
-            || task.selected_asset?.status !== 'approved'
-            || task.selected_asset?.content_revision !== args.expectedContentRevision
-            || !task.selected_asset?.file_url || assetSha256(task) !== args.expectedAssetSha256
+            || !visualMatches || task.visual_placement !== 'feed'
             || task.schedule_at?.toISOString() !== args.expectedScheduleAt
             || bodyHash !== args.expectedBodySha256 || task.publication_fact || task.published_link) {
             throw new Error('[OWNER_RELEASE_GUARD_FAILED] Exact accepted LinkedIn browser task is required');
@@ -164,7 +186,8 @@ export async function releaseLinkedInBrowserTask(
             id: args.taskId, project_id: args.projectId, channel_id: args.expectedChannelId,
             status: 'ready_for_execution', handoff_state: 'ready', publication_mode: 'approval_required',
             content_revision: args.expectedContentRevision, accepted_revision: args.expectedAcceptedRevision,
-            text_state: 'accepted', visual_state: 'APPROVED', visual_placement: 'feed',
+            text_state: 'accepted', visual_state: task.visual_state, visual_placement: 'feed',
+            ...(noVisual ? { visual_decision_version: task.visual_decision_version } : {}),
             selected_asset_id: args.expectedSelectedAssetId, schedule_at: expectedSchedule
         }, data: {
             status: 'browser_required', publication_mode: 'browser_required',
