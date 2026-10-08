@@ -199,3 +199,31 @@ test('reader browser closes when page creation or native identity verification f
     await assert.rejects(withDzenReadonlyPage({channel_id:'owned',cookies:'test_only=synthetic'},async () => true), /Synthetic page failure/);
     assert.equal(closed,1);
 });
+
+test('a short publication whose root comments preload during navigation still returns the exact native thread', async t => {
+    const url = 'https://dzen.ru/a/apVsRPWX808c-DY-';
+    const documentId = 'native:6a956c44f597f34f1cf8363e';
+    const frame = {};
+    let navigated = false, closed = 0;
+    let deliver: ((response: unknown) => void) | undefined;
+    const response = { url: () => `https://dzen.ru/api/comments/v2/root-comments?documentId=${documentId}`, status: () => 200,
+        request: () => ({frame: () => frame}), json: async () => ({status:'ok',
+            meta:{rootCommentsCount:1,childCommentsCount:0,totalCommentsCount:1,commentsVisibility:'visible',appliedSorting:'top'},
+            items:[{entity:'comment',entityData:{id:100,documentId,createdTs:at,authorUid:1,text:'Native prefetched body'}}],
+            usersById:{'1':{displayName:'Owner'}},metaByCommentId:{'100':{childrenCount:0}}}) };
+    const page = {
+        setRequestInterception: async () => {}, on: () => {}, setUserAgent: async () => {}, setCookie: async () => {},
+        waitForRequest: async () => ({headers: () => ({'x-csrf-token':'SYNTHETIC_CSRF'})}),
+        goto: async (target: string) => { if(target === url){navigated=true;deliver?.(response);} },
+        url: () => navigated ? url : 'https://dzen.ru/profile/editor/id/owned/comments/', mainFrame: () => frame,
+        waitForSelector: async () => {}, click: async () => {},
+        waitForResponse: (predicate: (candidate: typeof response) => boolean) => { assert.equal(predicate(response),true); assert.equal(predicate({...response,url:()=> 'https://dzen.ru/api/comments/v2/root-comments?documentId=native:foreign'}),false); return navigated ? Promise.reject(Error('Response already arrived')) : new Promise(resolve => {deliver=resolve;}); },
+        evaluate: async (_fn: unknown,input?: {url:string}) => !input ? 'Комментарии' : {status:200,payload:{publisher:{id:'owned',ownerUid:1},accessData:{canRead:true}}}
+    };
+    t.mock.method(puppeteer,'launch',async () => ({newPage:async () => page,close:async () => {closed++;}}));
+    const result = await reader.readDzenThread({channel_id:'owned',cookies:'test_only=synthetic'},url);
+    assert.equal(result.comments[0].text,'Native prefetched body');
+    assert.equal(result.replies.count,0);
+    assert.equal(result.complete,true);
+    assert.equal(closed,1);
+});
