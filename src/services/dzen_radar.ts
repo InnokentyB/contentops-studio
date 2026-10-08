@@ -37,7 +37,7 @@ export function buildDzenRadarCoverage(projectId: number, channelId: number, che
 }
 
 export interface DzenReadFailure {
-    code: 'auth_required' | 'interactive_verification_required' | 'interface_changed' | 'timeout' | 'session_busy' | 'unsafe_profile' | 'provider_failure';
+    code: 'auth_required' | 'interactive_verification_required' | 'interface_changed' | 'invalid_result' | 'timeout' | 'session_busy' | 'unsafe_profile' | 'provider_failure';
     retryable: boolean;
     next_step: string;
 }
@@ -45,6 +45,8 @@ export interface DzenReadFailure {
 /** Classify allowlisted read errors without returning raw errors, URLs, cookies or provider payloads. */
 export function dzenReadFailure(error: unknown): DzenReadFailure {
     const message = error instanceof Error ? error.message : '';
+    if (message === 'DZEN_SEARCH_RESULT_URL_INVALID') return { code: 'invalid_result', retryable: false,
+        next_step: 'Review the search-card URL boundary; do not return unsafe provider links.' };
     if (/CAPTCHA|interactive account verification/i.test(message)) return { code: 'interactive_verification_required', retryable: false,
         next_step: 'Owner must complete native account verification; do not bypass the challenge.' };
     if (/DZEN_AUTH_REQUIRED|authenticated Dzen session|Dzen authentication|Dzen session is not authenticated/i.test(message)) {
@@ -72,15 +74,26 @@ export interface DzenScreenedCard extends DzenRankedCard {
 
 /** Add conservative heuristics; never discard a card or promote lexical relevance to quality/freshness. */
 export function screenDzenCard(card: DzenRankedCard, capturedAt: string): DzenScreenedCard {
+    let canonicalUrl: string | null = null;
+    try {
+        const parsed = new URL(card.url);
+        if (['https:', 'http:'].includes(parsed.protocol) && !parsed.username && !parsed.password) {
+            canonicalUrl = canonicalPublicDzenUrl(card.url);
+        }
+    } catch {
+        throw new Error('DZEN_SEARCH_RESULT_URL_INVALID');
+    }
+    if (!canonicalUrl) throw new Error('DZEN_SEARCH_RESULT_URL_INVALID');
     const text = `${card.title} ${card.snippet}`;
     const flags: string[] = [];
     if (/купить|скидк|промокод|подпиш|запишитесь|бесплатный курс|buy now|subscribe/i.test(text)) flags.push('promotional_language');
     if (/лучши[йех]|топ[ -]?\d|\d+ способов|полное руководство|best \d|ultimate guide/i.test(text)) flags.push('seo_listicle_language');
     if (card.snippet.trim().length < 40) flags.push('limited_snippet');
-    return { ...card,
-        provenance: { source: 'dzen_search_card', captured_at: capturedAt, evidence_ref: card.url, article_body_read: false },
+    return { ...card, url: canonicalUrl,
+        provenance: { source: 'dzen_search_card', captured_at: capturedAt, evidence_ref: canonicalUrl, article_body_read: false },
         screening: { version: 'dzen_card_screen_v1',
             freshness: { status: 'unknown', published_at: null, reason: 'publication_date_not_extracted' },
             quality: { disposition: 'review_required', flags, basis: 'title_and_snippet_heuristics' } }
     };
 }
+import { canonicalPublicDzenUrl } from './puppeteer/dzen_publication_outcome';
