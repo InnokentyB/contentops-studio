@@ -188,7 +188,7 @@ export function registerMediaMetricsTools(server: McpServer): void {
     }, async (args) => asToolResult(await dzenEngagementService.collectPostMetrics(args)));
 
     server.registerTool('ba_dzen_search_relevant_posts', {
-        description: 'Search public Dzen posts and rank candidates by relevance to a query. This does not publish or comment.',
+        description: 'Read bounded public Dzen search cards ranked by lexical relevance, with conservative quality flags and UNKNOWN freshness. count is returned filtered cards only; status=unknown/count=null on read failure. Owned comments/replies/activity remain UNKNOWN. Does not publish or mark data.',
         annotations: { readOnlyHint: true, openWorldHint: true },
         inputSchema: {
             projectId: z.number().int().positive(),
@@ -199,6 +199,16 @@ export function registerMediaMetricsTools(server: McpServer): void {
             minScore: z.number().int().min(0).max(100).optional()
         }
     }, async (args) => asToolResult(await dzenEngagementService.searchRelevantPosts(args)));
+
+    server.registerTool('ba_dzen_get_radar_coverage', {
+        description: 'Read local Dzen adapter coverage diagnostics for an authorized active channel. Does not contact Dzen or verify the live session. Missing owned-channel/comments/replies/activity readers return UNKNOWN with null counts and source evidence; never interpret as zero.',
+        annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string().min(1),
+            channelId: z.number().int().positive()
+        }
+    }, async (args) => asToolResult({ ...await dzenEngagementService.getRadarCoverage(args) }));
 
     server.registerTool('ba_dzen_comment', {
         description: 'Preview or publish one Dzen comment. Defaults to preview; real publication requires confirm=true and an idempotency key.',
