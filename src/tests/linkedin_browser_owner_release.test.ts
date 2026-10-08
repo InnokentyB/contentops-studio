@@ -111,3 +111,9 @@ test('explicit no-visual release requires an active revision-bound waiver, not a
     await assert.rejects(() => releaseLinkedInBrowserTask(harness({ selected_asset_id: null,
         selected_asset: null }).deps, noVisualArgs), /OWNER_RELEASE_GUARD_FAILED/);
 });
+
+test('approved asset and no-visual waiver cannot mix nullable checksum bindings', async () => {
+    const h = harness({ selected_asset: { id: 107, status: 'approved', content_revision: 1,
+        file_url: 'https://example.test/107.png', provenance: {} } });
+    await assert.rejects(() => releaseLinkedInBrowserTask(h.deps, { ...args, expectedAssetSha256: null }), /INVALID_VISUAL_BINDING/);
+});

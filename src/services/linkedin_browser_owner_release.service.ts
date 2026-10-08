@@ -107,6 +107,9 @@ export async function releaseLinkedInBrowserTask(
 ): Promise<LinkedInBrowserReleaseResult> {
     if (!args.approvalReference.trim()) throw new Error('[OWNER_APPROVAL_REFERENCE_REQUIRED]');
     if (!args.idempotencyKey.trim()) throw new Error('[IDEMPOTENCY_KEY_REQUIRED]');
+    if ((args.expectedSelectedAssetId === null) !== (args.expectedAssetSha256 === null)) {
+        throw new Error('[INVALID_VISUAL_BINDING] Asset ID and checksum must both be present or both null');
+    }
     if (!/^sha256:[a-f0-9]{64}$/i.test(args.expectedManifestChecksum)) throw new Error('[INVALID_MANIFEST_CHECKSUM]');
     const expectedSchedule = new Date(args.expectedScheduleAt);
     if (!Number.isFinite(expectedSchedule.getTime())) throw new Error('[INVALID_SCHEDULE]');
