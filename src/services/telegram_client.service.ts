@@ -170,6 +170,70 @@ export class TelegramClientService {
         return this.client;
     }
 
+    /**
+     * Read-only exact-text scan of recent channel history. It never sends,
+     * edits, deletes, forwards, reacts to, or marks a message as published.
+     */
+    async searchExactTextHistory(params: {
+        projectId: number;
+        target: string;
+        expectedText: string;
+        limit?: number;
+    }): Promise<{
+        status: 'found' | 'not_found' | 'ambiguous' | 'session_unavailable';
+        reasonCode?: string;
+        matches: Array<{ messageId: number; publicUrl: string; publishedAt: string; textSha256: string }>;
+    }> {
+        const session = await this.inspectSessionTarget(params.projectId);
+        if (!session.configured) return { status: 'session_unavailable', reasonCode: session.reason_code || 'project_session_missing', matches: [] };
+        let client: TelegramClient | null;
+        try {
+            client = await this.getClient(params.projectId);
+        } catch {
+            return { status: 'session_unavailable', reasonCode: 'project_session_decryption_failed', matches: [] };
+        }
+        if (!client) return { status: 'session_unavailable', reasonCode: 'project_session_connect_failed', matches: [] };
+        const username = params.target.trim().replace(/^@/, '');
+        if (!/^[A-Za-z0-9_]{5,32}$/.test(username)) throw new Error('[TELEGRAM_HISTORY_TARGET_INVALID]');
+        let entity: any;
+        try {
+            entity = await client.getEntity(`@${username}`);
+        } catch {
+            return { status: 'session_unavailable', reasonCode: 'channel_access_unavailable', matches: [] };
+        }
+        const normalize = (value: string) => value.replace(/\r/g, '').replace(/[\u00a0\u202f]/g, ' ')
+            .replace(/[ \t]+/g, ' ').replace(/ *\n */g, '\n').replace(/\n{2,}/g, '\n\n').trim();
+        const expected = normalize(params.expectedText);
+        const textSha256 = createHash('sha256').update(expected).digest('hex');
+        const max = Math.min(Math.max(params.limit || 500, 1), 1000);
+        const matches: Array<{ messageId: number; publicUrl: string; publishedAt: string; textSha256: string }> = [];
+        let offsetId = 0;
+        let scanned = 0;
+        while (offsetId >= 0 && matches.length < 2 && scanned < max) {
+            const pageLimit = Math.min(100, max - scanned);
+            const page: any[] = await client.getMessages(entity, { limit: pageLimit, offsetId });
+            if (!page.length) break;
+            scanned += page.length;
+            for (const message of page) {
+                const messageId = Number(message?.id);
+                if (Number.isSafeInteger(messageId) && messageId > 0 && normalize(String(message?.message || '')) === expected) {
+                    const unixSeconds = Number(message?.date);
+                    matches.push({
+                        messageId,
+                        publicUrl: `https://t.me/${username}/${messageId}`,
+                        publishedAt: Number.isFinite(unixSeconds) ? new Date(unixSeconds * 1000).toISOString() : new Date(0).toISOString(),
+                        textSha256
+                    });
+                }
+            }
+            if (page.length < pageLimit) break;
+            const nextOffset = Number(page[page.length - 1]?.id);
+            if (!Number.isSafeInteger(nextOffset) || nextOffset <= 0 || nextOffset === offsetId) break;
+            offsetId = nextOffset;
+        }
+        return { status: matches.length === 1 ? 'found' : matches.length > 1 ? 'ambiguous' : 'not_found', matches };
+    }
+
     async publishPersonalStory(params: {
         projectId: number;
         caption: string;
