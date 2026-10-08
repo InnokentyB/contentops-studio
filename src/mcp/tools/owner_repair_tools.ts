@@ -5,6 +5,7 @@ import publishedChannelRepairService from '../../services/published_channel_repa
 import workQueueService from '../../services/work_queue.service';
 import threadsCredentialAllocationService from '../../services/threads_credential_allocation.service';
 import { asToolResult } from './common';
+import publicationRetirementService from '../../services/publication_retirement.service';
 
 /**
  * Registers owner-level repair, visual overrides, and false delivery invalidation tools.
@@ -12,6 +13,36 @@ import { asToolResult } from './common';
  * @param server - Target MCP server instance.
  */
 export function registerOwnerRepairTools(server: McpServer): void {
+    const retirementGuards = {
+        projectId: z.union([z.literal(7), z.literal(10)]),
+        projectSlug: z.enum(['seturon', 'analystcraft-2']),
+        actorId: z.string().regex(/^user:\d+$/),
+        expectedManifestChecksum: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+        expectedTasks: z.array(z.object({
+            taskId: z.number().int().positive(),
+            expectedStatus: z.string().trim().min(1),
+            expectedPublicationMode: z.string().trim().min(1)
+        })).min(5).max(32),
+        approvalReference: z.string().trim().min(10).max(1000)
+    };
+
+    server.registerTool('ba_preview_publication_retirement', {
+        description: 'Owner-only read-only preview for the exact approved legacy publication-retirement batches in projects 7 and 10. Checks project slug, current manifest checksum, exact task IDs/states and absence of facts. Project 10 also performs an exact-text read-only MTProto history check for Telegram task 1011. Never sends or writes.',
+        annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+        inputSchema: retirementGuards
+    }, async args => asToolResult(await publicationRetirementService.preview(args)));
+
+    server.registerTool('ba_apply_publication_retirement', {
+        description: 'Owner-only audited atomic apply of an exact retirement preview. Changes only task status to cancelled and publication_mode to retired; preserves attempts, assets, copy, uncertainty, work items and facts. If exact task-1011 MTProto history proves publication, reconciles that fact instead. If its session is unavailable, creates one non-resend reconciliation blocker.',
+        annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+        inputSchema: {
+            ...retirementGuards,
+            previewHash: z.string().regex(/^[a-f0-9]{64}$/),
+            reason: z.string().trim().min(20).max(2000),
+            idempotencyKey: z.string().trim().min(1).max(500)
+        }
+    }, async args => asToolResult(await publicationRetirementService.apply(args)));
+
     server.registerTool('ba_encrypt_legacy_threads_source_credential', {
         description: 'Owner-only audited in-place encryption of the exact legacy Threads token in project 32/channel 176. Uses CAS and idempotency, never returns the token and never publishes.',
         annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
