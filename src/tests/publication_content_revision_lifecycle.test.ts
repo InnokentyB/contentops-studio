@@ -123,6 +123,13 @@ test('a recovered submitted review is idempotent while awaiting the owner decisi
     });
 });
 
+test('a reset review version never collides with higher historical approval versions', () => {
+    const plan = planContentReviewRecovery({ contentRevision: 4, acceptedRevision: null,
+        textState: 'draft', reviewResultVersion: 2, currentRevisionDecision: 'rejected',
+        submittedReviewAvailable: true, highestApprovalResultVersion: 3 });
+    assert.equal(plan.reviewResultVersion, 4);
+});
+
 test('a collision without a submitted result still requires a fresh revision-bound review item', () => {
     assert.deepEqual(planContentReviewRecovery({
         contentRevision: 2,

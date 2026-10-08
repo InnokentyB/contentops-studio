@@ -881,15 +881,23 @@ export async function recoverContentReview(params: {
                 }
             }
         });
+        const latestApproval = await tx.approvalDecision.findFirst({
+            where: { work_item_id: review.id }, orderBy: { result_version: 'desc' },
+            select: { result_version: true }
+        });
+        const reviewPayload = review.result_payload && typeof review.result_payload === 'object'
+            && !Array.isArray(review.result_payload) ? review.result_payload as Record<string, unknown> : null;
         const lifecycle = planContentReviewRecovery({
             contentRevision: content.content_revision,
             acceptedRevision: content.accepted_revision,
             textState: content.text_state,
             reviewResultVersion: review.result_version,
+            highestApprovalResultVersion: latestApproval?.result_version,
             currentRevisionDecision: currentApproval?.decision === 'approved'
                 ? 'approved'
                 : currentApproval?.decision === 'rejected' ? 'rejected' : null,
-            submittedReviewAvailable: review.state === 'waiting_approval' && review.result_payload !== null
+            submittedReviewAvailable: review.state === 'waiting_approval'
+                && reviewPayload?.content_revision === content.content_revision
         });
         const beforeState = {
             content_revision: content.content_revision,
@@ -926,6 +934,8 @@ export async function recoverContentReview(params: {
                         input_context_version: content.content_revision,
                         result_version: lifecycle.reviewResultVersion,
                         result_payload: {
+                            ...reviewPayload,
+                            content_revision: content.content_revision,
                             recovered_content_revision: content.content_revision,
                             body: content.draft_text,
                             evidence: params.evidence || null

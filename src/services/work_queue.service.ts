@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import prisma from '../db';
 import artDirectionService from './art_direction.service';
 import { assertContentReviewInput } from './content_review_gate';
+import { nextContentReviewResultVersion } from './publication_content_revision_lifecycle';
 import { WorkQueueScope, DbClient } from './work_queue/types';
 import { requireProjectAccess, assertProjectAccess as _assertProjectAccess, requireProjectOwner, bindServiceIdentity, unbindServiceIdentity, listServiceBindings } from './work_queue/auth';
 import { checkIdempotency, recordWorkflowEvent } from './work_queue/infrastructure';
@@ -347,7 +348,11 @@ export class WorkQueueService {
                 || !item.lease_expires_at || item.lease_expires_at < now) {
                 throw new Error('[CONTENT_REVIEW_INVALID_LEASE] Active reviewer-owned lease required');
             }
-            const nextVersion = item.result_version + 1;
+            const latestApproval = await tx.approvalDecision.findFirst({
+                where: { work_item_id: item.id }, orderBy: { result_version: 'desc' },
+                select: { result_version: true }
+            });
+            const nextVersion = nextContentReviewResultVersion(item.result_version, latestApproval?.result_version);
             const updated = await tx.workItem.updateMany({
                 where: {
                     id: item.id, project_id: params.projectId,
@@ -358,7 +363,7 @@ export class WorkQueueService {
                 },
                 data: {
                     state: 'waiting_approval', result_version: nextVersion,
-                    result_payload: params.result as Prisma.InputJsonValue,
+                    result_payload: { ...params.result, content_revision: params.expectedContentRevision },
                     lease_token: null, lease_expires_at: null, lease_actor_id: null
                 }
             });

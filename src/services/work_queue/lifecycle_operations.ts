@@ -236,7 +236,8 @@ export async function completeWorkItem(params: {
                     where: { id: existingReview.id },
                     data: {
                         state: 'available',
-                        result_version: newResultVersion
+                        result_payload: Prisma.DbNull,
+                        lease_token: null, lease_expires_at: null, lease_actor_id: null
                     }
                 });
             }

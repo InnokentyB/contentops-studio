@@ -32,6 +32,7 @@ export function planContentReviewRecovery(input: {
     reviewResultVersion: number;
     currentRevisionDecision: 'approved' | 'rejected' | null;
     submittedReviewAvailable: boolean;
+    highestApprovalResultVersion?: number;
 }) {
     if (input.currentRevisionDecision === 'approved'
         && input.acceptedRevision === input.contentRevision
@@ -47,8 +48,7 @@ export function planContentReviewRecovery(input: {
     }
 
     if (input.currentRevisionDecision === null
-        && input.submittedReviewAvailable
-        && input.reviewResultVersion >= input.contentRevision) {
+        && input.submittedReviewAvailable) {
         return {
             needsRecovery: false,
             textState: input.textState,
@@ -68,10 +68,16 @@ export function planContentReviewRecovery(input: {
         acceptedRevision: null,
         reviewState: 'waiting_approval',
         reviewResultVersion: preserveSubmittedReview
-            ? input.reviewResultVersion + 1
-            : input.contentRevision,
+            ? Math.max(input.reviewResultVersion, input.highestApprovalResultVersion || 0) + 1
+            : Math.max(input.contentRevision, input.reviewResultVersion,
+                (input.highestApprovalResultVersion || 0) + 1),
         replacementReviewRequired: decisionVersionCollision && !preserveSubmittedReview
     };
+}
+
+/** Work-item result versions are independent of content and writer versions. */
+export function nextContentReviewResultVersion(current: number, highestApproval: number = 0): number {
+    return Math.max(current, highestApproval) + 1;
 }
 
 export function planMissingContentReviewRecovery(input: {

@@ -13,7 +13,9 @@ test('reviewer lease submits a revision-bound result for approval and rejects cr
         lease_token: null, lease_actor_id: null, lease_expires_at: null
     };
     const events: any[] = [];
+    let historicalVersion = 0;
     const tx = {
+        approvalDecision: { findFirst: async () => historicalVersion ? { result_version: historicalVersion } : null },
         project: { findUnique: async () => ({ id: 10 }) },
         projectMember: { findUnique: async () => ({ id: 1 }) },
         workflowEvent: {
@@ -62,12 +64,24 @@ test('reviewer lease submits a revision-bound result for approval and rejects cr
         });
         assert.deepEqual(replay.work_item, submitted.work_item);
         assert.equal(events.length, 2);
+        historicalVersion = 3;
+        item.state = 'available';
+        item.result_version = 1;
+        item.content_item.content_revision = 4;
+        const revised = { ...base, expectedContentRevision: 4 };
+        const revisedClaim = await workQueueService.claimContentReview({ ...revised, idempotencyKey: 'claim-revised' });
+        const revisedSubmit = await workQueueService.submitContentReview({ ...revised,
+            leaseToken: revisedClaim.lease_token as string,
+            result: { recommendation: 'approve', summary: 'Fresh English revision 4' },
+            idempotencyKey: 'submit-revised' });
+        assert.deepEqual(revisedSubmit.work_item, { id: 944, state: 'waiting_approval', result_version: 4 });
+        assert.equal(item.result_payload.content_revision, 4);
         item.kind = 'content_write';
         item.state = 'available';
         await assert.rejects(workQueueService.claimContentReview({
             ...base, idempotencyKey: 'cross-kind'
         }), /CONTENT_REVIEW_ROLE_MISMATCH/);
-        assert.equal(events.length, 2);
+        assert.equal(events.length, 4);
     } finally {
         db.$transaction = originalTransaction;
     }
