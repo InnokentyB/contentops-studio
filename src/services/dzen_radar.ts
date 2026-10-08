@@ -1,10 +1,11 @@
+import { canonicalPublicDzenUrl } from './puppeteer/dzen_publication_outcome';
 /** Versioned, local adapter evidence. This diagnostic does not claim a live provider scan. */
 export interface DzenRadarCoverage {
     schema_version: 1;
     complete: false;
     project_id: number;
     channel_id: number;
-    provenance: { source: 'adapter_contract'; contract_version: 'dzen_radar_v1'; checked_at: string; provider_requested: false };
+    provenance: { source: 'adapter_contract'; contract_version: 'dzen_radar_v2'; checked_at: string; provider_requested: false };
     surfaces: { public_discovery: {
         status: 'unknown' | 'observed'; count: number | null;
         reason: { code: 'not_scanned' | 'bounded_cards_observed'; evidence: string[]; next_step: string };
@@ -18,20 +19,20 @@ export interface DzenRadarCoverage {
 export function buildDzenRadarCoverage(projectId: number, channelId: number, checkedAt: string): DzenRadarCoverage {
     const missing = (evidence: string[]): DzenRadarCoverage['surfaces']['owned_channel'] => ({
         status: 'unknown', count: null,
-        reason: { code: 'reader_not_implemented', evidence,
-            next_step: 'Use an authorized native read-only scan; retain UNKNOWN until surface evidence is recorded.' }
+        reason: { code: 'not_scanned', evidence,
+            next_step: 'Call ba_dzen_read_inbound and ba_dzen_read_thread for live native evidence; retain UNKNOWN until the requested surfaces are read.' }
     });
     return {
         schema_version: 1, complete: false, project_id: projectId, channel_id: channelId,
-        provenance: { source: 'adapter_contract', contract_version: 'dzen_radar_v1', checked_at: checkedAt, provider_requested: false },
+        provenance: { source: 'adapter_contract', contract_version: 'dzen_radar_v2', checked_at: checkedAt, provider_requested: false },
         surfaces: {
             public_discovery: { status: 'unknown', count: null, reason: { code: 'not_scanned',
                 evidence: ['src/services/puppeteer_publisher.service.ts#searchDzenPosts: reads bounded public search cards only'],
                 next_step: 'Call ba_dzen_search_relevant_posts; its returned count is not total activity.' } },
-            owned_channel: missing(['src/services/dzen.service.ts#readStudioPublications: incident publication inventory exists; no MCP owned-channel activity reader']),
-            comments: missing(['src/services/dzen.service.ts#collectPostMetrics: comment counters only, no comment bodies or pagination']),
-            replies: missing(['src/services/dzen_engagement.service.ts#comment: outbound preview/send only; no inbound reply reader']),
-            activity: missing(['src/mcp/tools/media_metrics_tools.ts: no authenticated Dzen Activity/notifications reader'])
+            owned_channel: missing(['src/services/puppeteer/dzen_readonly_browser.ts#withDzenReadonlyPage: configured publisher access is verified by ba_dzen_read_inbound']),
+            comments: missing(['src/services/puppeteer/dzen_inbound_reader.ts#readDzenInbound: ba_dzen_read_inbound reads native Studio comment bodies and bounded pagination']),
+            replies: missing(['src/services/puppeteer/dzen_inbound_reader.ts#readDzenThread: ba_dzen_read_inbound and ba_dzen_read_thread read child replies with explicit bounds']),
+            activity: missing(['src/mcp/tools/dzen_inbound_tools.ts: ba_dzen_read_inbound reads scoped authenticated notifications without marking seen'])
         }
     };
 }
@@ -45,8 +46,8 @@ export interface DzenReadFailure {
 /** Classify allowlisted read errors without returning raw errors, URLs, cookies or provider payloads. */
 export function dzenReadFailure(error: unknown): DzenReadFailure {
     const message = error instanceof Error ? error.message : '';
-    if (message === 'DZEN_SEARCH_RESULT_URL_INVALID') return { code: 'invalid_result', retryable: false,
-        next_step: 'Review the search-card URL boundary; do not return unsafe provider links.' };
+    if (/DZEN_(?:SEARCH_RESULT_URL_INVALID|READ_URL_INVALID|INBOUND_SCOPE_MISMATCH)/.test(message)) return { code: 'invalid_result', retryable: false,
+        next_step: 'Review the native URL and account/channel identity boundary; do not return unsafe or foreign results.' };
     if (/CAPTCHA|interactive account verification/i.test(message)) return { code: 'interactive_verification_required', retryable: false,
         next_step: 'Owner must complete native account verification; do not bypass the challenge.' };
     if (/DZEN_AUTH_REQUIRED|authenticated Dzen session|Dzen authentication|Dzen session is not authenticated/i.test(message)) {
@@ -55,7 +56,7 @@ export function dzenReadFailure(error: unknown): DzenReadFailure {
     if (/DZEN_.*INTERFACE_CHANGED/.test(message)) return { code: 'interface_changed', retryable: false, next_step: 'Review native markup; do not interpret missing cards as no results.' };
     if (/DZEN_BROWSER_SESSION_BUSY/.test(message)) return { code: 'session_busy', retryable: true, next_step: 'Wait for the scoped browser session to be released.' };
     if (/DZEN_BROWSER_PROFILE_UNSAFE|DZEN_BROWSER_SCOPE_INVALID/.test(message)) return { code: 'unsafe_profile', retryable: false, next_step: 'Repair the trusted browser profile configuration.' };
-    if (/timeout|timed out/i.test(message)) return { code: 'timeout', retryable: true, next_step: 'Retry the read later; coverage remains UNKNOWN.' };
+    if ((error instanceof Error && error.name === 'TimeoutError') || /timeout|timed out/i.test(message)) return { code: 'timeout', retryable: true, next_step: 'Retry the read later; coverage remains UNKNOWN.' };
     return { code: 'provider_failure', retryable: false, next_step: 'Inspect sanitized operator diagnostics before retrying the read.' };
 }
 
@@ -96,4 +97,3 @@ export function screenDzenCard(card: DzenRankedCard, capturedAt: string): DzenSc
             quality: { disposition: 'review_required', flags, basis: 'title_and_snippet_heuristics' } }
     };
 }
-import { canonicalPublicDzenUrl } from './puppeteer/dzen_publication_outcome';

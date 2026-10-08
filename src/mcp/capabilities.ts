@@ -46,6 +46,8 @@ const PLANNER_TOOLS = new Set([
     'ba_dzen_search_relevant_posts',
     'ba_vk_search_relevant_posts',
     'ba_dzen_get_radar_coverage',
+    'ba_dzen_read_inbound',
+    'ba_dzen_read_thread',
     'ba_dzen_comment',
     'ba_threads_search_posts',
     'ba_threads_get_replies',

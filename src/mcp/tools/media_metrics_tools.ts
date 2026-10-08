@@ -6,6 +6,7 @@ import metricsService from '../../services/metrics.service';
 import dzenEngagementService from '../../services/dzen_engagement.service';
 import threadsEngagementService from '../../services/threads_engagement.service';
 import prisma from '../../db';
+import { registerDzenInboundTools } from './dzen_inbound_tools';
 import { asToolResult, INTERNAL_MUTATION_ANNOTATIONS } from './common';
 
 /**
@@ -14,6 +15,7 @@ import { asToolResult, INTERNAL_MUTATION_ANNOTATIONS } from './common';
  * @param server - MCP server instance.
  */
 export function registerMediaMetricsTools(server: McpServer): void {
+    registerDzenInboundTools(server);
     server.registerTool('ba_generate_image_asset', {
         description: 'Register a generated image candidate only after the weekly plan and current text revision are accepted and an active GENERATE art-direction decision exists. Requires the stored image URL and alt text; the asset remains blocked until visual review.',
         annotations: INTERNAL_MUTATION_ANNOTATIONS,
@@ -201,7 +203,7 @@ export function registerMediaMetricsTools(server: McpServer): void {
     }, async (args) => asToolResult(await dzenEngagementService.searchRelevantPosts(args)));
 
     server.registerTool('ba_dzen_get_radar_coverage', {
-        description: 'Read local Dzen adapter coverage diagnostics for an authorized active channel. Does not contact Dzen or verify the live session. Missing owned-channel/comments/replies/activity readers return UNKNOWN with null counts and source evidence; never interpret as zero.',
+        description: 'Read local Dzen adapter coverage diagnostics for an authorized active channel. Does not contact Dzen or verify the live session. Unread surfaces return UNKNOWN with null counts. Use ba_dzen_read_inbound and ba_dzen_read_thread for live native evidence; never interpret UNKNOWN as zero.',
         annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
         inputSchema: {
             projectId: z.number().int().positive(),

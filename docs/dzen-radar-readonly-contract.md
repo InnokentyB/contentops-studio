@@ -1,4 +1,4 @@
-# Dzen External Radar: read-only coverage contract v1
+# Dzen External Radar: read-only coverage contract v2
 
 Date: 2026-10-08. Operator: Portfolio External Radar through a project-bound Planner MCP token.
 Engineering delivery requires owner UAT; deployment remains separately owner-authorized.
@@ -7,7 +7,7 @@ Engineering delivery requires owner UAT; deployment remains separately owner-aut
 
 The checked `external_radar` operating pack requires feed/search and known replies, or a specific access gap: UNKNOWN is not zero.
 The owner reports 18 public result cards/snippets across five query clusters on 2026-10-08 for AnalystCraft project 10/channel 116. This is public discovery evidence only.
-The live project-scoped manifest was read without identity overrides: project `analystcraft-2`, Dzen channel 116, revision `2026-10-07T13:12:09.484Z`, checksum `sha256:e7f837d363d88c6a30c5e5daac002894f85ccd7e73249fa45ef07d7efc27e46f`. The matching Planning HQ bootstrap was also read. The exposed production connector inventory contains Dzen search, metrics and outbound comment tools, but no owned activity/replies reader. New behavior below is local source, not deployed production evidence.
+The live project-scoped manifest was read without identity overrides: project `analystcraft-2`, Dzen channel 116, revision `2026-10-07T13:12:09.484Z`, checksum `sha256:e7f837d363d88c6a30c5e5daac002894f85ccd7e73249fa45ef07d7efc27e46f`. The matching Planning HQ bootstrap was also read. The initial release exposed search, metrics and outbound comment tools. The subsequent inbound slice adds `ba_dzen_read_inbound` and `ba_dzen_read_thread`; see [the native reader contract](dzen-inbound-readonly-contract.md). Historical base inspection below describes the initial capability gap, not the current reader inventory.
 
 Local inspection at base revision `942618c` plus pre-existing working changes:
 
@@ -17,15 +17,15 @@ Local inspection at base revision `942618c` plus pre-existing working changes:
 | Studio publication inventory | `readStudioPublications` in `dzen.service.ts` | Existing authenticated incident-reconciliation reader; not MCP Activity or comment coverage |
 | Publication metrics | `collectPostMetrics` | Individual counters; comment count cannot establish read replies |
 | Outbound comments | `comment` / `preflightComment` | Send/preview workflow; not an inbound reader |
-| Owned channel, comment bodies, replies, Activity | No MCP reader | UNKNOWN, with null counts |
+| Owned channel, comment bodies, replies, Activity | `ba_dzen_read_inbound`, `ba_dzen_read_thread` | Native bounded observations, explicit pagination/gaps; no provider writes |
 
-This is an adapter capability gap, not proof that Dzen forbids these reads. No undocumented API, alternate identity, CAPTCHA bypass or permission escalation was introduced. No live owned-surface scan was performed. The authorized Studio inventory may support a later read-only slice, but cannot prove inbound reply coverage by itself.
+This is an adapter capability gap, not proof that Dzen forbids these reads. No undocumented API, alternate identity, CAPTCHA bypass or permission escalation was introduced. The initial diagnostic did not scan owned surfaces. The inbound slice independently verifies publisher access, Studio comment payloads and scoped Activity; public-thread reads preserve native bodies and reply relationships.
 
 ## Operator boundary and response
 
 `ba_dzen_get_radar_coverage({channelId: 116})` is available to planner, strategist and owner. Remote MCP supplies actor/project from the token, validates scope and calls the existing project membership + active project-owned Dzen channel lookup. The diagnostic never contacts the provider or changes stored data.
 
-It returns `schema_version=1`, `complete=false`, `provenance.source=adapter_contract`, `contract_version=dzen_radar_v1`, `provider_requested=false`, and separate surfaces. Owned channel, comments, replies and Activity each return `status=unknown`, `count=null`, `reason.code=reader_not_implemented`, source file/method evidence and a native read-only follow-up. Public discovery starts as `not_scanned`; only an actual successful search response observes its bounded cards. Saved credentials do not imply a valid session or verified channel authorship.
+It returns `schema_version=1`, `complete=false`, `provenance.source=adapter_contract`, `contract_version=dzen_radar_v2`, `provider_requested=false`, and separate surfaces. Owned channel, comments, replies and Activity each return `status=unknown`, `count=null`, `reason.code=not_scanned`, source file/method evidence and instructions to call the live native readers. A local diagnostic never substitutes for a scan. Public discovery starts as `not_scanned`; only an actual successful search response observes its bounded cards. Saved credentials do not imply a valid session or verified channel authorship.
 
 Search keeps its `query`, `posts`, `count`, `source` success fields and existing relevance ordering/filter/limit. It adds:
 
@@ -62,7 +62,7 @@ Required local gates: `npm run build:backend`, `npm run quality:gate`, and focus
 
 ## Owner rollout and UAT
 
-1. Review this local diff separately from concurrent/pre-existing connector changes. No commit, push or deployment is implied by engineering verification.
+1. Review this local diff separately from concurrent/pre-existing connector changes. Engineering verification does not imply human acceptance.
 2. Explicitly authorize deployment of the reviewed revision. No migration or config change is needed. Refresh the project-scoped MCP connector capability inventory after release.
 3. With the project-10 Planner token, call coverage for channel 116: verify UNKNOWN/null on all owned surfaces, source evidence and `provider_requested=false`.
 4. Run the five known query clusters: verify card provenance, UNKNOWN freshness, visible promo/SEO flags, and that zero filtered cards is not reported as zero activity. Independently inspect sample native bodies/dates for heuristic false positives and negatives.

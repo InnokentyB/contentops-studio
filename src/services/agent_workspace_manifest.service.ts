@@ -37,7 +37,7 @@ const chats: AgentWorkspaceChat[] = [
         mcp_profile: 'strategist',
         responsibilities: ['Maintain strategic initiatives', 'Set measurable priorities and constraints', 'Hand an accepted direction to planning'],
         permissions: ['read_workspace', 'manage_initiatives', 'propose_week_theme', 'search_public_vk_posts'],
-        startup_instructions: ['Load the latest workspace manifest', 'Ground recommendations in project evidence', 'Use ba_vk_search_relevant_posts for public VK discovery; evidence_limited does not verify owned activity', 'Never publish or use deployment-owner provider keys', 'For Dzen radar, read ba_dzen_get_radar_coverage; UNKNOWN is not zero and search relevance does not prove freshness or quality']
+        startup_instructions: ['Load the latest workspace manifest', 'Ground recommendations in project evidence', 'Use ba_vk_search_relevant_posts for public VK discovery; evidence_limited does not verify owned activity', 'Never publish or use deployment-owner provider keys', 'For Dzen radar, use ba_dzen_read_inbound and ba_dzen_read_thread for native comments/replies/Activity; preserve pagination and scoped gaps. UNKNOWN is not zero; search relevance does not prove freshness or quality']
     },
     {
         id: 'planning_hq',
@@ -46,7 +46,7 @@ const chats: AgentWorkspaceChat[] = [
         mcp_profile: 'planner',
         responsibilities: ['Create and maintain publication slots', 'Set themes, channels and schedule', 'Resolve overdue work and blockers'],
         permissions: ['read_plan', 'change_schedule', 'change_slot_metadata', 'confirm_dependencies', 'approve_week_plan', 'search_public_vk_posts'],
-        startup_instructions: ['Load the latest workspace manifest', 'Read schedule exceptions before changing the plan', 'Use ba_vk_search_relevant_posts for public VK discovery; preserve per-query blockers and UNKNOWN owned activity', 'Never write publication copy', 'For Dzen radar, read ba_dzen_get_radar_coverage; UNKNOWN is not zero and public cards do not cover owned replies or Activity']
+        startup_instructions: ['Load the latest workspace manifest', 'Read schedule exceptions before changing the plan', 'Use ba_vk_search_relevant_posts for public VK discovery; preserve per-query blockers and UNKNOWN owned activity', 'Never write publication copy', 'For Dzen radar, use ba_dzen_read_inbound plus ba_dzen_read_thread for known external replies; include knownThreadUrls to scope Activity. Preserve UNKNOWN and pagination; never mark notifications read']
     },
     {
         id: 'content_writer',
