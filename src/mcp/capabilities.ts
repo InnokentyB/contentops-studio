@@ -152,6 +152,7 @@ const PUBLISHER_TOOLS = new Set([
     'ba_release_dzen_task1036',
     'ba_verify_dzen_task1036_connector',
     'ba_release_approved_threads_task1035',
+    'ba_release_approved_threads_task1040',
     'ba_release_x_task1033_browser',
     'ba_hold_vk_task1084',
     'ba_claim_x_browser_publication',

@@ -111,6 +111,8 @@ export class ThreadsTaskPublicationService {
             || proof.body_sha256 !== spec.bodySha256 || proof.body_sha256 !== bodyHash
             || proof.visual_decision_id !== spec.decisionId
             || (proof.schedule_at ?? null) !== (task.schedule_at?.toISOString() ?? null)
+            || (args.taskId === 1040 && (proof.publication_authorized !== true
+                || proof.publish_at !== task.publish_at?.toISOString()))
             || (args.taskId === 997 && (proof.publication_authorized !== true || release?.id !== 1887))
             || task.publication_mode !== 'owner_released' || task.status !== 'ready_for_execution'
             || task.content_revision !== spec.revision || task.accepted_revision !== spec.revision || task.text_state !== 'accepted'

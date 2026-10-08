@@ -5,6 +5,7 @@ import { releaseDzenTaskWithPrisma } from '../../services/dzen_owner_release.ser
 import dzenTaskPublicationService from '../../services/dzen_task_publication.service';
 import { asToolResult, INTERNAL_MUTATION_ANNOTATIONS } from './common';
 import { registerOct08ReviewRecoveryTool } from './oct08_review_recovery';
+import { registerThreadsTask1040ReleaseTool } from './threads_task1040_release_tool';
 
 const ownerInput = {
     actorId: z.string(), approvalReference: z.string().min(10), idempotencyKey: z.string().min(1),
@@ -34,6 +35,7 @@ export const dzenTask1036ReleaseSchema = z.object({
 /** Exact delegated packages only; canonical services retain owner, tenant and attempt guards. */
 export function registerOct08ExactReleaseTools(server: McpServer): void {
     registerOct08ReviewRecoveryTool(server);
+    registerThreadsTask1040ReleaseTool(server);
     server.registerTool('ba_release_linkedin_task1077_browser', {
         description: 'Audited owner release of exact p7/ch5 LinkedIn1077 rev1 with an active NO_VISUAL_NEEDED waiver. Never sends. Do not use after a reported manual publication: reconcile the existing provider object first.',
         annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: linkedInTask1077ReleaseSchema.shape
