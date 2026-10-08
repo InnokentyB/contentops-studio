@@ -48,7 +48,17 @@ function approvedTask(overrides: Record<string, any> = {}) {
     };
 }
 
-function harness(task = approvedTask(), options: { cached?: any; providerError?: Error; changeModeBeforeClaim?: string; releaseEvent?: any } = {}) {
+type TestTask = Omit<ReturnType<typeof approvedTask>, 'publication_fact'> & {
+    channel_id?: number;
+    schedule_at?: Date;
+    publication_fact: {
+        id?: number; outcome: string; public_url: string | null; provider_object_id: string | null;
+    } | null;
+};
+
+function harness(task: TestTask = approvedTask(), options: {
+    cached?: unknown; providerError?: Error; changeModeBeforeClaim?: string; releaseEvent?: unknown;
+} = {}) {
     const calls = {
         provider: [] as any[],
         updates: [] as any[],
@@ -239,19 +249,34 @@ test('browser_required personal Telegram story dry-run and live claim use the pe
 });
 
 test('owner-released personal Telegram story is executable through MTProto personal profile', async () => {
-    const story: any = approvedTask({ status: 'ready_for_execution', publication_mode: 'owner_released',
-        type: 'telegram:story', visual_placement: 'story', channel_id: 111,
-        schedule_at: new Date('2026-09-25T14:30:00.000Z') });
+    const story = { ...approvedTask(), id: 980, status: 'ready_for_execution', publication_mode: 'owner_released',
+        type: 'publication', visual_placement: 'story', channel_id: 108,
+        content_revision: 3, accepted_revision: 3, selected_asset_id: 87,
+        selected_asset: { id: 87, status: 'approved', content_revision: 3,
+            file_url: 'https://cdn.example/story-980.png', alt_text: 'Approved Story visual' },
+        schedule_at: new Date('2026-09-25T14:30:00.000Z') };
     const releaseEvent = { after_state: {
         task_id: story.id, channel_id: story.channel_id, content_revision: story.content_revision,
         accepted_revision: story.accepted_revision, schedule_at: story.schedule_at.toISOString(),
         body_sha256: createHash('sha256').update(story.draft_text).digest('hex'),
-        placement: 'story', publication_mode: 'owner_released'
+        placement: 'story', selected_asset_id: 87, publication_mode: 'owner_released'
     } };
     const h = harness(story, { releaseEvent });
     const preview = await h.service.execute({ projectId: 10, taskId: story.id, dryRun: true });
     assert.equal(preview.delivery, 'mtproto_personal_story');
     assert.equal(preview.route_executable, true);
+    const result = await h.service.execute({ projectId: 10, taskId: 980, idempotencyKey: 'story-980-send' });
+    assert.equal(result.delivery_method, 'mtproto_personal_story');
+    assert.equal(h.calls.claimWhere[0].draft_text, story.draft_text);
+    const staleAsset = harness({ ...story, selected_asset_id: 88 }, { releaseEvent });
+    await assert.rejects(staleAsset.service.execute({ projectId: 10, taskId: 980, dryRun: true }),
+        /OWNER_RELEASE_PROOF_MISMATCH/);
+    const legacyPublished = harness({ ...story, publication_fact: {
+        outcome: 'published', public_url: 'https://t.me/i/s/42', provider_object_id: '42'
+    } }, { releaseEvent: { after_state: { ...releaseEvent.after_state, selected_asset_id: undefined } } });
+    const replay = await legacyPublished.service.execute({ projectId: 10, taskId: 980, dryRun: true });
+    assert.equal(replay.replayed, true);
+    assert.equal(legacyPublished.calls.provider.length, 0);
 });
 
 test('browser-only feed and a real concurrent publication claim return different errors', async () => {
