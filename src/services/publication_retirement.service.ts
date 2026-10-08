@@ -13,6 +13,8 @@ export const PROJECT_RETIREMENT_TASKS = Object.freeze({
 const PROJECT_SLUGS = Object.freeze({ 7: 'seturon', 10: 'analystcraft-2' });
 const COMMAND = 'ba_apply_publication_retirement';
 const HISTORY_TASK_ID = 1011;
+const UNCERTAIN_TASK_IDS = Object.freeze([854, 984, 1011]);
+const UNCERTAINTY_COMMAND = 'ba_apply_retirement_uncertainty_projection';
 
 export type RetirementTaskGuard = { taskId: number; expectedStatus: string; expectedPublicationMode: string | null };
 export type PublicationRetirementParams = {
@@ -24,6 +26,19 @@ export type PublicationRetirementParams = {
     approvalReference: string;
 };
 export type ApplyPublicationRetirementParams = PublicationRetirementParams & {
+    previewHash: string;
+    reason: string;
+    idempotencyKey: string;
+};
+export type RetirementUncertaintyParams = {
+    projectId: 10;
+    projectSlug: 'analystcraft-2';
+    actorId: string;
+    expectedManifestChecksum: string;
+    expectedRetirementAuditId: number;
+    approvalReference: string;
+};
+export type ApplyRetirementUncertaintyParams = RetirementUncertaintyParams & {
     previewHash: string;
     reason: string;
     idempotencyKey: string;
@@ -262,6 +277,85 @@ export class PublicationRetirementService {
                 before_state: { request_fingerprint: fingerprint, reason: params.reason.trim(), approval_reference: params.approvalReference,
                     preview_hash: params.previewHash, manifest_checksum: params.expectedManifestChecksum,
                     task_state_sha256: preview.protected_hashes.task_state_sha256 },
+                after_state: { request_fingerprint: fingerprint, result } } });
+            return { ...result, audit_id: audit.id, replayed: false };
+        });
+    }
+
+    private async loadUncertaintyProjection(client: any, params: RetirementUncertaintyParams) {
+        if (params.projectId !== 10 || params.projectSlug !== 'analystcraft-2') throw new Error('[UNCERTAINTY_PROJECTION_SCOPE_MISMATCH]');
+        if (!/^sha256:[a-f0-9]{64}$/.test(params.expectedManifestChecksum)) throw new Error('[MANIFEST_CHECKSUM_INVALID]');
+        if (!params.approvalReference?.trim()) throw new Error('[OWNER_APPROVAL_REFERENCE_REQUIRED]');
+        await this.requireOwner(client, { ...params, expectedTasks: [], approvalReference: params.approvalReference });
+        const retirementAudit = await client.workflowEvent.findFirst({ where: {
+            id: params.expectedRetirementAuditId, project_id: 10, actor_id: params.actorId, command: COMMAND
+        } });
+        const retiredIds = (retirementAudit?.after_state as { result?: { retired_task_ids?: number[] } } | null)?.result?.retired_task_ids || [];
+        if (!UNCERTAIN_TASK_IDS.every((id) => retiredIds.includes(id))) throw new Error('[RETIREMENT_AUDIT_GUARD_FAILED]');
+        const tasks = await client.contentItem.findMany({ where: { project_id: 10, id: { in: [...UNCERTAIN_TASK_IDS] } },
+            include: { publication_fact: true }, orderBy: { id: 'asc' } });
+        if (tasks.length !== UNCERTAIN_TASK_IDS.length || tasks.some((task: any, index: number) => task.id !== UNCERTAIN_TASK_IDS[index]
+            || task.status !== 'cancelled' || task.publication_mode !== 'retired' || task.publication_fact || task.published_link)) {
+            throw new Error('[UNCERTAINTY_PROJECTION_TASK_GUARD_FAILED]');
+        }
+        return { tasks, retirementAudit };
+    }
+
+    private uncertaintyPreviewPayload(params: RetirementUncertaintyParams, loaded: { tasks: any[]; retirementAudit: any }) {
+        const payload = {
+            mode: 'preview' as const, dry_run: true as const, project_id: 10, project_slug: 'analystcraft-2',
+            retirement_audit_id: loaded.retirementAudit.id,
+            affected_task_ids: [...UNCERTAIN_TASK_IDS],
+            changes: loaded.tasks.map((task) => ({ entity: 'content_item', id: task.id,
+                path: 'quality_report.provider_result_uncertain', from: task.quality_report?.provider_result_uncertain ?? null, to: true })),
+            protected_hashes: loaded.tasks.map((task) => ({ task_id: task.id,
+                content_sha256: sha256({ draft_text: task.draft_text, content_revision: task.content_revision,
+                    accepted_revision: task.accepted_revision, selected_asset_id: task.selected_asset_id, assets: task.assets }),
+                quality_report_sha256: sha256(task.quality_report) })),
+            unchanged_assertions: { status_and_publication_mode: true, publication_facts_and_links: true,
+                content_revisions_assets_attempts_and_work_items: true, no_publish_connector_browser_or_outbox: true }
+        };
+        return { ...payload, preview_hash: sha256(payload) };
+    }
+
+    async previewUncertaintyProjection(params: RetirementUncertaintyParams) {
+        return this.uncertaintyPreviewPayload(params, await this.loadUncertaintyProjection(this.db, params));
+    }
+
+    async applyUncertaintyProjection(params: ApplyRetirementUncertaintyParams) {
+        if (!params.reason?.trim()) throw new Error('[RETIREMENT_REASON_REQUIRED]');
+        if (!params.idempotencyKey?.trim()) throw new Error('[IDEMPOTENCY_KEY_REQUIRED]');
+        const fingerprint = sha256({ ...params, reason: params.reason.trim() });
+        await this.requireOwner(this.db, { ...params, expectedTasks: [], approvalReference: params.approvalReference });
+        const replayWhere = { project_id: 10, actor_id: params.actorId, command: UNCERTAINTY_COMMAND, idempotency_key: params.idempotencyKey };
+        const existing = await this.db.workflowEvent.findFirst({ where: replayWhere });
+        if (existing) {
+            const after = existing.after_state as { request_fingerprint?: string; result?: Record<string, unknown> } | null;
+            if (after?.request_fingerprint !== fingerprint) throw new Error('[IDEMPOTENCY_KEY_CONFLICT]');
+            return { ...after.result, audit_id: existing.id, replayed: true };
+        }
+        const preview = await this.previewUncertaintyProjection(params);
+        if (preview.preview_hash !== params.previewHash) throw new Error('[PREVIEW_CONFLICT] State changed since preview');
+        return this.db.$transaction(async (tx: any) => {
+            await this.requireOwner(tx, { ...params, expectedTasks: [], approvalReference: params.approvalReference });
+            if (typeof tx.$queryRaw === 'function') await tx.$queryRaw(Prisma.sql`SELECT id FROM planner.content_items
+                WHERE project_id = 10 AND id IN (${Prisma.join([...UNCERTAIN_TASK_IDS])}) ORDER BY id FOR UPDATE`);
+            const loaded = await this.loadUncertaintyProjection(tx, params);
+            const lockedPreview = this.uncertaintyPreviewPayload(params, loaded);
+            if (lockedPreview.preview_hash !== params.previewHash) throw new Error('[PREVIEW_CONFLICT] State changed since preview');
+            for (const task of loaded.tasks) {
+                const changed = await tx.contentItem.updateMany({ where: { id: task.id, project_id: 10,
+                    status: 'cancelled', publication_mode: 'retired', publication_fact: null },
+                data: { quality_report: { ...((task.quality_report as Record<string, unknown> | null) || {}), provider_result_uncertain: true } } });
+                if (changed.count !== 1) throw new Error(`[UNCERTAINTY_PROJECTION_CAS_CONFLICT] Task ${task.id}`);
+            }
+            const result = { project_id: 10, retirement_audit_id: params.expectedRetirementAuditId,
+                updated_task_ids: [...UNCERTAIN_TASK_IDS], provider_result_uncertain: true,
+                publication_sent: false, connector_called: false, protected_fields_preserved: true, replayed: false };
+            const audit = await tx.workflowEvent.create({ data: { project_id: 10, actor_id: params.actorId,
+                command: UNCERTAINTY_COMMAND, idempotency_key: params.idempotencyKey,
+                before_state: { request_fingerprint: fingerprint, preview_hash: params.previewHash,
+                    approval_reference: params.approvalReference, reason: params.reason.trim(), protected_hashes: preview.protected_hashes },
                 after_state: { request_fingerprint: fingerprint, result } } });
             return { ...result, audit_id: audit.id, replayed: false };
         });

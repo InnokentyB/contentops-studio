@@ -43,6 +43,23 @@ export function registerOwnerRepairTools(server: McpServer): void {
         }
     }, async args => asToolResult(await publicationRetirementService.apply(args)));
 
+    const uncertaintyProjectionGuards = {
+        projectId: z.literal(10), projectSlug: z.literal('analystcraft-2'), actorId: z.string().regex(/^user:\d+$/),
+        expectedManifestChecksum: z.string().regex(/^sha256:[a-f0-9]{64}$/), expectedRetirementAuditId: z.number().int().positive(),
+        approvalReference: z.string().trim().min(10).max(1000)
+    };
+    server.registerTool('ba_preview_retirement_uncertainty_projection', {
+        description: 'Owner-only read-only preview that preserves provider_result_uncertain explicitly for retired tasks 854, 984 and 1011 after the exact audited batch retirement. No other task or field is in scope.',
+        annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+        inputSchema: uncertaintyProjectionGuards
+    }, async args => asToolResult(await publicationRetirementService.previewUncertaintyProjection(args)));
+    server.registerTool('ba_apply_retirement_uncertainty_projection', {
+        description: 'Owner-only audited exact projection of provider_result_uncertain=true for retired tasks 854, 984 and 1011. Preserves status, modes, copy, assets, facts, attempts and work items; never publishes.',
+        annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+        inputSchema: { ...uncertaintyProjectionGuards, previewHash: z.string().regex(/^[a-f0-9]{64}$/),
+            reason: z.string().trim().min(20).max(2000), idempotencyKey: z.string().trim().min(1).max(500) }
+    }, async args => asToolResult(await publicationRetirementService.applyUncertaintyProjection(args)));
+
     server.registerTool('ba_encrypt_legacy_threads_source_credential', {
         description: 'Owner-only audited in-place encryption of the exact legacy Threads token in project 32/channel 176. Uses CAS and idempotency, never returns the token and never publishes.',
         annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
