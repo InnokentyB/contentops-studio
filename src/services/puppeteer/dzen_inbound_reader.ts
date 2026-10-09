@@ -112,7 +112,7 @@ export async function readDzenThread(config: DzenConfig, postUrl: string, maxRep
         const replies = [...rootResult.replies.items];
         const failures = [];
         let childThreadsRead = 0;
-        for (const root of rootResult.comments.filter(row => (row.children_count ?? 0) > replies.filter(child => child.parent_comment_id === row.id).length).slice(0,maxReplyThreads)) {
+        for (const root of rootResult.comments.filter(row => (row.children_count ?? 0) > replies.filter(child => child.parent_comment_id === row.id).length).sort((a,b) => Number(b.is_connected_owner) - Number(a.is_connected_owner)).slice(0,maxReplyThreads)) {
             try {
                 const requestUrl = new URL(response.url());
                 const payload = await dzenNativeJson(page, '/api/comments/v2/child-comments', { documentId, rootCommentId: root.id,
