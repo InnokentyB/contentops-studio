@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import prisma from '../db';
-import publicationFactService from './publication_fact.service';
+import { assertApprovedVkClipAsset } from './publication_plan/handoff';
+import publicationFactService, { type RecordPublicationFactArgs } from './publication_fact.service';
+import { validateVkClipConfirmation, type VkClipConfirmationFields } from './vk_clip_confirmation';
 
 type StartArgs = {
     projectId: number;
@@ -17,10 +19,10 @@ type StartArgs = {
     titleSha256?: string | null;
     imageSha256: string | null;
     selectedAssetId: number | null;
-    placement?: 'feed' | 'article_cover' | 'video_cover' | 'story';
+    placement?: 'feed' | 'article_cover' | 'video_cover' | 'story' | 'clip';
 };
 
-type ConfirmArgs = StartArgs & {
+type ConfirmArgs = StartArgs & VkClipConfirmationFields & {
     attemptId: number;
     publicUrl: string | null;
     providerObjectId: string;
@@ -43,7 +45,7 @@ type Dependencies = {
     transaction<T>(callback: (tx: any) => Promise<T>): Promise<T>;
     now(): Date;
     hashBody(body: string): string;
-    recordFact(args: any): Promise<any>;
+    recordFact(args: RecordPublicationFactArgs): Promise<{ publication_fact: { id: number } }>;
 };
 
 export const VK_BROWSER_PRE_PROVIDER_ABORT_CONFIRMED = '[VK_BROWSER_PRE_PROVIDER_ABORT_CONFIRMED]';
@@ -97,6 +99,7 @@ function assertExactTask(task: any, workItem: any, args: StartArgs, allowedStatu
         || task.accepted_revision !== args.contentRevision
         || task.text_state !== 'accepted'
         || (task.visual_placement || 'feed') !== placement
+        || (placement === 'clip' && task.visual_state !== 'APPROVED')
         || task.selected_asset_id !== args.selectedAssetId
         || (args.selectedAssetId !== null && (task.selected_asset?.status !== 'approved'
             || task.selected_asset?.content_revision !== args.contentRevision))
@@ -111,11 +114,16 @@ function assertExactTask(task: any, workItem: any, args: StartArgs, allowedStatu
         || (release.placement || 'feed') !== placement
         || release.channel_id !== args.channelId) {
         throw new Error('[VK_BROWSER_SUBMISSION_GUARD_FAILED] Exact owner-released VK task is required');
-    }
+    }    if (placement === 'clip') assertApprovedVkClipAsset(task);
 }
 
-function validateProviderIdentity(task: any, args: ConfirmArgs) {
+function validateProviderIdentity(task: { channel?: { config?: unknown } | null }, args: ConfirmArgs,
+    now = new Date(), attemptCreatedAt?: Date | null) {
     const placement = args.placement || 'feed';
+    const config = task?.channel?.config;
+    const ownerId = config && typeof config === 'object' && !Array.isArray(config) && 'vk_id' in config
+        ? String(config.vk_id || '') : '';
+    if (placement === 'clip') return validateVkClipConfirmation(args, ownerId, now, attemptCreatedAt);
     let url: URL | null = null;
     if (args.publicUrl) {
         try {
@@ -124,7 +132,6 @@ function validateProviderIdentity(task: any, args: ConfirmArgs) {
             throw new Error('[VK_BROWSER_PROVIDER_IDENTITY_INVALID]');
         }
     }
-    const ownerId = String(task?.channel?.config?.vk_id || '');
     const publishedAt = new Date(args.publishedAt);
     const validHost = !url || (url.protocol === 'https:'
         && ['vk.com', 'www.vk.com', 'vk.ru', 'www.vk.ru'].includes(url.hostname.toLowerCase()));
@@ -245,7 +252,7 @@ export async function confirmVkBrowserSubmission(dependencies: Dependencies, arg
         });
         if (task?.publication_fact?.outcome === 'published'
             && (task.publication_fact.public_url || task.publication_fact.provider_object_id)) {
-            return { replayedFactId: task.publication_fact.id, task, identity: validateProviderIdentity(task, args) };
+            return { replayedFactId: task.publication_fact.id, task, identity: validateProviderIdentity(task, args, now) };
         }
         assertExactTask(task, workItem, args, ['publishing', 'browser_required']);
         if (dependencies.hashBody(task.draft_text || '') !== args.textSha256
@@ -264,17 +271,29 @@ export async function confirmVkBrowserSubmission(dependencies: Dependencies, arg
         if (!attempt || !['pending', 'delivered'].includes(attempt.status)) {
             throw new Error('[VK_BROWSER_ATTEMPT_NOT_CONFIRMABLE]');
         }
-        return { replayedFactId: null, task, identity: validateProviderIdentity(task, args) };
+        return { replayedFactId: null, task, identity: validateProviderIdentity(task, args, now, attempt.created_at) };
     });
     if (checked.replayedFactId) {
         return { publication_fact_id: checked.replayedFactId, replayed: true };
     }
+    const clipConfirmation = checked.identity.placement === 'clip' ? (() => {
+        if (!args.imageSha256 || args.selectedAssetId === null || !(checked.task.updated_at instanceof Date)) {
+            throw new Error('[VK_CLIP_FACT_GUARD_FAILED]');
+        }
+        return { channelId: args.channelId, workItemId: args.workItemId, leaseToken: args.leaseToken,
+            approvalReference: args.approvalReference, idempotencyKey: args.idempotencyKey,
+            contentRevision: args.contentRevision, textSha256: args.textSha256,
+            imageSha256: args.imageSha256, selectedAssetId: args.selectedAssetId, attemptId: args.attemptId,
+            expectedUpdatedAt: checked.task.updated_at.toISOString(),
+            expectedOwnerId: String(checked.task.channel.config.vk_id) };
+    })() : undefined;
     const factResult = await dependencies.recordFact({
+        clipConfirmation,
         projectId: args.projectId,
         taskId: args.taskId,
         actorId: args.actorId,
         artifactKind: checked.identity.placement === 'article_cover' ? 'article'
-            : checked.identity.placement === 'video_cover' ? 'video'
+            : ['video_cover', 'clip'].includes(checked.identity.placement) ? 'video'
                 : checked.identity.placement === 'story' ? 'story' : 'post',
         outcome: 'published',
         publishedAt: checked.identity.publishedAt,
@@ -283,7 +302,9 @@ export async function confirmVkBrowserSubmission(dependencies: Dependencies, arg
         confirmationMode: 'reconciled',
         evidence: { type: 'screenshot', ref: `sha256:${args.evidenceSha256}` },
         utmStatus: 'not_applicable',
-        note: 'VK browser publication confirmed by exact provider readback.'
+        note: checked.identity.placement === 'clip'
+            ? 'VK Clip confirmed from exact short_video identity, provider timestamp and approved-media readback.'
+            : 'VK browser publication confirmed by exact provider readback.'
     });
     const publicationFactId = factResult.publication_fact.id;
     await dependencies.transaction(async (tx) => {

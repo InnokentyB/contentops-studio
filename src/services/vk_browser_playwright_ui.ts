@@ -1,4 +1,5 @@
 import type { Locator, Page } from 'playwright';
+import { UnverifiedVkClipUi, type VkClipUi } from './vk_browser_clip_ui';
 import type { VkBrowserUi } from './vk_browser_worker.service';
 
 const COMPOSER_TRIGGER = /создать запись|новая запись|что у вас нового|create post|new post|what'?s new/i;
@@ -8,7 +9,11 @@ export class PlaywrightVkBrowserUi implements VkBrowserUi {
     private acceptedText: string | null = null;
     private acceptedTitle: string | null = null;
 
-    constructor(private readonly page: Page) {}
+    readonly clip: VkClipUi;
+
+    constructor(private readonly page: Page, clip: VkClipUi = new UnverifiedVkClipUi()) {
+        this.clip = clip;
+    }
 
     async navigate(url: string) {
         this.communityUrl = url;
@@ -46,7 +51,8 @@ export class PlaywrightVkBrowserUi implements VkBrowserUi {
         await field.click();
     }
 
-    async openComposer(placement: 'wall_post' | 'article' | 'video' | 'story') {
+    async openComposer(placement: 'wall_post' | 'article' | 'video' | 'story' | 'clip') {
+        if (placement === 'clip') throw new Error('[VK_CLIP_PORT_REQUIRED] Use the governed Clip-specific submission port');
         if (placement === 'wall_post') return this.openWallComposer();
         const createButton = this.page.locator('[data-testid="group_publish_create_button"]').first();
         await createButton.waitFor({ state: 'visible', timeout: 15_000 });
@@ -62,7 +68,8 @@ export class PlaywrightVkBrowserUi implements VkBrowserUi {
         }
     }
 
-    async setContent(content: { placement: 'wall_post' | 'article' | 'video' | 'story'; title: string; text: string }) {
+    async setContent(content: { placement: 'wall_post' | 'article' | 'video' | 'story' | 'clip'; title: string; text: string }) {
+        if (content.placement === 'clip') throw new Error('[VK_CLIP_PORT_REQUIRED] Use the governed Clip-specific submission port');
         this.acceptedText = content.text;
         this.acceptedTitle = content.title || null;
         if (content.placement === 'wall_post') return this.setPostText(content.text);
@@ -93,7 +100,8 @@ export class PlaywrightVkBrowserUi implements VkBrowserUi {
         }
     }
 
-    async submit(placement: 'wall_post' | 'article' | 'video' | 'story') {
+    async submit(placement: 'wall_post' | 'article' | 'video' | 'story' | 'clip') {
+        if (placement === 'clip') throw new Error('[VK_CLIP_PORT_REQUIRED] Use the governed Clip-specific submission port');
         if (placement === 'wall_post') return this.submitPost();
         const candidates = placement === 'article'
             ? '[data-testid="article_publish_button"], [data-testid="posting_submit_button"]'
@@ -112,7 +120,8 @@ export class PlaywrightVkBrowserUi implements VkBrowserUi {
         await publish.click({ timeout: 15_000 });
     }
 
-    async readback(placement: 'wall_post' | 'article' | 'video' | 'story') {
+    async readback(placement: 'wall_post' | 'article' | 'video' | 'story' | 'clip') {
+        if (placement === 'clip') throw new Error('[VK_CLIP_PORT_REQUIRED] Use the governed Clip-specific submission port');
         if (placement === 'wall_post') return this.readbackPost();
         if (!this.communityUrl) return null;
         await this.page.goto(this.communityUrl, { waitUntil: 'domcontentloaded', timeout: 45_000 });

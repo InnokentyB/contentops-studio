@@ -110,6 +110,25 @@ export function resolveApprovedSelectedAsset(
     return { ...selectedAsset, file_url: selectedAsset.file_url.trim() };
 }
 
+/** Requires the exact approved, hashed portrait MP4 for an explicit VK Clip handoff. */
+export function assertApprovedVkClipAsset(item: Record<string, unknown>): void {
+    resolveAcceptedPublicationBody(item, true);
+    const asset = resolveApprovedSelectedAsset(item);
+    const metadata = asset ? visualMetadataFromProvenance(asset.provenance) : {};
+    if (!asset || metadata.mime_type !== 'video/mp4') throw new Error('[VK_CLIP_MP4_REQUIRED]');
+    if (typeof metadata.sha256 !== 'string' || !/^[a-f0-9]{64}$/i.test(metadata.sha256)) {
+        throw new Error('[VK_CLIP_ASSET_HASH_REQUIRED]');
+    }
+    if (!metadata.byte_size || !Number.isSafeInteger(metadata.byte_size) || metadata.byte_size < 1) {
+        throw new Error('[VK_CLIP_ASSET_SIZE_REQUIRED]');
+    }
+    if (!metadata.width || !metadata.height
+        || !Number.isSafeInteger(metadata.width) || !Number.isSafeInteger(metadata.height)
+        || metadata.width < 1 || metadata.height < 1 || metadata.width * 16 !== metadata.height * 9) {
+        throw new Error('[VK_CLIP_PORTRAIT_ASSET_REQUIRED] Expected the approved 9:16 editorial canvas');
+    }
+}
+
 /**
  * Builds the handoff bundle for a plan action/item.
  */
@@ -123,6 +142,7 @@ export function buildHandoffBundle(
     const placement = (item.visual_placement as string) || 'feed';
     const channel = item.channel as { type?: string; name?: string; config?: Record<string, unknown> } | undefined;
     const canonicalChannelType = channel?.type || (importedAction.channel as string) || (item.layer as string) || 'unknown';
+    if (canonicalChannelType === 'vk' && placement === 'clip') assertApprovedVkClipAsset(item);
     const accountRef = channel?.name || (itemAssets.account_ref as string) || null;
     const action: Record<string, unknown> = {
         ...importedAction,
@@ -131,6 +151,8 @@ export function buildHandoffBundle(
             channel: canonicalChannelType,
             action_type: placement === 'story'
                 ? canonicalStoryActionType(canonicalChannelType, placement)
+                : canonicalChannelType === 'vk' && placement === 'clip'
+                    ? 'vk_clip:publish'
                 : canonicalChannelType === 'vk' && placement === 'article_cover'
                     ? 'vk_article:publish'
                     : canonicalChannelType === 'vk' && placement === 'video_cover'
@@ -156,7 +178,7 @@ export function buildHandoffBundle(
         : null;
     const selectedAssetMetadata = selectedAsset ? visualMetadataFromProvenance(selectedAsset.provenance) : {};
     const isVideo = canonicalChannelType === 'vk'
-        && (placement === 'video_cover' || (placement === 'feed' && selectedAssetMetadata.mime_type === 'video/mp4'));
+        && (placement === 'clip' || placement === 'video_cover' || (placement === 'feed' && selectedAssetMetadata.mime_type === 'video/mp4'));
     const inferPersistedFileName = (runtimeFileName: string | null | undefined, persistedAsset: Record<string, unknown>) => {
         if (runtimeFileName) return runtimeFileName;
         if (typeof persistedAsset?.path === 'string' && persistedAsset.path.trim()) {
@@ -348,7 +370,9 @@ export function buildHandoffBundle(
             id: action.id || item.id,
             display_name: action.display_name || item.title || null,
             channel: canonicalChannelType,
-            action_type: isVideo ? 'vk_video:publish' : action.action_type || item.type,
+            action_type: canonicalChannelType === 'vk' && placement === 'clip'
+                ? 'vk_clip:publish'
+                : isVideo ? 'vk_video:publish' : action.action_type || item.type,
             schedule_at: scheduleAtString,
             scheduled_date: action.scheduled_date || item.schedule_at,
             time_window: action.scheduled_time_window || null,
@@ -407,6 +431,7 @@ export function buildGeneratedContentItemHandoff(
     const channel = item.channel as { type?: string; name?: string; config?: Record<string, unknown> } | undefined;
     const channelType = channel?.type || (item.layer as string) || 'unknown';
     const placement = (item.visual_placement as string) || 'feed';
+    if (channelType === 'vk' && placement === 'clip') assertApprovedVkClipAsset(item);
     const selectedAsset = resolveApprovedSelectedAsset(item);
     const selectedAssetMetadata = selectedAsset ? visualMetadataFromProvenance(selectedAsset.provenance) : {};
     const placementContract = publicationPlacementAssetContract(
@@ -419,7 +444,7 @@ export function buildGeneratedContentItemHandoff(
         || ['manual', 'manual_handoff', 'browser_required'].includes(String(item.publication_mode || ''))
         ? 'manual'
         : 'automated';
-    const isVideo = placementContract.artifact_kind === 'video';
+    const isVideo = ['video', 'clip'].includes(placementContract.artifact_kind);
     const itemAssets = (item.assets as Record<string, unknown>) || {};
     const nativePollCandidate = channelType === 'vk' && placement === 'story'
         ? (itemAssets.vk_story_poll ?? null)
@@ -437,6 +462,8 @@ export function buildGeneratedContentItemHandoff(
             content_item_id: item.id,
             action_type: channelType === 'vk' && placement === 'article_cover'
                 ? 'vk_article:publish'
+                : channelType === 'vk' && placement === 'clip'
+                    ? 'vk_clip:publish'
                 : channelType === 'vk' && isVideo
                     ? 'vk_video:publish'
                 : `${channelType}_${placement}:publish`,

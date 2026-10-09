@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { chromium } from 'playwright';
+import { chromium, type BrowserContext } from 'playwright';
 import { PlaywrightVkBrowserUi } from '../services/vk_browser_playwright_ui';
 import {
     prepareVkBrowserPublication,
@@ -128,7 +128,14 @@ async function connectSubmissionControl(options: Options) {
             publicUrl: args.public_url,
             providerObjectId: args.provider_object_id,
             publishedAt: args.published_at,
-            evidenceSha256: args.evidence_sha256
+            evidenceSha256: args.evidence_sha256,
+            providerKind: args.provider_kind,
+            providerTimestampSource: args.provider_timestamp_source,
+            clipBaselineCapturedAt: args.clip_baseline_captured_at,
+            clipBaselineObjectIds: args.clip_baseline_object_ids,
+            clipSubmissionStartedAt: args.clip_submission_started_at,
+            readbackObservedAt: args.readback_observed_at,
+            clipMediaSha256: args.clip_media_sha256
         }),
         markUncertain: (args: any) => call('ba_mark_vk_browser_submission_uncertain', {
             projectId: args.project_id,
@@ -160,13 +167,16 @@ export async function runVkBrowserWorker(argv = process.argv.slice(2)) {
         return result;
     }
 
+    // No provider contract has been verified for the real Clip editor yet.
+    if (job.target?.placement === 'clip') throw new Error('[VK_CLIP_UI_UNVERIFIED]');
     const planner = await connectSubmissionControl(options);
-    const context = await chromium.launchPersistentContext(options.profileDir, {
-        channel: options.channel,
-        headless: false,
-        viewport: { width: 1440, height: 1000 }
-    });
+    let context: BrowserContext | undefined;
     try {
+        context = await chromium.launchPersistentContext(options.profileDir, {
+            channel: options.channel,
+            headless: false,
+            viewport: { width: 1440, height: 1000 }
+        });
         const pages = context.pages();
         const page = pages[0] || await context.newPage();
         const result = await submitVkBrowserPublication(job, {
@@ -178,8 +188,8 @@ export async function runVkBrowserWorker(argv = process.argv.slice(2)) {
         process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
         return result;
     } finally {
-        await context.close();
-        await planner.client.close();
+        try { await context?.close(); }
+        finally { await planner.client.close(); }
     }
 }
 
