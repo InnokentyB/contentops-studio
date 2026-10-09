@@ -117,3 +117,15 @@ test('approved asset and no-visual waiver cannot mix nullable checksum bindings'
         file_url: 'https://example.test/107.png', provenance: {} } });
     await assert.rejects(() => releaseLinkedInBrowserTask(h.deps, { ...args, expectedAssetSha256: null }), /INVALID_VISUAL_BINDING/);
 });
+
+test('prepared browser state is recoverable only when an exact tool opts in', async () => {
+    const prepared = { status: 'browser_required', publication_mode: 'browser_required' };
+    await assert.rejects(
+        () => releaseLinkedInBrowserTask(harness(prepared).deps, args),
+        /OWNER_RELEASE_GUARD_FAILED/
+    );
+    const h = harness(prepared);
+    const result = await releaseLinkedInBrowserTask(h.deps, { ...args, allowPreparedBrowserState: true });
+    assert.equal(result.browser_work_item_id, 2001);
+    assert.equal(h.workItems.length, 1);
+});
