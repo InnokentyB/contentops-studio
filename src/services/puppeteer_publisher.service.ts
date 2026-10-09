@@ -758,13 +758,17 @@ class PuppeteerPublisherService {
                 const seen = new Set<string>();
                 const output: DzenSearchResult[] = [];
                 for (const link of Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href]'))) {
-                    const url = link.href;
-                    if (seen.has(url) || !/dzen\.ru\/(?:a|b|media\/id)\//.test(url)) continue;
+                    const target = new URL(link.href);
+                    if (target.protocol !== 'https:' || target.username || target.password || target.port || !['dzen.ru','www.dzen.ru'].includes(target.hostname) || !/^\/(?:a|b|media\/id)\//.test(target.pathname)) continue;
+                    const url = `https://dzen.ru${target.pathname}`;
+                    if (seen.has(url)) continue;
                     const card = link.closest('article') || link.closest('[data-testid]') || link.parentElement;
                     const text = (card?.textContent || link.textContent || '').replace(/\s+/g, ' ').trim();
-                    const heading = card?.querySelector('h1, h2, h3, [role="heading"]')?.textContent?.trim();
+                    const heading = card?.querySelector('[data-testid="card-article-title-link"], h1, h2, h3, [role="heading"]')?.textContent?.trim();
+                    const title = (heading || link.textContent || '').trim().slice(0, 300);
+                    if (!title) continue;
                     seen.add(url);
-                    output.push({ url, title: (heading || link.textContent || '').trim().slice(0, 300), snippet: text.slice(0, 700) });
+                    output.push({ url, title, snippet: text.slice(0, 700) });
                     if (output.length >= maxResults) break;
                 }
                 return output;
