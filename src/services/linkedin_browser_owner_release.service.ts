@@ -21,6 +21,8 @@ export type LinkedInBrowserReleaseArgs = {
     expectedManifestChecksum: string;
     approvalReference: string;
     idempotencyKey: string;
+    /** Exact task tools may recover a prepared browser_required task that has no work item or attempt. */
+    allowPreparedBrowserState?: boolean;
 };
 
 type ReleaseTask = {
@@ -164,9 +166,12 @@ export async function releaseLinkedInBrowserTask(
                 ...((channelConfig.raw_account as Record<string, unknown> | undefined) || {}),
                 platform: 'linkedin'
             });
+        const preparedBrowserState = args.allowPreparedBrowserState === true
+            && task?.status === 'browser_required' && task.publication_mode === 'browser_required';
+        const releaseableState = task?.status === 'ready_for_execution'
+            && task.publication_mode === 'approval_required';
         if (!task || task.channel_id !== args.expectedChannelId || !browserAssisted
-            || task.status !== 'ready_for_execution' || task.handoff_state !== 'ready'
-            || task.publication_mode !== 'approval_required'
+            || (!releaseableState && !preparedBrowserState) || task.handoff_state !== 'ready'
             || task.content_revision !== args.expectedContentRevision
             || task.accepted_revision !== args.expectedAcceptedRevision
             || task.content_revision !== task.accepted_revision || task.text_state !== 'accepted'
@@ -187,7 +192,7 @@ export async function releaseLinkedInBrowserTask(
         if (checksumBeforeCas !== args.expectedManifestChecksum) throw new Error('[STALE_MANIFEST]');
         const changed = await tx.contentItem.updateMany({ where: {
             id: args.taskId, project_id: args.projectId, channel_id: args.expectedChannelId,
-            status: 'ready_for_execution', handoff_state: 'ready', publication_mode: 'approval_required',
+            status: task.status, handoff_state: 'ready', publication_mode: task.publication_mode,
             content_revision: args.expectedContentRevision, accepted_revision: args.expectedAcceptedRevision,
             text_state: 'accepted', visual_state: task.visual_state, visual_placement: 'feed',
             ...(noVisual ? { visual_decision_version: task.visual_decision_version } : {}),
