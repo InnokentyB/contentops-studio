@@ -302,10 +302,13 @@ test('Dzen Studio readback extracts canonical title identity and fails closed on
             provider_object_id: 'provider-992',
             title: 'Exact accepted title',
             public_url: 'https://dzen.ru/a/provider-992',
-            published_at: null
+            published_at: null,
+            state: 'unknown'
         }],
         title_readback_complete: true,
-        publication_timestamp_readback_complete: false
+        publication_timestamp_readback_complete: false,
+        state_readback_complete: false,
+        coverage_complete: false
     });
     assert.equal(extractDzenStudioPublications({ publications: [{
         id: 'provider-without-readable-title', commonUrl: '/a/provider-without-readable-title'
@@ -333,10 +336,13 @@ test('Dzen Studio readback extracts authoritative publishTime from the observed 
             provider_object_id: '6abea4a2978ea5735f7d2938',
             title: 'Почему набор AI-чатов не становится операционной системой',
             public_url: 'https://dzen.ru/a/ar6kopeOpXNffSk4',
-            published_at: '2026-10-01T18:21:55.809Z'
+            published_at: '2026-10-01T18:21:55.809Z',
+            state: 'published'
         }],
         title_readback_complete: true,
-        publication_timestamp_readback_complete: true
+        publication_timestamp_readback_complete: true,
+        state_readback_complete: true,
+        coverage_complete: false
     });
 
     assert.equal(extractDzenStudioPublications({ publications: [{
@@ -351,6 +357,19 @@ test('Dzen Studio readback extracts authoritative publishTime from the observed 
         id: 'provider-with-untyped-time', content: { preview: { title: 'Title' } },
         commonUrl: '/a/provider-with-untyped-time'
     }] })?.publications[0].published_at, null);
+});
+
+test('Dzen Studio reconciliation exposes provider state and never claims complete coverage without evidence', () => {
+    const incomplete = extractDzenStudioPublications({ publications: [{
+        id: 'draft-1', status: 'draft', isPublished: false,
+        content: { preview: { title: 'Exact title' } }
+    }] });
+    assert.equal(incomplete?.publications[0].state, 'draft');
+    assert.equal(incomplete?.state_readback_complete, true);
+    assert.equal(incomplete?.coverage_complete, false);
+
+    const complete = extractDzenStudioPublications({ publications: [], hasMore: false });
+    assert.equal(complete?.coverage_complete, true);
 });
 
 test('Dzen image upload blocks publication on the observed provider rejection', () => {

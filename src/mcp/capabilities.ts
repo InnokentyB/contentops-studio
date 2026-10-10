@@ -170,6 +170,7 @@ const PUBLISHER_TOOLS = new Set([
     'ba_publish_threads_task1043',
     'ba_release_dzen_task1045',
     'ba_verify_dzen_task1045_connector',
+    'ba_reconcile_dzen_task1045_uncertain_attempt',
     'ba_preview_vk_task1048_api_promotion',
     'ba_apply_vk_task1048_api_promotion',
     'ba_hold_vk_task1084',

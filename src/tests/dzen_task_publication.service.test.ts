@@ -14,11 +14,12 @@ const asset992Hash = 'b5eafee417e13a2f1becc14a4b66629f31f11cfd68b4b887a240d3e552
 const hash1045 = '37b70ca472211b64104168115d435d4c2d4ef6c9fb3c61c9041ec0f9336242f1';
 const asset1045Hash = '6b02adaf5ce140d986d85de5cf910a33bed36f65384e166031712fd66a06d76b';
 const actual992IncidentKey = 'dzen-992-owner-confirmed-retry-20261001-v2';
+const actual1045IncidentKey = 'dzen-p10-1045-r4-asset129-recovery-20261010-01';
 const schedule = new Date('2026-09-22T11:00:00.000Z');
 
 function harness(options: { released?: boolean; verified?: boolean; providerError?: boolean;
     taskId?: 958 | 962 | 992 | 999 | 1031 | 1045; studioTitles?: string[]; studioTitleReadbackComplete?: boolean;
-    studioPublishedAt?: string | null } = {}) {
+    studioPublishedAt?: string | null; studioCoverageComplete?: boolean; studioStates?: Array<'published' | 'draft'> } = {}) {
     const taskId = options.taskId || 958;
     const taskHash = taskId === 1045 ? hash1045 : taskId === 999 ? hash999 : taskId === 1031 ? hash1031 : taskId === 992 ? hash992 : taskId === 962 ? hash962 : hash;
     const decisionId = taskId === 1045 ? 267 : taskId === 999 ? 241 : taskId === 1031 ? 214 : taskId === 992 ? 186 : taskId === 962 ? 146 : 147;
@@ -33,7 +34,8 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
             capability_flags: { api_publish: false } } },
         content_revision: revision, accepted_revision: revision, text_state: 'accepted',
         draft_text: taskId === 1031 ? 'Как проверить новый формат урока без маркетинговой самооценки\n\nexact accepted body' : 'exact accepted body',
-        title: taskId === 999 ? 'Почему метрика без контекста ведёт к ложному решению' : taskId === 1031 ? 'W41 allocation #6 — Dzen' : 'Exact accepted title',
+        title: taskId === 999 ? 'Почему метрика без контекста ведёт к ложному решению' : taskId === 1031 ? 'W41 allocation #6 — Dzen'
+            : taskId === 1045 ? 'W41 allocation #24 — Dzen' : 'Exact accepted title',
         visual_placement: hasVisual || taskId === 1031 ? 'article_cover' : 'feed',
         visual_state: hasVisual ? 'APPROVED' : 'NO_VISUAL_NEEDED', selected_asset_id: hasVisual ? assetId : null,
         selected_asset: hasVisual ? { id: assetId, status: 'approved', content_revision: revision,
@@ -47,6 +49,7 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
     const events: any[] = [];
     let providerCalls = 0;
     let factCalls = 0;
+    let studioReads = 0;
     const db = {
         contentItem: {
             findFirst: async () => task,
@@ -68,6 +71,10 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
                 if (stored) return { ...stored.data, after_state: stored.data.after_state };
                 if (where.command === 'ba_publish_dzen_task992_claim') return where.idempotency_key === actual992IncidentKey
                     ? { id: 1901, actor_id: 'system:planner-mcp:dzen-task992',
+                        after_state: { status: 'publishing', channel_id: 116 } }
+                    : null;
+                if (where.command === 'ba_publish_dzen_task1045_claim') return where.idempotency_key === actual1045IncidentKey
+                    ? { id: 2045, actor_id: 'system:planner-mcp:dzen-task1045',
                         after_state: { status: 'publishing', channel_id: 116 } }
                     : null;
                 return where.command === verifyCommand
@@ -101,17 +108,20 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
             return `https://dzen.ru/b/approved-task${taskId}`;
         }, testConnection: async () => ({ authenticated: true, editor_available: true,
             editor_url: 'https://dzen.ru/profile/editor/id/dzen-channel' }),
-        readStudioPublications: async () => ({
+        readStudioPublications: async () => (studioReads += 1, {
             authenticated: true, editor_available: true,
             editor_url: 'https://dzen.ru/profile/editor/id/dzen-channel/publications',
             publications_payload_received: true,
             title_readback_complete: options.studioTitleReadbackComplete !== false,
             publication_timestamp_readback_complete: options.studioPublishedAt !== null,
+            state_readback_complete: true,
+            coverage_complete: options.studioCoverageComplete === true,
             publications: (options.studioTitles || []).map((title, index) => ({
                 provider_object_id: `publication-${index + 1}`,
                 title,
-                public_url: `https://dzen.ru/a/publication-${index + 1}`,
-                published_at: options.studioPublishedAt === null
+                state: options.studioStates?.[index] || 'published',
+                public_url: options.studioStates?.[index] === 'draft' ? null : `https://dzen.ru/a/publication-${index + 1}`,
+                published_at: options.studioStates?.[index] === 'draft' || options.studioPublishedAt === null
                     ? null
                     : options.studioPublishedAt || '2026-10-01T18:21:55.809Z'
             })),
@@ -119,7 +129,8 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
         }) },
         facts: { record: async () => { factCalls += 1; return {}; } }
     });
-    return { service, task, events, get providerCalls() { return providerCalls; }, get factCalls() { return factCalls; } };
+    return { service, task, events, get providerCalls() { return providerCalls; },
+        get factCalls() { return factCalls; }, get studioReads() { return studioReads; } };
 }
 
 test('Dzen release tool is publisher-only and delivery rejects missing owner proof', async () => {
@@ -159,6 +170,80 @@ test('Dzen #1045 exact release proof and connector proof gate the same article-c
     assert.equal(dry.payload_preview.selected_asset_id, 129);
     assert.equal(dry.payload_preview.image_url, 'https://cdn.example.test/task992.png');
     assert.equal(h.providerCalls, 0);
+});
+
+test('Dzen #1045 uncertain reconciliation returns one exact published identity and never retries or records a fact', async () => {
+    const h = harness({ taskId: 1045, studioTitles: ['W41 allocation #24 — Dzen'], studioStates: ['published'] });
+    h.task.status = 'publishing';
+    h.task.quality_report = { publication_task_delivery: { state: 'provider_result_uncertain',
+        idempotency_key: actual1045IncidentKey, retry_via_api: false } };
+    const result = await (h.service as any).reconcileTask1045({ projectId: 10, taskId: 1045,
+        actorId: 'user:2', expectedAttemptIdempotencyKey: actual1045IncidentKey,
+        idempotencyKey: 'dzen1045-reconcile-found-v1' });
+    assert.equal(result.classification, 'exact_published_match');
+    assert.equal(result.public_url, 'https://dzen.ru/a/publication-1');
+    assert.equal(result.provider_object_id, 'publication-1');
+    assert.equal(result.retry_safe, false);
+    assert.equal(h.task.status, 'publishing');
+    assert.equal(h.providerCalls, 0);
+    assert.equal(h.factCalls, 0);
+    const replay = await (h.service as any).reconcileTask1045({ projectId: 10, taskId: 1045,
+        actorId: 'user:2', expectedAttemptIdempotencyKey: actual1045IncidentKey,
+        idempotencyKey: 'dzen1045-reconcile-found-v1' });
+    assert.equal(replay.replayed, true);
+    assert.equal(h.studioReads, 1);
+});
+
+test('Dzen #1045 reconciliation identifies an exact provider draft without authorizing retry', async () => {
+    const h = harness({ taskId: 1045, studioTitles: ['W41 allocation #24 — Dzen'], studioStates: ['draft'] });
+    h.task.status = 'publishing';
+    h.task.quality_report = { publication_task_delivery: { state: 'provider_result_uncertain',
+        idempotency_key: actual1045IncidentKey, retry_via_api: false } };
+    const result = await (h.service as any).reconcileTask1045({ projectId: 10, taskId: 1045,
+        actorId: 'user:2', expectedAttemptIdempotencyKey: actual1045IncidentKey,
+        idempotencyKey: 'dzen1045-reconcile-draft-v1' });
+    assert.equal(result.classification, 'exact_draft_match');
+    assert.deepEqual(result.matching_draft_ids, ['publication-1']);
+    assert.equal(result.public_url, null);
+    assert.equal(result.retry_safe, false);
+    assert.equal(h.task.status, 'publishing');
+    assert.equal(h.providerCalls, 0);
+});
+
+test('Dzen #1045 zero match remains inconclusive unless Studio coverage is explicitly complete', async () => {
+    const incomplete = harness({ taskId: 1045, studioTitles: [], studioCoverageComplete: false });
+    incomplete.task.status = 'publishing';
+    incomplete.task.quality_report = { publication_task_delivery: { state: 'provider_result_uncertain',
+        idempotency_key: actual1045IncidentKey, retry_via_api: false } };
+    const uncertain = await (incomplete.service as any).reconcileTask1045({ projectId: 10, taskId: 1045,
+        actorId: 'user:2', expectedAttemptIdempotencyKey: actual1045IncidentKey,
+        idempotencyKey: 'dzen1045-reconcile-incomplete-v1' });
+    assert.equal(uncertain.classification, 'inconclusive');
+    assert.equal(uncertain.retry_safe, false);
+
+    const complete = harness({ taskId: 1045, studioTitles: [], studioCoverageComplete: true });
+    complete.task.status = 'publishing';
+    complete.task.quality_report = { publication_task_delivery: { state: 'provider_result_uncertain',
+        idempotency_key: actual1045IncidentKey, retry_via_api: false } };
+    const absent = await (complete.service as any).reconcileTask1045({ projectId: 10, taskId: 1045,
+        actorId: 'user:2', expectedAttemptIdempotencyKey: actual1045IncidentKey,
+        idempotencyKey: 'dzen1045-reconcile-absent-v1' });
+    assert.equal(absent.classification, 'confirmed_absent');
+    assert.equal(absent.retry_safe, true);
+    assert.equal(absent.resend_authorized, false);
+    assert.equal(complete.task.status, 'publishing');
+    assert.equal(complete.task.quality_report.publication_task_delivery.retry_via_api, false);
+});
+
+test('Dzen #1045 reconciliation rejects attempt drift before provider readback', async () => {
+    const h = harness({ taskId: 1045, studioTitles: [] });
+    h.task.status = 'publishing';
+    h.task.quality_report = { publication_task_delivery: { state: 'provider_result_uncertain',
+        idempotency_key: actual1045IncidentKey, retry_via_api: false } };
+    await assert.rejects((h.service as any).reconcileTask1045({ projectId: 10, taskId: 1045,
+        actorId: 'user:2', expectedAttemptIdempotencyKey: 'wrong-attempt',
+        idempotencyKey: 'dzen1045-reconcile-wrong-v1' }), /DZEN_1045_RECONCILIATION_GUARD_FAILED/);
+    assert.equal(h.events.length, 0);
 });
 
 test('Dzen #992 dry-run binds accepted revision, approved remote visual and article payload', async () => {

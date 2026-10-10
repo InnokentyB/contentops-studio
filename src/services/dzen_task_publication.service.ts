@@ -89,6 +89,7 @@ type DzenStudioPublicationReadback = {
     public_url: string | null;
     provider_object_id: string | null;
     published_at: string | null;
+    state?: 'published' | 'draft' | 'unknown';
 };
 type Dependencies = {
     db: any;
@@ -102,6 +103,8 @@ type Dependencies = {
             publications_payload_received: boolean;
             title_readback_complete: boolean;
             publication_timestamp_readback_complete: boolean;
+            state_readback_complete?: boolean;
+            coverage_complete?: boolean;
             publications: DzenStudioPublicationReadback[];
             checked_at: string;
         }>;
@@ -112,6 +115,121 @@ type Dependencies = {
 
 export class DzenTaskPublicationService {
     constructor(private readonly dependencies: Dependencies) {}
+
+    /** Audited provider readback for the single frozen Dzen #1045 attempt. Never sends or records a fact. */
+    async reconcileTask1045(args: { projectId: 10; taskId: 1045; actorId: string;
+        expectedAttemptIdempotencyKey: 'dzen-p10-1045-r4-asset129-recovery-20261010-01';
+        idempotencyKey: string }) {
+        const incidentKey = 'dzen-p10-1045-r4-asset129-recovery-20261010-01';
+        if (args.projectId !== 10 || args.taskId !== 1045
+            || args.expectedAttemptIdempotencyKey !== incidentKey || !args.idempotencyKey.trim()) {
+            throw new Error('[DZEN_1045_RECONCILIATION_GUARD_FAILED]');
+        }
+        const match = /^user:(\d+)$/.exec(args.actorId);
+        if (!match) throw new Error('[OWNER_REQUIRED]');
+        const { db, dzen } = this.dependencies;
+        const member = await db.projectMember.findUnique({ where: { project_id_user_id: {
+            project_id: 10, user_id: Number(match[1])
+        } } });
+        if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
+        const command = 'ba_reconcile_dzen_task1045_uncertain_attempt';
+        const prior = await db.workflowEvent.findUnique({ where: {
+            project_id_actor_id_command_idempotency_key: { project_id: 10, actor_id: args.actorId,
+                command, idempotency_key: args.idempotencyKey }
+        } });
+        if (prior?.after_state) return { ...prior.after_state, replayed: true };
+        const task = await db.contentItem.findFirst({ where: { id: 1045, project_id: 10 },
+            include: { channel: true, selected_asset: true, publication_fact: true } });
+        const spec = taskSpec(1045);
+        const bodyHash = (this.dependencies.hashBody
+            || ((body: string) => createHash('sha256').update(body).digest('hex')))(task?.draft_text || '');
+        const assetSha = task?.selected_asset?.provenance?.planner_storage?.sha256
+            || task?.selected_asset?.provenance?.sha256 || null;
+        const delivery = task?.quality_report?.publication_task_delivery;
+        const claim = await db.workflowEvent.findFirst({ where: { project_id: 10, content_item_id: 1045,
+            command: spec.claimCommand, idempotency_key: incidentKey }, orderBy: { id: 'desc' } });
+        if (!task || task.channel_id !== 116 || task.channel?.type !== 'dzen'
+            || task.status !== 'publishing' || task.publication_mode !== 'owner_released'
+            || task.content_revision !== 4 || task.accepted_revision !== 4 || task.text_state !== 'accepted'
+            || task.title !== 'W41 allocation #24 — Dzen'
+            || task.visual_placement !== 'article_cover' || task.visual_state !== 'APPROVED'
+            || task.visual_decision_version !== 1 || task.selected_asset_id !== 129
+            || task.selected_asset?.status !== 'approved' || task.selected_asset?.content_revision !== 4
+            || assetSha !== spec.assetSha256 || bodyHash !== spec.bodySha256
+            || task.publication_fact || task.published_link
+            || delivery?.state !== 'provider_result_uncertain' || delivery?.idempotency_key !== incidentKey
+            || delivery?.retry_via_api !== false || claim?.after_state?.status !== 'publishing'
+            || claim?.after_state?.channel_id !== 116) {
+            throw new Error('[DZEN_1045_RECONCILIATION_GUARD_FAILED] Exact frozen attempt changed');
+        }
+        const config = resolveEffectiveChannelConfig('dzen', task.channel.config || {});
+        if (!config.cookies?.trim() || !config.channel_id) {
+            throw new Error('[DZEN_CONNECTOR_NOT_READY] Missing authenticated session or channel ID');
+        }
+        let check: Awaited<ReturnType<Dependencies['dzen']['readStudioPublications']>> | null = null;
+        let providerReadFailed = false;
+        try {
+            check = await dzen.readStudioPublications(config);
+        } catch {
+            providerReadFailed = true;
+        }
+        const normalizeTitle = (value: string) => value.normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleLowerCase('ru');
+        const expectedTitle = normalizeTitle('W41 allocation #24 — Dzen');
+        const publications = check?.authenticated === true && check?.editor_available === true
+            && check.publications_payload_received === true && Array.isArray(check.publications)
+            ? check.publications : [];
+        const exactMatches = publications.filter((publication) => typeof publication.title === 'string'
+            && normalizeTitle(publication.title) === expectedTitle);
+        const publishedMatches = exactMatches.filter((publication) => publication.state === 'published'
+            && Boolean(publication.public_url && publication.provider_object_id && publication.published_at));
+        const draftMatches = exactMatches.filter((publication) => publication.state === 'draft');
+        const completeAbsenceEvidence = !providerReadFailed && check?.authenticated === true
+            && check?.editor_available === true && check.publications_payload_received === true
+            && check.title_readback_complete === true && check.state_readback_complete === true
+            && check.coverage_complete === true && exactMatches.length === 0;
+        const classification = publishedMatches.length === 1 && exactMatches.length === 1
+            ? 'exact_published_match'
+            : draftMatches.length > 0 && publishedMatches.length === 0
+                ? 'exact_draft_match'
+                : completeAbsenceEvidence ? 'confirmed_absent' : 'inconclusive';
+        const published = classification === 'exact_published_match' ? publishedMatches[0] : null;
+        const result = { task_id: 1045, channel_id: 116, content_revision: 4, accepted_revision: 4,
+            body_sha256: spec.bodySha256, selected_asset_id: 129, asset_sha256: spec.assetSha256,
+            previous_idempotency_key: incidentKey, prior_claim_event_id: claim.id,
+            classification, retry_safe: classification === 'confirmed_absent', resend_authorized: false,
+            retry_via_api: false, public_url: published?.public_url || null,
+            provider_object_id: published?.provider_object_id || null,
+            published_at: published?.published_at || null,
+            matching_draft_ids: draftMatches.map((item) => item.provider_object_id).filter(Boolean),
+            exact_title_matches: exactMatches.length, publications_scanned: publications.length,
+            studio_authenticated: check?.authenticated === true,
+            publications_payload_received: check?.publications_payload_received === true,
+            title_readback_complete: check?.title_readback_complete === true,
+            state_readback_complete: check?.state_readback_complete === true,
+            coverage_complete: check?.coverage_complete === true,
+            provider_read_failed: providerReadFailed, publication_fact_id: null,
+            checked_at: check?.checked_at || new Date().toISOString(), replayed: false };
+        await db.$transaction(async (tx: typeof db) => {
+            if (classification === 'confirmed_absent') {
+                const changed = await tx.contentItem.updateMany({ where: { id: 1045, project_id: 10,
+                    status: 'publishing', publication_mode: 'owner_released', content_revision: 4,
+                    accepted_revision: 4, selected_asset_id: 129 }, data: { quality_report: {
+                    ...(task.quality_report || {}), publication_task_delivery: {
+                        ...delivery, state: 'confirmed_absent_reconciliation', retry_safe: true,
+                        retry_via_api: false, resend_authorized: false,
+                        reconciliation_idempotency_key: args.idempotencyKey,
+                        reconciled_at: result.checked_at
+                    }
+                } } });
+                if (changed.count !== 1) throw new Error('[DZEN_1045_RECONCILIATION_CAS_CONFLICT]');
+            }
+            await tx.workflowEvent.create({ data: { project_id: 10, content_item_id: 1045,
+                actor_id: args.actorId, command, idempotency_key: args.idempotencyKey,
+                before_state: { status: task.status, publication_task_delivery: delivery,
+                    claim_event_id: claim.id }, after_state: result } });
+        });
+        return result;
+    }
 
     async confirmAbsentAndAuthorizeRetry(args: { projectId: number; taskId: 992; actorId: string;
         idempotencyKey: string; resendIdempotencyKey: string; evidenceReference: string }) {

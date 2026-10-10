@@ -64,6 +64,7 @@ test('only owner and Publisher profiles expose the exact release and claim paths
         'ba_release_linkedin_task1072_personal_browser', 'ba_claim_linkedin_task1072_browser_publication',
         'ba_release_threads_task1043_api', 'ba_publish_threads_task1043',
         'ba_release_dzen_task1045', 'ba_verify_dzen_task1045_connector',
+        'ba_reconcile_dzen_task1045_uncertain_attempt',
         'ba_preview_vk_task1048_api_promotion', 'ba_apply_vk_task1048_api_promotion'];
     for (const tool of tools) {
         assert.equal(isToolAllowedForProfile('owner', tool), true);

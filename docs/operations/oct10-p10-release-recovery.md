@@ -21,6 +21,17 @@ Run `ba_release_dzen_task1045`, then
 `ba_publish_publication_task` with `dryRun=true`. The release is fixed to channel
 116, accepted revision 4, decision 267, asset 129 and the 10:00 UTC schedule.
 
+If the one authorized provider call ends in `provider_result_uncertain`, use
+`ba_reconcile_dzen_task1045_uncertain_attempt` with the exact original attempt
+key. The tool reads authenticated Studio state and returns one of:
+`exact_published_match`, `exact_draft_match`, `confirmed_absent`, or
+`inconclusive`. It returns a permalink/provider ID only for one exact published
+match. Zero search results are never absence evidence; `confirmed_absent`
+requires explicit complete Studio coverage, readable titles and provider state.
+Even then, the tool records `retry_safe=true` while keeping
+`resend_authorized=false` and `retry_via_api=false`; a resend remains a separate
+owner decision.
+
 ## VK 1048
 
 `ba_preview_vk_task1048_api_promotion` reports readiness for channel 117 without

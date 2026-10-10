@@ -698,6 +698,7 @@ class PuppeteerPublisherService {
                 publications_payload_received: true,
                 title_readback_complete: parsed.title_readback_complete,
                 publication_timestamp_readback_complete: parsed.publication_timestamp_readback_complete,
+                state_readback_complete: parsed.state_readback_complete, coverage_complete: parsed.coverage_complete,
                 publications: parsed.publications,
                 checked_at: new Date().toISOString()
             };

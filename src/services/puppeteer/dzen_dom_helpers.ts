@@ -26,12 +26,15 @@ export interface DzenStudioPublication {
     title: string | null;
     public_url: string | null;
     published_at: string | null;
+    state: 'published' | 'draft' | 'unknown';
 }
 
 export interface DzenStudioPublicationPayload {
     publications: DzenStudioPublication[];
     title_readback_complete: boolean;
     publication_timestamp_readback_complete: boolean;
+    state_readback_complete: boolean;
+    coverage_complete: boolean;
 }
 
 export type DzenImageUploadOutcome =
@@ -130,6 +133,7 @@ function recordValue(value: unknown): Record<string, unknown> | null {
 export function extractDzenStudioPublications(payload: unknown): DzenStudioPublicationPayload | null {
     const root = recordValue(payload);
     if (!root || !Array.isArray(root.publications)) return null;
+    const pagination = recordValue(root.pagination) || {};
     const publications = root.publications.map((entry): DzenStudioPublication => {
         const raw = recordValue(entry) || {};
         const content = recordValue(raw.content) || {};
@@ -150,17 +154,31 @@ export function extractDzenStudioPublications(payload: unknown): DzenStudioPubli
             && publishTime < Date.UTC(2100, 0, 1)
             ? new Date(publishTime).toISOString()
             : null;
+        const rawStatus = typeof raw.status === 'string' ? raw.status.toLowerCase() : '';
+        const state: DzenStudioPublication['state'] = raw.isPublished === true && rawStatus === 'published'
+            ? 'published'
+            : raw.isPublished === false && ['draft', 'unpublished'].includes(rawStatus)
+                ? 'draft'
+                : 'unknown';
         return {
             provider_object_id: providerId,
             title,
             public_url: canonicalPublicDzenUrl(urlCandidate),
-            published_at: publishedAt
+            published_at: publishedAt,
+            state
         };
     });
+    const hasMore = [root.hasMore, root.has_more, pagination.hasMore, pagination.has_more]
+        .find((value): value is boolean => typeof value === 'boolean');
+    const total = [root.total, root.totalCount, root.total_count, pagination.total, pagination.totalCount]
+        .find((value): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0);
+    const coverageComplete = hasMore === false || (typeof total === 'number' && total === publications.length);
     return {
         publications,
         title_readback_complete: publications.every((publication) => publication.title !== null),
-        publication_timestamp_readback_complete: publications.every((publication) => publication.published_at !== null)
+        publication_timestamp_readback_complete: publications.every((publication) => publication.published_at !== null),
+        state_readback_complete: publications.every((publication) => publication.state !== 'unknown'),
+        coverage_complete: coverageComplete
     };
 }
 
