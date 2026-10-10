@@ -14,6 +14,19 @@ function record(value: unknown): Record<string, unknown> {
         ? value as Record<string, unknown> : {};
 }
 
+export type Dzen1045MatchDiagnostics = {
+    publishedTitleMatches: number;
+    draftTitleMatches: number;
+    missingCover: number;
+    bodyMismatches: number;
+    coverMismatches: number;
+    exactMatches: number;
+};
+
+export function dzen1045AmbiguityError(diagnostics: Dzen1045MatchDiagnostics): Error {
+    return new Error(`[DZEN1045_DRAFT_AMBIGUOUS] ${JSON.stringify(diagnostics)}`);
+}
+
 function nextPageUrl(current: string, iteration: number, pageSize: number): string {
     const url = new URL(current);
     const offsetKey = ['offset', 'from'].find(key => url.searchParams.has(key));
@@ -100,6 +113,9 @@ export async function resumeDzen1045InExistingDraft(page: Page, acceptedBody: st
             const candidates = drafts.publications.filter(item => item.state === 'draft'
                 && item.title === DZEN1045.title && item.provider_object_id);
             const exact: Dzen1045DraftProof[] = [];
+            const diagnostics: Dzen1045MatchDiagnostics = { publishedTitleMatches: publicMatches.length,
+                draftTitleMatches: candidates.length, missingCover: 0, bodyMismatches: 0,
+                coverMismatches: 0, exactMatches: 0 };
             for (const candidate of candidates) {
                 const draftId = candidate.provider_object_id!;
                 const pending = page.waitForResponse(response => new URL(response.url()).pathname
@@ -112,7 +128,7 @@ export async function resumeDzen1045InExistingDraft(page: Page, acceptedBody: st
                 const draft = record(items.find(item => String(record(item).id || '') === draftId));
                 const image = record(record(record(draft.content).preview).image);
                 const coverId = String(image.id || '');
-                if (!coverId) continue;
+                if (!coverId) { diagnostics.missingCover += 1; continue; }
                 const [title, body, bytes] = await Promise.all([
                     page.$eval(DZEN_EDITOR_SELECTORS.articleTitle, element => (element as HTMLElement).innerText),
                     page.$eval(DZEN_EDITOR_SELECTORS.articleBody, element => (element as HTMLElement).innerText),
@@ -120,6 +136,8 @@ export async function resumeDzen1045InExistingDraft(page: Page, acceptedBody: st
                 ]);
                 const bodyMatches = normalizeDzen1045Body(body) === normalizeDzen1045Body(acceptedBody);
                 const coverSha = createHash('sha256').update(bytes).digest('hex');
+                if (!bodyMatches) diagnostics.bodyMismatches += 1;
+                if (coverSha !== DZEN1045.assetSha) diagnostics.coverMismatches += 1;
                 if (title !== DZEN1045.title || !bodyMatches || coverSha !== DZEN1045.assetSha) continue;
                 await page.click(DZEN_EDITOR_SELECTORS.articlePublish);
                 await page.waitForSelector(DZEN_EDITOR_SELECTORS.publicationConfirm, { visible: true, timeout: 15_000 });
@@ -131,7 +149,8 @@ export async function resumeDzen1045InExistingDraft(page: Page, acceptedBody: st
                     publishedCoverageComplete: published.coverageComplete, draftMatches: 1,
                     draftCoverageComplete: drafts.coverageComplete, finalControlReady });
             }
-            if (exact.length !== 1) throw new Error('[DZEN1045_DRAFT_AMBIGUOUS] Exact draft count is not one');
+            diagnostics.exactMatches = exact.length;
+            if (exact.length !== 1) throw dzen1045AmbiguityError(diagnostics);
             selectedDraftId = exact[0].draftId;
             return { ...exact[0], draftMatches: exact.length };
         },
