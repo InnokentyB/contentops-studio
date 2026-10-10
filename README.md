@@ -59,7 +59,7 @@ flowchart LR
 
 The application and MCP gateway share the same project-scoped domain model. PostgreSQL remains the system of record; agents receive capabilities, not database access. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for boundaries and deployment details.
 
-Read-only VK public discovery is available to Planner and Strategist MCP roles. See the [VK search operator contract](docs/vk-public-search-operator-contract.md) for route queries, evidence limits and rollout requirements.
+Read-only VK public discovery is available to Planner and Strategist MCP roles. Channel settings accept a separate encrypted `search_access_token` for a classic user/service API key, with existing user-token compatibility. See the [VK search operator contract](docs/vk-public-search-operator-contract.md) for setup, route queries and evidence limits. Credential selection is isolated in `src/services/vk_search/credentials.ts`; the settings field is `frontend/src/components/VkSearchTokenField.tsx`.
 
 ## Safety model
 
