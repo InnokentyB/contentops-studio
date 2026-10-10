@@ -5,6 +5,7 @@ import {
     dzen1045ReleaseSchema,
     linkedIn1072ReleaseSchema,
     threads1043ReleaseSchema,
+    threads1046ReleaseSchema,
     x1042OverlengthRecoverySchema,
     x1042ReleaseSchema
 } from '../mcp/tools/oct10_owner_recovery_tools';
@@ -57,12 +58,25 @@ test('October 10 exact release schemas reject package, identity and missed-slot 
     assert.equal(linkedIn1072ReleaseSchema.safeParse({ ...linkedin, targetProfileUrl: 'https://linkedin.com/company/analystcraft' }).success, false);
     assert.equal(threads1043ReleaseSchema.safeParse({ ...threads, expectedThreadsUserId: 'wrong' }).success, false);
     assert.equal(threads1043ReleaseSchema.safeParse({ ...threads, expectedScheduleAt: '2026-10-10T16:30:00.000Z' }).success, false);
+    const threads1046 = { projectId: 10, taskId: 1046, actorId: 'user:2',
+        expectedManifestChecksum: OCT10_MANIFEST_CHECKSUM, expectedChannelId: 138,
+        expectedThreadsUserId: '39421253764155091', expectedUsername: 'innokentybo',
+        expectedContentRevision: 4, expectedAcceptedRevision: 4,
+        expectedBodySha256: 'e3403bd77725ff503627cdecca3a2ce423f148af75ac25830add9652ae25adb9',
+        expectedVisualState: 'APPROVED', expectedPlacement: 'feed', expectedDecisionId: 270,
+        expectedDecisionVersion: 1, expectedSelectedAssetId: 132,
+        expectedAssetSha256: '1b9177bbdc77a4d29f0c950f14f85f16f018c2a45544aa8f75ff6e8f00db2e03',
+        expectedScheduleAt: '2026-10-10T16:30:00.000Z', approvalReference: 'owner authorized release',
+        idempotencyKey: 'threads1046-release' };
+    assert.equal(threads1046ReleaseSchema.safeParse(threads1046).success, true);
+    assert.equal(threads1046ReleaseSchema.safeParse({ ...threads1046, expectedSelectedAssetId: 131 }).success, false);
 });
 
 test('only owner and Publisher profiles expose the exact release and claim paths', () => {
     const tools = ['ba_prepare_x_task1042_text_only_package', 'ba_release_x_task1042_browser', 'ba_claim_x_task1042_browser_publication',
         'ba_release_linkedin_task1072_personal_browser', 'ba_claim_linkedin_task1072_browser_publication',
         'ba_release_threads_task1043_api', 'ba_publish_threads_task1043',
+        'ba_release_threads_task1046_api', 'ba_publish_threads_task1046',
         'ba_release_dzen_task1045', 'ba_verify_dzen_task1045_connector',
         'ba_reconcile_dzen_task1045_uncertain_attempt',
         'ba_preview_vk_task1048_api_promotion', 'ba_apply_vk_task1048_api_promotion'];
