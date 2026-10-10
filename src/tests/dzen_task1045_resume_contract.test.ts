@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DZEN1045, Dzen1045DraftProof, runDzen1045DraftResume } from '../services/dzen_task1045_resume_contract';
+import { dzen1045Pagination } from '../services/puppeteer/dzen1045_existing_draft';
 
 const proof: Dzen1045DraftProof = { draftId: '6ac547ad5113b334aeff83d2', coverId: 'cover1',
     title: DZEN1045.title, bodySha256: DZEN1045.bodySha, coverSha256: DZEN1045.assetSha,
@@ -27,6 +28,20 @@ test('Dzen1045 confirm claims before one final submit and never rebuilds content
     });
     assert.equal(result.mode, 'submitted');
     assert.deepEqual(order, ['inspect', 'claim', 'submit']);
+});
+
+test('Dzen1045 treats a provider page shorter than its requested pageSize as exhaustive', () => {
+    assert.deepEqual(dzen1045Pagination({}, 12, 20, 12), {
+        complete: true, hasMore: undefined, total: undefined
+    });
+    assert.deepEqual(dzen1045Pagination({}, 20, 20, 20), {
+        complete: false, hasMore: undefined, total: undefined
+    });
+});
+
+test('Dzen1045 explicit provider pagination overrides the short-page fallback', () => {
+    assert.equal(dzen1045Pagination({ hasMore: true }, 12, 20, 12).complete, false);
+    assert.equal(dzen1045Pagination({ hasMore: false }, 20, 20, 20).complete, true);
 });
 
 for (const drift of ['body', 'asset', 'public', 'draft_coverage', 'draft_count', 'control'] as const) {
