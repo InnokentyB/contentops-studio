@@ -33,6 +33,8 @@ missing, keep the task and browser item unchanged.
 ## Telegram 1096 lifecycle
 
 Schedule-only rematerialization now preserves the lifecycle status of an exact
-accepted package when body, channel and explicitly supplied brief are unchanged.
-Any body, channel or brief change still reopens the draft workflow. This fixes
-the status downgrade only; it does not release or publish task 1096.
+accepted, handoff-ready, visual-ready package when body, channel and explicitly
+supplied brief are unchanged. If the legacy bug already left that exact package
+in `drafted` or `revised`, the same materialization heals the derived status to
+`approved`. Any body, channel or brief change still reopens the draft workflow.
+This does not release or publish task 1096.
