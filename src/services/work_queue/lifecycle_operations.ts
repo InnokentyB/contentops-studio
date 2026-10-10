@@ -200,7 +200,7 @@ export async function completeWorkItem(params: {
 
         if (currentItem.content_item_id && currentItem.kind === 'content_write') {
             await artDirectionService.markRevisionStale(tx, currentItem.content_item_id);
-            await tx.contentItem.update({
+            const updatedContent = await tx.contentItem.update({
                 where: { id: currentItem.content_item_id },
                 data: {
                     draft_text: params.result.body || params.result.text || '',
@@ -236,6 +236,7 @@ export async function completeWorkItem(params: {
                     where: { id: existingReview.id },
                     data: {
                         state: 'available',
+                        input_context_version: updatedContent.content_revision,
                         result_payload: Prisma.DbNull,
                         lease_token: null, lease_expires_at: null, lease_actor_id: null
                     }

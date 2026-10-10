@@ -23,6 +23,7 @@ test('a new writer result reopens review without resetting review version or ret
             update: async ({ data }: { data: Record<string, unknown> }) => {
                 assert.equal(data.state, 'available');
                 assert.equal('result_version' in data, false);
+                assert.equal(data.input_context_version, 4);
                 assert.equal(data.lease_token, null);
                 assert.equal(data.lease_actor_id, null);
                 reopened = true;

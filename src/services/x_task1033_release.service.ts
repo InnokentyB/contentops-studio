@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 import { Prisma } from '@prisma/client';
 import prisma from '../db';
 import { loadAgentWorkspaceManifest } from './agent_workspace_manifest.service';
+import { assertPublicationTextWithinLimit } from './publication_text_limit';
 
 const BODY_SHA = '9ba2558e09ef10b82babb3b3d605a3a281d5b8314ef9d78f652950bdf17d2cb8';
 const MANIFEST_CHECKSUM = 'sha256:e7f837d363d88c6a30c5e5daac002894f85ccd7e73249fa45ef07d7efc27e46f';
@@ -91,6 +92,7 @@ export async function releaseXTask1033(
             || art.state !== 'completed' || art.input_context_version !== 2) {
             throw new Error('[TASK1033_RELEASE_GUARD_FAILED] Production package changed');
         }
+        assertPublicationTextWithinLimit(task.channel.type, task.draft_text || '', task.channel.config);
         if (await tx.deliveryAttempt.findFirst({ where: { project_id: 10, content_item_id: 1033 } })) {
             throw new Error('[DELIVERY_ATTEMPT_EXISTS]');
         }

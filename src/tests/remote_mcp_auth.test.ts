@@ -172,6 +172,7 @@ test('only the owner MCP profile discovers audited content review recovery', () 
     assert.ok(tools.includes('ba_release_approved_vk_browser_task'));
     assert.ok(tools.includes('ba_release_x_task1042_browser'));
     assert.ok(tools.includes('ba_prepare_x_task1042_text_only_package'));
+    assert.ok(tools.includes('ba_recover_x_task1042_overlength_release'));
     assert.ok(tools.includes('ba_release_linkedin_task1072_personal_browser'));
     assert.ok(tools.includes('ba_release_threads_task1043_api'));
     assert.ok(tools.includes('ba_publish_threads_task1043'));
@@ -197,6 +198,7 @@ test('editor, publisher and growth profiles expose only their governed lifecycle
     assert.ok(publisherTools.includes('ba_publish_threads_task'));
     assert.ok(publisherTools.includes('ba_release_x_task1042_browser'));
     assert.ok(publisherTools.includes('ba_prepare_x_task1042_text_only_package'));
+    assert.ok(!publisherTools.includes('ba_recover_x_task1042_overlength_release'));
     assert.ok(publisherTools.includes('ba_claim_x_task1042_browser_publication'));
     assert.ok(publisherTools.includes('ba_release_linkedin_task1072_personal_browser'));
     assert.ok(publisherTools.includes('ba_claim_linkedin_task1072_browser_publication'));
