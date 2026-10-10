@@ -14,6 +14,7 @@ import {
     X1042_TEXT_ONLY_MANIFEST
 } from '../../services/x_task1042_text_only.service';
 import threadsTaskPublicationService from '../../services/threads_task_publication.service';
+import telegramTaskPublicationService from '../../services/telegram_task_publication.service';
 import { releaseDzenTaskWithPrisma } from '../../services/dzen_owner_release.service';
 import dzenTaskPublicationService from '../../services/dzen_task_publication.service';
 import { previewVkTask1048Api, promoteVkTask1048Api, VK1048_MANIFEST } from '../../services/vk_task1048_api_promotion.service';
@@ -21,6 +22,11 @@ import {
     releaseThreadsTask1046,
     THREADS1046_MANIFEST_CHECKSUM
 } from '../../services/threads_task1046_release.service';
+import {
+    repairTelegramTask1099Story,
+    releaseTelegramTask1099Story,
+    TELEGRAM1099_MANIFEST_CHECKSUM
+} from '../../services/telegram_task1099_story_recovery.service';
 import { asToolResult, EXTERNAL_PUBLICATION_ANNOTATIONS, INTERNAL_MUTATION_ANNOTATIONS } from './common';
 
 const approval = {
@@ -94,6 +100,28 @@ export const threads1046ReleaseSchema = z.object({
     approvalReference: z.string().min(10), idempotencyKey: z.string().min(1)
 });
 
+const telegram1099Exact = {
+    projectId: z.literal(10), taskId: z.literal(1099), actorId: z.string().regex(/^user:\d+$/),
+    expectedManifestChecksum: z.literal(TELEGRAM1099_MANIFEST_CHECKSUM), expectedInitiativeId: z.literal(296),
+    expectedChannelId: z.literal(108), expectedCurrentType: z.literal('publication'),
+    expectedCurrentPlacement: z.literal('feed'), expectedTargetType: z.literal('telegram_story'),
+    expectedTargetPlacement: z.literal('story'), expectedContentRevision: z.literal(1),
+    expectedAcceptedRevision: z.literal(1),
+    expectedBodySha256: z.literal('f46104f5ed4e1b892d07eb1474015890165bc61a3d9bd0c7bce3edc061f2a2be'),
+    expectedDecisionId: z.literal(277), expectedDecisionVersion: z.literal(1),
+    expectedSelectedAssetId: z.literal(134), expectedSourceAssetId: z.literal(133),
+    expectedSourcePublicationFactId: z.literal(442),
+    expectedAssetSha256: z.literal('ab299952f375cef3346c9a43dc529db1a74ac281dc16f290ab8de0b6cb796c6c'),
+    prohibitedRenderJobId: z.literal('6474ed84-5a6a-494d-a06c-7183e9ace9bb'),
+    expectedScheduleAt: z.literal('2026-10-10T13:30:00.000Z'), idempotencyKey: z.string().min(1)
+};
+
+export const telegram1099RepairSchema = z.object(telegram1099Exact);
+export const telegram1099ReleaseSchema = z.object({ ...telegram1099Exact,
+    expectedCurrentType: z.literal('telegram_story'), expectedCurrentPlacement: z.literal('story'),
+    expectedTelegramAccountId: z.literal(2), expectedSourceStoryTaskId: z.literal(986),
+    expectedSourceStoryFactId: z.literal(363), approvalReference: z.string().min(10) });
+
 export const dzen1045ReleaseSchema = z.object({ ...approval, taskId: z.literal(1045), expectedChannelId: z.literal(116),
     expectedContentRevision: z.literal(4), expectedAcceptedRevision: z.literal(4),
     expectedBodySha256: z.literal('37b70ca472211b64104168115d435d4c2d4ef6c9fb3c61c9041ec0f9336242f1'),
@@ -155,6 +183,20 @@ export function registerOct10OwnerRecoveryTools(server: McpServer): void {
         inputSchema: { projectId: z.literal(10), taskId: z.literal(1046), dryRun: z.boolean().optional().default(true),
             idempotencyKey: z.string().min(1).optional() }
     }, async args => asToolResult(await threadsTaskPublicationService.execute(args)));
+    server.registerTool('ba_repair_telegram_task1099_story_placement', {
+        description: 'Owner-only audited exact correction of p10 task1099 from the legacy feed projection to the initiative296 personal Telegram Story contract. Preserves accepted caption, asset134, schedule and history; refuses facts or attempts and never publishes.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: telegram1099RepairSchema.shape
+    }, async args => asToolResult(await repairTelegramTask1099Story(args)));
+    server.registerTool('ba_release_telegram_task1099_personal_story', {
+        description: 'Owner-only audited release of exact corrected task1099 for personal MTProto Story delivery. Binds the sole active account2 and the verified task986/fact363 Story precedent. Never publishes.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: telegram1099ReleaseSchema.shape
+    }, async args => asToolResult(await releaseTelegramTask1099Story(args)));
+    server.registerTool('ba_publish_telegram_task1099_personal_story', {
+        description: 'Exact dry-run or explicit one-shot personal MTProto video Story send for owner-released task1099. No channel/feed fallback; an uncertain provider result freezes retry and records no fact.',
+        annotations: EXTERNAL_PUBLICATION_ANNOTATIONS,
+        inputSchema: { projectId: z.literal(10), taskId: z.literal(1099), dryRun: z.boolean().optional().default(true),
+            idempotencyKey: z.string().min(1).optional() }
+    }, async args => asToolResult(await telegramTaskPublicationService.execute(args)));
     server.registerTool('ba_release_dzen_task1045', {
         description: 'Owner-only audited release of exact p10 Dzen task1045 rev4/cover129. It verifies manifest, hashes, schedule and absence of attempts; it never contacts Dzen.',
         annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: dzen1045ReleaseSchema.shape

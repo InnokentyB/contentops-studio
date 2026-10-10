@@ -164,6 +164,7 @@ export class PublisherService {
         caption: string;
         imageUrl: string;
         idempotencyKey: string;
+        mediaMetadata?: { mimeType: 'video/mp4'; width: number; height: number; durationSeconds: number };
     }) {
         return telegramPublisher.publishTelegramPersonalStoryMtproto(params);
     }

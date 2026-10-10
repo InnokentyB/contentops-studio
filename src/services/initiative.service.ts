@@ -27,6 +27,13 @@ export {
     validateDependencyConfirmation
 };
 
+/** Maps an initiative subtype to the canonical execution-task fields. */
+export function publicationTaskSubtypeProjection(subtype: string | null | undefined) {
+    return subtype === 'telegram_story'
+        ? { type: 'telegram_story' as const, visual_placement: 'story' as const }
+        : {};
+}
+
 export class InitiativeService {
     private publicationTaskView(workItems: Array<{ content_item: any }>): Record<string, unknown> | null {
         return publicationTaskView(workItems);
@@ -583,6 +590,7 @@ export class InitiativeService {
                 : params.publicationMode === 'approval_required' ? 'assisted' : 'manual';
             const scheduleAt = params.scheduleAt ? new Date(params.scheduleAt) : (initiative.due_at || null);
             const contentData = {
+                ...publicationTaskSubtypeProjection(initiative.subtype),
                 channel_id: params.channelId ?? existingBridge?.content_item?.channel_id ?? null,
                 title: initiative.title,
                 brief: params.brief ?? existingBridge?.content_item?.brief ?? initiative.description,

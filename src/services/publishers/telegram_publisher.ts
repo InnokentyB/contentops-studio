@@ -466,6 +466,7 @@ export class TelegramPublisher {
         caption: string;
         imageUrl: string;
         idempotencyKey: string;
+        mediaMetadata?: { mimeType: 'video/mp4'; width: number; height: number; durationSeconds: number };
     }) {
         const initialized = await telegramClientService.init(params.projectId);
         if (!initialized) {
@@ -475,7 +476,8 @@ export class TelegramPublisher {
             projectId: params.projectId,
             caption: params.caption,
             imageUrl: params.imageUrl,
-            idempotencyKey: params.idempotencyKey
+            idempotencyKey: params.idempotencyKey,
+            mediaMetadata: params.mediaMetadata
         });
         return {
             adapter: 'telegram_story',

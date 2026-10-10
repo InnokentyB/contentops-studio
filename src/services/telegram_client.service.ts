@@ -3,6 +3,7 @@ import { StringSession } from "telegram/sessions";
 import { Api } from "telegram/tl";
 import { CustomFile } from "telegram/client/uploads";
 import { MarkdownParser } from "telegram/extensions/markdown";
+import { getAttributes } from "telegram/Utils";
 import prisma from "../db";
 import { config } from 'dotenv';
 
@@ -239,6 +240,7 @@ export class TelegramClientService {
         caption: string;
         imageUrl: string;
         idempotencyKey: string;
+        mediaMetadata?: { mimeType: 'video/mp4'; width: number; height: number; durationSeconds: number };
     }): Promise<{ storyId: number; publicLink: string | null }> {
         const client = await this.getClient(params.projectId);
         if (!client) throw new Error('[MTPROTO_UNAVAILABLE] Telegram Client is not initialized');
@@ -247,14 +249,29 @@ export class TelegramClientService {
         const allowed = await client.invoke(new Api.stories.CanSendStory({ peer }));
         if (!allowed) throw new Error('[TELEGRAM_STORY_NOT_ALLOWED] The authorized profile cannot publish a story now');
 
-        const remoteImage = await loadTelegramRemoteImage(params.imageUrl);
-        const uploaded = await client.uploadFile({ file: remoteImage, workers: 1 });
+        const remoteMedia = await loadTelegramRemoteMedia(params.imageUrl);
+        const uploaded = await client.uploadFile({ file: remoteMedia, workers: 1 });
+        const isVideo = remoteMedia.name.toLowerCase().endsWith('.mp4');
+        const document = isVideo ? getAttributes(remoteMedia, { supportsStreaming: true }) : null;
+        if (document && params.mediaMetadata) {
+            document.attrs = document.attrs.filter(attribute => !(attribute instanceof Api.DocumentAttributeVideo));
+            document.attrs.push(new Api.DocumentAttributeVideo({
+                duration: params.mediaMetadata.durationSeconds,
+                w: params.mediaMetadata.width,
+                h: params.mediaMetadata.height,
+                supportsStreaming: true
+            }));
+            document.mimeType = params.mediaMetadata.mimeType;
+        }
         const digest = createHash('sha256').update(params.idempotencyKey).digest('hex').slice(0, 15);
         const randomId = bigInt(digest, 16);
         const [caption, entities] = MarkdownParser.parse(params.caption.trim());
         const result: any = await client.invoke(new Api.stories.SendStory({
             peer,
-            media: new Api.InputMediaUploadedPhoto({ file: uploaded }),
+            media: document
+                ? new Api.InputMediaUploadedDocument({ file: uploaded, mimeType: document.mimeType,
+                    attributes: document.attrs, nosoundVideo: false })
+                : new Api.InputMediaUploadedPhoto({ file: uploaded }),
             caption,
             entities,
             privacyRules: [new Api.InputPrivacyValueAllowAll()],
