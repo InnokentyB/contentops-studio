@@ -162,6 +162,7 @@ const PUBLISHER_TOOLS = new Set([
     'ba_release_approved_threads_task1040',
     'ba_release_x_task1033_browser',
     'ba_release_x_task1042_browser',
+    'ba_prepare_x_task1042_text_only_package',
     'ba_claim_x_task1042_browser_publication',
     'ba_release_linkedin_task1072_personal_browser',
     'ba_claim_linkedin_task1072_browser_publication',
