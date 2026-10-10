@@ -16,10 +16,13 @@ function record(value: unknown): Record<string, unknown> {
 
 export type Dzen1045MatchDiagnostics = {
     publishedTitleMatches: number;
+    draftObjects: number;
     draftTitleMatches: number;
     missingCover: number;
     bodyMismatches: number;
     coverMismatches: number;
+    packageMatchCount: number;
+    packageMatches: Array<{ draftId: string; title: string }>;
     exactMatches: number;
 };
 
@@ -110,12 +113,13 @@ export async function resumeDzen1045InExistingDraft(page: Page, acceptedBody: st
             const published = await enumerate(page, listUrl, 'published');
             const publicMatches = published.publications.filter(item => item.title === DZEN1045.title);
             const drafts = await enumerate(page, listUrl, 'draft');
-            const candidates = drafts.publications.filter(item => item.state === 'draft'
-                && item.title === DZEN1045.title && item.provider_object_id);
+            const candidates = drafts.publications.filter(item => item.state === 'draft' && item.provider_object_id);
             const exact: Dzen1045DraftProof[] = [];
             const diagnostics: Dzen1045MatchDiagnostics = { publishedTitleMatches: publicMatches.length,
-                draftTitleMatches: candidates.length, missingCover: 0, bodyMismatches: 0,
-                coverMismatches: 0, exactMatches: 0 };
+                draftObjects: candidates.length,
+                draftTitleMatches: candidates.filter(item => item.title === DZEN1045.title).length,
+                missingCover: 0, bodyMismatches: 0, coverMismatches: 0,
+                packageMatchCount: 0, packageMatches: [], exactMatches: 0 };
             for (const candidate of candidates) {
                 const draftId = candidate.provider_object_id!;
                 const pending = page.waitForResponse(response => new URL(response.url()).pathname
@@ -128,17 +132,19 @@ export async function resumeDzen1045InExistingDraft(page: Page, acceptedBody: st
                 const draft = record(items.find(item => String(record(item).id || '') === draftId));
                 const image = record(record(record(draft.content).preview).image);
                 const coverId = String(image.id || '');
-                if (!coverId) { diagnostics.missingCover += 1; continue; }
-                const [title, body, bytes] = await Promise.all([
+                const [title, body] = await Promise.all([
                     page.$eval(DZEN_EDITOR_SELECTORS.articleTitle, element => (element as HTMLElement).innerText),
-                    page.$eval(DZEN_EDITOR_SELECTORS.articleBody, element => (element as HTMLElement).innerText),
-                    coverBytes(draftId, coverId)
+                    page.$eval(DZEN_EDITOR_SELECTORS.articleBody, element => (element as HTMLElement).innerText)
                 ]);
                 const bodyMatches = normalizeDzen1045Body(body) === normalizeDzen1045Body(acceptedBody);
+                if (!bodyMatches) { diagnostics.bodyMismatches += 1; continue; }
+                if (!coverId) { diagnostics.missingCover += 1; continue; }
+                const bytes = await coverBytes(draftId, coverId);
                 const coverSha = createHash('sha256').update(bytes).digest('hex');
-                if (!bodyMatches) diagnostics.bodyMismatches += 1;
-                if (coverSha !== DZEN1045.assetSha) diagnostics.coverMismatches += 1;
-                if (title !== DZEN1045.title || !bodyMatches || coverSha !== DZEN1045.assetSha) continue;
+                if (coverSha !== DZEN1045.assetSha) { diagnostics.coverMismatches += 1; continue; }
+                diagnostics.packageMatchCount += 1;
+                if (diagnostics.packageMatches.length < 5) diagnostics.packageMatches.push({ draftId, title });
+                if (title !== DZEN1045.title) continue;
                 await page.click(DZEN_EDITOR_SELECTORS.articlePublish);
                 await page.waitForSelector(DZEN_EDITOR_SELECTORS.publicationConfirm, { visible: true, timeout: 15_000 });
                 const finalControlReady = await page.$eval(DZEN_EDITOR_SELECTORS.publicationConfirm, element =>
