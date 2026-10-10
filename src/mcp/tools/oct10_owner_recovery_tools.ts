@@ -5,9 +5,13 @@ import {
     claimXTask1042Browser,
     OCT10_MANIFEST_CHECKSUM,
     releaseLinkedInTask1072,
-    releaseThreadsTask1043,
-    releaseXTask1042
+    releaseThreadsTask1043
 } from '../../services/oct10_owner_recovery.service';
+import {
+    prepareXTask1042TextOnlyPackage,
+    releaseXTask1042TextOnly,
+    X1042_TEXT_ONLY_MANIFEST
+} from '../../services/x_task1042_text_only.service';
 import threadsTaskPublicationService from '../../services/threads_task_publication.service';
 import { asToolResult, EXTERNAL_PUBLICATION_ANNOTATIONS, INTERNAL_MUTATION_ANNOTATIONS } from './common';
 
@@ -18,11 +22,16 @@ const approval = {
     idempotencyKey: z.string().min(1)
 };
 
+export const x1042TextOnlyPrepareSchema = z.object({ projectId: z.literal(10), taskId: z.literal(1042),
+    actorId: z.string().regex(/^user:\d+$/), expectedManifestChecksum: z.literal(X1042_TEXT_ONLY_MANIFEST),
+    approvalReference: z.string().min(10), idempotencyKey: z.string().min(1)
+});
+
 export const x1042ReleaseSchema = z.object({ ...approval, taskId: z.literal(1042), expectedChannelId: z.literal(164),
-    expectedContentRevision: z.literal(4), expectedAcceptedRevision: z.literal(4),
+    expectedContentRevision: z.literal(5), expectedAcceptedRevision: z.literal(5),
     expectedBodySha256: z.literal('7d780809a7f6b73494b590cd1fa11ac2f6383fdc0a952f1aca5d09cb4e676c70'),
-    expectedSelectedAssetId: z.literal(126),
-    expectedAssetSha256: z.literal('e5643499e5a16777fd272dbc510946d0c8d55accf6301d9a3b330206f1d7c92b'),
+    expectedSelectedAssetId: z.null(), expectedAssetSha256: z.null(), expectedReviewWorkItemId: z.literal(1420),
+    expectedArtWorkItemId: z.number().int().positive(), expectedDecisionId: z.number().int().positive(),
     expectedScheduleAt: z.literal('2026-10-09T15:00:00.000Z')
 });
 
@@ -51,10 +60,14 @@ const claim = { projectId: z.literal(10), actorId: z.string(), workItemId: z.num
 
 /** Exact owner recovery and publisher handoff tools for the missed 9 October slots. */
 export function registerOct10OwnerRecoveryTools(server: McpServer): void {
+    server.registerTool('ba_prepare_x_task1042_text_only_package', {
+        description: 'Owner-only audited scope correction for X task1042. Keeps the accepted body byte-for-byte, reopens it as revision5 through the canonical revision-stale boundary, and exposes the standard content-review gate. The old approved asset remains immutable but is no longer selected. Never releases or publishes.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: x1042TextOnlyPrepareSchema.shape
+    }, async args => asToolResult(await prepareXTask1042TextOnlyPackage(args)));
     server.registerTool('ba_release_x_task1042_browser', {
-        description: 'Owner-only audited exact release of p10 X task1042 rev4/asset126 to one browser work item. Keeps the original 9 October missed schedule and records the 10 October recovery separately. Never publishes.',
+        description: 'Owner-only audited exact text-only release of p10 X task1042 revision5 after approved review result5 and an active revision5 NO_VISUAL_NEEDED decision3. Requires selected_asset_id=null, creates one browser item that forbids an image, and never publishes.',
         annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: x1042ReleaseSchema.shape
-    }, async args => asToolResult(await releaseXTask1042(args)));
+    }, async args => asToolResult(await releaseXTask1042TextOnly(args)));
     server.registerTool('ba_claim_x_task1042_browser_publication', {
         description: 'Publisher-only exact claim for the browser work item created by the task1042 owner release. Does not contact X.',
         annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: claim
