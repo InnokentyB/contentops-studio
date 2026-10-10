@@ -19,6 +19,11 @@ import { releaseDzenTaskWithPrisma } from '../../services/dzen_owner_release.ser
 import dzenTaskPublicationService from '../../services/dzen_task_publication.service';
 import { reconcileOrResumeDzenTask1045Draft } from '../../services/dzen_task1045_draft_resume.service';
 import { DZEN1045 } from '../../services/dzen_task1045_resume_contract';
+import {
+    authorizeDzenTask1045NewDraftRetry,
+    DZEN1045_AUTHORIZATION_KEY,
+    DZEN1045_RECOVERY_MANIFEST
+} from '../../services/dzen_task1045_new_draft_recovery.service';
 import { previewVkTask1048Api, promoteVkTask1048Api, VK1048_MANIFEST } from '../../services/vk_task1048_api_promotion.service';
 import {
     releaseThreadsTask1046,
@@ -134,6 +139,17 @@ export const dzen1045ReleaseSchema = z.object({ ...approval, taskId: z.literal(1
     expectedPublishAt: z.literal('2026-10-10T10:00:00.000Z')
 });
 
+export const dzen1045NewDraftRetrySchema = z.object({
+    projectId: z.literal(10), taskId: z.literal(1045), actorId: z.string().regex(/^user:\d+$/),
+    expectedManifestChecksum: z.literal(DZEN1045_RECOVERY_MANIFEST), expectedChannelId: z.literal(116),
+    expectedContentRevision: z.literal(4), expectedAcceptedRevision: z.literal(4),
+    expectedBodySha256: z.literal(DZEN1045.bodySha), expectedDecisionId: z.literal(267),
+    expectedSelectedAssetId: z.literal(129), expectedAssetSha256: z.literal(DZEN1045.assetSha),
+    expectedPlacement: z.literal('article_cover'), expectedOriginalAttemptKey: z.literal(DZEN1045.originalKey),
+    authorizedPublishIdempotencyKey: z.literal(DZEN1045.retryKey),
+    ownerAuthorizationReference: z.string().min(10), idempotencyKey: z.literal(DZEN1045_AUTHORIZATION_KEY)
+});
+
 const claim = { projectId: z.literal(10), actorId: z.string(), workItemId: z.number().int().positive(),
     leaseSeconds: z.number().int().positive().max(3600).optional(), idempotencyKey: z.string().min(1) };
 
@@ -224,6 +240,10 @@ export function registerOct10OwnerRecoveryTools(server: McpServer): void {
             expectedAttemptIdempotencyKey: z.literal(DZEN1045.originalKey),
             idempotencyKey: z.literal(DZEN1045.resumeKey), confirm: z.boolean().optional().default(false) }
     }, async args => asToolResult(await reconcileOrResumeDzenTask1045Draft(args)));
+    server.registerTool('ba_authorize_dzen_task1045_new_draft_retry', {
+        description: 'Owner-only audited authorization for exactly one new Dzen1045 draft/send after exhaustive authenticated Published and Draft inventory proves the original uncertain attempt absent. Preserves the prior incident, records the absence proof, and never sends or records a publication fact.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: dzen1045NewDraftRetrySchema.shape
+    }, async args => asToolResult(await authorizeDzenTask1045NewDraftRetry(args)));
     server.registerTool('ba_preview_vk_task1048_api_promotion', {
         description: 'Owner-only exact read-only preview of task1048 promotion from the unclaimed browser item to canonical vk_api. Reports credential readiness without exposing secrets and never calls VK.',
         annotations: { readOnlyHint: true },

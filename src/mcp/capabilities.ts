@@ -183,6 +183,7 @@ const PUBLISHER_TOOLS = new Set([
     'ba_verify_dzen_task1045_connector',
     'ba_reconcile_dzen_task1045_uncertain_attempt',
     'ba_reconcile_or_resume_dzen_task1045_draft',
+    'ba_authorize_dzen_task1045_new_draft_retry',
     'ba_preview_vk_task1048_api_promotion',
     'ba_apply_vk_task1048_api_promotion',
     'ba_hold_vk_task1084',
