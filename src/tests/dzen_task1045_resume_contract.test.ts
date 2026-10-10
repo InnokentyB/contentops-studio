@@ -44,10 +44,12 @@ test('Dzen1045 explicit provider pagination overrides the short-page fallback', 
     assert.equal(dzen1045Pagination({ hasMore: false }, 20, 20, 20).complete, true);
 });
 
-test('Dzen1045 ambiguity diagnostics are bounded and contain no provider content', () => {
-    assert.equal(dzen1045AmbiguityError({ publishedTitleMatches: 0, draftTitleMatches: 1,
-        missingCover: 0, bodyMismatches: 1, coverMismatches: 0, exactMatches: 0 }).message,
-    '[DZEN1045_DRAFT_AMBIGUOUS] {"publishedTitleMatches":0,"draftTitleMatches":1,"missingCover":0,"bodyMismatches":1,"coverMismatches":0,"exactMatches":0}');
+test('Dzen1045 ambiguity diagnostics expose only bounded package-match identities', () => {
+    assert.equal(dzen1045AmbiguityError({ publishedTitleMatches: 0, draftObjects: 2,
+        draftTitleMatches: 0, missingCover: 0, bodyMismatches: 1, coverMismatches: 0,
+        packageMatchCount: 1, packageMatches: [{ draftId: 'draft-1', title: 'Observed title' }],
+        exactMatches: 0 }).message,
+    '[DZEN1045_DRAFT_AMBIGUOUS] {"publishedTitleMatches":0,"draftObjects":2,"draftTitleMatches":0,"missingCover":0,"bodyMismatches":1,"coverMismatches":0,"packageMatchCount":1,"packageMatches":[{"draftId":"draft-1","title":"Observed title"}],"exactMatches":0}');
 });
 
 for (const drift of ['body', 'asset', 'public', 'draft_coverage', 'draft_count', 'control'] as const) {
