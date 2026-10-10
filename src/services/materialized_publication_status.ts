@@ -6,6 +6,8 @@ export type MaterializedPublicationState = {
     accepted_revision: number | null;
     channel_id: number | null;
     brief?: string | null;
+    handoff_state?: string;
+    visual_state?: string;
 };
 
 /** Preserve lifecycle only when rematerialization leaves the accepted package unchanged. */
@@ -16,7 +18,11 @@ export function materializedPublicationStatus(existing: MaterializedPublicationS
         && existing.accepted_revision === existing.content_revision
         && (draftText === undefined || draftText === existing.draft_text)
         && (channelId === undefined || channelId === existing.channel_id)
-        && (brief === undefined || brief === existing.brief);
-    if (unchangedAcceptedPackage) return existing.status;
+        && (brief === undefined || brief === existing.brief)
+        && existing.handoff_state === 'ready'
+        && ['APPROVED', 'NO_VISUAL_NEEDED'].includes(existing.visual_state || '');
+    if (unchangedAcceptedPackage) {
+        return ['drafted', 'revised'].includes(existing.status) ? 'approved' : existing.status;
+    }
     return draftText?.trim() ? 'drafted' : existing.status;
 }
