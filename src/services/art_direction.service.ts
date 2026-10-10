@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
-import prisma from '../db';
 import path from 'path';
+import prisma from '../db';
+import { assertPublicationTextWithinLimit } from './publication_text_limit';
 import storageService from './storage.service';
 import { decodeVisualBase64, inspectVisualBinary, isServerResolvableVisualUrl } from './visual_asset_binding.service';
 import { requireProjectActorAccess } from './project_access.service';
@@ -146,6 +147,7 @@ export class ArtDirectionService {
         const item = await client.contentItem.findUnique({ where: { id: contentItemId }, include: { channel: true } });
         if (!item) throw new Error(`ContentItem ${contentItemId} not found`);
         if (['published', 'removed', 'cancelled'].includes(item.status) || !item.draft_text?.trim()) return null;
+        assertPublicationTextWithinLimit(item.channel?.type || item.type, item.draft_text, item.channel?.config);
 
         const enabled = await this.isEnabled(item.project_id, client);
         const placement = placementForContentAcceptance(

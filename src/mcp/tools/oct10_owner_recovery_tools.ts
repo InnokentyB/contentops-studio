@@ -9,6 +9,7 @@ import {
 } from '../../services/oct10_owner_recovery.service';
 import {
     prepareXTask1042TextOnlyPackage,
+    recoverXTask1042OverlengthRelease,
     releaseXTask1042TextOnly,
     X1042_TEXT_ONLY_MANIFEST
 } from '../../services/x_task1042_text_only.service';
@@ -27,11 +28,20 @@ export const x1042TextOnlyPrepareSchema = z.object({ projectId: z.literal(10), t
     approvalReference: z.string().min(10), idempotencyKey: z.string().min(1)
 });
 
+export const x1042OverlengthRecoverySchema = z.object({ projectId: z.literal(10), taskId: z.literal(1042),
+    actorId: z.string().regex(/^user:\d+$/), expectedManifestChecksum: z.literal(X1042_TEXT_ONLY_MANIFEST),
+    expectedBrowserWorkItemId: z.literal(1689), expectedWriterWorkItemId: z.literal(1308),
+    expectedReviewWorkItemId: z.literal(1420), expectedArtWorkItemId: z.literal(1688),
+    expectedDecisionId: z.literal(271), expectedWeightedLength: z.literal(365), expectedLimit: z.literal(280),
+    approvalReference: z.string().min(10), idempotencyKey: z.string().min(1)
+});
+
 export const x1042ReleaseSchema = z.object({ ...approval, taskId: z.literal(1042), expectedChannelId: z.literal(164),
-    expectedContentRevision: z.literal(5), expectedAcceptedRevision: z.literal(5),
-    expectedBodySha256: z.literal('7d780809a7f6b73494b590cd1fa11ac2f6383fdc0a952f1aca5d09cb4e676c70'),
+    expectedContentRevision: z.literal(6), expectedAcceptedRevision: z.literal(6),
+    expectedBodySha256: z.literal('8ee902b053a244255c4c3d728947e755069e5aca8503f3ed201476bf67f0cfc3'),
     expectedSelectedAssetId: z.null(), expectedAssetSha256: z.null(), expectedReviewWorkItemId: z.literal(1420),
     expectedArtWorkItemId: z.number().int().positive(), expectedDecisionId: z.number().int().positive(),
+    expectedWeightedLength: z.literal(273), expectedLimit: z.literal(280),
     expectedScheduleAt: z.literal('2026-10-09T15:00:00.000Z')
 });
 
@@ -64,8 +74,12 @@ export function registerOct10OwnerRecoveryTools(server: McpServer): void {
         description: 'Owner-only audited scope correction for X task1042. Keeps the accepted body byte-for-byte, reopens it as revision5 through the canonical revision-stale boundary, and exposes the standard content-review gate. The old approved asset remains immutable but is no longer selected. Never releases or publishes.',
         annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: x1042TextOnlyPrepareSchema.shape
     }, async args => asToolResult(await prepareXTask1042TextOnlyPackage(args)));
+    server.registerTool('ba_recover_x_task1042_overlength_release', {
+        description: 'Owner-only audited recovery for the exact claimed X task1042 revision5 browser item rejected pre-submit at 365/280 weighted characters. Cancels only that browser item, supersedes its release proof, and reopens Writer item1308. It preserves copy as history and never edits, releases, claims, or publishes the replacement.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: x1042OverlengthRecoverySchema.shape
+    }, async args => asToolResult(await recoverXTask1042OverlengthRelease(args)));
     server.registerTool('ba_release_x_task1042_browser', {
-        description: 'Owner-only audited exact text-only release of p10 X task1042 revision5 after approved review result5 and an active revision5 NO_VISUAL_NEEDED decision3. Requires selected_asset_id=null, creates one browser item that forbids an image, and never publishes.',
+        description: 'Owner-only audited exact text-only release of p10 X task1042 revision6 after approved review result6 and an active revision6 NO_VISUAL_NEEDED decision4. Enforces the ordinary-X 280 weighted-character limit, requires selected_asset_id=null, creates one browser item that forbids an image, and never publishes.',
         annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: x1042ReleaseSchema.shape
     }, async args => asToolResult(await releaseXTask1042TextOnly(args)));
     server.registerTool('ba_claim_x_task1042_browser_publication', {

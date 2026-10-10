@@ -363,7 +363,7 @@ export async function claimXTask1042Browser(args: { projectId: 10; actorId: stri
     const item = await prisma.workItem.findFirst({ where: { id: args.workItemId, project_id: 10,
         content_item_id: 1042, kind: 'browser_publish', assignee_role: 'browser_publisher',
         content_item: { channel_id: 164, status: 'browser_required', publication_mode: 'browser_required',
-            content_revision: 5, accepted_revision: 5, selected_asset_id: null, publication_fact: null, published_link: null } },
+            content_revision: 6, accepted_revision: 6, selected_asset_id: null, publication_fact: null, published_link: null } },
     select: { id: true } });
     if (!item) throw new Error('[X1042_BROWSER_WORK_ITEM_REQUIRED]');
     return workQueueService.claimWorkItem(args);
