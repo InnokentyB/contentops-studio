@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DZEN1045, Dzen1045DraftProof, runDzen1045DraftResume } from '../services/dzen_task1045_resume_contract';
-import { dzen1045Pagination } from '../services/puppeteer/dzen1045_existing_draft';
+import { dzen1045AmbiguityError, dzen1045Pagination } from '../services/puppeteer/dzen1045_existing_draft';
 
 const proof: Dzen1045DraftProof = { draftId: '6ac547ad5113b334aeff83d2', coverId: 'cover1',
     title: DZEN1045.title, bodySha256: DZEN1045.bodySha, coverSha256: DZEN1045.assetSha,
@@ -42,6 +42,12 @@ test('Dzen1045 treats a provider page shorter than its requested pageSize as exh
 test('Dzen1045 explicit provider pagination overrides the short-page fallback', () => {
     assert.equal(dzen1045Pagination({ hasMore: true }, 12, 20, 12).complete, false);
     assert.equal(dzen1045Pagination({ hasMore: false }, 20, 20, 20).complete, true);
+});
+
+test('Dzen1045 ambiguity diagnostics are bounded and contain no provider content', () => {
+    assert.equal(dzen1045AmbiguityError({ publishedTitleMatches: 0, draftTitleMatches: 1,
+        missingCover: 0, bodyMismatches: 1, coverMismatches: 0, exactMatches: 0 }).message,
+    '[DZEN1045_DRAFT_AMBIGUOUS] {"publishedTitleMatches":0,"draftTitleMatches":1,"missingCover":0,"bodyMismatches":1,"coverMismatches":0,"exactMatches":0}');
 });
 
 for (const drift of ['body', 'asset', 'public', 'draft_coverage', 'draft_count', 'control'] as const) {
