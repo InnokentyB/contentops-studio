@@ -1,10 +1,23 @@
 import { decryptChannelSecret, encryptChannelSecret } from './channel_secrets';
+import { supportedVkSearchToken } from '../services/vk_search/credentials';
 
 const DZEN_TYPES = new Set(['zen', 'zen_article', 'dzen']);
 const ENCRYPTED_SECRET_FIELDS: Record<string, string[]> = {
-    vk: ['publish_access_token', 'user_access_token', 'vk_oauth_access_token', 'stats_access_token', 'vk_refresh_token', 'vk_device_id'],
+    vk: ['search_access_token', 'publish_access_token', 'user_access_token', 'vk_oauth_access_token', 'stats_access_token', 'vk_refresh_token', 'vk_device_id'],
     threads: ['access_token']
 };
+
+/** Removes an explicitly cleared search key from current and legacy snapshots only. */
+function withoutVkSearchCredential(config: unknown): Record<string, unknown> {
+    if (!config || typeof config !== 'object' || Array.isArray(config)) return {};
+    const cleared = { ...config as Record<string, unknown> };
+    delete cleared.search_access_token;
+    delete cleared.search_access_token_encrypted;
+    if (cleared.raw_account && typeof cleared.raw_account === 'object') {
+        cleared.raw_account = withoutVkSearchCredential(cleared.raw_account);
+    }
+    return cleared;
+}
 
 /**
  * Sanitize channel configuration before returning it to the client by masking secrets.
@@ -18,6 +31,7 @@ export function sanitizeChannelConfig(type: string, config: any): any {
     
     // Mask sensitive fields
     if (sanitized.api_key) sanitized.api_key = '******';
+    if (sanitized.search_access_token) sanitized.search_access_token = '******';
     if (sanitized.publish_access_token) sanitized.publish_access_token = '******';
     if (sanitized.user_access_token) sanitized.user_access_token = '******';
     if (sanitized.vk_oauth_access_token) sanitized.vk_oauth_access_token = '******';
@@ -54,7 +68,7 @@ export function mergeChannelConfig(incomingConfig: any, existingConfig: any): an
         merged.raw_account = mergeChannelConfig(merged.raw_account, existingConfig.raw_account);
     }
     
-    const secretKeys = ['api_key', 'publish_access_token', 'user_access_token', 'vk_oauth_access_token', 'stats_access_token', 'vk_refresh_token', 'vk_device_id', 'access_token', 'cookies', 'application_secret_key'];
+    const secretKeys = ['api_key', 'search_access_token', 'publish_access_token', 'user_access_token', 'vk_oauth_access_token', 'stats_access_token', 'vk_refresh_token', 'vk_device_id', 'access_token', 'cookies', 'application_secret_key'];
     for (const key of secretKeys) {
         if (merged[key] === '******' && existingConfig[key]) {
             merged[key] = existingConfig[key];
@@ -78,6 +92,10 @@ export function mergeChannelConfig(incomingConfig: any, existingConfig: any): an
         }
     }
     
+    if (typeof incomingConfig.search_access_token === 'string' && !incomingConfig.search_access_token.trim()) {
+        if (merged.raw_account === undefined && existingConfig.raw_account) merged.raw_account = existingConfig.raw_account;
+        return withoutVkSearchCredential(merged);
+    }
     return merged;
 }
 
@@ -95,6 +113,31 @@ export function prepareChannelConfigForStorage(type: string, config: any): any {
         return prepared;
     }
     if (type === 'vk') {
+        if (typeof prepared.search_access_token === 'string' && !prepared.search_access_token.trim()) {
+            return prepareChannelConfigForStorage(type, withoutVkSearchCredential(prepared));
+        }
+        if (prepared.raw_account && typeof prepared.raw_account === 'object') {
+            prepared.raw_account = prepareChannelConfigForStorage(type, prepared.raw_account);
+        }
+        if (prepared.search_access_token !== undefined && typeof prepared.search_access_token !== 'string') {
+            throw new Error('[VK_SEARCH_CHANNEL_CONFIG_INVALID] Search credential must be a string');
+        }
+        const searchToken = typeof prepared.search_access_token === 'string' ? prepared.search_access_token.trim() : '';
+        if ((!searchToken || searchToken === '******') && prepared.search_access_token_encrypted !== undefined) {
+            let encryptedToken: string;
+            try {
+                if (typeof prepared.search_access_token_encrypted !== 'string') throw new Error('Invalid encrypted search key');
+                encryptedToken = decryptChannelSecret(prepared.search_access_token_encrypted);
+            } catch {
+                throw new Error('[VK_SEARCH_CHANNEL_CONFIG_INVALID] Encrypted search credential is invalid');
+            }
+            if (!supportedVkSearchToken(encryptedToken)) {
+                throw new Error('[VK_SEARCH_TOKEN_KIND_UNSUPPORTED] Use a classic VK API user or service search credential');
+            }
+        }
+        if (searchToken && searchToken !== '******' && !supportedVkSearchToken(searchToken)) {
+            throw new Error('[VK_SEARCH_TOKEN_KIND_UNSUPPORTED] Use a classic VK API user or service search credential');
+        }
         for (const field of ['publish_access_token', 'user_access_token']) {
             const value = typeof prepared[field] === 'string' ? prepared[field].trim() : '';
             if (/^vk2\./i.test(value)) {
@@ -135,6 +178,9 @@ export function resolveChannelConfigSecrets(type: string, config: any): any {
         return resolved;
     }
     if (type === 'vk') {
+        if (resolved.raw_account && typeof resolved.raw_account === 'object') {
+            resolved.raw_account = resolveChannelConfigSecrets(type, resolved.raw_account);
+        }
         for (const field of ENCRYPTED_SECRET_FIELDS.vk) {
             const encryptedField = `${field}_encrypted`;
             if (!resolved[field] && typeof resolved[encryptedField] === 'string') {
@@ -172,8 +218,13 @@ export function resolveEffectiveChannelConfig(type: string, config: any): any {
         : {};
     const { raw_account: _rawAccount, ...currentSettings } = topLevel;
 
+    const searchCredentialOverride = type === 'vk'
+        && typeof currentSettings.search_access_token_encrypted === 'string'
+        && currentSettings.search_access_token === undefined
+        ? { search_access_token: undefined } : {};
     return resolveChannelConfigSecrets(type, {
         ...rawAccount,
+        ...searchCredentialOverride,
         ...currentSettings
     });
 }

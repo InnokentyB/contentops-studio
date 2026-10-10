@@ -1,3 +1,4 @@
+import { VkSearchTokenField } from '../components/VkSearchTokenField'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { ApiJson } from '../types/api-json'
 import { useState, useEffect, useRef } from 'react'
@@ -389,12 +390,12 @@ function VkConnectionGuide({ locale, vkId, publicationToken, userToken, oauthUse
         steps={locale === 'ru' ? [
             'Укажите ID сообщества со знаком минус и вставьте ключ доступа сообщества из Управление → Работа с API. Он используется только для записи в ленту.',
             'Нажмите «Подключить VK ID». Planner сохранит зашифрованные OAuth-данные и будет обновлять токен на Railway перед публикацией персональных Stories.',
-            'Классический пользовательский токен пока нужен только для загрузки изображений в посты сообщества. Без него текстовые посты и персональные Stories остаются доступны.',
+            'Классический пользовательский токен используется для загрузки изображений и может использоваться для поиска. Для поиска также можно задать отдельный сервисный ключ приложения. Без пользовательского токена текстовые посты и персональные Stories остаются доступны.',
             'Сохраните карточку и нажмите «Проверить доступ»: Planner отдельно покажет готовность текста, изображений и Stories.'
         ] : [
             'Enter the community ID with a minus sign and paste its access key from Management → API usage. It is used only for feed publication.',
             'Select Connect VK ID. Planner stores the encrypted OAuth credentials and refreshes the token on Railway before publishing personal Stories.',
-            'A classic VK API user token is currently needed only for uploading images to community posts. Text posts and personal Stories remain available without it.',
+            'A classic VK API user token is used for community images and can also serve public search. Search can use a separate application service key. Text posts and personal Stories remain available without the classic user token.',
             'Save the channel and select Test access. Planner reports feed text, feed image, and Story readiness separately.'
         ]}
         note={locale === 'ru'
@@ -577,6 +578,7 @@ export default function Settings() {
     const [linkedinConnecting, setLinkedinConnecting] = useState(false)
     const [newVkStatsToken, setNewVkStatsToken] = useState('')
     const [newVkUserToken, setNewVkUserToken] = useState('')
+    const [newVkSearchToken, setNewVkSearchToken] = useState('')
     const [okAppKey, setOkAppKey] = useState('')
     const [okAppSecret, setOkAppSecret] = useState('')
     const [webhookUrl, setWebhookUrl] = useState('')
@@ -779,6 +781,7 @@ export default function Settings() {
         setNewChannelApiKey('')
         setNewVkStatsToken('')
         setNewVkUserToken('')
+        setNewVkSearchToken('')
         setSessionCookies('')
         setHubIds('')
         setWebhookUrl('')
@@ -1142,6 +1145,7 @@ export default function Settings() {
             config.vk_id = newChannelId;
             config.publish_access_token = newChannelApiKey;
             if (newVkUserToken) config.user_access_token = newVkUserToken;
+            if (newVkSearchToken) config.search_access_token = newVkSearchToken;
             if (newVkStatsToken) config.stats_access_token = newVkStatsToken;
             config.analytics_enabled = Boolean(newVkStatsToken);
             config.api_version = '5.199';
@@ -1833,6 +1837,8 @@ export default function Settings() {
                                             {locale === 'ru' ? 'Нужен для охватов, переходов, вступлений, скрытий, жалоб и отписок через stats.getPostReach.' : 'Required for reach, clicks, joins, hides, reports, and unfollows through stats.getPostReach.'}
                                         </div>
                                     </div>
+                                    <VkSearchTokenField id="vk-search-key-create" locale={locale}
+                                        value={newVkSearchToken} onChange={setNewVkSearchToken} />
                                     <VkConnectionGuide
                                         locale={locale}
                                         vkId={newChannelId}
@@ -2290,6 +2296,9 @@ export default function Settings() {
                                                             {locale === 'ru' ? 'Отдельный пользовательский токен для stats.getPostReach. Существующее значение остаётся сохранённым, пока поле замаскировано.' : 'A separate user token for stats.getPostReach. The existing value remains saved while the field is masked.'}
                                                         </div>
                                                     </div>
+                                                    <VkSearchTokenField id={`vk-search-key-${channel.id}`} locale={locale}
+                                                        value={editingChannelConfig.search_access_token}
+                                                        onChange={value => setEditingChannelConfig({ ...editingChannelConfig, search_access_token: value })} />
                                                     <VkConnectionGuide
                                                         locale={locale}
                                                         vkId={editingChannelConfig.vk_id}

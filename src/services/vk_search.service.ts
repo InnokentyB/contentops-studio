@@ -1,10 +1,10 @@
-import { z } from 'zod';
 import prisma from '../db';
 import { requireProjectActorAccess } from './project_access.service';
 import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
 import { SearchDependencies, SearchResult, VkSearchInput, vkSearchInput, QueryEvidence, SearchPost } from './vk_search/contracts';
 import { envelopeSchema, responseSchema, searchVkPublicPosts } from './vk_search/provider';
 import { normalizeVkSearchPost } from './vk_search/normalize';
+import { resolveVkSearchCredential } from './vk_search/credentials';
 
 const defaults: SearchDependencies = {
     authorize: requireProjectActorAccess,
@@ -16,7 +16,6 @@ const defaults: SearchDependencies = {
     },
     search: searchVkPublicPosts, now: () => new Date()
 };
-const configSchema = z.object({ user_access_token: z.string().optional() });
 
 /** Read-only, authorized public discovery boundary; dependencies permit isolated acceptance tests. */
 export class VkSearchService {
@@ -43,9 +42,9 @@ export class VkSearchService {
         let config: unknown;
         try { config = await this.dependencies.loadChannel(args.projectId, args.channelId); }
         catch { queries.forEach(query => { query.reason = 'VK_CHANNEL_CONFIG_UNAVAILABLE'; }); return result; }
-        const parsedConfig = configSchema.safeParse(config);
-        const token = parsedConfig.success ? parsedConfig.data.user_access_token?.trim() : null;
-        const configReason = !config ? 'ACTIVE_VK_CHANNEL_NOT_FOUND' : !token || token === '******' || /^vk2\./i.test(token) ? 'VK_USER_API_TOKEN_REQUIRED' : null;
+        const credential = resolveVkSearchCredential(config);
+        const configReason = !config ? 'ACTIVE_VK_CHANNEL_NOT_FOUND' : credential.reason;
+        const token = credential.token;
         if (configReason || !token) { queries.forEach(query => { query.reason = configReason; }); return result; }
         const deadline = Date.now() + 30_000;
         let globalBlock: string | null = null;

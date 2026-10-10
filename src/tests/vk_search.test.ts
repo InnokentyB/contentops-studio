@@ -39,7 +39,7 @@ test('publishing credentials cannot silently act as search credentials', async (
         search: async () => { assert.fail('provider called'); }, now });
     const result = await service.searchRelevantPosts(args);
     assert.equal(result.status, 'blocked');
-    assert.equal(result.queries[0].reason, 'VK_USER_API_TOKEN_REQUIRED');
+    assert.equal(result.queries[0].reason, 'VK_SEARCH_API_TOKEN_REQUIRED');
 });
 
 test('partial routes survive provider denial and raw error secrets never leave boundary', async () => {

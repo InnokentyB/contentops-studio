@@ -15,7 +15,7 @@ const locale = readFileSync(resolve(__dirname, '../../src/i18n/LocaleContext.tsx
 const publicationTasks = readFileSync(resolve(__dirname, '../../src/pages/PublicationTasks.tsx'), 'utf8')
 const routes = readFileSync(resolve(__dirname, '../../../src/routes/project.routes.ts'), 'utf8')
 
-assert.match(app, /path="\/calendar" element={<Suspense/)
+assert.match(app, /path="\/calendar"\s+element=\{\s*<Suspense/)
 assert.match(layout, /t\('operationalPlan'\)/)
 assert.match(locale, /operationalPlan: 'Операционный план'/)
 assert.match(page, /Публикации/)

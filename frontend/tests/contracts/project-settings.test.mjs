@@ -5,7 +5,11 @@ import { dirname, resolve } from 'node:path'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const settings = readFileSync(resolve(__dirname, '../../src/pages/Settings.tsx'), 'utf8')
-const routes = readFileSync(resolve(__dirname, '../../../src/routes/project.routes.ts'), 'utf8')
+const rootRoutes = readFileSync(resolve(__dirname, '../../../src/routes/project.routes.ts'), 'utf8')
+assert.match(rootRoutes, /await projectChannelsRoutes\(fastify\)/)
+assert.match(rootRoutes, /await mcpRoutes\(fastify\)/)
+const routes = rootRoutes + '\n' + readFileSync(resolve(__dirname, '../../../src/routes/projects/channels.routes.ts'), 'utf8')
+    + '\n' + readFileSync(resolve(__dirname, '../../../src/routes/projects/mcp.routes.ts'), 'utf8')
 
 assert.match(settings, /Настройки проекта/)
 assert.match(settings, /Подключение MCP/)
