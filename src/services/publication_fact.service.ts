@@ -1,10 +1,14 @@
 import prisma from '../db';
+import { Prisma } from '@prisma/client';
+import { guardVkClipFactWrite, type VkClipFactGuard } from './vk_clip_fact_guard';
 import { requireProjectActorAccess } from './project_access.service';
 
 export type ArtifactKind = 'post' | 'article' | 'video' | 'story' | 'email' | 'comment' | 'other';
 export type PublicationOutcome = 'published' | 'blocked' | 'removed' | 'restricted';
 
 export interface RecordPublicationFactArgs {
+    /** Internal exact browser proof, rechecked atomically before writing a clip fact. */
+    clipConfirmation?: VkClipFactGuard;
     projectId: number;
     taskId: number;
     actorId: string;
@@ -34,6 +38,14 @@ export function publicationFactChannelPolicy(item: {
         throw new Error('PUBLICATION_FACT_TASK_NOT_ELIGIBLE');
     }
     return { channel_id: null, create_metric_checkpoints: false };
+}
+
+/** Clips have no verified provider metric API; create the standard manual capture work. */
+export function publicationMetricCollectionPolicy(item: {
+    channel?: { type: string } | null; visual_placement?: string | null;
+}): { automatic: boolean; collection_mode: 'automatic' | 'manual'; source: 'provider_api' | 'manual' } {
+    const automatic = item.channel?.type === 'vk' && item.visual_placement !== 'clip';
+    return { automatic, collection_mode: automatic ? 'automatic' : 'manual', source: automatic ? 'provider_api' : 'manual' };
 }
 
 function validDate(value?: string | null) {
@@ -112,12 +124,14 @@ export class PublicationFactService {
         }
 
         return prisma.$transaction(async (tx) => {
+            if (args.clipConfirmation) await guardVkClipFactWrite(tx, args, args.clipConfirmation);
             const item = await tx.contentItem.findFirst({
                 where: { id: args.taskId, project_id: args.projectId },
                 include: { channel: true, publication_fact: true }
             });
             if (!item) throw new Error('PUBLICATION_TASK_NOT_FOUND');
             const channelPolicy = publicationFactChannelPolicy(item);
+            const metricPolicy = publicationMetricCollectionPolicy(item);
 
             const nextData = {
                 project_id: args.projectId,
@@ -216,14 +230,14 @@ export class PublicationFactService {
                                 checkpoint: checkpoint.checkpoint,
                                 scheduled_for: scheduledFor,
                                 collection_status: 'pending',
-                                collection_mode: item.channel?.type === 'vk' ? 'automatic' : 'manual',
-                                source: item.channel?.type === 'vk' ? 'provider_api' : 'manual',
+                                collection_mode: metricPolicy.collection_mode,
+                                source: metricPolicy.source,
                                 metrics: { schema_version: 1, values: {} }
                             }
                         });
                         createdCheckpoints += 1;
                     }
-                    if (item.channel?.type !== 'vk') {
+                    if (!metricPolicy.automatic) {
                         const itemKey = `metric:${item.id}:${checkpoint.checkpoint}`;
                         const existingWorkItem = await tx.workItem.findFirst({
                             where: { project_id: args.projectId, item_key: itemKey }
@@ -270,7 +284,7 @@ export class PublicationFactService {
                 created_metric_work_items: createdMetricWorkItems,
                 replayed: false
             };
-        });
+        }, args.clipConfirmation ? { isolationLevel: Prisma.TransactionIsolationLevel.Serializable } : undefined);
     }
 
     async get(projectId: number, taskId: number, actorId: string) {

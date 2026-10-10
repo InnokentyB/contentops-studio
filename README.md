@@ -61,6 +61,22 @@ The application and MCP gateway share the same project-scoped domain model. Post
 
 Read-only VK public discovery is available to Planner and Strategist MCP roles. Channel settings accept a separate encrypted `search_access_token` for a classic user/service API key, with existing user-token compatibility. See the [VK search operator contract](docs/vk-public-search-operator-contract.md) for setup, route queries and evidence limits. Credential selection is isolated in `src/services/vk_search/credentials.ts`; the settings field is `frontend/src/components/VkSearchTokenField.tsx`.
 
+VK Clips have an explicit offline publication contract: `clip` placement and
+`vk_clip:publish`, accepted caption revision, selected approved HTTPS MP4 and
+SHA-256, positive byte size and 9:16 editorial dimensions. Handoffs remain
+`manual_only`; existing feed/video placements retain their meaning. Exact owner
+release, Clip-specific worker orchestration and server confirmation guards are
+implemented locally, including new-object/provider timestamp/media proof,
+atomic fact finalization and manual measurement checkpoints.
+
+Live Clip publishing is blocked: the real driver is `UnverifiedVkClipUi`, and
+the CLI rejects Clip jobs before MCP or browser startup. No live upload or
+deployment is claimed. A permitted verified Clip interface, its concrete driver,
+project-10 Publisher MCP credential, dedicated authenticated VK browser session
+and owner UAT remain required. `VK_USER_API_TOKEN_REQUIRED` concerns Radar search
+separately. See the [VK Clips production gate](docs/operations/vk-clips-production-gate.md)
+for the policy denial, implemented boundary and remaining acceptance work.
+
 ## Safety model
 
 - Every project operation is checked against membership and role.

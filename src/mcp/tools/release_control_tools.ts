@@ -66,7 +66,7 @@ export function registerReleaseControlTools(server: McpServer): void {
         }
     }, async args => asToolResult(await resumeDzenTask999(args)));
     server.registerTool('ba_release_approved_vk_browser_task', {
-        description: 'Project-owner audited release of one exact accepted VK feed, article, video or Story revision to the local browser-publisher queue. It never opens VK, uploads media, publishes, or records a publication fact.',
+        description: 'Project-owner audited release of one exact accepted VK feed, article, video, Story or Clip revision to the local browser-publisher queue. It never opens VK, uploads media, publishes, or records a publication fact.',
         inputSchema: {
             projectId: z.number().int().positive(), taskId: z.number().int().positive(), actorId: z.string(),
             expectedChannelId: z.number().int().positive(),
@@ -77,7 +77,7 @@ export function registerReleaseControlTools(server: McpServer): void {
             expectedSelectedAssetId: z.number().int().positive(),
             expectedAssetSha256: z.string().regex(/^[a-f0-9]{64}$/),
             expectedScheduleAt: z.string().datetime({ offset: true }),
-            expectedPlacement: z.enum(['feed', 'article_cover', 'video_cover', 'story']).optional().default('feed'),
+            expectedPlacement: z.enum(['feed', 'article_cover', 'video_cover', 'story', 'clip']).optional().default('feed'),
             expectedManifestChecksum: z.string().regex(/^sha256:[a-f0-9]{64}$/),
             approvalReference: z.string().min(10), idempotencyKey: z.string().min(1)
         }
@@ -104,7 +104,7 @@ export function registerReleaseControlTools(server: McpServer): void {
             titleSha256: z.string().regex(/^[a-f0-9]{64}$/).nullable().optional(),
             imageSha256: z.string().regex(/^[a-f0-9]{64}$/).nullable(),
             selectedAssetId: z.number().int().positive().nullable(),
-            placement: z.enum(['feed', 'article_cover', 'video_cover', 'story']).optional().default('feed')
+            placement: z.enum(['feed', 'article_cover', 'video_cover', 'story', 'clip']).optional().default('feed')
         }
     }, async (args) => asToolResult(await startVkBrowserSubmissionWithPrisma(args)));
 
@@ -120,11 +120,18 @@ export function registerReleaseControlTools(server: McpServer): void {
             titleSha256: z.string().regex(/^[a-f0-9]{64}$/).nullable().optional(),
             imageSha256: z.string().regex(/^[a-f0-9]{64}$/).nullable(),
             selectedAssetId: z.number().int().positive().nullable(),
-            placement: z.enum(['feed', 'article_cover', 'video_cover', 'story']).optional().default('feed'),
+            placement: z.enum(['feed', 'article_cover', 'video_cover', 'story', 'clip']).optional().default('feed'),
             attemptId: z.number().int().positive(), publicUrl: z.string().url().nullable(),
-            providerObjectId: z.string().regex(/^(?:-\d+_\d+|(?:video|article|story)-\d+_\d+)$/),
+            providerObjectId: z.string().regex(/^(?:-\d+_\d+|(?:video|article|story|clip)-\d+_\d+)$/),
             publishedAt: z.string().datetime({ offset: true }),
-            evidenceSha256: z.string().regex(/^[a-f0-9]{64}$/)
+            evidenceSha256: z.string().regex(/^[a-f0-9]{64}$/),
+            providerKind: z.literal('short_video').optional(),
+            providerTimestampSource: z.literal('provider').optional(),
+            clipBaselineCapturedAt: z.string().datetime({ offset: true }).optional(),
+            clipBaselineObjectIds: z.array(z.string().regex(/^clip-[1-9]\d*_[1-9]\d*$/)).max(200).optional(),
+            clipSubmissionStartedAt: z.string().datetime({ offset: true }).optional(),
+            readbackObservedAt: z.string().datetime({ offset: true }).optional(),
+            clipMediaSha256: z.string().regex(/^[a-f0-9]{64}$/).optional()
         }
     }, async (args) => asToolResult(await confirmVkBrowserSubmissionWithPrisma(args)));
 

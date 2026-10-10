@@ -7,7 +7,7 @@ const DEFAULT_PLACEMENTS: Record<string, string[]> = {
     setka: ['feed'],
     telegram: ['feed', 'story'],
     telegram_chat: ['feed', 'story'],
-    vk: ['feed', 'story', 'article_cover', 'video_cover'],
+    vk: ['feed', 'story', 'article_cover', 'video_cover', 'clip'],
     linkedin: ['feed', 'carousel'],
     threads: ['feed'],
     x: ['feed'],
@@ -21,12 +21,12 @@ const DEFAULT_PLACEMENTS: Record<string, string[]> = {
 
 export type PublicationPlacementAssetContract = {
     placement: string;
-    artifact_kind: 'feed' | 'story' | 'article_cover' | 'video' | 'other';
+    artifact_kind: 'feed' | 'story' | 'article_cover' | 'video' | 'clip' | 'other';
     dimensions: { width: number; height: number; aspect_ratio: string } | null;
     safe_area: { unit: 'px'; top: number; right: number; bottom: number; left: number } | null;
     accepted_mime_types?: Array<'image/png' | 'image/jpeg' | 'video/mp4'>;
     poll: { supported: boolean; configuration_mode: 'native_configured' | 'native_manual' | 'not_supported' | 'not_applicable'; render_in_asset: boolean };
-    transport: { materialization: 'feed_post' | 'story' | 'article' | 'video' | 'asset'; connector_authority: 'configured' | 'manual_only' };
+    transport: { materialization: 'feed_post' | 'story' | 'article' | 'video' | 'clip' | 'asset'; connector_authority: 'configured' | 'manual_only' };
 };
 
 export function publicationPlacementAssetContract(
@@ -35,6 +35,18 @@ export function publicationPlacementAssetContract(
     media: { mime_type?: string; width?: number | null; height?: number | null } = {}
 ): PublicationPlacementAssetContract {
     const normalizedType = channel.type.trim().toLowerCase();
+    if (normalizedType === 'vk' && placement === 'clip') {
+        // Editorial canvas, not an assertion about VK upload limits. Live Clip UAT is pending.
+        return {
+            placement,
+            artifact_kind: 'clip',
+            dimensions: { width: 1080, height: 1920, aspect_ratio: '9:16' },
+            safe_area: null,
+            accepted_mime_types: ['video/mp4'],
+            poll: { supported: false, configuration_mode: 'not_applicable', render_in_asset: false },
+            transport: { materialization: 'clip', connector_authority: 'manual_only' }
+        };
+    }
     if (placement === 'story') {
         const poll = normalizedType === 'vk'
             ? { supported: true, configuration_mode: 'native_configured' as const, render_in_asset: false }
@@ -193,6 +205,12 @@ export function publicationPlacementAssetContract(
 }
 
 export function publicationPlacementManualChecklistNotes(contract: PublicationPlacementAssetContract) {
+    if (contract.artifact_kind === 'clip') {
+        return [
+            'Use the VK Clip editor for the selected approved video and accepted caption.',
+            'Confirm the intended account and capture the resulting Clip permalink before recording publication.'
+        ];
+    }
     return contract.artifact_kind === 'story' && contract.poll.configuration_mode === 'not_supported'
         ? ['Keep the prepared question and answer options as ordinary story content.']
         : [];

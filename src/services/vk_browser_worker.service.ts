@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import type { VkClipUi } from './vk_browser_clip_ui';
+import { submitVkClipPublication } from './vk_browser_clip_submission';
 import { loadVkRemoteImage, loadVkRemoteMedia } from './vk.service';
 
 export interface VkBrowserJob {
@@ -12,7 +14,7 @@ export interface VkBrowserJob {
     idempotency_key: string;
     target: {
         community_url: string;
-        placement: 'wall_post' | 'article' | 'video' | 'story';
+        placement: 'wall_post' | 'article' | 'video' | 'story' | 'clip';
         community_id?: number;
     };
     payload: {
@@ -55,6 +57,7 @@ export interface VkBrowserReadback {
 }
 
 export interface VkBrowserUi {
+    clip?: VkClipUi;
     navigate(url: string): Promise<void>;
     loginRequired(): Promise<boolean>;
     openWallComposer(): Promise<void>;
@@ -71,6 +74,7 @@ export interface VkBrowserUi {
 }
 
 interface SharedDependencies {
+    clipOperationTimeoutMs?: number;
     ui?: VkBrowserUi;
     approvedAssetRoots: string[];
     evidenceDir: string;
@@ -89,7 +93,7 @@ export interface VkBrowserSubmissionControl {
 }
 
 function plannerPlacement(placement: VkBrowserJob['target']['placement']) {
-    return placement === 'wall_post' ? 'feed'
+    return placement === 'clip' ? 'clip' : placement === 'wall_post' ? 'feed'
         : placement === 'article' ? 'article_cover'
             : placement === 'video' ? 'video_cover' : 'story';
 }
@@ -99,11 +103,11 @@ interface SubmitDependencies extends SharedDependencies {
     control: VkBrowserSubmissionControl;
 }
 
-function sha256(value: string | Buffer) {
+function sha256(value: string | Buffer): string {
     return createHash('sha256').update(value).digest('hex');
 }
 
-function normalizedVkText(value: string) {
+function normalizedVkText(value: string): string {
     return value
         .replace(/\r/g, '')
         .replace(/[\u00a0\u202f]/g, ' ')
@@ -162,7 +166,7 @@ function mediaKind(filename: string, contentType?: string): VkBrowserMediaKind |
 
 function assertMediaContract(placement: VkBrowserJob['target']['placement'], kind: VkBrowserMediaKind | null) {
     if (!kind) throw new Error('[VK_BROWSER_MEDIA_TYPE_INVALID] Approved media type is unsupported');
-    if (placement === 'video' && kind !== 'video') {
+    if (['video', 'clip'].includes(placement) && kind !== 'video') {
         throw new Error('[VK_BROWSER_MEDIA_TYPE_INVALID] VK video publication requires an approved video asset');
     }
     if (['wall_post', 'article'].includes(placement) && kind !== 'image') {
@@ -179,7 +183,7 @@ function assertBaseJob(job: VkBrowserJob) {
         || !job.job_id?.trim() || !job.idempotency_key?.trim()) {
         throw new Error('[VK_BROWSER_JOB_INVALID] Job identity is incomplete');
     }
-    if (!['wall_post', 'article', 'video', 'story'].includes(job.target?.placement)) {
+    if (!['wall_post', 'article', 'video', 'story', 'clip'].includes(job.target?.placement)) {
         throw new Error('[VK_BROWSER_PLACEMENT_UNSUPPORTED] Unsupported VK browser placement');
     }
     if (job.approval?.text_state !== 'accepted'
@@ -227,7 +231,7 @@ async function resolveBundle(job: VkBrowserJob, dependencies: SharedDependencies
 
     const expectsMedia = Number.isSafeInteger(job.approval.selected_asset_id)
         && Number(job.approval.selected_asset_id) > 0;
-    const mediaRequired = ['article', 'video', 'story'].includes(job.target.placement);
+    const mediaRequired = ['article', 'video', 'story', 'clip'].includes(job.target.placement);
     if (expectsMedia && job.approval.visual_state !== 'APPROVED') {
         throw new Error('[VK_BROWSER_VISUAL_NOT_APPROVED] Selected visual must be approved');
     }
@@ -251,13 +255,21 @@ async function resolveBundle(job: VkBrowserJob, dependencies: SharedDependencies
         resolvedMediaPath = approvedMediaPath(mediaPathInput, dependencies.approvedAssetRoots);
         mediaBuffer = fs.readFileSync(resolvedMediaPath);
         resolvedMediaKind = assertMediaContract(job.target.placement, mediaKind(resolvedMediaPath));
+        if (job.target.placement === 'clip' && (path.extname(resolvedMediaPath).toLowerCase() !== '.mp4'
+            || mediaBuffer.length < 12 || mediaBuffer.subarray(4, 8).toString('ascii') !== 'ftyp')) {
+            throw new Error('[VK_CLIP_MP4_REQUIRED] Clip requires approved MP4 container bytes');
+        }
         assetResolution = 'local_approved_file';
     } else if (mediaUrlInput) {
-        const defaultLoader = ['video', 'story'].includes(job.target.placement)
+        const defaultLoader = ['video', 'story', 'clip'].includes(job.target.placement)
             ? loadVkRemoteMedia
             : loadVkRemoteImage;
         const remote = await (dependencies.loadRemoteImage || defaultLoader)(mediaUrlInput);
         mediaBuffer = remote.buffer;
+        if (job.target.placement === 'clip' && (path.extname(remote.filename).toLowerCase() !== '.mp4'
+            || mediaBuffer.length < 12 || mediaBuffer.subarray(4, 8).toString('ascii') !== 'ftyp')) {
+            throw new Error('[VK_CLIP_MP4_REQUIRED] Clip requires approved MP4 container bytes');
+        }
         resolvedMediaKind = assertMediaContract(job.target.placement, mediaKind(remote.filename, remote.contentType));
         const rawExtension = path.extname(remote.filename).toLowerCase();
         const extension = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp4', '.mov', '.m4v', '.webm'].includes(rawExtension)
@@ -328,6 +340,7 @@ function validateReadback(job: VkBrowserJob, bundle: Awaited<ReturnType<typeof r
     return { ...readback, public_url: publicUrl?.toString() || null, published_at: publishedAt.toISOString() };
 }
 
+/** Prepare a governed bundle without opening or mutating a provider browser. */
 export async function prepareVkBrowserPublication(job: VkBrowserJob, dependencies: SharedDependencies) {
     if (job.execution?.mode !== 'prepare_only') {
         throw new Error('[VK_BROWSER_PREPARE_MODE_REQUIRED] Prepare-only execution is required');
@@ -370,9 +383,11 @@ export async function prepareVkBrowserPublication(job: VkBrowserJob, dependencie
     };
 }
 
+/** Submit one durable authorized attempt and confirm exact provider readback. */
 export async function submitVkBrowserPublication(job: VkBrowserJob, dependencies: SubmitDependencies) {
     const authorization = assertSubmitAuthorization(job);
     const bundle = await resolveBundle(job, dependencies);
+    if (bundle.placement === 'clip') return submitVkClipPublication(job, bundle, dependencies);
     const richMedia = bundle.placement !== 'wall_post';
     if (richMedia && (!dependencies.ui.openComposer || !dependencies.ui.setContent
         || !dependencies.ui.attachMedia || !dependencies.ui.submit || !dependencies.ui.readback)) {
@@ -461,7 +476,7 @@ export async function submitVkBrowserPublication(job: VkBrowserJob, dependencies
             public_url: readback.public_url,
             replayed: false
         };
-    } catch (error: any) {
+    } catch (error: unknown) {
         if (!started || started.status !== 'started') throw error;
         await dependencies.control.markUncertain({
             project_id: job.project_id,
@@ -469,7 +484,7 @@ export async function submitVkBrowserPublication(job: VkBrowserJob, dependencies
             work_item_id: authorization.work_item_id,
             lease_token: authorization.lease_token,
             attempt_id: started.attempt_id,
-            reason_code: String(error?.message || error).match(/^\[[A-Z0-9_]+\]/)?.[0] || '[VK_BROWSER_SUBMIT_UNCERTAIN]',
+            reason_code: (error instanceof Error ? error.message : '').match(/^\[[A-Z0-9_]+\]/)?.[0] || '[VK_BROWSER_SUBMIT_UNCERTAIN]',
             idempotency_key: authorization.attempt_idempotency_key
         });
         throw error;
