@@ -18,6 +18,7 @@ import {
     publicationTaskView,
     fetchOperationalCalendar
 } from './initiatives/operational_calendar';
+import { materializedPublicationStatus } from './materialized_publication_status';
 
 export {
     InitiativeKind,
@@ -25,7 +26,6 @@ export {
     DependencyConfirmationState,
     validateDependencyConfirmation
 };
-
 
 export class InitiativeService {
     private publicationTaskView(workItems: Array<{ content_item: any }>): Record<string, unknown> | null {
@@ -587,7 +587,7 @@ export class InitiativeService {
                 title: initiative.title,
                 brief: params.brief ?? existingBridge?.content_item?.brief ?? initiative.description,
                 draft_text: params.draftText ?? existingBridge?.content_item?.draft_text ?? null,
-                status: params.draftText?.trim() ? 'drafted' : (existingBridge?.content_item?.status || 'planned'),
+                status: materializedPublicationStatus(existingBridge?.content_item, params.draftText, params.channelId, params.brief),
                 schedule_at: scheduleAt,
                 publish_at: scheduleAt,
                 item_key: initiative.external_key,

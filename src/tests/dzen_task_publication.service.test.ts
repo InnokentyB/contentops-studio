@@ -11,19 +11,21 @@ const hash1031 = '077cee100dbd11648050febacc6f071a407998753855ae3b2e82551175990b
 const hash999 = '78ffd5316ab3ffc4679d67788ec57f39558760917e70522d8ba0647a1f68b130';
 const asset999Hash = 'd06c7ce1c3533dc1db76799bda8eff1395a9dde4e05684c593b16bd064479b1c';
 const asset992Hash = 'b5eafee417e13a2f1becc14a4b66629f31f11cfd68b4b887a240d3e552b3b944';
+const hash1045 = '37b70ca472211b64104168115d435d4c2d4ef6c9fb3c61c9041ec0f9336242f1';
+const asset1045Hash = '6b02adaf5ce140d986d85de5cf910a33bed36f65384e166031712fd66a06d76b';
 const actual992IncidentKey = 'dzen-992-owner-confirmed-retry-20261001-v2';
 const schedule = new Date('2026-09-22T11:00:00.000Z');
 
 function harness(options: { released?: boolean; verified?: boolean; providerError?: boolean;
-    taskId?: 958 | 962 | 992 | 999 | 1031; studioTitles?: string[]; studioTitleReadbackComplete?: boolean;
+    taskId?: 958 | 962 | 992 | 999 | 1031 | 1045; studioTitles?: string[]; studioTitleReadbackComplete?: boolean;
     studioPublishedAt?: string | null } = {}) {
     const taskId = options.taskId || 958;
-    const taskHash = taskId === 999 ? hash999 : taskId === 1031 ? hash1031 : taskId === 992 ? hash992 : taskId === 962 ? hash962 : hash;
-    const decisionId = taskId === 999 ? 241 : taskId === 1031 ? 214 : taskId === 992 ? 186 : taskId === 962 ? 146 : 147;
-    const revision = taskId === 999 ? 2 : taskId === 1031 || taskId === 992 ? 3 : 1;
-    const hasVisual = taskId === 992 || taskId === 999;
-    const assetId = taskId === 999 ? 114 : 102;
-    const assetHash = taskId === 999 ? asset999Hash : asset992Hash;
+    const taskHash = taskId === 1045 ? hash1045 : taskId === 999 ? hash999 : taskId === 1031 ? hash1031 : taskId === 992 ? hash992 : taskId === 962 ? hash962 : hash;
+    const decisionId = taskId === 1045 ? 267 : taskId === 999 ? 241 : taskId === 1031 ? 214 : taskId === 992 ? 186 : taskId === 962 ? 146 : 147;
+    const revision = taskId === 1045 ? 4 : taskId === 999 ? 2 : taskId === 1031 || taskId === 992 ? 3 : 1;
+    const hasVisual = taskId === 992 || taskId === 999 || taskId === 1045;
+    const assetId = taskId === 1045 ? 129 : taskId === 999 ? 114 : 102;
+    const assetHash = taskId === 1045 ? asset1045Hash : taskId === 999 ? asset999Hash : asset992Hash;
     const verifyCommand = `ba_verify_dzen_task${taskId}_connector`;
     const task: any = {
         id: taskId, project_id: 10, channel_id: 116,
@@ -37,7 +39,7 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
         selected_asset: hasVisual ? { id: assetId, status: 'approved', content_revision: revision,
             file_url: 'https://cdn.example.test/task992.png',
             provenance: { planner_storage: { sha256: assetHash } } } : null,
-        visual_decision_version: 2, handoff_state: 'ready',
+        visual_decision_version: taskId === 1045 ? 1 : 2, handoff_state: 'ready',
         status: 'ready_for_execution', publication_mode: 'owner_released',
         schedule_at: taskId === 992 ? null : schedule, published_link: null, publication_fact: null,
         quality_report: {}
@@ -85,7 +87,7 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
         },
         artDirectionDecision: { findFirst: async ({ where }: any) => {
             assert.equal(where.channel, hasVisual || taskId === 1031 ? 'dzen' : 'analystcraft_dzen');
-            return { id: decisionId, decision_version: 2 };
+            return { id: decisionId, decision_version: taskId === 1045 ? 1 : 2 };
         } },
         projectMember: { findFirst: async () => ({ user_id: 2 }), findUnique: async () => ({ role: 'owner' }) },
         project: { findUnique: async () => ({ slug: 'analystcraft-2' }) },
@@ -143,6 +145,19 @@ test('Dzen #999 routes only its approved revision-bound cover through generic ow
     h.task.title = 'Почему метрика без контекста ведёт к ложному решению';
     h.task.selected_asset.provenance.planner_storage.sha256 = 'changed';
     await assert.rejects(h.service.execute({ projectId: 10, taskId: 999, dryRun: true }), /OWNER_RELEASE_PROOF_MISMATCH/);
+    assert.equal(h.providerCalls, 0);
+});
+
+test('Dzen #1045 exact release proof and connector proof gate the same article-cover payload', async () => {
+    assert.equal(isTaskNativeDzenPublication(10, 1045), true);
+    assert.equal(isToolAllowedForProfile('publisher', 'ba_release_dzen_task1045'), true);
+    assert.equal(isToolAllowedForProfile('publisher', 'ba_verify_dzen_task1045_connector'), true);
+    const h = harness({ taskId: 1045 });
+    const dry = await h.service.execute({ projectId: 10, taskId: 1045, dryRun: true });
+    assert.equal(dry.route_executable, true);
+    assert.equal(dry.payload_preview.accepted_revision, 4);
+    assert.equal(dry.payload_preview.selected_asset_id, 129);
+    assert.equal(dry.payload_preview.image_url, 'https://cdn.example.test/task992.png');
     assert.equal(h.providerCalls, 0);
 });
 

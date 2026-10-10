@@ -6,7 +6,7 @@ import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
 import threadsService from './threads.service';
 import workQueueService from './work_queue.service';
 
-export const OCT10_MANIFEST_CHECKSUM = 'sha256:b7ac79159c876d35acd1adfe43d0fb9817b5909bd13371c326d72450b1b6a272';
+export const OCT10_MANIFEST_CHECKSUM = 'sha256:d5970e6b33d5f161a73f6ebc13fb5255f5a24be4f14251e57e5223ea03a2192f';
 const RECOVERY_DATE = '2026-10-10';
 const PERSONAL_LINKEDIN_URL = 'https://www.linkedin.com/in/innokentyb/';
 const PERSONAL_LINKEDIN_PROFILE_REF = 'profile_personal_innokenty_linkedin';
@@ -334,26 +334,74 @@ export async function releaseThreadsTask1043(args: ReleaseArgs<1043>, dependenci
             throw new Error('[TASK1043_RELEASE_GUARD_FAILED] Production package changed');
         }
         await requireReviewAndArt(tx, 1043, spec, 'threads');
+        const [historicalApproval, historicalArt, historicalDecision] = await Promise.all([
+            tx.approvalDecision.findUnique({ where: { work_item_id_result_version: {
+                work_item_id: 1421, result_version: 3
+            } } }),
+            tx.workItem.findFirst({ where: { id: 1438, project_id: 10, content_item_id: 1043,
+                kind: 'art_direction', state: 'completed', input_context_version: 3, result_version: 1 } }),
+            tx.artDirectionDecision.findFirst({ where: { id: 217, project_id: 10, content_item_id: 1043,
+                work_item_id: 1438, source_content_revision: 3, decision_version: 1,
+                decision: 'NO_VISUAL_NEEDED', channel: 'threads', placement: 'feed' } })
+        ]);
+        const textOnlyBody = task.draft_text?.endsWith('\n') ? task.draft_text.slice(0, -1) : task.draft_text || '';
+        const textOnlyBodySha256 = dependencies.hashBody(textOnlyBody);
+        if (historicalApproval?.id !== 255 || historicalApproval.decision !== 'approved' || !historicalArt || !historicalDecision
+            || textOnlyBodySha256 !== 'c68bd80edc8c866930e06844f1f9bde96ab3c4325cf1bd8d21760f1f8fb691bd') {
+            throw new Error('[TASK1043_HISTORICAL_TEXT_ONLY_GUARD_FAILED] Approved revision3 package changed');
+        }
         await rejectPriorSideEffects(tx, 1043, true);
         const now = dependencies.now();
-        const proof = recoveryProof(args, now, spec.schedule, spec.bodySha256, spec.assetId, spec.assetSha256);
+        await tx.artDirectionDecision.updateMany({ where: { project_id: 10, content_item_id: 1043, status: 'active' },
+            data: { status: 'stale' } });
+        const artWork = await tx.workItem.create({ data: { project_id: 10, week_package_id: task.week_package_id,
+            content_item_id: 1043, item_key: task.item_key || 'publication-1043', kind: 'art_direction',
+            state: 'completed', assignee_role: 'art_director', due_at: now,
+            input_context_version: 5, result_version: 3,
+            reason_code: 'OWNER_RECOVERED_APPROVED_TEXT_ONLY_PACKAGE',
+            note: 'Current revision5 binding for the exact previously approved revision3 text-only Threads package.',
+            dedupe_key: 'art_direction:1043:r5:owner-recovery', result_payload: {
+                decision: 'NO_VISUAL_NEEDED', source_approval_id: historicalApproval.id,
+                source_art_work_item_id: 1438, source_decision_id: 217,
+                superseded_asset_id: 128, body_sha256: textOnlyBodySha256
+            } as Prisma.InputJsonValue } });
+        const decision = await tx.artDirectionDecision.create({ data: { project_id: 10, content_item_id: 1043,
+            work_item_id: artWork.id, decision_version: 3, source_content_revision: 5,
+            channel: 'threads', placement: 'feed', decision: 'NO_VISUAL_NEEDED',
+            reason: 'Owner recovered the exact previously approved text-only package; asset128 remains immutable history.',
+            status: 'active', actor_id: args.actorId, evidence_refs: {
+                approval_id: historicalApproval.id, historical_art_work_item_id: 1438,
+                historical_decision_id: 217, superseded_decision_id: 266, superseded_asset_id: 128
+            } as Prisma.InputJsonValue } });
+        const proof = { publication_authorized: true, actor_id: args.actorId,
+            approval_reference: args.approvalReference, content_revision: 5,
+            accepted_revision: 5, body_sha256: textOnlyBodySha256,
+            selected_asset_id: null, asset_sha256: null, visual_decision_id: decision.id,
+            historical_approval_id: historicalApproval.id, historical_decision_id: 217,
+            superseded_asset_id: 128, released_at: now.toISOString(),
+            missed_schedule_at: spec.schedule, recovery_slot_date: RECOVERY_DATE };
         const changed = await tx.contentItem.updateMany({ where: { id: 1043, project_id: 10, channel_id: 138,
             status: 'ready_for_execution', publication_mode: 'approval_required', content_revision: 4,
             accepted_revision: 4, selected_asset_id: 128, schedule_at: new Date(spec.schedule), publish_at: new Date(spec.schedule) },
-        data: { status: 'ready_for_execution', publication_mode: 'owner_released', quality_report: {
+        data: { draft_text: textOnlyBody, content_revision: 5, accepted_revision: 5,
+            visual_state: 'NO_VISUAL_NEEDED', visual_decision_version: 3, selected_asset_id: null,
+            status: 'ready_for_execution', publication_mode: 'owner_released', quality_report: {
             ...((task.quality_report as Record<string, unknown> | null) || {}), publication_route: 'threads_api',
             owner_release: proof, recovery_release: proof
         } } });
         if (changed.count !== 1) throw new Error('[TASK1043_RELEASE_CAS_CONFLICT]');
         const result = { project_id: 10, task_id: 1043, channel_id: 138, threads_user_id: '39421253764155091',
-            content_revision: 4, accepted_revision: 4, body_sha256: spec.bodySha256, visual_decision_id: 266,
-            selected_asset_id: 128, asset_sha256: spec.assetSha256, schedule_at: spec.schedule, publish_at: spec.schedule,
+            content_revision: 5, accepted_revision: 5, body_sha256: textOnlyBodySha256, visual_decision_id: decision.id,
+            selected_asset_id: null, asset_sha256: null, superseded_asset_id: 128,
+            source_approval_id: historicalApproval.id, source_decision_id: 217,
+            schedule_at: spec.schedule, publish_at: spec.schedule,
             recovery_slot_date: RECOVERY_DATE, publication_mode: 'owner_released' as const,
             publication_authorized: true as const, published: false as const, replayed: false };
         await tx.workflowEvent.create({ data: { project_id: 10, content_item_id: 1043, actor_id: args.actorId,
             command, idempotency_key: args.idempotencyKey, before_state: { request_hash: hash,
                 manifest_checksum: manifestChecksum, status: task.status, publication_mode: task.publication_mode,
-                schedule_at: spec.schedule }, after_state: result } });
+                content_revision: 4, accepted_revision: 4, body_sha256: spec.bodySha256,
+                selected_asset_id: 128, visual_decision_id: 266, schedule_at: spec.schedule }, after_state: result } });
         return result;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
