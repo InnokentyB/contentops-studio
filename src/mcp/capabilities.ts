@@ -168,6 +168,8 @@ const PUBLISHER_TOOLS = new Set([
     'ba_claim_linkedin_task1072_browser_publication',
     'ba_release_threads_task1043_api',
     'ba_publish_threads_task1043',
+    'ba_release_threads_task1046_api',
+    'ba_publish_threads_task1046',
     'ba_release_dzen_task1045',
     'ba_verify_dzen_task1045_connector',
     'ba_reconcile_dzen_task1045_uncertain_attempt',

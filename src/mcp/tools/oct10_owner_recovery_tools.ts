@@ -17,6 +17,10 @@ import threadsTaskPublicationService from '../../services/threads_task_publicati
 import { releaseDzenTaskWithPrisma } from '../../services/dzen_owner_release.service';
 import dzenTaskPublicationService from '../../services/dzen_task_publication.service';
 import { previewVkTask1048Api, promoteVkTask1048Api, VK1048_MANIFEST } from '../../services/vk_task1048_api_promotion.service';
+import {
+    releaseThreadsTask1046,
+    THREADS1046_MANIFEST_CHECKSUM
+} from '../../services/threads_task1046_release.service';
 import { asToolResult, EXTERNAL_PUBLICATION_ANNOTATIONS, INTERNAL_MUTATION_ANNOTATIONS } from './common';
 
 const approval = {
@@ -75,6 +79,21 @@ export const threads1043ReleaseSchema = z.object({ ...approval, taskId: z.litera
     expectedScheduleAt: z.literal('2026-10-09T16:30:00.000Z')
 });
 
+export const threads1046ReleaseSchema = z.object({
+    projectId: z.literal(10), taskId: z.literal(1046), actorId: z.string().regex(/^user:\d+$/),
+    expectedManifestChecksum: z.literal(THREADS1046_MANIFEST_CHECKSUM),
+    expectedChannelId: z.literal(138), expectedThreadsUserId: z.literal('39421253764155091'),
+    expectedUsername: z.literal('innokentybo'), expectedContentRevision: z.literal(4),
+    expectedAcceptedRevision: z.literal(4),
+    expectedBodySha256: z.literal('e3403bd77725ff503627cdecca3a2ce423f148af75ac25830add9652ae25adb9'),
+    expectedVisualState: z.literal('APPROVED'), expectedPlacement: z.literal('feed'),
+    expectedDecisionId: z.literal(270), expectedDecisionVersion: z.literal(1),
+    expectedSelectedAssetId: z.literal(132),
+    expectedAssetSha256: z.literal('1b9177bbdc77a4d29f0c950f14f85f16f018c2a45544aa8f75ff6e8f00db2e03'),
+    expectedScheduleAt: z.literal('2026-10-10T16:30:00.000Z'),
+    approvalReference: z.string().min(10), idempotencyKey: z.string().min(1)
+});
+
 export const dzen1045ReleaseSchema = z.object({ ...approval, taskId: z.literal(1045), expectedChannelId: z.literal(116),
     expectedContentRevision: z.literal(4), expectedAcceptedRevision: z.literal(4),
     expectedBodySha256: z.literal('37b70ca472211b64104168115d435d4c2d4ef6c9fb3c61c9041ec0f9336242f1'),
@@ -124,6 +143,16 @@ export function registerOct10OwnerRecoveryTools(server: McpServer): void {
         description: 'Exact canonical dry-run or one-shot API publication for owner-released Threads task1043. Requires an idempotency key for live mode; an uncertain provider result freezes retry and records no fact.',
         annotations: EXTERNAL_PUBLICATION_ANNOTATIONS,
         inputSchema: { projectId: z.literal(10), taskId: z.literal(1043), dryRun: z.boolean().optional().default(true),
+            idempotencyKey: z.string().min(1).optional() }
+    }, async args => asToolResult(await threadsTaskPublicationService.execute(args)));
+    server.registerTool('ba_release_threads_task1046_api', {
+        description: 'Owner-only audited release of exact p10 Threads task1046 rev4/decision270/asset132. Verifies manifest, provider identity, bounded post history, durable image and absence of facts or attempts. Never publishes.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: threads1046ReleaseSchema.shape
+    }, async args => asToolResult(await releaseThreadsTask1046(args)));
+    server.registerTool('ba_publish_threads_task1046', {
+        description: 'Exact canonical dry-run or one-shot task-native image API publication for owner-released Threads task1046. Live mode requires a fresh idempotency key; uncertain provider results freeze retry and record no fact.',
+        annotations: EXTERNAL_PUBLICATION_ANNOTATIONS,
+        inputSchema: { projectId: z.literal(10), taskId: z.literal(1046), dryRun: z.boolean().optional().default(true),
             idempotencyKey: z.string().min(1).optional() }
     }, async args => asToolResult(await threadsTaskPublicationService.execute(args)));
     server.registerTool('ba_release_dzen_task1045', {

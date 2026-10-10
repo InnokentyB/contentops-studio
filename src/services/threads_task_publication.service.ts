@@ -10,6 +10,9 @@ const TASK_SPECS = {
     1043: { revision: 5, bodySha256: 'c68bd80edc8c866930e06844f1f9bde96ab3c4325cf1bd8d21760f1f8fb691bd',
         decisionId: null, releaseCommand: 'ba_release_threads_task1043_api', decisionChannel: 'threads', chain: false,
         selectedAssetId: null, assetSha256: null },
+    1046: { revision: 4, bodySha256: 'e3403bd77725ff503627cdecca3a2ce423f148af75ac25830add9652ae25adb9',
+        decisionId: 270, releaseCommand: 'ba_release_threads_task1046_api', decisionChannel: 'threads', chain: false,
+        selectedAssetId: 132, assetSha256: '1b9177bbdc77a4d29f0c950f14f85f16f018c2a45544aa8f75ff6e8f00db2e03' },
     953: { revision: 4, bodySha256: 'e7d8c1f2f9cf4f7e3ca1ad6fb05e55153c2153739b3fcdf280e519f574b7f7a6',
         decisionId: 149, releaseCommand: 'ba_release_approved_threads_task953', decisionChannel: 'innokenty_threads', chain: false },
     966: { revision: 1, bodySha256: '83dd0fe0b2b354898b9fd3e5161d5ab05517c4c2b2304862d74c949ce1e2b123',
@@ -35,6 +38,12 @@ function selectedAssetSha256(asset: { provenance?: unknown } | null | undefined)
         : typeof provenance?.sha256 === 'string' ? provenance.sha256 : null;
 }
 
+function selectedAssetIsManaged(asset: { provenance?: unknown } | null | undefined) {
+    const provenance = record(asset?.provenance);
+    const storage = record(provenance?.planner_storage);
+    return storage?.managed === true;
+}
+
 export class ThreadsTaskPublicationService {
     constructor(private readonly deps: any) {}
 
@@ -57,7 +66,7 @@ export class ThreadsTaskPublicationService {
         const hasToken = Boolean(config.access_token);
         const hasIdentity = Boolean(config.threads_user_id);
         const connectorReady = hasToken && hasIdentity;
-        if (args.dryRun && args.taskId !== 1043) {
+        if (args.dryRun && ![1043, 1046].includes(args.taskId)) {
             const acceptedRevision = task.accepted_revision;
             if (!Number.isInteger(acceptedRevision) || acceptedRevision < 1
                 || task.content_revision !== acceptedRevision || task.text_state !== 'accepted'
@@ -133,6 +142,9 @@ export class ThreadsTaskPublicationService {
             || (proof.schedule_at ?? null) !== (task.schedule_at?.toISOString() ?? null)
             || (args.taskId === 1040 && (proof.publication_authorized !== true
                 || proof.publish_at !== task.publish_at?.toISOString()))
+            || (args.taskId === 1046 && (proof.publication_authorized !== true
+                || proof.publish_at !== task.publish_at?.toISOString()
+                || task.visual_placement !== 'feed'))
             || (args.taskId === 997 && (proof.publication_authorized !== true || release?.id !== 1887))
             || task.publication_mode !== 'owner_released' || task.status !== 'ready_for_execution'
             || task.content_revision !== spec.revision || task.accepted_revision !== spec.revision || task.text_state !== 'accepted'
@@ -142,7 +154,8 @@ export class ThreadsTaskPublicationService {
                     || task.selected_asset?.status !== 'approved'
                     || task.selected_asset.content_revision !== spec.revision
                     || !task.selected_asset.file_url
-                    || selectedAssetSha256(task.selected_asset) !== expectedAssetSha256)
+                    || selectedAssetSha256(task.selected_asset) !== expectedAssetSha256
+                    || (args.taskId === 1046 && !selectedAssetIsManaged(task.selected_asset)))
             || task.visual_decision_version !== decision.decision_version
             || task.handoff_state !== 'ready' || task.published_link || !validNativeChain
             || (!spec.chain && (task.draft_text?.length || 0) > 500)) {
@@ -152,13 +165,14 @@ export class ThreadsTaskPublicationService {
         const exactPayload = {
             text: task.draft_text,
             character_count: task.draft_text?.length || 0,
-            has_image: false,
+            has_image: expectedAssetId !== null,
             channel_id: task.channel_id,
             accepted_revision: task.accepted_revision,
             content_revision: task.content_revision,
             visual_state: task.visual_state,
             visual_decision_version: task.visual_decision_version,
-            selected_asset_id: null,
+            selected_asset_id: expectedAssetId,
+            ...(expectedAssetId !== null ? { image_url: task.selected_asset?.file_url } : {}),
             schedule_at: task.schedule_at?.toISOString() ?? null
         };
         if (args.dryRun) return {
