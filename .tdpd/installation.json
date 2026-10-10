@@ -1,0 +1,10 @@
+{
+  "framework": "tdpd-product-framework",
+  "version": "0.13.0",
+  "source": "https://github.com/InnokentyB/tdpd-product-framework",
+  "ref": "v0.13.0",
+  "commit": "2f5c87c",
+  "installed_on": "2026-10-10",
+  "verification": "101 core/templates/bin files byte-identical to release checkout",
+  "product_acceptance": "not_claimed"
+}
