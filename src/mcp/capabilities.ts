@@ -62,6 +62,7 @@ const PLANNER_TOOLS = new Set([
     'ba_list_schedule_exceptions',
     'ba_reschedule_work_item',
     'ba_repair_publication_placement',
+    'ba_repair_telegram_task1099_story_placement',
     'ba_require_c20_publication_visuals',
     'ba_require_task971_publication_visual',
     'ba_require_task972_publication_visual',
@@ -173,6 +174,11 @@ const PUBLISHER_TOOLS = new Set([
     'ba_repair_telegram_task1099_story_placement',
     'ba_release_telegram_task1099_personal_story',
     'ba_publish_telegram_task1099_personal_story',
+    'ba_release_setka_task1047_browser',
+    'ba_claim_setka_task1047_browser_publication',
+    'ba_start_setka_task1047_browser_submission',
+    'ba_confirm_setka_task1047_browser_submission',
+    'ba_mark_setka_task1047_browser_submission_uncertain',
     'ba_release_dzen_task1045',
     'ba_verify_dzen_task1045_connector',
     'ba_reconcile_dzen_task1045_uncertain_attempt',
@@ -257,6 +263,7 @@ const STRATEGIST_EXCLUDED = new Set([
     'ba_require_task972_publication_visual',
     'ba_require_task973_publication_visual',
     'ba_repair_task972_publication_metadata',
+    'ba_repair_telegram_task1099_story_placement',
     'ba_bind_task960_linkedin_identity',
     'ba_create_task970_t72_checkpoint'
 ]);
