@@ -7,6 +7,9 @@ import { PENDING_THREADS_PACKAGES } from './threads_pending_release.service';
 
 const TASK_SPECS = {
     ...PENDING_THREADS_PACKAGES,
+    1043: { revision: 4, bodySha256: '00813c7d65068bdce2e0b5aa6bb1cc04ca936e42c81ca4a44b2be50a095713fc',
+        decisionId: 266, releaseCommand: 'ba_release_threads_task1043_api', decisionChannel: 'threads', chain: false,
+        selectedAssetId: 128, assetSha256: 'd53fa8809efe40b35577849cdfcd2795ead8127ba77e9e4a604fbfaf94f9d3c3' },
     953: { revision: 4, bodySha256: 'e7d8c1f2f9cf4f7e3ca1ad6fb05e55153c2153739b3fcdf280e519f574b7f7a6',
         decisionId: 149, releaseCommand: 'ba_release_approved_threads_task953', decisionChannel: 'innokenty_threads', chain: false },
     966: { revision: 1, bodySha256: '83dd0fe0b2b354898b9fd3e5161d5ab05517c4c2b2304862d74c949ce1e2b123',
@@ -19,6 +22,17 @@ const TASK_SPECS = {
 
 function splitNativeThread(body: string) {
     return body.split(/\n\s*---\s*\n/).map(post => post.trim()).filter(Boolean);
+}
+
+function record(value: unknown): Record<string, unknown> | null {
+    return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function selectedAssetSha256(asset: { provenance?: unknown } | null | undefined) {
+    const provenance = record(asset?.provenance);
+    const storage = record(provenance?.planner_storage);
+    return typeof storage?.sha256 === 'string' ? storage.sha256
+        : typeof provenance?.sha256 === 'string' ? provenance.sha256 : null;
 }
 
 export class ThreadsTaskPublicationService {
@@ -36,7 +50,7 @@ export class ThreadsTaskPublicationService {
         const spec = TASK_SPECS[args.taskId as keyof typeof TASK_SPECS];
         const db = this.deps.db;
         const task = await db.contentItem.findFirst({ where: { id: args.taskId, project_id: args.projectId },
-            include: { channel: true, publication_fact: true } });
+            include: { channel: true, selected_asset: true, publication_fact: true } });
         if (!task || task.channel?.type !== 'threads') throw new Error('[THREADS_TASK_MISMATCH]');
 
         const config = resolveEffectiveChannelConfig('threads', task.channel.config || {});
@@ -98,10 +112,13 @@ export class ThreadsTaskPublicationService {
             project_id: 10, content_item_id: args.taskId, command: spec.releaseCommand
         }, orderBy: { id: 'desc' } });
         const proof = release?.after_state as any;
+        const expectedAssetId = 'selectedAssetId' in spec ? spec.selectedAssetId : null;
+        const expectedAssetSha256 = 'assetSha256' in spec ? spec.assetSha256 : null;
         const bodyHash = (this.deps.hashBody || ((body: string) => createHash('sha256').update(body).digest('hex')))(task.draft_text || '');
         const decision = await db.artDirectionDecision.findFirst({ where: {
             id: spec.decisionId, project_id: 10, content_item_id: args.taskId, source_content_revision: spec.revision,
-            channel: spec.decisionChannel, placement: 'feed', decision: 'NO_VISUAL_NEEDED', status: 'active'
+            channel: spec.decisionChannel, placement: 'feed',
+            decision: expectedAssetId === null ? 'NO_VISUAL_NEEDED' : 'GENERATE', status: 'active'
         } });
         const posts = spec.chain ? splitNativeThread(task.draft_text || '') : [task.draft_text || ''];
         const validNativeChain = !spec.chain || (posts.length === 3
@@ -110,13 +127,21 @@ export class ThreadsTaskPublicationService {
             || proof.content_revision !== spec.revision || proof.accepted_revision !== spec.revision
             || proof.body_sha256 !== spec.bodySha256 || proof.body_sha256 !== bodyHash
             || proof.visual_decision_id !== spec.decisionId
+            || (proof.selected_asset_id ?? null) !== expectedAssetId
+            || (proof.asset_sha256 ?? null) !== expectedAssetSha256
             || (proof.schedule_at ?? null) !== (task.schedule_at?.toISOString() ?? null)
             || (args.taskId === 1040 && (proof.publication_authorized !== true
                 || proof.publish_at !== task.publish_at?.toISOString()))
             || (args.taskId === 997 && (proof.publication_authorized !== true || release?.id !== 1887))
             || task.publication_mode !== 'owner_released' || task.status !== 'ready_for_execution'
             || task.content_revision !== spec.revision || task.accepted_revision !== spec.revision || task.text_state !== 'accepted'
-            || task.visual_state !== 'NO_VISUAL_NEEDED' || task.selected_asset_id !== null
+            || (expectedAssetId === null
+                ? task.visual_state !== 'NO_VISUAL_NEEDED' || task.selected_asset_id !== null
+                : task.visual_state !== 'APPROVED' || task.selected_asset_id !== expectedAssetId
+                    || task.selected_asset?.status !== 'approved'
+                    || task.selected_asset.content_revision !== spec.revision
+                    || !task.selected_asset.file_url
+                    || selectedAssetSha256(task.selected_asset) !== expectedAssetSha256)
             || task.visual_decision_version !== decision?.decision_version || !decision
             || task.handoff_state !== 'ready' || task.published_link || !validNativeChain
             || (!spec.chain && (task.draft_text?.length || 0) > 500)) {
@@ -127,14 +152,16 @@ export class ThreadsTaskPublicationService {
         if (!owner) throw new Error('[PROJECT_OWNER_REQUIRED]');
         const claim = await db.contentItem.updateMany({ where: {
             id: args.taskId, project_id: 10, status: 'ready_for_execution', publication_mode: 'owner_released',
-            content_revision: spec.revision, accepted_revision: spec.revision, selected_asset_id: null, schedule_at: task.schedule_at
+            content_revision: spec.revision, accepted_revision: spec.revision,
+            selected_asset_id: expectedAssetId, schedule_at: task.schedule_at
         }, data: { status: 'publishing' } });
         if (claim.count !== 1) throw new Error('[THREADS_PUBLICATION_ALREADY_CLAIMED]');
         let url: string;
         try {
             const published = spec.chain
                 ? await this.deps.threads.publishThread(config.threads_user_id, config.access_token, posts)
-                : { rootUrl: await this.deps.threads.publishPost(config.threads_user_id, config.access_token, task.draft_text) };
+                : { rootUrl: await this.deps.threads.publishPost(config.threads_user_id, config.access_token,
+                    task.draft_text, expectedAssetId === null ? undefined : task.selected_asset?.file_url) };
             url = published.rootUrl;
             if (!/^https:\/\/(?:www\.)?threads\.(?:net|com)\/(?:@[^/]+\/)?post\//.test(url)) throw new Error('Unverified Threads URL');
         } catch (error: any) {

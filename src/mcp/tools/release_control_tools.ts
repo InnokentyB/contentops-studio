@@ -4,6 +4,7 @@ import { registerLinkedInTask1090ReleaseTool } from './linkedin_task1090_release
 import { registerOct08ExactReleaseTools } from './oct08_exact_release_tools';
 import { registerThreadsTask1035ReleaseTool } from './threads_task1035_release_tool';
 import { registerXTask1033ReleaseTool } from './x_task1033_release_tool';
+import { registerOct10OwnerRecoveryTools } from './oct10_owner_recovery_tools';
 import { registerVkTask1084HoldTool } from './vk_task1084_hold_tool';
 import { registerVkTask1084RestoreTool } from './vk_task1084_restore_tool';
 import { z } from 'zod';
@@ -45,6 +46,7 @@ export function registerReleaseControlTools(server: McpServer): void {
     registerOct08ExactReleaseTools(server);
     registerThreadsTask1035ReleaseTool(server);
     registerXTask1033ReleaseTool(server);
+    registerOct10OwnerRecoveryTools(server);
     registerVkTask1084HoldTool(server);
     registerVkTask1084RestoreTool(server);
     server.registerTool('ba_resume_dzen_task999_existing_draft', {
