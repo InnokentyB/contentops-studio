@@ -12,7 +12,8 @@ type Dependencies = {
     prisma: any;
     publisher: {
         publishTelegramTaskMtproto(args: { projectId: number; taskId: number; channel: any; text: string; imageUrl?: string }): Promise<any>;
-        publishTelegramPersonalStoryMtproto(args: { projectId: number; taskId: number; caption: string; imageUrl: string; idempotencyKey: string }): Promise<any>;
+        publishTelegramPersonalStoryMtproto(args: { projectId: number; taskId: number; caption: string; imageUrl: string;
+            idempotencyKey: string; mediaMetadata?: { mimeType: 'video/mp4'; width: number; height: number; durationSeconds: number } }): Promise<any>;
         publishVkPersonalStory(args: { projectId: number; taskId: number; channel: any; imageUrl: string; idempotencyKey: string; poll?: VkStoryPoll | null }): Promise<any>;
         publishVkTask(args: { projectId: number; taskId: number; channel: any; text: string; imageUrl?: string; idempotencyKey: string }): Promise<any>;
     };
@@ -58,6 +59,27 @@ function resolveApprovedAsset(task: any) {
         throw new Error('[APPROVED_VISUAL_NOT_SERVER_RESOLVABLE] Approved visual URL cannot target a local host');
     }
     return { ...asset, file_url: parsed.toString() };
+}
+
+function selectedAssetSha256(asset: any) {
+    const provenance = asset?.provenance && typeof asset.provenance === 'object' ? asset.provenance : {};
+    const storage = provenance.planner_storage && typeof provenance.planner_storage === 'object'
+        ? provenance.planner_storage : {};
+    return storage.sha256 || provenance.sha256 || null;
+}
+
+function isExactTask1099Asset(asset: any) {
+    const provenance = asset?.provenance && typeof asset.provenance === 'object' ? asset.provenance : {};
+    const qa = asset?.qa_report && typeof asset.qa_report === 'object' ? asset.qa_report : {};
+    return asset?.id === 134 && asset?.decision_id === 277 && asset?.placement === 'story'
+        && typeof asset?.file_url === 'string' && asset.file_url.endsWith('.mp4')
+        && provenance.sha256 === 'ab299952f375cef3346c9a43dc529db1a74ac281dc16f290ab8de0b6cb796c6c'
+        && provenance.source_task_id === 1098 && provenance.source_asset_id === 133
+        && provenance.source_publication_fact_id === 442 && provenance.personal_story_route === true
+        && provenance.prohibited_render_job === '6474ed84-5a6a-494d-a06c-7183e9ace9bb'
+        && String(provenance.owner_uat || '').includes('Прекрасно, можно публиковать')
+        && qa.verdict === 'PASS' && qa.full_decode === 'PASS'
+        && qa.camera_voice_match === 'accepted by owner';
 }
 
 function extractVkConfig(channel: any) {
@@ -176,9 +198,12 @@ export class TelegramTaskPublicationService {
             throw new Error('[OWNER_RELEASE_REQUIRED] Accepted content is not authorization to publish this task');
         }
         if (task.publication_mode === 'owner_released') {
+            const releaseCommand = task.id === 1099
+                ? 'ba_release_telegram_task1099_personal_story'
+                : 'ba_release_approved_telegram_task';
             const release = await db.workflowEvent.findFirst({ where: {
                 project_id: args.projectId, content_item_id: task.id,
-                command: 'ba_release_approved_telegram_task'
+                command: releaseCommand
             }, orderBy: { id: 'desc' } });
             const proof = release?.after_state as any;
             const bodyHash = createHash('sha256').update(task.draft_text || '').digest('hex');
@@ -190,8 +215,20 @@ export class TelegramTaskPublicationService {
                 || (task.visual_placement === 'story'
                     ? proof.placement !== task.visual_placement
                     : proof.placement && proof.placement !== task.visual_placement)
+                || (task.id === 1099 && (proof.selected_asset_id !== 134
+                    || proof.asset_sha256 !== selectedAssetSha256(task.selected_asset)
+                    || proof.telegram_account_id !== 2 || proof.source_story_task_id !== 986
+                    || proof.source_story_fact_id !== 363 || !isExactTask1099Asset(task.selected_asset)))
                 || proof.publication_mode !== 'owner_released') {
                 throw new Error('[OWNER_RELEASE_PROOF_MISMATCH] Exact audited owner release is required');
+            }
+            if (task.id === 1099) {
+                const accounts = await db.telegramAccount.findMany({ where: {
+                    project_id: 10, is_active: true
+                }, orderBy: { id: 'asc' }, select: { id: true } });
+                if (accounts.length !== 1 || accounts[0].id !== 2) {
+                    throw new Error('[TELEGRAM_PERSONAL_STORY_SESSION_BINDING_MISMATCH]');
+                }
             }
         }
         const isTelegramStory = isTelegramStoryTask(task);
@@ -311,7 +348,9 @@ export class TelegramTaskPublicationService {
             providerResult = prepared.isTelegramStory
                 ? await publisher.publishTelegramPersonalStoryMtproto({
                     projectId: args.projectId, taskId: task.id,
-                    caption: payload.text, imageUrl: payload.imageUrl!, idempotencyKey: idempotencyKey!
+                    caption: payload.text, imageUrl: payload.imageUrl!, idempotencyKey: idempotencyKey!,
+                    ...(task.id === 1099 ? { mediaMetadata: { mimeType: 'video/mp4' as const,
+                        width: 1080, height: 1920, durationSeconds: 42.033008 } } : {})
                 })
                 : prepared.isVkPersonalStory ? await publisher.publishVkPersonalStory({
                     projectId: args.projectId, taskId: task.id, channel: task.channel,
@@ -349,7 +388,8 @@ export class TelegramTaskPublicationService {
             ? `https://vk.com/${externalId}`
             : null;
         const evidenceRef = providerResult.evidenceRef || publishedLink || null;
-        if (!externalId || (!prepared.isStory && !publishedLink) || (prepared.isStory && !evidenceRef) || (expectedVkLink && publishedLink !== expectedVkLink)) {
+        if (!externalId || (!prepared.isStory && !publishedLink) || (prepared.isStory && !evidenceRef)
+            || (task.id === 1099 && !publishedLink) || (expectedVkLink && publishedLink !== expectedVkLink)) {
             await this.markUncertain(db, task, prepared.channelType, delivery, idempotencyKey, 'Provider did not confirm object identity and readback evidence');
             const code = prepared.channelType === 'telegram' ? 'TELEGRAM_PUBLICATION_UNCERTAIN' : 'VK_PUBLICATION_UNCERTAIN';
             throw new Error(`[${code}] Provider did not confirm both object ID and permalink`);

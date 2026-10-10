@@ -6,6 +6,8 @@ import {
     linkedIn1072ReleaseSchema,
     threads1043ReleaseSchema,
     threads1046ReleaseSchema,
+    telegram1099RepairSchema,
+    telegram1099ReleaseSchema,
     x1042OverlengthRecoverySchema,
     x1042ReleaseSchema
 } from '../mcp/tools/oct10_owner_recovery_tools';
@@ -70,6 +72,22 @@ test('October 10 exact release schemas reject package, identity and missed-slot 
         idempotencyKey: 'threads1046-release' };
     assert.equal(threads1046ReleaseSchema.safeParse(threads1046).success, true);
     assert.equal(threads1046ReleaseSchema.safeParse({ ...threads1046, expectedSelectedAssetId: 131 }).success, false);
+    const telegram1099 = { projectId: 10, taskId: 1099, actorId: 'user:2',
+        expectedManifestChecksum: OCT10_MANIFEST_CHECKSUM, expectedInitiativeId: 296, expectedChannelId: 108,
+        expectedCurrentType: 'publication', expectedCurrentPlacement: 'feed', expectedTargetType: 'telegram_story',
+        expectedTargetPlacement: 'story', expectedContentRevision: 1, expectedAcceptedRevision: 1,
+        expectedBodySha256: 'f46104f5ed4e1b892d07eb1474015890165bc61a3d9bd0c7bce3edc061f2a2be',
+        expectedDecisionId: 277, expectedDecisionVersion: 1, expectedSelectedAssetId: 134,
+        expectedSourceAssetId: 133, expectedSourcePublicationFactId: 442,
+        expectedAssetSha256: 'ab299952f375cef3346c9a43dc529db1a74ac281dc16f290ab8de0b6cb796c6c',
+        prohibitedRenderJobId: '6474ed84-5a6a-494d-a06c-7183e9ace9bb',
+        expectedScheduleAt: '2026-10-10T13:30:00.000Z', idempotencyKey: 'repair1099' };
+    assert.equal(telegram1099RepairSchema.safeParse(telegram1099).success, true);
+    assert.equal(telegram1099ReleaseSchema.safeParse({ ...telegram1099,
+        expectedCurrentType: 'telegram_story', expectedCurrentPlacement: 'story', expectedTelegramAccountId: 2,
+        expectedSourceStoryTaskId: 986, expectedSourceStoryFactId: 363,
+        approvalReference: 'owner accepted exact Story' }).success, true);
+    assert.equal(telegram1099RepairSchema.safeParse({ ...telegram1099, expectedTargetPlacement: 'feed' }).success, false);
 });
 
 test('only owner and Publisher profiles expose the exact release and claim paths', () => {
@@ -77,6 +95,8 @@ test('only owner and Publisher profiles expose the exact release and claim paths
         'ba_release_linkedin_task1072_personal_browser', 'ba_claim_linkedin_task1072_browser_publication',
         'ba_release_threads_task1043_api', 'ba_publish_threads_task1043',
         'ba_release_threads_task1046_api', 'ba_publish_threads_task1046',
+        'ba_repair_telegram_task1099_story_placement', 'ba_release_telegram_task1099_personal_story',
+        'ba_publish_telegram_task1099_personal_story',
         'ba_release_dzen_task1045', 'ba_verify_dzen_task1045_connector',
         'ba_reconcile_dzen_task1045_uncertain_attempt',
         'ba_preview_vk_task1048_api_promotion', 'ba_apply_vk_task1048_api_promotion'];
