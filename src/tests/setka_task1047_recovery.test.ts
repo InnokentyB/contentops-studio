@@ -114,6 +114,23 @@ test('Setka1047 uncertain submission freezes retry and records no publication fa
     await assert.rejects(startSetkaTask1047({ ...f.boundary, idempotencyKey: 'retry' }, f.dependencies), /ATTEMPT_EXISTS/);
 });
 
+test('Setka1047 start preserves persisted owner authorization when the execution confirmation text changes', async () => {
+    const f = fixture();
+    await releaseSetkaTask1047(releaseArgs, f.dependencies); f.claim();
+    const started = await startSetkaTask1047({ ...f.boundary,
+        approvalReference: 'owner confirmed final Setka submit in headquarters' }, f.dependencies);
+    assert.equal(started.status, 'started');
+    assert.equal(started.replayed, false);
+});
+
+test('Setka1047 start rejects a work item whose owner proof drifted from the task release', async () => {
+    const f = fixture();
+    await releaseSetkaTask1047(releaseArgs, f.dependencies); f.claim();
+    f.getWork().result_payload = structuredClone(f.getWork().result_payload);
+    f.getWork().result_payload.approval_reference = 'different persisted approval';
+    await assert.rejects(startSetkaTask1047(f.boundary, f.dependencies), /SUBMISSION_GUARD_FAILED/);
+});
+
 test('Setka1047 confirmation accepts only exact Setka permalink and writes one fact', async () => {
     const f = fixture();
     await releaseSetkaTask1047(releaseArgs, f.dependencies); f.claim();

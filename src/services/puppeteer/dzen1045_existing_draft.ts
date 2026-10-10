@@ -26,17 +26,20 @@ function nextPageUrl(current: string, iteration: number, pageSize: number): stri
     return url.toString();
 }
 
-function pagination(raw: unknown, count: number) {
+export function dzen1045Pagination(raw: unknown, pageCount: number, pageSize: number, count: number) {
     const root = record(raw); const nested = record(root.pagination);
     const hasMore = [root.hasMore, root.has_more, nested.hasMore, nested.has_more]
         .find((value): value is boolean => typeof value === 'boolean');
     const total = [root.total, root.totalCount, root.total_count, nested.total, nested.totalCount]
         .find((value): value is number => typeof value === 'number' && Number.isSafeInteger(value));
-    return { complete: hasMore === false || (typeof total === 'number' && count >= total), hasMore, total };
+    const shortPage = hasMore === undefined && total === undefined && pageCount < pageSize;
+    return { complete: hasMore === false || (typeof total === 'number' && count >= total) || shortPage,
+        hasMore, total };
 }
 
 async function enumerate(page: Page, listUrl: string, state: 'published' | 'draft') {
     const initial = page.waitForResponse(response => /\/editor-api\/v3\/publications\?/.test(response.url())
+        && new URL(response.url()).searchParams.get('state') === state
         && response.status() === 200, { timeout: 30_000 });
     await page.goto(`${listUrl}?state=${state}`, { waitUntil: 'domcontentloaded', timeout: 30_000 });
     let response = await initial;
@@ -55,10 +58,13 @@ async function enumerate(page: Page, listUrl: string, state: 'published' | 'draf
             if (seen.has(key)) continue;
             seen.add(key); collected.push(publication); added += 1;
         }
-        const pageSize = Number(new URL(responseUrl).searchParams.get('pageSize')) || parsed.publications.length;
-        const info = pagination(raw, collected.length);
+        const pageSize = Number(new URL(responseUrl).searchParams.get('pageSize'));
+        if (!Number.isSafeInteger(pageSize) || pageSize < 1) {
+            throw new Error('[DZEN1045_STUDIO_ENUMERATION_INCOMPLETE] Provider pageSize is missing');
+        }
+        const info = dzen1045Pagination(raw, parsed.publications.length, pageSize, collected.length);
         if (parsed.coverage_complete || info.complete) return { publications: collected, coverageComplete: true };
-        if (info.hasMore !== true || pageSize < 1 || (iteration > 1 && added === 0)) {
+        if (iteration > 1 && added === 0) {
             throw new Error('[DZEN1045_STUDIO_ENUMERATION_INCOMPLETE] Pagination cannot be proven exhaustive');
         }
         responseUrl = nextPageUrl(responseUrl, iteration, pageSize);

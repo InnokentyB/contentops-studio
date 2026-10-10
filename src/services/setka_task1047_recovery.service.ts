@@ -210,6 +210,7 @@ args: LeaseArgs, now: Date): asserts work is { id: number; kind: string; assigne
 function assertBoundary(task: ExactTask | null, work: { result_payload: Prisma.JsonValue | null } | null,
 args: BoundaryArgs, statuses: string[], hashBody: (body: string) => string): asserts task is ExactTask {
     const proof = object(work?.result_payload);
+    const ownerProof = object(object(task?.quality_report).owner_release);
     if (!task || task.id !== 1047 || task.project_id !== 10 || task.channel_id !== 126
         || task.channel?.type !== 'setka' || !statuses.includes(task.status)
         || task.publication_mode !== 'browser_required' || task.content_revision !== 4 || task.accepted_revision !== 4
@@ -217,8 +218,12 @@ args: BoundaryArgs, statuses: string[], hashBody: (body: string) => string): ass
         || task.selected_asset_id !== 131 || task.selected_asset?.status !== 'approved'
         || task.publication_fact || task.published_link || hashBody(task.draft_text || '') !== args.textSha256
         || assetHash(task) !== args.imageSha256 || proof.publication_authorized !== true
-        || proof.approval_reference !== args.approvalReference || proof.profile_url !== SETKA1047.profileUrl
-        || proof.body_sha256 !== args.textSha256 || proof.asset_sha256 !== args.imageSha256) {
+        || ownerProof.publication_authorized !== true || !args.approvalReference.trim()
+        || proof.approval_reference !== ownerProof.approval_reference
+        || proof.actor_id !== ownerProof.actor_id || proof.profile_url !== SETKA1047.profileUrl
+        || ownerProof.profile_url !== SETKA1047.profileUrl || proof.body_sha256 !== args.textSha256
+        || ownerProof.body_sha256 !== args.textSha256 || proof.asset_sha256 !== args.imageSha256
+        || ownerProof.asset_sha256 !== args.imageSha256) {
         throw new Error('[SETKA1047_SUBMISSION_GUARD_FAILED]');
     }
 }
