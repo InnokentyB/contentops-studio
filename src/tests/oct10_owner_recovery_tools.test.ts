@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { isToolAllowedForProfile } from '../mcp/capabilities';
 import {
     dzen1045ReleaseSchema,
+    dzen1045NewDraftRetrySchema,
     linkedIn1072ReleaseSchema,
     threads1043ReleaseSchema,
     threads1046ReleaseSchema,
@@ -13,6 +14,8 @@ import {
 } from '../mcp/tools/oct10_owner_recovery_tools';
 import { OCT10_MANIFEST_CHECKSUM } from '../services/oct10_owner_recovery.service';
 import { X1042_TEXT_ONLY_MANIFEST } from '../services/x_task1042_text_only.service';
+import { DZEN1045_AUTHORIZATION_KEY, DZEN1045_RECOVERY_MANIFEST } from '../services/dzen_task1045_new_draft_recovery.service';
+import { DZEN1045 } from '../services/dzen_task1045_resume_contract';
 
 const common = { projectId: 10, actorId: 'user:2', expectedManifestChecksum: OCT10_MANIFEST_CHECKSUM,
     recoverySlotDate: '2026-10-10', approvalReference: 'owner-authorized exact recovery', idempotencyKey: 'one-key' };
@@ -49,6 +52,17 @@ test('October 10 exact release schemas reject package, identity and missed-slot 
         expectedSelectedAssetId: 129, expectedAssetSha256: '6b02adaf5ce140d986d85de5cf910a33bed36f65384e166031712fd66a06d76b',
         expectedScheduleAt: '2026-10-10T10:00:00.000Z', expectedPublishAt: '2026-10-10T10:00:00.000Z'
     }).success, true);
+    const dzenRetry = { projectId: 10, taskId: 1045, actorId: 'user:2',
+        expectedManifestChecksum: DZEN1045_RECOVERY_MANIFEST, expectedChannelId: 116,
+        expectedContentRevision: 4, expectedAcceptedRevision: 4, expectedBodySha256: DZEN1045.bodySha,
+        expectedDecisionId: 267, expectedSelectedAssetId: 129, expectedAssetSha256: DZEN1045.assetSha,
+        expectedPlacement: 'article_cover', expectedOriginalAttemptKey: DZEN1045.originalKey,
+        authorizedPublishIdempotencyKey: DZEN1045.retryKey,
+        ownerAuthorizationReference: 'source thread owner confirmation 2026-10-10',
+        idempotencyKey: DZEN1045_AUTHORIZATION_KEY };
+    assert.equal(dzen1045NewDraftRetrySchema.safeParse(dzenRetry).success, true);
+    assert.equal(dzen1045NewDraftRetrySchema.safeParse({ ...dzenRetry,
+        authorizedPublishIdempotencyKey: DZEN1045.originalKey }).success, false);
     assert.equal(x1042ReleaseSchema.safeParse({ ...x, expectedSelectedAssetId: 126 }).success, false);
     assert.equal(x1042ReleaseSchema.safeParse({ ...x, expectedContentRevision: 5,
         expectedBodySha256: '7d780809a7f6b73494b590cd1fa11ac2f6383fdc0a952f1aca5d09cb4e676c70' }).success, false);
@@ -106,6 +120,7 @@ test('Planner can run the owner-guarded Telegram repair while release/send stay 
         'ba_release_dzen_task1045', 'ba_verify_dzen_task1045_connector',
         'ba_reconcile_dzen_task1045_uncertain_attempt',
         'ba_reconcile_or_resume_dzen_task1045_draft',
+        'ba_authorize_dzen_task1045_new_draft_retry',
         'ba_preview_vk_task1048_api_promotion', 'ba_apply_vk_task1048_api_promotion'];
     for (const tool of tools) {
         assert.equal(isToolAllowedForProfile('owner', tool), true);

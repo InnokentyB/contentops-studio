@@ -15,6 +15,7 @@ const hash1045 = '37b70ca472211b64104168115d435d4c2d4ef6c9fb3c61c9041ec0f9336242
 const asset1045Hash = '6b02adaf5ce140d986d85de5cf910a33bed36f65384e166031712fd66a06d76b';
 const actual992IncidentKey = 'dzen-992-owner-confirmed-retry-20261001-v2';
 const actual1045IncidentKey = 'dzen-p10-1045-r4-asset129-recovery-20261010-01';
+const authorized1045RetryKey = 'dzen-p10-1045-r4-asset129-new-draft-retry-20261010-01';
 const schedule = new Date('2026-09-22T11:00:00.000Z');
 
 function harness(options: { released?: boolean; verified?: boolean; providerError?: boolean;
@@ -33,7 +34,9 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
         channel: { type: 'dzen', config: { channel_id: 'dzen-channel', cookies: 'session=test',
             capability_flags: { api_publish: false } } },
         content_revision: revision, accepted_revision: revision, text_state: 'accepted',
-        draft_text: taskId === 1031 ? 'Как проверить новый формат урока без маркетинговой самооценки\n\nexact accepted body' : 'exact accepted body',
+        draft_text: taskId === 1031 ? 'Как проверить новый формат урока без маркетинговой самооценки\n\nexact accepted body'
+            : taskId === 1045 ? '46 тестов зелёные. Почему я всё равно не называю AI-продукт запущенным\n\nexact accepted body'
+                : 'exact accepted body',
         title: taskId === 999 ? 'Почему метрика без контекста ведёт к ложному решению' : taskId === 1031 ? 'W41 allocation #6 — Dzen'
             : taskId === 1045 ? 'W41 allocation #24 — Dzen' : 'Exact accepted title',
         visual_placement: hasVisual || taskId === 1031 ? 'article_cover' : 'feed',
@@ -169,7 +172,43 @@ test('Dzen #1045 exact release proof and connector proof gate the same article-c
     assert.equal(dry.payload_preview.accepted_revision, 4);
     assert.equal(dry.payload_preview.selected_asset_id, 129);
     assert.equal(dry.payload_preview.image_url, 'https://cdn.example.test/task992.png');
+    assert.equal(dry.payload_preview.title,
+        '46 тестов зелёные. Почему я всё равно не называю AI-продукт запущенным');
     assert.equal(h.providerCalls, 0);
+});
+
+test('Dzen #1045 frozen incident requires the single owner-authorized retry key', async () => {
+    const h = harness({ taskId: 1045 });
+    h.task.quality_report = { publication_task_delivery: {
+        state: 'confirmed_absent_retry_authorized', previous_idempotency_key: actual1045IncidentKey,
+        authorized_idempotency_key: authorized1045RetryKey, retry_via_api: true,
+        prior_incident: { state: 'provider_result_uncertain', idempotency_key: actual1045IncidentKey }
+    } };
+    await assert.rejects(h.service.execute({ projectId: 10, taskId: 1045,
+        idempotencyKey: 'another-key' }), /DZEN_RETRY_NOT_AUTHORIZED/);
+    assert.equal(h.providerCalls, 0);
+    const sent = await h.service.execute({ projectId: 10, taskId: 1045,
+        idempotencyKey: authorized1045RetryKey });
+    assert.equal(sent.published_link, 'https://dzen.ru/b/approved-task1045');
+    assert.equal(h.task.quality_report.publication_task_delivery.prior_incident.idempotency_key,
+        actual1045IncidentKey);
+    assert.equal(h.providerCalls, 1);
+});
+
+test('Dzen #1045 uncertain authorized retry freezes again and preserves the prior incident', async () => {
+    const h = harness({ taskId: 1045, providerError: true });
+    const priorIncident = { state: 'provider_result_uncertain', idempotency_key: actual1045IncidentKey };
+    h.task.quality_report = { publication_task_delivery: {
+        state: 'confirmed_absent_retry_authorized', previous_idempotency_key: actual1045IncidentKey,
+        authorized_idempotency_key: authorized1045RetryKey, retry_via_api: true,
+        prior_incident: priorIncident
+    } };
+    await assert.rejects(h.service.execute({ projectId: 10, taskId: 1045,
+        idempotencyKey: authorized1045RetryKey }), /DZEN_PUBLICATION_UNCERTAIN/);
+    assert.equal(h.task.quality_report.publication_task_delivery.retry_via_api, false);
+    assert.deepEqual(h.task.quality_report.publication_task_delivery.prior_incident, priorIncident);
+    assert.equal(h.providerCalls, 1);
+    assert.equal(h.factCalls, 0);
 });
 
 test('Dzen #1045 uncertain reconciliation returns one exact published identity and never retries or records a fact', async () => {
