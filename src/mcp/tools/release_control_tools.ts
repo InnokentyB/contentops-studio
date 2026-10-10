@@ -13,7 +13,7 @@ import dzenTaskPublicationService from '../../services/dzen_task_publication.ser
 import linkedinTask995RecoveryService from '../../services/linkedin_task995_recovery.service';
 import { claimLinkedInBrowserPublication, releaseLinkedInBrowserTaskWithPrisma } from '../../services/linkedin_browser_owner_release.service';
 import { releaseDzenTaskWithPrisma } from '../../services/dzen_owner_release.service';
-import { asToolResult } from './common';
+import { asToolResult, INTERNAL_MUTATION_ANNOTATIONS } from './common';
 import { releaseLinkedInTask1075 } from '../../services/linkedin_task1075_release.service';
 import { claimXBrowserPublication, releaseXTask1025 } from '../../services/x_task1025_release.service';
 import { releaseXTask1079 } from '../../services/x_task1079_release.service';
@@ -34,6 +34,14 @@ import {
     applyVkBrowserPreSubmitRecoveryWithPrisma,
     previewVkBrowserPreSubmitRecoveryWithPrisma
 } from '../../services/vk_browser_pre_submit_recovery.service';
+import {
+    claimSetkaTask1047,
+    confirmSetkaTask1047,
+    markSetkaTask1047Uncertain,
+    releaseSetkaTask1047,
+    SETKA1047,
+    startSetkaTask1047
+} from '../../services/setka_task1047_recovery.service';
 
 /**
  * Registers release publication execution and connector verification tools.
@@ -129,6 +137,50 @@ export function registerReleaseControlTools(server: McpServer): void {
             idempotencyKey: z.string().min(1)
         }
     }, async (args) => asToolResult(await markVkBrowserSubmissionUncertainWithPrisma(args)));
+
+    const setkaBoundary = {
+        projectId: z.literal(10), taskId: z.literal(1047), channelId: z.literal(126), actorId: z.string(),
+        workItemId: z.number().int().positive(), leaseToken: z.string().min(1),
+        approvalReference: z.string().min(10), idempotencyKey: z.string().min(1),
+        contentRevision: z.literal(4), textSha256: z.literal(SETKA1047.bodySha256),
+        selectedAssetId: z.literal(131), imageSha256: z.literal(SETKA1047.assetSha256)
+    };
+    server.registerTool('ba_release_setka_task1047_browser', {
+        description: 'Owner-only audited release for exact Setka task1047. Atomically binds the confirmed owned profile, reconciles manual/browser capability and creates one browser work item. Never opens Setka or publishes.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
+        inputSchema: { projectId: z.literal(10), taskId: z.literal(1047), actorId: z.string(),
+            expectedChannelId: z.literal(126), expectedContentRevision: z.literal(4),
+            expectedAcceptedRevision: z.literal(4), expectedBodySha256: z.literal(SETKA1047.bodySha256),
+            expectedDecisionId: z.literal(269), expectedSelectedAssetId: z.literal(131),
+            expectedAssetSha256: z.literal(SETKA1047.assetSha256),
+            expectedScheduleAt: z.literal(SETKA1047.schedule), expectedManifestChecksum: z.literal(SETKA1047.manifest),
+            expectedRegistryProfileId: z.literal('profile_126'), expectedProfileUrl: z.literal(SETKA1047.profileUrl),
+            approvalReference: z.string().min(10), idempotencyKey: z.string().min(1) }
+    }, async args => asToolResult(await releaseSetkaTask1047(args)));
+    server.registerTool('ba_claim_setka_task1047_browser_publication', {
+        description: 'Publisher claim for the exact owner-released Setka1047 browser work item. Never opens Setka.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
+        inputSchema: { projectId: z.literal(10), actorId: z.string(), workItemId: z.number().int().positive(),
+            leaseSeconds: z.number().int().positive().optional(), idempotencyKey: z.string().min(1) }
+    }, async args => asToolResult(await claimSetkaTask1047(args)));
+    server.registerTool('ba_start_setka_task1047_browser_submission', {
+        description: 'Durably starts the exact claimed Setka1047 attempt immediately before browser/manual submission. Retry is forbidden after an attempt exists.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: setkaBoundary
+    }, async args => asToolResult(await startSetkaTask1047(args)));
+    server.registerTool('ba_confirm_setka_task1047_browser_submission', {
+        description: 'Confirms Setka1047 only from an exact setka.ru/posts permalink plus screenshot evidence, then records the publication fact.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
+        inputSchema: { ...setkaBoundary, attemptId: z.number().int().positive(),
+            publicUrl: z.string().url(), providerObjectId: z.string().regex(/^[0-9a-f-]+$/),
+            publishedAt: z.string().datetime({ offset: true }), evidenceSha256: z.string().regex(/^[a-f0-9]{64}$/) }
+    }, async args => asToolResult(await confirmSetkaTask1047(args)));
+    server.registerTool('ba_mark_setka_task1047_browser_submission_uncertain', {
+        description: 'Freezes an ambiguous Setka1047 attempt for verification. Creates no fact and never authorizes retry.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
+        inputSchema: { projectId: z.literal(10), taskId: z.literal(1047), actorId: z.string(),
+            workItemId: z.number().int().positive(), leaseToken: z.string().min(1),
+            attemptId: z.number().int().positive(), reasonCode: z.string().min(1), idempotencyKey: z.string().min(1) }
+    }, async args => asToolResult(await markSetkaTask1047Uncertain(args)));
 
     const vkPreProviderRecoveryGuards = {
         projectId: z.number().int().positive(), taskId: z.number().int().positive(), actorId: z.string(),

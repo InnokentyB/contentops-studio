@@ -90,12 +90,18 @@ test('October 10 exact release schemas reject package, identity and missed-slot 
     assert.equal(telegram1099RepairSchema.safeParse({ ...telegram1099, expectedTargetPlacement: 'feed' }).success, false);
 });
 
-test('only owner and Publisher profiles expose the exact release and claim paths', () => {
+test('Planner can run the owner-guarded Telegram repair while release/send stay Publisher-scoped', () => {
+    assert.equal(isToolAllowedForProfile('owner', 'ba_repair_telegram_task1099_story_placement'), true);
+    assert.equal(isToolAllowedForProfile('planner', 'ba_repair_telegram_task1099_story_placement'), true);
+    assert.equal(isToolAllowedForProfile('publisher', 'ba_repair_telegram_task1099_story_placement'), true);
+    for (const profile of ['writer', 'editor', 'art_director', 'growth_analyst', 'strategist'] as const) {
+        assert.equal(isToolAllowedForProfile(profile, 'ba_repair_telegram_task1099_story_placement'), false);
+    }
     const tools = ['ba_prepare_x_task1042_text_only_package', 'ba_release_x_task1042_browser', 'ba_claim_x_task1042_browser_publication',
         'ba_release_linkedin_task1072_personal_browser', 'ba_claim_linkedin_task1072_browser_publication',
         'ba_release_threads_task1043_api', 'ba_publish_threads_task1043',
         'ba_release_threads_task1046_api', 'ba_publish_threads_task1046',
-        'ba_repair_telegram_task1099_story_placement', 'ba_release_telegram_task1099_personal_story',
+        'ba_release_telegram_task1099_personal_story',
         'ba_publish_telegram_task1099_personal_story',
         'ba_release_dzen_task1045', 'ba_verify_dzen_task1045_connector',
         'ba_reconcile_dzen_task1045_uncertain_attempt',
