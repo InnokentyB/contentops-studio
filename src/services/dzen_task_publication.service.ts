@@ -6,6 +6,15 @@ import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
 import { publicDzenArticleTitle } from './dzen_public_title';
 
 const TASKS = {
+    1045: {
+        bodySha256: '37b70ca472211b64104168115d435d4c2d4ef6c9fb3c61c9041ec0f9336242f1',
+        decisionId: 267, releaseCommand: 'ba_release_approved_dzen_task',
+        verifyCommand: 'ba_verify_dzen_task1045_connector', revision: 4, placement: 'article_cover',
+        visualState: 'APPROVED', selectedAssetId: 129, publicationType: 'article' as const,
+        allowedStatuses: ['ready_for_execution'],
+        assetSha256: '6b02adaf5ce140d986d85de5cf910a33bed36f65384e166031712fd66a06d76b',
+        decisionChannel: 'dzen'
+    },
     1036: {
         bodySha256: '84f8f3ea79c4f252216e7568aa12a84eff08f685f33d4da360b94c8d8073e0fa',
         decisionId: 253, releaseCommand: 'ba_release_approved_dzen_task',

@@ -14,6 +14,9 @@ import {
     X1042_TEXT_ONLY_MANIFEST
 } from '../../services/x_task1042_text_only.service';
 import threadsTaskPublicationService from '../../services/threads_task_publication.service';
+import { releaseDzenTaskWithPrisma } from '../../services/dzen_owner_release.service';
+import dzenTaskPublicationService from '../../services/dzen_task_publication.service';
+import { previewVkTask1048Api, promoteVkTask1048Api, VK1048_MANIFEST } from '../../services/vk_task1048_api_promotion.service';
 import { asToolResult, EXTERNAL_PUBLICATION_ANNOTATIONS, INTERNAL_MUTATION_ANNOTATIONS } from './common';
 
 const approval = {
@@ -36,7 +39,10 @@ export const x1042OverlengthRecoverySchema = z.object({ projectId: z.literal(10)
     approvalReference: z.string().min(10), idempotencyKey: z.string().min(1)
 });
 
-export const x1042ReleaseSchema = z.object({ ...approval, taskId: z.literal(1042), expectedChannelId: z.literal(164),
+export const x1042ReleaseSchema = z.object({ projectId: z.literal(10), actorId: z.string().regex(/^user:\d+$/),
+    expectedManifestChecksum: z.literal(X1042_TEXT_ONLY_MANIFEST), recoverySlotDate: z.literal('2026-10-10'),
+    approvalReference: z.string().min(10), idempotencyKey: z.string().min(1),
+    taskId: z.literal(1042), expectedChannelId: z.literal(164),
     expectedContentRevision: z.literal(6), expectedAcceptedRevision: z.literal(6),
     expectedBodySha256: z.literal('8ee902b053a244255c4c3d728947e755069e5aca8503f3ed201476bf67f0cfc3'),
     expectedSelectedAssetId: z.null(), expectedAssetSha256: z.null(), expectedReviewWorkItemId: z.literal(1420),
@@ -58,11 +64,25 @@ export const linkedIn1072ReleaseSchema = z.object({ ...approval, taskId: z.liter
 
 export const threads1043ReleaseSchema = z.object({ ...approval, taskId: z.literal(1043), expectedChannelId: z.literal(138),
     expectedThreadsUserId: z.literal('39421253764155091'), expectedUsername: z.literal('innokentybo'),
-    expectedContentRevision: z.literal(4), expectedAcceptedRevision: z.literal(4),
-    expectedBodySha256: z.literal('00813c7d65068bdce2e0b5aa6bb1cc04ca936e42c81ca4a44b2be50a095713fc'),
-    expectedSelectedAssetId: z.literal(128),
-    expectedAssetSha256: z.literal('d53fa8809efe40b35577849cdfcd2795ead8127ba77e9e4a604fbfaf94f9d3c3'),
+    expectedCurrentContentRevision: z.literal(4), expectedCurrentAcceptedRevision: z.literal(4),
+    expectedCurrentBodySha256: z.literal('00813c7d65068bdce2e0b5aa6bb1cc04ca936e42c81ca4a44b2be50a095713fc'),
+    expectedCurrentSelectedAssetId: z.literal(128),
+    expectedCurrentAssetSha256: z.literal('d53fa8809efe40b35577849cdfcd2795ead8127ba77e9e4a604fbfaf94f9d3c3'),
+    expectedHistoricalContentRevision: z.literal(3),
+    expectedHistoricalBodySha256: z.literal('c68bd80edc8c866930e06844f1f9bde96ab3c4325cf1bd8d21760f1f8fb691bd'),
+    expectedHistoricalApprovalId: z.literal(255), expectedHistoricalDecisionId: z.literal(217),
+    expectedTargetContentRevision: z.literal(5), expectedTargetSelectedAssetId: z.null(),
     expectedScheduleAt: z.literal('2026-10-09T16:30:00.000Z')
+});
+
+export const dzen1045ReleaseSchema = z.object({ ...approval, taskId: z.literal(1045), expectedChannelId: z.literal(116),
+    expectedContentRevision: z.literal(4), expectedAcceptedRevision: z.literal(4),
+    expectedBodySha256: z.literal('37b70ca472211b64104168115d435d4c2d4ef6c9fb3c61c9041ec0f9336242f1'),
+    expectedVisualState: z.literal('APPROVED'), expectedPlacement: z.literal('article_cover'),
+    expectedVisualDecisionVersion: z.literal(1), expectedSelectedAssetId: z.literal(129),
+    expectedAssetSha256: z.literal('6b02adaf5ce140d986d85de5cf910a33bed36f65384e166031712fd66a06d76b'),
+    expectedScheduleAt: z.literal('2026-10-10T10:00:00.000Z'),
+    expectedPublishAt: z.literal('2026-10-10T10:00:00.000Z')
 });
 
 const claim = { projectId: z.literal(10), actorId: z.string(), workItemId: z.number().int().positive(),
@@ -97,7 +117,7 @@ export function registerOct10OwnerRecoveryTools(server: McpServer): void {
     }, async args => asToolResult(await claimLinkedInTask1072Browser(args)));
 
     server.registerTool('ba_release_threads_task1043_api', {
-        description: 'Owner-only exact release of p10 Threads task1043 rev4/asset128 after identity and own-history verification. Keeps the missed 9 October schedule, records the 10 October recovery, and never sends.',
+        description: 'Owner-only exact recovery of the previously approved text-only task1043 package. It verifies current rev4/asset128 and historical rev3 approval255/decision217, creates an explicit current rev5 NO_VISUAL_NEEDED binding while preserving asset128 as immutable history, and never sends.',
         annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: threads1043ReleaseSchema.shape
     }, async args => asToolResult(await releaseThreadsTask1043(args)));
     server.registerTool('ba_publish_threads_task1043', {
@@ -106,4 +126,26 @@ export function registerOct10OwnerRecoveryTools(server: McpServer): void {
         inputSchema: { projectId: z.literal(10), taskId: z.literal(1043), dryRun: z.boolean().optional().default(true),
             idempotencyKey: z.string().min(1).optional() }
     }, async args => asToolResult(await threadsTaskPublicationService.execute(args)));
+    server.registerTool('ba_release_dzen_task1045', {
+        description: 'Owner-only audited release of exact p10 Dzen task1045 rev4/cover129. It verifies manifest, hashes, schedule and absence of attempts; it never contacts Dzen.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: dzen1045ReleaseSchema.shape
+    }, async args => asToolResult(await releaseDzenTaskWithPrisma(args)));
+    server.registerTool('ba_verify_dzen_task1045_connector', {
+        description: 'Owner-only authenticated Dzen editor probe for released task1045. Records a short-lived exact-task proof and never publishes.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
+        inputSchema: { projectId: z.literal(10), taskId: z.literal(1045), actorId: z.string().regex(/^user:\d+$/),
+            idempotencyKey: z.string().min(1) }
+    }, async args => asToolResult(await dzenTaskPublicationService.verifyConnector(args)));
+    server.registerTool('ba_preview_vk_task1048_api_promotion', {
+        description: 'Owner-only exact read-only preview of task1048 promotion from the unclaimed browser item to canonical vk_api. Reports credential readiness without exposing secrets and never calls VK.',
+        annotations: { readOnlyHint: true },
+        inputSchema: { projectId: z.literal(10), taskId: z.literal(1048), actorId: z.string().regex(/^user:\d+$/) }
+    }, async args => asToolResult(await previewVkTask1048Api(args)));
+    server.registerTool('ba_apply_vk_task1048_api_promotion', {
+        description: 'Owner-only audited CAS promotion of exact task1048 rev1/asset130 to connector_auto, allowed only when channel117 has current community publish and user media credentials. Cancels only unclaimed browser item1699; never calls VK or records a fact.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
+        inputSchema: { projectId: z.literal(10), taskId: z.literal(1048), actorId: z.string().regex(/^user:\d+$/),
+            expectedManifestChecksum: z.literal(VK1048_MANIFEST), approvalReference: z.string().min(10),
+            idempotencyKey: z.string().min(1) }
+    }, async args => asToolResult(await promoteVkTask1048Api(args)));
 }

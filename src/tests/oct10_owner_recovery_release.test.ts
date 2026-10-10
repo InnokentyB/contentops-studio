@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'crypto';
 import {
     OCT10_MANIFEST_CHECKSUM,
     releaseLinkedInTask1072,
@@ -41,12 +42,21 @@ function commonTx(task: ReturnType<typeof baseTask>, ids: { review: number; art:
             findFirst: async ({ where }: { where: { id?: number; kind?: string } }) => {
                 if (where.id === ids.review) return { id: ids.review, kind: 'content_review', state: 'completed', input_context_version: 4, result_version: 4 };
                 if (where.id === ids.art) return { id: ids.art, kind: 'art_direction', state: 'completed', input_context_version: 4, result_version: 2 };
+                if (where.id === 1438) return { id: 1438, kind: 'art_direction', state: 'completed', input_context_version: 3, result_version: 1 };
                 return null;
             },
             create: async () => { workCreates += 1; return { id: 1900 + workCreates }; }
         },
-        artDirectionDecision: { findFirst: async () => ({ id: ids.decision, decision: 'GENERATE', decision_version: 2,
-            source_content_revision: 4, channel: task.channel.type, placement: 'feed', status: 'active' }) }
+        approvalDecision: { findUnique: async () => ({ id: 255, decision: 'approved' }) },
+        artDirectionDecision: {
+            findFirst: async ({ where }: { where: { id?: number } }) => where.id === 217
+                ? { id: 217, decision: 'NO_VISUAL_NEEDED', decision_version: 1, source_content_revision: 3,
+                    channel: 'threads', placement: 'feed', status: 'stale' }
+                : { id: ids.decision, decision: 'GENERATE', decision_version: 2,
+                    source_content_revision: 4, channel: task.channel.type, placement: 'feed', status: 'active' },
+            updateMany: async () => ({ count: 1 }),
+            create: async () => ({ id: 300, decision_version: 3 })
+        }
     };
     return { tx, get workCreates() { return workCreates; } };
 }
@@ -110,6 +120,7 @@ test('LinkedIn1072 release creates a governed p10 personal route from p7/channel
 test('Threads1043 release keeps missed slot, binds asset128 and never calls publish', async () => {
     const selected = asset(128, 'd53fa8809efe40b35577849cdfcd2795ead8127ba77e9e4a604fbfaf94f9d3c3');
     const task = baseTask(1043, 138, selected);
+    task.draft_text = 'One useful vacancy decision can be valuable once. The harder question is what creates a real reason to return.\n\nSaved evidence? A clearer next step? A new uncertainty? Another vacancy that changes the trade-off?\n\nWe have not observed a repeat-use loop, so I am treating this as a measurement question, not a retention claim.\n\nWhat would make a second visit genuinely useful to you?\n';
     task.schedule_at = new Date('2026-10-09T16:30:00.000Z'); task.publish_at = new Date(task.schedule_at);
     const f = commonTx(task, { review: 1421, art: 1672, decision: 266 });
     const db = { socialChannel: { findFirst: async () => task.channel }, projectMember: { findUnique: async () => ({ role: 'owner' }) },
@@ -120,7 +131,7 @@ test('Threads1043 release keeps missed slot, binds asset128 and never calls publ
         approvalReference: 'owner recovery 2026-10-10', idempotencyKey: 'threads1043-r4' } as const;
     const dependencies = {
         database: db as never, manifestLoader: manifest,
-        hashBody: () => '00813c7d65068bdce2e0b5aa6bb1cc04ca936e42c81ca4a44b2be50a095713fc',
+        hashBody: (body: string) => createHash('sha256').update(body).digest('hex'),
         now: () => new Date('2026-10-10T10:00:00Z'), threads: { testConnection: async () => ({ success: true,
             details: { id: '39421253764155091', username: 'innokentybo' } }), getOwnPosts: async () => {
                 historyReads += 1; return { items: [], after: null };
@@ -130,7 +141,11 @@ test('Threads1043 release keeps missed slot, binds asset128 and never calls publ
     const result = await releaseThreadsTask1043(releaseArgs, dependencies);
     const replay = await releaseThreadsTask1043(releaseArgs, dependencies);
     assert.equal(result.publication_mode, 'owner_released');
-    assert.equal(result.selected_asset_id, 128);
+    assert.equal(result.selected_asset_id, null);
+    assert.equal(result.superseded_asset_id, 128);
+    assert.equal(task.content_revision, 5);
+    assert.equal(task.selected_asset_id, null);
+    assert.equal(task.visual_state, 'NO_VISUAL_NEEDED');
     assert.equal(task.schedule_at.toISOString(), '2026-10-09T16:30:00.000Z');
     assert.equal(sends, 0);
     assert.equal(replay.replayed, true);

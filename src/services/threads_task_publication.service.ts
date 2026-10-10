@@ -7,9 +7,9 @@ import { PENDING_THREADS_PACKAGES } from './threads_pending_release.service';
 
 const TASK_SPECS = {
     ...PENDING_THREADS_PACKAGES,
-    1043: { revision: 4, bodySha256: '00813c7d65068bdce2e0b5aa6bb1cc04ca936e42c81ca4a44b2be50a095713fc',
-        decisionId: 266, releaseCommand: 'ba_release_threads_task1043_api', decisionChannel: 'threads', chain: false,
-        selectedAssetId: 128, assetSha256: 'd53fa8809efe40b35577849cdfcd2795ead8127ba77e9e4a604fbfaf94f9d3c3' },
+    1043: { revision: 5, bodySha256: 'c68bd80edc8c866930e06844f1f9bde96ab3c4325cf1bd8d21760f1f8fb691bd',
+        decisionId: null, releaseCommand: 'ba_release_threads_task1043_api', decisionChannel: 'threads', chain: false,
+        selectedAssetId: null, assetSha256: null },
     953: { revision: 4, bodySha256: 'e7d8c1f2f9cf4f7e3ca1ad6fb05e55153c2153739b3fcdf280e519f574b7f7a6',
         decisionId: 149, releaseCommand: 'ba_release_approved_threads_task953', decisionChannel: 'innokenty_threads', chain: false },
     966: { revision: 1, bodySha256: '83dd0fe0b2b354898b9fd3e5161d5ab05517c4c2b2304862d74c949ce1e2b123',
@@ -57,7 +57,7 @@ export class ThreadsTaskPublicationService {
         const hasToken = Boolean(config.access_token);
         const hasIdentity = Boolean(config.threads_user_id);
         const connectorReady = hasToken && hasIdentity;
-        if (args.dryRun) {
+        if (args.dryRun && args.taskId !== 1043) {
             const acceptedRevision = task.accepted_revision;
             if (!Number.isInteger(acceptedRevision) || acceptedRevision < 1
                 || task.content_revision !== acceptedRevision || task.text_state !== 'accepted'
@@ -98,12 +98,12 @@ export class ThreadsTaskPublicationService {
         const command = `ba_publish_threads_task${args.taskId}`;
         const actor = `system:planner-mcp:threads-task${args.taskId}`;
         const key = args.idempotencyKey?.trim() || null;
-        if (!key) throw new Error('[IDEMPOTENCY_KEY_REQUIRED]');
-        const prior = await db.workflowEvent.findUnique({ where: {
+        if (!args.dryRun && !key) throw new Error('[IDEMPOTENCY_KEY_REQUIRED]');
+        const prior = key ? await db.workflowEvent.findUnique({ where: {
             project_id_actor_id_command_idempotency_key: {
                 project_id: 10, actor_id: actor, command, idempotency_key: key
             }
-        } });
+        } }) : null;
         if (prior?.after_state) return { ...prior.after_state, replayed: true };
         if (task.publication_fact?.outcome === 'published' && task.publication_fact.public_url) {
             return { mode: 'published', task_id: args.taskId, published_link: task.publication_fact.public_url, replayed: true };
@@ -116,7 +116,8 @@ export class ThreadsTaskPublicationService {
         const expectedAssetSha256 = 'assetSha256' in spec ? spec.assetSha256 : null;
         const bodyHash = (this.deps.hashBody || ((body: string) => createHash('sha256').update(body).digest('hex')))(task.draft_text || '');
         const decision = await db.artDirectionDecision.findFirst({ where: {
-            id: spec.decisionId, project_id: 10, content_item_id: args.taskId, source_content_revision: spec.revision,
+            ...(spec.decisionId === null ? {} : { id: spec.decisionId }),
+            project_id: 10, content_item_id: args.taskId, source_content_revision: spec.revision,
             channel: spec.decisionChannel, placement: 'feed',
             decision: expectedAssetId === null ? 'NO_VISUAL_NEEDED' : 'GENERATE', status: 'active'
         } });
@@ -126,7 +127,7 @@ export class ThreadsTaskPublicationService {
         if (!proof || proof.task_id !== args.taskId || proof.channel_id !== 138
             || proof.content_revision !== spec.revision || proof.accepted_revision !== spec.revision
             || proof.body_sha256 !== spec.bodySha256 || proof.body_sha256 !== bodyHash
-            || proof.visual_decision_id !== spec.decisionId
+            || !decision || proof.visual_decision_id !== decision.id
             || (proof.selected_asset_id ?? null) !== expectedAssetId
             || (proof.asset_sha256 ?? null) !== expectedAssetSha256
             || (proof.schedule_at ?? null) !== (task.schedule_at?.toISOString() ?? null)
@@ -142,12 +143,31 @@ export class ThreadsTaskPublicationService {
                     || task.selected_asset.content_revision !== spec.revision
                     || !task.selected_asset.file_url
                     || selectedAssetSha256(task.selected_asset) !== expectedAssetSha256)
-            || task.visual_decision_version !== decision?.decision_version || !decision
+            || task.visual_decision_version !== decision.decision_version
             || task.handoff_state !== 'ready' || task.published_link || !validNativeChain
             || (!spec.chain && (task.draft_text?.length || 0) > 500)) {
             throw new Error('[THREADS_OWNER_RELEASE_PROOF_MISMATCH]');
         }
         if (!connectorReady) throw new Error('[THREADS_CONNECTOR_NOT_READY]');
+        const exactPayload = {
+            text: task.draft_text,
+            character_count: task.draft_text?.length || 0,
+            has_image: false,
+            channel_id: task.channel_id,
+            accepted_revision: task.accepted_revision,
+            content_revision: task.content_revision,
+            visual_state: task.visual_state,
+            visual_decision_version: task.visual_decision_version,
+            selected_asset_id: null,
+            schedule_at: task.schedule_at?.toISOString() ?? null
+        };
+        if (args.dryRun) return {
+            mode: 'dry_run', task_id: args.taskId, project_id: 10, channel_id: 138,
+            route_executable: true, connector_ready: true, live_publish_supported: true,
+            credential_readiness: { access_token: true },
+            identity_readiness: { threads_user_id: config.threads_user_id, ready: true },
+            payload_preview: exactPayload
+        };
         const owner = await db.projectMember.findFirst({ where: { project_id: 10, role: 'owner' }, orderBy: { id: 'asc' } });
         if (!owner) throw new Error('[PROJECT_OWNER_REQUIRED]');
         const claim = await db.contentItem.updateMany({ where: {
@@ -184,7 +204,7 @@ export class ThreadsTaskPublicationService {
                 status: 'published', publication_mode: 'owner_released', published_link: url
             } });
             await tx.workflowEvent.create({ data: { project_id: 10, content_item_id: args.taskId,
-                actor_id: actor, command, idempotency_key: key,
+                actor_id: actor, command, idempotency_key: key!,
                 before_state: { status: 'ready_for_execution' }, after_state: result } });
         });
         return result;
