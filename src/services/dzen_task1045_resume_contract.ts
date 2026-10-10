@@ -6,7 +6,9 @@ export const DZEN1045 = {
     originalKey: 'dzen-p10-1045-r4-asset129-recovery-20261010-01',
     resumeKey: 'dzen-p10-1045-r4-asset129-existing-draft-resume-20261010-01',
     failedAt: '2026-10-10T11:59:26.438Z',
-    errorCode: 'DZEN_FINAL_SUBMIT_NOT_ATTEMPTED'
+    errorCode: 'DZEN_FINAL_SUBMIT_NOT_ATTEMPTED',
+    publicTitle: '46 тестов зелёные. Почему я всё равно не называю AI-продукт запущенным',
+    retryKey: 'dzen-p10-1045-r4-asset129-new-draft-retry-20261010-01'
 } as const;
 
 export function normalizeDzen1045Body(value: string): string {

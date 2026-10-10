@@ -26,6 +26,18 @@ export type Dzen1045MatchDiagnostics = {
     exactMatches: number;
 };
 
+export type Dzen1045AbsenceProof = {
+    authenticated: true;
+    publishedCoverageComplete: boolean;
+    draftCoverageComplete: boolean;
+    publishedObjects: number;
+    draftObjects: number;
+    relevantPublishedTitleMatches: number;
+    relevantDraftTitleMatches: number;
+    relevantTitles: readonly string[];
+    checkedAt: string;
+};
+
 export function dzen1045AmbiguityError(diagnostics: Dzen1045MatchDiagnostics): Error {
     return new Error(`[DZEN1045_DRAFT_AMBIGUOUS] ${JSON.stringify(diagnostics)}`);
 }
@@ -100,6 +112,27 @@ async function coverBytes(draftId: string, coverId: string) {
     const bytes = Buffer.from(await response.arrayBuffer());
     if (bytes.length > 5_000_000) throw new Error('[DZEN1045_COVER_TOO_LARGE]');
     return bytes;
+}
+
+/** Exhaustive read-only inventory used before an owner-authorized new draft. */
+export async function inspectDzen1045Absence(page: Page): Promise<Dzen1045AbsenceProof> {
+    const listUrl = `https://dzen.ru/profile/editor/id/${DZEN1045.publisherId}/publications`;
+    const published = await enumerate(page, listUrl, 'published');
+    const drafts = await enumerate(page, listUrl, 'draft');
+    const relevantTitles = [DZEN1045.title, DZEN1045.publicTitle] as const;
+    const matches = (items: DzenStudioPublication[]) => items.filter(item =>
+        typeof item.title === 'string' && relevantTitles.includes(item.title as typeof relevantTitles[number])).length;
+    return {
+        authenticated: true,
+        publishedCoverageComplete: published.coverageComplete,
+        draftCoverageComplete: drafts.coverageComplete,
+        publishedObjects: published.publications.length,
+        draftObjects: drafts.publications.length,
+        relevantPublishedTitleMatches: matches(published.publications),
+        relevantDraftTitleMatches: matches(drafts.publications),
+        relevantTitles,
+        checkedAt: new Date().toISOString()
+    };
 }
 
 /** Locate and resume only the existing exact task1045 draft; never opens a composer or rewrites content. */

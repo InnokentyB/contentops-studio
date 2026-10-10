@@ -555,10 +555,11 @@ export class DzenTaskPublicationService {
         if (!connectorReady) throw new Error('[DZEN_CONNECTOR_NOT_READY] Channel requires enabled API publication and authenticated session');
         if (!spec.allowedStatuses.includes(task.status)) throw new Error('[DZEN_PUBLICATION_STATE_CHANGED]');
         const delivery = task.quality_report?.publication_task_delivery;
-        if (spec.taskId === 992 && delivery?.state === 'provider_result_uncertain') {
+        if ((spec.taskId === 992 || spec.taskId === 1045) && delivery?.state === 'provider_result_uncertain') {
             throw new Error('[DZEN_RETRY_NOT_AUTHORIZED] Reconcile the frozen provider attempt before retry');
         }
-        if (spec.taskId === 992 && delivery?.state === 'confirmed_absent_retry_authorized'
+        if ((spec.taskId === 992 || spec.taskId === 1045)
+            && delivery?.state === 'confirmed_absent_retry_authorized'
             && delivery?.authorized_idempotency_key !== key) {
             throw new Error('[DZEN_RETRY_NOT_AUTHORIZED] Use the single owner-authorized retry key');
         }
@@ -576,7 +577,9 @@ export class DzenTaskPublicationService {
                 status: 'publishing', quality_report: {
                     ...((task.quality_report as any) || {}),
                     publication_task_delivery: { state: 'provider_call_started', channel_type: 'dzen',
-                        idempotency_key: key, started_at: new Date().toISOString() }
+                        idempotency_key: key, started_at: new Date().toISOString(),
+                        ...(delivery?.prior_incident ? { prior_incident: delivery.prior_incident } : {}),
+                        ...(delivery?.absence_proof ? { absence_proof: delivery.absence_proof } : {}) }
                 }
             } });
             if (changed.count === 1) await tx.workflowEvent.create({ data: {
@@ -600,7 +603,9 @@ export class DzenTaskPublicationService {
                     ...((task.quality_report as any) || {}),
                     publication_task_delivery: { state: 'provider_result_uncertain', channel_type: 'dzen',
                         idempotency_key: key, retry_via_api: false,
-                        error: String(error?.message || error), failed_at: new Date().toISOString() }
+                        error: String(error?.message || error), failed_at: new Date().toISOString(),
+                        ...(delivery?.prior_incident ? { prior_incident: delivery.prior_incident } : {}),
+                        ...(delivery?.absence_proof ? { absence_proof: delivery.absence_proof } : {}) }
                 }
             } });
             throw new Error('[DZEN_PUBLICATION_UNCERTAIN] Provider result requires manual reconciliation; do not retry');
@@ -618,7 +623,9 @@ export class DzenTaskPublicationService {
                     publication_task_delivery: { state: 'provider_confirmed_fact_pending', channel_type: 'dzen',
                         idempotency_key: key, retry_via_api: false,
                         permalink: url, provider_object_id: providerId,
-                        failed_at: new Date().toISOString() }
+                        failed_at: new Date().toISOString(),
+                        ...(delivery?.prior_incident ? { prior_incident: delivery.prior_incident } : {}),
+                        ...(delivery?.absence_proof ? { absence_proof: delivery.absence_proof } : {}) }
                 }
             } });
             throw new Error('[DZEN_FACT_PENDING] Provider URL confirmed but fact write failed; reconcile without sending again');
@@ -633,7 +640,9 @@ export class DzenTaskPublicationService {
                 quality_report: { ...((task.quality_report as any) || {}),
                     publication_task_delivery: { state: 'provider_confirmed', channel_type: 'dzen',
                         idempotency_key: key, provider_object_id: providerId,
-                        permalink: url, completed_at: new Date().toISOString() } }
+                        permalink: url, completed_at: new Date().toISOString(),
+                        ...(delivery?.prior_incident ? { prior_incident: delivery.prior_incident } : {}),
+                        ...(delivery?.absence_proof ? { absence_proof: delivery.absence_proof } : {}) } }
             } });
             await tx.workflowEvent.create({ data: {
                 project_id: 10, content_item_id: spec.taskId, actor_id: spec.actor,

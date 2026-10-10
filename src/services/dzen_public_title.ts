@@ -10,6 +10,13 @@ export function publicDzenArticleTitle(taskId: number, acceptedBody: string | nu
         }
         return title;
     }
+    if (taskId === 1045) {
+        const title = acceptedBody?.split('\n')[0]?.trim();
+        if (title !== '46 тестов зелёные. Почему я всё равно не называю AI-продукт запущенным') {
+            throw new Error('[DZEN_PUBLIC_TITLE_CHANGED]');
+        }
+        return title;
+    }
     if (taskId !== 1031) return slotTitle;
     const title = acceptedBody?.split('\n')[0]?.trim();
     if (!title || title !== 'Как проверить новый формат урока без маркетинговой самооценки') {
