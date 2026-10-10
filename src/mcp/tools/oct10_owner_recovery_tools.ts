@@ -136,6 +136,13 @@ export function registerOct10OwnerRecoveryTools(server: McpServer): void {
         inputSchema: { projectId: z.literal(10), taskId: z.literal(1045), actorId: z.string().regex(/^user:\d+$/),
             idempotencyKey: z.string().min(1) }
     }, async args => asToolResult(await dzenTaskPublicationService.verifyConnector(args)));
+    server.registerTool('ba_reconcile_dzen_task1045_uncertain_attempt', {
+        description: 'Owner-only audited readback of the exact frozen Dzen1045 attempt. It inspects authenticated Studio state, returns one exact published permalink/provider ID, distinguishes a matching draft, and marks retry-safe only from explicit complete zero-match coverage. It never publishes, retries, or records a fact.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
+        inputSchema: { projectId: z.literal(10), taskId: z.literal(1045), actorId: z.string().regex(/^user:\d+$/),
+            expectedAttemptIdempotencyKey: z.literal('dzen-p10-1045-r4-asset129-recovery-20261010-01'),
+            idempotencyKey: z.string().min(1) }
+    }, async args => asToolResult(await dzenTaskPublicationService.reconcileTask1045(args)));
     server.registerTool('ba_preview_vk_task1048_api_promotion', {
         description: 'Owner-only exact read-only preview of task1048 promotion from the unclaimed browser item to canonical vk_api. Reports credential readiness without exposing secrets and never calls VK.',
         annotations: { readOnlyHint: true },
