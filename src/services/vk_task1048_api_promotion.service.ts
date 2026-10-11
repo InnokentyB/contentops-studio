@@ -4,7 +4,7 @@ import prisma from '../db';
 import { loadAgentWorkspaceManifest } from './agent_workspace_manifest.service';
 import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
 
-const MANIFEST = 'sha256:d5970e6b33d5f161a73f6ebc13fb5255f5a24be4f14251e57e5223ea03a2192f';
+const MANIFEST = 'sha256:6ceb5c1c2199d8c1915beeb622a9791ff9c1b877d02649c8e69acd0d173e46d8';
 const BODY_SHA = '5cc11b6f7a5d8a2abf7a10ca2d005bf6cdd1c010a97ebedcd49e1092d5b874ab';
 const ASSET_SHA = '1e7ef29ec003f18c242af5ca4d15d9f4990539ed905398a14df0d3071b4aa81e';
 const SCHEDULE = '2026-10-10T12:00:00.000Z';

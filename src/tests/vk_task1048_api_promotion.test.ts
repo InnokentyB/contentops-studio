@@ -2,6 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { previewVkTask1048Api, promoteVkTask1048Api, VK1048_MANIFEST } from '../services/vk_task1048_api_promotion.service';
 
+test('VK1048 promotion is pinned to the current project 10 manifest', () => {
+    assert.equal(VK1048_MANIFEST, 'sha256:6ceb5c1c2199d8c1915beeb622a9791ff9c1b877d02649c8e69acd0d173e46d8');
+});
+
 function fixture(ready: boolean) {
     const task: any = { id: 1048, project_id: 10, channel_id: 117,
         channel: { id: 117, name: 'analystcraft_vk_group', type: 'vk', is_active: true,
