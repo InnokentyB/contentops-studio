@@ -53,6 +53,8 @@ import { executeDzenTask1045PhaseC } from '../../services/dzen_task1045_phase_c.
 import { DZEN1045_PHASE_C_RECONCILE } from '../../services/dzen_task1045_phase_c_reconcile_contract';
 import { reconcileDzenTask1045PhaseCIncident } from '../../services/dzen_task1045_phase_c_reconcile.service';
 import { previewVkTask1048Api, promoteVkTask1048Api, VK1048_MANIFEST } from '../../services/vk_task1048_api_promotion.service';
+import { repairPersonalPublicationLanguage, PERSONAL_PUBLICATION_LANGUAGE_MANIFEST }
+    from '../../services/personal_publication_language_repair.service';
 import {
     releaseThreadsTask1046,
     THREADS1046_MANIFEST_CHECKSUM
@@ -482,4 +484,13 @@ export function registerOct10OwnerRecoveryTools(server: McpServer): void {
             expectedManifestChecksum: z.literal(VK1048_MANIFEST), approvalReference: z.string().min(10),
             idempotencyKey: z.string().min(1) }
     }, async args => asToolResult(await promoteVkTask1048Api(args)));
+    server.registerTool('ba_repair_personal_publication_language', {
+        description: 'Owner-only audited preview/apply of the exact English language metadata repair for p10 tasks1107/1108. It rematerializes only task and handoff content_language, preserves accepted bytes/revision/schedule/art state, and never releases or publishes.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
+        inputSchema: { projectId: z.literal(10), taskId: z.union([z.literal(1107), z.literal(1108)]),
+            actorId: z.string().regex(/^user:\d+$/),
+            expectedManifestChecksum: z.literal(PERSONAL_PUBLICATION_LANGUAGE_MANIFEST),
+            expectedBodySha256: z.string().length(64), expectedScheduleAt: z.string().datetime(),
+            idempotencyKey: z.string().min(1), confirm: z.boolean().optional().default(false) }
+    }, async args => asToolResult(await repairPersonalPublicationLanguage(args)));
 }
