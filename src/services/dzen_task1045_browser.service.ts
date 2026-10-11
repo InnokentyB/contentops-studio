@@ -16,6 +16,7 @@ import { probeDzen1045ExactEditorState } from './puppeteer/dzen1045_phase_a_v2_e
 import { publishDzen1045ExistingDraftOnce } from './puppeteer/dzen1045_phase_b';
 import { probeDzen1045PhaseBDialog } from './puppeteer/dzen1045_phase_b_dialog_probe';
 import { probeDzen1045EditorControlMap } from './puppeteer/dzen1045_editor_control_map';
+import { previewDzen1045PhaseC, publishDzen1045PhaseCOnce } from './puppeteer/dzen1045_phase_c';
 
 type Config = { cookies: string; channel_id: string };
 
@@ -106,4 +107,12 @@ export async function probeDzen1045PhaseBDialogInBrowser(config: Config, accepte
 }
 export async function probeDzen1045EditorControlMapInBrowser(config: Config, acceptedBody: string) {
     return withDzen1045Page(config, page => probeDzen1045EditorControlMap(page, acceptedBody));
+}
+export async function previewDzen1045PhaseCInBrowser(config: Config, acceptedBody: string) {
+    return withDzen1045Page(config, page => previewDzen1045PhaseC(page, acceptedBody));
+}
+export async function publishDzen1045PhaseCOnceInBrowser(config: Config, acceptedBody: string,
+    expectedDialogFingerprint: string) {
+    return withDzen1045Page(config,
+        page => publishDzen1045PhaseCOnce(page, acceptedBody, expectedDialogFingerprint));
 }
