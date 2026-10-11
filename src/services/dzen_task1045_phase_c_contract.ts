@@ -55,9 +55,11 @@ export async function runDzen1045PhaseC<T>(args: { confirm: boolean; idempotency
     }
     if (!args.confirm) return { mode: 'preview' as const, inspection };
     if (!inspection.uniqueFinalControl) throw new Error('[DZEN1045_PHASE_C_FINAL_CONTROL_NOT_EXACT]');
-    if (!args.expectedDialogFingerprint || args.expectedDialogFingerprint !== inspection.fingerprint) {
-        throw new Error('[DZEN1045_PHASE_C_DIALOG_FINGERPRINT_MISMATCH]');
-    }
+    if (!args.expectedDialogFingerprint) throw new Error('[DZEN1045_PHASE_C_DIALOG_FINGERPRINT_REQUIRED]');
+    if (args.expectedDialogFingerprint !== inspection.fingerprint) return {
+        mode: 'fingerprint_mismatch' as const, expectedDialogFingerprint: args.expectedDialogFingerprint,
+        observedDialogFingerprint: inspection.fingerprint, inspection
+    };
     if (!await ports.claim(inspection)) throw new Error('[DZEN1045_PHASE_C_ALREADY_CLAIMED]');
     const publication = await ports.submitOnce(inspection);
     if (publication.provider_object_id !== DZEN1045_PHASE_C.providerId || !publication.public_url
