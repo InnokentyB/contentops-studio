@@ -35,25 +35,25 @@ async function dismissKnownOverlays(page: Page): Promise<{ dismissed: string[]; 
                     && style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0; })) visible.push(close);
         }
         if (visible.length !== 1) throw new Error('[DZEN1045_PHASE_C_HELP_CLOSE_NOT_EXACT]');
-        await visible[0].click(); dismissed.push('article_help');
-        await page.waitForFunction(text => !Array.from(document.querySelectorAll('body *')).some(element => {
-            const node = element as HTMLElement; const rect = node.getBoundingClientRect(); const style = getComputedStyle(node);
-            const content = (node.innerText || '').replace(/\s+/g, ' ').trim();
-            return content.startsWith(text) && content.length < text.length + 300
-                && style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
-        }), { timeout: 3_000 }, HELP_TEXT).catch(() => null);
+        const helpRoot = await visible[0].evaluateHandle(element =>
+            element.closest('[role="dialog"], [aria-modal="true"]'));
+        await visible[0].click();
+        const closed = await page.waitForFunction(dialog => { const element = dialog as HTMLElement | null;
+            if (!element || !element.isConnected) return true; const rect = element.getBoundingClientRect();
+            const style = getComputedStyle(element); return style.display === 'none' || style.visibility === 'hidden'
+                || rect.width === 0 || rect.height === 0;
+        }, { timeout: 3_000 }, helpRoot).then(() => true).catch(() => false);
+        await helpRoot.dispose();
+        if (!closed) throw new Error(`[DZEN1045_PHASE_C_HELP_CLOSE_TIMEOUT] ${JSON.stringify({
+            source: 'exact_article_help_dialog', closeControl: 'aria-label=Закрыть', timeoutMs: 3000
+        })}`);
+        dismissed.push('article_help');
     }
     if (await visibleOverlay(page, PROMO_TEXT)) {
         await page.keyboard.press('Escape');
         await new Promise(resolve => setTimeout(resolve, 150));
         if (await visibleOverlay(page, PROMO_TEXT)) retained.push('article_promo');
         else dismissed.push('article_promo');
-    }
-    if (await visibleOverlay(page, HELP_TEXT)) {
-        throw new Error(`[DZEN1045_PHASE_C_OVERLAY_POSTCONDITION_FAILED] ${JSON.stringify({
-            helpVisible: true, promoVisible: await visibleOverlay(page, PROMO_TEXT),
-            dismissed, retained
-        })}`);
     }
     return { dismissed, retained };
 }
