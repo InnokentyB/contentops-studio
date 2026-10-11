@@ -33,7 +33,8 @@ import { reconcileDzenTask1045ZeroRestoreIncident } from '../../services/dzen_ta
 import { DZEN1045_PHASE_A } from '../../services/dzen_task1045_phase_a_contract';
 import { createDzenTask1045DurableDraftPhaseA } from '../../services/dzen_task1045_phase_a.service';
 import { DZEN1045_PHASE_A_PROBE } from '../../services/dzen_task1045_phase_a_probe_contract';
-import { probeDzenTask1045PhaseACreationContract } from '../../services/dzen_task1045_phase_a_probe.service';
+import { probeDzenTask1045PhaseACreationContract,
+    probeDzenTask1045PhaseACreationMenu } from '../../services/dzen_task1045_phase_a_probe.service';
 import { previewVkTask1048Api, promoteVkTask1048Api, VK1048_MANIFEST } from '../../services/vk_task1048_api_promotion.service';
 import {
     releaseThreadsTask1046,
@@ -329,6 +330,14 @@ export function registerOct10OwnerRecoveryTools(server: McpServer): void {
             expectedPhaseAIdempotencyKey: z.literal(DZEN1045_PHASE_A_PROBE.phaseAKey),
             expectedFailedAt: z.literal(DZEN1045_PHASE_A_PROBE.failedAt) }
     }, async args => asToolResult(await probeDzenTask1045PhaseACreationContract(args)));
+    server.registerTool('ba_probe_dzen_task1045_phase_a_creation_menu', {
+        description: 'Strict zero-write menu-discovery probe bound to the frozen task1045 Phase A incident. It clicks only the visible add-publication affordance once while browser-aborting every POST/PUT/PATCH/DELETE request, records the resulting menu/dialog/options/routes, and never selects a content type or creates an editor object.',
+        annotations: { readOnlyHint: true },
+        inputSchema: { projectId: z.literal(10), taskId: z.literal(1045), actorId: z.string().regex(/^user:\d+$/),
+            expectedManifestChecksum: z.literal(DZEN1045_RECOVERY_MANIFEST),
+            expectedPhaseAIdempotencyKey: z.literal(DZEN1045_PHASE_A_PROBE.phaseAKey),
+            expectedFailedAt: z.literal(DZEN1045_PHASE_A_PROBE.failedAt) }
+    }, async args => asToolResult(await probeDzenTask1045PhaseACreationMenu(args)));
     server.registerTool('ba_preview_vk_task1048_api_promotion', {
         description: 'Owner-only exact read-only preview of task1048 promotion from the unclaimed browser item to canonical vk_api. Reports credential readiness without exposing secrets and never calls VK.',
         annotations: { readOnlyHint: true },
