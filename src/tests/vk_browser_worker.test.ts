@@ -336,6 +336,26 @@ test('current VK community UI opens the wall composer through Create then Post',
     assert.deepEqual(calls, ['create_visible', 'create', 'post', 'editor_visible', 'editor']);
 });
 
+test('VK browser detects the provider anti-bot challenge by URL or verified challenge copy and control', async () => {
+    const locator = (copy: string) => ({ first: () => ({
+        innerText: async () => copy,
+        isVisible: async () => true
+    }) });
+    const byUrl = new PlaywrightVkBrowserUi({
+        url: () => 'https://vk.com/challenge.html?redirect=%2Fclub240051152',
+        locator: () => locator('') .first(),
+        getByRole: () => ({ first: () => ({ isVisible: async () => false }) })
+    } as any);
+    assert.equal(await byUrl.challengeRequired(), true);
+
+    const byCopy = new PlaywrightVkBrowserUi({
+        url: () => 'https://vk.com/club240051152',
+        locator: () => locator('Проверяем, что вы не робот'),
+        getByRole: () => ({ first: () => ({ isVisible: async () => true }) })
+    } as any);
+    assert.equal(await byCopy.challengeRequired(), true);
+});
+
 test('current VK community UI routes article, video and Story through distinct Create menu items', async () => {
     for (const placement of ['article', 'video', 'story'] as const) {
         const calls: string[] = [];
@@ -685,6 +705,38 @@ test('VK browser composer failure happens before a durable attempt or provider u
         /VK_BROWSER_COMPOSER_NOT_FOUND/
     );
     assert.deepEqual(calls, ['navigate', 'composer']);
+});
+
+test('VK browser challenge captures diagnostic evidence and fails before composer or durable attempt', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vk-worker-challenge-'));
+    const imagePath = path.join(root, 'approved.png');
+    fs.writeFileSync(imagePath, 'approved-image');
+    const calls: string[] = [];
+    await assert.rejects(
+        submitVkBrowserPublication(submitFixture(imagePath), {
+            approvedAssetRoots: [root], evidenceDir: path.join(root, 'evidence'),
+            ui: {
+                navigate: async () => { calls.push('navigate'); },
+                challengeRequired: async () => true,
+                loginRequired: async () => { calls.push('login'); return false; },
+                openWallComposer: async () => { calls.push('composer'); },
+                setPostText: async () => { calls.push('text'); },
+                attachImage: async () => { calls.push('upload'); },
+                captureScreenshot: async (file: string) => {
+                    calls.push('screenshot'); fs.writeFileSync(file, 'challenge-evidence');
+                },
+                submitPost: async () => { calls.push('submit'); },
+                readbackPost: async () => null
+            },
+            control: {
+                start: async () => { calls.push('start'); return { status: 'started' as const, attempt_id: 80 }; },
+                confirm: async () => ({ publication_fact_id: 1 }),
+                markUncertain: async () => { calls.push('uncertain'); }
+            }
+        }),
+        /VK_BROWSER_CHALLENGE_REQUIRED/
+    );
+    assert.deepEqual(calls, ['navigate', 'screenshot']);
 });
 
 test('VK browser submit never retries an existing unresolved provider attempt', async () => {

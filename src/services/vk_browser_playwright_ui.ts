@@ -15,6 +15,18 @@ export class PlaywrightVkBrowserUi implements VkBrowserUi {
         await this.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45_000 });
     }
 
+    async challengeRequired() {
+        if (/\/challenge\.html(?:\?|$)/i.test(this.page.url())) return true;
+        const body = await this.page.locator('body').first().innerText().catch(() => '');
+        if (!/проверяем, что вы не робот|verify (?:that )?you(?:'|’)re human|security check/i.test(body)) {
+            return false;
+        }
+        const continueButton = this.page.getByRole('button', {
+            name: /продолжить|continue|verify/i
+        }).first();
+        return continueButton.isVisible().catch(() => false);
+    }
+
     async loginRequired() {
         if (/\/login(?:\?|$)/i.test(this.page.url())) return true;
         const password = this.page.locator('input[type="password"], input[name="password"]').first();
