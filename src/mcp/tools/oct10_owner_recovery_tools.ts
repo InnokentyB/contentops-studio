@@ -38,7 +38,8 @@ import { probeDzenTask1045PhaseACreationContract,
 import { DZEN1045_PHASE_A_V2 } from '../../services/dzen_task1045_phase_a_v2_contract';
 import { createDzenTask1045DurableDraftPhaseAV2 } from '../../services/dzen_task1045_phase_a_v2.service';
 import { DZEN1045_PHASE_A_V2_RECONCILE } from '../../services/dzen_task1045_phase_a_v2_reconcile_contract';
-import { reconcileDzenTask1045PhaseAV2Incident } from '../../services/dzen_task1045_phase_a_v2_reconcile.service';
+import { probeDzenTask1045PhaseAV2EditorState,
+    reconcileDzenTask1045PhaseAV2Incident } from '../../services/dzen_task1045_phase_a_v2_reconcile.service';
 import { previewVkTask1048Api, promoteVkTask1048Api, VK1048_MANIFEST } from '../../services/vk_task1048_api_promotion.service';
 import {
     releaseThreadsTask1046,
@@ -369,6 +370,18 @@ export function registerOct10OwnerRecoveryTools(server: McpServer): void {
             idempotencyKey: z.literal(DZEN1045_PHASE_A_V2_RECONCILE.idempotencyKey),
             confirm: z.boolean().optional().default(false) }
     }, async args => asToolResult(await reconcileDzenTask1045PhaseAV2Incident(args)));
+    server.registerTool('ba_probe_dzen_task1045_phase_a_v2_editor_state', {
+        description: 'Strict zero-click, zero-provider-write probe of the exact task1045 Phase A V2 editor object. It opens the direct detail route, aborts every POST/PUT/PATCH/DELETE, verifies title/body/cover and reports visible Save/Next/Publish controls and GET network evidence without clicking anything.',
+        annotations: { readOnlyHint: true },
+        inputSchema: { projectId: z.literal(10), taskId: z.literal(1045),
+            actorId: z.string().regex(/^user:\d+$/),
+            expectedManifestChecksum: z.literal(DZEN1045_RECOVERY_MANIFEST),
+            expectedSourcePhaseAIdempotencyKey: z.literal(DZEN1045_PHASE_A_V2_RECONCILE.sourceKey),
+            expectedFailedAt: z.literal(DZEN1045_PHASE_A_V2_RECONCILE.failedAt),
+            expectedProviderId: z.literal(DZEN1045_PHASE_A_V2_RECONCILE.providerId),
+            expectedNumericProviderId: z.literal(DZEN1045_PHASE_A_V2_RECONCILE.numericProviderId),
+            expectedImageId: z.literal(DZEN1045_PHASE_A_V2_RECONCILE.imageId) }
+    }, async args => asToolResult(await probeDzenTask1045PhaseAV2EditorState(args)));
     server.registerTool('ba_preview_vk_task1048_api_promotion', {
         description: 'Owner-only exact read-only preview of task1048 promotion from the unclaimed browser item to canonical vk_api. Reports credential readiness without exposing secrets and never calls VK.',
         annotations: { readOnlyHint: true },

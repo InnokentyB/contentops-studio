@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { assertDzen1045PhaseAV2Incident, DZEN1045_PHASE_A_V2_RECONCILE,
     runDzen1045PhaseAV2Reconcile } from '../services/dzen_task1045_phase_a_v2_reconcile_contract';
 import { isDzen1045ReconcileWriteMethod } from '../services/puppeteer/dzen1045_phase_a_v2_reconcile';
+import { isDzen1045PersistenceControl } from '../services/puppeteer/dzen1045_phase_a_v2_editor_probe';
 
 const draft = { kind: 'exact_durable_draft' as const, draft: {
     draftId: DZEN1045_PHASE_A_V2_RECONCILE.providerId, coverId: 'cover',
@@ -63,4 +64,11 @@ test('v2 reconciliation mismatch or zero returns evidence without writes', async
         applyDraft: async () => { writes += 1; return {}; }, applyPublished: async () => { writes += 1; return {}; }
     });
     assert.equal(result.mode, 'evidence_only'); assert.equal(writes, 0);
+});
+
+test('exact editor probe classifies persistence and final-submit controls without conflating them', () => {
+    assert.equal(isDzen1045PersistenceControl('Сохранить черновик'), true);
+    assert.equal(isDzen1045PersistenceControl('Save'), true);
+    assert.equal(isDzen1045PersistenceControl('Опубликовать'), false);
+    assert.equal(isDzen1045PersistenceControl('Далее'), false);
 });

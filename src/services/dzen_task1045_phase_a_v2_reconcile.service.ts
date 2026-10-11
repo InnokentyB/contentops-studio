@@ -21,6 +21,10 @@ export type Dzen1045PhaseAV2ReconcileArgs = { projectId: 10; taskId: 1045; actor
     expectedImageId: typeof DZEN1045_PHASE_A_V2_RECONCILE.imageId;
     ownerAuthorizationReference: string;
     idempotencyKey: typeof DZEN1045_PHASE_A_V2_RECONCILE.idempotencyKey; confirm?: boolean };
+export type Dzen1045PhaseAV2EditorProbeArgs = Pick<Dzen1045PhaseAV2ReconcileArgs,
+    'projectId' | 'taskId' | 'actorId' | 'expectedManifestChecksum'
+    | 'expectedSourcePhaseAIdempotencyKey' | 'expectedFailedAt'
+    | 'expectedProviderId' | 'expectedNumericProviderId' | 'expectedImageId'>;
 function object(value: unknown): Record<string, unknown> {
     return value !== null && typeof value === 'object' && !Array.isArray(value)
         ? value as Record<string, unknown> : {};
@@ -63,6 +67,28 @@ async function recordFact(args: Dzen1045PhaseAV2ReconcileArgs, publication: Dzen
         providerObjectId: publication.provider_object_id, publishedAt: publication.published_at,
         confirmationMode: 'reconciled', evidence: { type: 'public_url', ref: publication.public_url },
         utmStatus: 'not_applicable', note: 'Exact read-only reconciliation of Dzen task1045 Phase A V2.' });
+}
+
+export async function probeDzenTask1045PhaseAV2EditorState(args: Dzen1045PhaseAV2EditorProbeArgs) {
+    const scoped: Dzen1045PhaseAV2ReconcileArgs = { ...args,
+        ownerAuthorizationReference: 'read-only exact editor probe',
+        idempotencyKey: DZEN1045_PHASE_A_V2_RECONCILE.idempotencyKey, confirm: false };
+    const userId = assertArgs(scoped);
+    const [member, manifest, task] = await Promise.all([
+        prisma.projectMember.findUnique({ where: { project_id_user_id: { project_id: 10, user_id: userId } } }),
+        loadAgentWorkspaceManifest(10, userId), loadTask()
+    ]);
+    if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
+    if (manifest.checksum !== DZEN1045_RECOVERY_MANIFEST) throw new Error('[STALE_MANIFEST]');
+    const guarded = assertTask(task);
+    const config = resolveEffectiveChannelConfig('dzen', guarded.task.channel!.config || {});
+    if (!config.cookies || String(config.channel_id || '') !== DZEN1045.publisherId) {
+        throw new Error('[DZEN1045_PHASE_A_V2_EDITOR_PROBE_CONNECTOR_NOT_READY]');
+    }
+    return { task_id: 1045, incident: { source_key: DZEN1045_PHASE_A_V2_RECONCILE.sourceKey,
+        failed_at: DZEN1045_PHASE_A_V2_RECONCILE.failedAt,
+        provider_id: DZEN1045_PHASE_A_V2_RECONCILE.providerId },
+    probe: await dzenService.probeTask1045ExactEditorState(config, guarded.task.draft_text || '') };
 }
 
 export async function reconcileDzenTask1045PhaseAV2Incident(args: Dzen1045PhaseAV2ReconcileArgs) {
