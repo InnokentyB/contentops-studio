@@ -40,6 +40,8 @@ import { createDzenTask1045DurableDraftPhaseAV2 } from '../../services/dzen_task
 import { DZEN1045_PHASE_A_V2_RECONCILE } from '../../services/dzen_task1045_phase_a_v2_reconcile_contract';
 import { probeDzenTask1045PhaseAV2EditorState,
     reconcileDzenTask1045PhaseAV2Incident } from '../../services/dzen_task1045_phase_a_v2_reconcile.service';
+import { DZEN1045_PHASE_B } from '../../services/dzen_task1045_phase_b_contract';
+import { publishDzenTask1045PhaseB } from '../../services/dzen_task1045_phase_b.service';
 import { previewVkTask1048Api, promoteVkTask1048Api, VK1048_MANIFEST } from '../../services/vk_task1048_api_promotion.service';
 import {
     releaseThreadsTask1046,
@@ -382,6 +384,19 @@ export function registerOct10OwnerRecoveryTools(server: McpServer): void {
             expectedNumericProviderId: z.literal(DZEN1045_PHASE_A_V2_RECONCILE.numericProviderId),
             expectedImageId: z.literal(DZEN1045_PHASE_A_V2_RECONCILE.imageId) }
     }, async args => asToolResult(await probeDzenTask1045PhaseAV2EditorState(args)));
+    server.registerTool('ba_publish_dzen_task1045_phase_b_existing_draft', {
+        description: 'Owner-only exact one-shot Phase B for the existing task1045 Dzen draft ID. Rechecks direct draft state, exact title/body/cover and one enabled article-publish control, claims a fresh idempotency key, clicks that control exactly once, then requires canonical permalink plus exact public identity/body/cover before recording the fact and checkpoints. Never creates or autosaves another object; uncertain outcome freezes retry.',
+        annotations: EXTERNAL_PUBLICATION_ANNOTATIONS,
+        inputSchema: { projectId: z.literal(10), taskId: z.literal(1045),
+            actorId: z.string().regex(/^user:\d+$/),
+            expectedManifestChecksum: z.literal(DZEN1045_RECOVERY_MANIFEST),
+            expectedSourcePhaseAIdempotencyKey: z.literal(DZEN1045_PHASE_B.sourceKey),
+            expectedSourceFailedAt: z.literal(DZEN1045_PHASE_B.sourceFailedAt),
+            expectedProviderId: z.literal(DZEN1045_PHASE_B.providerId),
+            ownerAuthorizationReference: z.string().min(10),
+            idempotencyKey: z.literal(DZEN1045_PHASE_B.idempotencyKey),
+            confirm: z.boolean().optional().default(false) }
+    }, async args => asToolResult(await publishDzenTask1045PhaseB(args)));
     server.registerTool('ba_preview_vk_task1048_api_promotion', {
         description: 'Owner-only exact read-only preview of task1048 promotion from the unclaimed browser item to canonical vk_api. Reports credential readiness without exposing secrets and never calls VK.',
         annotations: { readOnlyHint: true },
