@@ -13,6 +13,7 @@ import { probeDzen1045CreationMenu } from './puppeteer/dzen1045_phase_a_menu_pro
 import { createDzen1045DurableDraftPhaseAV2 } from './puppeteer/dzen1045_phase_a_v2';
 import { inspectDzen1045PhaseAV2Incident } from './puppeteer/dzen1045_phase_a_v2_reconcile';
 import { probeDzen1045ExactEditorState } from './puppeteer/dzen1045_phase_a_v2_editor_probe';
+import { publishDzen1045ExistingDraftOnce } from './puppeteer/dzen1045_phase_b';
 
 type Config = { cookies: string; channel_id: string };
 
@@ -94,4 +95,7 @@ export async function inspectDzen1045PhaseAV2IncidentInBrowser(config: Config, a
 }
 export async function probeDzen1045ExactEditorStateInBrowser(config: Config, acceptedBody: string) {
     return withDzen1045Page(config, page => probeDzen1045ExactEditorState(page, acceptedBody));
+}
+export async function publishDzen1045ExistingDraftOnceInBrowser(config: Config, acceptedBody: string) {
+    return withDzen1045Page(config, page => publishDzen1045ExistingDraftOnce(page, acceptedBody));
 }
