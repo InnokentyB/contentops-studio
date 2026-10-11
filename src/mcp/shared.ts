@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { registerVkSearchTools } from './tools/vk_search_tools';
 import prisma, { pool } from '../db';
 import workQueueService from '../services/work_queue.service';
+import { repairTask1051ReviewCollision } from '../services/task1051_review_collision.service';
 import { filterMcpServerTools, McpCapabilityProfile } from './capabilities';
 import {
     asToolResult,
@@ -96,6 +97,26 @@ export function registerPlannerTools(server: McpServer): void {
         const result = await workQueueService.recoverContentReview(args);
         return asToolResult(result);
     });
+
+    server.registerTool('ba_repair_task1051_review_collision', {
+        description: 'Owner-authorized Editor repair for the exact task 1051 review-version collision. Preview or atomically supersede WI1731 and create one claimable revision-2 replacement; never changes copy, schedule, acceptance, art history, release state or publication state.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
+        inputSchema: {
+            projectId: z.literal(10),
+            taskId: z.literal(1051),
+            workItemId: z.literal(1731),
+            actorId: z.string(),
+            expectedContentRevision: z.literal(2),
+            expectedAcceptedRevision: z.null(),
+            expectedBodySha256: z.literal('d96eba545e5062bb339fef56c7e0ef7de39807c7892c7c46d461ef2c02b24d5e'),
+            expectedScheduleAt: z.literal('2026-10-11T16:30:00.000Z'),
+            expectedResultVersion: z.literal(2),
+            expectedInputContextVersion: z.literal(2),
+            idempotencyKey: z.literal('repair-p10-task1051-review-collision-20261011-v1'),
+            reason: z.string().min(1),
+            confirm: z.boolean()
+        }
+    }, async (args) => asToolResult(await repairTask1051ReviewCollision(args)));
 
     // Explicit contract test anchors: ba_repair_publication_projection
     server.registerTool('ba_repair_publication_projection', {
