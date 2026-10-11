@@ -8,6 +8,12 @@ export const DZEN1045_PHASE_B_RECONCILE = {
     providerId: DZEN1045_PHASE_B.providerId,
     idempotencyKey: 'dzen-p10-1045-r4-asset129-phase-b-reconcile-20261011-01'
 } as const;
+export const DZEN1045_PHASE_B_DIALOG_PROBE = {
+    tool: 'ba_probe_dzen_task1045_phase_b_dialog_contract',
+    idempotencyKey: 'dzen-p10-1045-r4-asset129-phase-b-dialog-probe-20261011-01',
+    sourceReconcileKey: DZEN1045_PHASE_B_RECONCILE.idempotencyKey,
+    recordedAt: '2026-10-11T19:38:23.170Z'
+} as const;
 export type Dzen1045PhaseBInspection =
     | { kind: 'exact_public'; publication: Dzen1045SecondAttemptPublication; evidence: Record<string, unknown> }
     | { kind: 'exact_draft' | 'ambiguous'; evidence: Record<string, unknown> };
