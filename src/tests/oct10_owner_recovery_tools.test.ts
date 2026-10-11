@@ -115,6 +115,7 @@ test('Planner can run the owner-guarded Telegram repair while release/send stay 
         'ba_release_linkedin_task1072_personal_browser', 'ba_claim_linkedin_task1072_browser_publication',
         'ba_release_threads_task1043_api', 'ba_publish_threads_task1043',
         'ba_release_threads_task1046_api', 'ba_publish_threads_task1046',
+        'ba_release_threads_task1051_recovery', 'ba_publish_threads_task1051',
         'ba_release_telegram_task1099_personal_story',
         'ba_publish_telegram_task1099_personal_story',
         'ba_release_dzen_task1045', 'ba_verify_dzen_task1045_connector',
@@ -122,6 +123,7 @@ test('Planner can run the owner-guarded Telegram repair while release/send stay 
         'ba_reconcile_or_resume_dzen_task1045_draft',
         'ba_authorize_dzen_task1045_new_draft_retry',
         'ba_reconcile_or_resume_dzen_task1045_second_attempt',
+        'ba_restore_dzen_task1045_after_zero_inventory',
         'ba_preview_vk_task1048_api_promotion', 'ba_apply_vk_task1048_api_promotion'];
     for (const tool of tools) {
         assert.equal(isToolAllowedForProfile('owner', tool), true);

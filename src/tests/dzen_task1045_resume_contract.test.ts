@@ -4,7 +4,7 @@ import { DZEN1045, Dzen1045DraftProof, runDzen1045DraftResume } from '../service
 import { dzen1045AmbiguityError, dzen1045Pagination } from '../services/puppeteer/dzen1045_existing_draft';
 
 const proof: Dzen1045DraftProof = { draftId: '6ac547ad5113b334aeff83d2', coverId: 'cover1',
-    title: DZEN1045.title, bodySha256: DZEN1045.bodySha, coverSha256: DZEN1045.assetSha,
+    title: DZEN1045.publicTitle, bodySha256: DZEN1045.bodySha, coverSha256: DZEN1045.assetSha,
     publishedMatches: 0, publishedCoverageComplete: true, draftMatches: 1,
     draftCoverageComplete: true, finalControlReady: true };
 

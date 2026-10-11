@@ -31,7 +31,7 @@ export type Dzen1045DraftProof = {
 
 export function assertDzen1045DraftProof(proof: Dzen1045DraftProof): void {
     if (!/^[a-f0-9]{16,64}$/.test(proof.draftId) || !proof.coverId
-        || proof.title !== DZEN1045.title || proof.bodySha256 !== DZEN1045.bodySha
+        || proof.title !== DZEN1045.publicTitle || proof.bodySha256 !== DZEN1045.bodySha
         || proof.coverSha256 !== DZEN1045.assetSha || proof.publishedMatches !== 0
         || !proof.publishedCoverageComplete || proof.draftMatches !== 1
         || !proof.draftCoverageComplete || !proof.finalControlReady) {

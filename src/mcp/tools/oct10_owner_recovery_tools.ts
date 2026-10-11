@@ -26,11 +26,17 @@ import {
 } from '../../services/dzen_task1045_new_draft_recovery.service';
 import { reconcileOrResumeDzenTask1045SecondAttempt } from '../../services/dzen_task1045_second_attempt_recovery.service';
 import { DZEN1045_SECOND_ATTEMPT } from '../../services/dzen_task1045_second_attempt_contract';
+import { DZEN1045_ZERO_RESTORE } from '../../services/dzen_task1045_zero_restore_contract';
+import { restoreDzenTask1045AfterZeroInventory } from '../../services/dzen_task1045_zero_restore.service';
 import { previewVkTask1048Api, promoteVkTask1048Api, VK1048_MANIFEST } from '../../services/vk_task1048_api_promotion.service';
 import {
     releaseThreadsTask1046,
     THREADS1046_MANIFEST_CHECKSUM
 } from '../../services/threads_task1046_release.service';
+import {
+    releaseThreadsTask1051,
+    THREADS1051_SPEC
+} from '../../services/threads_task1051_release.service';
 import {
     repairTelegramTask1099Story,
     releaseTelegramTask1099Story,
@@ -106,6 +112,12 @@ export const threads1046ReleaseSchema = z.object({
     expectedSelectedAssetId: z.literal(132),
     expectedAssetSha256: z.literal('1b9177bbdc77a4d29f0c950f14f85f16f018c2a45544aa8f75ff6e8f00db2e03'),
     expectedScheduleAt: z.literal('2026-10-10T16:30:00.000Z'),
+    approvalReference: z.string().min(10), idempotencyKey: z.string().min(1)
+});
+
+export const threads1051ReleaseSchema = z.object({
+    projectId: z.literal(10), taskId: z.literal(1051), actorId: z.string().regex(/^user:\d+$/),
+    expectedManifestChecksum: z.literal(THREADS1051_SPEC.manifestChecksum),
     approvalReference: z.string().min(10), idempotencyKey: z.string().min(1)
 });
 
@@ -203,6 +215,16 @@ export function registerOct10OwnerRecoveryTools(server: McpServer): void {
         inputSchema: { projectId: z.literal(10), taskId: z.literal(1046), dryRun: z.boolean().optional().default(true),
             idempotencyKey: z.string().min(1).optional() }
     }, async args => asToolResult(await threadsTaskPublicationService.execute(args)));
+    server.registerTool('ba_release_threads_task1051_recovery', {
+        description: 'Owner-only audited release of exact p10 Threads task1051 revision2 as text-only content. Verifies the expected personal Threads identity, bounded provider history, original slot, decision282 and absence of prior attempts. Never publishes.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: threads1051ReleaseSchema.shape
+    }, async args => asToolResult(await releaseThreadsTask1051(args)));
+    server.registerTool('ba_publish_threads_task1051', {
+        description: 'Exact dry-run or explicit one-shot API publication of owner-released Threads task1051. Dry-run and live share the same payload; uncertain provider results freeze retry and record no publication fact.',
+        annotations: EXTERNAL_PUBLICATION_ANNOTATIONS,
+        inputSchema: { projectId: z.literal(10), taskId: z.literal(1051), dryRun: z.boolean().optional().default(true),
+            idempotencyKey: z.string().min(1).optional() }
+    }, async args => asToolResult(await threadsTaskPublicationService.execute(args)));
     server.registerTool('ba_repair_telegram_task1099_story_placement', {
         description: 'Owner-only audited exact correction of p10 task1099 from the legacy feed projection to the initiative296 personal Telegram Story contract. Preserves accepted caption, asset134, schedule and history; refuses facts or attempts and never publishes.',
         annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: telegram1099RepairSchema.shape
@@ -258,6 +280,18 @@ export function registerOct10OwnerRecoveryTools(server: McpServer): void {
             idempotencyKey: z.literal(DZEN1045_SECOND_ATTEMPT.resumeKey),
             confirm: z.boolean().optional().default(false) }
     }, async args => asToolResult(await reconcileOrResumeDzenTask1045SecondAttempt(args)));
+    server.registerTool('ba_restore_dzen_task1045_after_zero_inventory', {
+        description: 'Owner-only exact task1045 recovery after exhaustive zero readback. Preview is read-only. confirm=true CAS-claims one recovery, rechecks authenticated inventory, creates at most one draft, requires durable title/body/cover readback, and performs at most one final submit. Replays never resend.',
+        annotations: EXTERNAL_PUBLICATION_ANNOTATIONS,
+        inputSchema: { projectId: z.literal(10), taskId: z.literal(1045),
+            actorId: z.string().regex(/^user:\d+$/),
+            expectedManifestChecksum: z.literal(DZEN1045_RECOVERY_MANIFEST),
+            expectedAttemptIdempotencyKey: z.literal(DZEN1045_SECOND_ATTEMPT.attemptKey),
+            expectedFailedAt: z.literal(DZEN1045_SECOND_ATTEMPT.failedAt),
+            ownerAuthorizationReference: z.string().min(10),
+            idempotencyKey: z.literal(DZEN1045_ZERO_RESTORE.idempotencyKey),
+            confirm: z.boolean().optional().default(false) }
+    }, async args => asToolResult(await restoreDzenTask1045AfterZeroInventory(args)));
     server.registerTool('ba_preview_vk_task1048_api_promotion', {
         description: 'Owner-only exact read-only preview of task1048 promotion from the unclaimed browser item to canonical vk_api. Reports credential readiness without exposing secrets and never calls VK.',
         annotations: { readOnlyHint: true },

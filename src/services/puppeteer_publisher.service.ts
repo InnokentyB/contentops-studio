@@ -108,7 +108,7 @@ class PuppeteerPublisherService {
             : (config.article_editor_url || 'https://dzen.ru/studio/editor/create/article');
     }
 
-    private async openDzenComposer(
+    async openDzenComposer(
         page: Page,
         config: DzenPublishConfig,
         publicationType: DzenPublicationType
@@ -198,7 +198,7 @@ class PuppeteerPublisherService {
         }
     }
 
-    private async assertDzenAuthenticated(page: Page) {
+    async assertDzenAuthenticated(page: Page) {
         const currentUrl = page.url();
         const pageText = await page.evaluate(() => document.body?.innerText || '').catch(() => '');
         if (
@@ -217,7 +217,7 @@ class PuppeteerPublisherService {
         return canonicalPublicDzenUrl(value) !== null;
     }
 
-    private async uploadDzenImage(page: Page, imageUrl: string) {
+    async uploadDzenImage(page: Page, imageUrl: string) {
         const url = new URL(imageUrl);
         if (url.protocol !== 'https:' || url.username || url.password) {
             throw new Error('Dzen image URL must be an authenticated-free HTTPS URL');
