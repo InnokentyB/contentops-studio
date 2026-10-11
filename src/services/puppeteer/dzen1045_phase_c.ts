@@ -13,13 +13,6 @@ const HELP_TEXT = 'Статья — это в первую очередь тек
 const PROMO_TEXT = 'Новые функции в статье';
 const FINAL_LABEL = /^(?:опубликовать|publish)$/i;
 
-export function isDzen1045PromoCloseGeometry(overlay: { x: number; y: number; width: number; height: number },
-    candidate: { x: number; y: number; width: number; height: number }): boolean {
-    return candidate.width > 0 && candidate.height > 0 && candidate.width <= 48 && candidate.height <= 48
-        && candidate.x >= overlay.x + overlay.width - 60 && candidate.x + candidate.width <= overlay.x + overlay.width + 8
-        && candidate.y >= overlay.y && candidate.y <= overlay.y + 60;
-}
-
 async function visibleOverlay(page: Page, needle: string): Promise<boolean> {
     return page.evaluate(text => Array.from(document.querySelectorAll('body *')).some(element => {
         const node = element as HTMLElement; const rect = node.getBoundingClientRect(); const style = getComputedStyle(node);
@@ -30,8 +23,8 @@ async function visibleOverlay(page: Page, needle: string): Promise<boolean> {
     }), needle);
 }
 
-async function dismissKnownOverlays(page: Page): Promise<string[]> {
-    const dismissed: string[] = [];
+async function dismissKnownOverlays(page: Page): Promise<{ dismissed: string[]; retained: string[] }> {
+    const dismissed: string[] = []; const retained: string[] = [];
     if (await visibleOverlay(page, HELP_TEXT)) {
         const closes = await page.$$('[aria-label="Закрыть"]');
         const visible = [];
@@ -47,33 +40,13 @@ async function dismissKnownOverlays(page: Page): Promise<string[]> {
     if (await visibleOverlay(page, PROMO_TEXT)) {
         await page.keyboard.press('Escape');
         await new Promise(resolve => setTimeout(resolve, 150));
-        if (await visibleOverlay(page, PROMO_TEXT)) {
-            const closed = await page.evaluate(text => {
-                const candidates = Array.from(document.querySelectorAll<HTMLElement>('body *')).filter(element => {
-                    const rect = element.getBoundingClientRect(); const style = getComputedStyle(element);
-                    return (element.innerText || '').includes(text) && rect.width > 250 && rect.height > 200
-                        && style.display !== 'none' && style.visibility !== 'hidden';
-                }).sort((a, b) => a.getBoundingClientRect().width - b.getBoundingClientRect().width);
-                const overlay = candidates[0]; if (!overlay) return false;
-                const overlayRect = overlay.getBoundingClientRect();
-                const descendants = Array.from(overlay.querySelectorAll<HTMLElement>('*'));
-                const close = descendants.find(element => { const label = `${element.innerText || ''} ${element.getAttribute('aria-label') || ''} ${element.getAttribute('title') || ''}`.trim();
-                    const rect = element.getBoundingClientRect(); const geometric = rect.width > 0 && rect.height > 0
-                        && rect.width <= 48 && rect.height <= 48 && rect.x >= overlayRect.right - 60
-                        && rect.right <= overlayRect.right + 8 && rect.y >= overlayRect.top && rect.y <= overlayRect.top + 60;
-                    return /^(?:×|✕|закрыть|close)$/i.test(label) || geometric; })
-                    || document.elementFromPoint(overlayRect.right - 24, overlayRect.top + 24) as HTMLElement | null;
-                if (!close || !overlay.contains(close)) return false;
-                close.click(); return true;
-            }, PROMO_TEXT);
-            if (!closed) throw new Error('[DZEN1045_PHASE_C_PROMO_CLOSE_NOT_FOUND]');
-        }
-        dismissed.push('article_promo');
+        if (await visibleOverlay(page, PROMO_TEXT)) retained.push('article_promo');
+        else dismissed.push('article_promo');
     }
-    if (await visibleOverlay(page, HELP_TEXT) || await visibleOverlay(page, PROMO_TEXT)) {
+    if (await visibleOverlay(page, HELP_TEXT)) {
         throw new Error('[DZEN1045_PHASE_C_OVERLAY_POSTCONDITION_FAILED]');
     }
-    return dismissed;
+    return { dismissed, retained };
 }
 
 async function exactHeaderControl(page: Page): Promise<ElementHandle<Element>> {
@@ -126,7 +99,8 @@ async function capturePublishDialog(page: Page): Promise<{ dialog: Dzen1045Publi
 }
 
 async function prepare(page: Page, acceptedBody: string, blockWrites: boolean): Promise<Dzen1045DialogInspection & {
-    final: ElementHandle<Element>; blockedWrites: Array<{ method: string; path: string }>; dismissedOverlays: string[] }> {
+    final: ElementHandle<Element>; blockedWrites: Array<{ method: string; path: string }>;
+    dismissedOverlays: string[]; retainedOverlays: string[] }> {
     const blockedWrites: Array<{ method: string; path: string }> = [];
     if (blockWrites) { await page.setRequestInterception(true); page.on('request', request => { const method = request.method().toUpperCase();
         let url: URL; try { url = new URL(request.url()); } catch { void request.continue(); return; }
@@ -134,10 +108,11 @@ async function prepare(page: Page, acceptedBody: string, blockWrites: boolean): 
         void request.continue(); }); }
     const observed = await readDzen1045EditorPackage(page, DZEN1045_PHASE_C.providerId, acceptedBody);
     if (!dzen1045PackageMatches(observed)) throw new Error('[DZEN1045_PHASE_C_EXACT_DRAFT_REQUIRED]');
-    const dismissedOverlays = await dismissKnownOverlays(page); const header = await exactHeaderControl(page);
+    const overlays = await dismissKnownOverlays(page); const header = await exactHeaderControl(page);
     await header.click(); const captured = await capturePublishDialog(page); const fingerprint = dzen1045DialogFingerprint(captured.dialog);
     return { dialog: captured.dialog, fingerprint, exactDraft: true, finalConfirmationClicks: 0,
-        providerWrites: 0, final: captured.final, blockedWrites, dismissedOverlays };
+        providerWrites: 0, final: captured.final, blockedWrites,
+        dismissedOverlays: overlays.dismissed, retainedOverlays: overlays.retained };
 }
 
 export async function previewDzen1045PhaseC(page: Page, acceptedBody: string) {
@@ -145,6 +120,7 @@ export async function previewDzen1045PhaseC(page: Page, acceptedBody: string) {
     return { dialog: inspected.dialog, fingerprint: inspected.fingerprint, exactDraft: true as const,
         finalConfirmationClicks: 0 as const, providerWrites: 0 as const,
         blockedWrites: inspected.blockedWrites, dismissedOverlays: inspected.dismissedOverlays,
+        retainedOverlays: inspected.retainedOverlays,
         checkedAt: new Date().toISOString() };
 }
 
