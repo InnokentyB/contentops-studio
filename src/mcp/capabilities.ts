@@ -191,6 +191,7 @@ const PUBLISHER_TOOLS = new Set([
     'ba_reconcile_or_resume_dzen_task1045_second_attempt',
     'ba_restore_dzen_task1045_after_zero_inventory',
     'ba_reconcile_dzen_task1045_zero_restore_incident',
+    'ba_create_dzen_task1045_durable_draft_phase_a',
     'ba_preview_vk_task1048_api_promotion',
     'ba_apply_vk_task1048_api_promotion',
     'ba_hold_vk_task1084',
