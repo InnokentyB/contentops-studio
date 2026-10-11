@@ -161,6 +161,7 @@ const PUBLISHER_TOOLS = new Set([
     'ba_release_linkedin_task1090_browser',
     'ba_release_dzen_task1036',
     'ba_verify_dzen_task1036_connector',
+    'ba_reconcile_dzen_task1036_uncertain_attempt',
     'ba_release_approved_threads_task1035',
     'ba_release_approved_threads_task1040',
     'ba_release_x_task1033_browser',

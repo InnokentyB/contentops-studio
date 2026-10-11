@@ -70,6 +70,29 @@ const TASKS = {
 } as const;
 
 const DZEN_992_RECOVERY_COMMAND = 'ba_confirm_dzen_task992_absent_and_authorize_retry';
+const DZEN_1036_INCIDENT_KEY = 'dzen-1036-publish-20261008T113000Z';
+const DZEN_1036_RECONCILE_COMMAND = 'ba_reconcile_dzen_task1036_uncertain_attempt';
+const DZEN_1036_PUBLIC_TITLE = '65% решений автоматизировано. Почему этого мало для оценки системы';
+
+function jsonRecord(value: unknown): Record<string, unknown> {
+    return value !== null && typeof value === 'object' && !Array.isArray(value)
+        ? value as Record<string, unknown>
+        : {};
+}
+
+function normalizedDzenTitle(value: string): string {
+    return value.normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleLowerCase('ru');
+}
+
+function canonicalDzenProviderIdentity(publicUrl: string | null, providerObjectId: string | null): boolean {
+    if (!publicUrl || !providerObjectId || !isDzenPublishedUrl(publicUrl)) return false;
+    try {
+        const segments = new URL(publicUrl).pathname.split('/').filter(Boolean);
+        return segments.length === 2 && segments[0] === 'a' && segments[1] === providerObjectId;
+    } catch {
+        return false;
+    }
+}
 
 function taskSpec(taskId: number) {
     const spec = TASKS[taskId as keyof typeof TASKS];
@@ -115,6 +138,129 @@ type Dependencies = {
 
 export class DzenTaskPublicationService {
     constructor(private readonly dependencies: Dependencies) {}
+
+    /** Provider-read-only reconciliation for the single frozen Dzen #1036 attempt. */
+    async reconcileTask1036(args: { projectId: 10; taskId: 1036; actorId: string;
+        expectedAttemptEventId: 2597; expectedAttemptIdempotencyKey: typeof DZEN_1036_INCIDENT_KEY;
+        idempotencyKey: string; confirm?: boolean }) {
+        if (args.projectId !== 10 || args.taskId !== 1036 || args.expectedAttemptEventId !== 2597
+            || args.expectedAttemptIdempotencyKey !== DZEN_1036_INCIDENT_KEY || !args.idempotencyKey.trim()) {
+            throw new Error('[DZEN_1036_RECONCILIATION_SCOPE_MISMATCH]');
+        }
+        const actor = /^user:(\d+)$/.exec(args.actorId);
+        if (!actor) throw new Error('[OWNER_REQUIRED]');
+        const { db, dzen, facts } = this.dependencies;
+        const member = await db.projectMember.findUnique({ where: { project_id_user_id: {
+            project_id: 10, user_id: Number(actor[1])
+        } } });
+        if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
+        const prior = await db.workflowEvent.findUnique({ where: {
+            project_id_actor_id_command_idempotency_key: { project_id: 10, actor_id: args.actorId,
+                command: DZEN_1036_RECONCILE_COMMAND, idempotency_key: args.idempotencyKey }
+        } });
+        if (prior?.after_state) return { ...prior.after_state, replayed: true };
+
+        const task = await db.contentItem.findFirst({ where: { id: 1036, project_id: 10 },
+            include: { channel: true, selected_asset: true, publication_fact: true } });
+        const spec = taskSpec(1036);
+        const quality = jsonRecord(task?.quality_report);
+        const delivery = jsonRecord(quality.publication_task_delivery);
+        const provenance = jsonRecord(task?.selected_asset?.provenance);
+        const storage = jsonRecord(provenance.planner_storage);
+        const selectedAssetSha = String(storage.sha256 || provenance.sha256 || '');
+        const bodyHash = (this.dependencies.hashBody
+            || ((body: string) => createHash('sha256').update(body).digest('hex')))(task?.draft_text || '');
+        const [claim, decision] = await Promise.all([
+            db.workflowEvent.findFirst({ where: { id: 2597, project_id: 10, content_item_id: 1036,
+                command: spec.claimCommand, idempotency_key: DZEN_1036_INCIDENT_KEY } }),
+            db.artDirectionDecision.findFirst({ where: { id: 253, project_id: 10, content_item_id: 1036,
+                source_content_revision: 2, decision: 'GENERATE', status: 'active' } })
+        ]);
+        const claimAfter = jsonRecord(claim?.after_state);
+        if (!task || task.channel_id !== 116 || task.channel?.type !== 'dzen' || task.channel.is_active !== true
+            || task.status !== 'publishing' || task.publication_mode !== 'owner_released'
+            || task.content_revision !== 2 || task.accepted_revision !== 2 || task.text_state !== 'accepted'
+            || task.handoff_state !== 'ready' || task.title !== 'W41 allocation #16 — Dzen'
+            || publicDzenArticleTitle(1036, task.draft_text, task.title) !== DZEN_1036_PUBLIC_TITLE
+            || bodyHash !== spec.bodySha256 || task.visual_state !== 'APPROVED'
+            || task.visual_placement !== 'article_cover' || task.visual_decision_version !== 1
+            || task.selected_asset_id !== 122 || task.selected_asset?.id !== 122
+            || task.selected_asset?.decision_id !== 253 || task.selected_asset?.status !== 'approved'
+            || task.selected_asset?.content_revision !== 2 || selectedAssetSha !== spec.assetSha256
+            || task.schedule_at?.toISOString() !== '2026-10-08T11:30:00.000Z'
+            || task.publish_at?.toISOString() !== '2026-10-08T11:30:00.000Z'
+            || task.publication_fact || task.published_link || !decision
+            || delivery.state !== 'provider_result_uncertain'
+            || delivery.idempotency_key !== DZEN_1036_INCIDENT_KEY || delivery.retry_via_api !== false
+            || claim?.id !== 2597 || claim?.actor_id !== 'system:planner-mcp:dzen-task1036'
+            || claimAfter.status !== 'publishing' || claimAfter.channel_id !== 116) {
+            throw new Error('[DZEN_1036_RECONCILIATION_GUARD_FAILED] Exact frozen attempt changed');
+        }
+        const config = resolveEffectiveChannelConfig('dzen', task.channel.config || {});
+        if (!String(config.cookies || '').trim() || !String(config.channel_id || '').trim()) {
+            throw new Error('[DZEN_CONNECTOR_NOT_READY] Missing authenticated session or channel ID');
+        }
+
+        let check: Awaited<ReturnType<Dependencies['dzen']['readStudioPublications']>> | null = null;
+        let providerReadFailed = false;
+        try {
+            check = await dzen.readStudioPublications(config);
+        } catch {
+            providerReadFailed = true;
+        }
+        const complete = !providerReadFailed && check?.authenticated === true
+            && check.editor_available === true && check.publications_payload_received === true
+            && check.title_readback_complete === true && check.publication_timestamp_readback_complete === true
+            && check.state_readback_complete === true && check.coverage_complete === true
+            && Array.isArray(check.publications);
+        const publications = complete ? check!.publications : [];
+        const titleMatches = publications.filter(item => typeof item.title === 'string'
+            && normalizedDzenTitle(item.title) === normalizedDzenTitle(DZEN_1036_PUBLIC_TITLE));
+        const publishedMatches = titleMatches.filter(item => item.state === 'published'
+            && Boolean(item.published_at)
+            && canonicalDzenProviderIdentity(item.public_url, item.provider_object_id));
+        const draftMatches = titleMatches.filter(item => item.state === 'draft'
+            && !item.public_url && !item.published_at && Boolean(item.provider_object_id));
+        const classification = complete && titleMatches.length === 1 && publishedMatches.length === 1
+            ? 'exact_published_match'
+            : complete && titleMatches.length === 1 && draftMatches.length === 1
+                ? 'exact_draft_match'
+                : complete && titleMatches.length === 0 ? 'confirmed_absent' : 'inconclusive';
+        const published = classification === 'exact_published_match' ? publishedMatches[0] : null;
+        const result = { task_id: 1036, channel_id: 116, content_revision: 2, accepted_revision: 2,
+            body_sha256: spec.bodySha256, visual_decision_id: 253, selected_asset_id: 122,
+            asset_sha256: spec.assetSha256, prior_attempt_event_id: 2597,
+            previous_idempotency_key: DZEN_1036_INCIDENT_KEY, classification,
+            public_url: published?.public_url || null, provider_object_id: published?.provider_object_id || null,
+            published_at: published?.published_at || null,
+            exact_title_matches: titleMatches.length, publications_scanned: publications.length,
+            studio_authenticated: check?.authenticated === true,
+            publications_payload_received: check?.publications_payload_received === true,
+            title_readback_complete: check?.title_readback_complete === true,
+            publication_timestamp_readback_complete: check?.publication_timestamp_readback_complete === true,
+            state_readback_complete: check?.state_readback_complete === true,
+            coverage_complete: check?.coverage_complete === true, provider_read_failed: providerReadFailed,
+            provider_writes: 0, resend_authorized: false, publication_fact_id: null as number | null,
+            checkpoint_ids: [] as number[], checked_at: check?.checked_at || new Date().toISOString(), replayed: false };
+        if (!args.confirm) return result;
+        if (!published) throw new Error('[DZEN_1036_EXACT_PUBLIC_MATCH_REQUIRED]');
+        const fact = await facts.record({ projectId: 10, taskId: 1036, actorId: args.actorId,
+            artifactKind: 'article', outcome: 'published', publishedAt: published.published_at,
+            publicUrl: published.public_url, providerObjectId: published.provider_object_id,
+            confirmationMode: 'reconciled', evidence: { type: 'public_url', ref: published.public_url! },
+            utmStatus: 'not_applicable', note: 'Provider-read-only reconciliation of frozen Dzen task1036 attempt.' });
+        const checkpoints = await db.metricSnapshot.findMany({ where: {
+            project_id: 10, content_item_id: 1036, channel_id: 116
+        }, orderBy: { id: 'asc' } });
+        const applied = { ...result, publication_fact_id: fact.publication_fact.id,
+            checkpoint_ids: checkpoints.map((item: { id: number }) => item.id) };
+        await db.workflowEvent.create({ data: { project_id: 10, content_item_id: 1036,
+            actor_id: args.actorId, command: DZEN_1036_RECONCILE_COMMAND,
+            idempotency_key: args.idempotencyKey,
+            before_state: { status: 'publishing', publication_mode: 'owner_released',
+                prior_attempt_event_id: 2597, prior_attempt_preserved: true }, after_state: applied } });
+        return applied;
+    }
 
     /** Audited provider readback for the single frozen Dzen #1045 attempt. Never sends or records a fact. */
     async reconcileTask1045(args: { projectId: 10; taskId: 1045; actorId: string;
