@@ -13,6 +13,13 @@ const HELP_TEXT = 'Статья — это в первую очередь тек
 const PROMO_TEXT = 'Новые функции в статье';
 const FINAL_LABEL = /^(?:опубликовать|publish)$/i;
 
+export function isDzen1045PromoCloseGeometry(overlay: { x: number; y: number; width: number; height: number },
+    candidate: { x: number; y: number; width: number; height: number }): boolean {
+    return candidate.width > 0 && candidate.height > 0 && candidate.width <= 48 && candidate.height <= 48
+        && candidate.x >= overlay.x + overlay.width - 60 && candidate.x + candidate.width <= overlay.x + overlay.width + 8
+        && candidate.y >= overlay.y && candidate.y <= overlay.y + 60;
+}
+
 async function visibleOverlay(page: Page, needle: string): Promise<boolean> {
     return page.evaluate(text => Array.from(document.querySelectorAll('body *')).some(element => {
         const node = element as HTMLElement; const rect = node.getBoundingClientRect(); const style = getComputedStyle(node);
@@ -49,11 +56,15 @@ async function dismissKnownOverlays(page: Page): Promise<string[]> {
                 }).sort((a, b) => a.getBoundingClientRect().width - b.getBoundingClientRect().width);
                 const overlay = candidates[0]; if (!overlay) return false;
                 const overlayRect = overlay.getBoundingClientRect();
-                const close = Array.from(overlay.querySelectorAll<HTMLElement>('button, [role="button"], [aria-label], [title], svg'))
-                    .find(element => { const label = `${element.innerText || ''} ${element.getAttribute('aria-label') || ''} ${element.getAttribute('title') || ''}`.trim();
-                        const rect = element.getBoundingClientRect(); return /^(?:×|✕|закрыть|close)$/i.test(label)
-                            || (rect.x > overlayRect.right - 60 && rect.y < overlayRect.top + 60 && rect.width <= 48 && rect.height <= 48); });
-                close?.click(); return Boolean(close);
+                const descendants = Array.from(overlay.querySelectorAll<HTMLElement>('*'));
+                const close = descendants.find(element => { const label = `${element.innerText || ''} ${element.getAttribute('aria-label') || ''} ${element.getAttribute('title') || ''}`.trim();
+                    const rect = element.getBoundingClientRect(); const geometric = rect.width > 0 && rect.height > 0
+                        && rect.width <= 48 && rect.height <= 48 && rect.x >= overlayRect.right - 60
+                        && rect.right <= overlayRect.right + 8 && rect.y >= overlayRect.top && rect.y <= overlayRect.top + 60;
+                    return /^(?:×|✕|закрыть|close)$/i.test(label) || geometric; })
+                    || document.elementFromPoint(overlayRect.right - 24, overlayRect.top + 24) as HTMLElement | null;
+                if (!close || !overlay.contains(close)) return false;
+                close.click(); return true;
             }, PROMO_TEXT);
             if (!closed) throw new Error('[DZEN1045_PHASE_C_PROMO_CLOSE_NOT_FOUND]');
         }

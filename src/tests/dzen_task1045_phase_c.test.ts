@@ -6,6 +6,7 @@ import {
     isDzen1045HeaderPublishControl,
     runDzen1045PhaseC
 } from '../services/dzen_task1045_phase_c_contract';
+import { isDzen1045PromoCloseGeometry } from '../services/puppeteer/dzen1045_phase_c';
 
 const dialog = {
     text: 'Настройки публикации Опубликовать',
@@ -21,6 +22,13 @@ test('phase C recognizes only the mapped unobstructed header publish control', (
         disabled: false, geometry: { x: 1063, y: 25, width: 136, height: 32 }, topmost: false }), false);
     assert.equal(isDzen1045HeaderPublishControl({ text: 'Опубликовать', dataTestId: 'publication-confirm',
         disabled: false, geometry: { x: 1063, y: 25, width: 136, height: 32 }, topmost: true }), false);
+});
+
+test('phase C promo fallback accepts only a small control in the observed top-right corner', () => {
+    const overlay = { x: 30, y: 420, width: 327, height: 356 };
+    assert.equal(isDzen1045PromoCloseGeometry(overlay, { x: 322, y: 431, width: 22, height: 22 }), true);
+    assert.equal(isDzen1045PromoCloseGeometry(overlay, { x: 46, y: 708, width: 295, height: 52 }), false);
+    assert.equal(isDzen1045PromoCloseGeometry(overlay, { x: 322, y: 431, width: 80, height: 80 }), false);
 });
 
 test('phase C dialog fingerprint is stable and sensitive to confirmation contract', () => {
