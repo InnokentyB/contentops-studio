@@ -20,15 +20,15 @@ const args = {
 } as const;
 
 function fixture(options: { status?: string; attemptCount?: number; checkpointCount?: number } = {}) {
+    const checkpointWorkItems = Array.from({ length: options.checkpointCount ?? 3 }, (_, index) => ({
+        id: 9001 + index, kind: 'metric_checkpoint', state: 'pending'
+    }));
     const task = { id: 1001, project_id: 10, status: options.status || 'planned',
         publication_mode: 'approval_required', content_revision: 0, accepted_revision: null,
         draft_text: '', selected_asset_id: null, publication_fact: null, published_link: null,
         quality_report: {}, image_assets: [],
-        work_items: [{ id: 8001, kind: 'content_write', state: 'available' }] };
+        work_items: [{ id: 8001, kind: 'content_write', state: 'available' }, ...checkpointWorkItems] };
     const attempts = Array.from({ length: options.attemptCount || 0 }, (_, index) => ({ id: index + 1 }));
-    const checkpoints = Array.from({ length: options.checkpointCount ?? 3 }, (_, index) => ({
-        id: 9001 + index, checkpoint: `legacy-${index}`, collection_status: 'pending'
-    }));
     const events: Array<{ id: number; actor_id: string; command: string; idempotency_key: string;
         before_state: unknown; after_state: unknown }> = [];
     let writes = 0;
@@ -42,7 +42,7 @@ function fixture(options: { status?: string; attemptCount?: number; checkpointCo
             }
         },
         deliveryAttempt: { count: async () => attempts.length },
-        metricSnapshot: { findMany: async () => checkpoints },
+        metricSnapshot: { findMany: async () => { throw new Error('metric snapshots are not checkpoint obligations'); } },
         workflowEvent: {
             findUnique: async ({ where }: { where: { project_id_actor_id_command_idempotency_key: {
                 actor_id: string; command: string; idempotency_key: string } } }) => {
@@ -58,7 +58,7 @@ function fixture(options: { status?: string; attemptCount?: number; checkpointCo
     };
     const dependencies = { database: database as never,
         manifestLoader: async () => ({ checksum: TASK1001_MANIFEST_CHECKSUM }) };
-    return { task, checkpoints, events, dependencies, get writes() { return writes; } };
+    return { task, checkpoints: checkpointWorkItems, events, dependencies, get writes() { return writes; } };
 }
 
 test('exact task1001 cancellation changes only status/mode and records an immutable audit', async () => {

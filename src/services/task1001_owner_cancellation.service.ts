@@ -76,16 +76,15 @@ function assertArgs(args: Task1001CancellationArgs): number {
 }
 
 async function loadGuardedState(database: typeof prisma) {
-    const [task, attemptCount, checkpoints] = await Promise.all([
+    const [task, attemptCount] = await Promise.all([
         database.contentItem.findFirst({ where: { id: 1001, project_id: 10 },
             include: { publication_fact: true, image_assets: true,
                 work_items: { orderBy: { id: 'asc' } } } }),
-        database.deliveryAttempt.count({ where: { project_id: 10, content_item_id: 1001 } }),
-        database.metricSnapshot.findMany({ where: { project_id: 10, content_item_id: 1001,
-            collection_status: 'pending' }, orderBy: { id: 'asc' } })
+        database.deliveryAttempt.count({ where: { project_id: 10, content_item_id: 1001 } })
     ]);
     const delivery = object(object(task?.quality_report).publication_task_delivery);
     const contentWrites = task?.work_items.filter(item => item.kind === 'content_write') || [];
+    const checkpoints = task?.work_items.filter(item => item.kind === 'metric_checkpoint') || [];
     if (!task || task.id !== 1001 || task.project_id !== 10 || task.status !== 'planned'
         || task.publication_mode !== 'approval_required' || task.content_revision !== 0
         || task.accepted_revision !== null
@@ -93,7 +92,7 @@ async function loadGuardedState(database: typeof prisma) {
         || task.selected_asset_id !== null || task.image_assets.length !== 0
         || task.publication_fact || task.published_link || Object.keys(delivery).length !== 0
         || attemptCount !== 0 || contentWrites.length !== 1 || contentWrites[0].state !== 'available'
-        || checkpoints.length !== 3 || checkpoints.some(checkpoint => checkpoint.collection_status !== 'pending')) {
+        || checkpoints.length !== 3 || checkpoints.some(checkpoint => checkpoint.state !== 'pending')) {
         throw new Error('[TASK1001_CANCELLATION_GUARD_FAILED] Exact planned empty task changed');
     }
     return { task, checkpoints };
