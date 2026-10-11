@@ -56,7 +56,7 @@ function assertTask(task: Task | null) {
 function inspection(value: Awaited<ReturnType<typeof dzenService.previewTask1045PhaseC>>): Dzen1045DialogInspection {
     return { dialog: value.dialog, fingerprint: value.fingerprint, exactDraft: value.exactDraft,
         uniqueFinalControl: value.uniqueFinalControl, finalConfirmationClicks: value.finalConfirmationClicks,
-        providerWrites: value.providerWrites, screenshot: value.screenshot };
+        providerWrites: value.providerWrites, dialogCandidates: value.dialogCandidates, screenshot: value.screenshot };
 }
 
 export async function executeDzenTask1045PhaseC(args: Dzen1045PhaseCArgs) {

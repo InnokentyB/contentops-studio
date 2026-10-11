@@ -19,7 +19,7 @@ export type Dzen1045PublishDialog = { text: string; controls: Dzen1045DialogCont
     requiredControls: Array<{ label: string; value: string }> };
 export type Dzen1045DialogInspection = { dialog: Dzen1045PublishDialog; fingerprint: string;
     exactDraft: true; uniqueFinalControl: boolean; finalConfirmationClicks: 0; providerWrites: 0;
-    screenshot?: { mimeType: 'image/png'; base64: string } };
+    dialogCandidates?: Dzen1045PublishDialog[]; screenshot?: { mimeType: 'image/png'; base64: string } };
 export type Dzen1045PhaseCPublication = { public_url: string; provider_object_id: typeof DZEN1045_PHASE_C.providerId;
     published_at: string; public_body_matches: true; public_asset_matches: true; public_title_matches: true;
     checked_at: string; final_submit_count: 1; provider_trace: Array<Record<string, unknown>> };

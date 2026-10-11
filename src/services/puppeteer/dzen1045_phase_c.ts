@@ -74,34 +74,29 @@ async function exactHeaderControl(page: Page): Promise<ElementHandle<Element>> {
 }
 
 async function capturePublishDialog(page: Page): Promise<{ dialog: Dzen1045PublishDialog;
-    final: ElementHandle<Element> | null; screenshot: { mimeType: 'image/png'; base64: string } }> {
+    dialogCandidates: Dzen1045PublishDialog[]; final: ElementHandle<Element> | null;
+    screenshot: { mimeType: 'image/png'; base64: string } }> {
     await page.waitForFunction(() => Array.from(document.querySelectorAll('[role="dialog"], [aria-modal="true"], [class*="modal"], [class*="drawer"]'))
         .some(element => { const node = element as HTMLElement; const text = node.innerText || ''; const rect = node.getBoundingClientRect();
             const style = getComputedStyle(node); return /опубликовать|publish/i.test(text)
                 && !text.includes('Статья — это в первую очередь текст') && style.display !== 'none'
                 && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0; }), { timeout: 8_000 });
-    const roots = await page.$$('[role="dialog"], [aria-modal="true"], [class*="modal"], [class*="drawer"]');
-    const publishRoots: Array<ElementHandle<Element>> = [];
-    for (const root of roots) { const matches = await root.evaluate(element => { const node = element as HTMLElement;
+    const matchesPublishRoot = async (root: ElementHandle<Element>) => root.evaluate(element => { const node = element as HTMLElement;
         const rect = node.getBoundingClientRect(); const style = getComputedStyle(node); const text = node.innerText || '';
         return /опубликовать|publish/i.test(text) && !text.includes('Статья — это в первую очередь текст')
             && style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0; });
-        if (matches) publishRoots.push(root);
+    const semanticRoots = await page.$$('[role="dialog"], [aria-modal="true"]');
+    let publishRoots: Array<ElementHandle<Element>> = [];
+    for (const root of semanticRoots) if (await matchesPublishRoot(root)) publishRoots.push(root);
+    if (publishRoots.length === 0) {
+        const classRoots = await page.$$('[class*="modal"], [class*="drawer"]');
+        for (const root of classRoots) { if (!await matchesPublishRoot(root)) continue;
+            const nested = await root.evaluate(element => Boolean(element.parentElement?.closest('[class*="modal"], [class*="drawer"]')));
+            if (!nested) publishRoots.push(root);
+        }
     }
-    if (publishRoots.length !== 1) throw new Error(`[DZEN1045_PHASE_C_DIALOG_NOT_EXACT] ${JSON.stringify({
-        visiblePublishDialogs: publishRoots.length
-    })}`);
-    const root = publishRoots[0]; const handles = await root.$$('button, [role="button"], input, select, textarea, [tabindex]');
-    const final: Array<ElementHandle<Element>> = [];
-    for (const handle of handles) { const state = await handle.evaluate(element => { const node = element as HTMLElement;
-        const rect = node.getBoundingClientRect(); const style = getComputedStyle(node);
-        return { visible: style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0,
-            label: (node.innerText || node.getAttribute('aria-label') || '').replace(/\s+/g, ' ').trim(),
-            disabled: element instanceof HTMLButtonElement || element instanceof HTMLInputElement
-                ? element.disabled : element.getAttribute('aria-disabled') === 'true' }; });
-        if (state.visible && !state.disabled && FINAL_LABEL.test(state.label)) final.push(handle);
-    }
-    const dialog = await root.evaluate(element => { const root = element;
+    if (publishRoots.length === 0) throw new Error('[DZEN1045_PHASE_C_DIALOG_MISSING]');
+    const captureRoot = (root: ElementHandle<Element>) => root.evaluate(element => { const root = element;
         const visible = (candidate: Element) => { const node = candidate as HTMLElement; const rect = node.getBoundingClientRect(); const style = getComputedStyle(node);
             return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0; };
         const controls: Dzen1045DialogControl[] = Array.from(root.querySelectorAll('button, [role="button"], input, select, textarea, [tabindex]')).filter(visible).map(candidate => {
@@ -115,8 +110,24 @@ async function capturePublishDialog(page: Page): Promise<{ dialog: Dzen1045Publi
                 value: (candidate as HTMLInputElement).value || '' }));
         return { text: (root as HTMLElement).innerText.replace(/\s+/g, ' ').trim().slice(0, 3000), controls, requiredControls };
     });
+    const dialogCandidates: Dzen1045PublishDialog[] = [];
+    for (const root of publishRoots) dialogCandidates.push(await captureRoot(root));
+    const root = publishRoots[0]; const handles = publishRoots.length === 1
+        ? await root.$$('button, [role="button"], input, select, textarea, [tabindex]') : [];
+    const final: Array<ElementHandle<Element>> = [];
+    for (const handle of handles) { const state = await handle.evaluate(element => { const node = element as HTMLElement;
+        const rect = node.getBoundingClientRect(); const style = getComputedStyle(node);
+        return { visible: style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0,
+            label: (node.innerText || node.getAttribute('aria-label') || '').replace(/\s+/g, ' ').trim(),
+            disabled: element instanceof HTMLButtonElement || element instanceof HTMLInputElement
+                ? element.disabled : element.getAttribute('aria-disabled') === 'true' }; });
+        if (state.visible && !state.disabled && FINAL_LABEL.test(state.label)) final.push(handle);
+    }
+    const dialog = publishRoots.length === 1 ? dialogCandidates[0] : { text: `MULTIPLE_PUBLISH_DIALOGS:${publishRoots.length}`,
+        controls: dialogCandidates.flatMap(candidate => candidate.controls),
+        requiredControls: dialogCandidates.flatMap(candidate => candidate.requiredControls) };
     const screenshot = await page.screenshot({ encoding: 'base64', fullPage: false });
-    return { dialog, final: final.length === 1 ? final[0] : null,
+    return { dialog, dialogCandidates, final: publishRoots.length === 1 && final.length === 1 ? final[0] : null,
         screenshot: { mimeType: 'image/png', base64: screenshot } };
 }
 
@@ -132,7 +143,8 @@ async function prepare(page: Page, acceptedBody: string, blockWrites: boolean): 
     if (!dzen1045PackageMatches(observed)) throw new Error('[DZEN1045_PHASE_C_EXACT_DRAFT_REQUIRED]');
     const overlays = await dismissKnownOverlays(page); const header = await exactHeaderControl(page);
     await header.click(); const captured = await capturePublishDialog(page); const fingerprint = dzen1045DialogFingerprint(captured.dialog);
-    return { dialog: captured.dialog, fingerprint, exactDraft: true, uniqueFinalControl: Boolean(captured.final),
+    return { dialog: captured.dialog, dialogCandidates: captured.dialogCandidates,
+        fingerprint, exactDraft: true, uniqueFinalControl: Boolean(captured.final),
         finalConfirmationClicks: 0, screenshot: captured.screenshot,
         providerWrites: 0, final: captured.final, blockedWrites,
         dismissedOverlays: overlays.dismissed, retainedOverlays: overlays.retained };
@@ -142,7 +154,7 @@ export async function previewDzen1045PhaseC(page: Page, acceptedBody: string) {
     const inspected = await prepare(page, acceptedBody, true);
     return { dialog: inspected.dialog, fingerprint: inspected.fingerprint, exactDraft: true as const,
         uniqueFinalControl: inspected.uniqueFinalControl, finalConfirmationClicks: 0 as const,
-        providerWrites: 0 as const, screenshot: inspected.screenshot,
+        providerWrites: 0 as const, dialogCandidates: inspected.dialogCandidates, screenshot: inspected.screenshot,
         blockedWrites: inspected.blockedWrites, dismissedOverlays: inspected.dismissedOverlays,
         retainedOverlays: inspected.retainedOverlays,
         checkedAt: new Date().toISOString() };
