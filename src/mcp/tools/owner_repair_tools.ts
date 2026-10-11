@@ -6,6 +6,11 @@ import workQueueService from '../../services/work_queue.service';
 import threadsCredentialAllocationService from '../../services/threads_credential_allocation.service';
 import { asToolResult } from './common';
 import publicationRetirementService from '../../services/publication_retirement.service';
+import {
+    cancelTask1001Owner,
+    TASK1001_CANCELLATION_KEY,
+    TASK1001_MANIFEST_CHECKSUM
+} from '../../services/task1001_owner_cancellation.service';
 
 /**
  * Registers owner-level repair, visual overrides, and false delivery invalidation tools.
@@ -13,6 +18,21 @@ import publicationRetirementService from '../../services/publication_retirement.
  * @param server - Target MCP server instance.
  */
 export function registerOwnerRepairTools(server: McpServer): void {
+    server.registerTool('ba_cancel_task1001_owner', {
+        description: 'Owner-only audited CAS cancellation of exact unused p10 task1001. Requires planned/approval_required rev0 with empty copy, no acceptance, assets, fact, link or attempts, one available content_write and exactly three pending checkpoints. Changes only status to cancelled and publication_mode to retired; never publishes.',
+        annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+        inputSchema: { projectId: z.literal(10), taskId: z.literal(1001),
+            actorId: z.string().regex(/^user:\d+$/),
+            expectedManifestChecksum: z.literal(TASK1001_MANIFEST_CHECKSUM),
+            expectedStatus: z.literal('planned'), expectedPublicationMode: z.literal('approval_required'),
+            expectedContentRevision: z.literal(0), expectedAcceptedRevision: z.null(),
+            expectedBodySha256: z.literal('e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'),
+            expectedSelectedAssetId: z.null(), expectedDeliveryAttemptCount: z.literal(0),
+            expectedContentWriteState: z.literal('available'), expectedPendingCheckpointCount: z.literal(3),
+            ownerAuthorizationReference: z.string().trim().min(10).max(1000),
+            idempotencyKey: z.literal(TASK1001_CANCELLATION_KEY) }
+    }, async args => asToolResult(await cancelTask1001Owner(args)));
+
     const retirementGuards = {
         projectId: z.union([z.literal(7), z.literal(10)]),
         projectSlug: z.enum(['seturon', 'analystcraft-2']),
