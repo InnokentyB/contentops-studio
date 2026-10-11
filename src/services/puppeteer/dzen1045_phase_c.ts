@@ -182,23 +182,34 @@ export async function publishDzen1045PhaseCOnce(page: Page, acceptedBody: string
         }).catch(() => { trace.push({ method, path: url.pathname, status: response.status(), publicUrls: [] }); }).then(() => undefined);
         pending.add(parsing); void parsing.finally(() => pending.delete(parsing)); };
     page.on('response', capture);
+    let readbackPage = page; let navigationDestroyedContext = false;
     try {
-        await inspected.final.click();
+        try { await inspected.final.click(); }
+        catch (error: unknown) {
+            if (!(error instanceof Error) || !/Execution context was destroyed/i.test(error.message)) throw error;
+            navigationDestroyedContext = true; readbackPage = await page.browser().newPage();
+            await readbackPage.setViewport({ width: 1280, height: 800 });
+            await readbackPage.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+            readbackPage.on('response', capture);
+        }
         const previousUrls = before.publications.map(item => item.public_url).filter((url): url is string => Boolean(url));
-        const outcome = await waitForDzenPublicationOutcome(page, '[data-testid="article-publish-btn"]', previousUrls, providerUrls, 30_000);
+        const outcome = navigationDestroyedContext
+            ? { kind: 'uncertain' as const, reason: 'Final confirmation navigated; authoritative readback moved to a fresh page.' }
+            : await waitForDzenPublicationOutcome(readbackPage, '[data-testid="article-publish-btn"]', previousUrls, providerUrls, 30_000);
         if (pending.size) await Promise.allSettled(Array.from(pending));
-        const published = await enumerateDzen1045Studio(page, listUrl, 'published');
+        const published = await enumerateDzen1045Studio(readbackPage, listUrl, 'published');
         const target = published.publications.find(item => item.provider_object_id === DZEN1045_PHASE_C.providerId);
         if (!published.coverageComplete || !target?.public_url || !target.published_at || outcome.kind === 'rejected') {
             throw new Error(`[DZEN1045_PHASE_C_SUBMIT_UNCERTAIN] ${JSON.stringify({ outcome, trace })}`);
         }
-        const publicPackage = await readDzen1045EditorPackage(page, DZEN1045_PHASE_C.providerId, acceptedBody);
-        const bodyMatches = await verifyDzen1045PublicBody(page, target.public_url, acceptedBody);
+        const publicPackage = await readDzen1045EditorPackage(readbackPage, DZEN1045_PHASE_C.providerId, acceptedBody);
+        const bodyMatches = await verifyDzen1045PublicBody(readbackPage, target.public_url, acceptedBody);
         if (!dzen1045PackageMatches(publicPackage) || !bodyMatches || target.title !== DZEN1045.publicTitle) {
             throw new Error('[DZEN1045_PHASE_C_PUBLIC_READBACK_MISMATCH]');
         }
         return { public_url: target.public_url, provider_object_id: DZEN1045_PHASE_C.providerId,
             published_at: target.published_at, public_body_matches: true, public_asset_matches: true,
             public_title_matches: true, checked_at: new Date().toISOString(), final_submit_count: 1, provider_trace: trace };
-    } finally { page.off('response', capture); }
+    } finally { page.off('response', capture);
+        if (readbackPage !== page) { readbackPage.off('response', capture); await readbackPage.close().catch(() => undefined); } }
 }
