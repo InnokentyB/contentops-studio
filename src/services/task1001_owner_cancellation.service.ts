@@ -142,12 +142,14 @@ export async function cancelTask1001Owner(args: Task1001CancellationArgs,
             accepted_revision: null, selected_asset_id: null, publication_fact: null,
             published_link: null }, data: { status: 'cancelled', publication_mode: 'retired' } });
         if (changed.count !== 1) throw new Error('[TASK1001_CANCELLATION_CAS_CONFLICT]');
-        const result = { project_id: 10, affected_task_ids: [1001], status: 'cancelled',
+        const result: Omit<Task1001CancellationResult, 'audit_id'> = {
+            project_id: 10, affected_task_ids: [1001], status: 'cancelled',
             publication_mode: 'retired', content_revision: 0, accepted_revision: null,
             selected_asset_id: null, preserved_content_write_ids: state.task.work_items
                 .filter(item => item.kind === 'content_write').map(item => item.id),
             preserved_checkpoint_ids: state.checkpoints.map(checkpoint => checkpoint.id),
-            publication_sent: false, connector_called: false, history_preserved: true, replayed: false };
+            publication_sent: false, connector_called: false, history_preserved: true, replayed: false
+        };
         const audit = await tx.workflowEvent.create({ data: { project_id: 10, content_item_id: 1001,
             actor_id: args.actorId, command: COMMAND, idempotency_key: args.idempotencyKey,
             before_state: { request_hash: hash, approval_reference: args.ownerAuthorizationReference,
