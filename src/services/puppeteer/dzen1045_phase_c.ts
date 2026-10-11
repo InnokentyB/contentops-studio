@@ -36,6 +36,12 @@ async function dismissKnownOverlays(page: Page): Promise<{ dismissed: string[]; 
         }
         if (visible.length !== 1) throw new Error('[DZEN1045_PHASE_C_HELP_CLOSE_NOT_EXACT]');
         await visible[0].click(); dismissed.push('article_help');
+        await page.waitForFunction(text => !Array.from(document.querySelectorAll('body *')).some(element => {
+            const node = element as HTMLElement; const rect = node.getBoundingClientRect(); const style = getComputedStyle(node);
+            const content = (node.innerText || '').replace(/\s+/g, ' ').trim();
+            return content.startsWith(text) && content.length < text.length + 300
+                && style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+        }), { timeout: 3_000 }, HELP_TEXT).catch(() => null);
     }
     if (await visibleOverlay(page, PROMO_TEXT)) {
         await page.keyboard.press('Escape');
@@ -44,7 +50,10 @@ async function dismissKnownOverlays(page: Page): Promise<{ dismissed: string[]; 
         else dismissed.push('article_promo');
     }
     if (await visibleOverlay(page, HELP_TEXT)) {
-        throw new Error('[DZEN1045_PHASE_C_OVERLAY_POSTCONDITION_FAILED]');
+        throw new Error(`[DZEN1045_PHASE_C_OVERLAY_POSTCONDITION_FAILED] ${JSON.stringify({
+            helpVisible: true, promoVisible: await visibleOverlay(page, PROMO_TEXT),
+            dismissed, retained
+        })}`);
     }
     return { dismissed, retained };
 }
