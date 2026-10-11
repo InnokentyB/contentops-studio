@@ -23,7 +23,7 @@ function fixture(options: { status?: string; attemptCount?: number; checkpointCo
     const task = { id: 1001, project_id: 10, status: options.status || 'planned',
         publication_mode: 'approval_required', content_revision: 0, accepted_revision: null,
         draft_text: '', selected_asset_id: null, publication_fact: null, published_link: null,
-        quality_report: {}, assets: [],
+        quality_report: {}, image_assets: [],
         work_items: [{ id: 8001, kind: 'content_write', state: 'available' }] };
     const attempts = Array.from({ length: options.attemptCount || 0 }, (_, index) => ({ id: index + 1 }));
     const checkpoints = Array.from({ length: options.checkpointCount ?? 3 }, (_, index) => ({

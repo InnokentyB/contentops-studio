@@ -32,6 +32,23 @@ type Dependencies = {
     manifestLoader(projectId: number, userId: number): Promise<{ checksum: string }>;
 };
 
+type Task1001CancellationResult = {
+    project_id: 10;
+    affected_task_ids: number[];
+    status: 'cancelled';
+    publication_mode: 'retired';
+    content_revision: 0;
+    accepted_revision: null;
+    selected_asset_id: null;
+    preserved_content_write_ids: number[];
+    preserved_checkpoint_ids: number[];
+    publication_sent: false;
+    connector_called: false;
+    history_preserved: true;
+    audit_id: number;
+    replayed: boolean;
+};
+
 const dependencies: Dependencies = { database: prisma, manifestLoader: loadAgentWorkspaceManifest };
 
 function object(value: unknown): Record<string, unknown> {
@@ -61,7 +78,7 @@ function assertArgs(args: Task1001CancellationArgs): number {
 async function loadGuardedState(database: typeof prisma) {
     const [task, attemptCount, checkpoints] = await Promise.all([
         database.contentItem.findFirst({ where: { id: 1001, project_id: 10 },
-            include: { publication_fact: true, assets: true,
+            include: { publication_fact: true, image_assets: true,
                 work_items: { orderBy: { id: 'asc' } } } }),
         database.deliveryAttempt.count({ where: { project_id: 10, content_item_id: 1001 } }),
         database.metricSnapshot.findMany({ where: { project_id: 10, content_item_id: 1001,
@@ -73,7 +90,7 @@ async function loadGuardedState(database: typeof prisma) {
         || task.publication_mode !== 'approval_required' || task.content_revision !== 0
         || task.accepted_revision !== null
         || createHash('sha256').update(task.draft_text || '').digest('hex') !== EMPTY_SHA256
-        || task.selected_asset_id !== null || task.assets.length !== 0
+        || task.selected_asset_id !== null || task.image_assets.length !== 0
         || task.publication_fact || task.published_link || Object.keys(delivery).length !== 0
         || attemptCount !== 0 || contentWrites.length !== 1 || contentWrites[0].state !== 'available'
         || checkpoints.length !== 3 || checkpoints.some(checkpoint => checkpoint.collection_status !== 'pending')) {
@@ -84,7 +101,7 @@ async function loadGuardedState(database: typeof prisma) {
 
 /** Cancel only the exact unused task1001 obligation; never publishes or mutates its history. */
 export async function cancelTask1001Owner(args: Task1001CancellationArgs,
-    deps: Dependencies = dependencies) {
+    deps: Dependencies = dependencies): Promise<Task1001CancellationResult> {
     const userId = assertArgs(args);
     const hash = requestHash(args);
     const [owner, manifest, existing] = await Promise.all([
@@ -99,7 +116,8 @@ export async function cancelTask1001Owner(args: Task1001CancellationArgs,
     if (manifest.checksum !== TASK1001_MANIFEST_CHECKSUM) throw new Error('[STALE_MANIFEST]');
     if (existing) {
         if (object(existing.before_state).request_hash !== hash) throw new Error('[IDEMPOTENCY_KEY_CONFLICT]');
-        return { ...object(existing.after_state), audit_id: existing.id, replayed: true };
+        return { ...object(existing.after_state), audit_id: existing.id,
+            replayed: true } as Task1001CancellationResult;
     }
     await loadGuardedState(deps.database);
     return deps.database.$transaction(async tx => {
@@ -115,7 +133,8 @@ export async function cancelTask1001Owner(args: Task1001CancellationArgs,
         if (currentManifest.checksum !== TASK1001_MANIFEST_CHECKSUM) throw new Error('[STALE_MANIFEST]');
         if (replay) {
             if (object(replay.before_state).request_hash !== hash) throw new Error('[IDEMPOTENCY_KEY_CONFLICT]');
-            return { ...object(replay.after_state), audit_id: replay.id, replayed: true };
+            return { ...object(replay.after_state), audit_id: replay.id,
+                replayed: true } as Task1001CancellationResult;
         }
         const state = await loadGuardedState(tx as typeof prisma);
         const changed = await tx.contentItem.updateMany({ where: { id: 1001, project_id: 10,
