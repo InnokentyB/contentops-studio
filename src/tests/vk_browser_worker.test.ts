@@ -356,6 +356,17 @@ test('VK browser detects the provider anti-bot challenge by URL or verified chal
     assert.equal(await byCopy.challengeRequired(), true);
 });
 
+test('VK browser treats the current guest Sign in link as a missing dedicated-profile session', async () => {
+    const hidden = { isVisible: async () => false };
+    const visible = { isVisible: async () => true };
+    const page = {
+        url: () => 'https://vk.com/club240051152',
+        locator: () => ({ first: () => hidden }),
+        getByRole: (role: string) => ({ first: () => role === 'link' ? visible : hidden })
+    };
+    assert.equal(await new PlaywrightVkBrowserUi(page as any).loginRequired(), true);
+});
+
 test('current VK community UI routes article, video and Story through distinct Create menu items', async () => {
     for (const placement of ['article', 'video', 'story'] as const) {
         const calls: string[] = [];
