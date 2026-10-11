@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { assertDzen1045PhaseBIncident, DZEN1045_PHASE_B_RECONCILE,
     runDzen1045PhaseBReconcile } from '../services/dzen_task1045_phase_b_reconcile_contract';
 import { isDzen1045FinalDialogControl } from '../services/puppeteer/dzen1045_phase_b_dialog_probe';
+import { isKnownDzenArticleHelp, isSafeDzenOverflowControl }
+    from '../services/puppeteer/dzen1045_editor_control_map';
 
 const publication = { public_url: 'https://dzen.ru/a/exact1045',
     provider_object_id: '6acbdd8a8645cd779010ee4e', published_at: '2026-10-11T19:28:00.000Z',
@@ -25,6 +27,12 @@ test('dialog probe distinguishes the final confirmation label', () => {
     assert.equal(isDzen1045FinalDialogControl('Опубликовать'), true);
     assert.equal(isDzen1045FinalDialogControl('Отмена'), false);
     assert.equal(isDzen1045FinalDialogControl('Далее'), false);
+});
+test('control map recognizes only the known help and explicit safe overflow controls', () => {
+    assert.equal(isKnownDzenArticleHelp('Статья — это в первую очередь текст и что-то ещё'), true);
+    assert.equal(isKnownDzenArticleHelp('Опубликовать'), false);
+    assert.equal(isSafeDzenOverflowControl({ label: 'Ещё', ariaHasPopup: null }), true);
+    assert.equal(isSafeDzenOverflowControl({ label: 'Опубликовать', ariaHasPopup: null }), false);
 });
 
 test('phase B reconcile records only exact public and leaves draft/ambiguous evidence-only', async () => {

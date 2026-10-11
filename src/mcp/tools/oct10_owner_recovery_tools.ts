@@ -44,8 +44,10 @@ import { DZEN1045_PHASE_B } from '../../services/dzen_task1045_phase_b_contract'
 import { publishDzenTask1045PhaseB } from '../../services/dzen_task1045_phase_b.service';
 import { DZEN1045_PHASE_B_RECONCILE } from '../../services/dzen_task1045_phase_b_reconcile_contract';
 import { reconcileDzenTask1045PhaseBIncident } from '../../services/dzen_task1045_phase_b_reconcile.service';
-import { DZEN1045_PHASE_B_DIALOG_PROBE } from '../../services/dzen_task1045_phase_b_reconcile_contract';
+import { DZEN1045_CONTROL_MAP_PROBE,
+    DZEN1045_PHASE_B_DIALOG_PROBE } from '../../services/dzen_task1045_phase_b_reconcile_contract';
 import { probeDzenTask1045PhaseBDialog } from '../../services/dzen_task1045_phase_b_dialog_probe.service';
+import { probeDzenTask1045EditorControlMap } from '../../services/dzen_task1045_control_map_probe.service';
 import { previewVkTask1048Api, promoteVkTask1048Api, VK1048_MANIFEST } from '../../services/vk_task1048_api_promotion.service';
 import {
     releaseThreadsTask1046,
@@ -425,6 +427,17 @@ export function registerOct10OwnerRecoveryTools(server: McpServer): void {
             expectedProviderId: z.literal(DZEN1045_PHASE_B_RECONCILE.providerId),
             idempotencyKey: z.literal(DZEN1045_PHASE_B_DIALOG_PROBE.idempotencyKey) }
     }, async args => asToolResult(await probeDzenTask1045PhaseBDialog(args)));
+    server.registerTool('ba_probe_dzen_task1045_editor_control_map', {
+        description: 'Exact zero-provider-write UI mapping probe for task1045. Captures every visible interactive editor control with geometry/context before clicks, reproduces and closes only the known article help panel, and opens at most three explicit safe overflow menus. It never clicks a final confirmation, creates, saves, or submits.',
+        annotations: { readOnlyHint: true },
+        inputSchema: { projectId: z.literal(10), taskId: z.literal(1045),
+            actorId: z.string().regex(/^user:\d+$/),
+            expectedManifestChecksum: z.literal(DZEN1045_RECOVERY_MANIFEST),
+            expectedDialogProbeIdempotencyKey: z.literal(DZEN1045_CONTROL_MAP_PROBE.sourceDialogProbeKey),
+            expectedDialogObservedAt: z.literal(DZEN1045_CONTROL_MAP_PROBE.observedAt),
+            expectedProviderId: z.literal(DZEN1045_PHASE_B_RECONCILE.providerId),
+            idempotencyKey: z.literal(DZEN1045_CONTROL_MAP_PROBE.idempotencyKey) }
+    }, async args => asToolResult(await probeDzenTask1045EditorControlMap(args)));
     server.registerTool('ba_preview_vk_task1048_api_promotion', {
         description: 'Owner-only exact read-only preview of task1048 promotion from the unclaimed browser item to canonical vk_api. Reports credential readiness without exposing secrets and never calls VK.',
         annotations: { readOnlyHint: true },

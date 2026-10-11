@@ -200,6 +200,7 @@ const PUBLISHER_TOOLS = new Set([
     'ba_publish_dzen_task1045_phase_b_existing_draft',
     'ba_reconcile_dzen_task1045_phase_b_incident',
     'ba_probe_dzen_task1045_phase_b_dialog_contract',
+    'ba_probe_dzen_task1045_editor_control_map',
     'ba_preview_vk_task1048_api_promotion',
     'ba_apply_vk_task1048_api_promotion',
     'ba_hold_vk_task1084',

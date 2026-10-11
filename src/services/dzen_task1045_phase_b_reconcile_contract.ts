@@ -14,6 +14,12 @@ export const DZEN1045_PHASE_B_DIALOG_PROBE = {
     sourceReconcileKey: DZEN1045_PHASE_B_RECONCILE.idempotencyKey,
     recordedAt: '2026-10-11T19:38:23.170Z'
 } as const;
+export const DZEN1045_CONTROL_MAP_PROBE = {
+    tool: 'ba_probe_dzen_task1045_editor_control_map',
+    idempotencyKey: 'dzen-p10-1045-r4-asset129-editor-control-map-20261011-01',
+    sourceDialogProbeKey: DZEN1045_PHASE_B_DIALOG_PROBE.idempotencyKey,
+    observedAt: '2026-10-11T19:46:03.924Z'
+} as const;
 export type Dzen1045PhaseBInspection =
     | { kind: 'exact_public'; publication: Dzen1045SecondAttemptPublication; evidence: Record<string, unknown> }
     | { kind: 'exact_draft' | 'ambiguous'; evidence: Record<string, unknown> };
