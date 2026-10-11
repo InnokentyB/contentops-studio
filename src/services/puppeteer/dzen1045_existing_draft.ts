@@ -65,7 +65,7 @@ export function dzen1045Pagination(raw: unknown, pageCount: number, pageSize: nu
         hasMore, total };
 }
 
-async function enumerate(page: Page, listUrl: string, state: 'published' | 'draft') {
+export async function enumerateDzen1045Studio(page: Page, listUrl: string, state: 'published' | 'draft') {
     const initial = page.waitForResponse(response => /\/editor-api\/v3\/publications\?/.test(response.url())
         && new URL(response.url()).searchParams.get('state') === state
         && response.status() === 200, { timeout: 30_000 });
@@ -105,7 +105,7 @@ async function enumerate(page: Page, listUrl: string, state: 'published' | 'draf
     throw new Error('[DZEN1045_STUDIO_ENUMERATION_INCOMPLETE] Page bound exceeded');
 }
 
-async function coverBytes(draftId: string, coverId: string) {
+export async function readDzen1045CoverBytes(draftId: string, coverId: string) {
     const response = await fetch(`https://avatars.dzeninfra.ru/get-zen_doc/271828/pub_${draftId}_${coverId}/orig`,
         { redirect: 'error', signal: AbortSignal.timeout(15_000) });
     if (!response.ok) throw new Error('[DZEN1045_COVER_READBACK_FAILED]');
@@ -117,8 +117,8 @@ async function coverBytes(draftId: string, coverId: string) {
 /** Exhaustive read-only inventory used before an owner-authorized new draft. */
 export async function inspectDzen1045Absence(page: Page): Promise<Dzen1045AbsenceProof> {
     const listUrl = `https://dzen.ru/profile/editor/id/${DZEN1045.publisherId}/publications`;
-    const published = await enumerate(page, listUrl, 'published');
-    const drafts = await enumerate(page, listUrl, 'draft');
+    const published = await enumerateDzen1045Studio(page, listUrl, 'published');
+    const drafts = await enumerateDzen1045Studio(page, listUrl, 'draft');
     const relevantTitles = [DZEN1045.title, DZEN1045.publicTitle] as const;
     const matches = (items: DzenStudioPublication[]) => items.filter(item =>
         typeof item.title === 'string' && relevantTitles.includes(item.title as typeof relevantTitles[number])).length;
@@ -143,9 +143,9 @@ export async function resumeDzen1045InExistingDraft(page: Page, acceptedBody: st
     let selectedDraftId = '';
     return runDzen1045DraftResume(args, {
         inspect: async () => {
-            const published = await enumerate(page, listUrl, 'published');
+            const published = await enumerateDzen1045Studio(page, listUrl, 'published');
             const publicMatches = published.publications.filter(item => item.title === DZEN1045.title);
-            const drafts = await enumerate(page, listUrl, 'draft');
+            const drafts = await enumerateDzen1045Studio(page, listUrl, 'draft');
             const candidates = drafts.publications.filter(item => item.state === 'draft' && item.provider_object_id);
             const exact: Dzen1045DraftProof[] = [];
             const diagnostics: Dzen1045MatchDiagnostics = { publishedTitleMatches: publicMatches.length,
@@ -172,7 +172,7 @@ export async function resumeDzen1045InExistingDraft(page: Page, acceptedBody: st
                 const bodyMatches = normalizeDzen1045Body(body) === normalizeDzen1045Body(acceptedBody);
                 if (!bodyMatches) { diagnostics.bodyMismatches += 1; continue; }
                 if (!coverId) { diagnostics.missingCover += 1; continue; }
-                const bytes = await coverBytes(draftId, coverId);
+                const bytes = await readDzen1045CoverBytes(draftId, coverId);
                 const coverSha = createHash('sha256').update(bytes).digest('hex');
                 if (coverSha !== DZEN1045.assetSha) { diagnostics.coverMismatches += 1; continue; }
                 diagnostics.packageMatchCount += 1;
@@ -198,7 +198,7 @@ export async function resumeDzen1045InExistingDraft(page: Page, acceptedBody: st
             if (proof.draftId !== selectedDraftId) throw new Error('[DZEN1045_DRAFT_CHANGED]');
             await clickDzenPublicationConfirm(page, DZEN_EDITOR_SELECTORS.publicationConfirm);
             await new Promise(resolve => setTimeout(resolve, 1500));
-            const published = await enumerate(page, listUrl, 'published');
+            const published = await enumerateDzen1045Studio(page, listUrl, 'published');
             const match = published.publications.find(item => item.state === 'published'
                 && item.provider_object_id === proof.draftId && item.title === DZEN1045.title);
             if (!published.coverageComplete || !match?.public_url || !match.published_at) {

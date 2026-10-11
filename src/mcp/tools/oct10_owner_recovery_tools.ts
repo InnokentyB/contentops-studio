@@ -24,6 +24,8 @@ import {
     DZEN1045_AUTHORIZATION_KEY,
     DZEN1045_RECOVERY_MANIFEST
 } from '../../services/dzen_task1045_new_draft_recovery.service';
+import { reconcileOrResumeDzenTask1045SecondAttempt } from '../../services/dzen_task1045_second_attempt_recovery.service';
+import { DZEN1045_SECOND_ATTEMPT } from '../../services/dzen_task1045_second_attempt_contract';
 import { previewVkTask1048Api, promoteVkTask1048Api, VK1048_MANIFEST } from '../../services/vk_task1048_api_promotion.service';
 import {
     releaseThreadsTask1046,
@@ -244,6 +246,18 @@ export function registerOct10OwnerRecoveryTools(server: McpServer): void {
         description: 'Owner-only audited authorization for exactly one new Dzen1045 draft/send after exhaustive authenticated Published and Draft inventory proves the original uncertain attempt absent. Preserves the prior incident, records the absence proof, and never sends or records a publication fact.',
         annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: dzen1045NewDraftRetrySchema.shape
     }, async args => asToolResult(await authorizeDzenTask1045NewDraftRetry(args)));
+    server.registerTool('ba_reconcile_or_resume_dzen_task1045_second_attempt', {
+        description: 'Owner-only bounded recovery of task1045 second pre-submit incident. Exhaustively reads Published and Draft Studio pages. An exact public object is reconciled without a click; otherwise confirm=true CAS-claims the sole exact rev4/body/asset129 draft and clicks its final control once. Never creates or rewrites a draft.',
+        annotations: EXTERNAL_PUBLICATION_ANNOTATIONS,
+        inputSchema: { projectId: z.literal(10), taskId: z.literal(1045),
+            actorId: z.string().regex(/^user:\d+$/),
+            expectedManifestChecksum: z.literal(DZEN1045_RECOVERY_MANIFEST),
+            expectedAttemptIdempotencyKey: z.literal(DZEN1045_SECOND_ATTEMPT.attemptKey),
+            expectedFailedAt: z.literal(DZEN1045_SECOND_ATTEMPT.failedAt),
+            ownerAuthorizationReference: z.string().min(10),
+            idempotencyKey: z.literal(DZEN1045_SECOND_ATTEMPT.resumeKey),
+            confirm: z.boolean().optional().default(false) }
+    }, async args => asToolResult(await reconcileOrResumeDzenTask1045SecondAttempt(args)));
     server.registerTool('ba_preview_vk_task1048_api_promotion', {
         description: 'Owner-only exact read-only preview of task1048 promotion from the unclaimed browser item to canonical vk_api. Reports credential readiness without exposing secrets and never calls VK.',
         annotations: { readOnlyHint: true },
