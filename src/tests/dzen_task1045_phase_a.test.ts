@@ -2,6 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DZEN1045_PHASE_A, runDzen1045PhaseA, type Dzen1045DurableDraftProof } from '../services/dzen_task1045_phase_a_contract';
 import { createDzen1045DurableDraftPhaseA } from '../services/puppeteer/dzen1045_phase_a';
+import { DZEN1045_PHASE_A_V2, runDzen1045PhaseAV2,
+    type Dzen1045DurableDraftProofV2 } from '../services/dzen_task1045_phase_a_v2_contract';
+import { hasDzen1045MutationAcknowledgement, openDzen1045ArticleComposerV2 }
+    from '../services/puppeteer/dzen1045_phase_a_v2';
 import type { Page } from 'puppeteer';
 
 const zero = { kind: 'no_exact_match' as const, diagnostics: { publishedTitleCandidates: 0,
@@ -72,4 +76,62 @@ test('provider boundary proves assigned draft identity after persistence navigat
     assert.equal(result.persistenceTrigger, 'editor_blur_then_studio_navigation');
     assert.deepEqual(order, ['open', 'fill', 'upload', 'blur']);
     assert.equal(responseListener, null);
+});
+
+test('phase A v2 follows the observed exact two-click article menu contract', async () => {
+    const clicks: string[] = []; let currentUrl = 'https://dzen.ru/publications';
+    const article = { evaluate: async () => ({ visible: true, disabled: false,
+        role: 'button', ariaLabel: 'Написать статью', text: 'Написать статью' }),
+    click: async () => { clicks.push('article'); currentUrl = `https://dzen.ru/profile/editor/id/publisher/${'d'.repeat(24)}/edit`; } };
+    const page = { goto: async () => undefined, url: () => currentUrl,
+        waitForSelector: async () => ({}), click: async (selector: string) => { clicks.push(selector); },
+        $$: async () => [article], waitForNavigation: async () => undefined,
+        waitForFunction: async () => undefined, $: async () => null };
+
+    const result = await openDzen1045ArticleComposerV2(page as never);
+
+    assert.deepEqual(clicks, ['[data-testid="add-publication-button"]', 'article']);
+    assert.equal(result.draftId, 'd'.repeat(24));
+    assert.equal(result.creationControlsClicked, 2);
+});
+
+test('phase A v2 refuses a wrong or ambiguous article option before the second click', async () => {
+    const option = (label: string) => ({ evaluate: async () => ({ visible: true, disabled: false,
+        role: 'button', ariaLabel: label, text: label }), click: async () => undefined });
+    const page = (options: unknown[]) => ({ goto: async () => undefined,
+        url: () => 'https://dzen.ru/publications', waitForSelector: async () => ({}),
+        click: async () => undefined, $$: async () => options,
+        waitForNavigation: async () => undefined, waitForFunction: async () => undefined, $: async () => null });
+    await assert.rejects(openDzen1045ArticleComposerV2(page([option('Написать пост')]) as never), /ARTICLE_OPTION_NOT_EXACT/);
+    await assert.rejects(openDzen1045ArticleComposerV2(page([
+        option('Написать статью'), option('Написать статью')]) as never), /ARTICLE_OPTION_AMBIGUOUS/);
+});
+
+test('phase A v2 requires a successful creation response bound to the editor identity', () => {
+    const draftId = 'e'.repeat(24);
+    assert.equal(hasDzen1045MutationAcknowledgement([
+        { event: 'response', method: 'POST', path: '/editor-api/publication', stage: 'article_option', status: 200, ids: [draftId] }
+    ], draftId, ['article_option']), true);
+    assert.equal(hasDzen1045MutationAcknowledgement([
+        { event: 'response', method: 'POST', path: '/editor-api/publication', stage: 'article_option', status: 200, ids: ['other'] }
+    ], draftId, ['article_option']), false);
+});
+
+test('phase A v2 no durable draft and replayed claim both stop without another create', async () => {
+    let creates = 0;
+    await assert.rejects(runDzen1045PhaseAV2({ confirm: true,
+        idempotencyKey: DZEN1045_PHASE_A_V2.idempotencyKey }, {
+        inspect: async () => zero, claim: async () => false,
+        createAndPersist: async () => { creates += 1; return {} as Dzen1045DurableDraftProofV2; }
+    }), /ALREADY_CLAIMED/);
+    assert.equal(creates, 0);
+    await assert.rejects(runDzen1045PhaseAV2({ confirm: true,
+        idempotencyKey: DZEN1045_PHASE_A_V2.idempotencyKey }, {
+        inspect: async () => zero, claim: async () => true,
+        createAndPersist: async () => ({ ...proof, creationAcknowledged: true,
+            persistenceAcknowledged: true, creationControlsClicked: 2,
+            saveControlsClicked: 0, finalSubmitCount: 0,
+            editorUrl: `https://dzen.ru/${proof.draftId}/edit`,
+            providerTrace: [] } as unknown as Dzen1045DurableDraftProofV2)
+    }), /DRAFT_PROOF_INVALID/);
 });
