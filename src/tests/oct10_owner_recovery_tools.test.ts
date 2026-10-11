@@ -124,6 +124,7 @@ test('Planner can run the owner-guarded Telegram repair while release/send stay 
         'ba_authorize_dzen_task1045_new_draft_retry',
         'ba_reconcile_or_resume_dzen_task1045_second_attempt',
         'ba_restore_dzen_task1045_after_zero_inventory',
+        'ba_reconcile_dzen_task1045_zero_restore_incident',
         'ba_preview_vk_task1048_api_promotion', 'ba_apply_vk_task1048_api_promotion'];
     for (const tool of tools) {
         assert.equal(isToolAllowedForProfile('owner', tool), true);

@@ -6,6 +6,7 @@ import { inspectDzen1045SecondAttempt, recoverDzen1045SecondAttemptInBrowser } f
 import type { Dzen1045SecondAttemptDraftProof } from './dzen_task1045_second_attempt_contract';
 import puppeteerPublisherService from './puppeteer_publisher.service';
 import { restoreDzen1045InBrowser } from './puppeteer/dzen1045_zero_restore';
+import { inspectDzen1045RestoreIncident } from './puppeteer/dzen1045_restore_reconcile';
 
 type Config = { cookies: string; channel_id: string };
 
@@ -57,4 +58,8 @@ export async function restoreDzen1045InBrowserSession(config: Config, acceptedBo
             await puppeteerPublisherService.assertDzenAuthenticated(page); },
         uploadImage: url => puppeteerPublisherService.uploadDzenImage(page, url)
     }));
+}
+
+export async function inspectDzen1045RestoreIncidentInBrowser(config: Config, acceptedBody: string) {
+    return withDzen1045Page(config, page => inspectDzen1045RestoreIncident(page, acceptedBody));
 }

@@ -28,6 +28,8 @@ import { reconcileOrResumeDzenTask1045SecondAttempt } from '../../services/dzen_
 import { DZEN1045_SECOND_ATTEMPT } from '../../services/dzen_task1045_second_attempt_contract';
 import { DZEN1045_ZERO_RESTORE } from '../../services/dzen_task1045_zero_restore_contract';
 import { restoreDzenTask1045AfterZeroInventory } from '../../services/dzen_task1045_zero_restore.service';
+import { DZEN1045_RESTORE_RECONCILE } from '../../services/dzen_task1045_restore_reconcile_contract';
+import { reconcileDzenTask1045ZeroRestoreIncident } from '../../services/dzen_task1045_restore_reconcile.service';
 import { previewVkTask1048Api, promoteVkTask1048Api, VK1048_MANIFEST } from '../../services/vk_task1048_api_promotion.service';
 import {
     releaseThreadsTask1046,
@@ -292,6 +294,17 @@ export function registerOct10OwnerRecoveryTools(server: McpServer): void {
             idempotencyKey: z.literal(DZEN1045_ZERO_RESTORE.idempotencyKey),
             confirm: z.boolean().optional().default(false) }
     }, async args => asToolResult(await restoreDzenTask1045AfterZeroInventory(args)));
+    server.registerTool('ba_reconcile_dzen_task1045_zero_restore_incident', {
+        description: 'Exact read-only reconciliation of task1045 zero-restore uncertain incident. Exhaustively reads authenticated Published and Draft inventories and verifies public title, accepted body and cover checksum. It never creates, submits, retries, or clicks publication controls. confirm=true may only record a canonical fact/checkpoints for one exact public object.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
+        inputSchema: { projectId: z.literal(10), taskId: z.literal(1045),
+            actorId: z.string().regex(/^user:\d+$/),
+            expectedManifestChecksum: z.literal(DZEN1045_RECOVERY_MANIFEST),
+            expectedRestoreIdempotencyKey: z.literal(DZEN1045_RESTORE_RECONCILE.restoreKey),
+            expectedFailedAt: z.literal(DZEN1045_RESTORE_RECONCILE.failedAt),
+            idempotencyKey: z.literal(DZEN1045_RESTORE_RECONCILE.idempotencyKey),
+            confirm: z.boolean().optional().default(false) }
+    }, async args => asToolResult(await reconcileDzenTask1045ZeroRestoreIncident(args)));
     server.registerTool('ba_preview_vk_task1048_api_promotion', {
         description: 'Owner-only exact read-only preview of task1048 promotion from the unclaimed browser item to canonical vk_api. Reports credential readiness without exposing secrets and never calls VK.',
         annotations: { readOnlyHint: true },
