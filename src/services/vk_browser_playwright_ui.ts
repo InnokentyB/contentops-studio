@@ -32,7 +32,9 @@ export class PlaywrightVkBrowserUi implements VkBrowserUi {
         const password = this.page.locator('input[type="password"], input[name="password"]').first();
         if (await password.isVisible().catch(() => false)) return true;
         const loginButton = this.page.getByRole('button', { name: /войти|sign in|log in/i }).first();
-        return loginButton.isVisible().catch(() => false);
+        if (await loginButton.isVisible().catch(() => false)) return true;
+        const loginLink = this.page.getByRole('link', { name: /войти|sign in|log in/i }).first();
+        return loginLink.isVisible().catch(() => false);
     }
 
     async openWallComposer() {
