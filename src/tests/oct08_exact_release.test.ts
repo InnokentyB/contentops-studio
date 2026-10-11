@@ -33,10 +33,12 @@ test('October 8 release schemas pin accepted package and reject cross-tenant or 
 
 test('publisher receives exact releases only; generic owner controls stay hidden', () => {
     for (const name of ['ba_release_linkedin_task1077_browser', 'ba_release_dzen_task1036',
-        'ba_verify_dzen_task1036_connector', 'ba_reconcile_dzen_task1036_uncertain_attempt']) {
+        'ba_verify_dzen_task1036_connector']) {
         assert.equal(isToolAllowedForProfile('publisher', name), true);
         assert.equal(isToolAllowedForProfile('writer', name), false);
     }
+    assert.equal(isToolAllowedForProfile('planner', 'ba_reconcile_dzen_task1036_uncertain_attempt'), true);
+    assert.equal(isToolAllowedForProfile('publisher', 'ba_reconcile_dzen_task1036_uncertain_attempt'), true);
     assert.equal(isToolAllowedForProfile('publisher', 'ba_release_approved_dzen_task'), false);
     assert.equal(isToolAllowedForProfile('publisher', 'ba_release_approved_linkedin_browser_task'), false);
 });
