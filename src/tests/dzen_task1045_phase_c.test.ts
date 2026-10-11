@@ -26,6 +26,8 @@ test('phase C recognizes only the mapped unobstructed header publish control', (
 test('phase C dialog fingerprint is stable and sensitive to confirmation contract', () => {
     const first = dzen1045DialogFingerprint(dialog);
     assert.equal(first, dzen1045DialogFingerprint({ ...dialog, controls: [...dialog.controls] }));
+    assert.equal(first, dzen1045DialogFingerprint({ ...dialog, controls: [{ ...dialog.controls[0],
+        geometry: { x: 240, y: 201, width: 109, height: 31 } }] }));
     assert.notEqual(first, dzen1045DialogFingerprint({ ...dialog, controls: [{ ...dialog.controls[0], disabled: true }] }));
 });
 

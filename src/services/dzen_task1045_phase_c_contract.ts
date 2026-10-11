@@ -35,7 +35,7 @@ export function isDzen1045HeaderPublishControl(value: { text: string; dataTestId
 export function dzen1045DialogFingerprint(dialog: Dzen1045PublishDialog): string {
     const canonical = { text: dialog.text.replace(/\s+/g, ' ').trim(),
         controls: dialog.controls.map(control => ({ tag: control.tag, text: control.text.replace(/\s+/g, ' ').trim(),
-            dataTestId: control.dataTestId, disabled: control.disabled, geometry: control.geometry })),
+            dataTestId: control.dataTestId, disabled: control.disabled })),
         requiredControls: dialog.requiredControls.map(control => ({ label: control.label.trim(), value: control.value.trim() })) };
     return createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
 }
