@@ -56,6 +56,7 @@ export interface VkBrowserReadback {
 
 export interface VkBrowserUi {
     navigate(url: string): Promise<void>;
+    challengeRequired?(): Promise<boolean>;
     loginRequired(): Promise<boolean>;
     openWallComposer(): Promise<void>;
     setPostText(text: string): Promise<void>;
@@ -383,6 +384,16 @@ export async function submitVkBrowserPublication(job: VkBrowserJob, dependencies
     }
 
     await dependencies.ui.navigate(bundle.communityUrl);
+    if (await dependencies.ui.challengeRequired?.()) {
+        const screenshotPath = path.join(bundle.evidenceDir, `${sha256(job.job_id).slice(0, 16)}-challenge.png`);
+        let diagnostic = screenshotPath;
+        try {
+            await dependencies.ui.captureScreenshot(screenshotPath);
+        } catch (error: unknown) {
+            diagnostic = `unavailable:${error instanceof Error ? error.name : 'ScreenshotError'}`;
+        }
+        throw new Error(`[VK_BROWSER_CHALLENGE_REQUIRED] Complete the VK anti-bot challenge in the dedicated profile and retry (Diagnostic screenshot: ${diagnostic})`);
+    }
     if (await dependencies.ui.loginRequired()) {
         throw new Error('[VK_BROWSER_LOGIN_REQUIRED] Sign in to the dedicated VK browser profile and retry');
     }
