@@ -32,6 +32,8 @@ import { DZEN1045_RESTORE_RECONCILE } from '../../services/dzen_task1045_restore
 import { reconcileDzenTask1045ZeroRestoreIncident } from '../../services/dzen_task1045_restore_reconcile.service';
 import { DZEN1045_PHASE_A } from '../../services/dzen_task1045_phase_a_contract';
 import { createDzenTask1045DurableDraftPhaseA } from '../../services/dzen_task1045_phase_a.service';
+import { DZEN1045_PHASE_A_PROBE } from '../../services/dzen_task1045_phase_a_probe_contract';
+import { probeDzenTask1045PhaseACreationContract } from '../../services/dzen_task1045_phase_a_probe.service';
 import { previewVkTask1048Api, promoteVkTask1048Api, VK1048_MANIFEST } from '../../services/vk_task1048_api_promotion.service';
 import {
     releaseThreadsTask1046,
@@ -319,6 +321,14 @@ export function registerOct10OwnerRecoveryTools(server: McpServer): void {
             idempotencyKey: z.literal(DZEN1045_PHASE_A.idempotencyKey),
             confirm: z.boolean().optional().default(false) }
     }, async args => asToolResult(await createDzenTask1045DurableDraftPhaseA(args)));
+    server.registerTool('ba_probe_dzen_task1045_phase_a_creation_contract', {
+        description: 'Strict read-only probe bound to the frozen task1045 Phase A incident. Navigates authenticated Studio, blocks every POST/PUT/PATCH/DELETE request in Chromium, and reports the current create affordance, route metadata and GET network evidence without clicking create.',
+        annotations: { readOnlyHint: true },
+        inputSchema: { projectId: z.literal(10), taskId: z.literal(1045), actorId: z.string().regex(/^user:\d+$/),
+            expectedManifestChecksum: z.literal(DZEN1045_RECOVERY_MANIFEST),
+            expectedPhaseAIdempotencyKey: z.literal(DZEN1045_PHASE_A_PROBE.phaseAKey),
+            expectedFailedAt: z.literal(DZEN1045_PHASE_A_PROBE.failedAt) }
+    }, async args => asToolResult(await probeDzenTask1045PhaseACreationContract(args)));
     server.registerTool('ba_preview_vk_task1048_api_promotion', {
         description: 'Owner-only exact read-only preview of task1048 promotion from the unclaimed browser item to canonical vk_api. Reports credential readiness without exposing secrets and never calls VK.',
         annotations: { readOnlyHint: true },
