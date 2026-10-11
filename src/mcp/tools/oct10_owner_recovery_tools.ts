@@ -48,6 +48,8 @@ import { DZEN1045_CONTROL_MAP_PROBE,
     DZEN1045_PHASE_B_DIALOG_PROBE } from '../../services/dzen_task1045_phase_b_reconcile_contract';
 import { probeDzenTask1045PhaseBDialog } from '../../services/dzen_task1045_phase_b_dialog_probe.service';
 import { probeDzenTask1045EditorControlMap } from '../../services/dzen_task1045_control_map_probe.service';
+import { DZEN1045_PHASE_C } from '../../services/dzen_task1045_phase_c_contract';
+import { executeDzenTask1045PhaseC } from '../../services/dzen_task1045_phase_c.service';
 import { previewVkTask1048Api, promoteVkTask1048Api, VK1048_MANIFEST } from '../../services/vk_task1048_api_promotion.service';
 import {
     releaseThreadsTask1046,
@@ -438,6 +440,20 @@ export function registerOct10OwnerRecoveryTools(server: McpServer): void {
             expectedProviderId: z.literal(DZEN1045_PHASE_B_RECONCILE.providerId),
             idempotencyKey: z.literal(DZEN1045_CONTROL_MAP_PROBE.idempotencyKey) }
     }, async args => asToolResult(await probeDzenTask1045EditorControlMap(args)));
+    server.registerTool('ba_execute_dzen_task1045_phase_c', {
+        description: 'Owner-only task1045 Phase C bound to the exact existing Dzen draft and audited control-map hashes. confirm=false dismisses only the observed help/promo overlays, verifies the unobstructed mapped orange header control, opens and fingerprints the actual publication dialog, blocks provider writes and performs zero final confirmations. confirm=true requires that exact fingerprint, claims a fresh key, repeats preflight, clicks the unique final dialog confirmation once, then requires canonical same-ID public title/body/cover proof before recording fact and checkpoints. Never creates or saves a new object; any uncertainty freezes retry.',
+        annotations: EXTERNAL_PUBLICATION_ANNOTATIONS,
+        inputSchema: { projectId: z.literal(10), taskId: z.literal(1045),
+            actorId: z.string().regex(/^user:\d+$/),
+            expectedManifestChecksum: z.literal(DZEN1045_RECOVERY_MANIFEST),
+            expectedProviderId: z.literal(DZEN1045_PHASE_C.providerId),
+            expectedControlMapKey: z.literal(DZEN1045_PHASE_C.sourceControlMapKey),
+            expectedControlMapJsonSha256: z.literal(DZEN1045_PHASE_C.controlMapJsonSha256),
+            expectedControlMapPngSha256: z.literal(DZEN1045_PHASE_C.controlMapPngSha256),
+            ownerAuthorizationReference: z.string().min(10),
+            idempotencyKey: z.union([z.literal(DZEN1045_PHASE_C.previewKey), z.literal(DZEN1045_PHASE_C.executeKey)]),
+            confirm: z.boolean().optional().default(false), expectedDialogFingerprint: z.string().length(64).nullable().optional() }
+    }, async args => asToolResult(await executeDzenTask1045PhaseC(args)));
     server.registerTool('ba_preview_vk_task1048_api_promotion', {
         description: 'Owner-only exact read-only preview of task1048 promotion from the unclaimed browser item to canonical vk_api. Reports credential readiness without exposing secrets and never calls VK.',
         annotations: { readOnlyHint: true },
