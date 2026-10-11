@@ -15,6 +15,18 @@ import { preparationRoute } from '../publication_approval_guard';
 import { loadPublicationPlanContext } from './plans';
 import { resolveTaskScheduleAt, assertPublicationTaskMutableForMcp } from './helpers';
 import { PublicationOutcome } from './types';
+import { sanitizeChannelConfig } from '../../utils/channel.utils';
+
+type PublicationTaskWithChannel = {
+    channel?: ({ type: string; config: unknown } & Record<string, unknown>) | null;
+} & Record<string, unknown>;
+
+/** Prevent every task readback branch from exposing plaintext or encrypted provider credentials. */
+export function sanitizePublicationTaskChannel<T extends PublicationTaskWithChannel>(item: T): T {
+    if (!item.channel) return item;
+    return { ...item, channel: { ...item.channel,
+        config: sanitizeChannelConfig(item.channel.type, item.channel.config) } } as T;
+}
 
 /**
  * Get resources and assets associated with a publication task.
@@ -166,7 +178,7 @@ export async function getPublicationTask(projectId: number, taskId: number) {
     const action = (item.assets as Record<string, unknown> | null)?.action;
     if (!plan || !action) {
         const bundle = publicationPlanService.buildGeneratedContentItemHandoff(item);
-        return {
+        return sanitizePublicationTaskChannel({
             ...item,
             content_state: derivePublicationContentState(item),
             generation_stage: derivePublicationGenerationStage({
@@ -183,11 +195,11 @@ export async function getPublicationTask(projectId: number, taskId: number) {
                 ...((item.quality_report as Record<string, unknown> | null) || {}),
                 handoff_bundle: bundle
             }
-        };
+        });
     }
 
     const bundle = publicationPlanService.buildHandoffBundle({ ...plan, actions: [action] } as unknown as Parameters<typeof publicationPlanService.buildHandoffBundle>[0], item);
-    return {
+    return sanitizePublicationTaskChannel({
         ...item,
         generation_stage: derivePublicationGenerationStage({
             status: item.status,
@@ -210,7 +222,7 @@ export async function getPublicationTask(projectId: number, taskId: number) {
             ...((item.quality_report as Record<string, unknown> | null) || {}),
             handoff_bundle: bundle
         }
-    };
+    });
 }
 
 /**
