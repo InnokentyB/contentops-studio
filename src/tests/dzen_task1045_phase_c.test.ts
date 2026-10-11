@@ -34,7 +34,8 @@ test('phase C preview opens the real dialog but performs no final confirmation o
     const result = await runDzen1045PhaseC({ confirm: false,
         idempotencyKey: DZEN1045_PHASE_C.previewKey, expectedDialogFingerprint: null }, {
         inspectDialog: async () => ({ dialog, fingerprint: dzen1045DialogFingerprint(dialog),
-            exactDraft: true as const, finalConfirmationClicks: 0 as const, providerWrites: 0 as const }),
+            exactDraft: true as const, uniqueFinalControl: true,
+            finalConfirmationClicks: 0 as const, providerWrites: 0 as const }),
         claim: async () => { claims += 1; return true; },
         submitOnce: async () => { submits += 1; throw new Error('not expected'); },
         record: async () => { records += 1; return {}; }
@@ -53,7 +54,7 @@ test('phase C confirm requires the preview fingerprint, claims first, submits on
         final_submit_count: 1 as const, provider_trace: [{ method: 'POST', status: 200 }] };
     const result = await runDzen1045PhaseC({ confirm: true,
         idempotencyKey: DZEN1045_PHASE_C.executeKey, expectedDialogFingerprint: fingerprint }, {
-        inspectDialog: async () => ({ dialog, fingerprint, exactDraft: true as const,
+        inspectDialog: async () => ({ dialog, fingerprint, exactDraft: true as const, uniqueFinalControl: true,
             finalConfirmationClicks: 0 as const, providerWrites: 0 as const }),
         claim: async () => { claims += 1; return true; },
         submitOnce: async observed => { submits += 1; assert.equal(observed.fingerprint, fingerprint); return publication; },
@@ -68,10 +69,25 @@ test('phase C mismatch freezes before claim and final confirmation', async () =>
     await assert.rejects(runDzen1045PhaseC({ confirm: true,
         idempotencyKey: DZEN1045_PHASE_C.executeKey, expectedDialogFingerprint: 'stale' }, {
         inspectDialog: async () => ({ dialog, fingerprint: dzen1045DialogFingerprint(dialog), exactDraft: true as const,
+            uniqueFinalControl: true,
             finalConfirmationClicks: 0 as const, providerWrites: 0 as const }),
         claim: async () => { claims += 1; return true; },
         submitOnce: async () => { submits += 1; throw new Error('not expected'); },
         record: async () => ({})
     }), /DIALOG_FINGERPRINT_MISMATCH/);
     assert.equal(claims, 0); assert.equal(submits, 0);
+});
+
+test('phase C preview returns ambiguous dialog evidence but confirm stops before claim', async () => {
+    let claims = 0;
+    const ports = { inspectDialog: async () => ({ dialog, fingerprint: dzen1045DialogFingerprint(dialog),
+        exactDraft: true as const, uniqueFinalControl: false, finalConfirmationClicks: 0 as const, providerWrites: 0 as const }),
+    claim: async () => { claims += 1; return true; },
+    submitOnce: async () => { throw new Error('not expected'); }, record: async () => ({}) };
+    const preview = await runDzen1045PhaseC({ confirm: false, idempotencyKey: DZEN1045_PHASE_C.previewKey,
+        expectedDialogFingerprint: null }, ports);
+    assert.equal(preview.mode, 'preview'); assert.equal(preview.inspection.uniqueFinalControl, false);
+    await assert.rejects(runDzen1045PhaseC({ confirm: true, idempotencyKey: DZEN1045_PHASE_C.executeKey,
+        expectedDialogFingerprint: preview.inspection.fingerprint }, ports), /FINAL_CONTROL_NOT_EXACT/);
+    assert.equal(claims, 0);
 });
