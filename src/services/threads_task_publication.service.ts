@@ -13,6 +13,9 @@ const TASK_SPECS = {
     1046: { revision: 4, bodySha256: 'e3403bd77725ff503627cdecca3a2ce423f148af75ac25830add9652ae25adb9',
         decisionId: 270, releaseCommand: 'ba_release_threads_task1046_api', decisionChannel: 'threads', chain: false,
         selectedAssetId: 132, assetSha256: '1b9177bbdc77a4d29f0c950f14f85f16f018c2a45544aa8f75ff6e8f00db2e03' },
+    1051: { revision: 2, bodySha256: 'd96eba545e5062bb339fef56c7e0ef7de39807c7892c7c46d461ef2c02b24d5e',
+        decisionId: 282, releaseCommand: 'ba_release_threads_task1051_recovery', decisionChannel: 'threads', chain: false,
+        selectedAssetId: null, assetSha256: null },
     953: { revision: 4, bodySha256: 'e7d8c1f2f9cf4f7e3ca1ad6fb05e55153c2153739b3fcdf280e519f574b7f7a6',
         decisionId: 149, releaseCommand: 'ba_release_approved_threads_task953', decisionChannel: 'innokenty_threads', chain: false },
     966: { revision: 1, bodySha256: '83dd0fe0b2b354898b9fd3e5161d5ab05517c4c2b2304862d74c949ce1e2b123',
@@ -66,7 +69,7 @@ export class ThreadsTaskPublicationService {
         const hasToken = Boolean(config.access_token);
         const hasIdentity = Boolean(config.threads_user_id);
         const connectorReady = hasToken && hasIdentity;
-        if (args.dryRun && ![1043, 1046].includes(args.taskId)) {
+        if (args.dryRun && ![1043, 1046, 1051].includes(args.taskId)) {
             const acceptedRevision = task.accepted_revision;
             if (!Number.isInteger(acceptedRevision) || acceptedRevision < 1
                 || task.content_revision !== acceptedRevision || task.text_state !== 'accepted'
@@ -144,6 +147,12 @@ export class ThreadsTaskPublicationService {
                 || proof.publish_at !== task.publish_at?.toISOString()))
             || (args.taskId === 1046 && (proof.publication_authorized !== true
                 || proof.publish_at !== task.publish_at?.toISOString()
+                || task.visual_placement !== 'feed'))
+            || (args.taskId === 1051 && (proof.publication_authorized !== true
+                || proof.publish_at !== task.publish_at?.toISOString()
+                || proof.threads_user_id !== '39421253764155091'
+                || proof.username !== 'innokentybo'
+                || config.threads_user_id !== '39421253764155091'
                 || task.visual_placement !== 'feed'))
             || (args.taskId === 997 && (proof.publication_authorized !== true || release?.id !== 1887))
             || task.publication_mode !== 'owner_released' || task.status !== 'ready_for_execution'

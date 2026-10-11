@@ -2,6 +2,8 @@ import puppeteerPublisherService from './puppeteer_publisher.service';
 import type { Dzen1045DraftProof } from './dzen_task1045_resume_contract';
 import {
     inspectDzen1045AbsenceInBrowser,
+    inspectDzen1045SecondAttemptInBrowserSession,
+    restoreDzen1045InBrowserSession,
     recoverDzen1045SecondAttemptInBrowserSession,
     resumeDzen1045DraftInBrowser
 } from './dzen_task1045_browser.service';
@@ -55,6 +57,23 @@ export function isDzenPublishedUrl(value: string): boolean {
 }
 
 class DzenService {
+    async inspectTask1045ExactObjects(config: DzenConfig, acceptedBody: string) {
+        if (!config.cookies?.trim() || config.channel_id?.trim() !== '6a8029aba055ec36033bf81c') {
+            throw new Error('[DZEN_CONNECTOR_NOT_READY] Exact authenticated task1045 channel is required');
+        }
+        return inspectDzen1045SecondAttemptInBrowserSession({ cookies: config.cookies.trim(),
+            channel_id: config.channel_id.trim() }, acceptedBody);
+    }
+    async restoreTask1045(config: DzenConfig, acceptedBody: string, imageUrl: string) {
+        if (!config.cookies?.trim() || config.channel_id?.trim() !== '6a8029aba055ec36033bf81c') {
+            throw new Error('[DZEN_CONNECTOR_NOT_READY] Exact authenticated task1045 channel is required');
+        }
+        return restoreDzen1045InBrowserSession(
+            { cookies: config.cookies.trim(), channel_id: config.channel_id.trim() },
+            acceptedBody,
+            imageUrl
+        );
+    }
     async recoverTask1045SecondAttempt(config: DzenConfig, acceptedBody: string,
         args: { confirm: boolean; idempotencyKey: string },
         claim: (proof: Dzen1045SecondAttemptDraftProof) => Promise<boolean>) {

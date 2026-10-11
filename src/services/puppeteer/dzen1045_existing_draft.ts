@@ -144,13 +144,13 @@ export async function resumeDzen1045InExistingDraft(page: Page, acceptedBody: st
     return runDzen1045DraftResume(args, {
         inspect: async () => {
             const published = await enumerateDzen1045Studio(page, listUrl, 'published');
-            const publicMatches = published.publications.filter(item => item.title === DZEN1045.title);
+            const publicMatches = published.publications.filter(item => item.title === DZEN1045.publicTitle);
             const drafts = await enumerateDzen1045Studio(page, listUrl, 'draft');
             const candidates = drafts.publications.filter(item => item.state === 'draft' && item.provider_object_id);
             const exact: Dzen1045DraftProof[] = [];
             const diagnostics: Dzen1045MatchDiagnostics = { publishedTitleMatches: publicMatches.length,
                 draftObjects: candidates.length,
-                draftTitleMatches: candidates.filter(item => item.title === DZEN1045.title).length,
+                draftTitleMatches: candidates.filter(item => item.title === DZEN1045.publicTitle).length,
                 missingCover: 0, bodyMismatches: 0, coverMismatches: 0,
                 packageMatchCount: 0, packageMatches: [], exactMatches: 0 };
             for (const candidate of candidates) {
@@ -177,7 +177,7 @@ export async function resumeDzen1045InExistingDraft(page: Page, acceptedBody: st
                 if (coverSha !== DZEN1045.assetSha) { diagnostics.coverMismatches += 1; continue; }
                 diagnostics.packageMatchCount += 1;
                 if (diagnostics.packageMatches.length < 5) diagnostics.packageMatches.push({ draftId, title });
-                if (title !== DZEN1045.title) continue;
+                if (title !== DZEN1045.publicTitle) continue;
                 await page.click(DZEN_EDITOR_SELECTORS.articlePublish);
                 await page.waitForSelector(DZEN_EDITOR_SELECTORS.publicationConfirm, { visible: true, timeout: 15_000 });
                 const finalControlReady = await page.$eval(DZEN_EDITOR_SELECTORS.publicationConfirm, element =>
@@ -200,7 +200,7 @@ export async function resumeDzen1045InExistingDraft(page: Page, acceptedBody: st
             await new Promise(resolve => setTimeout(resolve, 1500));
             const published = await enumerateDzen1045Studio(page, listUrl, 'published');
             const match = published.publications.find(item => item.state === 'published'
-                && item.provider_object_id === proof.draftId && item.title === DZEN1045.title);
+                && item.provider_object_id === proof.draftId && item.title === DZEN1045.publicTitle);
             if (!published.coverageComplete || !match?.public_url || !match.published_at) {
                 throw new Error('[DZEN1045_RESUME_UNCERTAIN] Exact public object not confirmed');
             }

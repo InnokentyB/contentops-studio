@@ -19,3 +19,24 @@ test('click failure remains uncertain, never marked pre-submit', async () => {
     }) } as unknown as Page;
     await assert.rejects(() => clickDzenPublicationConfirm(page, 'button'), /click transport lost/);
 });
+
+test('semantic dialog fallback clicks the sole enabled Publish control when test id changed', async () => {
+    let clicks = 0;
+    const page = {
+        waitForSelector: async () => null,
+        $$: async () => [{
+            evaluate: async () => ({ visible: true, inDialog: true, label: 'Опубликовать',
+                disabled: false, ariaDisabled: false }),
+            click: async () => { clicks += 1; }
+        }]
+    } as unknown as Page;
+    await clickDzenPublicationConfirm(page, '[data-testid="publish-btn"]');
+    assert.equal(clicks, 1);
+});
+
+test('semantic dialog fallback refuses ambiguous final controls', async () => {
+    const candidate = { evaluate: async () => ({ visible: true, inDialog: true, label: 'Publish',
+        disabled: false, ariaDisabled: false }), click: async () => undefined };
+    const page = { waitForSelector: async () => null, $$: async () => [candidate, candidate] } as unknown as Page;
+    await assert.rejects(clickDzenPublicationConfirm(page, '[data-testid="publish-btn"]'), /AMBIGUOUS/);
+});

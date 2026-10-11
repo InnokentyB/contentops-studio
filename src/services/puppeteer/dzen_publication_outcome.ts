@@ -84,10 +84,45 @@ export function classifyDzenPublicationOutcome(observation: DzenPublicationObser
 
 type ConfirmButtonState = { disabled: boolean; ariaDisabled: boolean };
 
+const DZEN_FINAL_LABEL = /^(?:опубликовать|publish)$/i;
+
+/** Resolve one enabled final control inside the active dialog without depending on one brittle test id. */
+export async function resolveDzenPublicationConfirm(page: Page, preferredSelector: string): Promise<ElementHandle<Element>> {
+    const preferred = await page.waitForSelector(preferredSelector, { visible: true, timeout: 2_000 })
+        .catch(() => null);
+    if (preferred) return preferred as ElementHandle<Element>;
+    if (typeof page.$$ !== 'function') {
+        throw new Error('[DZEN_FINAL_SUBMIT_NOT_ATTEMPTED] Final publication control was not found');
+    }
+    const candidates = await page.$$('button, [role="button"]');
+    const matches: Array<ElementHandle<Element>> = [];
+    for (const candidate of candidates) {
+        const state = await candidate.evaluate(element => {
+            const node = element as HTMLElement;
+            const style = window.getComputedStyle(node);
+            const dialog = element.closest('[role="dialog"], [aria-modal="true"], [class*="modal"], [class*="drawer"]');
+            const visible = style.display !== 'none' && style.visibility !== 'hidden'
+                && node.getBoundingClientRect().width > 0 && node.getBoundingClientRect().height > 0;
+            const label = (node.innerText || node.getAttribute('aria-label') || '').replace(/\s+/g, ' ').trim();
+            const disabled = element instanceof HTMLButtonElement ? element.disabled : element.hasAttribute('disabled');
+            return { visible, inDialog: Boolean(dialog), label, disabled,
+                ariaDisabled: element.getAttribute('aria-disabled') === 'true' };
+        });
+        if (state.visible && state.inDialog && DZEN_FINAL_LABEL.test(state.label)
+            && !state.disabled && !state.ariaDisabled) matches.push(candidate as ElementHandle<Element>);
+    }
+    if (matches.length !== 1) {
+        throw new Error(matches.length === 0
+            ? '[DZEN_FINAL_SUBMIT_NOT_ATTEMPTED] No single enabled final publication control was found'
+            : '[DZEN_FINAL_SUBMIT_AMBIGUOUS] Multiple enabled final publication controls were found');
+    }
+    return matches[0];
+}
+
 /** Submit the final Dzen dialog through a trusted Puppeteer click after checking readiness. */
 export async function clickDzenPublicationConfirm(page: Page, selector: string): Promise<void> {
     // This boundary does not authorize replay: an earlier provider draft may already exist.
-    const button = await page.waitForSelector(selector, { visible: true, timeout: 15_000 })
+    const button = await resolveDzenPublicationConfirm(page, selector)
         .catch((error: unknown) => {
             if (error instanceof Error && /timeout|waiting for selector/i.test(error.message)) {
                 throw new Error('[DZEN_FINAL_SUBMIT_NOT_ATTEMPTED] Final control wait timed out before click; reconcile existing draft, do not resend');
