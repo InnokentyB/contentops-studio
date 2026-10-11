@@ -4,6 +4,7 @@ import prisma from '../../db';
 import artDirectionService from '../art_direction.service';
 import { requireProjectAccess } from './auth';
 import { checkIdempotency, recordWorkflowEvent } from './infrastructure';
+import { assertAndClaimPublicationIdentity } from '../publication_identity.service';
 
 /**
  * Claims a work item with an atomic conditional lease reservation.
@@ -145,7 +146,8 @@ export async function completeWorkItem(params: {
 
         // First get the current result_version to compute increment safely
         const currentItem = await tx.workItem.findFirst({
-            where: { id: params.workItemId, project_id: params.projectId }
+            where: { id: params.workItemId, project_id: params.projectId },
+            include: { content_item: { include: { channel: true } } }
         });
 
         if (!currentItem) {
@@ -153,6 +155,17 @@ export async function completeWorkItem(params: {
         }
 
         const newResultVersion = currentItem.result_version + 1;
+
+        if (currentItem.content_item_id && currentItem.kind === 'content_write'
+            && String(currentItem.content_item?.channel?.type || '').toLowerCase() === 'medium') {
+            await assertAndClaimPublicationIdentity(tx, {
+                projectId: params.projectId,
+                taskId: currentItem.content_item_id,
+                boundary: 'writer_completion',
+                body: params.result.body || params.result.text || '',
+                reportedSourceIdentity: params.result
+            });
+        }
 
         // Atomic conditional UPDATE preventing race conditions
         const updateResult = await tx.workItem.updateMany({

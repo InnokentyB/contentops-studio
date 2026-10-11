@@ -26,6 +26,7 @@ import { TelegramPublicationRouteError, AutomatedPublicationResult } from './typ
 import { normalizeTelegramDeliveryPayload } from '../telegram_delivery_payload';
 import { resolveVkStoryPollFromTask } from '../vk_story_poll';
 import { createHash } from 'crypto';
+import { assertAndClaimPublicationIdentityForTask } from '../publication_identity.service';
 
 export class PublicationDispatcher {
     getPublicContentItemImageUrl(itemId: number, imageUrl: string | null, requestHost?: string): string | null {
@@ -697,6 +698,14 @@ export class PublicationDispatcher {
 
         if (route === 'waiting' || route === 'published') {
             return { success: false, status: task.status, skipped: true, reason: route };
+        }
+
+        if (String(task.channel?.type || '').toLowerCase() === 'medium') {
+            await assertAndClaimPublicationIdentityForTask({
+                projectId: task.project_id,
+                taskId: task.id,
+                boundary: 'release'
+            });
         }
 
         if (route === 'browser_required') {

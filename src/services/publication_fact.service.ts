@@ -1,5 +1,6 @@
 import prisma from '../db';
 import { requireProjectActorAccess } from './project_access.service';
+import { assertAndClaimPublicationIdentity } from './publication_identity.service';
 
 export type ArtifactKind = 'post' | 'article' | 'video' | 'story' | 'email' | 'comment' | 'other';
 export type PublicationOutcome = 'published' | 'blocked' | 'removed' | 'restricted';
@@ -118,6 +119,14 @@ export class PublicationFactService {
             });
             if (!item) throw new Error('PUBLICATION_TASK_NOT_FOUND');
             const channelPolicy = publicationFactChannelPolicy(item);
+            if (args.outcome === 'published' && item.publication_fact?.outcome !== 'published'
+                && String(item.channel?.type || '').toLowerCase() === 'medium') {
+                await assertAndClaimPublicationIdentity(tx, {
+                    projectId: args.projectId,
+                    taskId: item.id,
+                    boundary: 'fact_recording'
+                });
+            }
 
             const nextData = {
                 project_id: args.projectId,
