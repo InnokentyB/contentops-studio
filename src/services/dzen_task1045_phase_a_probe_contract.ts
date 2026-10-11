@@ -1,5 +1,6 @@
 export const DZEN1045_PHASE_A_PROBE = {
     tool: 'ba_probe_dzen_task1045_phase_a_creation_contract',
+    menuTool: 'ba_probe_dzen_task1045_phase_a_creation_menu',
     phaseAKey: 'dzen-p10-1045-r4-asset129-draft-phase-a-20261011-01',
     failedAt: '2026-10-11T18:37:03.304Z'
 } as const;

@@ -16,6 +16,18 @@ function object(value: unknown): Record<string, unknown> {
         ? value as Record<string, unknown> : {};
 }
 export async function probeDzenTask1045PhaseACreationContract(args: Dzen1045PhaseAProbeArgs) {
+    const config = await loadDzenTask1045ProbeConfig(args);
+    return { task_id: 1045, incident: { phase_a_key: DZEN1045_PHASE_A_PROBE.phaseAKey,
+        failed_at: DZEN1045_PHASE_A_PROBE.failedAt },
+    probe: await dzenService.probeTask1045CreationContract(config) };
+}
+export async function probeDzenTask1045PhaseACreationMenu(args: Dzen1045PhaseAProbeArgs) {
+    const config = await loadDzenTask1045ProbeConfig(args);
+    return { task_id: 1045, incident: { phase_a_key: DZEN1045_PHASE_A_PROBE.phaseAKey,
+        failed_at: DZEN1045_PHASE_A_PROBE.failedAt },
+    probe: await dzenService.probeTask1045CreationMenu(config) };
+}
+async function loadDzenTask1045ProbeConfig(args: Dzen1045PhaseAProbeArgs) {
     const actor = /^user:(\d+)$/.exec(args.actorId);
     if (!actor || args.projectId !== 10 || args.taskId !== 1045
         || args.expectedManifestChecksum !== DZEN1045_RECOVERY_MANIFEST
@@ -42,7 +54,5 @@ export async function probeDzenTask1045PhaseACreationContract(args: Dzen1045Phas
         || task.selected_asset_id !== 129 || checksum !== DZEN1045.assetSha
         || task.publication_fact || task.published_link) throw new Error('[DZEN1045_PHASE_A_PROBE_TASK_MISMATCH]');
     const config = resolveEffectiveChannelConfig('dzen', task.channel.config || {});
-    return { task_id: 1045, incident: { phase_a_key: DZEN1045_PHASE_A_PROBE.phaseAKey,
-        failed_at: DZEN1045_PHASE_A_PROBE.failedAt },
-    probe: await dzenService.probeTask1045CreationContract(config) };
+    return config;
 }
