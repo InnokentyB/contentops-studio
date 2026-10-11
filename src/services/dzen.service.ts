@@ -9,6 +9,7 @@ import {
     probeDzen1045CreationContractInBrowser,
     probeDzen1045CreationMenuInBrowser,
     createDzen1045DurableDraftPhaseAV2InBrowser,
+    inspectDzen1045PhaseAV2IncidentInBrowser,
     recoverDzen1045SecondAttemptInBrowserSession,
     resumeDzen1045DraftInBrowser
 } from './dzen_task1045_browser.service';
@@ -62,6 +63,13 @@ export function isDzenPublishedUrl(value: string): boolean {
 }
 
 class DzenService {
+    async inspectTask1045PhaseAV2Incident(config: DzenConfig, acceptedBody: string) {
+        if (!config.cookies?.trim() || config.channel_id?.trim() !== '6a8029aba055ec36033bf81c') {
+            throw new Error('[DZEN_CONNECTOR_NOT_READY] Exact authenticated task1045 channel is required');
+        }
+        return inspectDzen1045PhaseAV2IncidentInBrowser({ cookies: config.cookies.trim(),
+            channel_id: config.channel_id.trim() }, acceptedBody);
+    }
     async createTask1045DurableDraftPhaseAV2(config: DzenConfig, acceptedBody: string, imageUrl: string) {
         if (!config.cookies?.trim() || config.channel_id?.trim() !== '6a8029aba055ec36033bf81c') {
             throw new Error('[DZEN_CONNECTOR_NOT_READY] Exact authenticated task1045 channel is required');

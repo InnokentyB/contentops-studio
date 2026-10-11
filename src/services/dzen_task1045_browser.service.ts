@@ -11,6 +11,7 @@ import { createDzen1045DurableDraftPhaseA } from './puppeteer/dzen1045_phase_a';
 import { probeDzen1045CreationContract } from './puppeteer/dzen1045_phase_a_probe';
 import { probeDzen1045CreationMenu } from './puppeteer/dzen1045_phase_a_menu_probe';
 import { createDzen1045DurableDraftPhaseAV2 } from './puppeteer/dzen1045_phase_a_v2';
+import { inspectDzen1045PhaseAV2Incident } from './puppeteer/dzen1045_phase_a_v2_reconcile';
 
 type Config = { cookies: string; channel_id: string };
 
@@ -86,4 +87,7 @@ export async function createDzen1045DurableDraftPhaseAV2InBrowser(config: Config
     return withDzen1045Page(config, page => createDzen1045DurableDraftPhaseAV2(
         page, acceptedBody, imageUrl, { uploadImage: url => puppeteerPublisherService.uploadDzenImage(page, url) }
     ));
+}
+export async function inspectDzen1045PhaseAV2IncidentInBrowser(config: Config, acceptedBody: string) {
+    return withDzen1045Page(config, page => inspectDzen1045PhaseAV2Incident(page, acceptedBody));
 }
