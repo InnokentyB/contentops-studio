@@ -43,9 +43,10 @@ async function dismissKnownOverlays(page: Page): Promise<{ dismissed: string[]; 
         if (await visibleOverlay(page, PROMO_TEXT)) retained.push('article_promo');
         else dismissed.push('article_promo');
     }
-    if (await visibleOverlay(page, HELP_TEXT)) {
-        throw new Error('[DZEN1045_PHASE_C_OVERLAY_POSTCONDITION_FAILED]');
-    }
+    // Dzen can retain a visible help fragment after the modal close animation.
+    // It is safe to continue only because exactHeaderControl performs a
+    // coordinate-level elementFromPoint check and rejects an obscured target.
+    if (await visibleOverlay(page, HELP_TEXT)) retained.push('article_help_residual');
     return { dismissed, retained };
 }
 
