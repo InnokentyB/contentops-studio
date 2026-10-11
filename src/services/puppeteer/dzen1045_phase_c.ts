@@ -73,30 +73,41 @@ async function exactHeaderControl(page: Page): Promise<ElementHandle<Element>> {
     return exact[0];
 }
 
-async function capturePublishDialog(page: Page): Promise<{ dialog: Dzen1045PublishDialog; final: ElementHandle<Element> }> {
+async function capturePublishDialog(page: Page): Promise<{ dialog: Dzen1045PublishDialog;
+    final: ElementHandle<Element> | null; screenshot: { mimeType: 'image/png'; base64: string } }> {
     await page.waitForFunction(() => Array.from(document.querySelectorAll('[role="dialog"], [aria-modal="true"], [class*="modal"], [class*="drawer"]'))
         .some(element => { const node = element as HTMLElement; const text = node.innerText || ''; const rect = node.getBoundingClientRect();
             const style = getComputedStyle(node); return /опубликовать|publish/i.test(text)
                 && !text.includes('Статья — это в первую очередь текст') && style.display !== 'none'
                 && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0; }), { timeout: 8_000 });
-    const handles = await page.$$('button, [role="button"]'); const final: Array<ElementHandle<Element>> = [];
-    for (const handle of handles) {
-        const state = await handle.evaluate(element => { const node = element as HTMLElement; const rect = node.getBoundingClientRect();
-            const style = getComputedStyle(node); const dialog = element.closest('[role="dialog"], [aria-modal="true"], [class*="modal"], [class*="drawer"]');
-            return { visible: style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0,
-                inDialog: Boolean(dialog), help: Boolean(dialog && (dialog as HTMLElement).innerText.includes('Статья — это в первую очередь текст')),
-                label: (node.innerText || node.getAttribute('aria-label') || '').replace(/\s+/g, ' ').trim(),
-                disabled: element instanceof HTMLButtonElement ? element.disabled : element.getAttribute('aria-disabled') === 'true' }; });
-        if (state.visible && state.inDialog && !state.help && !state.disabled && FINAL_LABEL.test(state.label)) final.push(handle);
+    const roots = await page.$$('[role="dialog"], [aria-modal="true"], [class*="modal"], [class*="drawer"]');
+    const publishRoots: Array<ElementHandle<Element>> = [];
+    for (const root of roots) { const matches = await root.evaluate(element => { const node = element as HTMLElement;
+        const rect = node.getBoundingClientRect(); const style = getComputedStyle(node); const text = node.innerText || '';
+        return /опубликовать|publish/i.test(text) && !text.includes('Статья — это в первую очередь текст')
+            && style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0; });
+        if (matches) publishRoots.push(root);
     }
-    if (final.length !== 1) throw new Error('[DZEN1045_PHASE_C_FINAL_CONTROL_NOT_EXACT]');
-    const dialog = await final[0].evaluate(element => { const root = element.closest('[role="dialog"], [aria-modal="true"], [class*="modal"], [class*="drawer"]')!;
+    if (publishRoots.length !== 1) throw new Error(`[DZEN1045_PHASE_C_DIALOG_NOT_EXACT] ${JSON.stringify({
+        visiblePublishDialogs: publishRoots.length
+    })}`);
+    const root = publishRoots[0]; const handles = await root.$$('button, [role="button"], input, select, textarea, [tabindex]');
+    const final: Array<ElementHandle<Element>> = [];
+    for (const handle of handles) { const state = await handle.evaluate(element => { const node = element as HTMLElement;
+        const rect = node.getBoundingClientRect(); const style = getComputedStyle(node);
+        return { visible: style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0,
+            label: (node.innerText || node.getAttribute('aria-label') || '').replace(/\s+/g, ' ').trim(),
+            disabled: element instanceof HTMLButtonElement || element instanceof HTMLInputElement
+                ? element.disabled : element.getAttribute('aria-disabled') === 'true' }; });
+        if (state.visible && !state.disabled && FINAL_LABEL.test(state.label)) final.push(handle);
+    }
+    const dialog = await root.evaluate(element => { const root = element;
         const visible = (candidate: Element) => { const node = candidate as HTMLElement; const rect = node.getBoundingClientRect(); const style = getComputedStyle(node);
             return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0; };
-        const controls: Dzen1045DialogControl[] = Array.from(root.querySelectorAll('button, [role="button"]')).filter(visible).map(candidate => {
+        const controls: Dzen1045DialogControl[] = Array.from(root.querySelectorAll('button, [role="button"], input, select, textarea, [tabindex]')).filter(visible).map(candidate => {
             const node = candidate as HTMLElement; const rect = node.getBoundingClientRect(); return { tag: candidate.tagName.toLowerCase(),
                 text: (node.innerText || candidate.getAttribute('aria-label') || '').replace(/\s+/g, ' ').trim(),
-                dataTestId: candidate.getAttribute('data-testid'), disabled: candidate instanceof HTMLButtonElement
+                dataTestId: candidate.getAttribute('data-testid'), disabled: candidate instanceof HTMLButtonElement || candidate instanceof HTMLInputElement
                     ? candidate.disabled : candidate.getAttribute('aria-disabled') === 'true',
                 geometry: { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) } }; });
         const requiredControls = Array.from(root.querySelectorAll('input[required], select[required], textarea[required]')).filter(visible)
@@ -104,11 +115,13 @@ async function capturePublishDialog(page: Page): Promise<{ dialog: Dzen1045Publi
                 value: (candidate as HTMLInputElement).value || '' }));
         return { text: (root as HTMLElement).innerText.replace(/\s+/g, ' ').trim().slice(0, 3000), controls, requiredControls };
     });
-    return { dialog, final: final[0] };
+    const screenshot = await page.screenshot({ encoding: 'base64', fullPage: false });
+    return { dialog, final: final.length === 1 ? final[0] : null,
+        screenshot: { mimeType: 'image/png', base64: screenshot } };
 }
 
 async function prepare(page: Page, acceptedBody: string, blockWrites: boolean): Promise<Dzen1045DialogInspection & {
-    final: ElementHandle<Element>; blockedWrites: Array<{ method: string; path: string }>;
+    final: ElementHandle<Element> | null; blockedWrites: Array<{ method: string; path: string }>;
     dismissedOverlays: string[]; retainedOverlays: string[] }> {
     const blockedWrites: Array<{ method: string; path: string }> = [];
     if (blockWrites) { await page.setRequestInterception(true); page.on('request', request => { const method = request.method().toUpperCase();
@@ -119,7 +132,8 @@ async function prepare(page: Page, acceptedBody: string, blockWrites: boolean): 
     if (!dzen1045PackageMatches(observed)) throw new Error('[DZEN1045_PHASE_C_EXACT_DRAFT_REQUIRED]');
     const overlays = await dismissKnownOverlays(page); const header = await exactHeaderControl(page);
     await header.click(); const captured = await capturePublishDialog(page); const fingerprint = dzen1045DialogFingerprint(captured.dialog);
-    return { dialog: captured.dialog, fingerprint, exactDraft: true, finalConfirmationClicks: 0,
+    return { dialog: captured.dialog, fingerprint, exactDraft: true, uniqueFinalControl: Boolean(captured.final),
+        finalConfirmationClicks: 0, screenshot: captured.screenshot,
         providerWrites: 0, final: captured.final, blockedWrites,
         dismissedOverlays: overlays.dismissed, retainedOverlays: overlays.retained };
 }
@@ -127,7 +141,8 @@ async function prepare(page: Page, acceptedBody: string, blockWrites: boolean): 
 export async function previewDzen1045PhaseC(page: Page, acceptedBody: string) {
     const inspected = await prepare(page, acceptedBody, true);
     return { dialog: inspected.dialog, fingerprint: inspected.fingerprint, exactDraft: true as const,
-        finalConfirmationClicks: 0 as const, providerWrites: 0 as const,
+        uniqueFinalControl: inspected.uniqueFinalControl, finalConfirmationClicks: 0 as const,
+        providerWrites: 0 as const, screenshot: inspected.screenshot,
         blockedWrites: inspected.blockedWrites, dismissedOverlays: inspected.dismissedOverlays,
         retainedOverlays: inspected.retainedOverlays,
         checkedAt: new Date().toISOString() };
@@ -142,6 +157,9 @@ export async function publishDzen1045PhaseCOnce(page: Page, acceptedBody: string
     }
     const inspected = await prepare(page, acceptedBody, false);
     if (inspected.fingerprint !== expectedDialogFingerprint) throw new Error('[DZEN1045_PHASE_C_DIALOG_FINGERPRINT_MISMATCH]');
+    if (!inspected.final) throw new Error(`[DZEN1045_PHASE_C_FINAL_CONTROL_NOT_EXACT] ${JSON.stringify({
+        dialog: inspected.dialog, fingerprint: inspected.fingerprint
+    })}`);
     const providerUrls = new Set<string>(); const trace: Trace[] = []; const pending = new Set<Promise<void>>();
     const capture = (response: HTTPResponse) => { const method = response.request().method().toUpperCase();
         if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) return; let url: URL;

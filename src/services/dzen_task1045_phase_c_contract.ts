@@ -18,7 +18,8 @@ export type Dzen1045DialogControl = { tag: string; text: string; dataTestId: str
 export type Dzen1045PublishDialog = { text: string; controls: Dzen1045DialogControl[];
     requiredControls: Array<{ label: string; value: string }> };
 export type Dzen1045DialogInspection = { dialog: Dzen1045PublishDialog; fingerprint: string;
-    exactDraft: true; finalConfirmationClicks: 0; providerWrites: 0 };
+    exactDraft: true; uniqueFinalControl: boolean; finalConfirmationClicks: 0; providerWrites: 0;
+    screenshot?: { mimeType: 'image/png'; base64: string } };
 export type Dzen1045PhaseCPublication = { public_url: string; provider_object_id: typeof DZEN1045_PHASE_C.providerId;
     published_at: string; public_body_matches: true; public_asset_matches: true; public_title_matches: true;
     checked_at: string; final_submit_count: 1; provider_trace: Array<Record<string, unknown>> };
@@ -53,6 +54,7 @@ export async function runDzen1045PhaseC<T>(args: { confirm: boolean; idempotency
         throw new Error('[DZEN1045_PHASE_C_PREFLIGHT_INVALID]');
     }
     if (!args.confirm) return { mode: 'preview' as const, inspection };
+    if (!inspection.uniqueFinalControl) throw new Error('[DZEN1045_PHASE_C_FINAL_CONTROL_NOT_EXACT]');
     if (!args.expectedDialogFingerprint || args.expectedDialogFingerprint !== inspection.fingerprint) {
         throw new Error('[DZEN1045_PHASE_C_DIALOG_FINGERPRINT_MISMATCH]');
     }
