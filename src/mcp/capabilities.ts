@@ -206,6 +206,7 @@ const PUBLISHER_TOOLS = new Set([
     'ba_reconcile_dzen_task1045_phase_c_incident',
     'ba_preview_vk_task1048_api_promotion',
     'ba_apply_vk_task1048_api_promotion',
+    'ba_repair_personal_publication_language',
     'ba_hold_vk_task1084',
     'ba_restore_vk_task1084_from_erroneous_retirement',
     'ba_claim_x_browser_publication',

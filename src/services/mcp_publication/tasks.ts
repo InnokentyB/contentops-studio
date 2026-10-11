@@ -5,7 +5,7 @@ import publicationFactService from '../publication_fact.service';
 import initiativeService from '../initiative.service';
 import publicationPlanService from '../publication_plan.service';
 import publicationAdapterService from '../publication_adapter.service';
-import { channelContentLanguage } from '../content_language.service';
+import { publicationContentLanguage } from '../content_language.service';
 import { normalizeVkStoryPoll } from '../vk_story_poll';
 import { isPublicationTaskActive } from '../publication_task_activity';
 import { derivePublicationContentState } from '../publication_content_state';
@@ -493,7 +493,7 @@ export async function preparePublicationTask(projectId: number, taskId: number) 
         && publicationAdapterService.supportsDirectExecution(effectiveAccount);
     const bundleWithLanguage = {
         ...bundle,
-        content_language: channelContentLanguage(item.channel)
+        content_language: publicationContentLanguage(item.channel, item.quality_report)
     };
     const browserRequired = !directExecutionSupported
         || (bundleWithLanguage.mode === 'manual' && !publicationAdapterService.prefersAutomaticExecution(effectiveAccount));
