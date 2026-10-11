@@ -12,6 +12,10 @@ export const DZEN1045_PHASE_A_V2_RECONCILE = {
     idempotencyKey: 'dzen-p10-1045-r4-asset129-phase-a-v2-reconcile-20261011-01'
 } as const;
 
+export const DZEN1045_PHASE_A_V2_EDITOR_PROBE = {
+    tool: 'ba_probe_dzen_task1045_phase_a_v2_editor_state'
+} as const;
+
 export type Dzen1045PhaseAV2ReconcileInspection =
     | { kind: 'exact_durable_draft'; draft: { draftId: typeof DZEN1045_PHASE_A_V2_RECONCILE.providerId;
         coverId: string; title: typeof DZEN1045.publicTitle; bodySha256: typeof DZEN1045.bodySha;

@@ -196,6 +196,7 @@ const PUBLISHER_TOOLS = new Set([
     'ba_probe_dzen_task1045_phase_a_creation_menu',
     'ba_create_dzen_task1045_durable_draft_phase_a_v2',
     'ba_reconcile_dzen_task1045_phase_a_v2_incident',
+    'ba_probe_dzen_task1045_phase_a_v2_editor_state',
     'ba_preview_vk_task1048_api_promotion',
     'ba_apply_vk_task1048_api_promotion',
     'ba_hold_vk_task1084',
