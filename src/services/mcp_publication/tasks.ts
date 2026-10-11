@@ -28,6 +28,11 @@ export function sanitizePublicationTaskChannel<T extends PublicationTaskWithChan
         config: sanitizeChannelConfig(item.channel.type, item.channel.config) } } as T;
 }
 
+export function publicationHandoffWithLanguage<T extends Record<string, unknown>>(bundle: T,
+    channel: Parameters<typeof publicationContentLanguage>[0], taskMetadata: unknown) {
+    return { ...bundle, content_language: publicationContentLanguage(channel, taskMetadata) };
+}
+
 /**
  * Get resources and assets associated with a publication task.
  */
@@ -178,6 +183,7 @@ export async function getPublicationTask(projectId: number, taskId: number) {
     const action = (item.assets as Record<string, unknown> | null)?.action;
     if (!plan || !action) {
         const bundle = publicationPlanService.buildGeneratedContentItemHandoff(item);
+        const bundleWithLanguage = publicationHandoffWithLanguage(bundle, item.channel, item.quality_report);
         return sanitizePublicationTaskChannel({
             ...item,
             content_state: derivePublicationContentState(item),
@@ -193,12 +199,13 @@ export async function getPublicationTask(projectId: number, taskId: number) {
             schedule_at: resolveTaskScheduleAt(item),
             quality_report: {
                 ...((item.quality_report as Record<string, unknown> | null) || {}),
-                handoff_bundle: bundle
+                handoff_bundle: bundleWithLanguage
             }
         });
     }
 
     const bundle = publicationPlanService.buildHandoffBundle({ ...plan, actions: [action] } as unknown as Parameters<typeof publicationPlanService.buildHandoffBundle>[0], item);
+    const bundleWithLanguage = publicationHandoffWithLanguage(bundle, item.channel, item.quality_report);
     return sanitizePublicationTaskChannel({
         ...item,
         generation_stage: derivePublicationGenerationStage({
@@ -214,13 +221,13 @@ export async function getPublicationTask(projectId: number, taskId: number) {
             ...item,
             quality_report: {
                 ...((item.quality_report as Record<string, unknown> | null) || {}),
-                handoff_bundle: bundle
+                handoff_bundle: bundleWithLanguage
             }
         }),
         schedule_at: resolveTaskScheduleAt(item),
         quality_report: {
             ...((item.quality_report as Record<string, unknown> | null) || {}),
-            handoff_bundle: bundle
+            handoff_bundle: bundleWithLanguage
         }
     });
 }
@@ -503,10 +510,7 @@ export async function preparePublicationTask(projectId: number, taskId: number) 
     };
     const directExecutionSupported = bundle.transport?.connector_authority !== 'manual_only'
         && publicationAdapterService.supportsDirectExecution(effectiveAccount);
-    const bundleWithLanguage = {
-        ...bundle,
-        content_language: publicationContentLanguage(item.channel, item.quality_report)
-    };
+    const bundleWithLanguage = publicationHandoffWithLanguage(bundle, item.channel, item.quality_report);
     const browserRequired = !directExecutionSupported
         || (bundleWithLanguage.mode === 'manual' && !publicationAdapterService.prefersAutomaticExecution(effectiveAccount));
     const preparation = preparationRoute(item.publication_mode, browserRequired);
