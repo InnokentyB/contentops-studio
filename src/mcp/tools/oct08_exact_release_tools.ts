@@ -49,4 +49,12 @@ export function registerOct08ExactReleaseTools(server: McpServer): void {
         inputSchema: { projectId: z.literal(10), taskId: z.literal(1036), actorId: z.string(),
             idempotencyKey: z.string().min(1) }
     }, async args => asToolResult(await dzenTaskPublicationService.verifyConnector(args)));
+    server.registerTool('ba_reconcile_dzen_task1036_uncertain_attempt', {
+        description: 'Owner-only provider-read-only reconciliation of frozen Dzen task1036 attempt event2597. confirm=false exhaustively reads Published and Draft inventories without writes. confirm=true may only record a fact and checkpoints for one canonical exact-title public object; it never sends, retries, creates, edits, or submits provider content.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
+        inputSchema: { projectId: z.literal(10), taskId: z.literal(1036),
+            actorId: z.string().regex(/^user:\d+$/), expectedAttemptEventId: z.literal(2597),
+            expectedAttemptIdempotencyKey: z.literal('dzen-1036-publish-20261008T113000Z'),
+            idempotencyKey: z.string().min(1), confirm: z.boolean().optional().default(false) }
+    }, async args => asToolResult(await dzenTaskPublicationService.reconcileTask1036(args)));
 }
