@@ -50,6 +50,8 @@ import { probeDzenTask1045PhaseBDialog } from '../../services/dzen_task1045_phas
 import { probeDzenTask1045EditorControlMap } from '../../services/dzen_task1045_control_map_probe.service';
 import { DZEN1045_PHASE_C } from '../../services/dzen_task1045_phase_c_contract';
 import { executeDzenTask1045PhaseC } from '../../services/dzen_task1045_phase_c.service';
+import { DZEN1045_PHASE_C_RECONCILE } from '../../services/dzen_task1045_phase_c_reconcile_contract';
+import { reconcileDzenTask1045PhaseCIncident } from '../../services/dzen_task1045_phase_c_reconcile.service';
 import { previewVkTask1048Api, promoteVkTask1048Api, VK1048_MANIFEST } from '../../services/vk_task1048_api_promotion.service';
 import {
     releaseThreadsTask1046,
@@ -454,6 +456,20 @@ export function registerOct10OwnerRecoveryTools(server: McpServer): void {
             idempotencyKey: z.union([z.literal(DZEN1045_PHASE_C.previewKey), z.literal(DZEN1045_PHASE_C.executeKey)]),
             confirm: z.boolean().optional().default(false), expectedDialogFingerprint: z.string().length(64).nullable().optional() }
     }, async args => asToolResult(await executeDzenTask1045PhaseC(args)));
+    server.registerTool('ba_reconcile_dzen_task1045_phase_c_incident', {
+        description: 'Owner-only provider-read-only reconciliation of the exact frozen task1045 Phase C navigation incident. It performs zero clicks and blocks every provider write while checking the direct same-ID object, exhaustive Published/Draft inventories, canonical permalink, exact title/body/cover and publisher identity. Only exact public proof may record the canonical fact/checkpoints; exact draft and ambiguity remain frozen and never retry submission.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
+        inputSchema: { projectId: z.literal(10), taskId: z.literal(1045), actorId: z.string().regex(/^user:\d+$/),
+            expectedManifestChecksum: z.literal(DZEN1045_RECOVERY_MANIFEST),
+            expectedPhaseCIdempotencyKey: z.literal(DZEN1045_PHASE_C_RECONCILE.sourceKey),
+            expectedSemanticFingerprint: z.literal(DZEN1045_PHASE_C_RECONCILE.semanticFingerprint),
+            expectedStartedAt: z.literal(DZEN1045_PHASE_C_RECONCILE.startedAt),
+            expectedFailedAt: z.literal(DZEN1045_PHASE_C_RECONCILE.failedAt),
+            expectedProviderId: z.literal(DZEN1045_PHASE_C_RECONCILE.providerId),
+            ownerAuthorizationReference: z.string().min(10),
+            idempotencyKey: z.literal(DZEN1045_PHASE_C_RECONCILE.idempotencyKey),
+            confirm: z.boolean().optional().default(false) }
+    }, async args => asToolResult(await reconcileDzenTask1045PhaseCIncident(args)));
     server.registerTool('ba_preview_vk_task1048_api_promotion', {
         description: 'Owner-only exact read-only preview of task1048 promotion from the unclaimed browser item to canonical vk_api. Reports credential readiness without exposing secrets and never calls VK.',
         annotations: { readOnlyHint: true },
