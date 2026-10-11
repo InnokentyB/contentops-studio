@@ -1,6 +1,11 @@
 import puppeteerPublisherService from './puppeteer_publisher.service';
 import type { Dzen1045DraftProof } from './dzen_task1045_resume_contract';
-import { inspectDzen1045AbsenceInBrowser, resumeDzen1045DraftInBrowser } from './dzen_task1045_browser.service';
+import {
+    inspectDzen1045AbsenceInBrowser,
+    recoverDzen1045SecondAttemptInBrowserSession,
+    resumeDzen1045DraftInBrowser
+} from './dzen_task1045_browser.service';
+import type { Dzen1045SecondAttemptDraftProof } from './dzen_task1045_second_attempt_contract';
 
 export type DzenPublicationType = 'article' | 'post';
 
@@ -50,6 +55,16 @@ export function isDzenPublishedUrl(value: string): boolean {
 }
 
 class DzenService {
+    async recoverTask1045SecondAttempt(config: DzenConfig, acceptedBody: string,
+        args: { confirm: boolean; idempotencyKey: string },
+        claim: (proof: Dzen1045SecondAttemptDraftProof) => Promise<boolean>) {
+        if (!config.cookies?.trim() || !config.channel_id?.trim()) {
+            throw new Error('[DZEN_CONNECTOR_NOT_READY] Authenticated channel is required');
+        }
+        return recoverDzen1045SecondAttemptInBrowserSession({
+            cookies: config.cookies.trim(), channel_id: config.channel_id.trim()
+        }, acceptedBody, args, claim);
+    }
     async inspectTask1045Absence(config: DzenConfig) {
         if (!config.cookies?.trim() || !config.channel_id?.trim()) {
             throw new Error('[DZEN_CONNECTOR_NOT_READY] Authenticated channel is required');

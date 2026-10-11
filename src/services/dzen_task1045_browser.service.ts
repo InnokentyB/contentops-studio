@@ -2,6 +2,8 @@ import puppeteer from 'puppeteer';
 import { parseBrowserCookieHeader } from './puppeteer/dzen_dom_helpers';
 import { inspectDzen1045Absence, resumeDzen1045InExistingDraft } from './puppeteer/dzen1045_existing_draft';
 import type { Dzen1045DraftProof } from './dzen_task1045_resume_contract';
+import { recoverDzen1045SecondAttemptInBrowser } from './puppeteer/dzen1045_second_attempt';
+import type { Dzen1045SecondAttemptDraftProof } from './dzen_task1045_second_attempt_contract';
 
 type Config = { cookies: string; channel_id: string };
 
@@ -34,4 +36,11 @@ export async function resumeDzen1045DraftInBrowser(config: Config, acceptedBody:
     args: { confirm: boolean; idempotencyKey: string },
     claim: (proof: Dzen1045DraftProof) => Promise<boolean>) {
     return withDzen1045Page(config, page => resumeDzen1045InExistingDraft(page, acceptedBody, args, claim));
+}
+
+export async function recoverDzen1045SecondAttemptInBrowserSession(config: Config, acceptedBody: string,
+    args: { confirm: boolean; idempotencyKey: string },
+    claim: (proof: Dzen1045SecondAttemptDraftProof) => Promise<boolean>) {
+    return withDzen1045Page(config,
+        page => recoverDzen1045SecondAttemptInBrowser(page, acceptedBody, args, claim));
 }
