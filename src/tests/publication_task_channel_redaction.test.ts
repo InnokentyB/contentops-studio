@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { sanitizePublicationTaskChannel } from '../services/mcp_publication/tasks';
+import { publicationHandoffWithLanguage, sanitizePublicationTaskChannel } from '../services/mcp_publication/tasks';
 
 test('publication task readback removes encrypted and plaintext channel credentials recursively', () => {
     const task = sanitizePublicationTaskChannel({ id: 1108, channel: { type: 'threads', config: {
@@ -18,4 +18,11 @@ test('publication task readback removes encrypted and plaintext channel credenti
     assert.equal(raw.access_token, '******');
     assert.equal(raw.access_token_encrypted, undefined);
     assert.equal(config.threads_user_id, 'meta-7');
+});
+
+test('publication task readback rematerializes task-bound content language into its handoff bundle', () => {
+    const handoff = publicationHandoffWithLanguage({ publication: { body: 'Accepted English body' } },
+        { config: {} }, { content_language: 'en' });
+    assert.equal(handoff.content_language, 'en');
+    assert.deepEqual(handoff.publication, { body: 'Accepted English body' });
 });
