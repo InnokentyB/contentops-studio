@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-12",
+  "specification": "LOCK/QAR/ARCH/RISK/AUT-VK-016",
+  "base_revision": "655f91d",
+  "scope": "ConnectorDispatchJob + ConnectorHostStatus additive PostgreSQL schema",
+  "engine": "@electric-sql/pglite 0.4.3 in-memory PostgreSQL; locked Prisma tooling dependency",
+  "production_migration_applied": false,
+  "provider_calls": false,
+  "production_data_used": false,
+  "runs": [
+    {
+      "phase": "RED",
+      "tests": 2,
+      "failed": 2,
+      "errors": [
+        "PostgreSQL 42P01: connector_dispatch_jobs absent before implementation",
+        "Additive dispatch/host table DDL absent"
+      ]
+    },
+    {
+      "phase": "test_refinement",
+      "errors": [
+        "Initial duplicate idempotency key masked foreign-key test; fixture now uses independent keys",
+        "Destructive SQL scan incorrectly rejected ON DELETE RESTRICT; statement-level scan corrected"
+      ]
+    },
+    {
+      "phase": "database_constraints",
+      "tests": 2,
+      "passed": 2,
+      "failed": 0,
+      "checks": [
+        "Package and independent idempotency uniqueness",
+        "Project-scoped task/channel/work/asset/attempt/fact foreign keys",
+        "RESTRICT preserves referenced history",
+        "Host project+host primary key and infrastructure-only mode",
+        "State/generation/hash/binding checks",
+        "No factless confirmation",
+        "Strict binding allow-list rejects fake credential field"
+      ]
+    },
+    {
+      "phase": "prisma_validate",
+      "result": "PASS"
+    },
+    {
+      "phase": "backend_build",
+      "result": "PASS"
+    },
+    {
+      "phase": "quality_gate",
+      "score": 77,
+      "result": "PASS"
+    }
+  ],
+  "rollback": "Disable dispatch/consumer and return to previous executable; retain additive tables/jobs and audit history. No DROP, lease reset or retry.",
+  "limitations": [
+    "Migration not applied to production; root owns reviewed rollout.",
+    "Scoped unique index creation can briefly lock referenced tables; choose appropriate rollout window.",
+    "Foreign keys enforce same project, not same-task membership of work/asset/attempt/fact; repository must recheck exact task bindings in transaction.",
+    "This tests exact SQL constraints in a temporary PostgreSQL engine, not multi-host Prisma concurrency or provider execution.",
+    "Human UAT remains separate."
+  ]
+}
