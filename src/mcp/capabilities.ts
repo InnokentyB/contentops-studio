@@ -141,6 +141,9 @@ const EDITOR_TOOLS = new Set([
 ]);
 
 const PUBLISHER_TOOLS = new Set([
+    'ba_release_dzen_task1002',
+    'ba_preflight_dzen_task1002',
+    'ba_publish_dzen_task1002',
     'ba_release_medium_task1133_browser',
     'ba_claim_medium_task1133_browser_publication',
     'ba_start_medium_task1133_browser_submission',
