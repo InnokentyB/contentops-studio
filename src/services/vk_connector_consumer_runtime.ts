@@ -6,12 +6,16 @@ import { connectorPackageHash } from './vk_connector_contract';
 
 const Hash = z.string().regex(/^[a-f0-9]{64}$/);
 /** Private local configuration never contains a token value or browser/profile path. */
-export const VkConnectorConfigSchema = z.object({
+const ConfigBaseSchema = z.object({
     projectId: z.literal(10), hostId: z.literal('vk-connector-local-1048'),
     endpoint: z.literal('https://planner-mcp-production.up.railway.app/mcp/publisher'),
-    tokenFile: z.string().refine(path.isAbsolute), runtimeDir: z.string().refine(path.isAbsolute),
+    runtimeDir: z.string().refine(path.isAbsolute),
     mode: z.literal('infrastructure_only'), buildVersion: z.string().min(1).max(100)
 }).strict();
+export const VkConnectorConfigSchema = z.union([
+    ConfigBaseSchema.extend({ tokenFile: z.string().refine(path.isAbsolute) }),
+    ConfigBaseSchema.extend({ tokenEnvVar: z.literal('CONTENTOPS_ANALYSTCRAFT_PUBLISHER_TOKEN') })
+]);
 export type VkConnectorConfig = z.infer<typeof VkConnectorConfigSchema>;
 /** Immutable restricted pilot binding; it is a restriction, never publication authority. */
 export const VkConnectorPilotPackageSchema = z.object({ projectId: z.literal(10), taskId: z.literal(1048),
@@ -118,10 +122,11 @@ function privateFile(file: string): string {
 }
 /** Read owner-only configuration without following a symlink. */
 export function loadVkConnectorConfig(file: string): VkConnectorConfig { return VkConnectorConfigSchema.parse(JSON.parse(privateFile(file))); }
-/** Read an existing owner-only credential; no token is returned in any diagnostic. */
+/** Read an existing private file or pinned process environment credential; never persist the value. */
 export function readVkConnectorToken(config: VkConnectorConfig): string {
     try {
-        const token = privateFile(config.tokenFile).trim();
+        const token = ('tokenEnvVar' in config
+            ? process.env[config.tokenEnvVar] ?? '' : privateFile(config.tokenFile)).trim();
         if (!token || token.length > 16_000 || /[\x00-\x20\x7f]/.test(token)) throw new Error('Invalid credential');
         return token;
     } catch { throw new Error('[VK_CONNECTOR_AUTH_UNAVAILABLE]'); }

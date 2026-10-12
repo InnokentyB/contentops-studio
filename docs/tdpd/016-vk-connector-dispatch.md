@@ -264,3 +264,13 @@ that projection creates a new publication or measurement checkpoint.
 
 All runtime/tool names in the implementation are infrastructure capabilities.
 Code release and deterministic tests are not live provider GREEN or owner UAT.
+
+## Existing credential verification — 2026-10-12
+
+The initial inventory found no static Publisher key in Railway configuration or
+registered project10 Publisher server entry. A deeper non-secret inventory found
+the existing `CONTENTOPS_ANALYSTCRAFT_PUBLISHER_TOKEN` in process/launch memory.
+A real read-only Publisher MCP manifest/bootstrap check confirmed project10 and
+Publisher role. This is an existing credential, not new provisioning. The consumer
+now supports a pinned environment reference without persisting its value. No
+new key, login, profile access or provider permission is part of this bootstrap.

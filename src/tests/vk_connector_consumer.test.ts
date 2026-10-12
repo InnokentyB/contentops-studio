@@ -5,7 +5,7 @@ import path from 'node:path';
 import test, { mock, type TestContext } from 'node:test';
 import { z } from 'zod';
 import { acquireVkConnectorLock, consumeVkConnectorOnce, loadVkConnectorConfig, readVkConnectorToken,
-    vkConnectorPackageSha256, type VkConnectorControl } from '../services/vk_connector_consumer_runtime';
+    vkConnectorPackageSha256, writeVkConnectorHealth, type VkConnectorControl } from '../services/vk_connector_consumer_runtime';
 import { parseVkConnectorToolResponse, runVkConnectorConsumer } from '../workers/vk_connector_consumer';
 const identity = { projectId: 10, actorId: 'user:0', hostId: 'vk-connector-local-1048', instanceId: '00000000-0000-4000-8000-000000000001', buildVersion: 'fixture' };
 const health = { hostId: 'vk-connector-local-1048', mode: 'infrastructure_only', providerExecution: 'blocked', status: 'online', heartbeatAt: '2026-10-12T12:00:00Z' };
@@ -210,4 +210,38 @@ test('CONSUMER-015 lock initialization failure closes descriptor and preserves f
         assert.equal(closed.length, 1);
         assert.equal(fs.existsSync(path.join(f.config.runtimeDir, 'consumer.lock')), true);
     } finally { write.mock.restore(); close.mock.restore(); }
+});
+test('CONSUMER-016 existing pinned environment credential is read without writing value to config or health', async (t) => {
+    const f = localConfig(t); const name = 'CONTENTOPS_ANALYSTCRAFT_PUBLISHER_TOKEN';
+    const original = process.env[name];
+    try {
+        const { tokenFile: _tokenFile, ...base } = f.config;
+        fs.writeFileSync(f.file, JSON.stringify({ ...base, tokenEnvVar: name }));
+        process.env[name] = '  synthetic-existing-env-token  ';
+        const config = loadVkConnectorConfig(f.file);
+        assert.equal(readVkConnectorToken(config), 'synthetic-existing-env-token');
+        assert.equal(fs.readFileSync(f.file, 'utf8').includes('synthetic-existing-env-token'), false);
+        const fixture = fixtureControl();
+        const result = await consumeVkConnectorOnce(identity, fixture.control);
+        fs.mkdirSync(config.runtimeDir, { recursive: true, mode: 0o700 });
+        writeVkConnectorHealth(config, identity.instanceId, result);
+        const status = fs.readFileSync(path.join(config.runtimeDir, `health-${identity.instanceId}.json`), 'utf8');
+        assert.equal(status.includes('synthetic-existing-env-token'), false);
+        assert.equal(JSON.stringify(fixture.calls).includes('synthetic-existing-env-token'), false);
+    } finally { if (original === undefined) delete process.env[name]; else process.env[name] = original; }
+});
+test('CONSUMER-017 environment credential source is exclusive, pinned and unavailable when empty', (t) => {
+    const f = localConfig(t); const name = 'CONTENTOPS_ANALYSTCRAFT_PUBLISHER_TOKEN';
+    const original = process.env[name];
+    try {
+        fs.writeFileSync(f.file, JSON.stringify({ ...f.config, tokenEnvVar: name }));
+        assert.throws(() => loadVkConnectorConfig(f.file));
+        const { tokenFile: _tokenFile, ...base } = f.config;
+        fs.writeFileSync(f.file, JSON.stringify({ ...base, tokenEnvVar: 'OTHER_TOKEN' }));
+        assert.throws(() => loadVkConnectorConfig(f.file));
+        fs.writeFileSync(f.file, JSON.stringify({ ...base, tokenEnvVar: name }));
+        const config = loadVkConnectorConfig(f.file);
+        delete process.env[name]; assert.throws(() => readVkConnectorToken(config), /AUTH_UNAVAILABLE/);
+        process.env[name] = '   '; assert.throws(() => readVkConnectorToken(config), /AUTH_UNAVAILABLE/);
+    } finally { if (original === undefined) delete process.env[name]; else process.env[name] = original; }
 });

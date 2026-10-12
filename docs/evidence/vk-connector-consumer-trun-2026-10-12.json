@@ -275,13 +275,155 @@
         "Validated owned accepted jobs resume idempotent blocker report at existing generation without repeat ACK.",
         "Lock write failure closes descriptor and preserves lock for reviewed manual cleanup."
       ]
+    },
+    {
+      "id": "TRUN-CONSUMER-ENV-RED-010",
+      "command": "node --require ts-node/register --test src/tests/vk_connector_consumer.test.ts",
+      "exit_code": 1,
+      "passed": 15,
+      "failed": 2,
+      "skipped": 0,
+      "errors": [
+        {
+          "scenario": "CONSUMER-016",
+          "error": "Existing config schema requires tokenFile and rejects tokenEnvVar."
+        },
+        {
+          "scenario": "CONSUMER-017",
+          "error": "Pinned environment source cannot load for missing/empty credential guard."
+        }
+      ]
+    },
+    {
+      "id": "TRUN-CONSUMER-ENV-GREEN-011",
+      "recorded_at": "2026-10-12T19:32:49.435513+00:00",
+      "base_revision": "23ca73c",
+      "command": "node --require ts-node/register --test src/tests/vk_connector_consumer.test.ts; npm run build:backend; npm run quality:gate",
+      "exit_code": 0,
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0,
+      "scenario_results": [
+        {
+          "id": "CONSUMER-001",
+          "scenario": "empty authenticated poll reports genuine infrastructure health without provider execution",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "CONSUMER-002",
+          "scenario": "valid pilot receipt ends blocked rather than publication success",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "CONSUMER-003",
+          "scenario": "changed pilot/hash/revision/tenant has no consumer acknowledgement",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "CONSUMER-004",
+          "scenario": "stale generation cannot report or publish",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "CONSUMER-005",
+          "scenario": "provider/auth errors remain sanitized and no receipt is fabricated",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "CONSUMER-006",
+          "scenario": "owner-only config rejects wrong permissions, host, project and symlinks",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "CONSUMER-007",
+          "scenario": "missing/unsafe credential cannot create a network client",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "CONSUMER-008",
+          "scenario": "double consumer excluded; graceful restart has a new instance fence",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "CONSUMER-009",
+          "scenario": "graceful shutdown closes control, releases lock and writes honest private receipt",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "CONSUMER-010",
+          "scenario": "executable imports no browser/provider worker and never asks for publication tools",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "CONSUMER-011",
+          "scenario": "server status extras are stripped; disabled host is never online-ready",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "CONSUMER-012",
+          "scenario": "stale/crash lock is preserved for operator review without automatic unlink",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "CONSUMER-013",
+          "scenario": "abort/timeout bounds a hung control call and late acknowledgement cannot chain report",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "CONSUMER-014",
+          "scenario": "report loss resumes owned accepted job without repeating ACK or creating publication",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "CONSUMER-015",
+          "scenario": "lock initialization failure closes descriptor and preserves fail-closed stale lock",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "CONSUMER-016",
+          "scenario": "existing pinned environment credential is read without writing value to config or health",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "CONSUMER-017",
+          "scenario": "environment credential source is exclusive, pinned and unavailable when empty",
+          "verdict": "PASS",
+          "error": null
+        }
+      ],
+      "backend_build": "PASS",
+      "quality_gate": "PASS",
+      "quality_score": 77,
+      "baseline": 77,
+      "fixes": [
+        "Strict mutually-exclusive configuration selects existing private tokenFile OR exactly pinned CONTENTOPS_ANALYSTCRAFT_PUBLISHER_TOKEN environment name.",
+        "Environment value is read and trimmed only in memory; missing/empty/control-character values fail closed; no credential is written.",
+        "Legacy private-file path remains supported with unchanged permission checks."
+      ]
     }
   ],
   "privacy": [
     "All private config/token tests use synthetic fixtures in temporary directories; no credential provisioning.",
     "No VK requests, profiles, cookies, live tokens, production database or MCP endpoint accessed.",
     "Process imports no browser/provider worker.",
-    "Raw control errors are suppressed; private health contains instance/fenced receipt/mode only."
+    "Raw control errors are suppressed; private health contains instance/fenced receipt/mode only.",
+    "Environment-source tests use synthetic dummy values only and restore any inherited value without logging or persisting it; no process/launchctl credentials inspected by subagent."
   ],
   "operating_limits": {
     "poll_ms": 5000,
