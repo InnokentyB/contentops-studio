@@ -45,6 +45,7 @@ test('publisher receives exact releases only; generic owner controls stay hidden
 
 test('1036 dry-run checks exact release and cover, never calls the provider or mutates', async () => {
     let sideEffects = 0;
+    let attemptReads = 0;
     const forbidden = async () => { sideEffects++; throw new Error('unexpected side effect'); };
     const task = { id: 1036, project_id: 10, channel_id: 116,
         channel: { type: 'dzen', config: { cookies: 'test-fixture', channel_id: 'test-channel' } },
@@ -59,6 +60,14 @@ test('1036 dry-run checks exact release and cover, never calls the provider or m
     const service = new DzenTaskPublicationService({
         hashBody: () => dzen.expectedBodySha256,
         db: { contentItem: { findFirst: async () => task, updateMany: forbidden },
+            deliveryAttempt: {
+                findFirst: async ({ where }: { where: { project_id: number; content_item_id: number } }) => {
+                    assert.deepEqual(where, { project_id: 10, content_item_id: 1036 });
+                    attemptReads++;
+                    return null;
+                },
+                create: forbidden, updateMany: forbidden
+            },
             artDirectionDecision: { findFirst: async () => ({ id: 253, decision_version: 1 }) },
             workflowEvent: { findFirst: async ({ where }: { where: { command: string } }) => ({ after_state:
                 where.command === 'ba_verify_dzen_task1036_connector'
@@ -78,6 +87,9 @@ test('1036 dry-run checks exact release and cover, never calls the provider or m
     assert.equal((result.payload_preview as Record<string, unknown>).title,
         '65% решений автоматизировано. Почему этого мало для оценки системы');
     assert.equal(sideEffects, 0);
+    assert.equal(attemptReads, 1);
     task.selected_asset_id = 123;
     await assert.rejects(() => service.execute({ projectId: 10, taskId: 1036, dryRun: true }), /DZEN_OWNER_RELEASE_PROOF_MISMATCH/);
+    assert.equal(attemptReads, 2);
+    assert.equal(sideEffects, 0);
 });

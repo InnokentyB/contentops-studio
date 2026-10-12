@@ -1,0 +1,13 @@
+<!doctype html><html lang="ru"><body>
+<input type="file" accept="video/mp4" aria-label="Выбрать файл">
+<p id="processing" role="status">Клип обработан</p>
+<textarea placeholder="О чём ваш клип?"></textarea>
+<button type="button" aria-label="Обложка клипа">Обложка клипа</button>
+<button type="button" role="switch" aria-label="Опубликовать в истории" aria-checked="true"
+ onclick="this.setAttribute('aria-checked',this.getAttribute('aria-checked')==='true'?'false':'true')">Опубликовать в истории</button>
+<button type="button" role="switch" aria-label="Разрешить комментарии" aria-checked="true">Разрешить комментарии</button>
+<button type="button" role="switch" aria-label="Разрешить дуэты" aria-checked="false">Разрешить дуэты</button>
+<button type="button" role="switch" aria-label="Показывать в сообществе" aria-checked="true">Показывать в сообществе</button>
+<a href="https://vk.com/clip-240051152_456239099">Ссылка на клип</a>
+<button type="button" onclick="document.body.dataset.submitted='true'">Опубликовать</button>
+</body></html>

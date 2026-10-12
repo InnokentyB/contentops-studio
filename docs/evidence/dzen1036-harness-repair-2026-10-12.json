@@ -1,0 +1,29 @@
+{
+  "date": "2026-10-12",
+  "scope": "Repair the existing Dzen #1036 dry-run fixture only",
+  "command": "TELEGRAM_BOT_TOKEN=123456789:local-test-placeholder node --test -r ts-node/register src/tests/oct08_exact_release.test.ts",
+  "runs": [
+    {
+      "phase": "before_repair",
+      "exit_code": 1,
+      "scenarios": [
+        { "name": "October 8 release schemas pin accepted package and reject cross-tenant or changed bytes", "verdict": "pass" },
+        { "name": "publisher receives exact releases only; generic owner controls stay hidden", "verdict": "pass" },
+        { "name": "1036 dry-run checks exact release and cover, never calls the provider or mutates", "verdict": "fail", "error": "TypeError: Cannot read properties of undefined (reading 'findFirst') at DzenTaskPublicationService.execute deliveryAttempt lookup" }
+      ]
+    },
+    {
+      "phase": "after_repair",
+      "exit_code": 0,
+      "scenarios": [
+        { "name": "October 8 release schemas pin accepted package and reject cross-tenant or changed bytes", "verdict": "pass" },
+        { "name": "publisher receives exact releases only; generic owner controls stay hidden", "verdict": "pass" },
+        { "name": "1036 dry-run checks exact release and cover, never calls the provider or mutates", "verdict": "pass", "assertions": ["deliveryAttempt read scoped to project 10/task 1036", "no prior attempt fixture returns null", "release/title preview retained", "changed selected cover still rejected", "attempt writes remain forbidden", "zero provider or DB mutation side effects on both calls"] }
+      ],
+      "skipped": [],
+      "errors": []
+    }
+  ],
+  "repair": "Added only the missing read-only deliveryAttempt.findFirst dependency mock; retained and strengthened forbidden-write assertions",
+  "limits": ["Local unit fixture, not real DB or provider validation", "No production code, credentials, provider state, commit or deployment changed", "Broader build and suite verification belong to the root integration run"]
+}

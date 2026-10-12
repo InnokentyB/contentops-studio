@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-12",
+  "scope": "prepare approval-required task harness repair only",
+  "scenario": "PREPARE-APPROVAL-001",
+  "production_changes": false,
+  "real_database_access": false,
+  "provider_calls": false,
+  "runs": [
+    {
+      "phase": "RED",
+      "result": "FAIL",
+      "tests": 1,
+      "error": "TEST_PLAN_SETTINGS_UNSTUBBED: extracted plans.ts read delegate directly; facade loadPublicationPlanContext mock was ineffective. Sentinel prevented real DB."
+    },
+    {
+      "phase": "harness_attempt",
+      "result": "ERROR",
+      "tests": 1,
+      "error": "Node mock.method cannot patch Prisma Proxy delegate method because it has no method descriptor; repaired with checked Reflect replacement and context cleanup."
+    },
+    {
+      "phase": "focused",
+      "result": "PASS",
+      "tests": 1,
+      "assertions": [
+        "Exact project-scoped settings read intercepted once",
+        "Zero task update/updateMany calls",
+        "Approval_required mode unchanged",
+        "Ready_for_execution status unchanged",
+        "Entire stale task/bundle remains deeply equal to original snapshot"
+      ]
+    },
+    {
+      "phase": "quality_gate",
+      "result": "PASS",
+      "score": 77
+    },
+    {
+      "phase": "backend_build",
+      "result": "FAIL",
+      "errors": [
+        "Unrelated in-progress src/tests/telegram_direct_payload.test.ts nullable/union property TypeScript errors; no diagnostic in changed approval harness."
+      ]
+    }
+  ],
+  "pending": [
+    "Parent reruns backend build after concurrent Telegram harness repairs."
+  ],
+  "uat": "Test harness correction; no product behavior change, publication or deployment."
+}

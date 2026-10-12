@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import { z } from 'zod';
+import test, { mock } from 'node:test';
+import { TelegramPublicationRouteError } from '../services/publishers/types';
 import {
     buildTelegramDeliveryPreview,
     normalizeTelegramDeliveryPayload
@@ -18,27 +20,27 @@ type ProviderCall = {
 
 async function withMockedTelegramProvider(
     providerResult: { message_id?: number } | Error,
-    run: (context: { publisherService: any; providerCalls: ProviderCall[] }) => Promise<void>
+    run: (context: { publisherService: typeof import('../services/publisher.service').default; providerCalls: ProviderCall[] }) => Promise<void>
 ) {
-    const publisherService = (await import('../services/publisher.service')).default as any;
-    const telegramService = (await import('../services/telegram.service')).default as any;
-    const telegramClientService = (await import('../services/telegram_client.service')).default as any;
+    const publisherService = (await import('../services/publisher.service')).default;
+    const telegramService = (await import('../services/telegram.service')).default;
+    const telegramClientService = (await import('../services/telegram_client.service')).default;
     const providerCalls: ProviderCall[] = [];
-    const originalResolve = publisherService.resolveTelegramDeliveryConfig;
-    const originalCheck = publisherService.checkMTProto;
-    const originalSendMessage = telegramService.sendMessage;
-    const originalSendPhoto = telegramService.sendPhoto;
-    const originalInspectSession = telegramClientService.inspectSessionTarget;
+    const { telegramPublisher } = await import('../services/publishers/telegram_publisher');
+    const mocks: ReturnType<typeof mock.method>[] = [];
     const originalLocalTestChannel = process.env.LOCAL_TEST_CHANNEL;
 
     delete process.env.LOCAL_TEST_CHANNEL;
 
-    publisherService.resolveTelegramDeliveryConfig = async () => ({
-        rawChannelId: '-1001234567890',
+    // The facade delegates to TelegramPublisher; patch the actual routing dependency.
+    mocks.push(mock.method(telegramPublisher, 'resolveTelegramDeliveryConfig', async (task: Parameters<typeof telegramPublisher.resolveTelegramDeliveryConfig>[0]) => {
+        assert.equal(task.project_id, 10);
+        assert.equal(task.channel?.id, 12);
+        return { rawChannelId: '-1001234567890',
         normalizedHandle: '@analystcraft',
         config: {},
-        matchedChannelId: 12
-    });
+        matchedChannelId: 12 };
+    }));
     const sessionTarget = {
         configured: false,
         project_id: 10,
@@ -47,31 +49,31 @@ async function withMockedTelegramProvider(
         reason_code: 'project_session_missing',
         reason: 'No active Telegram account session found for this project'
     };
-    telegramClientService.inspectSessionTarget = async () => sessionTarget;
-    publisherService.checkMTProto = async () => ({
-        available: false,
+    mocks.push(mock.method(telegramClientService, 'inspectSessionTarget', async (projectId: number) => {
+        assert.equal(projectId, 10);
+        return sessionTarget;
+    }));
+    mocks.push(mock.method(telegramPublisher, 'checkMTProto', async (projectId: number) => {
+        assert.equal(projectId, 10);
+        return { available: false,
         reason: 'No active Telegram account session found for this project',
-        sessionTarget
-    });
-    telegramService.sendMessage = async (chatId: string | number, text: string) => {
+        sessionTarget };
+    }));
+    mocks.push(mock.method(telegramService, 'sendMessage', async (chatId: string | number, text: string) => {
         providerCalls.push({ kind: 'text', chatId, text });
         if (providerResult instanceof Error) throw providerResult;
         return providerResult;
-    };
-    telegramService.sendPhoto = async (chatId: string | number, imageUrl: unknown, options: any) => {
-        providerCalls.push({ kind: 'photo', chatId, text: options.caption, imageUrl });
+    }));
+    mocks.push(mock.method(telegramService, 'sendPhoto', async (chatId: string | number, imageUrl: unknown, options: { caption?: string }) => {
+        providerCalls.push({ kind: 'photo', chatId, text: options.caption ?? '', imageUrl });
         if (providerResult instanceof Error) throw providerResult;
         return providerResult;
-    };
+    }));
 
     try {
         await run({ publisherService, providerCalls });
     } finally {
-        publisherService.resolveTelegramDeliveryConfig = originalResolve;
-        publisherService.checkMTProto = originalCheck;
-        telegramService.sendMessage = originalSendMessage;
-        telegramService.sendPhoto = originalSendPhoto;
-        telegramClientService.inspectSessionTarget = originalInspectSession;
+        for (const method of mocks) method.mock.restore();
         if (originalLocalTestChannel === undefined) {
             delete process.env.LOCAL_TEST_CHANNEL;
         } else {
@@ -152,7 +154,8 @@ test('failed Bot API fallback preserves the MTProto decision trace', async () =>
                 text: 'Accepted text',
                 imageUrl: 'https://cdn.example/approved.png'
             }),
-            (error: any) => {
+            (error: unknown) => {
+                assert.ok(error instanceof TelegramPublicationRouteError);
                 assert.match(error.message, /chat not found/);
                 assert.equal(error.routeTrace.eligibility.mtproto, false);
                 assert.equal(error.routeTrace.eligibility.reason_code, 'project_session_missing');
@@ -160,7 +163,7 @@ test('failed Bot API fallback preserves the MTProto decision trace', async () =>
                 assert.equal(error.routeTrace.session_target.account_id, null);
                 assert.equal(error.routeTrace.target.value, '-1001234567890');
                 assert.equal(error.routeTrace.asset_resolution.kind, 'https_url');
-                assert.match(error.routeTrace.fallback_reason, /mtproto_unavailable/);
+                assert.match(error.routeTrace.fallback_reason ?? '', /mtproto_unavailable/);
                 assert.equal(error.routeTrace.final_adapter, 'bot_api');
                 return true;
             }
@@ -233,12 +236,13 @@ test('MCP serializes a failed live Telegram route as structured error content', 
 
 test('dry-run preview and live adapter boundary use the same normalized payload', async () => {
     await withMockedTelegramProvider({ message_id: 808 }, async ({ publisherService, providerCalls }) => {
-        const mcpPublicationService = (await import('../services/mcp_publication.service')).default as any;
-        const prisma = (await import('../db')).default as any;
-        const originalResolveChannel = mcpPublicationService.resolveChannel;
-        const originalEventCreate = prisma.event.create;
-        mcpPublicationService.resolveChannel = async () => channel;
-        prisma.event.create = async () => ({ id: 1 });
+        const mcpPublicationService = (await import('../services/mcp_publication.service')).default;
+        const prisma = (await import('../db')).default;
+        const channelMock = mock.method(mcpPublicationService, 'resolveChannel', async () => channel);
+        // Prisma delegate methods are proxy-backed, so node:test cannot inspect a method descriptor.
+        const eventDelegate = prisma.event;
+        const originalEventCreate = eventDelegate.create;
+        assert.equal(Reflect.set(eventDelegate, 'create', async () => ({ id: 1 })), true);
 
         try {
             const input = {
@@ -250,6 +254,10 @@ test('dry-run preview and live adapter boundary use the same normalized payload'
             const dryRun = await mcpPublicationService.publishDirect({ ...input, dryRun: true });
             const live = await mcpPublicationService.publishDirect(input);
             const normalized = normalizeTelegramDeliveryPayload(input);
+            assert.ok('payload_preview' in dryRun);
+            assert.ok('external_id' in live);
+            assert.ok(dryRun.route_trace);
+            const liveTrace = z.object({ final_adapter: z.string(), fallback_reason: z.string().nullable() }).parse(live.route_trace);
 
             assert.deepEqual(dryRun.payload_preview, {
                 title: null,
@@ -265,11 +273,11 @@ test('dry-run preview and live adapter boundary use the same normalized payload'
             assert.equal(live.external_id, 808);
             assert.equal(dryRun.route_trace.final_adapter, 'not_dispatched');
             assert.equal(dryRun.route_trace.session_target.project_id, 10);
-            assert.equal(live.route_trace.final_adapter, 'bot_api');
-            assert.match(live.route_trace.fallback_reason, /mtproto_unavailable/);
+            assert.equal(liveTrace.final_adapter, 'bot_api');
+            assert.match(liveTrace.fallback_reason ?? '', /mtproto_unavailable/);
         } finally {
-            mcpPublicationService.resolveChannel = originalResolveChannel;
-            prisma.event.create = originalEventCreate;
+            channelMock.mock.restore();
+            assert.equal(Reflect.set(eventDelegate, 'create', originalEventCreate), true);
         }
     });
 });

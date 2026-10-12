@@ -1,5 +1,8 @@
 import type { Locator, Page } from 'playwright';
-import type { VkBrowserUi } from './vk_browser_worker.service';
+import { captureVkPostBaseline, readVkPostProof, type VkPostBaseline } from './vk_browser_post_proof';
+import type { VkBrowserUi, VkBrowserJob } from './vk_browser_worker.service';
+import type { VkClipUi } from './vk_browser_clip_ui';
+import { PlaywrightVkClipUi, createPlaywrightVkClipPagePort } from './vk_clip_playwright_ui';
 
 const COMPOSER_TRIGGER = /создать запись|новая запись|что у вас нового|create post|new post|what'?s new/i;
 
@@ -7,10 +10,16 @@ export class PlaywrightVkBrowserUi implements VkBrowserUi {
     private communityUrl: string | null = null;
     private acceptedText: string | null = null;
     private acceptedTitle: string | null = null;
+    private postBaseline: VkPostBaseline | null = null;
+    private postSubmissionStartedAt: string | null = null;
 
-    constructor(private readonly page: Page) {}
+    readonly clip: VkClipUi;
+
+    constructor(private readonly page: Page, clip: VkClipUi = new PlaywrightVkClipUi(createPlaywrightVkClipPagePort(page))) { this.clip = clip; }
 
     async navigate(url: string) {
+        this.postBaseline = null;
+        this.postSubmissionStartedAt = null;
         this.communityUrl = url;
         await this.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45_000 });
     }
@@ -60,7 +69,8 @@ export class PlaywrightVkBrowserUi implements VkBrowserUi {
         await field.click();
     }
 
-    async openComposer(placement: 'wall_post' | 'article' | 'video' | 'story') {
+    async openComposer(placement: VkBrowserJob['target']['placement']) {
+        if (placement === 'clip') throw new Error('[VK_CLIP_PORT_REQUIRED] Use the Clip-specific verified UI port');
         if (placement === 'wall_post') return this.openWallComposer();
         const createButton = this.page.locator('[data-testid="group_publish_create_button"]').first();
         await createButton.waitFor({ state: 'visible', timeout: 15_000 });
@@ -76,7 +86,8 @@ export class PlaywrightVkBrowserUi implements VkBrowserUi {
         }
     }
 
-    async setContent(content: { placement: 'wall_post' | 'article' | 'video' | 'story'; title: string; text: string }) {
+    async setContent(content: { placement: VkBrowserJob['target']['placement']; title: string; text: string }) {
+        if (content.placement === 'clip') throw new Error('[VK_CLIP_PORT_REQUIRED] Use the Clip-specific verified UI port');
         this.acceptedText = content.text;
         this.acceptedTitle = content.title || null;
         if (content.placement === 'wall_post') return this.setPostText(content.text);
@@ -107,7 +118,8 @@ export class PlaywrightVkBrowserUi implements VkBrowserUi {
         }
     }
 
-    async submit(placement: 'wall_post' | 'article' | 'video' | 'story') {
+    async submit(placement: VkBrowserJob['target']['placement']) {
+        if (placement === 'clip') throw new Error('[VK_CLIP_PORT_REQUIRED] Use the Clip-specific verified UI port');
         if (placement === 'wall_post') return this.submitPost();
         const candidates = placement === 'article'
             ? '[data-testid="article_publish_button"], [data-testid="posting_submit_button"]'
@@ -126,7 +138,8 @@ export class PlaywrightVkBrowserUi implements VkBrowserUi {
         await publish.click({ timeout: 15_000 });
     }
 
-    async readback(placement: 'wall_post' | 'article' | 'video' | 'story') {
+    async readback(placement: VkBrowserJob['target']['placement']) {
+        if (placement === 'clip') throw new Error('[VK_CLIP_PORT_REQUIRED] Use the Clip-specific verified UI port');
         if (placement === 'wall_post') return this.readbackPost();
         if (!this.communityUrl) return null;
         await this.page.goto(this.communityUrl, { waitUntil: 'domcontentloaded', timeout: 45_000 });
@@ -259,7 +272,15 @@ export class PlaywrightVkBrowserUi implements VkBrowserUi {
         await this.page.screenshot({ path: screenshotPath, fullPage: false });
     }
 
+    async capturePostBaseline(): Promise<void> {
+        const owner = this.communityUrl ? /\/club([1-9]\d*)/.exec(new URL(this.communityUrl).pathname) : null;
+        const observedOwner = /\/club([1-9]\d*)$/.exec(new URL(this.page.url()).pathname);
+        if (!owner || observedOwner?.[1] !== owner[1]) throw new Error('[VK_POST_BASELINE_UNCONFIRMED] Exact community target is required');
+        this.postBaseline = await captureVkPostBaseline(this.page, `-${owner[1]}`);
+    }
+
     async submitPost() {
+        if (!this.postBaseline) throw new Error('[VK_POST_BASELINE_REQUIRED] Capture wall state before publication');
         const next = this.page.getByRole('button', { name: /^Далее$|^Next$/i }).last();
         await next.click({ timeout: 15_000 });
         const currentPublish = this.page.locator('[data-testid="posting_submit_button"]').last();
@@ -273,45 +294,20 @@ export class PlaywrightVkBrowserUi implements VkBrowserUi {
                 name: /^Опубликовать$|^Разместить$|^Publish$/i
             }).last();
         await publish.waitFor({ state: 'visible', timeout: 15_000 });
+        this.postSubmissionStartedAt = new Date().toISOString();
         await publish.click({ timeout: 15_000 });
     }
 
     async readbackPost() {
-        if (!this.communityUrl || !this.acceptedText) return null;
-        await this.page.goto(this.communityUrl, { waitUntil: 'domcontentloaded', timeout: 45_000 });
-        for (let attempt = 0; attempt < 5; attempt += 1) {
-            await this.page.waitForTimeout(1_000);
-            const posts = this.page.locator('[data-testid="post"][data-post-id]');
-            if (await posts.count() > 0) {
-                const matches = [];
-                for (let index = 0; index < Math.min(await posts.count(), 25); index += 1) {
-                    const post = posts.nth(index);
-                    const showMore = post.locator('[data-testid="showmoretext-after"]').first();
-                    if (await showMore.isVisible().catch(() => false)) {
-                        await showMore.click().catch(() => undefined);
-                    }
-                    const text = ((await post.locator('[data-testid="post_text"]').innerText().catch(() => '')) || '').trim();
-                    if (text !== this.acceptedText.trim()) continue;
-                    const providerObjectId = await post.getAttribute('data-post-id');
-                    if (!providerObjectId || !/^-\d+_\d+$/.test(providerObjectId)) continue;
-                    const imagePresent = await post.locator('[data-testid="post-content-container"] img:visible').count() > 0;
-                    matches.push({ providerObjectId, text, imagePresent });
-                }
-                if (matches.length === 1) {
-                    const match = matches[0];
-                    return {
-                        public_url: `https://vk.com/wall${match.providerObjectId}`,
-                        provider_object_id: match.providerObjectId,
-                        published_at: new Date().toISOString(),
-                        text: match.text,
-                        image_present: match.imagePresent
-                    };
-                }
-                if (matches.length > 1) return null;
-            }
-            await this.page.evaluate((scrollAttempt) => {
-                window.scrollTo(0, Math.min(document.documentElement.scrollHeight, 4_000 + scrollAttempt * 2_000));
-            }, attempt);
+        if (!this.communityUrl || !this.acceptedText || !this.postBaseline || !this.postSubmissionStartedAt) return null;
+        await this.page.goto(this.communityUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+        for (let attempt = 0; attempt < 5; attempt++) {
+            const proof = await readVkPostProof(this.page, { ownerId: this.postBaseline.owner_id,
+                text: this.acceptedText, baseline: this.postBaseline, submissionStartedAt: this.postSubmissionStartedAt });
+            if (proof) return proof;
+            await this.page.waitForTimeout(1000);
+            await this.page.evaluate((round) => window.scrollTo(0,
+                Math.min(document.documentElement.scrollHeight, 4000 + round * 2000)), attempt);
         }
         return null;
     }

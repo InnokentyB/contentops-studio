@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-12",
+  "base_revision": "e17b4b6",
+  "specification": "LOCK-VK-015 / QAR-VK-015 / ARCH-VK-015 / RISK-VK-015 / AUT-VK-015",
+  "scope": "ordinary post browser readback; offline fresh Chrome context, local HTTP/DOM only",
+  "live_vk_access": false,
+  "profile_session_access": false,
+  "publication_performed": false,
+  "uat": "AWAITING_OWNER_UAT",
+  "runs": [
+    {
+      "phase": "test_fixture_error",
+      "tests": 1,
+      "passed": 0,
+      "errors": [
+        {
+          "scenario": "POST-015-01",
+          "error": "Fixture HTTP response had no text/html content type; composer not visible. Fixed fixture before meaningful RED."
+        }
+      ]
+    },
+    {
+      "phase": "RED",
+      "tests": 1,
+      "passed": 0,
+      "failed": 1,
+      "errors": [
+        {
+          "scenario": "POST-015-01",
+          "error": "Existing matching wall post accepted and published_at fabricated from local current clock."
+        }
+      ]
+    },
+    {
+      "phase": "implementation_check",
+      "tests": 9,
+      "passed": 9,
+      "failed": 0,
+      "errors": [
+        {
+          "check": "typecheck",
+          "error": "capturePostBaseline Promise return mismatch (fixed to Promise<void>); concurrently missing parent vk_post_confirmation module, subsequently resolved."
+        }
+      ]
+    },
+    {
+      "phase": "focused_regression",
+      "tests": 36,
+      "passed": 35,
+      "failed": 1,
+      "errors": [
+        {
+          "scenario": "existing worker low-level submit control test",
+          "error": "VK_POST_BASELINE_REQUIRED; test needs parent integration adaptation to mandatory baseline."
+        }
+      ]
+    },
+    {
+      "phase": "backend_build",
+      "command": "npm run build:backend",
+      "result": "PASS",
+      "errors": []
+    },
+    {
+      "phase": "quality_gate",
+      "command": "npm run quality:gate",
+      "result": "PASS",
+      "score": 77,
+      "errors": []
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "POST-015-01",
+      "result": "PASS"
+    },
+    {
+      "id": "POST-015-02",
+      "result": "PASS"
+    },
+    {
+      "id": "POST-015-03",
+      "result": "PASS"
+    },
+    {
+      "id": "POST-015-04",
+      "result": "PASS"
+    },
+    {
+      "id": "POST-015-05",
+      "result": "PASS"
+    },
+    {
+      "id": "POST-015-06",
+      "result": "PASS"
+    },
+    {
+      "id": "POST-015-07",
+      "result": "PASS"
+    },
+    {
+      "id": "POST-015-08",
+      "result": "PASS"
+    }
+  ],
+  "limits": [
+    "Visible wall baseline max 100 rows, never advertised exhaustive history.",
+    "Absolute provider timestamp metadata required; relative or missing date remains unconfirmed.",
+    "Provider media presence is observed, byte identity is not fabricated.",
+    "Live provider DOM and media acknowledgement remain unverified due existing site-safety denial."
+  ],
+  "integration": [
+    "Parent worker captures baseline before composer and first upload.",
+    "Parent forwards post baseline, submission, observation and provider timestamp evidence into Planner confirmation.",
+    "Existing low-level submit test needs baseline-aware adaptation by parent."
+  ],
+  "parent_final_integration": {
+    "direct_submit_fixture": "PASS after baseline and UTF-8 fixture correction",
+    "broader_baseline_comparison": {
+      "tests": 903,
+      "pass": 895,
+      "fail": 8,
+      "skipped": 0,
+      "cancelled": 0
+    },
+    "new_regression_failures": []
+  }
+}

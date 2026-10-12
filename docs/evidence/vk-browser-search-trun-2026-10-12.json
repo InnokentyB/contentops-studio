@@ -1,0 +1,140 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-12T16:45:23.338756+00:00",
+  "date": "2026-10-12",
+  "specification": "docs/tdpd/015-vk-browser-search-clips-posts.md",
+  "decision_bundle": [
+    "LOCK-VK-015",
+    "QAR-VK-015",
+    "ARCH-VK-015",
+    "RISK-VK-015",
+    "AUT-VK-015"
+  ],
+  "approval_context": "Parent task explicitly reported owner approval; document status reconciliation belongs to parent.",
+  "base_revision": "e17b4b6",
+  "branch": "codex/vk-browser-completion",
+  "scope": "browser search isolated service, tentative DOM driver and offline operator runner",
+  "runs": [
+    {
+      "id": "TRUN-SEARCH-RED-001",
+      "command": "node --require ts-node/register --test src/tests/vk_browser_search.test.ts",
+      "exit_code": 1,
+      "scenario_results": [
+        {
+          "id": "SEARCH-001",
+          "verdict": "FAIL",
+          "error": "VK_BROWSER_SEARCH_NOT_IMPLEMENTED"
+        },
+        {
+          "id": "SEARCH-002",
+          "verdict": "FAIL",
+          "error": "VK_BROWSER_SEARCH_NOT_IMPLEMENTED"
+        }
+      ],
+      "environment_failure": false
+    },
+    {
+      "id": "TRUN-SEARCH-GREEN-001",
+      "command": "node --require ts-node/register --test src/tests/vk_browser_search*.test.ts",
+      "exit_code": 0,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "scope": "SEARCH-001 through SEARCH-007 and SEARCH-DOM-001"
+    },
+    {
+      "id": "TRUN-SEARCH-GREEN-002",
+      "command": "npm run build:backend && node --test dist/tests/vk_browser_search*.test.js",
+      "exit_code": 0,
+      "scenario_results": [
+        {
+          "id": "SEARCH-001",
+          "scenario": "Relevant-first query, attributable canonical fresh post",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "SEARCH-002",
+          "scenario": "Unknown date and off-topic exclusions",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "SEARCH-003",
+          "scenario": "Scroll beyond old ranked result, expansion and deduplication",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "SEARCH-004",
+          "scenario": "Strict job, scope and unverified live gate",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "SEARCH-005",
+          "scenario": "Unique-post and scroll caps with explicit partial coverage",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "SEARCH-006",
+          "scenario": "Deadline and sanitized provider failure",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "SEARCH-007",
+          "scenario": "Hostile provider text remains data; URL secrets removed",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "SEARCH-008",
+          "scenario": "Unknown author, future timestamp and duplicate concept exclusions",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "SEARCH-DOM-001",
+          "scenario": "Offline HTML extraction, expansion, author, absolute date, canonical overlay identity and hostile-link exclusion",
+          "verdict": "PASS",
+          "error": null
+        }
+      ],
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "backend_build": "PASS"
+    }
+  ],
+  "operator_runner": {
+    "command": "node scripts/vk_browser_search_offline.cjs /absolute/job.json /absolute/fixture.html",
+    "exit_code": 0,
+    "execution": "offline_fixture_only",
+    "authenticated_handoff": false,
+    "posts": 1,
+    "live_verified": false,
+    "network": "all page requests aborted; about:blank only",
+    "javascript": "disabled for supplied HTML"
+  },
+  "quality_gate": {
+    "command": "npm run quality:gate",
+    "verdict": "PASS",
+    "score": 77,
+    "baseline": 77,
+    "hard_stops": []
+  },
+  "limitations": [
+    "DOM selectors are tentative; owner screenshots do not establish current provider DOM.",
+    "No live VK request, private browser profile, cookies, publication operation or token configuration was used.",
+    "Browser Use site-safety denial remains binding.",
+    "Offline runner does not authenticate Planner handoff; runtime authenticated scope injection belongs to main worker.",
+    "Topic filtering is transparent lexical matching of at least two distinct concepts, not a semantic relevance or exhaustive coverage claim.",
+    "Unknown, relative or ambiguous publication dates cannot be fresh evidence.",
+    "Human UAT and permitted live verification remain pending."
+  ],
+  "owner_uat": "PENDING",
+  "delivery_verdict": "OFFLINE_SCENARIOS_PASS_LIVE_BLOCKED",
+  "commit_push_deploy": "NOT_PERFORMED"
+}
