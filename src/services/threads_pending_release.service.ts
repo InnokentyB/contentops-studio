@@ -6,6 +6,9 @@ import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
 import { loadAgentWorkspaceManifest } from './agent_workspace_manifest.service';
 
 export const PENDING_THREADS_PACKAGES = {
+    1110: { revision: 2, decisionId: 299, decisionChannel: 'threads', chain: false,
+        bodySha256: '9172f6ceefe974c88caffb7b6aa84c971a3920fd5b0c281c0a6329b94825ce30',
+        releaseCommand: 'ba_release_threads_task1110_api', schedule: '2026-10-13T16:30:00.000Z' },
     1040: { revision: 4, decisionId: 256, decisionChannel: 'threads', chain: false,
         bodySha256: '6c7e36761a0f7cf48859f8f9ef673f3aa38105fa61c10d4ea592cbbeddc60353',
         releaseCommand: 'ba_release_approved_threads_task1040', schedule: '2026-10-08T16:30:00.000Z' },
@@ -35,9 +38,9 @@ export async function releasePendingThreadsTask(args: {
         project_id: 10, user_id: Number(match[1])
     } } });
     if (owner?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
-    if (args.taskId === 1035 || args.taskId === 1040) {
+    if (args.taskId === 1035 || args.taskId === 1040 || args.taskId === 1110) {
         const manifest = await manifestLoader(10, Number(match[1]));
-        const expected = args.taskId === 1040 ? args.expectedManifestChecksum
+        const expected = args.taskId === 1040 || args.taskId === 1110 ? args.expectedManifestChecksum
             : 'sha256:e7f837d363d88c6a30c5e5daac002894f85ccd7e73249fa45ef07d7efc27e46f';
         if (!expected || manifest.checksum !== expected) {
             throw new Error('[STALE_MANIFEST]');
@@ -46,12 +49,15 @@ export async function releasePendingThreadsTask(args: {
     const channel = await database.socialChannel.findFirst({ where: {
         id: 138, project_id: 10, type: 'threads', is_active: true
     } });
-    if (!channel || ([1035, 1040].includes(args.taskId) && channel.name !== 'innokenty_threads')) throw new Error('[THREADS_CHANNEL_NOT_READY]');
+    if (!channel || ([1035, 1040, 1110].includes(args.taskId) && channel.name !== 'innokenty_threads')) throw new Error('[THREADS_CHANNEL_NOT_READY]');
     const config = resolveEffectiveChannelConfig('threads', channel.config) as {
         access_token?: string; threads_user_id?: string;
     };
     const connection = await threads.testConnection(config);
-    if (!connection.success || connection.details?.username !== 'innokentybo') throw new Error('[THREADS_IDENTITY_NOT_VERIFIED]');
+    if (!connection.success || connection.details?.username !== 'innokentybo'
+        || (args.taskId === 1110 && connection.details.id !== '39421253764155091')) {
+        throw new Error('[THREADS_IDENTITY_NOT_VERIFIED]');
+    }
     let after: string | undefined;
     for (let page = 0; page < 5; page += 1) {
         const history = await threads.getOwnPosts(config.access_token || '', connection.details.id, after);
@@ -64,7 +70,7 @@ export async function releasePendingThreadsTask(args: {
     }
     const requestHash = createHash('sha256').update(JSON.stringify(args)).digest('hex');
     return database.$transaction(async tx => {
-        if (args.taskId === 1035 || args.taskId === 1040) {
+        if (args.taskId === 1035 || args.taskId === 1040 || args.taskId === 1110) {
             const currentOwner = await tx.projectMember.findUnique({ where: { project_id_user_id: {
                 project_id: 10, user_id: Number(match[1])
             } } });
@@ -97,6 +103,18 @@ export async function releasePendingThreadsTask(args: {
                 ? report.publication_task_delivery : null;
             if (delivery && typeof delivery === 'object' && !Array.isArray(delivery)
                 && delivery.state === 'provider_result_uncertain') throw new Error('[THREADS_UNCERTAIN_ATTEMPT_EXISTS]');
+        }
+        if (args.taskId === 1110) {
+            const [review, art] = await Promise.all([
+                tx.workItem.findFirst({ where: { id: 1841, project_id: 10, content_item_id: 1110,
+                    kind: 'content_review', state: 'completed', input_context_version: 2, result_version: 3 } }),
+                tx.workItem.findFirst({ where: { id: 1860, project_id: 10, content_item_id: 1110,
+                    kind: 'art_direction', state: 'completed', input_context_version: 2, result_version: 2 } })
+            ]);
+            if (!review || !art || decision?.decision_version !== 2 || task?.visual_placement !== 'feed'
+                || task?.publish_at?.toISOString() !== spec.schedule) {
+                throw new Error('[THREADS_PENDING_PACKAGE_CHANGED]');
+            }
         }
         if (args.taskId === 1035) {
             const [review, art] = await Promise.all([
@@ -141,6 +159,9 @@ export async function releasePendingThreadsTask(args: {
             body_sha256: hash, visual_decision_id: spec.decisionId, schedule_at: schedule,
             ...(args.taskId === 1040 ? { publish_at: schedule, previous_schedule_at: spec.schedule,
                 manifest_checksum: args.expectedManifestChecksum } : {}),
+            ...(args.taskId === 1110 ? { publish_at: schedule,
+                manifest_checksum: args.expectedManifestChecksum,
+                threads_user_id: '39421253764155091', username: 'innokentybo' } : {}),
             publication_mode: 'owner_released', publication_authorized: true, published: false };
         await tx.workflowEvent.create({ data: { project_id: 10, content_item_id: args.taskId,
             actor_id: args.actorId, command: spec.releaseCommand, idempotency_key: args.idempotencyKey,

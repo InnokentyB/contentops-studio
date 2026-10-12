@@ -154,6 +154,12 @@ export class ThreadsTaskPublicationService {
                 || proof.username !== 'innokentybo'
                 || config.threads_user_id !== '39421253764155091'
                 || task.visual_placement !== 'feed'))
+            || (args.taskId === 1110 && (proof.publication_authorized !== true
+                || proof.publish_at !== task.publish_at?.toISOString()
+                || proof.threads_user_id !== '39421253764155091'
+                || proof.username !== 'innokentybo'
+                || config.threads_user_id !== '39421253764155091'
+                || task.visual_placement !== 'feed'))
             || (args.taskId === 997 && (proof.publication_authorized !== true || release?.id !== 1887))
             || task.publication_mode !== 'owner_released' || task.status !== 'ready_for_execution'
             || task.content_revision !== spec.revision || task.accepted_revision !== spec.revision || task.text_state !== 'accepted'

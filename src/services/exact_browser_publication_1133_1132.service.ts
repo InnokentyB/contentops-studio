@@ -32,20 +32,42 @@ export const EXACT_BROWSER_PACKAGES = {
         placement: 'feed', schedule: '2026-10-12T15:00:00.000Z',
         manifest: 'sha256:4bfec7ca8399251c6c8f132a34d9e0952adbf1eef049d29325808cbd9db3975b',
         channelType: 'x', artifactKind: 'post'
+    },
+    linkedin1088: {
+        projectId: 7, taskId: 1088, channelId: 5, revision: 1,
+        bodySha256: '8f251f8740f4b84ed1ac873113a0e62d199d650689345f3288efc8fd37bece61',
+        assetId: null, assetSha256: null, placement: 'feed',
+        schedule: '2026-10-13T09:00:00.000Z',
+        manifest: 'sha256:e6178b5bfa7b08acb91dabfe7e34589e6067ae4b2d6270fbc0be8f983b6ef2bb',
+        channelType: 'linkedin', artifactKind: 'post', decisionId: 250,
+        targetProfileUrl: 'https://www.linkedin.com/in/innokentyb/',
+        accountType: 'personal', browserProfile: 'Innokenty', duplicateCheckRequired: true
+    },
+    linkedin1134: {
+        projectId: 10, taskId: 1134, channelId: 179, revision: 1,
+        bodySha256: '7b32c597478c683f7001552a3819c198922b3bbdb5a69af4e8ca417c38588d76',
+        assetId: 148,
+        assetSha256: '0b283963b085b53ee071c95d971c05f6198df65164ab6b435a106d8b5449d86c',
+        placement: 'feed', schedule: '2026-10-13T10:00:00.000Z',
+        manifest: 'sha256:4bfec7ca8399251c6c8f132a34d9e0952adbf1eef049d29325808cbd9db3975b',
+        channelType: 'linkedin', artifactKind: 'post', decisionId: 295,
+        targetProfileUrl: 'https://www.linkedin.com/company/79633032/',
+        accountType: 'company_page', browserProfile: 'Innokenty', duplicateCheckRequired: true
     }
 } as const;
 
-export type ExactBrowserPlatform = keyof typeof EXACT_BROWSER_PACKAGES;
-type ExactPackage = typeof EXACT_BROWSER_PACKAGES[ExactBrowserPlatform];
+export type ExactBrowserPackageKey = keyof typeof EXACT_BROWSER_PACKAGES;
+export type ExactBrowserPlatform = 'medium' | 'linkedin' | 'x';
+type ExactPackage = typeof EXACT_BROWSER_PACKAGES[ExactBrowserPackageKey];
 type AttemptSummary = { id: number; status: string; requires_manual_confirmation: boolean;
     error_message: string | null };
-type BoundaryArgs = { platform: ExactBrowserPlatform; projectId: number; taskId: number; channelId: number;
+type BoundaryArgs = { packageKey: ExactBrowserPackageKey; projectId: number; taskId: number; channelId: number;
     actorId: string; workItemId: number; leaseToken: string; approvalReference: string;
     idempotencyKey: string; contentRevision: number; textSha256: string;
     selectedAssetId: number | null; imageSha256: string | null };
 type ConfirmArgs = BoundaryArgs & { attemptId: number; publicUrl: string; providerObjectId: string;
     publishedAt: string; evidenceSha256: string };
-type UncertainArgs = Pick<BoundaryArgs, 'platform' | 'projectId' | 'taskId' | 'actorId' |
+type UncertainArgs = Pick<BoundaryArgs, 'packageKey' | 'projectId' | 'taskId' | 'actorId' |
     'workItemId' | 'leaseToken' | 'idempotencyKey'> & { attemptId: number; reasonCode: string };
 
 function object(value: unknown): Record<string, unknown> {
@@ -58,7 +80,7 @@ function actorUserId(actorId: string) {
     return Number(match[1]);
 }
 function hash(value: string) { return createHash('sha256').update(value).digest('hex'); }
-function exact(platform: ExactBrowserPlatform): ExactPackage { return EXACT_BROWSER_PACKAGES[platform]; }
+function exact(packageKey: ExactBrowserPackageKey): ExactPackage { return EXACT_BROWSER_PACKAGES[packageKey]; }
 function assetHash(task: { selected_asset?: { provenance: unknown } | null } | null) {
     const provenance = object(task?.selected_asset?.provenance);
     return object(provenance.planner_storage).sha256 || provenance.sha256 || null;
@@ -107,7 +129,8 @@ providerObjectId: string, publishedAt: string) {
 
 async function loadTask(tx: Prisma.TransactionClient, pkg: ExactPackage) {
     return tx.contentItem.findFirst({ where: { id: pkg.taskId, project_id: pkg.projectId },
-        include: { channel: true, selected_asset: true, publication_fact: true } });
+        include: { channel: true, selected_asset: true, publication_fact: true,
+            art_direction_decisions: { where: { status: 'active' } } } });
 }
 async function latestAttempt(tx: Prisma.TransactionClient, pkg: ExactPackage) {
     return tx.deliveryAttempt.findFirst({ where: { project_id: pkg.projectId,
@@ -124,12 +147,22 @@ statuses: string[], released: boolean) {
         : task?.visual_state === 'APPROVED' && task.visual_placement === pkg.placement
             && task.selected_asset_id === pkg.assetId && task.selected_asset?.status === 'approved'
             && assetHash(task) === pkg.assetSha256;
+    const config = object(task?.channel?.config);
+    const exactDecisionOk = !('decisionId' in pkg) || task?.art_direction_decisions.some(decision =>
+        decision.id === pkg.decisionId && decision.source_content_revision === pkg.revision
+        && decision.decision_version === task.visual_decision_version && decision.placement === pkg.placement
+        && decision.status === 'active'
+        && decision.decision === (pkg.assetId === null ? 'NO_VISUAL_NEEDED' : 'GENERATE'));
+    const exactIdentityOk = !('targetProfileUrl' in pkg)
+        || (config.account_ref === pkg.targetProfileUrl && config.channel_url === pkg.targetProfileUrl
+            && config.account_type === pkg.accountType && config.workflow_mode === 'browser_required'
+            && object(config.capability_flags).browser_publish === true);
     if (!task || task.channel_id !== pkg.channelId || task.channel?.type !== pkg.channelType
         || task.channel.is_active !== true || !statuses.includes(task.status)
         || task.publication_mode !== (released ? 'browser_required' : 'approval_required')
         || task.handoff_state !== 'ready' || task.content_revision !== pkg.revision
         || task.accepted_revision !== pkg.revision || task.text_state !== 'accepted'
-        || hash(task.draft_text || '') !== pkg.bodySha256 || !visualOk
+        || hash(task.draft_text || '') !== pkg.bodySha256 || !visualOk || !exactDecisionOk || !exactIdentityOk
         || task.schedule_at?.toISOString() !== pkg.schedule || task.publish_at?.toISOString() !== pkg.schedule
         || task.publication_fact || task.published_link
         || (['linkedin', 'x'].includes(pkg.channelType) && (quality.content_language !== 'en'
@@ -158,20 +191,22 @@ export async function diagnoseLinkedInTask1132() {
         mutates_state: false };
 }
 
-export async function releaseExactBrowserTask(platform: ExactBrowserPlatform, args: {
+export async function releaseExactBrowserTask(packageKey: ExactBrowserPackageKey, args: {
     projectId: number; taskId: number; actorId: string; expectedManifestChecksum: string;
     expectedBodySha256: string; expectedScheduleAt: string; approvalReference: string; idempotencyKey: string;
     duplicateCheckReference?: string }) {
-    const pkg = exact(platform);
+    const pkg = exact(packageKey);
+    const platform = pkg.channelType as ExactBrowserPlatform;
     if (args.projectId !== pkg.projectId || args.taskId !== pkg.taskId
         || args.expectedManifestChecksum !== pkg.manifest || args.expectedBodySha256 !== pkg.bodySha256
         || args.expectedScheduleAt !== pkg.schedule || !args.approvalReference.trim()
         || !args.idempotencyKey.trim()
-        || (platform === 'x' && (!args.duplicateCheckReference || args.duplicateCheckReference.trim().length < 10))) {
+        || ((platform === 'x' || ('duplicateCheckRequired' in pkg && pkg.duplicateCheckRequired))
+            && (!args.duplicateCheckReference || args.duplicateCheckReference.trim().length < 10))) {
         throw new Error('[EXACT_BROWSER_SCOPE_MISMATCH]');
     }
     const userId = actorUserId(args.actorId);
-    const requestHash = hash(JSON.stringify({ platform, ...args }));
+    const requestHash = hash(JSON.stringify({ packageKey, ...args }));
     return prisma.$transaction(async tx => {
         const command = `ba_release_${platform}_task${pkg.taskId}_browser`;
         const prior = await tx.workflowEvent.findFirst({ where: { project_id: pkg.projectId,
@@ -198,6 +233,8 @@ export async function releaseExactBrowserTask(platform: ExactBrowserPlatform, ar
             body_sha256: pkg.bodySha256, selected_asset_id: pkg.assetId,
             asset_sha256: pkg.assetSha256, channel_id: pkg.channelId,
             placement: pkg.placement, duplicate_check_reference: args.duplicateCheckReference || null,
+            ...('targetProfileUrl' in pkg ? { target_profile_url: pkg.targetProfileUrl,
+                browser_profile: pkg.browserProfile } : {}),
             released_at: new Date().toISOString() };
         const changed = await tx.contentItem.updateMany({ where: { id: pkg.taskId,
             project_id: pkg.projectId, channel_id: pkg.channelId, status: 'ready_for_execution',
@@ -230,9 +267,9 @@ export async function releaseExactBrowserTask(platform: ExactBrowserPlatform, ar
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
-export async function claimExactBrowserTask(platform: ExactBrowserPlatform, args: {
+export async function claimExactBrowserTask(packageKey: ExactBrowserPackageKey, args: {
     projectId: number; actorId: string; workItemId: number; leaseSeconds?: number; idempotencyKey: string }) {
-    const pkg = exact(platform);
+    const pkg = exact(packageKey);
     if (args.projectId !== pkg.projectId) throw new Error('[EXACT_BROWSER_SCOPE_MISMATCH]');
     const item = await prisma.workItem.findFirst({ where: { id: args.workItemId,
         project_id: pkg.projectId, content_item_id: pkg.taskId, kind: 'browser_publish',
@@ -252,7 +289,7 @@ function assertBoundaryArgs(args: BoundaryArgs, pkg: ExactPackage) {
     }
 }
 async function checkedBoundary(tx: Prisma.TransactionClient, args: BoundaryArgs, statuses: string[]) {
-    const pkg = exact(args.platform);
+    const pkg = exact(args.packageKey);
     assertBoundaryArgs(args, pkg);
     const [work, task] = await Promise.all([
         tx.workItem.findFirst({ where: { id: args.workItemId, project_id: pkg.projectId,
@@ -268,7 +305,10 @@ async function checkedBoundary(tx: Prisma.TransactionClient, args: BoundaryArgs,
     if (proof.publication_authorized !== true || ownerProof.publication_authorized !== true
         || proof.approval_reference !== args.approvalReference
         || ownerProof.approval_reference !== args.approvalReference
-        || proof.body_sha256 !== pkg.bodySha256 || ownerProof.body_sha256 !== pkg.bodySha256) {
+        || proof.body_sha256 !== pkg.bodySha256 || ownerProof.body_sha256 !== pkg.bodySha256
+        || ('targetProfileUrl' in pkg && (proof.target_profile_url !== pkg.targetProfileUrl
+            || ownerProof.target_profile_url !== pkg.targetProfileUrl
+            || proof.browser_profile !== pkg.browserProfile || ownerProof.browser_profile !== pkg.browserProfile))) {
         throw new Error('[EXACT_BROWSER_RELEASE_PROOF_INVALID]');
     }
     return { pkg, task: task!, work };
@@ -293,7 +333,8 @@ export async function startExactBrowserSubmission(args: BoundaryArgs) {
         if (changed.count !== 1) throw new Error('[EXACT_BROWSER_START_CAS_CONFLICT]');
         await tx.workflowEvent.create({ data: { project_id: checked.pkg.projectId,
             content_item_id: checked.pkg.taskId, work_item_id: checked.work.id,
-            actor_id: args.actorId, command: `ba_start_${args.platform}_task${checked.pkg.taskId}_browser_submission`,
+            actor_id: args.actorId,
+            command: `ba_start_${checked.pkg.channelType}_task${checked.pkg.taskId}_browser_submission`,
             idempotency_key: args.idempotencyKey, before_state: { status: checked.task.status,
                 prior_attempt: classification } as Prisma.InputJsonValue,
             after_state: { status: 'publishing', delivery_attempt_id: attempt.id } } });
@@ -303,7 +344,9 @@ export async function startExactBrowserSubmission(args: BoundaryArgs) {
 
 export async function confirmExactBrowserSubmission(args: ConfirmArgs) {
     if (!/^[a-f0-9]{64}$/.test(args.evidenceSha256)) throw new Error('[EVIDENCE_SHA_INVALID]');
-    const identity = validateProviderIdentity(args.platform, args.publicUrl, args.providerObjectId, args.publishedAt);
+    const pkg = exact(args.packageKey);
+    const platform = pkg.channelType as ExactBrowserPlatform;
+    const identity = validateProviderIdentity(platform, args.publicUrl, args.providerObjectId, args.publishedAt);
     const checked = await prisma.$transaction(async tx => {
         const boundary = await checkedBoundary(tx, args, ['publishing', 'browser_required']);
         const attempt = await tx.deliveryAttempt.findFirst({ where: { id: args.attemptId,
@@ -317,7 +360,7 @@ export async function confirmExactBrowserSubmission(args: ConfirmArgs) {
         outcome: 'published', publishedAt: identity.publishedAt, publicUrl: identity.publicUrl,
         providerObjectId: identity.providerObjectId, confirmationMode: 'reconciled',
         evidence: { type: 'screenshot', ref: `sha256:${args.evidenceSha256}` },
-        utmStatus: 'not_applicable', note: `${args.platform} browser publication confirmed by exact permalink readback.` });
+        utmStatus: 'not_applicable', note: `${platform} browser publication confirmed by exact permalink readback.` });
     await prisma.$transaction(async tx => {
         const changed = await tx.deliveryAttempt.updateMany({ where: { id: args.attemptId,
             project_id: checked.pkg.projectId, content_item_id: checked.pkg.taskId,
@@ -328,7 +371,7 @@ export async function confirmExactBrowserSubmission(args: ConfirmArgs) {
         await tx.workflowEvent.create({ data: { project_id: checked.pkg.projectId,
             content_item_id: checked.pkg.taskId, work_item_id: args.workItemId,
             actor_id: args.actorId,
-            command: `ba_confirm_${args.platform}_task${checked.pkg.taskId}_browser_submission`,
+            command: `ba_confirm_${platform}_task${checked.pkg.taskId}_browser_submission`,
             idempotency_key: `${args.idempotencyKey}:confirm`,
             before_state: { delivery_attempt_id: args.attemptId },
             after_state: { delivery_attempt_id: args.attemptId, status: 'delivered',
@@ -339,7 +382,7 @@ export async function confirmExactBrowserSubmission(args: ConfirmArgs) {
 }
 
 export async function markExactBrowserSubmissionUncertain(args: UncertainArgs) {
-    const pkg = exact(args.platform);
+    const pkg = exact(args.packageKey);
     return prisma.$transaction(async tx => {
         const work = await tx.workItem.findFirst({ where: { id: args.workItemId,
             project_id: pkg.projectId, content_item_id: pkg.taskId } });
@@ -353,7 +396,7 @@ export async function markExactBrowserSubmissionUncertain(args: UncertainArgs) {
         if (changed.count !== 1) throw new Error('[EXACT_BROWSER_UNCERTAIN_CAS_CONFLICT]');
         await tx.workflowEvent.create({ data: { project_id: pkg.projectId, content_item_id: pkg.taskId,
             work_item_id: args.workItemId, actor_id: args.actorId,
-            command: `ba_mark_${args.platform}_task${pkg.taskId}_browser_submission_uncertain`,
+            command: `ba_mark_${pkg.channelType}_task${pkg.taskId}_browser_submission_uncertain`,
             idempotency_key: `${args.idempotencyKey}:uncertain`, before_state: { delivery_attempt_id: args.attemptId },
             after_state: { delivery_attempt_id: args.attemptId, status: 'pending', retry_allowed: false,
                 reason_code: args.reasonCode } } });
