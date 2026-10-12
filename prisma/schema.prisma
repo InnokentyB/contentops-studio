@@ -57,25 +57,26 @@ model Project {
   runs        AgentRun[]
 
   // v2 Media Orchestrator Relations
-  quarter_plans             QuarterPlan[]
-  month_arcs                MonthArc[]
-  week_packages             WeekPackage[]
-  content_items             ContentItem[]
-  feedbacks                 FeedbackPackage[]
-  work_items                WorkItem[]
-  workflow_events           WorkflowEvent[]
-  initiatives               Initiative[]
-  initiative_dependencies   InitiativeDependency[]
-  vk_metric_snapshots       VkMetricSnapshot[]
-  outbox_events             OutboxEvent[]
-  webhook_inbox             WebhookInbox[]
-  delivery_attempts         DeliveryAttempt[]
-  image_assets              ImageAsset[]
-  art_direction_decisions   ArtDirectionDecision[]
-  metric_snapshots          MetricSnapshot[]
-  publication_facts         PublicationFact[]
-  service_identity_bindings ServiceIdentityBinding[]
-  mcp_access_tokens         McpAccessToken[]
+  quarter_plans               QuarterPlan[]
+  month_arcs                  MonthArc[]
+  week_packages               WeekPackage[]
+  content_items               ContentItem[]
+  feedbacks                   FeedbackPackage[]
+  work_items                  WorkItem[]
+  workflow_events             WorkflowEvent[]
+  initiatives                 Initiative[]
+  initiative_dependencies     InitiativeDependency[]
+  vk_metric_snapshots         VkMetricSnapshot[]
+  outbox_events               OutboxEvent[]
+  webhook_inbox               WebhookInbox[]
+  delivery_attempts           DeliveryAttempt[]
+  image_assets                ImageAsset[]
+  art_direction_decisions     ArtDirectionDecision[]
+  metric_snapshots            MetricSnapshot[]
+  publication_facts           PublicationFact[]
+  publication_identity_claims PublicationIdentityClaim[]
+  service_identity_bindings   ServiceIdentityBinding[]
+  mcp_access_tokens           McpAccessToken[]
 
   prompt_presets     PromptPreset[]
   comments           Comment[]
@@ -348,22 +349,22 @@ model ServiceIdentityBinding {
 }
 
 model McpAccessToken {
-  id          Int       @id @default(autoincrement())
-  project_id  Int?
+  id              Int       @id @default(autoincrement())
+  project_id      Int?
   organization_id Int?
-  user_id     Int
-  profile     String
-  bundle_id   String?
-  token_hash  String    @unique
-  label       String
-  expires_at  DateTime? @db.Timestamptz(6)
-  revoked_at  DateTime? @db.Timestamptz(6)
-  last_used_at DateTime? @db.Timestamptz(6)
-  created_at  DateTime  @default(now())
+  user_id         Int
+  profile         String
+  bundle_id       String?
+  token_hash      String    @unique
+  label           String
+  expires_at      DateTime? @db.Timestamptz(6)
+  revoked_at      DateTime? @db.Timestamptz(6)
+  last_used_at    DateTime? @db.Timestamptz(6)
+  created_at      DateTime  @default(now())
 
   project      Project?      @relation(fields: [project_id], references: [id], onDelete: Cascade)
   organization Organization? @relation(fields: [organization_id], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([project_id, profile])
   @@index([organization_id, profile])
@@ -420,11 +421,12 @@ model SocialChannel {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  project             Project            @relation(fields: [project_id], references: [id], onDelete: Cascade)
-  posts               Post[]
-  content_items       ContentItem[]
-  vk_metric_snapshots VkMetricSnapshot[]
-  publication_facts   PublicationFact[]
+  project                     Project                    @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  posts                       Post[]
+  content_items               ContentItem[]
+  vk_metric_snapshots         VkMetricSnapshot[]
+  publication_facts           PublicationFact[]
+  publication_identity_claims PublicationIdentityClaim[]
 
   @@map("social_channels")
   @@schema("planner")
@@ -784,17 +786,18 @@ model ContentItem {
   created_at              DateTime  @default(now())
   updated_at              DateTime  @updatedAt
 
-  project                 Project                @relation(fields: [project_id], references: [id], onDelete: Cascade)
-  week_package            WeekPackage?           @relation(fields: [week_package_id], references: [id], onDelete: SetNull)
-  channel                 SocialChannel?         @relation(fields: [channel_id], references: [id], onDelete: SetNull)
-  work_items              WorkItem[]
-  workflow_events         WorkflowEvent[]
-  vk_metric_snapshots     VkMetricSnapshot[]
-  metric_snapshots        MetricSnapshot[]
-  publication_fact        PublicationFact?
-  image_assets            ImageAsset[]           @relation("ContentItemImageAssets")
-  selected_asset          ImageAsset?            @relation("SelectedVisualAsset", fields: [selected_asset_id], references: [id], onDelete: SetNull)
-  art_direction_decisions ArtDirectionDecision[]
+  project                    Project                   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  week_package               WeekPackage?              @relation(fields: [week_package_id], references: [id], onDelete: SetNull)
+  channel                    SocialChannel?            @relation(fields: [channel_id], references: [id], onDelete: SetNull)
+  work_items                 WorkItem[]
+  workflow_events            WorkflowEvent[]
+  vk_metric_snapshots        VkMetricSnapshot[]
+  metric_snapshots           MetricSnapshot[]
+  publication_fact           PublicationFact?
+  publication_identity_claim PublicationIdentityClaim?
+  image_assets               ImageAsset[]              @relation("ContentItemImageAssets")
+  selected_asset             ImageAsset?               @relation("SelectedVisualAsset", fields: [selected_asset_id], references: [id], onDelete: SetNull)
+  art_direction_decisions    ArtDirectionDecision[]
 
   @@index([project_id])
   @@index([week_package_id])
@@ -1222,12 +1225,43 @@ model PublicationFact {
   created_at         DateTime  @default(now())
   updated_at         DateTime  @updatedAt
 
-  project      Project       @relation(fields: [project_id], references: [id], onDelete: Cascade)
-  content_item ContentItem   @relation(fields: [content_item_id], references: [id], onDelete: Cascade)
+  project      Project        @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  content_item ContentItem    @relation(fields: [content_item_id], references: [id], onDelete: Cascade)
   channel      SocialChannel? @relation(fields: [channel_id], references: [id], onDelete: Restrict)
 
   @@index([project_id, outcome, published_at])
   @@index([channel_id, published_at])
   @@map("publication_facts")
+  @@schema("planner")
+}
+
+model PublicationIdentityClaim {
+  id                     Int      @id @default(autoincrement())
+  project_id             Int
+  content_item_id        Int      @unique
+  channel_id             Int
+  platform               String
+  canonical_profile      String
+  canonical_profile_hash String
+  normalized_body_sha256 String
+  source_identity        Json
+  source_identity_sha256 String
+  content_revision       Int
+  last_boundary          String
+  override_key           String   @default("")
+  duplicate_of_claim_id  Int?
+  authorization_event_id Int?
+  created_at             DateTime @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime @updatedAt @db.Timestamptz(6)
+
+  project      Project       @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  content_item ContentItem   @relation(fields: [content_item_id], references: [id], onDelete: Cascade)
+  channel      SocialChannel @relation(fields: [channel_id], references: [id], onDelete: Restrict)
+
+  @@unique([project_id, platform, canonical_profile_hash, normalized_body_sha256, override_key])
+  @@index([project_id, platform, canonical_profile_hash, normalized_body_sha256])
+  @@index([duplicate_of_claim_id])
+  @@index([authorization_event_id])
+  @@map("publication_identity_claims")
   @@schema("planner")
 }

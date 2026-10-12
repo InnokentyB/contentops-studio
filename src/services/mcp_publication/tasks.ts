@@ -1,5 +1,9 @@
 import prisma from '../../db';
 import { Prisma } from '@prisma/client';
+import {
+    assertAndClaimPublicationIdentity,
+    assertAndClaimPublicationIdentityForTask
+} from '../publication_identity.service';
 import artDirectionService from '../art_direction.service';
 import publicationFactService from '../publication_fact.service';
 import initiativeService from '../initiative.service';
@@ -242,7 +246,8 @@ export async function updatePublicationContent(input: {
     expectedRevision: number;
 }) {
     const item = await prisma.contentItem.findFirst({
-        where: { id: input.taskId, project_id: input.projectId }
+        where: { id: input.taskId, project_id: input.projectId },
+        include: { channel: true }
     });
 
     if (!item) {
@@ -301,6 +306,15 @@ export async function updatePublicationContent(input: {
     }
 
     const updated = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+        if (String(item.channel?.type || '').toLowerCase() === 'medium') {
+            await assertAndClaimPublicationIdentity(tx, {
+                projectId: input.projectId,
+                taskId: item.id,
+                boundary: 'writer_completion',
+                body: input.body,
+                contentRevision: lifecycle.contentRevision
+            });
+        }
         await artDirectionService.markRevisionStale(tx, item.id);
         const result = await tx.contentItem.updateMany({
             where: {
@@ -493,6 +507,13 @@ export async function preparePublicationTask(projectId: number, taskId: number) 
     const hold = (item.quality_report as Record<string, unknown> | null)?.publication_hold;
     if (hold) throw new Error('[PUBLICATION_HOLD_ACTIVE] Audited owner recovery is required before preparation');
     await artDirectionService.assertPublicationReady(projectId, taskId);
+    if (String(item.channel?.type || '').toLowerCase() === 'medium') {
+        await assertAndClaimPublicationIdentityForTask({
+            projectId,
+            taskId,
+            boundary: 'release'
+        });
+    }
 
     const plan = await loadPublicationPlanContext(projectId);
     const action = (item.assets as Record<string, unknown> | null)?.action;

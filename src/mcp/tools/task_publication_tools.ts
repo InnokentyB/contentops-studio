@@ -6,6 +6,7 @@ import weekPackageRepairService from '../../services/week_package_repair.service
 import dzenTaskPublicationService from '../../services/dzen_task_publication.service';
 import threadsTaskPublicationService from '../../services/threads_task_publication.service';
 import telegramTaskPublicationService from '../../services/telegram_task_publication.service';
+import { authorizeIntentionalMediumRepublication } from '../../services/medium_republication_authorization.service';
 import {
     INTERNAL_MUTATION_ANNOTATIONS,
     EXTERNAL_PUBLICATION_ANNOTATIONS,
@@ -191,6 +192,21 @@ export function registerTaskPublicationTools(server: McpServer): void {
     }, async ({ projectId, actorId, taskId }) => asToolResult({
         publication_fact: await publicationFactService.get(projectId, taskId, actorId)
     }));
+
+    server.registerTool('ba_authorize_intentional_medium_republication', {
+        description: 'Owner-only audited authorization for intentionally republishing one exact Medium body to the same exact Medium profile. This command never publishes and never creates or changes a publication fact.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
+        inputSchema: {
+            projectId: z.number().int().positive(),
+            actorId: z.string().regex(/^user:\\d+$/),
+            taskId: z.number().int().positive(),
+            priorFactId: z.number().int().positive(),
+            expectedCanonicalProfile: z.string().min(1).max(500),
+            expectedNormalizedBodySha256: z.string().regex(/^[a-f0-9]{64}$/),
+            reason: z.string().trim().min(1).max(2000),
+            idempotencyKey: z.string().trim().min(8).max(500)
+        }
+    }, async (args) => asToolResult(await authorizeIntentionalMediumRepublication(args)));
 
     server.registerTool('ba_list_metric_checkpoints', {
         description: 'List due, overdue, partial, failed, or pending T+24h/T+7d metric checkpoints.',

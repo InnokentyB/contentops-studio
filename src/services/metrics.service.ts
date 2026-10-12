@@ -1,6 +1,7 @@
 import prisma from '../db';
 import { requireProjectActorAccess } from './project_access.service';
 import { isActuallyPublished } from './publication_fact.service';
+import { publicationIdentityKeyForCounting } from './publication_identity.service';
 
 type MetricFieldStatus = 'observed' | 'unknown' | 'not_supported' | 'invalid';
 type MetricValue = { value: number | null; status: MetricFieldStatus };
@@ -212,11 +213,12 @@ export class MetricsService {
         await requireProjectActorAccess(args.projectId, args.actorId);
         const items = await prisma.contentItem.findMany({
             where: { project_id: args.projectId },
-            include: { publication_fact: true, metric_snapshots: true }
+            include: { publication_fact: true, metric_snapshots: true, channel: true, publication_identity_claim: true }
         });
         const totals: Record<string, number> = { views: 0, likes: 0, shares: 0, comments: 0 };
         let included = 0;
         let excluded = 0;
+        const uniquePublicationIdentities = new Set<string>();
         for (const item of items) {
             const legacyOutcome = (item.metrics as any)?.publication_outcome || (item.quality_report as any)?.publication_outcome;
             const published = item.publication_fact
@@ -227,6 +229,7 @@ export class MetricsService {
                 continue;
             }
             included += 1;
+            uniquePublicationIdentities.add(publicationIdentityKeyForCounting(item));
             const { latest, legacy } = latestMetrics(item.metric_snapshots);
             const aliases: Record<string, string[]> = {
                 views: ['views'], likes: ['likes', 'reactions'], shares: ['shares', 'reposts'], comments: ['comments']
@@ -244,7 +247,9 @@ export class MetricsService {
             total_likes: totals.likes,
             total_shares: totals.shares,
             total_comments: totals.comments,
-            publication_count: included,
+            publication_count: uniquePublicationIdentities.size,
+            publication_fact_count: included,
+            duplicate_fact_count: included - uniquePublicationIdentities.size,
             excluded_count: excluded
         };
     }

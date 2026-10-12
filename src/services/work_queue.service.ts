@@ -11,6 +11,7 @@ import { recoverArtDirectionInput, requirePublicationVisual, repairPublicationPl
 import { repairTask1071TelegramVideoRoute } from './work_queue/task1071_route_repair';
 import { claimWorkItem, completeWorkItem, blockWorkItem, releaseWorkItem, rescheduleWorkItem } from './work_queue/lifecycle_operations';
 import { listWorkItems, getWorkItem, getWorkItemContext, listScheduleExceptions, getWeekExecutionSummary } from './work_queue/query_operations';
+import { assertAndClaimPublicationIdentity } from './publication_identity.service';
 
 export type { WorkQueueScope } from './work_queue/types';
 
@@ -407,7 +408,8 @@ export class WorkQueueService {
                 where: {
                     id: params.workItemId,
                     project_id: params.projectId
-                }
+                },
+                include: { content_item: { include: { channel: true } } }
             });
 
             if (!item) {
@@ -425,6 +427,15 @@ export class WorkQueueService {
 
             if (params.decision === 'rejected' && (!params.comment || !params.comment.trim())) {
                 throw new Error(`Comment is required when rejecting content`);
+            }
+
+            if (params.decision === 'approved' && item.kind === 'content_review' && item.content_item_id
+                && String(item.content_item?.channel?.type || '').toLowerCase() === 'medium') {
+                await assertAndClaimPublicationIdentity(tx, {
+                    projectId: params.projectId,
+                    taskId: item.content_item_id,
+                    boundary: 'editorial_acceptance'
+                });
             }
 
             await tx.approvalDecision.create({

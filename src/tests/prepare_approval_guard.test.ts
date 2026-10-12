@@ -13,6 +13,7 @@ test('preparePublicationTask leaves an approval-required task and stale bundle u
     const original = {
         findFirst: db.contentItem.findFirst,
         update: db.contentItem.update,
+        findSettings: db.projectSettings.findMany,
         assertReady: art.assertPublicationReady,
         loadPlan: service.loadPublicationPlanContext,
         mutable: service.assertPublicationTaskMutableForMcp,
@@ -32,6 +33,7 @@ test('preparePublicationTask leaves an approval-required task and stale bundle u
     try {
         db.contentItem.findFirst = async () => task;
         db.contentItem.update = async () => { writes += 1; throw new Error('unexpected write'); };
+        db.projectSettings.findMany = async () => [];
         art.assertPublicationReady = async () => undefined;
         service.loadPublicationPlanContext = async () => null;
         service.assertPublicationTaskMutableForMcp = () => undefined;
@@ -45,6 +47,7 @@ test('preparePublicationTask leaves an approval-required task and stale bundle u
     } finally {
         db.contentItem.findFirst = original.findFirst;
         db.contentItem.update = original.update;
+        db.projectSettings.findMany = original.findSettings;
         art.assertPublicationReady = original.assertReady;
         service.loadPublicationPlanContext = original.loadPlan;
         service.assertPublicationTaskMutableForMcp = original.mutable;
