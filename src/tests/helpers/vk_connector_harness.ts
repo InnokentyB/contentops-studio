@@ -36,4 +36,3 @@ export function harness(enabled = true) {
         invalidate: () => { snapshotError = '[VK_CONNECTOR_PACKAGE_NOT_READY]'; },
         advance: (ms: number) => { clock = new Date(clock.getTime() + ms); } };
 }
-
