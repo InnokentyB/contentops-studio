@@ -6,8 +6,10 @@ fact. A valid receipt ends `blocked / PROVIDER_CONTROL_DENIED`. Railway deployme
 does not install or start this local process.
 
 Use existing authorized project 10 Publisher MCP credentials. This guide does not
-provision a new credential. Keep its existing token in an owner-only regular file
-with mode `0600`; config and token symlinks are rejected. Never put a token in command
+provision a new credential. Prefer the already-existing process/LaunchAgent memory
+environment `CONTENTOPS_ANALYSTCRAFT_PUBLISHER_TOKEN`. The config stores only its
+name, never its value. Alternatively reference an existing owner-only regular token
+file with mode `0600`; config and token symlinks are rejected. Never put a token in command
 arguments, config JSON, job packages, service-manager environment or logs.
 
 Private configuration (absolute paths, file mode `0600`):
@@ -17,12 +19,16 @@ Private configuration (absolute paths, file mode `0600`):
   "projectId": 10,
   "hostId": "vk-connector-local-1048",
   "endpoint": "https://planner-mcp-production.up.railway.app/mcp/publisher",
-  "tokenFile": "/absolute/private/existing-publisher-token",
+  "tokenEnvVar": "CONTENTOPS_ANALYSTCRAFT_PUBLISHER_TOKEN",
   "runtimeDir": "/absolute/private/vk-connector-runtime",
   "mode": "infrastructure_only",
   "buildVersion": "reviewed-build-revision"
 }
 ```
+
+Set exactly one source: the pinned `tokenEnvVar` above, or `tokenFile` with an
+absolute existing private file path. Both together, any other environment name,
+and an empty/missing environment value are rejected. No token is copied into a file.
 
 The endpoint, project and host are pinned. No browser/profile or live mode option
 exists. The runtime directory must belong to the process owner with mode `0700`.
@@ -33,7 +39,8 @@ node /absolute/checkout/dist/workers/vk_connector_consumer.js /absolute/private/
 ```
 
 For macOS LaunchAgent setup, use this command as `ProgramArguments`, no shell and
-no token environment variable. Keep the service disabled until backend migration,
+no `EnvironmentVariables` secret. The service inherits the already-existing
+launchctl memory environment; this guide does not set or persist it. Keep the service disabled until backend migration,
 restricted MCP tooling and infrastructure smoke are verified. The agent must run
 as the configuration/token owner. SIGTERM/SIGINT stop polling and close MCP before
 releasing the local lock. Polls are serial every 5 seconds; request/connect timeouts
@@ -56,3 +63,12 @@ auth unavailable, disabled dispatch and provider-blocked are distinct from succe
 Pilot restrictions are project 10/task 1048/channel 117/community-240051152,
 revision 1 / asset 130 / feed and valid immutable body/asset/release hashes. Only explicit
 queued dispatch jobs are consumed; the process never harvests all publication tasks.
+
+For a stable installation outside a managed checkout, run `npm run build:vk:connector`
+after installing the frontend build dependencies. This reuses the locked frontend
+esbuild and produces `dist/connector/vk_connector_consumer.cjs`, a standalone file
+with no checkout/node_modules dependency and no embedded credential. Copy that
+reviewed file into a private versioned release directory; use the installed Node
+executable, copied artifact and private config as LaunchAgent ProgramArguments.
+The preferred credential source is the existing pinned launch environment; the
+LaunchAgent contains no raw token EnvironmentVariables.
