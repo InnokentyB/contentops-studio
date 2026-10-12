@@ -72,6 +72,7 @@ const PLANNER_TOOLS = new Set([
     'ba_require_task973_publication_visual',
     'ba_repair_task972_publication_metadata',
     'ba_bind_task960_linkedin_identity',
+    'ba_adapt_task1091_tdpd_source',
     'ba_create_task970_t72_checkpoint',
     'ba_upsert_initiative',
     'ba_link_initiatives',
@@ -324,6 +325,7 @@ const STRATEGIST_EXCLUDED = new Set([
     'ba_repair_task972_publication_metadata',
     'ba_repair_telegram_task1099_story_placement',
     'ba_bind_task960_linkedin_identity',
+    'ba_adapt_task1091_tdpd_source',
     'ba_create_task970_t72_checkpoint'
 ]);
 
