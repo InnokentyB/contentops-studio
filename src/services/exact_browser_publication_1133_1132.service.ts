@@ -23,6 +23,15 @@ export const EXACT_BROWSER_PACKAGES = {
         placement: 'feed', schedule: '2026-10-12T09:00:00.000Z',
         manifest: 'sha256:e6178b5bfa7b08acb91dabfe7e34589e6067ae4b2d6270fbc0be8f983b6ef2bb',
         channelType: 'linkedin', artifactKind: 'post'
+    },
+    x: {
+        projectId: 10, taskId: 1107, channelId: 164, revision: 1,
+        bodySha256: '2029e3fc10296091ba2331bcc2e666d5db895923111d37fb141cbec77171fdd4',
+        assetId: null,
+        assetSha256: null,
+        placement: 'feed', schedule: '2026-10-12T15:00:00.000Z',
+        manifest: 'sha256:4bfec7ca8399251c6c8f132a34d9e0952adbf1eef049d29325808cbd9db3975b',
+        channelType: 'x', artifactKind: 'post'
     }
 } as const;
 
@@ -80,6 +89,14 @@ providerObjectId: string, publishedAt: string) {
         return { publicUrl: `https://medium.com${url.pathname.replace(/\/$/, '')}`,
             providerObjectId, publishedAt: published.toISOString() };
     }
+    if (platform === 'x') {
+        const match = /^\/naraHeTc\/status\/(\d+)\/?$/.exec(url.pathname);
+        if (url.hostname !== 'x.com' || !match || match[1] !== providerObjectId) {
+            throw new Error('[PROVIDER_IDENTITY_INVALID]');
+        }
+        return { publicUrl: `https://x.com/naraHeTc/status/${providerObjectId}`,
+            providerObjectId, publishedAt: published.toISOString() };
+    }
     const match = /^\/feed\/update\/(urn:li:activity:\d+)\/?$/.exec(url.pathname);
     if (url.hostname !== 'www.linkedin.com' || !match || match[1] !== providerObjectId) {
         throw new Error('[PROVIDER_IDENTITY_INVALID]');
@@ -115,8 +132,11 @@ statuses: string[], released: boolean) {
         || hash(task.draft_text || '') !== pkg.bodySha256 || !visualOk
         || task.schedule_at?.toISOString() !== pkg.schedule || task.publish_at?.toISOString() !== pkg.schedule
         || task.publication_fact || task.published_link
-        || (pkg.channelType === 'linkedin' && (quality.content_language !== 'en'
-            || handoff.content_language !== 'en'))) throw new Error('[EXACT_BROWSER_PACKAGE_GUARD_FAILED]');
+        || (['linkedin', 'x'].includes(pkg.channelType) && (quality.content_language !== 'en'
+            || handoff.content_language !== 'en'))
+        || (pkg.channelType === 'x' && (object(task.channel?.config).account_ref !== '@naraHeTc'
+            || object(task.channel?.config).channel_url !== 'https://x.com/naraHeTc')))
+        throw new Error('[EXACT_BROWSER_PACKAGE_GUARD_FAILED]');
 }
 
 export async function diagnoseLinkedInTask1132() {
@@ -140,12 +160,16 @@ export async function diagnoseLinkedInTask1132() {
 
 export async function releaseExactBrowserTask(platform: ExactBrowserPlatform, args: {
     projectId: number; taskId: number; actorId: string; expectedManifestChecksum: string;
-    expectedBodySha256: string; expectedScheduleAt: string; approvalReference: string; idempotencyKey: string }) {
+    expectedBodySha256: string; expectedScheduleAt: string; approvalReference: string; idempotencyKey: string;
+    duplicateCheckReference?: string }) {
     const pkg = exact(platform);
     if (args.projectId !== pkg.projectId || args.taskId !== pkg.taskId
         || args.expectedManifestChecksum !== pkg.manifest || args.expectedBodySha256 !== pkg.bodySha256
         || args.expectedScheduleAt !== pkg.schedule || !args.approvalReference.trim()
-        || !args.idempotencyKey.trim()) throw new Error('[EXACT_BROWSER_SCOPE_MISMATCH]');
+        || !args.idempotencyKey.trim()
+        || (platform === 'x' && (!args.duplicateCheckReference || args.duplicateCheckReference.trim().length < 10))) {
+        throw new Error('[EXACT_BROWSER_SCOPE_MISMATCH]');
+    }
     const userId = actorUserId(args.actorId);
     const requestHash = hash(JSON.stringify({ platform, ...args }));
     return prisma.$transaction(async tx => {
@@ -173,7 +197,8 @@ export async function releaseExactBrowserTask(platform: ExactBrowserPlatform, ar
             approval_reference: args.approvalReference, content_revision: pkg.revision,
             body_sha256: pkg.bodySha256, selected_asset_id: pkg.assetId,
             asset_sha256: pkg.assetSha256, channel_id: pkg.channelId,
-            placement: pkg.placement, released_at: new Date().toISOString() };
+            placement: pkg.placement, duplicate_check_reference: args.duplicateCheckReference || null,
+            released_at: new Date().toISOString() };
         const changed = await tx.contentItem.updateMany({ where: { id: pkg.taskId,
             project_id: pkg.projectId, channel_id: pkg.channelId, status: 'ready_for_execution',
             publication_mode: 'approval_required', content_revision: pkg.revision,
