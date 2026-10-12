@@ -4,6 +4,7 @@ import { registerVkSearchTools } from './tools/vk_search_tools';
 import prisma, { pool } from '../db';
 import workQueueService from '../services/work_queue.service';
 import { repairTask1051ReviewCollision } from '../services/task1051_review_collision.service';
+import { repairTask1091ReviewCollision } from '../services/task1091_review_collision.service';
 import { filterMcpServerTools, McpCapabilityProfile } from './capabilities';
 import {
     asToolResult,
@@ -117,6 +118,26 @@ export function registerPlannerTools(server: McpServer): void {
             confirm: z.boolean()
         }
     }, async (args) => asToolResult(await repairTask1051ReviewCollision(args)));
+
+    server.registerTool('ba_repair_task1091_review_collision', {
+        description: 'Owner-authorized Editor repair for the exact task 1091 revision-2 review collision. Preview or atomically supersede WI1656 and create one claimable revision-2 replacement; never changes copy, schedule, acceptance, art history, release state or publication state.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
+        inputSchema: {
+            projectId: z.literal(10),
+            taskId: z.literal(1091),
+            workItemId: z.literal(1656),
+            actorId: z.string(),
+            expectedContentRevision: z.literal(2),
+            expectedAcceptedRevision: z.null(),
+            expectedBodySha256: z.literal('d4301764ab75882e461178972ce2958533e4d36d175e0bd94fccc3aaa91786c1'),
+            expectedScheduleAt: z.literal('2026-10-13T17:30:00.000Z'),
+            expectedResultVersion: z.literal(2),
+            expectedInputContextVersion: z.literal(2),
+            idempotencyKey: z.literal('repair-p10-task1091-review-collision-20261012-v1'),
+            reason: z.string().min(1),
+            confirm: z.boolean()
+        }
+    }, async (args) => asToolResult(await repairTask1091ReviewCollision(args)));
 
     // Explicit contract test anchors: ba_repair_publication_projection
     server.registerTool('ba_repair_publication_projection', {
