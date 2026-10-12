@@ -139,6 +139,7 @@ const EDITOR_TOOLS = new Set([
 ]);
 
 const PUBLISHER_TOOLS = new Set([
+    'ba_repair_linkedin_task1132_language',
     'ba_cancel_task1001_owner',
     'ba_get_agent_workspace_manifest',
     'ba_get_agent_workspace_updates',
