@@ -121,6 +121,7 @@ const EDITOR_TOOLS = new Set([
     'ba_recover_oct08_content_review',
     'ba_repair_task1051_review_collision',
     'ba_repair_task1091_review_collision',
+    'ba_repair_task1091_rev4_review_collision',
     'ba_get_agent_workspace_manifest',
     'ba_get_agent_workspace_updates',
     'ba_get_agent_chat_bootstrap',

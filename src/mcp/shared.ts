@@ -6,6 +6,12 @@ import workQueueService from '../services/work_queue.service';
 import { repairTask1051ReviewCollision } from '../services/task1051_review_collision.service';
 import { repairTask1091ReviewCollision } from '../services/task1091_review_collision.service';
 import {
+    repairTask1091Rev4ReviewCollision,
+    TASK1091_REV4_BODY_SHA256,
+    TASK1091_REV4_MANIFEST_CHECKSUM,
+    TASK1091_REV4_REVIEW_REPAIR_KEY
+} from '../services/task1091_rev4_review_collision.service';
+import {
     adaptTask1091TdpdSource,
     TASK1091_PREVIOUS_BODY_SHA256,
     TASK1091_TDPD_ADAPTATION_KEY,
@@ -144,6 +150,31 @@ export function registerPlannerTools(server: McpServer): void {
             confirm: z.boolean()
         }
     }, async (args) => asToolResult(await repairTask1091ReviewCollision(args)));
+
+    server.registerTool('ba_repair_task1091_rev4_review_collision', {
+        description: 'Owner-authorized Editor repair for the exact task 1091 revision-4 review collision. Atomically supersedes WI1656 and stale WI1866, then creates one fresh claimable revision-4 review without changing copy, schedule, channel, history, release or publication state.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
+        inputSchema: {
+            projectId: z.literal(10),
+            taskId: z.literal(1091),
+            collisionWorkItemId: z.literal(1656),
+            staleWorkItemId: z.literal(1866),
+            actorId: z.string(),
+            expectedManifestChecksum: z.literal(TASK1091_REV4_MANIFEST_CHECKSUM),
+            expectedContentRevision: z.literal(4),
+            expectedAcceptedRevision: z.null(),
+            expectedBodySha256: z.literal(TASK1091_REV4_BODY_SHA256),
+            expectedChannelId: z.literal(108),
+            expectedScheduleAt: z.literal('2026-10-13T17:30:00.000Z'),
+            expectedCollisionInputContextVersion: z.literal(4),
+            expectedCollisionResultVersion: z.literal(2),
+            expectedStaleInputContextVersion: z.literal(3),
+            expectedStaleResultVersion: z.literal(3),
+            idempotencyKey: z.literal(TASK1091_REV4_REVIEW_REPAIR_KEY),
+            reason: z.string().min(1),
+            confirm: z.boolean()
+        }
+    }, async (args) => asToolResult(await repairTask1091Rev4ReviewCollision(args)));
 
     server.registerTool('ba_adapt_task1091_tdpd_source', {
         description: 'Owner-authorized Planner adaptation of the existing task1091 slot to the Kun Chen / TDPD source package. Preserves accepted revision 2 as a historical candidate, reopens Writer and editorial gates, and never releases or publishes.',
