@@ -12,7 +12,7 @@ import {
 import { asToolResult, INTERNAL_MUTATION_ANNOTATIONS } from './common';
 
 export function registerExactBrowserPublication1133And1132Tools(server: McpServer): void {
-    for (const platform of ['medium', 'linkedin'] as const) {
+    for (const platform of ['medium', 'linkedin', 'x'] as const) {
         const pkg = EXACT_BROWSER_PACKAGES[platform];
         const prefix = `${platform}_task${pkg.taskId}`;
         const boundary = {
@@ -30,7 +30,8 @@ export function registerExactBrowserPublication1133And1132Tools(server: McpServe
             inputSchema: { projectId: z.literal(pkg.projectId), taskId: z.literal(pkg.taskId),
                 actorId: z.string().regex(/^user:\d+$/), expectedManifestChecksum: z.literal(pkg.manifest),
                 expectedBodySha256: z.literal(pkg.bodySha256), expectedScheduleAt: z.literal(pkg.schedule),
-                approvalReference: z.string().min(10), idempotencyKey: z.string().min(1) }
+                approvalReference: z.string().min(10), idempotencyKey: z.string().min(1),
+                duplicateCheckReference: platform === 'x' ? z.string().min(10) : z.string().optional() }
         }, async args => asToolResult(await releaseExactBrowserTask(platform, args)));
         server.registerTool(`ba_claim_${prefix}_browser_publication`, {
             description: `Claims exact owner-released ${platform} task ${pkg.taskId}; never opens the provider.`,
@@ -48,8 +49,9 @@ export function registerExactBrowserPublication1133And1132Tools(server: McpServe
             description: `Confirms ${platform} task ${pkg.taskId} only from its exact public permalink and evidence.`,
             annotations: INTERNAL_MUTATION_ANNOTATIONS,
             inputSchema: { ...boundary, attemptId: z.number().int().positive(), publicUrl: z.string().url(),
-                providerObjectId: platform === 'medium'
-                    ? z.string().regex(/^[a-f0-9]{12}$/) : z.string().regex(/^urn:li:activity:\d+$/),
+                providerObjectId: platform === 'medium' ? z.string().regex(/^[a-f0-9]{12}$/)
+                    : platform === 'linkedin' ? z.string().regex(/^urn:li:activity:\d+$/)
+                        : z.string().regex(/^\d+$/),
                 publishedAt: z.string().datetime({ offset: true }),
                 evidenceSha256: z.string().regex(/^[a-f0-9]{64}$/) }
         }, async args => asToolResult(await confirmExactBrowserSubmission({ platform, ...args })));
