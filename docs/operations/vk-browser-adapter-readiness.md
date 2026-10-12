@@ -97,3 +97,12 @@ Rollback disables the new browser route and stops the local executable. Existing
 attempts and facts remain intact; uncertain tasks are reconciled, never reset and
 resent. API search and previously authorized publication routes are not rerouted.
 This package has no schema migration, new provider credentials or live publication.
+
+
+## Owner-authorized code rollout — 2026-10-12
+
+The owner authorized deployment with live gates retained. Eight historical test
+harness failures were repaired without changing production sending behavior.
+The clean release build passes all 919 tests with zero skips, backend/frontend
+builds and the baseline quality gate. See the production-release test record.
+This verifies code readiness for the gated rollout, not real VK provider UAT.

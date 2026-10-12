@@ -1,0 +1,5569 @@
+{
+  "date": "2026-10-12",
+  "revision": "70dac60",
+  "code_state": "TESTS_PASS_PROVIDER_UAT_PENDING",
+  "production_release_authorization": "Direct owner request in this chat after PR126 draft review",
+  "verification": {
+    "full_suite": {
+      "tests": 919,
+      "pass": 919,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0
+    },
+    "backend_build": "PASS",
+    "frontend_build": "PASS",
+    "quality_gate": "PASS (baseline score 77)",
+    "diff_check": "PASS"
+  },
+  "scenario_results": [
+    {
+      "id": "RELEASE-0002",
+      "title": "workspace manifest exposes the governed chat topology without secrets",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0003",
+      "title": "workspace update is empty for a known checksum and returns a snapshot after configuration changes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0004",
+      "title": "chat bootstrap is role-scoped and references an MCP capability profile",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0006",
+      "title": "AiGatewayService pools OpenAI client instances",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0007",
+      "title": "AiGatewayService pools Anthropic and Google clients",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0008",
+      "title": "AiGatewayService resolveApiKey falls back to environment variables",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0009",
+      "title": "AiGatewayService complete throws when API key is missing",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0010",
+      "title": "AiGatewayService complete throws when model family is unknown",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0018",
+      "title": "safeResolveUploadPath neutralizes directory traversal attempts",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0019",
+      "title": "POST /api/v2/strategy-chat enforces message length limits (DoS & Token Inflation prevention)",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0021",
+      "title": "VK article art context exposes cover dimensions and safe area",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0022",
+      "title": "A: no-visual is a positive ready state and does not require generation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0023",
+      "title": "B: generated is not publication-ready until visual review approves an asset",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0024",
+      "title": "C: evidence visuals without evidence refs require a source instead of generation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0025",
+      "title": "D: simulated documentation is never a valid visual decision",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0026",
+      "title": "E: a newer content revision makes an approved visual stale",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0027",
+      "title": "I: a local approved asset cannot make the handoff ready",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0028",
+      "title": "F: idempotency contract exposes only deterministic decisions",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0029",
+      "title": "G: required and forbidden placement modes cannot be bypassed",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0030",
+      "title": "H: art-director MCP can assess visuals but cannot rewrite publication copy",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0031",
+      "title": "revision-bound source inspection accepts MP4 and records checksum",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0033",
+      "title": "owner recovery creates one fresh revision-bound input, audits it, and holds old generation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0034",
+      "title": "recovery rejects published or changed task before any write",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0035",
+      "title": "recovery stops on compare-and-swap race before creating input",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0036",
+      "title": "recovery refuses a newer art input or an active old generator",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0037",
+      "title": "non-owner cannot start recovery",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0041",
+      "title": "rejects invalid email formats",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0042",
+      "title": "rejects passwords shorter than 8 characters",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0043",
+      "title": "accepts valid registration payload and normalizes email",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0044",
+      "title": "rejects passwords exceeding 100 characters",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0045",
+      "title": "RegisterSchema Validation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0047",
+      "title": "rejects empty password",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0048",
+      "title": "accepts valid login credentials and normalizes email",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0049",
+      "title": "LoginSchema Validation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0051",
+      "title": "verifies pool has error event listener registered",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0052",
+      "title": "Database Pool Resilience",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0053",
+      "title": "Auth & Resilience Test Suite",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0054",
+      "title": "content language defaults legacy channels to Russian",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0055",
+      "title": "content language recognizes English channel configuration",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0056",
+      "title": "publication handoff honors explicit task language before the channel default",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0058",
+      "title": "audited recovery creates fresh revision-bound review rather than accepting an unbound collided payload",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0059",
+      "title": "review claim and submit are editor-only capabilities, not writer or publisher actions",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0060",
+      "title": "content review gate rejects another kind, role, state or revision",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0061",
+      "title": "remote reviewer claim is project-scoped and uses the authenticated actor",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0063",
+      "title": "a new writer result reopens review without resetting review version or retaining a lease",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0065",
+      "title": "reviewer lease submits a revision-bound result for approval and rejects cross-kind reuse",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0066",
+      "title": "a new claim key atomically recovers an expired content-review lease without changing versions",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0068",
+      "title": "database pool defaults to a shared-service-safe per-process budget",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0069",
+      "title": "database pool accepts an explicit bounded budget",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0070",
+      "title": "database pool rejects values that could exhaust the shared session endpoint",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0071",
+      "title": "shared PostgreSQL pool applies the resolved per-process budget",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0078",
+      "title": "delivery executes the task-native publisher and marks delivered only after a canonical provider fact exists",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0079",
+      "title": "delivery never reports delivered when the adapter has no canonical publication fact",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0080",
+      "title": "delivery validates project, channel, accepted revision, and due time before dispatch",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0081",
+      "title": "owner recovery invalidates false delivered attempts and writes an audit event idempotently",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0082",
+      "title": "legacy recovery cannot turn a failed attempt into delivered without provider evidence",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0083",
+      "title": "Dzen defaults to owner-approved connector auto after a successful cookie preflight",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0084",
+      "title": "Dzen delivery preflight uses the rotated top-level session instead of a legacy raw_account snapshot",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0085",
+      "title": "Dzen preflight failure leaves browser mode unchanged and creates no delivery attempt",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0086",
+      "title": "approval-required delivery is rejected before preflight, attempt creation or publishing",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0087",
+      "title": "owner-released task without the exact generic Dzen proof cannot use delivery",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0088",
+      "title": "exact generic Dzen owner release permits one idempotent connector send",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0090",
+      "title": "signed demo session preserves the server-side read-only claim",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0091",
+      "title": "LinkedIn OAuth state is signed, scoped, and rejects tampering",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0092",
+      "title": "demo account can read project APIs",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0093",
+      "title": "demo account cannot change data or trigger publication",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0094",
+      "title": "demo restriction does not affect regular users or non-API navigation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0096",
+      "title": "preview performs no writes and apply binds the exact DEV.to identity without release",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0097",
+      "title": "binding rejects changed accepted bytes with zero writes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0098",
+      "title": "binding requires a project owner",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0100",
+      "title": "External Radar reads article bodies and finds replies through authorized read-only Planner tools",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0101",
+      "title": "article returns actual paragraphs with explicit missing date; foreign canonical and empty/restricted bodies fail closed",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0102",
+      "title": "reply matching includes answers to our nested comments and separates other discussion messages",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0103",
+      "title": "project authorization precedes article/provider/database reads; errors never expose secrets",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0104",
+      "title": "reply target discovery uses only current project/channel records and includes explicit legacy threads",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0105",
+      "title": "bounded monitoring preserves unknown and unloaded threads instead of returning a false zero",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0106",
+      "title": "missing final control is explicitly pre-submit, never a retry authorization",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0107",
+      "title": "click failure remains uncertain, never marked pre-submit",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0108",
+      "title": "semantic dialog fallback clicks the sole enabled Publish control when test id changed",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0109",
+      "title": "semantic dialog fallback refuses ambiguous final controls",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0110",
+      "title": "draft Dzen connection check uses unsaved browser export and declares that it was not persisted",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0111",
+      "title": "draft Dzen connection check falls back to saved masked credential without exposing it",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0112",
+      "title": "Dzen compact counters are normalized",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0113",
+      "title": "Dzen search relevance rewards title matches",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0114",
+      "title": "Dzen engagement accepts only public publication URLs",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0115",
+      "title": "Dzen studio counters are matched to the publication permalink",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0116",
+      "title": "planner can use Dzen engagement tools but strategist cannot publish comments",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0117",
+      "title": "Dzen comment composer supports semantic current and fallback markup",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0118",
+      "title": "Dzen comment submit supports localized and test-id controls",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0119",
+      "title": "Dzen interaction navigation does not wait for permanent background requests",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0121",
+      "title": "Radar operator can read native inbound activity and exact public threads through scoped read-only tools",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0122",
+      "title": "Studio bodies preserve native timestamps and reply relationships; secret fields and URL tracking are excluded",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0123",
+      "title": "native empty Studio response is an observed bounded zero; missing comments never becomes zero",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0124",
+      "title": "Activity is limited to owned publications and exact requested threads, with recipient identity verified",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0125",
+      "title": "native reads reject every write and prevent default-sorting mutation hidden in GET",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0126",
+      "title": "public thread reads actual bodies; native child count does not fabricate loaded reply bodies",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0127",
+      "title": "authorization is checked before any provider read; provider failure remains UNKNOWN with sanitized evidence",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0128",
+      "title": "native child reply bodies preserve both root and direct reply IDs and reject a foreign thread",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0129",
+      "title": "operator native inbound scan reads bounded pages, returns real replies/events, blocks writes and closes the browser",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0130",
+      "title": "reader browser closes when page creation or native identity verification fails",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0131",
+      "title": "a short publication whose root comments preload during navigation still returns the exact native thread",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0133",
+      "title": "generic Dzen release authorizes one exact accepted package without publishing",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0134",
+      "title": "generic Dzen release fails closed on revision, body, visual, fact or manifest drift",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0135",
+      "title": "generic Dzen owner release is not delegated to Publisher or SMM profiles",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0136",
+      "title": "1031 uses its accepted first-line headline for provider payload and history readback",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0137",
+      "title": "1045 uses its accepted first-line headline instead of the operational slot label",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0138",
+      "title": "Dzen feed action selects native post even when account defaults to article",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0139",
+      "title": "Dzen article action and article channel retain longread route",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0141",
+      "title": "card screening never infers publication freshness from snippet or capture time",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0142",
+      "title": "absence of heuristic flags is not an acceptance verdict",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0143",
+      "title": "search provenance strips provider tracking and rejects credential-bearing or foreign links",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0144",
+      "title": "read failures classify gaps without leaking provider error payloads",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0145",
+      "title": "read-only radar diagnostic is available only to intended profiles",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0146",
+      "title": "remote radar diagnostic cannot override token-bound project or actor",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0147",
+      "title": "MCP registers the diagnostic with a validated scope and read-only annotations",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0148",
+      "title": "local diagnostic retains UNKNOWN/null until native surfaces are scanned; search failure cannot become zero",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0149",
+      "title": "successful discovery preserves results and distinguishes returned count from total activity",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0150",
+      "title": "native search image link retains sibling article title instead of deduplicating an empty heading",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0152",
+      "title": "Dzen task1002 route binds the exact accepted package and provider identity",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0153",
+      "title": "Dzen task1002 release rejects stale package input before touching storage",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0154",
+      "title": "Dzen task1002 provider inventory fails closed and detects exact-title duplicates",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0155",
+      "title": "Dzen task1002 controls are restricted to owner and publisher profiles",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0156",
+      "title": "Dzen task1002 preflight records complete provider absence proof for the exact identity",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0157",
+      "title": "Dzen1036 sends its accepted headline, never the operational slot title",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0159",
+      "title": "Dzen1036 complete exact public readback previews and confirms without any provider write",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0160",
+      "title": "Dzen1036 exact draft, confirmed absence, and incomplete inventory never record a fact",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0161",
+      "title": "Dzen1036 rejects non-canonical provider identity and never records a fact",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0163",
+      "title": "owner authorization atomically records exhaustive absence and enables one exact new-draft key without sending",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0164",
+      "title": "a remaining draft or relevant published title aborts with zero writes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0165",
+      "title": "stale exact guards abort before inspection and mutation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0166",
+      "title": "phase A preview is zero-guarded and read-only",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0167",
+      "title": "phase A claims before exactly one create/persist and exposes no submit port",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0168",
+      "title": "phase A stale claim, nonzero inventory and invalid durable proof perform no retry or submit",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0169",
+      "title": "provider boundary proves assigned draft identity after persistence navigation and has no submit control",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0170",
+      "title": "phase A v2 follows the observed exact two-click article menu contract",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0171",
+      "title": "phase A v2 refuses a wrong or ambiguous article option before the second click",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0172",
+      "title": "phase A v2 requires a successful creation response bound to the editor identity",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0173",
+      "title": "phase A v2 no durable draft and replayed claim both stop without another create",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0174",
+      "title": "phase A probe binds the exact frozen incident",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0175",
+      "title": "probe browser boundary blocks every provider mutation method",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0176",
+      "title": "menu discovery clicks only the create affordance and never a content type option",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0177",
+      "title": "v2 reconciliation binds exact frozen incident and blocks browser mutations",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0178",
+      "title": "v2 reconciliation preview performs no local apply",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0179",
+      "title": "v2 reconciliation applies only the exact durable draft or exact public object",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0180",
+      "title": "v2 reconciliation mismatch or zero returns evidence without writes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0181",
+      "title": "exact editor probe classifies persistence and final-submit controls without conflating them",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0182",
+      "title": "phase B preview is provider-read-only and performs no claim or click",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0183",
+      "title": "phase B claims then clicks once and records only exact verified publication",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0184",
+      "title": "phase B refuses non-draft, ambiguous control and replayed claim before provider click",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0185",
+      "title": "phase B reconcile binds exact frozen one-click incident",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0186",
+      "title": "dialog probe distinguishes the final confirmation label",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0187",
+      "title": "control map recognizes only the known help and explicit safe overflow controls",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0188",
+      "title": "phase B reconcile records only exact public and leaves draft/ambiguous evidence-only",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0189",
+      "title": "phase C recognizes only the mapped unobstructed header publish control",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0190",
+      "title": "phase C dialog fingerprint is stable and sensitive to confirmation contract",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0191",
+      "title": "phase C preview opens the real dialog but performs no final confirmation or provider write",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0192",
+      "title": "phase C confirm requires the preview fingerprint, claims first, submits once and records proof",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0193",
+      "title": "phase C mismatch returns current evidence before claim and final confirmation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0194",
+      "title": "phase C preview returns ambiguous dialog evidence but confirm stops before claim",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0195",
+      "title": "phase C reconcile binds the exact frozen incident",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0196",
+      "title": "phase C reconcile preview is read-only and exact public records once only on confirm",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0197",
+      "title": "phase C reconcile never records a fact for exact draft or ambiguous inventory",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0198",
+      "title": "restore reconciliation binds the exact uncertain restore incident",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0199",
+      "title": "preview performs readback only and never reconciles",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0200",
+      "title": "confirm reconciles one exact public object without a provider write port",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0201",
+      "title": "sole draft, zero and ambiguous inventory strictly forbid reconciliation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0202",
+      "title": "browser inspection uses read ports only and reports a sole exact draft without a click",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0203",
+      "title": "Dzen1045 preview proves exact draft and exhaustive public absence without claiming or submitting",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0204",
+      "title": "Dzen1045 confirm claims before one final submit and never rebuilds content",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0205",
+      "title": "Dzen1045 treats a provider page shorter than its requested pageSize as exhaustive",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0206",
+      "title": "Dzen1045 explicit provider pagination overrides the short-page fallback",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0207",
+      "title": "Dzen1045 ambiguity diagnostics expose only bounded package-match identities",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0208",
+      "title": "Dzen1045 resume freezes on body drift",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0209",
+      "title": "Dzen1045 resume freezes on asset drift",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0210",
+      "title": "Dzen1045 resume freezes on public drift",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0211",
+      "title": "Dzen1045 resume freezes on draft_coverage drift",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0212",
+      "title": "Dzen1045 resume freezes on draft_count drift",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0213",
+      "title": "Dzen1045 resume freezes on control drift",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0214",
+      "title": "second-attempt preview exhaustively identifies one exact draft without claim or click",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0215",
+      "title": "second-attempt live claims before exactly one final click and never rebuilds",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0216",
+      "title": "an exact published object reconciles without claim or final click",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0217",
+      "title": "zero, multiple, mismatched, stale key and failed CAS stop before final click",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0219",
+      "title": "second-attempt state guard accepts only the exact frozen pre-submit incident",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0220",
+      "title": "task1045 zero restore preview is read-only",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0221",
+      "title": "task1045 zero restore claims before exactly one provider operation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0222",
+      "title": "task1045 zero restore refuses replay before a provider call",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0223",
+      "title": "task1045 zero restore preserves ambiguous or exact inventory for adapter reconciliation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0224",
+      "title": "task1045 creates only from zero relevant objects and stops on mismatched or multiple drafts",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0226",
+      "title": "exact draft resume orchestration is available without the full composer",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0227",
+      "title": "existing Dzen999 resume requires exact cover, body, unpublished draft and final stage",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0228",
+      "title": "body normalization permits presentation markers but never changes substantive text",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0229",
+      "title": "preview never claims or submits; live cannot submit after failed CAS or invalid proof/key",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0230",
+      "title": "one claimed resume performs only one final submission and uncertain outcome is propagated",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0231",
+      "title": "scoped existing-draft endpoint cannot be widened or given an alternative send key",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0238",
+      "title": "Dzen release tool is publisher-only and delivery rejects missing owner proof",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0239",
+      "title": "Dzen #999 routes only its approved revision-bound cover through generic owner proof",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0240",
+      "title": "Dzen #1045 exact release proof and connector proof gate the same article-cover payload",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0241",
+      "title": "Dzen #1045 frozen incident requires the single owner-authorized retry key",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0242",
+      "title": "Dzen #1045 uncertain authorized retry freezes again and preserves the prior incident",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0243",
+      "title": "Dzen #1045 uncertain reconciliation returns one exact published identity and never retries or records a fact",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0244",
+      "title": "Dzen #1045 reconciliation identifies an exact provider draft without authorizing retry",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0245",
+      "title": "Dzen #1045 zero match remains inconclusive unless Studio coverage is explicitly complete",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0246",
+      "title": "Dzen #1045 reconciliation rejects attempt drift before provider readback",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0247",
+      "title": "Dzen #992 dry-run binds accepted revision, approved remote visual and article payload",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0248",
+      "title": "Dzen #992 refuses a stale accepted visual without provider call",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0249",
+      "title": "Dzen #962 uses its own release and connector proofs before task-native delivery",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0250",
+      "title": "Dzen #1031 uses the generic owner release proof and current article-cover no-visual decision",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0251",
+      "title": "Dzen unverified connector blocks dry-run and live without provider call",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0252",
+      "title": "Dzen connector probe requires owner and records task-scoped session proof",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0253",
+      "title": "Dzen exact released task sends once and replays confirmed result",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0254",
+      "title": "uncertain Dzen result freezes task and never retries provider",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0255",
+      "title": "actual durable frozen #992 incident key allows read-only Studio probe without state change or send",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0256",
+      "title": "corrected asset selection may leave #992 ready but still permits only read-only frozen reconciliation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0257",
+      "title": "former #992 asset97 binding is rejected by connector without provider interaction",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0258",
+      "title": "frozen #992 remains forbidden for live send after a successful read-only probe",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0259",
+      "title": "exact-title Studio match keeps frozen #992 blocked from recovery and retry",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0260",
+      "title": "exact-title Studio match without provider publishTime fails closed and never records reconciliation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0261",
+      "title": "stale hard-coded #992 incident key is rejected when it has no matching durable claim",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0262",
+      "title": "incomplete Studio title readback cannot be used as zero-match recovery evidence",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0263",
+      "title": "zero-match recovery rejects prior-key reuse and authorizes exactly one new #992 claim",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0265",
+      "title": "TDPD End-to-End Content Pipeline: AI Gateway completes prompt with telemetry and cost",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0266",
+      "title": "TDPD End-to-End Content Pipeline: Route Schemas validate week, post, comment, and channel",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0267",
+      "title": "TDPD End-to-End Content Pipeline: Threads Channel Preflight & Test Connection",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0268",
+      "title": "TDPD End-to-End Content Pipeline: Safe Handoff and Terminal Failure Protection",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0270",
+      "title": "task-specific browser publication controls are publisher-only",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0271",
+      "title": "exact package constants preserve owner-approved bytes and bindings",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0272",
+      "title": "only absent or explicitly pre-provider failed attempts are retry-safe",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0273",
+      "title": "provider confirmation accepts only exact canonical Medium, LinkedIn and X identities",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0277",
+      "title": "generateImageNanoBanana uses the current Gemini image generation contract",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0278",
+      "title": "generateImageNanoBanana ignores the retired Imagen model override",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0279",
+      "title": "generateImageNanoBanana can explicitly use the low-cost preview model",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0281",
+      "title": "owner CAS requires a visual and materializes one revision-bound art-direction input",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0282",
+      "title": "generic visual CAS rejects publication evidence, assets, decisions, active inputs and guard drift",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0284",
+      "title": "approved durable asset cancels only actionable visual work for its revision and decision or placement",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0286",
+      "title": "standalone initiatives can be confirmed with state none",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0287",
+      "title": "state none rejects unresolved release dependencies",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0288",
+      "title": "completed release dependencies do not prevent a fresh no-dependency audit",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0289",
+      "title": "state confirmed requires a stored release dependency graph",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0291",
+      "title": "telegram_story initiative materializes a Telegram Story task instead of feed defaults",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0293",
+      "title": "owner release creates exactly one revision-bound browser publication item without sending",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0294",
+      "title": "release fails closed on revision, asset, fact or manifest drift",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0295",
+      "title": "LinkedIn browser release remains owner-only",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0296",
+      "title": "Publisher sees only the browser-publication-specific claim",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0297",
+      "title": "explicit no-visual release requires an active revision-bound waiver, not a missing asset",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0298",
+      "title": "approved asset and no-visual waiver cannot mix nullable checksum bindings",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0299",
+      "title": "prepared browser state is recoverable only when an exact tool opts in",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0306",
+      "title": "LinkedIn contract accepts plain text with deliberate block spacing and supported bullets",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0307",
+      "title": "LinkedIn contract rejects dense prose and Markdown formatting before publication",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0308",
+      "title": "LinkedIn readback compares semantic blocks instead of bytes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0309",
+      "title": "LinkedIn readback detects a merged semantic block",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0310",
+      "title": "shared publication adapter exposes the LinkedIn contract and operator checklist",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0311",
+      "title": "LinkedIn connector rejects a non-native body before any provider call",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0313",
+      "title": "task 1075 release refuses any widened task or body scope before DB access",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0315",
+      "title": "task1076 release accepts only the exact owning package boundary",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0317",
+      "title": "task 1090 release schema accepts only the exact owner-approved package",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0318",
+      "title": "only Publisher can invoke the exact task 1090 release",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0320",
+      "title": "task1132 language repair is exposed only to owner and publisher profiles",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0321",
+      "title": "task1132 repair rematerializes English metadata without release or provider call",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0322",
+      "title": "task1132 repair fails closed when accepted bytes changed",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0323",
+      "title": "task1132 repair preserves and permits an explicitly pre-provider failed attempt",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0324",
+      "title": "task1132 repair blocks an uncertain attempt",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0326",
+      "title": "task #995 historical click becomes one durable UNKNOWN attempt and replays without provider send",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0327",
+      "title": "read-only reconciliation records a fact only for one exact accepted-body match",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0328",
+      "title": "zero or ambiguous LinkedIn readback remains UNKNOWN and never invents a fact",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0329",
+      "title": "personal browser-assisted LinkedIn delegates readback without requiring API credentials or sending",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0330",
+      "title": "owner repair makes task #995 browser-assisted without changing the UNKNOWN attempt or creating a fact",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0331",
+      "title": "schedule-only materialization preserves an exact accepted reviewed package status",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0332",
+      "title": "exact rematerialization heals a previously downgraded accepted package to approved",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0333",
+      "title": "materialization still reopens lifecycle when body or channel changes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0335",
+      "title": "personal MCP tokens are stored as deterministic hashes, not plaintext",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0336",
+      "title": "only scoped agent profiles can receive personal MCP access",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0337",
+      "title": "project MCP namespaces remain distinct even when project slugs are similar",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0338",
+      "title": "workspace bundle creates all seven hashed credentials in one transaction and returns plaintext once",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0339",
+      "title": "workspace bundle rejects accidental duplicates and rotates the active bundle atomically",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0341",
+      "title": "organization researcher is managed and discovers the bounded intelligence surface",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0342",
+      "title": "organization researcher cannot modify content or use publication transports",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0343",
+      "title": "adding organization researcher does not widen existing profiles",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0345",
+      "title": "strategist is a managed profile that can be issued as an access token",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0346",
+      "title": "database constraint permits strategist access tokens",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0347",
+      "title": "strategist cannot publish and cannot spend the deployment owner provider key",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0348",
+      "title": "strategist keeps the read and planning surface it needs",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0349",
+      "title": "adding strategist does not widen the existing profiles",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0350",
+      "title": "publisher sees only exact 1033/1035 releases while editorial roles cannot release",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0351",
+      "title": "publisher can access exact task1076 owner release without opening generic LinkedIn administration",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0352",
+      "title": "new project-scoped roles cannot reach owner administration or direct publication",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0353",
+      "title": "database constraint permits all seven managed workspace profiles",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0354",
+      "title": "model policy assigns cheap models to high-volume support roles",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0355",
+      "title": "model policy allows modern GPT model identifiers without silent fallback",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0356",
+      "title": "preflight rejects provider/model mismatch before a paid request",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0357",
+      "title": "invocation preflight rejects missing provider credentials",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0358",
+      "title": "cost estimator records known OpenAI usage including cached input",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0359",
+      "title": "image policy separates draft, final and flagship execution",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0360",
+      "title": "agent run schema persists model usage and estimated cost",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0364",
+      "title": "multiAgentService.getAgentConfig keeps configured GPT-5 model names",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0365",
+      "title": "multiAgentService.getAgentConfig retains valid model names",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0366",
+      "title": "multiAgentService.runImageCritic converts local relative upload paths to base64 data URLs",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0368",
+      "title": "October 8 release schemas pin accepted package and reject cross-tenant or changed bytes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0369",
+      "title": "publisher receives exact releases only; generic owner controls stay hidden",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0370",
+      "title": "1036 dry-run checks exact release and cover, never calls the provider or mutates",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0372",
+      "title": "exact October review recovery is exposed to editor, not generic owner recovery",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0373",
+      "title": "exact recovery rejects other tenant/task and changed body before mutation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0375",
+      "title": "X1042 release binds exact rev4 asset and creates one replay-safe browser item",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0376",
+      "title": "LinkedIn1072 release creates a governed p10 personal route from p7/channel5 and binds only task1072",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0377",
+      "title": "Threads1043 release keeps missed slot, binds asset128 and never calls publish",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0378",
+      "title": "all exact releases reject an existing uncertain provider result before writes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0385",
+      "title": "October 10 exact release schemas reject package, identity and missed-slot drift",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0386",
+      "title": "Planner can run the owner-guarded Telegram repair while release/send stay Publisher-scoped",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0387",
+      "title": "overlength release recovery is owner-only",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0389",
+      "title": "organization roles expose only their declared research capabilities",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0390",
+      "title": "organization access rejects missing membership and capability escalation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0391",
+      "title": "organization project access requires both organization membership and tenant binding",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0392",
+      "title": "organization actor parsing accepts only a positive user principal",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0394",
+      "title": "organization intelligence canonicalizes tracking URLs without crossing source identity",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0395",
+      "title": "deterministic organization adapter fans out per source and preserves untrusted prose as data",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0396",
+      "title": "partial source failure remains explicit and retryable",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0397",
+      "title": "project assessment is deterministic and respects exclusion penalties",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0398",
+      "title": "production organization adapter uses one isolated workspace and normalizes completed parser results",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0400",
+      "title": "C20 repair is planner-visible but owner-only and requires exact six tasks",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0401",
+      "title": "C20 repair updates only required mode, audits every task, and replays idempotently",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0402",
+      "title": "C20 repair rejects non-owner and NO_VISUAL_NEEDED decision without mutation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0403",
+      "title": "task #971 visual repair preserves revision-bound asset and approval gate",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0404",
+      "title": "task #972 visual repair changes only mode for exact decision and asset",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0405",
+      "title": "task #973 visual repair changes only mode for exact decision, asset and accepted body",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0406",
+      "title": "owner release changes only mode, records exact proof, and never sends",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0407",
+      "title": "owner release accepts canonical personal Telegram story without a channel target",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0408",
+      "title": "owner release keeps feed channel guard and requires active MTProto session for story",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0409",
+      "title": "owner release rejects non-owner, body drift, existing attempt and required visual waiver",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0410",
+      "title": "Dzen #958 owner release is exact, audited and does not send",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0411",
+      "title": "Dzen #962 owner release is exact, audited and does not send",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0412",
+      "title": "Threads replacement #959 release binds only accepted rev2 and decision 150",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0413",
+      "title": "Threads #966 owner release is exact, audited and never publishes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0414",
+      "title": "task #969 reschedule changes only schedule and refreshes exact owner-release proof",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0415",
+      "title": "generic owner-release correction supersedes proof and changes only schedule authority fields",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0416",
+      "title": "correction fails closed on stale manifest, provider attempt, fact, or CAS drift",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0417",
+      "title": "schedule correction is exposed only to owner and publisher capability profiles",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0419",
+      "title": "task 1107 gets an audited English handoff override without release",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0420",
+      "title": "task 1108 gets an audited English handoff override without release",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0421",
+      "title": "language repair aborts on changed accepted bytes with zero writes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0428",
+      "title": "preparePublicationTask leaves an approval-required task and stale bundle untouched",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0429",
+      "title": "slugifyProjectName creates stable project slugs",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0430",
+      "title": "normalizeProjectKind defaults to content_network",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0431",
+      "title": "normalizeProjectKind normalizes custom labels",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0439",
+      "title": "safeEncryptProviderKey and safeDecryptProviderKey handle encryption and backward compatibility",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0440",
+      "title": "POST /api/settings/keys encrypts key and GET /api/settings/keys masks decrypted key",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0441",
+      "title": "preflight preserves approval requirement regardless of connector capability",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0442",
+      "title": "scheduler discovery and claim require explicit connector authorization",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0443",
+      "title": "materialization cannot rewrite owner-gated modes into scheduler eligibility",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0444",
+      "title": "editing accepted content creates a new draft revision and reopens review without reusing its approval version",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0445",
+      "title": "reopening an approved review exposes the new content revision as a collision-free result",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0446",
+      "title": "saving the same body is idempotent and preserves the accepted revision",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0447",
+      "title": "recovery exposes the current content revision as a separately approvable review result",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0448",
+      "title": "recovery is idempotent after the current revision has already been approved",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0449",
+      "title": "a submitted review collision advances to a new decision version without another review pass",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0450",
+      "title": "a recovered submitted review is idempotent while awaiting the owner decision",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0451",
+      "title": "a reset review version never collides with higher historical approval versions",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0452",
+      "title": "a collision without a submitted result still requires a fresh revision-bound review item",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0453",
+      "title": "publication content update and owner recovery are wired to the lifecycle contract",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0454",
+      "title": "missing review recovery restores a draft gate without accepting or changing the current revision",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0455",
+      "title": "created publication task without content is empty",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0456",
+      "title": "publication task with a saved draft is ready",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0457",
+      "title": "handoff publication body counts as ready content",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0458",
+      "title": "published task takes precedence over content readiness",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0459",
+      "title": "canonical removed fact overrides legacy published status and link",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0460",
+      "title": "story fact with provider identity and evidence is published without permalink",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0461",
+      "title": "ready API-capable publication is routed to connector scheduler",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0462",
+      "title": "missing API or manual execution is routed to browser publication",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0463",
+      "title": "content and visual gates block both execution routes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0464",
+      "title": "published content cannot be routed for execution again",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0465",
+      "title": "connector failure disables API retries and selects browser fallback",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0466",
+      "title": "an explicit browser route cannot fall back to the connector",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0467",
+      "title": "approval-required task with an automated bundle remains waiting",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0469",
+      "title": "provider-confirmed manual publication may be reconciled without inventing a channel binding",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0470",
+      "title": "unaccepted or terminal slot is not eligible for unbound-channel reconciliation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0472",
+      "title": "generated weekly topic progresses through the shared publication stages",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0473",
+      "title": "terminal and fallback publication stages take precedence",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0474",
+      "title": "only weekly topic items are recognized as generated publication tasks",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0475",
+      "title": "generated publication handoff uses accepted text and selected visual without an imported plan",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0476",
+      "title": "Telegram story handoff stays distinct from feed and cannot acquire connector authority",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0477",
+      "title": "imported VK story plan is materialized as an automated story bundle, not a feed post",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0478",
+      "title": "VK story handoff keeps only a poll bound to the current content revision",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0479",
+      "title": "VK article cover is materialized as a manual article bundle, not a feed post",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0480",
+      "title": "imported story handoff derives account and channel from the current top-level binding",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0481",
+      "title": "plan handoff preserves the approved visual bound to the accepted revision",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0482",
+      "title": "plan handoff never substitutes a source brief for the accepted body",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0483",
+      "title": "handoff blocks a selected visual that cannot be resolved",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0484",
+      "title": "repairs stale story action, handoff and metrics from the canonical channel binding",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0485",
+      "title": "owner-only projection recovery is guarded, audited and does not mutate content or visual records",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0486",
+      "title": "non-story projection repair preserves its established action type",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0487",
+      "title": "VK article projection rebuilds article routing and contract from canonical binding",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0488",
+      "title": "Dzen article projection uses the canonical article action and account",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0489",
+      "title": "completed active art decision with the wrong placement can be recovered without rewriting it",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0490",
+      "title": "placement repair creates a new revision-bound art-direction input without changing content revision",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0491",
+      "title": "legacy site/blog cover decision is narrow evidence for a same-channel article-cover repair",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0492",
+      "title": "completed VC/Habr article alias decision is narrow evidence for canonical article-cover repair",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0493",
+      "title": "VC article cover exposes authoritative dimensions and four safe margins",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0494",
+      "title": "completed art-direction work with an immutable BLOCKED decision is valid mismatch evidence",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0495",
+      "title": "only immutable #958 Dzen feed decision can bridge its historical article-cover mismatch",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0496",
+      "title": "blocked Medium work with the missing-channel-contract reason is valid repair evidence",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0497",
+      "title": "blocked feed work with a missing asset contract creates a distinct recovery input",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0498",
+      "title": "placement repair refuses to operate on a stale accepted revision",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0499",
+      "title": "new art-direction input references the immutable blocker only as provenance",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0500",
+      "title": "legacy blog cover repair retains the original GENERATE decision as immutable provenance",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0501",
+      "title": "Medium article cover has an explicit manual-only visual contract",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0502",
+      "title": "site blog cover has a 1200x630 article/OG contract, not a feed-post contract",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0503",
+      "title": "Medium placement repair rematerializes a manual article handoff",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0504",
+      "title": "Dzen short repair replaces stale article action with feed post without changing body",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0505",
+      "title": "ongoing rule polling does not load publication asset snapshots",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0506",
+      "title": "ongoing rule configuration uses a bounded in-memory cache and batched settings query",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0507",
+      "title": "article channels share the canonical article-cover placement",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0508",
+      "title": "Dzen distinguishes short feed posts from longread covers without inventing post geometry",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0509",
+      "title": "VC and Habr covers expose explicit article contracts",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0510",
+      "title": "accepting site content normalizes a legacy feed default to the canonical blog cover",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0511",
+      "title": "Telegram and VK stories use channel-specific poll capabilities",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0512",
+      "title": "VK longread uses a distinct manual article-cover contract",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0513",
+      "title": "VK exposes approved MP4 video as a canonical browser-capable placement",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0514",
+      "title": "Setka feed exposes the established 4:3 asset contract",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0515",
+      "title": "VK feed exposes the accepted square asset contract used by the connector",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0516",
+      "title": "Dzen longread uses the configured article transport contract",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0517",
+      "title": "Telegram and Threads feed briefs have explicit editorial geometry",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0518",
+      "title": "configured channel placement overrides the type fallback",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0519",
+      "title": "unknown channels cannot be repaired without an explicit contract",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0520",
+      "title": "Dzen feed is now canonical, while unrelated article channels stay strict",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0521",
+      "title": "DEV.to article cover uses the manual wide-image contract",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0526",
+      "title": "preloadPlanUrlContents gathers and fetches remote URLs from assets and actions",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0527",
+      "title": "Dzen cookie parser accepts a copied Cookie request header",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0528",
+      "title": "Dzen cookie parser reports malformed copied fields before CDP",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0529",
+      "title": "Dzen cookie parser accepts a browser JSON export without duplicating domains",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0530",
+      "title": "Medium manual handoff includes featured-image and focal-point checks",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0531",
+      "title": "Odnoklassniki signature helper handles request parameters correctly",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0532",
+      "title": "HabrService logs locally and returns mock post URL",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0533",
+      "title": "VCService returns mock URL when credentials are not provided",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0534",
+      "title": "VCService successfully publishes to Osnova API and validates User-Agent",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0543",
+      "title": "VCService throws error when Osnova API request fails",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0544",
+      "title": "DzenService refuses to publish without an authenticated browser session",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0545",
+      "title": "Dzen permalink validation rejects editor and fabricated URLs",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0546",
+      "title": "Dzen connection checks the current channel publications workspace",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0547",
+      "title": "Dzen connection distinguishes Studio from an expired-session public redirect",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0548",
+      "title": "Dzen editor automation uses the current studio entrypoint and semantic Draft.js fields",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0549",
+      "title": "Dzen Draft.js input uses native element typing without document selection",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0550",
+      "title": "Dzen publication outcome confirms the canonical permalink returned by the provider",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0551",
+      "title": "Dzen final submit uses a trusted Puppeteer click on the visible enabled control",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0552",
+      "title": "Dzen publication outcome reports a visible provider rejection without inventing a permalink",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0553",
+      "title": "Dzen publication outcome stays uncertain when the modal closes without provider identity",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0554",
+      "title": "Dzen Studio readback extracts canonical title identity and fails closed on missing titles",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0555",
+      "title": "Dzen Studio readback extracts authoritative publishTime from the observed #992 payload",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0556",
+      "title": "Dzen Studio reconciliation exposes provider state and never claims complete coverage without evidence",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0557",
+      "title": "Dzen image upload blocks publication on the observed provider rejection",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0558",
+      "title": "publicationAdapterService recognizes new platforms as direct-execution friendly",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0559",
+      "title": "VK direct execution is available only with a provider target and publish credential",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0560",
+      "title": "personal LinkedIn is browser-assisted unless an API transport is explicitly configured",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0561",
+      "title": "configured Dzen channels prefer connector auto when workflow mode is not explicitly overridden",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0562",
+      "title": "standard Telegram channels prefer MTProto while explicit manual workflows stay manual",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0565",
+      "title": "retirement preview is bounded to the exact approved task set and preserves facts, attempts, assets and work items",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0566",
+      "title": "apply atomically retires exact tasks and preserves uncertainty plus the VK video engineering obligation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0567",
+      "title": "stale status, task set, slug, manifest or existing fact aborts with zero writes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0568",
+      "title": "idempotency replay returns the original audit without repeating writes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0569",
+      "title": "exact Telegram history match reconciles task 1011 instead of retiring or resending it",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0570",
+      "title": "unavailable Telegram session retires task 1011 but creates a separate reconciliation blocker",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0571",
+      "title": "mapActionStatus maps plan statuses into runtime statuses",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0572",
+      "title": "resolveActionTitle prefers display_name when present",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0573",
+      "title": "parseRecurringTrigger handles daily local triggers",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0574",
+      "title": "parseRecurringTrigger handles weekly wall-clock triggers",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0575",
+      "title": "parseRecurringTrigger ignores unsupported trigger shapes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0576",
+      "title": "active queue excludes published workflow tasks",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0577",
+      "title": "active queue excludes terminal negative publication outcomes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0578",
+      "title": "active queue includes unfinished tasks without terminal outcome",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0579",
+      "title": "publication task API supports the unfiltered weekly package projection",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0580",
+      "title": "publication week options expose publication task counts instead of all package records",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0581",
+      "title": "publication task UI keeps week dates date-only and localizes the empty detail state",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0582",
+      "title": "desktop sidebar toggle uses glyphs bundled by the application font",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0584",
+      "title": "publication task readback removes encrypted and plaintext channel credentials recursively",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0585",
+      "title": "publication task readback rematerializes task-bound content language into its handoff bundle",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0587",
+      "title": "preview returns the exact bounded Dzen diff without writes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0588",
+      "title": "apply is atomic, audited, preserves published identity and replays idempotently",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0589",
+      "title": "wrong expected state aborts with zero writes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0590",
+      "title": "apply with a wrong guard aborts with zero writes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0591",
+      "title": "stale preview hash rolls back every write",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0592",
+      "title": "a late snapshot conflict rolls back prior task and fact writes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0593",
+      "title": "preview requires an owner and an active Dzen target",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0600",
+      "title": "remote MCP replaces caller-controlled actor and user identities",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0601",
+      "title": "organization researcher scope cannot be overridden by tool arguments",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0602",
+      "title": "remote MCP rejects an explicit project that differs from the token scope",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0603",
+      "title": "remote MCP scopes user identity when the requested project matches the token",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0604",
+      "title": "remote MCP injects the token-bound identity into bootstrap calls",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0605",
+      "title": "remote MCP denies cross-tenant administrative tools",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0606",
+      "title": "local MCP without a configured principal preserves tool arguments",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0607",
+      "title": "writer MCP is restricted to its project and cannot invoke planner tools",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0608",
+      "title": "writer MCP discovery exposes content tools but not slot mutation tools",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0609",
+      "title": "planner MCP discovery exposes slot controls but not content mutation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0610",
+      "title": "only the owner MCP profile discovers audited content review recovery",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0611",
+      "title": "editor, publisher and growth profiles expose only their governed lifecycle tools",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0612",
+      "title": "role-scoped internal mutations do not request destructive host approval",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0615",
+      "title": "uncertainty projection is exact, preserves protected fields, and is idempotent",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0616",
+      "title": "uncertainty projection rejects changed task or wrong retirement audit without writes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0623",
+      "title": "Security Hardening: Jobs authorization fails closed without INTERNAL_JOB_SECRET",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0624",
+      "title": "Security Hardening: Upload path traversal remediation and extension whitelist",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0625",
+      "title": "Security Hardening: Provider API Key AES-256-GCM encryption at rest",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0626",
+      "title": "Security Hardening: Prompt Injection defense and context isolation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0627",
+      "title": "Security Hardening: AI generation schemas reject oversized payloads (DoS protection)",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0629",
+      "title": "Setka1047 release atomically binds durable identity and creates one manual browser handoff",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0630",
+      "title": "Setka1047 lifecycle is owner/Publisher-scoped and not exposed to planning or writing roles",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0631",
+      "title": "Setka1047 uncertain submission freezes retry and records no publication fact",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0632",
+      "title": "Setka1047 start preserves persisted owner authorization when the execution confirmation text changes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0633",
+      "title": "Setka1047 start rejects a work item whose owner proof drifted from the task release",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0634",
+      "title": "Setka1047 confirmation accepts only exact Setka permalink and writes one fact",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0635",
+      "title": "R2 is selected from complete configuration and returns a public URL",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0636",
+      "title": "R2 health and deletion use the configured bucket",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0637",
+      "title": "incomplete R2 configuration keeps Supabase as the provider",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0638",
+      "title": "disabled R2 configuration keeps Supabase as the provider",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0639",
+      "title": "object traversal is rejected before upload",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0641",
+      "title": "exact task1001 cancellation changes only status/mode and records an immutable audit",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0642",
+      "title": "task1001 cancellation rejects stale task, attempts or checkpoint count with zero writes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0643",
+      "title": "task1001 cancellation rejects another task before database access",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0644",
+      "title": "task1001 cancellation is domain-owner guarded and unavailable to planning/content roles",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0646",
+      "title": "task1051 preview exposes the bounded replacement diff without writes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0647",
+      "title": "task1051 apply preserves task/history and creates one claimable revision-2 review base",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0648",
+      "title": "task1051 repair aborts stale review or delivery attempt with zero writes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0649",
+      "title": "task1051 repair rejects another task before database mutation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0650",
+      "title": "task1051 repair belongs to the Editor boundary only",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0652",
+      "title": "task1091 rev4 preview exposes both supersessions and fresh review without writes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0653",
+      "title": "task1091 rev4 apply preserves content and creates one claimable i4/r4 review",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0654",
+      "title": "task1091 rev4 repair stops on stale review or delivery attempt",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0655",
+      "title": "task1091 rev4 repair rejects wrong task before mutation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0656",
+      "title": "task1091 rev4 repair is Editor-only",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0658",
+      "title": "task1091 preview exposes the bounded replacement diff without writes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0659",
+      "title": "task1091 apply preserves task/history and creates one claimable revision-2 review base",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0660",
+      "title": "task1091 repair aborts stale review or delivery attempt with zero writes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0661",
+      "title": "task1091 repair rejects another task before database mutation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0662",
+      "title": "task1091 repair belongs to the Editor boundary only",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0664",
+      "title": "task1091 adaptation preview is an exact no-write diff",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0665",
+      "title": "task1091 adaptation preserves revision2 as candidate and reopens governed revision3 work",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0666",
+      "title": "task1091 adaptation rejects package-capacity, cadence or delivery drift before writes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0667",
+      "title": "task1091 adaptation rejects any other task before database access",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0668",
+      "title": "task1091 adaptation is exposed only to Planner",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0675",
+      "title": "Dzen 1036 is exact task-native scope, not a generic project bypass",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0676",
+      "title": "generic Threads task is resolved by channel and never falls through to Telegram",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0681",
+      "title": "sanitizeChannelConfig masks sensitive fields",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0682",
+      "title": "mergeChannelConfig preserves existing secrets when incoming is masked",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0683",
+      "title": "mergeChannelConfig updates secrets when incoming has actual new values",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0684",
+      "title": "Threads access token is encrypted at rest, masked in responses, and resolved for execution",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0685",
+      "title": "Threads encrypted token in raw_account remains compatible and a masked edit preserves it",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0686",
+      "title": "Threads legacy plaintext token remains readable until an explicit migration rewrites it",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0687",
+      "title": "Dzen session cookies are encrypted at rest and masked in API responses",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0688",
+      "title": "Dzen credentials nested in raw_account are also encrypted and redacted",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0689",
+      "title": "Dzen credentials nested in raw_account are resolved for connection checks",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0690",
+      "title": "effective Dzen config keeps legacy raw_account fields but prefers rotated top-level session",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0691",
+      "title": "GET /api/projects/:id masks secrets",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0692",
+      "title": "PUT /api/projects/:id/channels/:channelId merges configs",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0693",
+      "title": "PUT /api/projects/:id/channels/:channelId requires project owner",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0694",
+      "title": "mergeChannelConfig keeps channel workflow mode",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0695",
+      "title": "GET /api/projects/:id/mcp/status reports the configured MCP health",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0696",
+      "title": "POST /api/projects/:id/mcp/workspace-access issues the seven-role bundle only for an owner",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0697",
+      "title": "workspace access API reports an active bundle and revokes a complete bundle",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0698",
+      "title": "cleanAndFormatHashtags removes duplicate and double hashtags",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0699",
+      "title": "cleanAndFormatHashtags handles category fallback tag",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0700",
+      "title": "generateSlots uses explicit channelId when provided",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0701",
+      "title": "Telegram API hash and session are encrypted at rest",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0702",
+      "title": "legacy Telegram secrets remain readable during the encryption rollout",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0703",
+      "title": "Telegram secret encryption rejects a weak Railway key",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0704",
+      "title": "Telegram phone hints never expose the full account number",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0706",
+      "title": "approved Telegram photo task is eligible for audited connector route repair",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0707",
+      "title": "route repair rejects changed asset, text, decision, publication fact, and unfinished handoff",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0708",
+      "title": "approval-required Telegram feed cannot be promoted without a documented owner approval",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0720",
+      "title": "text-only direct publication sends a non-empty normalized provider payload",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0721",
+      "title": "task-779 class payload reaches the provider with accepted text and approved image",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0722",
+      "title": "missing Telegram text is rejected before any provider call",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0723",
+      "title": "provider response without message identity is not accepted as publication",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0724",
+      "title": "failed Bot API fallback preserves the MTProto decision trace",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0725",
+      "title": "dry-run trace exposes a project-scoped missing session and non-server asset without dispatch",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0726",
+      "title": "MTProto client never reuses a connected session across projects",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0727",
+      "title": "MCP serializes a failed live Telegram route as structured error content",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0728",
+      "title": "dry-run preview and live adapter boundary use the same normalized payload",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0731",
+      "title": "MTProto history readback scans exact normalized text and never invokes provider mutation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0732",
+      "title": "MTProto history readback reports unavailable session and ambiguous exact matches without guessing",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0733",
+      "title": "long Telegram media publications do not render the caption again as a reply preview",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0734",
+      "title": "MCP direct publication uses the canonical MTProto-first Telegram route",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0737",
+      "title": "MTProto personal Story uploads an approved MP4 as a streaming document",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0744",
+      "title": "task1099 dry-run and live use only the personal MTProto video Story route",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0746",
+      "title": "task1099 exact correction changes only subtype placement and derived routing",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0747",
+      "title": "task1099 owner release binds account2 and task986 proof without publishing",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0748",
+      "title": "task1099 recovery fails closed on fact",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0749",
+      "title": "task1099 recovery fails closed on attempt",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0750",
+      "title": "task1099 recovery fails closed on session",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0751",
+      "title": "task1099 recovery fails closed on render",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0758",
+      "title": "Planner capability exposes task-native Telegram publication but not raw direct publication",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0759",
+      "title": "dry-run resolves accepted text and the approved durable asset without a provider call",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0760",
+      "title": "approval-required task cannot preview executable route, claim or send to provider",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0761",
+      "title": "owner-released Telegram task requires exact audit proof before preview or live send",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0762",
+      "title": "atomic claim rejects a concurrent change to approval-required before provider dispatch",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0763",
+      "title": "dry-run validates a browser-only channel without dispatch",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0764",
+      "title": "browser_required personal Telegram story dry-run and live claim use the personal profile route",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0765",
+      "title": "owner-released personal Telegram story is executable through MTProto personal profile",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0766",
+      "title": "browser-only feed and a real concurrent publication claim return different errors",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0767",
+      "title": "text-only task uses the same normalized payload for dry-run and live publication",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0768",
+      "title": "live task publication sends the same payload through MTProto and corrects a blocked fact",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0769",
+      "title": "task publisher passes the normalized payload to the MTProto client with forced media upload",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0770",
+      "title": "MTProto media loader downloads an approved HTTPS image into an uploadable buffer",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0771",
+      "title": "MTProto media loader rejects local hosts and non-image responses",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0772",
+      "title": "MTProto media loader accepts an approved MP4 without image downgrade",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0773",
+      "title": "MTProto personal story uses self peer, deterministic identity and provider readback",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0774",
+      "title": "file and data assets are rejected before MTProto is called",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0775",
+      "title": "missing accepted text and stale approved assets are rejected",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0776",
+      "title": "idempotency replay returns the confirmed result without another provider call",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0777",
+      "title": "an uncertain provider failure creates no fact and cannot be treated as published",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0785",
+      "title": "POST /jobs/publish-due rejects unauthenticated requests with 401",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0786",
+      "title": "GET /api/posts/:id rejects access when user does not belong to post project",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0787",
+      "title": "PUT /api/posts/:id rejects cross-tenant modification",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0788",
+      "title": "DELETE /api/weeks/:id rejects cross-tenant deletion",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0790",
+      "title": "Threads OAuth callback rejects missing or forged state without echoing secrets",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0791",
+      "title": "Threads OAuth callback validates signed tenant binding then fails closed before token exchange",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0792",
+      "title": "Threads deauthorization verifies Meta signed_request and revokes only the matching identity",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0793",
+      "title": "Threads data deletion clears matching identity and returns a non-secret confirmation URL",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0794",
+      "title": "Threads compliance callbacks reject invalid Meta signatures without mutation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0795",
+      "title": "Threads OAuth callback cannot cross the signed project owner boundary",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0797",
+      "title": "owner allocation verifies identity, performs CAS and audits without exposing the token",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0798",
+      "title": "allocation requires the same user to own both source and target projects",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0799",
+      "title": "allocation fails closed when provider identity cannot be verified or CAS loses",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0800",
+      "title": "allocation replays the audited result for the same idempotent request",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0801",
+      "title": "exact legacy source migration encrypts in place and audits without exposing plaintext",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0802",
+      "title": "Threads engagement tools separate research from live replies",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0804",
+      "title": "pending Threads release is limited to the two approved task packages",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0805",
+      "title": "ThreadsService.publishPost publishes text post successfully",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0806",
+      "title": "ThreadsService accepts the current provider threads.com permalink",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0807",
+      "title": "ThreadsService.publishPost waits for an image container and returns the provider permalink",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0808",
+      "title": "ThreadsService.publishThread creates a root and ordered replies",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0809",
+      "title": "ThreadsService never puts the access token in request URLs",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0810",
+      "title": "ThreadsService.testConnection rejects missing access token",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0811",
+      "title": "ThreadsService.testConnection succeeds with valid token and matching user id",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0812",
+      "title": "ThreadsService.testConnection flags user id mismatch",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0813",
+      "title": "ThreadsService redacts provider response bodies in typed errors",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0814",
+      "title": "ThreadsService rejects a missing or untrusted provider permalink",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0815",
+      "title": "ThreadsService bounds image container polling",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0816",
+      "title": "ThreadsService searches public posts with bounded encoded parameters and Bearer auth",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0817",
+      "title": "ThreadsService reads direct replies and full conversation through distinct endpoints",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0818",
+      "title": "ThreadsService publishes a reply as a reply container and returns provider identity",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0820",
+      "title": "exact accepted Threads 1035 advertises native live support without sending",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0822",
+      "title": "Threads1035 exact release authorizes native execution without a provider send or fact",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0823",
+      "title": "Threads1035 refuses body drift without release event",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0824",
+      "title": "Threads1035 refuses work drift without release event",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0825",
+      "title": "Threads1035 refuses owner drift without release event",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0826",
+      "title": "Threads1035 refuses revision drift without release event",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0827",
+      "title": "Threads1035 refuses placement drift without release event",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0829",
+      "title": "1040 release atomically reschedules exact accepted package and is idempotent without sending",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0830",
+      "title": "1040 refuses owner without changing schedule or writing release",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0831",
+      "title": "1040 refuses attempt without changing schedule or writing release",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0832",
+      "title": "1040 refuses gates without changing schedule or writing release",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0833",
+      "title": "1040 refuses revision without changing schedule or writing release",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0834",
+      "title": "1040 refuses body without changing schedule or writing release",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0835",
+      "title": "1040 refuses manifest without changing schedule or writing release",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0836",
+      "title": "1040 refuses time without changing schedule or writing release",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0837",
+      "title": "1040 refuses fact without changing schedule or writing release",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0838",
+      "title": "1040 refuses history without changing schedule or writing release",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0839",
+      "title": "1040 release is publisher scoped and cannot release another task/project",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0841",
+      "title": "1040 dry-run supports native route and separate exact send claims once",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0842",
+      "title": "1040 changed publish_at fails release proof without provider call",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0844",
+      "title": "1043 dry-run and live use the same approved text-only payload and one provider call",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0845",
+      "title": "1043 uncertain provider result records no fact and cannot auto-retry",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0847",
+      "title": "exact Threads1046 owner release binds the approved image package without publishing",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0848",
+      "title": "Threads1046 release fails closed on fact",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0849",
+      "title": "Threads1046 release fails closed on attempt",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0850",
+      "title": "Threads1046 release fails closed on delivery",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0851",
+      "title": "Threads1046 release fails closed on browser",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0852",
+      "title": "Threads1046 release fails closed on uncertain",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0853",
+      "title": "Threads1046 release fails closed on asset",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0854",
+      "title": "Threads1046 release fails closed on body",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0855",
+      "title": "Threads1046 release fails closed on identity",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0856",
+      "title": "Threads1046 release fails closed on history",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0858",
+      "title": "1046 dry-run and live share the approved task-native image payload",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0859",
+      "title": "1046 uncertain provider result records no fact and freezes any retry",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0861",
+      "title": "task1051 release preserves the original slot and records exact owner proof without publishing",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0862",
+      "title": "task1051 exact dry-run and live use the same text-only payload and one idempotent provider call",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0863",
+      "title": "task1051 release fails closed on provider duplicate, prior attempt, or wrong identity",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0864",
+      "title": "task1051 uncertain live result freezes publishing and creates no fact",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0866",
+      "title": "owner released 1021 and 1026 use native API once and replay without sending",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0867",
+      "title": "generic Threads dry-run resolves canonical task, channel, revision, and identity without owner release",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0868",
+      "title": "generic Threads live send remains fail-closed without an exact task-native spec",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0869",
+      "title": "Threads #953 dry-run reports exact connector readiness",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0870",
+      "title": "Threads #966 dry-run resolves the accepted revision without owner-release proof",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0871",
+      "title": "Threads #953 task-native send claims once and confirms URL",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0872",
+      "title": "Threads #997 dry-run exposes the accepted three-post chain without sending",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0873",
+      "title": "Threads #1029 exact release proof permits one task-native send",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0875",
+      "title": "13 October LinkedIn routes bind exact task, identity, decision and package bytes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0876",
+      "title": "tomorrow LinkedIn release refuses to proceed without a global provider-history duplicate check",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0877",
+      "title": "tomorrow publication controls are visible only at owner and publisher boundaries",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0878",
+      "title": "task1110 native route binds accepted revision2 and reports executable connector preflight",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0879",
+      "title": "managed visual metadata is derived from the binary rather than caller claims",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0880",
+      "title": "visual base64 and durable URL validation reject unsafe inputs",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0881",
+      "title": "visual generation is blocked until the weekly topic plan is approved",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0882",
+      "title": "old site/blog decision cannot generate an asset after article-cover repair",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0883",
+      "title": "visual decision accepts the bound channel name, ID or legacy type but not another account",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0884",
+      "title": "visual generation is blocked until the current text revision is accepted",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0885",
+      "title": "visual generation requires an approved GENERATE brief and alt text",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0886",
+      "title": "production prompt bans text, pseudo interfaces, office scenes and comic retelling",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0888",
+      "title": "storage quota and capacity failures become explicit readiness reasons",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0889",
+      "title": "VK owner ID is normalized to a negative community ID",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0890",
+      "title": "VK permalink is parsed into stable owner and post IDs",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0891",
+      "title": "VK post IDs are split into API batches of at most 30",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0892",
+      "title": "VK batch collection sends post reach requests in groups of 30",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0893",
+      "title": "VK full metric collection merges public and post reach metrics",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0894",
+      "title": "VK reach failure preserves public metrics and unknown values stay null",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0895",
+      "title": "VK weekly delta returns null for missing boundaries and preserves negative adjustments",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0896",
+      "title": "VK Clip prepare preserves clip placement and approved MP4 without provider activity",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0897",
+      "title": "Clip prepare rejects oversized local files before reading/uploading their bytes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0898",
+      "title": "VK Clip submit fails closed before navigation when the Clip UI has not been verified",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0899",
+      "title": "Clip orchestration confirms only a new exact provider short_video with complete evidence",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0900",
+      "title": "Clip readback old_object cannot create a publication fact or retry",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0901",
+      "title": "Clip readback ordinary_video cannot create a publication fact or retry",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0902",
+      "title": "Clip readback wrong_owner cannot create a publication fact or retry",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0903",
+      "title": "Clip readback wrong_caption cannot create a publication fact or retry",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0904",
+      "title": "Clip readback wrong_media cannot create a publication fact or retry",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0905",
+      "title": "Clip readback old_timestamp cannot create a publication fact or retry",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0906",
+      "title": "Clip readback future_timestamp cannot create a publication fact or retry",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0907",
+      "title": "Clip readback missing_media cannot create a publication fact or retry",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0908",
+      "title": "Clip readback wrong_kind cannot create a publication fact or retry",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0909",
+      "title": "Clip readback invented_timestamp cannot create a publication fact or retry",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0910",
+      "title": "Clip baseline incomplete stops before attempt start and provider upload",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0911",
+      "title": "Clip baseline stale stops before attempt start and provider upload",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0912",
+      "title": "Clip baseline wrong_owner stops before attempt start and provider upload",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0913",
+      "title": "Clip baseline unbounded stops before attempt start and provider upload",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0914",
+      "title": "existing uncertain Clip attempt is not uploaded or resubmitted",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0915",
+      "title": "confirmed Clip idempotency replay skips provider upload and returns the prior fact",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0916",
+      "title": "Clip submit acknowledgement loss marks uncertainty and performs no retry",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0917",
+      "title": "Clip rejects images and fake MP4 bytes before provider navigation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0918",
+      "title": "Clip baseline timeout stops before durable attempt and provider mutation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0919",
+      "title": "Playwright has no fabricated live Clip selectors and its default port is blocked",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0920",
+      "title": "Clip readback rejects noncanonical URL /clip-240051152_11",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0921",
+      "title": "Clip readback rejects noncanonical URL /clip-240051152_11",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0922",
+      "title": "Clip readback rejects noncanonical URL /clip-240051152_11",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0923",
+      "title": "Clip readback rejects noncanonical URL /clip-240051152_11",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0924",
+      "title": "Clip readback rejects noncanonical URL /clip-240051152_11",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0925",
+      "title": "Clip readback rejects noncanonical URL /clip-240051152_0",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0926",
+      "title": "Clip readback rejects noncanonical URL /clip-240051152_011",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0927",
+      "title": "raw provider errors are sanitized before reaching worker output or uncertain metadata",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0928",
+      "title": "upload deadline freezes uncertainty and late upload completion never chains into submit",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0929",
+      "title": "pre-mutation baseline provider errors are sanitized without starting a provider attempt",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0930",
+      "title": "operator errors preserve known blocker codes without provider secrets",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0932",
+      "title": "owner release creates one exact VK browser work item without contacting VK",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0933",
+      "title": "owner release preserves the exact article, video or Story placement in the browser lease",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0934",
+      "title": "VK release fails closed on owner, revision, asset, fact and manifest drift",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0935",
+      "title": "Publisher can request VK browser release while the service keeps the owner membership guard",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0936",
+      "title": "POST-015-01 stale matching wall post cannot confirm a new submission",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0938",
+      "title": "POST-015-02 unique new same-owner object uses observed provider date",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0939",
+      "title": "POST-015-03 existing ID remains stale even when DOM date changes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0940",
+      "title": "POST-015-04 older object missing from baseline is excluded by date",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0941",
+      "title": "POST-015-05 foreign owner and hostile permalink cannot confirm",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0942",
+      "title": "POST-015-06 missing timestamp or two matching new objects stays uncertain",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0943",
+      "title": "POST-015-07 expired or foreign baseline blocks confirmation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0944",
+      "title": "POST-015 proof rejects stale, foreign, ambiguous and undated DOM candidates",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0945",
+      "title": "POST-015-08 absolute provider date parser rejects relative and conflicting metadata",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0947",
+      "title": "VK pre-provider recovery preview returns an exact no-provider bounded diff",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0948",
+      "title": "VK pre-provider recovery apply atomically rearms the same work item and is idempotent",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0949",
+      "title": "VK pre-provider recovery rejects stale attempt evidence with zero writes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0951",
+      "title": "VK pre-submit recovery preview records upload evidence and exact public absence",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0952",
+      "title": "VK pre-submit recovery apply preserves facts, closes the attempt and rearms idempotently",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0953",
+      "title": "VK pre-submit recovery refuses any failure other than exact readback absence",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0954",
+      "title": "SEARCH-001 relevant-first query returns attributable canonical fresh post",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0955",
+      "title": "SEARCH-002 unknown dates and off-topic provider results never become fresh evidence",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0956",
+      "title": "SEARCH-003 keeps scrolling past old ranked result, expands full text and deduplicates identity",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0957",
+      "title": "SEARCH-004 strict job/query/scope boundary and unverified live gate perform no navigation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0958",
+      "title": "SEARCH-005 unique-post and scroll budgets report partial coverage without activity claims",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0959",
+      "title": "SEARCH-006 timeout and provider errors are bounded and never expose cookies or tokens",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0960",
+      "title": "SEARCH-007 strips provider URL queries and treats hostile post text as data",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0961",
+      "title": "SEARCH-008 missing authors, future timestamps and one repeated lexical concept remain exclusions",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0962",
+      "title": "SEARCH-DOM-001 offline HTML expands text, preserves author/date and canonicalizes wall overlay identity",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0964",
+      "title": "VK browser start atomically creates one pending attempt before provider mutation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0965",
+      "title": "VK browser confirmation records a fact only for the exact provider identity and lease",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0966",
+      "title": "VK browser confirmation binds article, video and Story facts to their exact placement identity",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0967",
+      "title": "VK browser uncertain result never records a fact and cannot create a second attempt",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0968",
+      "title": "VK browser start permits one new attempt only after audited pre-provider recovery",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0969",
+      "title": "local VK worker prepare-only validates the exact approved payload without touching VK",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0970",
+      "title": "VK browser prepare supports article, video and story with format-specific approved media",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0971",
+      "title": "VK browser rich-media contracts fail closed on missing title, media or wrong media kind",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0972",
+      "title": "local VK worker materializes the approved HTTPS asset before opening the composer",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0973",
+      "title": "local VK worker rejects ambiguous image sources",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0974",
+      "title": "local VK worker never attaches an image without its approved asset binding",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0975",
+      "title": "local VK worker prepare-only does not require a live browser session",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0976",
+      "title": "local VK worker refuses unapproved, stale or live-submit jobs",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0977",
+      "title": "local VK worker constrains target host and approved asset roots",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0978",
+      "title": "local VK worker evidence never includes cookies, profile data or publication text",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0979",
+      "title": "current VK community UI opens the wall composer through Create then Post",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0980",
+      "title": "VK browser detects the provider anti-bot challenge by URL or verified challenge copy and control",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0981",
+      "title": "VK browser treats the current guest Sign in link as a missing dedicated-profile session",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0982",
+      "title": "current VK community UI routes article, video and Story through distinct Create menu items",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0983",
+      "title": "current VK contenteditable verifies exact visible text including paragraph breaks",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-0984",
+      "title": "current VK composer uses its own uploader and waits for a rendered preview",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1019",
+      "title": "current VK composer submits through the page-level posting submit control",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1020",
+      "title": "VK browser submit requires durable authorization before opening the provider composer",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1021",
+      "title": "VK browser submit starts one durable attempt, verifies exact readback, then confirms",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1022",
+      "title": "VK browser article submit uses the same format-specific bundle validated by prepare",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1023",
+      "title": "VK browser readback accepts provider-added blank lines without changing words",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1024",
+      "title": "VK browser submit freezes an ambiguous provider result and never confirms it",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1025",
+      "title": "VK browser composer failure happens before a durable attempt or provider upload",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1026",
+      "title": "VK browser challenge captures diagnostic evidence and fails before composer or durable attempt",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1027",
+      "title": "VK browser submit never retries an existing unresolved provider attempt",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1028",
+      "title": "CLI prepare-only runs locally without opening Chrome or requiring an MCP token",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1029",
+      "title": "CLI submit refuses to open Chrome without a Publisher MCP token",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1030",
+      "title": "unverified live Clip stops before Publisher connection or browser launch",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1032",
+      "title": "exact fresh Clip proof records one video fact with a Clip permalink",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1033",
+      "title": "Clip confirmation rejects absent or mismatched proof without writing a fact",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1034",
+      "title": "cancelled Clip or stale revision is never confirmed from valid provider proof",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1036",
+      "title": "clip fact transaction locks exact accepted task, approved asset, attempt and live lease",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1037",
+      "title": "clip fact rejects changed revision, route, snapshot and approval before fact creation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1038",
+      "title": "clip fact CAS conflict blocks the write",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1039",
+      "title": "VK Clip metrics stay manual while ordinary VK video uses provider API",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1040",
+      "title": "clip fact refuses lost lease, uncertain attempt or changed approved media",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1041",
+      "title": "clip fact rechecks MP4 metadata inside the transaction",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1043",
+      "title": "VK Clip is an explicit canonical artifact and transport with manual authority",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1044",
+      "title": "generated and imported clip handoffs bind the selected MP4 and accepted revision",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1045",
+      "title": "clip handoff refuses missing, stale, image and unhashed assets even without optional acceptance flag",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1046",
+      "title": "legacy VK feed MP4 remains ordinary video without implicit clip conversion",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1048",
+      "title": "exact owner release queues approved Clip while preserving the explicit clip placement",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1049",
+      "title": "Clip release refuses ordinary feed conversion, non-owner, prior attempt and existing publication",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1050",
+      "title": "Clip release blocks image, missing size, and nonportrait editorial assets before queueing",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1051",
+      "title": "Clip driver processes only local DOM fixtures and rejects premature or unverifiable confirmation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1052",
+      "title": "missing verification and independent provider collector fail before any navigation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1053",
+      "title": "provider relative date, missing media binding and wrong community cannot confirm a fixture Clip",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1060",
+      "title": "VK video dry-run refuses the legacy photo adapter even when credentials exist",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1061",
+      "title": "VK feed MP4 is a video resource without granting automatic authority",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1062",
+      "title": "video adapter has no side effects when policy or capability is unavailable",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1063",
+      "title": "native video mocks follow save/upload/readback/wall and checkpoint no upload secret",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1064",
+      "title": "processing video cannot create a wall post; an uncertain submit cannot be retried",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1065",
+      "title": "VK OAuth authorization uses PKCE and binds encrypted state to owner and channel",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1066",
+      "title": "VK OAuth exchanges the code with the original PKCE verifier and device identity",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1067",
+      "title": "VK OAuth refreshes and rotates the token pair on the backend device identity",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1068",
+      "title": "VK OAuth atomically refreshes and persists the channel token before server use",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1069",
+      "title": "VK OAuth rejects an incomplete refresh response without leaking credentials",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1070",
+      "title": "VK OAuth does not call VK when refresh credentials are incomplete",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1071",
+      "title": "VK OAuth accepts only a profile that administers the configured community",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1072",
+      "title": "VK OAuth accepts a VK ID profile returned in the configured community manager list",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1073",
+      "title": "VK OAuth uses the VK ID identity and supports the legacy getById response shape",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1074",
+      "title": "VK OAuth verification errors identify the failed API method without exposing the token",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1075",
+      "title": "VK OAuth tokens are encrypted at rest, masked in API output, and preserved on edits",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1076",
+      "title": "VK ID tokens cannot be saved into publishing token fields",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1077",
+      "title": "server accepts exact new wall evidence with provider publication time",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1078",
+      "title": "server rejects old object post evidence",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1079",
+      "title": "server rejects foreign owner post evidence",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1080",
+      "title": "server rejects invented clock post evidence",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1081",
+      "title": "server rejects before submission post evidence",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1082",
+      "title": "server rejects future post evidence",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1083",
+      "title": "server rejects stale baseline post evidence",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1084",
+      "title": "server rejects missing date post evidence",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1085",
+      "title": "server rejects missing baseline post evidence",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1087",
+      "title": "VK search is available to research planning roles only",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1088",
+      "title": "operator receives exact fresh public evidence, routes and unknown metrics without writes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1089",
+      "title": "access denial stops before channel or provider access",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1090",
+      "title": "publishing credentials cannot silently act as search credentials",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1091",
+      "title": "partial routes survive provider denial and raw error secrets never leave boundary",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1092",
+      "title": "malformed provider evidence is unknown and pagination is bounded/deduplicated",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1093",
+      "title": "invalid inputs do not call provider",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1094",
+      "title": "duplicates preserve matches across product routes and private communities are excluded",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1095",
+      "title": "rate limit stops additional routes and no malformed/transport result means zero activity",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1096",
+      "title": "valid empty search is distinguished from blocked discovery",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1098",
+      "title": "explicit search API credential wins over legacy user token, without publishing credential fallback",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1099",
+      "title": "unsupported explicit credential blocks even with usable legacy fallback and exposes no secret",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1100",
+      "title": "search credential stores encrypted, masks plaintext and ciphertext, preserves and rotates independently",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1101",
+      "title": "nested search credentials are encrypted and masked, preserve masked edits, and current rotation wins",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1102",
+      "title": "VK ID search keys are rejected at storage boundary without including token",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1103",
+      "title": "encrypted current search credential overrides legacy nested plaintext snapshot",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1104",
+      "title": "malformed search credential blocks storage and provider calls without fallback",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1105",
+      "title": "explicit clear removes current and stale nested search keys while preserving other secrets",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1106",
+      "title": "unresolved explicit mask blocks legacy fallback and is not stored as a credential",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1107",
+      "title": "masked new search key cannot preserve an unvalidated ciphertext supplied by caller",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1114",
+      "title": "real MCP discovery exposes bounded read-only VK schema in planner and strategist",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1115",
+      "title": "VK search remote call cannot override actor or project scope",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1116",
+      "title": "manifest advertises discovery and preserves UNKNOWN rules for both research roles",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1118",
+      "title": "production channel lookup enforces active VK channel in authorized project before search",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1119",
+      "title": "provider transport uses fixed read method, body credentials, timeout and no redirects",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1120",
+      "title": "oversized and non-JSON provider responses are rejected",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1122",
+      "title": "VK1048 promotion is pinned to the current project 10 manifest",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1123",
+      "title": "VK1048 preview reports missing publishing credentials without mutating or calling a provider",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1124",
+      "title": "VK1048 promotion atomically cancels only the unclaimed browser item and is replay-safe",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1126",
+      "title": "an explicit hold takes precedence over the retained browser publication mode",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1127",
+      "title": "hold preview is secret-free and performs no writes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1128",
+      "title": "exact hold preserves accepted records and owner release; never clears leases",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1129",
+      "title": "active claim and non-owner are refused without writes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1130",
+      "title": "prepare cannot silently remove an audited hold",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1132",
+      "title": "preview proves the exact retired package can be restored without writing",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1133",
+      "title": "apply restores only lifecycle fields and records the owner correction plus engineering blocker",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1134",
+      "title": "restore refuses missing audit membership, provider attempts and active leases",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1141",
+      "title": "VK dry-run and live use the same accepted text and approved durable visual",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1142",
+      "title": "VK dry-run validates payload while reporting missing provider configuration",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1143",
+      "title": "VK text-only feed remains ready with only the community token",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1144",
+      "title": "VK feed image preflight requires the separate classic user token",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1145",
+      "title": "VK provider failure stays uncertain and never writes a publication fact",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1146",
+      "title": "strict VK provider passes a stable guid and returns validated provider identity",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1147",
+      "title": "strict VK provider uploads a personal photo story and verifies its identity by readback",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1148",
+      "title": "strict VK personal story provider rejects a mismatched readback identity",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1149",
+      "title": "strict VK story provider creates and verifies a native poll sticker",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1150",
+      "title": "strict VK story provider rejects a missing or changed native poll readback",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1151",
+      "title": "VK personal story uses the accepted vertical asset and records story identity",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1152",
+      "title": "VK personal story passes only the revision-bound native poll to the provider",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1153",
+      "title": "VK personal story dry-run requires OAuth profile identity and an approved visual",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1154",
+      "title": "task publisher resolves top-level VK credentials even when raw_account exists",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1155",
+      "title": "VK story preflight resolves OAuth credentials encrypted at rest",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1156",
+      "title": "VK personal story prefers the server-refreshed OAuth token over the classic media token",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1157",
+      "title": "scheduled VK adapter returns provider identity and a stable retry guid",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1158",
+      "title": "scheduled VK story dispatches through the personal story provider instead of wall.post",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1159",
+      "title": "strict VK provider never drops a requested visual and rejects missing post identity",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1160",
+      "title": "week automation waits for headquarters approval before writing",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1161",
+      "title": "week automation routes approved topics through writer, review, and visuals",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1162",
+      "title": "week automation never treats an incomplete seven-day topic set as approved work",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1165",
+      "title": "convertWeekPackageToV1 throws error if V2 WeekPackage not found",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1166",
+      "title": "convertWeekPackageToV1 returns existing weekId and reused: true if V1 Week already exists",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1167",
+      "title": "convertWeekPackageToV1 creates V1 Week and slots if none exist",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1169",
+      "title": "task 1025 release refuses widened task, channel, or body scope before DB access",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1171",
+      "title": "1025 revision 3 release rejects an old body or widened task before writes",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1173",
+      "title": "X claim admits 1033 only inside the existing owner-released tenant/channel boundary",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1175",
+      "title": "X1033 exact owner release creates one r2 work item and replays without a second item",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1176",
+      "title": "X1033 refuses changed accepted_revision without creating browser work",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1177",
+      "title": "X1033 refuses changed channel_id without creating browser work",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1178",
+      "title": "X1033 refuses changed visual_decision_version without creating browser work",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1179",
+      "title": "X1033 refuses changed visual_placement without creating browser work",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1180",
+      "title": "X1033 refuses changed publication_mode without creating browser work",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1181",
+      "title": "X1033 refuses body drift, wrong task and stale manifest before release",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1183",
+      "title": "prepare command creates rev5 review package with identical text through canonical visual invalidation",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1184",
+      "title": "text-only release requires accepted rev6, approved review6 and active NO_VISUAL decision4",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1185",
+      "title": "old image-bound rev4 and overlength rev5 cannot use the revision6 release",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1186",
+      "title": "audited recovery cancels only claimed rev5 browser work and reopens Writer without editing copy",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1188",
+      "title": "1079 release rejects other tasks before transaction or manifest access",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1189",
+      "title": "1079 release rejects a non-owner before package mutations",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1191",
+      "title": "ordinary X uses the provider-safe 280 weighted-character limit",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1192",
+      "title": "X weighted length treats URLs as t.co length and non-Latin symbols conservatively",
+      "verdict": "PASS",
+      "error": null
+    },
+    {
+      "id": "RELEASE-1193",
+      "title": "content acceptance cannot mark an overlength ordinary X revision ready",
+      "verdict": "PASS",
+      "error": null
+    }
+  ],
+  "repaired_baseline_failures": {
+    "telegram_payload": 6,
+    "prepare_approval": 1,
+    "dzen1036_dryrun": 1
+  },
+  "production_code_changed_by_baseline_repairs": false,
+  "live_vk_operations": 0,
+  "feature_activation": "Existing live gates remain intact",
+  "rollback": "Restore prior app/MCP release; retain attempts and facts; no schema migration",
+  "owner_uat": "PENDING"
+}
