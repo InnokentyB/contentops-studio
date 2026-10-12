@@ -90,6 +90,9 @@ model Project {
   @@index([kind])
   @@map("projects")
   @@schema("planner")
+  connector_dispatch_jobs ConnectorDispatchJob[]
+  connector_host_status ConnectorHostStatus[]
+
 }
 
 model Organization {
@@ -428,6 +431,9 @@ model SocialChannel {
 
   @@map("social_channels")
   @@schema("planner")
+  connector_dispatch_jobs ConnectorDispatchJob[]
+  @@unique([project_id, id])
+
 }
 
 // ============================================
@@ -803,6 +809,9 @@ model ContentItem {
   @@index([selected_asset_id])
   @@map("content_items")
   @@schema("planner")
+  connector_dispatch_jobs ConnectorDispatchJob[]
+  @@unique([project_id, id])
+
 }
 
 model VkMetricSnapshot {
@@ -917,6 +926,9 @@ model WorkItem {
   @@index([due_at])
   @@map("work_items")
   @@schema("planner")
+  connector_dispatch_jobs ConnectorDispatchJob[]
+  @@unique([project_id, id])
+
 }
 
 model Initiative {
@@ -1089,6 +1101,9 @@ model DeliveryAttempt {
   @@index([idempotency_key])
   @@map("delivery_attempts")
   @@schema("planner")
+  connector_dispatch_jobs ConnectorDispatchJob[]
+  @@unique([project_id, id])
+
 }
 
 model ImageAsset {
@@ -1126,6 +1141,9 @@ model ImageAsset {
   @@index([decision_id])
   @@map("image_assets")
   @@schema("planner")
+  connector_dispatch_jobs ConnectorDispatchJob[]
+  @@unique([project_id, id])
+
 }
 
 model ArtDirectionDecision {
@@ -1229,5 +1247,65 @@ model PublicationFact {
   @@index([project_id, outcome, published_at])
   @@index([channel_id, published_at])
   @@map("publication_facts")
+  @@schema("planner")
+  connector_dispatch_jobs ConnectorDispatchJob[]
+  @@unique([project_id, id])
+
+}
+
+// Transport lifecycle only. Accepted content, approval and publication truth remain in existing models.
+model ConnectorDispatchJob {
+  id                   String   @id @default(uuid()) @db.Uuid
+  project_id           Int
+  content_item_id      Int
+  channel_id           Int
+  work_item_id         Int
+  content_revision     Int
+  selected_asset_id    Int
+  package_sha256       String
+  binding              Json
+  idempotency_key      String
+  state                String   @default("queued")
+  host_id              String?
+  consumer_instance_id String?
+  generation           Int      @default(0)
+  receipt_at           DateTime? @db.Timestamptz(6)
+  blocker_code         String?
+  attempt_id           Int?
+  publication_fact_id  Int?
+  created_at           DateTime @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime @updatedAt @db.Timestamptz(6)
+
+  project          Project          @relation(fields: [project_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  content_item     ContentItem      @relation(fields: [project_id, content_item_id], references: [project_id, id], onDelete: Restrict, onUpdate: Restrict)
+  channel          SocialChannel    @relation(fields: [project_id, channel_id], references: [project_id, id], onDelete: Restrict, onUpdate: Restrict)
+  work_item        WorkItem         @relation(fields: [project_id, work_item_id], references: [project_id, id], onDelete: Restrict, onUpdate: Restrict)
+  selected_asset   ImageAsset       @relation(fields: [project_id, selected_asset_id], references: [project_id, id], onDelete: Restrict, onUpdate: Restrict)
+  attempt          DeliveryAttempt? @relation(fields: [project_id, attempt_id], references: [project_id, id], onDelete: Restrict, onUpdate: Restrict)
+  publication_fact PublicationFact? @relation(fields: [project_id, publication_fact_id], references: [project_id, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([project_id, content_item_id, channel_id, content_revision, package_sha256], map: "connector_dispatch_jobs_package_key")
+  @@unique([project_id, idempotency_key])
+  @@index([project_id, state, created_at])
+  @@index([project_id, host_id, consumer_instance_id], map: "connector_dispatch_jobs_host_instance_idx")
+  @@map("connector_dispatch_jobs")
+  @@schema("planner")
+}
+
+// Infrastructure heartbeat is never provider login or publication authority.
+model ConnectorHostStatus {
+  project_id    Int
+  host_id       String
+  instance_id   String
+  build_version String
+  heartbeat_at  DateTime @db.Timestamptz(6)
+  mode          String   @default("infrastructure_only")
+  blocker_code  String?
+
+  project Project @relation(fields: [project_id], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([project_id, host_id])
+  @@index([project_id, heartbeat_at])
+  @@map("connector_host_status")
   @@schema("planner")
 }

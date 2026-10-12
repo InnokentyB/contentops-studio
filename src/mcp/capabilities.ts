@@ -34,6 +34,9 @@ const WRITER_TOOLS = new Set([
 ]);
 
 const PLANNER_TOOLS = new Set([
+    'ba_preview_vk_connector_dispatch',
+    'ba_get_vk_connector_health',
+    'ba_get_vk_connector_job',
     'ba_get_agent_workspace_manifest',
     'ba_get_agent_workspace_updates',
     'ba_get_agent_chat_bootstrap',
@@ -248,6 +251,14 @@ const PUBLISHER_TOOLS = new Set([
     'ba_hold_vk_task1084',
     'ba_restore_vk_task1084_from_erroneous_retirement',
     'ba_claim_x_browser_publication',
+    'ba_preview_vk_connector_dispatch',
+    'ba_get_vk_connector_health',
+    'ba_get_vk_connector_job',
+    'ba_dispatch_vk_connector_job',
+    'ba_poll_vk_connector_jobs',
+    'ba_ack_vk_connector_job',
+    'ba_report_vk_connector_job',
+    'ba_reconcile_vk_connector_job',
     'ba_claim_vk_browser_publication',
     'ba_start_vk_browser_submission',
     'ba_confirm_vk_browser_submission',

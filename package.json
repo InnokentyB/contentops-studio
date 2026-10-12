@@ -15,6 +15,7 @@
     "telegram:encrypt-existing": "ts-node scripts/encrypt_telegram_accounts.ts",
     "vk:browser:worker": "node dist/workers/vk_browser_worker.js",
     "vk:browser:worker:dev": "ts-node src/workers/vk_browser_worker.ts",
+    "vk:connector:consumer": "node dist/workers/vk_connector_consumer.js",
     "scheduler:publication": "node dist/publication-scheduler.js",
     "test:mcp": "npm run build:backend >/dev/null && node scripts/test_mcp_server.js",
     "test:mcp:remote": "npm run build:backend >/dev/null && node scripts/test_remote_mcp.js",
