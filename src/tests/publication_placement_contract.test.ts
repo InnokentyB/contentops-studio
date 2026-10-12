@@ -135,3 +135,9 @@ test('Dzen feed is now canonical, while unrelated article channels stay strict',
     assert.equal(assertCanonicalPublicationPlacement({ type: 'dzen' }, 'feed'), 'feed');
     assert.throws(() => assertCanonicalPublicationPlacement({ type: 'vc' }, 'feed'), /TARGET_PLACEMENT_MISMATCH/);
 });
+
+test('DEV.to article cover uses the manual wide-image contract', () => {
+    const contract = publicationPlacementAssetContract({ type: 'devto' }, 'article_cover');
+    assert.deepEqual(contract.dimensions, { width: 1200, height: 630, aspect_ratio: '1.91:1' });
+    assert.deepEqual(contract.transport, { materialization: 'article', connector_authority: 'manual_only' });
+});

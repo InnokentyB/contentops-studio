@@ -65,6 +65,7 @@ const PLANNER_TOOLS = new Set([
     'ba_repair_telegram_task1099_story_placement',
     'ba_reconcile_dzen_task1036_uncertain_attempt',
     'ba_repair_personal_publication_language',
+    'ba_bind_devto_task1118',
     'ba_require_c20_publication_visuals',
     'ba_require_task971_publication_visual',
     'ba_require_task972_publication_visual',

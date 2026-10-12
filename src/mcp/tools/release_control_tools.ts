@@ -7,6 +7,7 @@ import { registerXTask1033ReleaseTool } from './x_task1033_release_tool';
 import { registerOct10OwnerRecoveryTools } from './oct10_owner_recovery_tools';
 import { registerVkTask1084HoldTool } from './vk_task1084_hold_tool';
 import { registerVkTask1084RestoreTool } from './vk_task1084_restore_tool';
+import { registerDevtoTask1118BindingTool } from './devto_task1118_binding_tool';
 import { z } from 'zod';
 import ownerPublicationControlsService from '../../services/owner_publication_controls.service';
 import dzenTaskPublicationService from '../../services/dzen_task_publication.service';
@@ -57,6 +58,7 @@ export function registerReleaseControlTools(server: McpServer): void {
     registerOct10OwnerRecoveryTools(server);
     registerVkTask1084HoldTool(server);
     registerVkTask1084RestoreTool(server);
+    registerDevtoTask1118BindingTool(server);
     server.registerTool('ba_resume_dzen_task999_existing_draft', {
         description: 'Owner-authorized exact existing Dzen999 draft recovery. Defaults to read-only package/cover/final-stage preview; confirm true performs one original-key CAS-bound final submit, never opens a new composer.',
         inputSchema: {

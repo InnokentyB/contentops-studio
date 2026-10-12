@@ -3,6 +3,7 @@ const DEFAULT_PLACEMENTS: Record<string, string[]> = {
     vc: ['article_cover'],
     dzen: ['article_cover', 'feed'],
     medium: ['article_cover'],
+    devto: ['article_cover'],
     site: ['article_cover'],
     setka: ['feed'],
     telegram: ['feed', 'story'],
@@ -139,7 +140,7 @@ export function publicationPlacementAssetContract(
             transport: { materialization: 'feed_post', connector_authority: 'configured' }
         };
     }
-    if (normalizedType === 'medium' && placement === 'article_cover') {
+    if (['medium', 'devto'].includes(normalizedType) && placement === 'article_cover') {
         return {
             placement,
             artifact_kind: 'article_cover',
