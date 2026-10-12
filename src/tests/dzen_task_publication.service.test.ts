@@ -54,6 +54,7 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
     let factCalls = 0;
     let studioReads = 0;
     const db = {
+        deliveryAttempt: { findFirst: async () => null },
         contentItem: {
             findFirst: async () => task,
             updateMany: async ({ where, data }: any) => {

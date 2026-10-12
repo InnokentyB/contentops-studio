@@ -14,6 +14,7 @@ export type DzenOwnerReleaseArgs = {
     expectedVisualState: 'NO_VISUAL_NEEDED' | 'APPROVED';
     expectedPlacement: string;
     expectedVisualDecisionVersion: number;
+    expectedVisualDecisionId?: number;
     expectedSelectedAssetId: number | null;
     expectedAssetSha256: string | null;
     expectedScheduleAt: string;
@@ -21,6 +22,8 @@ export type DzenOwnerReleaseArgs = {
     expectedManifestChecksum: string;
     approvalReference: string;
     idempotencyKey: string;
+    /** Exact task wrappers use a task-scoped event command. */
+    releaseCommand?: string;
 };
 
 type DzenReleaseResult = {
@@ -43,6 +46,7 @@ type DzenReleaseTask = {
     selected_asset: { status: string; content_revision: number; file_url: string | null; provenance: unknown } | null;
     schedule_at: Date | null; publish_at: Date | null;
     publication_fact: unknown; published_link: string | null;
+    quality_report?: unknown;
 };
 
 type DzenVisualDecision = {
@@ -113,7 +117,7 @@ export async function releaseDzenTask(
         if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
         const manifestChecksum = await deps.getManifestChecksum(args.projectId, args.actorId);
         if (manifestChecksum !== args.expectedManifestChecksum) throw new Error('[STALE_MANIFEST]');
-        const command = 'ba_release_approved_dzen_task';
+        const command = args.releaseCommand || 'ba_release_approved_dzen_task';
         const prior = await tx.workflowEvent.findFirst({ where: {
             project_id: args.projectId, actor_id: args.actorId, command,
             idempotency_key: args.idempotencyKey
@@ -154,12 +158,22 @@ export async function releaseDzenTask(
             || task.visual_decision_version !== args.expectedVisualDecisionVersion
             || decision?.source_content_revision !== args.expectedContentRevision
             || decision?.decision_version !== args.expectedVisualDecisionVersion
+            || (args.expectedVisualDecisionId !== undefined && decision?.id !== args.expectedVisualDecisionId)
             || decision?.placement !== args.expectedPlacement
             || !['dzen', task.channel.name].includes(decision?.channel)
             || !visualMatches || task.schedule_at?.toISOString() !== args.expectedScheduleAt
             || task.publish_at?.toISOString() !== args.expectedPublishAt
             || bodyHash !== args.expectedBodySha256 || task.publication_fact || task.published_link) {
             throw new Error('[DZEN_OWNER_RELEASE_GUARD_FAILED] Exact accepted Dzen package is required');
+        }
+        const report = task.quality_report && typeof task.quality_report === 'object'
+            && !Array.isArray(task.quality_report) ? task.quality_report as Record<string, unknown> : {};
+        const delivery = report.publication_task_delivery && typeof report.publication_task_delivery === 'object'
+            && !Array.isArray(report.publication_task_delivery)
+            ? report.publication_task_delivery as Record<string, unknown> : {};
+        if (delivery.state === 'provider_result_uncertain'
+            || delivery.state === 'provider_confirmed_fact_pending') {
+            throw new Error('[DZEN_UNCERTAIN_ATTEMPT_EXISTS] Reconcile before release');
         }
         if (await tx.deliveryAttempt.findFirst({ where: {
             project_id: args.projectId, content_item_id: args.taskId
