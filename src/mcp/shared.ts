@@ -5,6 +5,12 @@ import prisma, { pool } from '../db';
 import workQueueService from '../services/work_queue.service';
 import { repairTask1051ReviewCollision } from '../services/task1051_review_collision.service';
 import { repairTask1091ReviewCollision } from '../services/task1091_review_collision.service';
+import {
+    adaptTask1091TdpdSource,
+    TASK1091_PREVIOUS_BODY_SHA256,
+    TASK1091_TDPD_ADAPTATION_KEY,
+    TASK1091_TDPD_MANIFEST_CHECKSUM
+} from '../services/task1091_tdpd_source_adaptation.service';
 import { filterMcpServerTools, McpCapabilityProfile } from './capabilities';
 import {
     asToolResult,
@@ -138,6 +144,29 @@ export function registerPlannerTools(server: McpServer): void {
             confirm: z.boolean()
         }
     }, async (args) => asToolResult(await repairTask1091ReviewCollision(args)));
+
+    server.registerTool('ba_adapt_task1091_tdpd_source', {
+        description: 'Owner-authorized Planner adaptation of the existing task1091 slot to the Kun Chen / TDPD source package. Preserves accepted revision 2 as a historical candidate, reopens Writer and editorial gates, and never releases or publishes.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
+        inputSchema: {
+            projectId: z.literal(10),
+            taskId: z.literal(1091),
+            initiativeId: z.literal(291),
+            sourcePackageId: z.literal(311),
+            previousSourcePackageId: z.literal(313),
+            actorId: z.string(),
+            expectedManifestChecksum: z.literal(TASK1091_TDPD_MANIFEST_CHECKSUM),
+            expectedContentRevision: z.literal(2),
+            expectedAcceptedRevision: z.literal(2),
+            expectedBodySha256: z.literal(TASK1091_PREVIOUS_BODY_SHA256),
+            expectedChannelId: z.literal(108),
+            expectedScheduleAt: z.literal('2026-10-13T17:30:00.000Z'),
+            expectedTitle: z.literal('Portfolio OS #2 — Я устал напоминать агентам, что мы вообще решили'),
+            idempotencyKey: z.literal(TASK1091_TDPD_ADAPTATION_KEY),
+            authorizationReference: z.string().min(1),
+            confirm: z.boolean()
+        }
+    }, async (args) => asToolResult(await adaptTask1091TdpdSource(args)));
 
     // Explicit contract test anchors: ba_repair_publication_projection
     server.registerTool('ba_repair_publication_projection', {
