@@ -3,6 +3,7 @@ import { registerLinkedInTask1076ReleaseTool } from './linkedin_task1076_release
 import { registerLinkedInTask1090ReleaseTool } from './linkedin_task1090_release_tool';
 import { registerLinkedInTask1132LanguageRepairTool } from './linkedin_task1132_language_repair_tool';
 import { registerExactBrowserPublication1133And1132Tools } from './exact_browser_publication_1133_1132_tools';
+import { registerTomorrowPublicationTools } from './tomorrow_publication_tools';
 import { registerOct08ExactReleaseTools } from './oct08_exact_release_tools';
 import { registerThreadsTask1035ReleaseTool } from './threads_task1035_release_tool';
 import { registerXTask1033ReleaseTool } from './x_task1033_release_tool';
@@ -56,6 +57,7 @@ export function registerReleaseControlTools(server: McpServer): void {
     registerLinkedInTask1090ReleaseTool(server);
     registerLinkedInTask1132LanguageRepairTool(server);
     registerExactBrowserPublication1133And1132Tools(server);
+    registerTomorrowPublicationTools(server);
     registerOct08ExactReleaseTools(server);
     registerThreadsTask1035ReleaseTool(server);
     registerXTask1033ReleaseTool(server);
