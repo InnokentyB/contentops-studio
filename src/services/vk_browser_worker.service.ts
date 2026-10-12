@@ -256,6 +256,9 @@ async function resolveBundle(job: VkBrowserJob, dependencies: SharedDependencies
     let assetResolution = 'text_only';
     if (mediaPathInput) {
         resolvedMediaPath = approvedMediaPath(mediaPathInput, dependencies.approvedAssetRoots);
+        if (job.target.placement === 'clip' && fs.statSync(resolvedMediaPath).size > 200 * 1024 * 1024) {
+            throw new Error('[VK_CLIP_ASSET_SIZE_INVALID] Local Clip exceeds the adapter byte budget');
+        }
         mediaBuffer = fs.readFileSync(resolvedMediaPath);
         resolvedMediaKind = assertMediaContract(job.target.placement, mediaKind(resolvedMediaPath));
         if (job.target.placement === 'clip' && (path.extname(resolvedMediaPath).toLowerCase() !== '.mp4'

@@ -123,7 +123,7 @@ export class PlaywrightVkClipUi implements VkClipUi {
         if (!this.ownerId || this.uploadAttempted || this.submissionStarted) throw new Error('[VK_CLIP_UPLOAD_STATE_INVALID]');
         if (!/\.mp4$/i.test(mediaPath) || !/^[a-f0-9]{64}$/.test(mediaSha256)) throw new Error('[VK_CLIP_MP4_REQUIRED]');
         const file = await stat(mediaPath);
-        if (!file.isFile() || file.size < 1 || file.size > 512 * 1024 * 1024) throw new Error('[VK_CLIP_ASSET_SIZE_INVALID]');
+        if (!file.isFile() || file.size < 1 || file.size > 200 * 1024 * 1024) throw new Error('[VK_CLIP_ASSET_SIZE_INVALID]');
         const hash = createHash('sha256');
         for await (const chunk of createReadStream(mediaPath)) hash.update(chunk);
         if (hash.digest('hex') !== mediaSha256) throw new Error('[VK_CLIP_LOCAL_MEDIA_HASH_MISMATCH]');

@@ -728,6 +728,359 @@
         }
       ],
       "log": "/tmp/vk-browser-final-focused-20261012.log"
+    },
+    {
+      "id": "ROOT-REBASE-SECURITY",
+      "verdict": "PASS",
+      "tests": 20,
+      "pass": 20,
+      "fail": 0,
+      "skipped": 0,
+      "scope": "remote MCP security, provider credential security and latest review collision guard",
+      "log": "/tmp/vk-browser-rebased-security-20261012.log"
+    },
+    {
+      "id": "ROOT-SIZE-RED",
+      "verdict": "EXPECTED_FAILURE",
+      "scenario_results": [
+        {
+          "title": "Clip prepare rejects oversized local files before reading/uploading their bytes",
+          "verdict": "FAIL",
+          "error": "Missing expected rejection"
+        }
+      ],
+      "log": "/tmp/vk-browser-size-red-20261012.log"
+    },
+    {
+      "id": "ROOT-BUDGET-GREEN",
+      "verdict": "PASS",
+      "tests": 64,
+      "pass": 64,
+      "fail": 0,
+      "skipped": 0,
+      "scenario_results": [
+        {
+          "title": "VK Clip prepare preserves clip placement and approved MP4 without provider activity",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip prepare rejects oversized local files before reading/uploading their bytes",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK Clip submit fails closed before navigation when the Clip UI has not been verified",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip orchestration confirms only a new exact provider short_video with complete evidence",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback old_object cannot create a publication fact or retry",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback ordinary_video cannot create a publication fact or retry",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback wrong_owner cannot create a publication fact or retry",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback wrong_caption cannot create a publication fact or retry",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback wrong_media cannot create a publication fact or retry",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback old_timestamp cannot create a publication fact or retry",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback future_timestamp cannot create a publication fact or retry",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback missing_media cannot create a publication fact or retry",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback wrong_kind cannot create a publication fact or retry",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback invented_timestamp cannot create a publication fact or retry",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip baseline incomplete stops before attempt start and provider upload",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip baseline stale stops before attempt start and provider upload",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip baseline wrong_owner stops before attempt start and provider upload",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip baseline unbounded stops before attempt start and provider upload",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "existing uncertain Clip attempt is not uploaded or resubmitted",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "confirmed Clip idempotency replay skips provider upload and returns the prior fact",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip submit acknowledgement loss marks uncertainty and performs no retry",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip rejects images and fake MP4 bytes before provider navigation",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip baseline timeout stops before durable attempt and provider mutation",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Playwright has no fabricated live Clip selectors and its default port is blocked",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback rejects noncanonical URL /clip-240051152_11",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback rejects noncanonical URL /clip-240051152_11",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback rejects noncanonical URL /clip-240051152_11",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback rejects noncanonical URL /clip-240051152_11",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback rejects noncanonical URL /clip-240051152_11",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback rejects noncanonical URL /clip-240051152_0",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback rejects noncanonical URL /clip-240051152_011",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "raw provider errors are sanitized before reaching worker output or uncertain metadata",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "upload deadline freezes uncertainty and late upload completion never chains into submit",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "pre-mutation baseline provider errors are sanitized without starting a provider attempt",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "local VK worker prepare-only validates the exact approved payload without touching VK",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK browser prepare supports article, video and story with format-specific approved media",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK browser rich-media contracts fail closed on missing title, media or wrong media kind",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "local VK worker materializes the approved HTTPS asset before opening the composer",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "local VK worker rejects ambiguous image sources",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "local VK worker never attaches an image without its approved asset binding",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "local VK worker prepare-only does not require a live browser session",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "local VK worker refuses unapproved, stale or live-submit jobs",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "local VK worker constrains target host and approved asset roots",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "local VK worker evidence never includes cookies, profile data or publication text",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "current VK community UI opens the wall composer through Create then Post",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK browser detects the provider anti-bot challenge by URL or verified challenge copy and control",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK browser treats the current guest Sign in link as a missing dedicated-profile session",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "current VK community UI routes article, video and Story through distinct Create menu items",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "current VK contenteditable verifies exact visible text including paragraph breaks",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "current VK composer uses its own uploader and waits for a rendered preview",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "current VK composer submits through the page-level posting submit control",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK browser submit requires durable authorization before opening the provider composer",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK browser submit starts one durable attempt, verifies exact readback, then confirms",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK browser article submit uses the same format-specific bundle validated by prepare",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK browser readback accepts provider-added blank lines without changing words",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK browser submit freezes an ambiguous provider result and never confirms it",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK browser composer failure happens before a durable attempt or provider upload",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK browser challenge captures diagnostic evidence and fails before composer or durable attempt",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK browser submit never retries an existing unresolved provider attempt",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "CLI prepare-only runs locally without opening Chrome or requiring an MCP token",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "CLI submit refuses to open Chrome without a Publisher MCP token",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip driver processes only local DOM fixtures and rejects premature or unverifiable confirmation",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "missing verification and independent provider collector fail before any navigation",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "provider relative date, missing media binding and wrong community cannot confirm a fixture Clip",
+          "verdict": "PASS",
+          "error": null
+        }
+      ],
+      "log": "/tmp/vk-browser-budget-tests-20261012.log"
     }
   ],
   "new_regression_failures": [],
@@ -739,7 +1092,9 @@
       "score": 77,
       "baseline": 77
     },
-    "diff_check": "PASS"
+    "diff_check": "PASS",
+    "rebased_backend_build": "PASS",
+    "final_budget_backend_build": "PASS"
   },
   "limitations": [
     "Live browser search handoff/current DOM unverified",
@@ -748,5 +1103,6 @@
     "Full suite has eight reproduced baseline failures: seven local DB-dependent cases and one incomplete Dzen mock"
   ],
   "uat": "PENDING",
-  "release": "NOT_DEPLOYED"
+  "release": "NOT_DEPLOYED",
+  "rebased_onto": "9e0db343924378c9fb3f5afc2765abce4a36933e"
 }

@@ -13,7 +13,7 @@ Status: LOCAL IMPLEMENTATION AND OFFLINE VERIFICATION; LIVE ENABLEMENT BLOCKED.
   `unverified` status prevents navigation. An offline fixture proves extraction
   and control flow, not current VK DOM or authenticated scope.
 - `vk_clip_playwright_ui.ts`: actual editor operations through a typed Page port:
-  upload a hash-checked MP4 once, wait up to 180 seconds for explicit processed
+  upload a hash-checked MP4 once (adapter budget 200 MiB), wait up to 180 seconds for explicit processed
   status, set/read caption after upload, inspect settings and submit once. Stories
   are forced off; comments/duets/community visibility are observed. Cover control
   presence is checked, but selected-thumbnail identity is not established.

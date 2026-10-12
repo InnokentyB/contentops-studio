@@ -37,6 +37,16 @@ test('VK Clip prepare preserves clip placement and approved MP4 without provider
     assert.equal(result.evidence.provider_upload, false);
 });
 
+test('Clip prepare rejects oversized local files before reading/uploading their bytes', async t => {
+    const root = temporaryRoot(t);
+    const job = fixture(root);
+    assert.ok(job.payload.media_path);
+    fs.truncateSync(job.payload.media_path, 200 * 1024 * 1024 + 1);
+    await assert.rejects(prepareVkBrowserPublication(job, {
+        approvedAssetRoots: [root], evidenceDir: path.join(root, 'evidence')
+    }), /VK_CLIP_ASSET_SIZE_INVALID/);
+});
+
 test('VK Clip submit fails closed before navigation when the Clip UI has not been verified', async (t) => {
     const root = temporaryRoot(t);
     let activity = 0;
