@@ -136,3 +136,13 @@ The previous site-safety denial cannot be overridden by this approval.
 LOCK, QAR, ARCH, RISK and AUT approved by the owner in this chat on 2026-10-12.
 Proceed with final scenarios, RED, isolated implementation and per-build TRUN.
 Review release readiness separately; human UAT and permitted real-provider verification remain pending.
+
+
+## Production code release authorization — 2026-10-12
+
+Owner directly requested: “пушим в прод”, fix the eight baseline errors, then
+hand the two old VK debts to Portfolio HQ for checking. This authorizes merging
+and deploying the verified code with existing live gates intact. It does not
+remove the Browser Use denial, supply a verified DOM/evidence collector, or
+authorize resending the already published Kafka Clip. Final production health
+and real task readback are required before the HQ handoff.

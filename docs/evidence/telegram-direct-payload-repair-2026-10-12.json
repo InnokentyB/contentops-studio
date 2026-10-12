@@ -1,0 +1,204 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-12",
+  "recorded_at": "2026-10-12T18:19:43.305649+00:00",
+  "base_revision": "a2888f6",
+  "branch": "codex/vk-browser-completion",
+  "authority": "Parent task reports explicit owner instruction to repair eight baseline test failures and deploy PR126; this subtask repairs six Telegram test failures only.",
+  "operator_boundary": "Offline regression harness; actual direct-publication facade/dispatcher executes against mocked provider and project/session resolution, with unreachable fake database configuration.",
+  "production_code_changed": false,
+  "files_changed": [
+    "src/tests/telegram_direct_payload.test.ts"
+  ],
+  "failure_cause": "Harness mocked PublisherService facade resolver/check methods after TelegramPublisher instance became the active dispatcher dependency. Tests therefore fell through to real socialChannel.findMany.",
+  "command": "DATABASE_URL='postgresql://offline:offline@127.0.0.1:1/offline?connect_timeout=1' TELEGRAM_BOT_TOKEN='123456:offline-test-only' SUPABASE_URL='http://127.0.0.1:54321' SUPABASE_KEY='offline-test-only' node --require ts-node/register --test src/tests/telegram_direct_payload.test.ts",
+  "configuration": "All values above are synthetic test-only fixtures. No production database, tokens, profiles or provider calls used.",
+  "runs": [
+    {
+      "id": "TG-TRUN-RED-001",
+      "exit_code": 1,
+      "passed": 3,
+      "failed": 6,
+      "skipped": 0,
+      "scenario_results": [
+        {
+          "id": "TG-DIRECT-001",
+          "scenario": "text-only direct publication sends a non-empty normalized provider payload",
+          "verdict": "FAIL",
+          "error": "Unexpected socialChannel.findMany reached unavailable fake database"
+        },
+        {
+          "id": "TG-DIRECT-002",
+          "scenario": "task-779 class payload reaches the provider with accepted text and approved image",
+          "verdict": "FAIL",
+          "error": "Unexpected socialChannel.findMany reached unavailable fake database"
+        },
+        {
+          "id": "TG-DIRECT-003",
+          "scenario": "missing Telegram text is rejected before any provider call",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "TG-DIRECT-004",
+          "scenario": "provider response without message identity is not accepted as publication",
+          "verdict": "FAIL",
+          "error": "Unexpected socialChannel.findMany reached unavailable fake database"
+        },
+        {
+          "id": "TG-DIRECT-005",
+          "scenario": "failed Bot API fallback preserves the MTProto decision trace",
+          "verdict": "FAIL",
+          "error": "Unexpected socialChannel.findMany reached unavailable fake database"
+        },
+        {
+          "id": "TG-DIRECT-006",
+          "scenario": "dry-run trace exposes a project-scoped missing session and non-server asset without dispatch",
+          "verdict": "FAIL",
+          "error": "Unexpected socialChannel.findMany reached unavailable fake database"
+        },
+        {
+          "id": "TG-DIRECT-007",
+          "scenario": "MTProto client never reuses a connected session across projects",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "TG-DIRECT-008",
+          "scenario": "MCP serializes a failed live Telegram route as structured error content",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "TG-DIRECT-009",
+          "scenario": "dry-run preview and live adapter boundary use the same normalized payload",
+          "verdict": "FAIL",
+          "error": "Unexpected socialChannel.findMany reached unavailable fake database"
+        }
+      ]
+    },
+    {
+      "id": "TG-TRUN-REPAIR-002",
+      "exit_code": 1,
+      "verdict": "COMPILATION_ERROR",
+      "errors": [
+        "After removing any casts, nullable fallback_reason and direct_publish union outputs required explicit narrowing."
+      ],
+      "resolution": "Error instanceof check, union property guards, non-null route assertion, and Zod parsing of unknown live trace preserve runtime assertions."
+    },
+    {
+      "id": "TG-TRUN-REPAIR-003",
+      "exit_code": 1,
+      "passed": 8,
+      "failed": 1,
+      "skipped": 0,
+      "errors": [
+        {
+          "scenario": "TG-DIRECT-009",
+          "error": "node:test MockTracker.method cannot inspect Prisma proxy-backed create method descriptor"
+        }
+      ],
+      "resolution": "Capture exact Prisma event delegate create function, Reflect.set isolated stub and restore original in finally."
+    },
+    {
+      "id": "TG-TRUN-GREEN-004",
+      "exit_code": 0,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "TG-TRUN-GREEN-005",
+      "exit_code": 0,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "scenario_results": [
+        {
+          "id": "TG-DIRECT-001",
+          "scenario": "text-only direct publication sends a non-empty normalized provider payload",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "TG-DIRECT-002",
+          "scenario": "task-779 class payload reaches the provider with accepted text and approved image",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "TG-DIRECT-003",
+          "scenario": "missing Telegram text is rejected before any provider call",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "TG-DIRECT-004",
+          "scenario": "provider response without message identity is not accepted as publication",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "TG-DIRECT-005",
+          "scenario": "failed Bot API fallback preserves the MTProto decision trace",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "TG-DIRECT-006",
+          "scenario": "dry-run trace exposes a project-scoped missing session and non-server asset without dispatch",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "TG-DIRECT-007",
+          "scenario": "MTProto client never reuses a connected session across projects",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "TG-DIRECT-008",
+          "scenario": "MCP serializes a failed live Telegram route as structured error content",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "id": "TG-DIRECT-009",
+          "scenario": "dry-run preview and live adapter boundary use the same normalized payload",
+          "verdict": "PASS",
+          "error": null
+        }
+      ],
+      "additional_assertions": [
+        "Every Telegram delivery resolver invocation is bound to project10/channel12.",
+        "Every mocked MTProto/session lookup receives project10."
+      ]
+    }
+  ],
+  "checks": {
+    "backend_build": "PASS",
+    "quality_gate": "PASS",
+    "quality_score": 77,
+    "baseline": 77,
+    "hard_stops": []
+  },
+  "assertions_preserved": [
+    "Exact accepted text and approved image reach mocked provider unchanged after normalization.",
+    "Missing text performs zero provider calls.",
+    "Missing provider identity cannot succeed.",
+    "Bot API failure retains project/session/target/asset/adapter/fallback trace.",
+    "Dry-run makes zero provider calls.",
+    "MTProto project isolation test retained.",
+    "MCP structured route-error serialization retained.",
+    "Dry-run/live payload parity and confirmed provider message ID retained."
+  ],
+  "changes": [
+    "Mock actual TelegramPublisher instance resolver/check methods rather than facade methods.",
+    "Use node:test typed method mocks with explicit restoration.",
+    "Remove 8 obsolete explicit any declarations/casts; retain pre-existing private-instance typing debt.",
+    "Use validated narrowing for direct_publish result unions and error route traces."
+  ],
+  "live_provider_verification": "NOT_RUN_NOT_REQUIRED_FOR_TEST_HARNESS_REPAIR",
+  "owner_uat": "Not a new user-visible feature; broader browser feature UAT remains parent-owned.",
+  "commit_push_deploy": "NOT_PERFORMED_BY_SUBAGENT"
+}
