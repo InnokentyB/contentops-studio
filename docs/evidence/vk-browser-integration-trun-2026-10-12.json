@@ -1,0 +1,752 @@
+{
+  "date": "2026-10-12",
+  "base_revision": "e17b4b6",
+  "approval": "Owner: Да, погнали! after review of LOCK/QAR/ARCH/RISK/AUT-VK-015",
+  "status": "LOCAL_IMPLEMENTATION_VERIFIED_LIVE_BLOCKED",
+  "provider_calls": 0,
+  "provider_publications": 0,
+  "provider_sessions_opened": 0,
+  "runs": [
+    {
+      "id": "ROOT-RED-001",
+      "verdict": "EXPECTED_FAILURE",
+      "scenario_errors": [
+        "clip canonical placement missing",
+        "clip handoff used wrong transport",
+        "clip proof not accepted"
+      ],
+      "log": "/tmp/vk-browser-root-red-20261012.log"
+    },
+    {
+      "id": "ROOT-RED-002",
+      "verdict": "EXPECTED_FAILURE",
+      "scenario_errors": [
+        "caption attempted before upload rather than after processing"
+      ],
+      "log": "/tmp/vk-browser-clip-sequence-red-20261012.log"
+    },
+    {
+      "id": "ROOT-RED-003",
+      "verdict": "EXPECTED_FAILURE",
+      "scenario_errors": [
+        "post confirmation validator absent"
+      ],
+      "log": "/tmp/vk-post-confirmation-red-20261012.log"
+    },
+    {
+      "id": "ROOT-RED-004",
+      "verdict": "EXPECTED_FAILURE",
+      "scenario_errors": [
+        "operator error redaction absent"
+      ],
+      "log": "/tmp/vk-browser-error-red-20261012.log"
+    },
+    {
+      "id": "ROOT-GREEN-INTEGRATED-001",
+      "tests": 122,
+      "pass": 122,
+      "fail": 0,
+      "skipped": 0,
+      "verdict": "PASS",
+      "log": "/tmp/vk-browser-integrated-tests-20261012.log"
+    },
+    {
+      "id": "ROOT-REGRESSION-001",
+      "verdict": "FAIL",
+      "scenario_errors": [
+        "local fixture response omitted UTF-8 charset; Russian button label unavailable"
+      ],
+      "correction": "explicit UTF-8 content type",
+      "log": "/tmp/vk-browser-clean-full-tests-20261012.log"
+    },
+    {
+      "id": "ROOT-FULL-FINAL",
+      "verdict": "FAIL_BASELINED",
+      "results": {
+        "tests": 903,
+        "pass": 895,
+        "fail": 8,
+        "skipped": 0,
+        "cancelled": 0
+      },
+      "failing_scenarios": [
+        "1036 dry-run checks exact release and cover, never calls the provider or mutates",
+        "preparePublicationTask leaves an approval-required task and stale bundle untouched",
+        "text-only direct publication sends a non-empty normalized provider payload",
+        "task-779 class payload reaches the provider with accepted text and approved image",
+        "provider response without message identity is not accepted as publication",
+        "failed Bot API fallback preserves the MTProto decision trace",
+        "dry-run trace exposes a project-scoped missing session and non-server asset without dispatch",
+        "dry-run preview and live adapter boundary use the same normalized payload"
+      ],
+      "log": "/tmp/vk-browser-final-full-tests-20261012.log"
+    },
+    {
+      "id": "BASELINE-FULL",
+      "verdict": "FAIL",
+      "results": {
+        "tests": 822,
+        "pass": 814,
+        "fail": 8,
+        "skipped": 0,
+        "cancelled": 0
+      },
+      "failing_scenarios": [
+        "1036 dry-run checks exact release and cover, never calls the provider or mutates",
+        "preparePublicationTask leaves an approval-required task and stale bundle untouched",
+        "text-only direct publication sends a non-empty normalized provider payload",
+        "task-779 class payload reaches the provider with accepted text and approved image",
+        "provider response without message identity is not accepted as publication",
+        "failed Bot API fallback preserves the MTProto decision trace",
+        "dry-run trace exposes a project-scoped missing session and non-server asset without dispatch",
+        "dry-run preview and live adapter boundary use the same normalized payload"
+      ],
+      "log": "/tmp/vk-browser-baseline-tests-20261012.log"
+    },
+    {
+      "id": "ROOT-GREEN-FINAL",
+      "verdict": "PASS",
+      "tests": 123,
+      "pass": 123,
+      "fail": 0,
+      "skipped": 0,
+      "scenario_results": [
+        {
+          "title": "VK Clip prepare preserves clip placement and approved MP4 without provider activity",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK Clip submit fails closed before navigation when the Clip UI has not been verified",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip orchestration confirms only a new exact provider short_video with complete evidence",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback old_object cannot create a publication fact or retry",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback ordinary_video cannot create a publication fact or retry",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback wrong_owner cannot create a publication fact or retry",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback wrong_caption cannot create a publication fact or retry",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback wrong_media cannot create a publication fact or retry",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback old_timestamp cannot create a publication fact or retry",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback future_timestamp cannot create a publication fact or retry",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback missing_media cannot create a publication fact or retry",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback wrong_kind cannot create a publication fact or retry",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback invented_timestamp cannot create a publication fact or retry",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip baseline incomplete stops before attempt start and provider upload",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip baseline stale stops before attempt start and provider upload",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip baseline wrong_owner stops before attempt start and provider upload",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip baseline unbounded stops before attempt start and provider upload",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "existing uncertain Clip attempt is not uploaded or resubmitted",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "confirmed Clip idempotency replay skips provider upload and returns the prior fact",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip submit acknowledgement loss marks uncertainty and performs no retry",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip rejects images and fake MP4 bytes before provider navigation",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip baseline timeout stops before durable attempt and provider mutation",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Playwright has no fabricated live Clip selectors and its default port is blocked",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback rejects noncanonical URL /clip-240051152_11",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback rejects noncanonical URL /clip-240051152_11",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback rejects noncanonical URL /clip-240051152_11",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback rejects noncanonical URL /clip-240051152_11",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback rejects noncanonical URL /clip-240051152_11",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback rejects noncanonical URL /clip-240051152_0",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip readback rejects noncanonical URL /clip-240051152_011",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "raw provider errors are sanitized before reaching worker output or uncertain metadata",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "upload deadline freezes uncertainty and late upload completion never chains into submit",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "pre-mutation baseline provider errors are sanitized without starting a provider attempt",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "operator errors preserve known blocker codes without provider secrets",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "owner release creates one exact VK browser work item without contacting VK",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "owner release preserves the exact article, video or Story placement in the browser lease",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK release fails closed on owner, revision, asset, fact and manifest drift",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Publisher can request VK browser release while the service keeps the owner membership guard",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "POST-015-01 stale matching wall post cannot confirm a new submission",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "POST-015-02 unique new same-owner object uses observed provider date",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "POST-015-03 existing ID remains stale even when DOM date changes",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "POST-015-04 older object missing from baseline is excluded by date",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "POST-015-05 foreign owner and hostile permalink cannot confirm",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "POST-015-06 missing timestamp or two matching new objects stays uncertain",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "POST-015-07 expired or foreign baseline blocks confirmation",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "POST-015 proof rejects stale, foreign, ambiguous and undated DOM candidates",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "POST-015-08 absolute provider date parser rejects relative and conflicting metadata",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK pre-provider recovery preview returns an exact no-provider bounded diff",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK pre-provider recovery apply atomically rearms the same work item and is idempotent",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK pre-provider recovery rejects stale attempt evidence with zero writes",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK pre-submit recovery preview records upload evidence and exact public absence",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK pre-submit recovery apply preserves facts, closes the attempt and rearms idempotently",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK pre-submit recovery refuses any failure other than exact readback absence",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "SEARCH-001 relevant-first query returns attributable canonical fresh post",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "SEARCH-002 unknown dates and off-topic provider results never become fresh evidence",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "SEARCH-003 keeps scrolling past old ranked result, expands full text and deduplicates identity",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "SEARCH-004 strict job/query/scope boundary and unverified live gate perform no navigation",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "SEARCH-005 unique-post and scroll budgets report partial coverage without activity claims",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "SEARCH-006 timeout and provider errors are bounded and never expose cookies or tokens",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "SEARCH-007 strips provider URL queries and treats hostile post text as data",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "SEARCH-008 missing authors, future timestamps and one repeated lexical concept remain exclusions",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "SEARCH-DOM-001 offline HTML expands text, preserves author/date and canonicalizes wall overlay identity",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK browser start atomically creates one pending attempt before provider mutation",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK browser confirmation records a fact only for the exact provider identity and lease",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK browser confirmation binds article, video and Story facts to their exact placement identity",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK browser uncertain result never records a fact and cannot create a second attempt",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK browser start permits one new attempt only after audited pre-provider recovery",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "local VK worker prepare-only validates the exact approved payload without touching VK",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK browser prepare supports article, video and story with format-specific approved media",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK browser rich-media contracts fail closed on missing title, media or wrong media kind",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "local VK worker materializes the approved HTTPS asset before opening the composer",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "local VK worker rejects ambiguous image sources",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "local VK worker never attaches an image without its approved asset binding",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "local VK worker prepare-only does not require a live browser session",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "local VK worker refuses unapproved, stale or live-submit jobs",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "local VK worker constrains target host and approved asset roots",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "local VK worker evidence never includes cookies, profile data or publication text",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "current VK community UI opens the wall composer through Create then Post",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK browser detects the provider anti-bot challenge by URL or verified challenge copy and control",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK browser treats the current guest Sign in link as a missing dedicated-profile session",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "current VK community UI routes article, video and Story through distinct Create menu items",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "current VK contenteditable verifies exact visible text including paragraph breaks",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "current VK composer uses its own uploader and waits for a rendered preview",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "current VK composer submits through the page-level posting submit control",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK browser submit requires durable authorization before opening the provider composer",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK browser submit starts one durable attempt, verifies exact readback, then confirms",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK browser article submit uses the same format-specific bundle validated by prepare",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK browser readback accepts provider-added blank lines without changing words",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK browser submit freezes an ambiguous provider result and never confirms it",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK browser composer failure happens before a durable attempt or provider upload",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK browser challenge captures diagnostic evidence and fails before composer or durable attempt",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK browser submit never retries an existing unresolved provider attempt",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "CLI prepare-only runs locally without opening Chrome or requiring an MCP token",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "CLI submit refuses to open Chrome without a Publisher MCP token",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "unverified live Clip stops before Publisher connection or browser launch",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "exact fresh Clip proof records one video fact with a Clip permalink",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip confirmation rejects absent or mismatched proof without writing a fact",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "cancelled Clip or stale revision is never confirmed from valid provider proof",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "clip fact transaction locks exact accepted task, approved asset, attempt and live lease",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "clip fact rejects changed revision, route, snapshot and approval before fact creation",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "clip fact CAS conflict blocks the write",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK Clip metrics stay manual while ordinary VK video uses provider API",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "clip fact refuses lost lease, uncertain attempt or changed approved media",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "clip fact rechecks MP4 metadata inside the transaction",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "VK Clip is an explicit canonical artifact and transport with manual authority",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "generated and imported clip handoffs bind the selected MP4 and accepted revision",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "clip handoff refuses missing, stale, image and unhashed assets even without optional acceptance flag",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "legacy VK feed MP4 remains ordinary video without implicit clip conversion",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "exact owner release queues approved Clip while preserving the explicit clip placement",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip release refuses ordinary feed conversion, non-owner, prior attempt and existing publication",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip release blocks image, missing size, and nonportrait editorial assets before queueing",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "Clip driver processes only local DOM fixtures and rejects premature or unverifiable confirmation",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "missing verification and independent provider collector fail before any navigation",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "provider relative date, missing media binding and wrong community cannot confirm a fixture Clip",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "server accepts exact new wall evidence with provider publication time",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "server rejects old object post evidence",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "server rejects foreign owner post evidence",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "server rejects invented clock post evidence",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "server rejects before submission post evidence",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "server rejects future post evidence",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "server rejects stale baseline post evidence",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "server rejects missing date post evidence",
+          "verdict": "PASS",
+          "error": null
+        },
+        {
+          "title": "server rejects missing baseline post evidence",
+          "verdict": "PASS",
+          "error": null
+        }
+      ],
+      "log": "/tmp/vk-browser-final-focused-20261012.log"
+    }
+  ],
+  "new_regression_failures": [],
+  "validation": {
+    "backend_build": "PASS",
+    "frontend_build": "PASS",
+    "quality_gate": {
+      "verdict": "PASS",
+      "score": 77,
+      "baseline": 77
+    },
+    "diff_check": "PASS"
+  },
+  "limitations": [
+    "Live browser search handoff/current DOM unverified",
+    "Clip independent evidence collector unavailable; default live gate remains blocked",
+    "Exact provider media identity and database concurrency require permitted UAT",
+    "Full suite has eight reproduced baseline failures: seven local DB-dependent cases and one incomplete Dzen mock"
+  ],
+  "uat": "PENDING",
+  "release": "NOT_DEPLOYED"
+}

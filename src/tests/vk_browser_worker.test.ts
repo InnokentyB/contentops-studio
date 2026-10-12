@@ -3,6 +3,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { createServer } from 'node:http';
+import { chromium } from 'playwright';
 import {
     prepareVkBrowserPublication,
     submitVkBrowserPublication,
@@ -433,25 +435,27 @@ test('current VK composer uses its own uploader and waits for a rendered preview
 });
 
 test('current VK composer submits through the page-level posting submit control', async () => {
-    const calls: string[] = [];
-    const next = { click: async () => { calls.push('next'); } };
-    const publish = {
-        waitFor: async () => { calls.push('publish_visible'); },
-        click: async () => { calls.push('publish'); }
-    };
-    const page = {
-        getByRole: () => ({ last: () => next }),
-        locator: (selector: string) => ({
-            last: () => {
-                assert.equal(selector, '[data-testid="posting_submit_button"]');
-                return publish;
-            }
-        })
-    };
-
-    await new PlaywrightVkBrowserUi(page as any).submitPost();
-
-    assert.deepEqual(calls, ['next', 'publish_visible', 'publish_visible', 'publish']);
+    const html = `<button>Далее</button><button data-testid="posting_submit_button" onclick="document.body.dataset.published='true'">Опубликовать</button>`;
+    const server = createServer((_request, response) => {
+        response.setHeader('Content-Type', 'text/html; charset=utf-8'); response.end(html);
+    });
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+    const browser = await chromium.launch({ channel: 'chrome', headless: true });
+    try {
+        const address = server.address();
+        if (!address || typeof address === 'string') throw new Error('Local fixture unavailable');
+        const page = await browser.newPage();
+        await page.route('**/*', route => new URL(route.request().url()).hostname === '127.0.0.1'
+            ? route.continue() : route.abort());
+        const ui = new PlaywrightVkBrowserUi(page);
+        await ui.navigate(`http://127.0.0.1:${address.port}/club240051152`);
+        await ui.capturePostBaseline();
+        await ui.submitPost();
+        assert.equal(await page.locator('body').getAttribute('data-published'), 'true');
+    } finally {
+        await browser.close();
+        await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+    }
 });
 
 function submitFixture(imagePath: string) {
