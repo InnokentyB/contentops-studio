@@ -100,3 +100,38 @@ test('task1132 repair fails closed when accepted bytes changed', async () => {
     }), /GUARD_FAILED/);
     assert.equal(h.events.length, 0);
 });
+
+test('task1132 repair preserves and permits an explicitly pre-provider failed attempt', async () => {
+    const h = harness();
+    h.db.deliveryAttempt.findFirst = async () => ({ id: 81, status: 'failed',
+        requires_manual_confirmation: false,
+        error_message: '[BROWSER_PRE_PROVIDER_ABORT_CONFIRMED]' });
+    const result = await repairLinkedInTask1132Language({
+        projectId: 7, taskId: 1132, actorId: 'user:2',
+        expectedManifestChecksum: LINKEDIN1132_LANGUAGE.manifest,
+        expectedBodySha256: LINKEDIN1132_LANGUAGE.bodySha,
+        expectedScheduleAt: LINKEDIN1132_LANGUAGE.schedule,
+        idempotencyKey: 'p7-1132-language-pre-provider', confirm: true
+    }, h.db, {
+        hashBody: () => LINKEDIN1132_LANGUAGE.bodySha,
+        manifestLoader: async () => ({ checksum: LINKEDIN1132_LANGUAGE.manifest }) as never
+    });
+    assert.equal('provider_called' in result && result.provider_called, false);
+    assert.equal(h.qualityReport.content_language, 'en');
+});
+
+test('task1132 repair blocks an uncertain attempt', async () => {
+    const h = harness();
+    h.db.deliveryAttempt.findFirst = async () => ({ id: 82, status: 'pending',
+        requires_manual_confirmation: true, error_message: '[BROWSER_READBACK_UNCONFIRMED]' });
+    await assert.rejects(repairLinkedInTask1132Language({
+        projectId: 7, taskId: 1132, actorId: 'user:2',
+        expectedManifestChecksum: LINKEDIN1132_LANGUAGE.manifest,
+        expectedBodySha256: LINKEDIN1132_LANGUAGE.bodySha,
+        expectedScheduleAt: LINKEDIN1132_LANGUAGE.schedule,
+        idempotencyKey: 'p7-1132-language-uncertain', confirm: true
+    }, h.db, {
+        hashBody: () => LINKEDIN1132_LANGUAGE.bodySha,
+        manifestLoader: async () => ({ checksum: LINKEDIN1132_LANGUAGE.manifest }) as never
+    }), /GUARD_FAILED/);
+});

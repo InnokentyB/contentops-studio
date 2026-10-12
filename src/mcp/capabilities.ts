@@ -140,6 +140,17 @@ const EDITOR_TOOLS = new Set([
 ]);
 
 const PUBLISHER_TOOLS = new Set([
+    'ba_release_medium_task1133_browser',
+    'ba_claim_medium_task1133_browser_publication',
+    'ba_start_medium_task1133_browser_submission',
+    'ba_confirm_medium_task1133_browser_submission',
+    'ba_mark_medium_task1133_browser_submission_uncertain',
+    'ba_diagnose_linkedin_task1132_browser',
+    'ba_release_linkedin_task1132_browser',
+    'ba_claim_linkedin_task1132_browser_publication',
+    'ba_start_linkedin_task1132_browser_submission',
+    'ba_confirm_linkedin_task1132_browser_submission',
+    'ba_mark_linkedin_task1132_browser_submission_uncertain',
     'ba_repair_linkedin_task1132_language',
     'ba_cancel_task1001_owner',
     'ba_get_agent_workspace_manifest',

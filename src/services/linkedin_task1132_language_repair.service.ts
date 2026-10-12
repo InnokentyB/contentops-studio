@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import prisma from '../db';
 import { loadAgentWorkspaceManifest } from './agent_workspace_manifest.service';
+import { classifyPriorAttempt } from './exact_browser_publication_1133_1132.service';
 
 export const LINKEDIN1132_LANGUAGE = {
     projectId: 7,
@@ -30,7 +31,8 @@ type DbPort = {
         findFirst(args: unknown): Promise<TaskRecord | null>;
         updateMany(args: unknown): Promise<{ count: number }>;
     };
-    deliveryAttempt: { findFirst(args: unknown): Promise<{ id: number } | null> };
+    deliveryAttempt: { findFirst(args: unknown): Promise<{ id: number; status: string;
+        requires_manual_confirmation: boolean; error_message: string | null } | null> };
     workItem: { findFirst(args: unknown): Promise<{ id: number } | null> };
     workflowEvent: {
         findFirst(args: unknown): Promise<{ before_state: unknown; after_state: unknown } | null>;
@@ -69,7 +71,7 @@ async function exactTask(db: DbPort, hashBody: (body: string) => string) {
         db.deliveryAttempt.findFirst({ where: {
             project_id: LINKEDIN1132_LANGUAGE.projectId,
             content_item_id: LINKEDIN1132_LANGUAGE.taskId
-        } }),
+        }, orderBy: { attempt_number: 'desc' } }),
         db.workItem.findFirst({ where: {
             project_id: LINKEDIN1132_LANGUAGE.projectId,
             content_item_id: LINKEDIN1132_LANGUAGE.taskId,
@@ -95,7 +97,7 @@ async function exactTask(db: DbPort, hashBody: (body: string) => string) {
         || hashBody(task.draft_text || '') !== LINKEDIN1132_LANGUAGE.bodySha
         || task.schedule_at?.toISOString() !== LINKEDIN1132_LANGUAGE.schedule
         || task.publish_at?.toISOString() !== LINKEDIN1132_LANGUAGE.schedule
-        || task.publication_fact || task.published_link || attempt || browserWorkItem
+        || task.publication_fact || task.published_link || !classifyPriorAttempt(attempt).retrySafe || browserWorkItem
         || quality.owner_release !== undefined || quality.content_language !== undefined
         || handoff.content_language !== 'ru') {
         throw new Error('[LINKEDIN1132_LANGUAGE_GUARD_FAILED] Exact accepted package changed');
