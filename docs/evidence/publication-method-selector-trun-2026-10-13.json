@@ -1,0 +1,97 @@
+{
+  "specification": "docs/tdpd/018-publication-card-method-selector.md",
+  "ownerApproval": "2026-10-13: Давай, делай",
+  "red": {
+    "tests": 2,
+    "fail": 2,
+    "reason": "Publication method selector absent on real card, mocked API fixture"
+  },
+  "repairRuns": [
+    {
+      "result": "ERROR",
+      "reason": "JSX closing tag placement; corrected before validation"
+    },
+    {
+      "result": "ERROR",
+      "reason": "Unused action title after removing duplicate publish button; preserved in panel"
+    },
+    {
+      "result": "FAIL",
+      "reason": "Browser run overlapped implementation edits; clean final run required"
+    }
+  ],
+  "green": {
+    "browserScenarios": [
+      {
+        "id": "UI018-01",
+        "description": "desktop selection causes no writes",
+        "verdict": "PASS"
+      },
+      {
+        "id": "UI018-02",
+        "description": "375px selection causes no writes",
+        "verdict": "PASS"
+      },
+      {
+        "id": "UI018-03",
+        "description": "status failure blocks execution and generic fact write",
+        "verdict": "PASS"
+      },
+      {
+        "id": "UI018-04",
+        "description": "non-VK explicit publish uses existing endpoint once",
+        "verdict": "PASS"
+      },
+      {
+        "id": "UI018-05",
+        "description": "uncertain pilot permits no competing fact",
+        "verdict": "PASS"
+      },
+      {
+        "id": "UI018-06",
+        "description": "stale status fails closed",
+        "verdict": "PASS"
+      },
+      {
+        "id": "UI018-07",
+        "description": "confirmed pilot shows existing-result panel",
+        "verdict": "PASS"
+      }
+    ],
+    "backendBoundaryTests": {
+      "authenticatedScopedRead": "PASS",
+      "sanitizedReadFailure": "PASS",
+      "activeJobFactGuard": "PASS",
+      "resolvedJobFactCorrection": "PASS"
+    },
+    "regression": {
+      "tests": 1053,
+      "pass": 1053,
+      "fail": 0,
+      "skip": 0
+    },
+    "backendBuild": "PASS",
+    "frontendBuild": "PASS",
+    "uiContracts": "PASS",
+    "qualityGate": "PASS (existing baseline 77)",
+    "designDetector": "PASS (no findings)",
+    "visualInspection": "desktop and 375px local fixture",
+    "regressionAfterMainSync": {
+      "tests": 1077,
+      "pass": 1077,
+      "fail": 0,
+      "skip": 0,
+      "base": "20ebb8fde694609471c97b003e22220738cac868"
+    }
+  },
+  "sourceContractLimits": [
+    "UI choice changes presentation only; no task status or publication_mode update",
+    "VK adapter send remains disabled in this bounded slice",
+    "New status endpoint derives actor/project/task; no client-selected job or actor",
+    "Active pilot result cannot be recorded through generic fact form; internal canonical fence retained"
+  ],
+  "productionProviderActions": 0,
+  "providerUat": "NOT_PERFORMED",
+  "ownerUat": "PENDING",
+  "commitPushDeploy": "PR140 pushed; CI PASS; deployment pending"
+}

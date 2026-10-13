@@ -5,6 +5,7 @@ import { format } from 'date-fns'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { projectsApi, publicationTasksApi } from '../api'
 import { useAuth } from '../context/auth'
+import PublicationMethodPanel from '../components/PublicationMethodPanel'
 import ContentMarkupRenderer from '../components/ContentMarkupRenderer'
 import ResourcePreviewCard from '../components/ResourcePreviewCard'
 import { useLocale } from '../i18n/locale'
@@ -1707,19 +1708,7 @@ export default function PublicationTasks() {
                                                     {prepareHandoff.isPending ? copy.preparing : prepareButtonLabel}
                                                 </button>
                                             )}
-                                            {canPublishNow && (
-                                                <button
-                                                    onClick={() => publishTaskNow.mutate()}
-                                                    disabled={publishButtonDisabled}
-                                                    className="w-full ai-gradient text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 inline-flex items-center justify-center gap-2"
-                                                    title={executionMode === 'manual'
-                                                        ? publicationActionTitle
-                                                        : tr('Запустить публикацию через подключённый адаптер', 'Publish through the connected adapter')}
-                                                >
-                                                    <span className="material-symbols-outlined text-base">send</span>
-                                                    {publishTaskNow.isPending ? copy.publishing : (executionMode === 'manual' ? copy.publishChannel : copy.publishNow)}
-                                                </button>
-                                            )}
+
                                         </div>
                                     </div>
 
@@ -2048,13 +2037,19 @@ export default function PublicationTasks() {
                                                     <div>
                                                         <h3 className="text-lg font-headline font-black text-on-surface">{copy.publication}</h3>
                                                         <p className="mt-1 text-xs text-on-surface-variant leading-5">
-                                                            {activeTask.published_link ? copy.resultRecorded : copy.publishAndSave}
+                                                            {activeTask.published_link ? copy.resultRecorded : tr('Выберите действие: публикация через адаптер или запись существующего результата.', 'Choose adapter publication or record an existing result.')}
                                                         </p>
                                                     </div>
                                                     <dl className="grid grid-cols-2 gap-3 text-sm">
                                                         <div><dt className="text-xs text-on-surface-variant">{copy.channel}</dt><dd className="mt-1 font-bold break-words">{activeTask.channel?.name || taskChannel(activeTask)}</dd></div>
                                                         <div><dt className="text-xs text-on-surface-variant">{copy.mode}</dt><dd className="mt-1 font-bold">{executionMode}</dd></div>
                                                     </dl>
+                                                    <PublicationMethodPanel key={`${currentProject?.id}:${activeTask.id}`}
+                                                        taskId={activeTask.id} projectId={currentProject?.id || 0}
+                                                        isVk={activeTask.channel?.type.trim().toLowerCase() === 'vk'}
+                                                        published={Boolean(publicationFact || activeTask.published_link)} actionTitle={publicationActionTitle}
+                                                        canPublish={canPublishNow && !publishButtonDisabled} busy={publishTaskNow.isPending || confirmPublication.isPending}
+                                                        locale={locale} onPublish={() => publishTaskNow.mutate()}>
                                                     <label className="block">
                                                         <span className="text-sm font-bold text-on-surface">{copy.placementType}</span>
                                                         <select
@@ -2153,6 +2148,7 @@ export default function PublicationTasks() {
                                                             {publicationFact.confirmed_by && <div className="break-words">{copy.actor}: {publicationFact.confirmed_by}</div>}
                                                         </div>
                                                     )}
+                                                    </PublicationMethodPanel>
                                                 </div>
 
                                                 {publicationFact && (
