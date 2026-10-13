@@ -4,14 +4,14 @@ import prisma from '../db';
 import { buildVkConnectorSnapshot } from './vk_connector_package';
 import { requireProjectAccess, requireProjectOwner } from './work_queue/auth';
 import { type ConnectorJob, type ConnectorHost,
-    type ConnectorRepository, type ConnectorStore, type ConnectorState } from './vk_connector_contract';
+    type ConnectorRepository, type ConnectorStore, type ConnectorState, connectorHash, connectorPackageHash, connectorSecretEqual } from './vk_connector_contract';
 
 const hex = z.string().regex(/^[a-f0-9]{64}$/);
 export const ConnectorBindingSchema = z.object({ projectId: z.literal(10), taskId: z.literal(1048),
     channelId: z.literal(117), communityId: z.literal(-240051152), revision: z.literal(1),
     selectedAssetId: z.literal(130), placement: z.literal('feed'), bodySha256: hex,
     assetSha256: hex, releaseSha256: hex }).strict();
-const states = z.enum(['queued', 'accepted', 'blocked', 'verification_required', 'confirmed']);
+const states = z.enum(['queued', 'accepted', 'blocked', 'verification_required', 'confirmed', 'reconciling', 'ready', 'executing', 'cancelled']);
 function invalid(): never { throw new Error('[VK_CONNECTOR_PACKAGE_NOT_READY]'); }
 function toJob(row: ConnectorDispatchJob): ConnectorJob {
     const binding = ConnectorBindingSchema.safeParse(row.binding), state = states.safeParse(row.state);
@@ -21,19 +21,45 @@ function toJob(row: ConnectorDispatchJob): ConnectorJob {
         packageSha256: row.package_sha256, idempotencyKey: row.idempotency_key, state: state.data,
         hostId: row.host_id, instanceId: row.consumer_instance_id, generation: row.generation,
         receiptAt: row.receipt_at, updatedAt: row.updated_at, blocker: row.blocker_code,
-        attemptId: row.attempt_id, factId: row.publication_fact_id };
+        attemptId: row.attempt_id, factId: row.publication_fact_id, canonicalLeaseSha256: row.canonical_lease_sha256,
+        canonicalLeaseExpiresAt: row.canonical_lease_expires_at };
 }
 function toHost(row: ConnectorHostStatus): ConnectorHost {
-    if (row.mode !== 'infrastructure_only') throw new Error('[VK_CONNECTOR_HOST_MODE_INVALID]');
+    if (row.mode !== 'infrastructure_only' && row.mode !== 'vk_feed_provider') throw new Error('[VK_CONNECTOR_HOST_MODE_INVALID]');
     return { projectId: row.project_id, hostId: row.host_id, instanceId: row.instance_id,
         buildVersion: row.build_version, heartbeatAt: row.heartbeat_at,
-        mode: 'infrastructure_only', blocker: row.blocker_code };
+        mode: row.mode, blocker: row.blocker_code };
 }
 function storeFor(tx: Prisma.TransactionClient): ConnectorStore {
     return {
         authorize: async (p, actor, mutation) => {
             if (mutation) await requireProjectOwner(tx, p, actor);
             else await requireProjectAccess(tx, p, actor, 'work_queue:read');
+        },
+        bindLease: async (p, actor, token, expires) => {
+            const row = await tx.workItem.findFirst({ where: { id: 1699, project_id: p, content_item_id: 1048 },
+                select: { state: true, lease_token: true, lease_actor_id: true, lease_expires_at: true, updated_at: true } });
+            if (!row || row.state !== 'claimed' || row.lease_actor_id !== actor || !row.lease_token || !connectorSecretEqual(row.lease_token, token)
+                || !row.lease_expires_at || row.lease_expires_at.getTime() <= Date.now()
+                || row.lease_expires_at.toISOString() !== expires) throw new Error('[VK_CONNECTOR_FENCED]');
+            if ((await tx.workItem.updateMany({ where: { id: 1699, project_id: p, updated_at: row.updated_at,
+                lease_actor_id: actor, lease_token: token }, data: { updated_at: row.updated_at } })).count !== 1) throw new Error('[VK_CONNECTOR_CAS_CONFLICT]');
+        },
+        commandResult: async (p, actor, command, key) => (await tx.workflowEvent.findFirst({ where: {
+            project_id: p, actor_id: actor, command, idempotency_key: key }, select: { after_state: true } }))?.after_state,
+        executionPackage: async (p, id) => {
+            const task = await tx.contentItem.findFirst({ where: { project_id: p, id },
+                select: { draft_text: true, selected_asset: { select: { file_url: true } }, quality_report: true } });
+            const snapshot = await storeFor(tx).snapshot(p, id);
+            if (!task || connectorHash(task.draft_text?.trim() || '') !== snapshot.package.bodySha256) invalid();
+            const release = z.object({ owner_release: z.object({ approval_reference: z.string().min(10),
+                released_at: z.iso.datetime() }) }).parse(task.quality_report).owner_release;
+            const url = z.url().parse(task.selected_asset?.file_url);
+            if (new URL(url).protocol !== 'https:' || new URL(url).username || new URL(url).password) invalid();
+            return { binding: snapshot.package, packageSha256: connectorPackageHash(snapshot.package),
+                body: task.draft_text?.trim() || '', asset: { id: 130, url, sha256: snapshot.package.assetSha256 },
+                approvalReference: release.approval_reference, releasedAt: release.released_at, workItemId: 1699,
+                permissionStatus: 'NOT_CHECKED', providerExecution: 'blocked' };
         },
         snapshot: async (p, id) => {
             if (p !== 10 || id !== 1048) invalid();
@@ -55,12 +81,13 @@ function storeFor(tx: Prisma.TransactionClient): ConnectorStore {
         updateJob: async (id, generation, state: ConnectorState, patch) => {
             const result = await tx.connectorDispatchJob.updateMany({ where: { id, generation, state }, data: {
                 state: patch.state, host_id: patch.hostId, consumer_instance_id: patch.instanceId,
-                generation: patch.generation, receipt_at: patch.receiptAt, blocker_code: patch.blocker,
+                generation: patch.generation, canonical_lease_sha256: patch.canonicalLeaseSha256,
+                canonical_lease_expires_at: patch.canonicalLeaseExpiresAt, receipt_at: patch.receiptAt, blocker_code: patch.blocker,
                 attempt_id: patch.attemptId, publication_fact_id: patch.factId, updated_at: patch.updatedAt } });
             return result.count === 1;
         },
         candidates: async p => (await tx.connectorDispatchJob.findMany({ where: { project_id: p,
-            state: { in: ['queued', 'accepted'] } }, orderBy: { created_at: 'asc' }, take: 10 })).map(toJob),
+            state: { in: ['queued', 'accepted', 'reconciling', 'ready', 'executing'] } }, orderBy: { created_at: 'asc' }, take: 10 })).map(toJob),
         host: async (p, id) => { const r = await tx.connectorHostStatus.findUnique({ where: { project_id_host_id: { project_id: p, host_id: id } } }); return r ? toHost(r) : null; },
         saveHost: async h => {
             const data = { instance_id: h.instanceId, build_version: h.buildVersion, heartbeat_at: h.heartbeatAt,
@@ -69,7 +96,7 @@ function storeFor(tx: Prisma.TransactionClient): ConnectorStore {
                 create: { project_id: h.projectId, host_id: h.hostId, ...data }, update: data });
         },
         event: async (p, task, actor, command, data) => { await tx.workflowEvent.create({ data: {
-            project_id: p, content_item_id: task, actor_id: actor, command, after_state: { ...data } } }); }
+            project_id: p, content_item_id: task, actor_id: actor, command, idempotency_key: data.idempotencyKey, after_state: { ...data } } }); }
     };
 }
 export const vkConnectorRepository: ConnectorRepository = {

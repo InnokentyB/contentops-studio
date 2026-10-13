@@ -245,3 +245,33 @@ test('CONSUMER-017 environment credential source is exclusive, pinned and unavai
         process.env[name] = '   '; assert.throws(() => readVkConnectorToken(config), /AUTH_UNAVAILABLE/);
     } finally { if (original === undefined) delete process.env[name]; else process.env[name] = original; }
 });
+test('CONSUMER-018 provider surface selection cannot grant admission or perform execution package fetch', async () => {
+    const f = fixtureControl(); const original = f.control.call;
+    f.control.call = async (name, args) => {
+        if (name === 'ba_poll_vk_connector_jobs') {
+            f.calls.push({ name, args }); return { jobs: [job], health: { ...health, mode: 'vk_feed_provider' } };
+        }
+        const output = await original(name, args);
+        return name === 'ba_report_vk_connector_job' ? { ...(typeof output === 'object' && output !== null ? output : {}), blocker: 'PROVIDER_PERMISSION_UNVERIFIED' } : output;
+    };
+    const result = await consumeVkConnectorOnce({ ...identity, mode: 'vk_feed_provider' }, f.control);
+    assert.equal(result.mode, 'vk_feed_provider');
+    assert.equal(result.blocker, 'PROVIDER_PERMISSION_UNVERIFIED');
+    assert.equal(f.calls.some((call) => /execution_package|claim|submission/.test(call.name)), false);
+});
+test('CONSUMER-019 idle provider mode records unverified admission rather than a fresh control denial', async () => {
+    const f = fixtureControl([]);
+    f.control.call = async () => ({ jobs: [], health: { ...health, mode: 'vk_feed_provider' } });
+    const result = await consumeVkConnectorOnce({ ...identity, mode: 'vk_feed_provider' }, f.control);
+    assert.equal(result.blocker, 'PROVIDER_PERMISSION_UNVERIFIED');
+    assert.equal(result.mode, 'vk_feed_provider');
+    assert.deepEqual(result.receipts, []);
+});
+test('CONSUMER-020 provider lock records requested surface while admission remains unverified', (t) => {
+    const f = localConfig(t); const config = { ...f.config, mode: 'vk_feed_provider' as const };
+    const lock = acquireVkConnectorLock(config);
+    const raw = fs.readFileSync(path.join(config.runtimeDir, 'consumer.lock'), 'utf8');
+    assert.equal(z.object({ mode: z.literal('vk_feed_provider') }).parse(JSON.parse(raw)).mode, 'vk_feed_provider');
+    lock.release();
+    assert.equal(fs.existsSync(path.join(config.runtimeDir, 'consumer.lock')), false);
+});

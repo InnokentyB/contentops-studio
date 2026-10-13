@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
+import type { Vk1048OfflineHarness } from './vk1048_provider_execution';
 import { connectorPackageHash } from './vk_connector_contract';
 
 const Hash = z.string().regex(/^[a-f0-9]{64}$/);
@@ -10,7 +11,7 @@ const ConfigBaseSchema = z.object({
     projectId: z.literal(10), hostId: z.literal('vk-connector-local-1048'),
     endpoint: z.literal('https://planner-mcp-production.up.railway.app/mcp/publisher'),
     runtimeDir: z.string().refine(path.isAbsolute),
-    mode: z.literal('infrastructure_only'), buildVersion: z.string().min(1).max(100)
+    mode: z.enum(['infrastructure_only', 'vk_feed_provider']), buildVersion: z.string().min(1).max(100)
 }).strict();
 export const VkConnectorConfigSchema = z.union([
     ConfigBaseSchema.extend({ tokenFile: z.string().refine(path.isAbsolute) }),
@@ -24,9 +25,10 @@ export const VkConnectorPilotPackageSchema = z.object({ projectId: z.literal(10)
     bodySha256: Hash, assetSha256: Hash, releaseSha256: Hash }).strict();
 export type VkConnectorPilotPackage = z.infer<typeof VkConnectorPilotPackageSchema>;
 const IdentitySchema = z.object({ projectId: z.literal(10), actorId: z.literal('user:0'), hostId: z.literal('vk-connector-local-1048'),
-    instanceId: z.string().uuid(), buildVersion: z.string().min(1).max(100) }).strict();
+    instanceId: z.string().uuid(), buildVersion: z.string().min(1).max(100),
+    mode: z.enum(['infrastructure_only', 'vk_feed_provider']).default('infrastructure_only') }).strict();
 export type VkConnectorIdentity = z.infer<typeof IdentitySchema>;
-const HealthSchema = z.object({ hostId: z.literal('vk-connector-local-1048'), mode: z.literal('infrastructure_only'),
+const HealthSchema = z.object({ hostId: z.literal('vk-connector-local-1048'), mode: z.enum(['infrastructure_only', 'vk_feed_provider']),
     providerExecution: z.literal('blocked'), status: z.enum(['online', 'offline', 'disabled']), heartbeatAt: z.string().datetime({ offset: true }).nullable() }).strict();
 const JobSchema = z.object({ jobId: z.string().uuid(), packageSha256: Hash, generation: z.number().int().nonnegative(),
     package: VkConnectorPilotPackageSchema, state: z.enum(['queued', 'accepted']).default('queued') }).strict();
@@ -34,7 +36,7 @@ const PollSchema = z.object({ jobs: z.array(JobSchema).max(1), health: HealthSch
 const AckSchema = z.object({ jobId: z.string().uuid(), generation: z.number().int().nonnegative(),
     state: z.enum(['accepted', 'blocked']), blocker: z.string().max(100).nullable().optional() }).strip();
 const ReportSchema = z.object({ jobId: z.string().uuid(), generation: z.number().int().nonnegative(),
-    state: z.literal('blocked'), blocker: z.literal('PROVIDER_CONTROL_DENIED') }).strip();
+    state: z.literal('blocked'), blocker: z.enum(['PROVIDER_CONTROL_DENIED', 'PROVIDER_PERMISSION_UNVERIFIED']) }).strip();
 /** Outbound authenticated MCP port, isolated from every provider implementation. */
 export interface VkConnectorControl {
     call(name: string, args: Record<string, unknown>, signal?: AbortSignal): Promise<unknown>;
@@ -43,7 +45,7 @@ export interface VkConnectorControl {
 interface Receipt { jobId: string; generation: number; state: 'accepted' | 'blocked'; }
 export interface VkConnectorCycleResult {
     status: 'idle_provider_blocked' | 'receipt_provider_blocked' | 'stale_generation' | 'invalid_response' | 'auth_or_control_unavailable';
-    mode: 'infrastructure_only'; providerExecution: 'blocked'; blocker: 'PROVIDER_CONTROL_DENIED';
+    mode: 'infrastructure_only' | 'vk_feed_provider'; providerExecution: 'blocked'; blocker: 'PROVIDER_CONTROL_DENIED' | 'PROVIDER_PERMISSION_UNVERIFIED';
     receipts: Receipt[]; heartbeatAt: string | null;
 }
 /** Stable package digest uses this fixed ordered projection in both producer and consumer. */
@@ -74,16 +76,17 @@ async function boundedCall(control: VkConnectorControl, name: string, args: Reco
     }
 }
 /** One serial poll/ack/report cycle. There is no provider-navigation or publication capability. */
-export async function consumeVkConnectorOnce(rawIdentity: unknown, control: VkConnectorControl, signal?: AbortSignal, timeoutMs = 15_000): Promise<VkConnectorCycleResult> {
+export async function consumeVkConnectorOnce(rawIdentity: unknown, control: VkConnectorControl, signal?: AbortSignal, timeoutMs = 15_000, offlineHarness?: Vk1048OfflineHarness): Promise<VkConnectorCycleResult> {
     const identity = IdentitySchema.parse(rawIdentity);
     if (!Number.isInteger(timeoutMs) || timeoutMs < 10 || timeoutMs > 15_000) throw new Error('[VK_CONNECTOR_TIMEOUT_INVALID]');
     const call = (name: string, args: Record<string, unknown>): Promise<unknown> => boundedCall(control, name, args, signal, timeoutMs);
-    const result: VkConnectorCycleResult = { status: 'idle_provider_blocked', mode: 'infrastructure_only',
-        providerExecution: 'blocked', blocker: 'PROVIDER_CONTROL_DENIED', receipts: [], heartbeatAt: null };
+    const result: VkConnectorCycleResult = { status: 'idle_provider_blocked', mode: identity.mode,
+        providerExecution: 'blocked', blocker: identity.mode === 'vk_feed_provider' ? 'PROVIDER_PERMISSION_UNVERIFIED' : 'PROVIDER_CONTROL_DENIED', receipts: [], heartbeatAt: null };
     try {
         const poll = PollSchema.safeParse(await call('ba_poll_vk_connector_jobs', identity));
         if (!poll.success) { result.status = 'invalid_response'; return result; }
         result.heartbeatAt = poll.data.health.heartbeatAt;
+        if (poll.data.health.mode !== identity.mode) { result.status = 'invalid_response'; return result; }
         if (poll.data.health.status !== 'online') { result.status = 'auth_or_control_unavailable'; return result; }
         for (const job of poll.data.jobs) {
             if (signal?.aborted) break;
@@ -99,8 +102,16 @@ export async function consumeVkConnectorOnce(rawIdentity: unknown, control: VkCo
             // Accepted jobs are returned only for this authenticated instance by the server.
             // Resume the idempotent infrastructure blocker report, never re-ACK or dispatch.
             result.receipts.push({ jobId: job.jobId, generation, state: 'accepted' });
+            if (identity.mode === 'vk_feed_provider') {
+                const { runVk1048ProviderJob } = await import('./vk1048_provider_execution');
+                const provider = await runVk1048ProviderJob({ identity, jobId: job.jobId, generation,
+                    packageSha256: job.packageSha256, binding: job.package }, control, offlineHarness, signal);
+                // Production admission is unverified. No job/config/MCP value can supply an offline harness.
+                result.blocker = 'PROVIDER_PERMISSION_UNVERIFIED';
+                if (provider.executionContext === 'offline_fixture') { result.status = 'invalid_response'; break; }
+            }
             const report = ReportSchema.safeParse(await call('ba_report_vk_connector_job', { ...identity,
-                jobId: job.jobId, generation, blocker: 'PROVIDER_CONTROL_DENIED' }));
+                jobId: job.jobId, generation, blocker: result.blocker }));
             if (!report.success || report.data.jobId !== job.jobId || report.data.generation !== generation) {
                 result.status = 'invalid_response'; break;
             }
@@ -142,7 +153,7 @@ export function acquireVkConnectorLock(config: VkConnectorConfig): { instanceId:
     try { fd = fs.openSync(lockPath, 'wx', 0o600); }
     catch { throw new Error('[VK_CONNECTOR_ALREADY_RUNNING_OR_STALE_LOCK]'); }
     const instanceId = randomUUID();
-    try { fs.writeFileSync(fd, JSON.stringify({ pid: process.pid, instanceId, mode: 'infrastructure_only' })); }
+    try { fs.writeFileSync(fd, JSON.stringify({ pid: process.pid, instanceId, mode: config.mode })); }
     catch {
         fs.closeSync(fd);
         throw new Error('[VK_CONNECTOR_LOCK_INITIALIZATION_FAILED]');
@@ -152,7 +163,7 @@ export function acquireVkConnectorLock(config: VkConnectorConfig): { instanceId:
         if (released) return;
         released = true;
         try {
-            const current = z.object({ pid: z.number().int().positive(), instanceId: z.string().uuid(), mode: z.literal('infrastructure_only') })
+            const current = z.object({ pid: z.number().int().positive(), instanceId: z.string().uuid(), mode: z.enum(['infrastructure_only', 'vk_feed_provider']) })
                 .parse(JSON.parse(privateFile(lockPath)));
             if (current.instanceId !== instanceId) throw new Error('[VK_CONNECTOR_LOCK_OWNERSHIP_CHANGED]');
             fs.unlinkSync(lockPath);

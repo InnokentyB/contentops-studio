@@ -7,6 +7,8 @@ export type ArtifactKind = 'post' | 'article' | 'video' | 'story' | 'email' | 'c
 export type PublicationOutcome = 'published' | 'blocked' | 'removed' | 'restricted';
 
 export interface RecordPublicationFactArgs {
+    /** Internal atomic transport guard; never exposed by generic fact MCP arguments. */
+    beforeWrite?: (tx: Prisma.TransactionClient) => Promise<void>;
     /** Internal exact browser proof, rechecked atomically before writing a clip fact. */
     clipConfirmation?: VkClipFactGuard;
     projectId: number;
@@ -124,6 +126,7 @@ export class PublicationFactService {
         }
 
         return prisma.$transaction(async (tx) => {
+            if (args.beforeWrite) await args.beforeWrite(tx);
             if (args.clipConfirmation) await guardVkClipFactWrite(tx, args, args.clipConfirmation);
             const item = await tx.contentItem.findFirst({
                 where: { id: args.taskId, project_id: args.projectId },
@@ -284,7 +287,7 @@ export class PublicationFactService {
                 created_metric_work_items: createdMetricWorkItems,
                 replayed: false
             };
-        }, args.clipConfirmation ? { isolationLevel: Prisma.TransactionIsolationLevel.Serializable } : undefined);
+        }, (args.clipConfirmation || args.beforeWrite) ? { isolationLevel: Prisma.TransactionIsolationLevel.Serializable } : undefined);
     }
 
     async get(projectId: number, taskId: number, actorId: string) {

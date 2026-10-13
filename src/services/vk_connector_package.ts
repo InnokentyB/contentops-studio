@@ -16,7 +16,7 @@ const taskSchema = z.object({ id: z.literal(1048), project_id: z.literal(10), ch
         content_revision: z.literal(1), status: z.literal('approved'),
         provenance: z.object({ planner_storage: z.object({ sha256: hex }) }) }),
     publication_fact: z.object({ id: z.number().int().positive(), project_id: z.literal(10), content_item_id: z.literal(1048),
-        channel_id: z.literal(117), outcome: z.literal('published'),
+        channel_id: z.literal(117), outcome: z.literal('published'), published_at: z.date(),
         public_url: z.string().regex(/^https:\/\/vk\.(com|ru)\/wall-240051152_\d+$/) }).nullable()
 });
 const workSchema = z.object({ id: z.literal(1699), project_id: z.literal(10), content_item_id: z.literal(1048),

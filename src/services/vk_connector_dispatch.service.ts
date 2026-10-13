@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { connectorPackageHash, VK_CONNECTOR_HOST, VK_CONNECTOR_SCOPE,
+import { connectorPackageHash, connectorHash, VK_CONNECTOR_HOST, VK_CONNECTOR_SCOPE,
     type ConnectorRepository, type ConnectorIdentity, type ConsumerIdentity, type ConsumerJobIdentity,
     type ConnectorBinding, type ConnectorHealth, type ConnectorJob, type ConnectorJobStatus,
     type ConnectorPoll, type ConnectorStore } from './vk_connector_contract';
@@ -96,17 +96,61 @@ export class VkConnectorDispatchService {
             return view(job);
         });
     }
+    /** Owner-only same-job resume. This queues infrastructure; it never changes provider permission. */
+    async resume(args: ConnectorIdentity & { jobId: string; expectedGeneration: number;
+        expectedPackageSha256: string; approvalReference: string; idempotencyKey: string }): Promise<ConnectorJobStatus> {
+        this.scope(args); this.liveInfrastructure();
+        if (!args.approvalReference.trim() || args.approvalReference.length > 2048
+            || !/^[a-zA-Z0-9:_-]{1,160}$/.test(args.idempotencyKey)) fail('INPUT_INVALID');
+        const requestSha = connectorHash(JSON.stringify(args));
+        return this.repository.transaction(async store => {
+            await store.authorize(args.projectId, args.actorId, true);
+            const job = await store.job(args.projectId, args.jobId); if (!job) fail('JOB_NOT_FOUND');
+            const prior = await store.commandResult?.(args.projectId, args.actorId, 'vk_connector_owner_resume', args.idempotencyKey);
+            if (prior && typeof prior === 'object' && 'requestSha256' in prior) {
+                if (prior.requestSha256 !== requestSha) fail('IDEMPOTENCY_CONFLICT');
+                return view(job);
+            }
+            const current = await this.exact(store, args, job);
+            if (job.packageSha256 !== args.expectedPackageSha256) fail('PACKAGE_CHANGED');
+            if (current.attemptId || current.factId || current.publicUrl) fail('VERIFICATION_REQUIRED');
+            if (!current.eligible) fail('PACKAGE_NOT_READY');
+            if (job.state !== 'blocked' || job.generation !== args.expectedGeneration) fail('CAS_CONFLICT');
+            const before = { previousState: job.state, previousBlocker: job.blocker,
+                previousGeneration: job.generation, previousReceiptAt: job.receiptAt?.toISOString() || null };
+            await this.patch(store, job, { state: 'queued', generation: job.generation + 1,
+                hostId: null, instanceId: null, blocker: 'PROVIDER_PERMISSION_UNVERIFIED',
+                canonicalLeaseSha256: null, canonicalLeaseExpiresAt: null, updatedAt: this.now() }, args.actorId);
+            await store.event(job.projectId, job.taskId, args.actorId, 'vk_connector_owner_resume', {
+                ...before, jobId: job.jobId, state: job.state, generation: job.generation,
+                packageSha256: job.packageSha256, requestSha256: requestSha, idempotencyKey: args.idempotencyKey });
+            return view(job);
+        });
+    }
+    /** Reading content is generation fenced; NOT_CHECKED never becomes provider authority. */
+    async executionPackage(args: ConsumerJobIdentity & { packageSha256: string }) {
+        this.consumer(args); this.liveInfrastructure();
+        return this.repository.transaction(async store => {
+            await store.authorize(args.projectId, args.actorId, true);
+            const job = await this.owned(store, args);
+            await this.exact(store, args, job);
+            if (args.packageSha256 !== job.packageSha256 || !['accepted', 'reconciling', 'ready', 'executing', 'verification_required'].includes(job.state)) fail('FENCED');
+            if (!store.executionPackage) fail('EXECUTION_PACKAGE_UNAVAILABLE');
+            return { ...await store.executionPackage(args.projectId, job.taskId),
+                permissionStatus: 'NOT_CHECKED' as const, providerExecution: 'blocked' as const };
+        });
+    }
     async health(args: ConnectorIdentity & { hostId: string }): Promise<ConnectorHealth> {
         this.scope(args); if (args.hostId !== VK_CONNECTOR_HOST) fail('HOST_IDENTITY_INVALID');
         return this.repository.transaction(async store => {
             await store.authorize(args.projectId, args.actorId, false);
             const host = await store.host(args.projectId, args.hostId);
-            return { hostId: args.hostId, mode: 'infrastructure_only', providerExecution: 'blocked',
+            return { hostId: args.hostId, mode: host?.mode || 'infrastructure_only', providerExecution: 'blocked',
                 status: !this.enabled ? 'disabled' : host && this.now().getTime() - host.heartbeatAt.getTime() <= FRESH_MS ? 'online' : 'offline',
                 heartbeatAt: host?.heartbeatAt.toISOString() || null };
         });
     }
-    async poll(args: ConsumerIdentity & { buildVersion: string }): Promise<ConnectorPoll> {
+    async poll(args: ConsumerIdentity & { buildVersion: string; mode?: 'infrastructure_only' | 'vk_feed_provider' }): Promise<ConnectorPoll> {
         this.consumer(args); this.liveInfrastructure();
         if (!/^[a-zA-Z0-9._-]{1,80}$/.test(args.buildVersion)) fail('BUILD_INVALID');
         return this.repository.transaction(async store => {
@@ -114,9 +158,27 @@ export class VkConnectorDispatchService {
             const now = this.now(), old = await store.host(args.projectId, args.hostId);
             if (old && old.instanceId !== args.instanceId && now.getTime() - old.heartbeatAt.getTime() <= FRESH_MS) fail('HOST_BUSY');
             await store.saveHost({ projectId: args.projectId, hostId: args.hostId, instanceId: args.instanceId,
-                buildVersion: args.buildVersion, heartbeatAt: now, mode: 'infrastructure_only', blocker: 'PROVIDER_CONTROL_DENIED' });
+                buildVersion: args.buildVersion, heartbeatAt: now, mode: args.mode || 'infrastructure_only',
+                blocker: args.mode === 'vk_feed_provider' ? 'PROVIDER_PERMISSION_UNVERIFIED' : 'PROVIDER_CONTROL_DENIED' });
             const jobs: ConnectorPoll['jobs'] = [];
             for (const job of await store.candidates(args.projectId)) {
+                if (['reconciling','ready','executing'].includes(job.state)) {
+                    let canonical;
+                    try { canonical = await this.exact(store, args, job); }
+                    catch (error) {
+                        if (!packageInvalid(error)) throw error;
+                        await this.patch(store, job, { state: 'verification_required', generation: job.generation + 1,
+                            blocker: error instanceof Error && error.message.includes('NOT_READY')
+                                ? 'PACKAGE_NOT_READY' : 'PACKAGE_CHANGED', updatedAt: now }, args.actorId);
+                        continue;
+                    }
+                    if (canonical.factId && canonical.publicUrl) { await this.existingOutcome(store, args, job); continue; }
+                    if (job.instanceId === args.instanceId && old?.instanceId === args.instanceId
+                        && now.getTime() - old.heartbeatAt.getTime() <= FRESH_MS) continue;
+                    await this.patch(store, job, { state: 'verification_required', generation: job.generation + 1,
+                        blocker: 'EXECUTION_INTERRUPTED', attemptId: canonical.attemptId, updatedAt: now }, args.actorId);
+                    continue;
+                }
                 let current;
                 try { current = await this.exact(store, args, job); }
                 catch (error) {
@@ -138,7 +200,7 @@ export class VkConnectorDispatchService {
                 jobs.push({ jobId: job.jobId, packageSha256: job.packageSha256, generation: job.generation, state: 'queued', package: job.package });
                 break;
             }
-            return { jobs, health: { hostId: args.hostId, status: 'online', mode: 'infrastructure_only',
+            return { jobs, health: { hostId: args.hostId, status: 'online', mode: args.mode || 'infrastructure_only',
                 providerExecution: 'blocked', heartbeatAt: now.toISOString() } };
         });
     }
@@ -158,9 +220,9 @@ export class VkConnectorDispatchService {
             return view(job);
         });
     }
-    async report(args: ConsumerJobIdentity & { blocker: 'PROVIDER_CONTROL_DENIED' }): Promise<ConnectorJobStatus> {
+    async report(args: ConsumerJobIdentity & { blocker: 'PROVIDER_CONTROL_DENIED' | 'PROVIDER_PERMISSION_UNVERIFIED' | 'NOT_CONNECTED' | 'LOGIN_REQUIRED' | 'COVERAGE_UNKNOWN' | 'MEDIA_UNCONFIRMED' | 'ACTIVE_ATTEMPT' | 'POLICY_DENIED' }): Promise<ConnectorJobStatus> {
         this.consumer(args); this.liveInfrastructure();
-        if (args.blocker !== 'PROVIDER_CONTROL_DENIED') fail('BLOCKER_INVALID');
+        if (!['PROVIDER_CONTROL_DENIED','PROVIDER_PERMISSION_UNVERIFIED','NOT_CONNECTED','LOGIN_REQUIRED','COVERAGE_UNKNOWN','MEDIA_UNCONFIRMED','ACTIVE_ATTEMPT','POLICY_DENIED'].includes(args.blocker)) fail('BLOCKER_INVALID');
         return this.repository.transaction(async store => {
             await store.authorize(args.projectId, args.actorId, true);
             const job = await this.owned(store, args);
