@@ -1,13 +1,17 @@
 import puppeteer, { type Page } from 'puppeteer';
-import { enumerateDzen1002Inventory, type InventoryPage } from './dzen1002_inventory';
-import { parseBrowserCookieHeader } from './puppeteer/dzen_dom_helpers';
+import { enumerateDzen1002Inventory, type InventoryPage, type InventoryDiagnostic } from './dzen1002_inventory';
+import { parseBrowserCookieHeader, type DzenStudioPublication } from './puppeteer/dzen_dom_helpers';
 
 const CHANNEL = '6a8029aba055ec36033bf81c';
 const LIST = `https://dzen.ru/profile/editor/id/${CHANNEL}/publications`;
 const PATH = '/editor-api/v3/publications';
+type Dzen1002Readback = { authenticated: boolean; editor_available: boolean; editor_url: string;
+    publications_payload_received: boolean; title_readback_complete: boolean; state_readback_complete: boolean;
+    publication_timestamp_readback_complete: boolean; coverage_complete: boolean;
+    publications: DzenStudioPublication[]; inventory_diagnostics: InventoryDiagnostic[]; checked_at: string };
 
 /** Read only task1002's configured Studio; intercept all non-GET/HEAD traffic. */
-export async function readDzen1002Inventory(config: { cookies?: string; channel_id?: string }) {
+export async function readDzen1002Inventory(config: { cookies?: string; channel_id?: string }): Promise<Dzen1002Readback> {
     if (!config.cookies?.trim() || config.channel_id !== CHANNEL) throw new Error('[DZEN1002_INVENTORY_SCOPE_MISMATCH]');
     const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] });
     try {

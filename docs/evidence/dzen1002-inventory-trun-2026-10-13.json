@@ -38,7 +38,11 @@
       "test": "All source-mapped tests, concurrency1", "passed": 1040, "failed": 0, "skipped": 0,
       "quality": "PASS; score77, no hard stops", "diff_check": "PASS", "errors": [],
       "logs": ["/tmp/dzen1002-inventory-compat-final-suite.log", "/tmp/dzen1002-inventory-compat-final-build.log",
-        "/tmp/dzen1002-inventory-compat-final-fullbuild.log", "/tmp/dzen1002-inventory-compat-final-quality.log"]}
+        "/tmp/dzen1002-inventory-compat-final-fullbuild.log", "/tmp/dzen1002-inventory-compat-final-quality.log"]},
+    {"id": "INV-TYPE-BOUNDARY-008", "change": "Explicit browser-reader return contract; runtime behavior unchanged",
+      "build": "npm run build", "build_result": "PASS", "test": "Focused inventory and neighboring routes, concurrency1",
+      "passed": 49, "failed": 0, "skipped": 0, "quality": "PASS; score77, no hard stops", "errors": [],
+      "logs": ["/tmp/dzen1002-inventory-typed-build.log", "/tmp/dzen1002-inventory-typed-focused.log", "/tmp/dzen1002-inventory-typed-quality.log"]}
   ],
   "remaining": "Actual provider response schema/session and per-page readback remain unverified; new diagnostics must be examined by p10 Publisher in a fresh preflight after deployment, before any publication. Unknown coverage still blocks."
 }
