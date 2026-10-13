@@ -1268,6 +1268,8 @@ model ConnectorDispatchJob {
   state                String   @default("queued")
   host_id              String?
   consumer_instance_id String?
+  canonical_lease_sha256 String?
+  canonical_lease_expires_at DateTime? @db.Timestamptz(6)
   generation           Int      @default(0)
   receipt_at           DateTime? @db.Timestamptz(6)
   blocker_code         String?

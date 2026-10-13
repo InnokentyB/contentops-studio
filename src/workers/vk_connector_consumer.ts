@@ -40,7 +40,7 @@ function wait(ms: number, signal: AbortSignal): Promise<void> {
         signal.addEventListener('abort', done, { once: true });
     });
 }
-/** Standalone outbound infrastructure-only loop; imports no browser or provider executable. */
+/** Standalone outbound loop; prepared provider mode remains permission-unverified before browser or profile access. */
 export async function runVkConnectorConsumer(configFile: string, signal: AbortSignal,
     connector: (config: VkConnectorConfig, token: string, signal: AbortSignal) => Promise<VkConnectorControl> = connect): Promise<void> {
     const config = loadVkConnectorConfig(configFile);
@@ -54,15 +54,15 @@ export async function runVkConnectorConsumer(configFile: string, signal: AbortSi
             try {
                 control ??= await connector(config, token, signal);
                 const result = await consumeVkConnectorOnce({ projectId: 10, actorId: 'user:0', hostId: config.hostId,
-                    instanceId: lock.instanceId, buildVersion: config.buildVersion }, control, signal);
+                    instanceId: lock.instanceId, buildVersion: config.buildVersion, mode: config.mode }, control, signal);
                 latest = result;
                 writeVkConnectorHealth(config, lock.instanceId, result);
                 if (result.status === 'auth_or_control_unavailable') throw new Error('[VK_CONNECTOR_CONTROL_UNAVAILABLE]');
                 backoff = 5000;
             } catch {
                 if (control) { await control.close(); control = undefined; }
-                writeVkConnectorHealth(config, lock.instanceId, latest ?? { status: 'auth_or_control_unavailable', mode: 'infrastructure_only',
-                    providerExecution: 'blocked', blocker: 'PROVIDER_CONTROL_DENIED', receipts: [], heartbeatAt: null });
+                writeVkConnectorHealth(config, lock.instanceId, latest ?? { status: 'auth_or_control_unavailable', mode: config.mode,
+                    providerExecution: 'blocked', blocker: config.mode === 'vk_feed_provider' ? 'PROVIDER_PERMISSION_UNVERIFIED' : 'PROVIDER_CONTROL_DENIED', receipts: [], heartbeatAt: null });
                 backoff = Math.min(60_000, backoff * 2);
             }
             await wait(backoff, signal);

@@ -1,8 +1,8 @@
 # Standalone VK infrastructure consumer
 
-Bundle 016 authorizes infrastructure only. This executable imports no browser or
-provider adapter, accesses no VK profile, and creates no publication attempt or
-fact. A valid receipt ends `blocked / PROVIDER_CONTROL_DENIED`. Railway deployment
+Bundle 016 authorizes infrastructure only. Infrastructure mode accesses no VK profile and creates no publication attempt or
+fact. Delta017 adds a prepared provider surface; its production admission remains
+`PERMISSION_UNVERIFIED` before loading browser/UI code or accessing a profile. A valid receipt ends `blocked / PROVIDER_CONTROL_DENIED`. Railway deployment
 does not install or start this local process.
 
 Use existing authorized project 10 Publisher MCP credentials. This guide does not
@@ -30,8 +30,10 @@ Set exactly one source: the pinned `tokenEnvVar` above, or `tokenFile` with an
 absolute existing private file path. Both together, any other environment name,
 and an empty/missing environment value are rejected. No token is copied into a file.
 
-The endpoint, project and host are pinned. No browser/profile or live mode option
-exists. The runtime directory must belong to the process owner with mode `0700`.
+The endpoint, project and host are pinned. No browser/profile or policy-admission option exists. Mode `vk_feed_provider`
+selects only the prepared execution surface and never grants permission. Its idle
+and blocked health uses `PROVIDER_PERMISSION_UNVERIFIED`; `infrastructure_only`
+retains the previous infrastructure blocker. The runtime directory must belong to the process owner with mode `0700`.
 After the backend build, the reviewed command is:
 
 ```sh
