@@ -9,7 +9,10 @@
     { "id": "FOCUSED-GREEN", "tests": 61, "passed": 61, "failed": 0, "skipped": 0, "log": "/tmp/dzen-readiness-green.log" },
     { "id": "FINAL-SOURCE-SUITE", "tests": 1080, "passed": 1080, "failed": 0, "skipped": 0, "concurrency": 1, "log": "/tmp/dzen-common-final-suite.log" },
     { "id": "FINAL-BUILDS", "backend": "PASS", "frontend_backend": "PASS", "logs": ["/tmp/dzen-common-final-backend.log", "/tmp/dzen-common-final-build.log"] },
-    { "id": "FINAL-QUALITY", "verdict": "PASS", "score": 77, "accepted_baseline": 77, "hard_stops": [], "log": "/tmp/dzen-common-final-quality.log" }
+    { "id": "FINAL-QUALITY", "verdict": "PASS", "score": 77, "accepted_baseline": 77, "hard_stops": [], "log": "/tmp/dzen-common-final-quality.log" },
+    { "id": "MAIN-INTEGRATION", "tested_commit": "77d39f7", "main_base": "e925b50", "tests": 1084, "passed": 1084, "failed": 0, "skipped": 0,
+      "backend": "PASS", "frontend_backend": "PASS", "quality": "PASS; baseline77/no hard stops", "ci": "Code Quality and Security Gate PASS",
+      "logs": ["/tmp/dzen-route-main-suite.log", "/tmp/dzen-route-main-backend.log", "/tmp/dzen-route-main-build.log", "/tmp/dzen-route-main-quality.log"] }
   ],
   "actual_fixture": "Ops sanitized postdeploy shape 2026-10-13: root.drafts and root.publications, no paging envelope/header; both HTTP200",
   "synthetic_not_native": "Row identity/state/title values and explicit hasMore in acceptance tests are synthetic. Actual draft rows/end-of-list were not retained.",
