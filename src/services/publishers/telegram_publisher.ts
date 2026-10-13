@@ -11,6 +11,8 @@ import {
 } from './types';
 import * as fs from 'fs';
 import { safeResolveUploadPath } from '../../utils/path_safety';
+import { publishTelegramStorySequence } from '../telegram_story_sequence_delivery';
+import type { TelegramStoryFrame } from '../telegram_task1100_story_sequence';
 
 export interface TelegramAccountConfig {
     telegram_channel_id: string | number | null;
@@ -486,6 +488,25 @@ export class TelegramPublisher {
             evidenceRef: story.publicLink || `telegram-story:self:${story.storyId}`,
             metrics: { telegram_story_id: story.storyId }
         };
+    }
+
+    /** Publish an exact ordered personal Story sequence after every frame has passed task-level validation. */
+    async publishTelegramPersonalStorySequenceMtproto(params: {
+        projectId: number;
+        taskId: number;
+        idempotencyKey: string;
+        frames: TelegramStoryFrame[];
+    }) {
+        const initialized = await telegramClientService.init(params.projectId);
+        if (!initialized) {
+            throw new Error('[MTPROTO_UNAVAILABLE] No active Telegram MTProto session is available for the project');
+        }
+        return publishTelegramStorySequence(params, (frame, idempotencyKey) =>
+            telegramClientService.publishPersonalStory({
+                projectId: params.projectId, caption: frame.caption, imageUrl: frame.imageUrl,
+                idempotencyKey,
+                ...(frame.nativeLink ? { nativeLink: frame.nativeLink } : {})
+            }));
     }
 }
 

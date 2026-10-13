@@ -9,6 +9,7 @@ import {
     publicationPlacementManualChecklistNotes
 } from '../publication_placement_contract';
 import { bindVkStoryPollToRevision } from '../vk_story_poll';
+import { resolveTask1100StoryFrames } from '../telegram_task1100_story_sequence';
 import {
     resolveRef,
     dedupeResourceFiles,
@@ -169,6 +170,7 @@ export function buildHandoffBundle(
     const persistedKeyPoints = Array.isArray(item.key_points) ? item.key_points : [];
     const persistedAssetsByRef = new Map<string, Record<string, unknown>>();
     const selectedAsset = resolveApprovedSelectedAsset(item);
+    const storyFrames = resolveTask1100StoryFrames(item);
     const acceptedContent = resolveAcceptedPublicationBody(item, options.requireAcceptedContent);
     const nativePollCandidate = canonicalChannelType === 'vk' && placement === 'story'
         ? (itemAssets.vk_story_poll ?? null)
@@ -308,7 +310,17 @@ export function buildHandoffBundle(
     const linkUrl = resolveRef(plan, actionParams?.link_url_ref || (item.cta as string) || null);
 
     const resourceFiles = dedupeResourceFiles<ResourceFileEntry>([
-        ...(selectedAsset ? [{
+        ...(storyFrames ? storyFrames.map(frame => ({
+            ref: `story_frame_${frame.order}`,
+            type: 'image', role: 'story_frame', purpose: 'approved_story_sequence',
+            file_name: `1100-r4-frame-${frame.order}.jpg`, relative_path: null, full_path: null,
+            section_marker: null, exists: true, url: frame.imageUrl, preview_url: frame.imageUrl,
+            content: null, content_type: 'image/jpeg', checksum_sha256: frame.checksumSha256,
+            width: 1080, height: 1920, color_mode: 'RGB',
+            provenance: { sequence_key: 'p10-task1100-story-r4', frame_index: frame.order,
+                frame_count: storyFrames.length, ...(frame.nativeLink ? { native_link_sticker: frame.nativeLink } : {}) },
+            content_source: 'approved_story_sequence'
+        })) : selectedAsset ? [{
             ref: 'selected_asset',
             type: isVideo ? 'video' : 'image',
             role: isVideo ? 'publication_video' : 'publication_image',
@@ -385,11 +397,19 @@ export function buildHandoffBundle(
             content_binding: acceptedContent.binding,
             html_bundle: resolvedAssets.filter((entry: AssetRuntimeResolution) => (entry.asset?.type as string)?.includes('html')),
             link_url: linkUrl,
-            image_url: isVideo ? null : selectedAsset?.file_url || null,
+            image_url: storyFrames ? null : isVideo ? null : selectedAsset?.file_url || null,
             video_url: isVideo ? selectedAsset?.file_url || null : null,
             alt_text: selectedAsset?.alt_text || null,
             native_poll: nativePoll,
-            visuals: selectedAsset
+            visuals: storyFrames
+                ? storyFrames.map(frame => ({
+                    ref: `story_frame_${frame.order}`, asset_id: frame.assetId, order: frame.order,
+                    url: frame.imageUrl, preview_url: frame.imageUrl, status: 'approved',
+                    content_revision: item.accepted_revision, checksum_sha256: frame.checksumSha256,
+                    content_type: 'image/jpeg', width: 1080, height: 1920,
+                    ...(frame.nativeLink ? { native_link: frame.nativeLink } : {})
+                }))
+                : selectedAsset
                 ? [{
                     ref: 'selected_asset',
                     asset_id: selectedAsset.id,
@@ -404,7 +424,10 @@ export function buildHandoffBundle(
                     height: selectedAssetMetadata.height || null,
                     provenance: selectedAsset.provenance || null
                 }]
-                : resolvedAssets.filter((entry: AssetRuntimeResolution) => (entry.asset?.visual_style || entry.asset?.gamma_source))
+                : resolvedAssets.filter((entry: AssetRuntimeResolution) => (entry.asset?.visual_style || entry.asset?.gamma_source)),
+            ...(storyFrames ? { native_controls: storyFrames.flatMap(frame => frame.nativeLink
+                ? [{ type: 'url', frame_order: frame.order, ...frame.nativeLink }]
+                : []) } : {})
         },
         resource_files: resourceFiles,
         manual_checklist: [

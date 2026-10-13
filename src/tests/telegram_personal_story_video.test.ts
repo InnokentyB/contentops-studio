@@ -32,3 +32,32 @@ test('MTProto personal Story uploads an approved MP4 as a streaming document', a
     assert.equal(video.duration, 42.033008);
     assert.deepEqual(result, { storyId: 55, publicLink: 'https://t.me/InnokentyB/s/55' });
 });
+
+test('MTProto personal Story binds a native URL media area to the approved pixel rectangle', async (t) => {
+    const requests: any[] = [];
+    const fakeClient = { uploadFile: async () => new Api.InputFile({ id: bigInt(2), parts: 1, name: 'story.jpg', md5Checksum: '' }),
+        invoke: async (request: any) => {
+            requests.push(request);
+            if (request instanceof Api.stories.CanSendStory) return true;
+            if (request instanceof Api.stories.SendStory) return { updates: [new Api.UpdateStoryID({ id: 56, randomId: request.randomId })] };
+            if (request instanceof Api.stories.GetStoriesByID) return { stories: [{ id: 56 }] };
+            if (request instanceof Api.stories.ExportStoryLink) return { link: 'https://t.me/InnokentyB/s/56' };
+            throw new Error('Unexpected request');
+        } };
+    const service = new TelegramClientService();
+    service.getClient = async () => fakeClient as never;
+    t.mock.method(globalThis, 'fetch', async () => new Response(Uint8Array.from([255, 216, 255]), { status: 200,
+        headers: { 'content-type': 'image/jpeg', 'content-length': '3' } }));
+    await service.publishPersonalStory({ projectId: 10, caption: '', imageUrl: 'https://assets.example/story.jpg',
+        idempotencyKey: 'story1100-frame3', nativeLink: { url: 'https://t.me/spherical_analyst/1279',
+            label: 'Читать разбор', canvasWidth: 1080, canvasHeight: 1920,
+            centerX: 540, centerY: 1495, width: 480, height: 110 } });
+    const sent = requests.find(request => request instanceof Api.stories.SendStory) as any;
+    assert.equal(sent.mediaAreas.length, 1);
+    assert.ok(sent.mediaAreas[0] instanceof Api.MediaAreaUrl);
+    assert.equal(sent.mediaAreas[0].url, 'https://t.me/spherical_analyst/1279');
+    assert.equal(sent.mediaAreas[0].coordinates.x, 50);
+    assert.equal(sent.mediaAreas[0].coordinates.y, 1495 / 1920 * 100);
+    assert.equal(sent.mediaAreas[0].coordinates.w, 480 / 1080 * 100);
+    assert.equal(sent.mediaAreas[0].coordinates.h, 110 / 1920 * 100);
+});
