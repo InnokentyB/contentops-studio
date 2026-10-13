@@ -1,6 +1,7 @@
 import puppeteer, { type Page } from 'puppeteer';
 import { enumerateDzen1002Inventory, type InventoryPage, type InventoryDiagnostic } from './dzen1002_inventory';
 import { parseBrowserCookieHeader, type DzenStudioPublication } from './puppeteer/dzen_dom_helpers';
+import puppeteerPublisherService from './puppeteer_publisher.service';
 
 const CHANNEL = '6a8029aba055ec36033bf81c';
 const LIST = `https://dzen.ru/profile/editor/id/${CHANNEL}/publications`;
@@ -10,13 +11,19 @@ type Dzen1002Readback = { authenticated: boolean; editor_available: boolean; edi
     publication_timestamp_readback_complete: boolean; coverage_complete: boolean;
     publications: DzenStudioPublication[]; inventory_diagnostics: InventoryDiagnostic[]; checked_at: string };
 
+/** Authentication parity seam: a Studio URL alone is never login/CAPTCHA clearance. */
+export async function verifyDzen1002StudioPage(page: Pick<Page, 'url'>, authenticate: () => Promise<void>): Promise<void> {
+    await authenticate();
+    if (!page.url().startsWith(LIST)) throw new Error('[DZEN1002_INVENTORY_STUDIO_NOT_VERIFIED]');
+}
+
 /** Read only task1002's configured Studio; intercept all non-GET/HEAD traffic. */
 export async function readDzen1002Inventory(config: { cookies?: string; channel_id?: string }): Promise<Dzen1002Readback> {
     if (!config.cookies?.trim() || config.channel_id !== CHANNEL) throw new Error('[DZEN1002_INVENTORY_SCOPE_MISMATCH]');
     const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] });
     try {
         const page = await browser.newPage(); const expires = Date.now() + 60_000;
-        let interceptionFailed = false;
+        let interceptionFailed = false; let authenticated = false;
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
         const timeout = () => Math.max(1, Math.min(8_000, expires - Date.now()));
         await page.setRequestInterception(true);
@@ -32,9 +39,11 @@ export async function readDzen1002Inventory(config: { cookies?: string; channel_
                     return url.origin === 'https://dzen.ru' && url.pathname === PATH && url.searchParams.get('state') === state;
                 }, { timeout: timeout() }).then(response => ({ response }), () => ({ response: null }));
                 await page.goto(`${LIST}?state=${state}`, { waitUntil: 'domcontentloaded', timeout: timeout() });
+                authenticated = false;
+                await verifyDzen1002StudioPage(page, () => puppeteerPublisherService.assertDzenAuthenticated(page));
+                authenticated = true;
                 const { response } = await pending;
                 if (!response) throw new Error('[DZEN1002_INVENTORY_RESPONSE_MISSING]');
-                if (!page.url().startsWith(LIST)) throw new Error('[DZEN1002_INVENTORY_STUDIO_NOT_VERIFIED]');
                 if (response.status() !== 200) return { url: response.url(), status: response.status(), payload: null };
                 const size = Number(response.headers()['content-length']);
                 if (size > 2 * 1024 * 1024) throw new Error('[DZEN1002_INVENTORY_RESPONSE_LIMIT]');
@@ -51,7 +60,7 @@ export async function readDzen1002Inventory(config: { cookies?: string; channel_
                 path: PATH, reason: 'REQUEST_INTERCEPTION_FAILED' });
         }
         const verifiedStudio = page.url().startsWith(LIST);
-        return { authenticated: verifiedStudio, editor_available: verifiedStudio, editor_url: page.url(),
+        return { authenticated: verifiedStudio && authenticated, editor_available: verifiedStudio && authenticated, editor_url: page.url(),
             publications_payload_received: result.diagnostics.some(d => d.status === 200),
             title_readback_complete: result.complete, state_readback_complete: result.complete,
             publication_timestamp_readback_complete: result.publications.every(p => p.state === 'draft' || p.published_at !== null),
