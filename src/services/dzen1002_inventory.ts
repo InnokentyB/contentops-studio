@@ -1,13 +1,17 @@
 import { extractDzenStudioPublications, type DzenStudioPublication } from './puppeteer/dzen_dom_helpers';
+import { describeDzen1002Pagination } from './dzen1002_pagination_shape';
+import { Dzen1002ReadFailure, type Dzen1002ObservedResponse } from './dzen1002_read_failure';
 
 export type InventoryState = 'published' | 'draft';
-export type InventoryPage = { status: number; url: string; payload: unknown };
+export type InventoryPage = { status: number; url: string; payload: unknown; paginationHeaders?: Record<string, string | undefined> };
 export interface InventoryPort {
     first(state: InventoryState): Promise<InventoryPage>;
     next(url: string): Promise<InventoryPage>;
 }
 export type InventoryDiagnostic = { state: InventoryState; page: number; status: number | null;
-    count: number; reason: string; path: '/editor-api/v3/publications' };
+    count: number; reason: string; path: '/editor-api/v3/publications';
+    pagination_shape?: import('./dzen1002_pagination_shape').PaginationShape;
+    observed_responses?: Dzen1002ObservedResponse[] };
 export type InventoryResult = { publications: DzenStudioPublication[]; complete: boolean;
     diagnostics: InventoryDiagnostic[] };
 
@@ -28,8 +32,16 @@ export async function enumerateDzen1002Inventory(port: InventoryPort,
             if (now() - started >= budget) { diagnostic.reason = 'TIME_LIMIT'; break; }
             let response: InventoryPage;
             try { response = await (target ? port.next(target) : port.first(state)); }
-            catch { diagnostic.reason = 'READ_FAILED'; break; } // Raw provider errors may contain secrets.
+            catch (error: unknown) {
+                if (error instanceof Dzen1002ReadFailure) {
+                    diagnostic.reason = error.reason;
+                    diagnostic.status = typeof error.status === 'number' && Number.isInteger(error.status) && error.status >= 100 && error.status <= 599 ? error.status : null;
+                    diagnostic.observed_responses = error.observedResponses.slice(0, 6);
+                }
+                break;
+            } // Unknown raw provider errors stay READ_FAILED and never expose messages.
             diagnostic.status = Number.isInteger(response.status) && response.status >= 100 && response.status <= 599 ? response.status : null;
+            if (page === 1) diagnostic.pagination_shape = describeDzen1002Pagination(response.payload, response.url, response.paginationHeaders);
             if (response.status !== 200) { diagnostic.reason = 'HTTP_ERROR'; break; }
             if (now() - started >= budget) { diagnostic.reason = 'TIME_LIMIT'; break; }
             let current: URL;

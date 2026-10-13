@@ -21,6 +21,7 @@ test('INV011 owning preflight selects task1002 reader and exposes sanitized inco
         deliveryAttempt: { findFirst: async () => null },
         $transaction: async (run: (tx: unknown) => Promise<unknown>): Promise<unknown> => run(db)
     };
+    for (const authenticated of [true, false]) {
     const service = new DzenTaskPublicationService({ db, hashBody: () => binding.bodySha256,
         dzen: { publishPost: async () => { throw new Error('Forbidden provider write'); },
             testConnection: async () => { throw new Error('Wrong reader'); },
@@ -29,7 +30,7 @@ test('INV011 owning preflight selects task1002 reader and exposes sanitized inco
                 const inventory = await enumerateDzen1002Inventory({ first: async (state: InventoryState) => ({
                     url: `https://dzen.ru/editor-api/v3/publications?state=${state}`,
                     status: 200, payload: { publications: [] } }), next: async () => { throw new Error('No retry'); } });
-                return { authenticated: true, editor_available: true,
+                return { authenticated, editor_available: true,
                     editor_url: `https://dzen.ru/profile/editor/id/${binding.providerChannelId}/publications`,
                     publications_payload_received: true, title_readback_complete: false,
                     publication_timestamp_readback_complete: true, state_readback_complete: false,
@@ -41,4 +42,5 @@ test('INV011 owning preflight selects task1002 reader and exposes sanitized inco
             && error.message.includes('published') && error.message.includes('draft') && !error.message.includes('SECRET'));
     assert.equal(selectedTask, 1002);
     assert.equal(events, 0);
+    }
 });
