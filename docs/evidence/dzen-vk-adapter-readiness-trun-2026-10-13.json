@@ -1,0 +1,28 @@
+{
+  "scope": "Owner-approved Dzen1002 collection/readiness repair and shared Dzen/VK no-Codex-fallback contract",
+  "base_commit": "20ebb8f",
+  "runs": [
+    { "id": "COLLECTION-RED", "tests": 20, "passed": 16, "failed": 4, "errors": ["discarded drafts", "malformed drafts accepted as empty", "draft count not projected"], "log": "/tmp/dzen1002-collections-red.log" },
+    { "id": "ROUTE-RED", "tests": 8, "passed": 6, "failed": 2, "errors": ["Dzen browser fallback returned browser_required", "Dzen-only workspace lacked route instruction"], "log": "/tmp/dzen-route-red.log" },
+    { "id": "READINESS-RED", "tests": 1, "passed": 0, "failed": 1, "errors": ["stored-proof diagnostic seam absent"], "log": "/tmp/dzen-readiness-red.log" },
+    { "id": "BUILD-REPAIR", "errors": ["Object.hasOwn unavailable in current TypeScript target"], "resolution": "use existing-target-compatible hasOwnProperty.call; no target upgrade" },
+    { "id": "FOCUSED-GREEN", "tests": 61, "passed": 61, "failed": 0, "skipped": 0, "log": "/tmp/dzen-readiness-green.log" },
+    { "id": "FINAL-SOURCE-SUITE", "tests": 1080, "passed": 1080, "failed": 0, "skipped": 0, "concurrency": 1, "log": "/tmp/dzen-common-final-suite.log" },
+    { "id": "FINAL-BUILDS", "backend": "PASS", "frontend_backend": "PASS", "logs": ["/tmp/dzen-common-final-backend.log", "/tmp/dzen-common-final-build.log"] },
+    { "id": "FINAL-QUALITY", "verdict": "PASS", "score": 77, "accepted_baseline": 77, "hard_stops": [], "log": "/tmp/dzen-common-final-quality.log" }
+  ],
+  "actual_fixture": "Ops sanitized postdeploy shape 2026-10-13: root.drafts and root.publications, no paging envelope/header; both HTTP200",
+  "synthetic_not_native": "Row identity/state/title values and explicit hasMore in acceptance tests are synthetic. Actual draft rows/end-of-list were not retained.",
+  "remaining_blockers": [
+    "DZEN1002_PROVIDER_INVENTORY_INCOMPLETE: provider-observed exhaustive end-of-list not available; short/empty page never proves absence",
+    "DZEN_CONNECTOR_NOT_READY dry-run is stored-proof readiness, not fresh cookie failure; Ops reports no newer provider diagnostic artifact",
+    "Bootstrap checksum change may make pinned task1002 manifest stale; no automatic rebind/release",
+    "VK1048 PROVIDER_PERMISSION_UNVERIFIED; existing job unchanged"
+  ],
+  "provider_calls": 0,
+  "provider_writes": 0,
+  "task_release_job_fact_changes": 0,
+  "scope_limits": "Central fallback and role-bootstrap regression, plus no-CUA/CDP provider import graph. Not global tool disabling or proof of every legacy entrypoint admission.",
+  "rollback": "Revert code/doc delta; no migration. Preserve all task/audit/attempt/approval records and revalidate manifest rather than silently replacing checksums.",
+  "uat": "NOT_RUN; explicit provider/site/action denials remain in force"
+}

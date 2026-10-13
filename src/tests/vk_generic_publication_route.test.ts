@@ -21,6 +21,25 @@ test('VK generic direct entry returns independent-adapter handoff without provid
         assert.equal(writes, 0); assert.equal(providerCalls, 0);
     } finally { provider.mock.restore(); prisma.$transaction = originalTransaction; }
 });
+test('Dzen unavailable adapter never creates generic browser fallback or exposes provider secrets', async () => {
+    const { publicationDispatcher } = await import('../services/publishers/publication_dispatcher');
+    const { browserFallbackReason } = await import('../services/publication_execution_route');
+    const prisma = (await import('../db')).prisma;
+    let writes = 0;
+    const originalTransaction = prisma.$transaction;
+    prisma.$transaction = async () => { writes++; throw new Error('Unexpected write'); };
+    try {
+        for (const type of ['dzen', 'zen', 'zen_article']) {
+            const reason = browserFallbackReason(new Error('cookie=PRIVATE'), type);
+            assert.equal(reason.next_route, 'dzen_adapter_required');
+            assert.equal(JSON.stringify(reason).includes('PRIVATE'), false);
+            const result = z.object({ blocked: z.literal(true), reason: z.literal('dzen_adapter_required') }).parse(
+                await publicationDispatcher.routeToBrowserPublication({ ...task, channel: { type } }, {}, reason));
+            assert.equal(result.blocked, true);
+        }
+        assert.equal(writes, 0);
+    } finally { prisma.$transaction = originalTransaction; }
+});
 
 test('VK browser fallback central entry cannot write a browser handoff or infer retry permission', async () => {
     const { publicationDispatcher } = await import('../services/publishers/publication_dispatcher');

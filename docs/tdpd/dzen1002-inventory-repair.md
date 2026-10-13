@@ -27,3 +27,22 @@ Offline fixtures prove deterministic behavior only; current provider pagination
 schema and authenticated session need a fresh p10 Publisher preflight after deploy.
 Owner UAT remains separate. Rollback restores the previous artifact; keep all
 existing task/audit/attempt records, and never turn incomplete proof into absence.
+
+## Owner-approved delta — 2026-10-13
+
+Ops handoff from `01a0c579-1ac5-7011-b7be-a99fd03cda8b` confirms direct
+Portfolio HQ approval for the bounded adapter repair and common Dzen/VK route.
+LOCK: select native `drafts` for draft reads when present; retain explicit row
+identity/title/state validation. QAR: existing limits and no-retry remain;
+diagnostics expose both collection counts but no rows. ARCH: task1002-only
+collection selection reuses the existing row parser; shared bootstrap and central
+fallback guard reuse the existing VK contract. RISK: malformed drafts fail
+closed, explicit site/action denial persists across adapters/processes; no live
+provider call, publication/release/job/fact mutation or credential change.
+
+INV011–INV013 and SHAPE006 use collection names observed in the sanitized
+native capture after main@4ddad2b; row values are synthetic, not native evidence.
+Existing pagination tests continue requiring explicit hasMore/total evidence.
+The captured provider response has neither: exhaustive end-of-list semantics
+remain BLOCKED pending permission-allowed native evidence. A short/empty page
+is never accepted as exhaustive; this repair does not unblock publication.

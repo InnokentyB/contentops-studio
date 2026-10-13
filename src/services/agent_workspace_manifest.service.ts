@@ -123,7 +123,7 @@ export function buildAgentWorkspaceManifest(input: ManifestInput): AgentWorkspac
         schema_version: '1.1' as const,
         revision,
         project: { id: input.project.id, name: input.project.name, slug: input.project.slug },
-        chats: input.channels.some(channel => channel.type.trim().toLowerCase() === 'vk')
+        chats: input.channels.some(channel => ['vk', 'dzen', 'zen', 'zen_article'].includes(channel.type.trim().toLowerCase()))
             ? chats.map(chat => ({ ...chat, startup_instructions: [...chat.startup_instructions, VK_PUBLICATION_BOOTSTRAP_RULE] }))
             : chats,
         handoffs,

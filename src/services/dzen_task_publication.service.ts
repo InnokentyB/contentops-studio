@@ -1,4 +1,5 @@
 import { createHash } from 'crypto';
+import { describeDzenStoredReadiness } from './dzen_stored_readiness';
 import prisma from '../db';
 import dzenService, { isDzenPublishedUrl } from './dzen.service';
 import publicationFactService from './publication_fact.service';
@@ -773,10 +774,13 @@ export class DzenTaskPublicationService {
         if (args.dryRun) return { mode: 'dry_run', task_id: spec.taskId, project_id: 10,
             route_executable: connectorReady && spec.allowedStatuses.includes(task.status),
             connector_ready: connectorReady,
+            ...(spec.taskId === 1002 ? { readiness_diagnostics: describeDzenStoredReadiness({ ready: connectorReady,
+                hasSession: Boolean(config.cookies?.trim()), hasChannel: Boolean(config.channel_id),
+                proof: verified, inventoryRequired: true, now: Date.now() }) } : {}),
             ...(!connectorReady ? { route_blocker: 'DZEN_CONNECTOR_NOT_READY' }
                 : !spec.allowedStatuses.includes(task.status) ? { route_blocker: 'PUBLICATION_ROUTE_NOT_EXECUTABLE' } : {}),
             payload_preview: preview };
-        if (!connectorReady) throw new Error('[DZEN_CONNECTOR_NOT_READY] Channel requires enabled API publication and authenticated session');
+        if (!connectorReady) throw new Error('[DZEN_CONNECTOR_NOT_READY] Current task-bound stored connector preflight proof is missing, stale or invalid');
         if (!spec.allowedStatuses.includes(task.status)) throw new Error('[DZEN_PUBLICATION_STATE_CHANGED]');
         const delivery = task.quality_report?.publication_task_delivery;
         if (delivery?.state === 'provider_result_uncertain'

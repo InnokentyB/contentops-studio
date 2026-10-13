@@ -1,4 +1,4 @@
-import { vkPublicationAdapterRequired, isVkPublicationPlatform } from './vk_publication_route_contract';
+import { vkPublicationAdapterRequired, isVkPublicationPlatform, isDzenPublicationPlatform, dzenPublicationAdapterRequired } from './vk_publication_route_contract';
 export type PublicationExecutionRoute = 'waiting' | 'connector_auto' | 'browser_required' | 'vk_adapter_required' | 'published';
 
 export interface PublicationExecutionRouteInput {
@@ -27,6 +27,7 @@ export function resolvePublicationExecutionRoute(input: PublicationExecutionRout
 
 export function browserFallbackReason(error: unknown, platform?: string | null) {
     if (isVkPublicationPlatform(platform)) return vkPublicationAdapterRequired();
+    if (isDzenPublicationPlatform(platform)) return dzenPublicationAdapterRequired();
     const message = error instanceof Error ? error.message : String(error || 'Unknown connector error');
     return {
         code: 'CONNECTOR_PUBLISH_FAILED',
@@ -40,6 +41,12 @@ export function browserFallbackReason(error: unknown, platform?: string | null) 
 export function vkAdapterPublicationHandoff(status: unknown) {
     return { success: false, skipped: true, blocked: true, provider_execution: 'blocked' as const, status: typeof status === 'string' ? status : null,
         reason: 'vk_adapter_required', adapter_requirement: vkPublicationAdapterRequired() };
+}
+
+export function dzenAdapterPublicationHandoff(status: unknown) {
+    return { success: false, skipped: true, blocked: true, provider_execution: 'blocked' as const,
+        status: typeof status === 'string' ? status : null,
+        reason: 'dzen_adapter_required', adapter_requirement: dzenPublicationAdapterRequired() };
 }
 
 export { isVkPublicationPlatform } from './vk_publication_route_contract';

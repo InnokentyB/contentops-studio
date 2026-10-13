@@ -18,14 +18,14 @@ Approve LOCK (goal/specification), QAR (measurable non-functional requirements),
 Keep TRUN scenario-level results and errors for each build; GREEN requires explicit owner UAT.
 Pre-sync local work is preserved in `backup/contentops-pre-sync-20261010` (stash snapshot). Reconcile individual packages before restoring them; never overwrite current provider implementations with older local versions.
 
-## Mandatory VK operating route
+## Mandatory Dzen and VK operating route
 
 Read `docs/operations/vk-owned-publication-route.md` before any governed VK work.
-VK owned-publication execution, control and read-only preflight use only documented
+Dzen and VK owned-publication execution, control and read-only preflight use only documented
 Planner commands -> registered independent adapter/consumer. No Codex role uses
-CUA/cua.getTab/ComputerUse, personal tabs, CDP or session injection for VK, including
+CUA/cua.getTab/ComputerUse, personal tabs, CDP or session injection for Dzen or VK, including
 login checks, diagnostics or UAT. Failed/not-ready adapter -> BLOCKED + repair;
 never a Codex-browser, API, worker or other-chat fallback. Existing explicit
 action/site denials remain applicable. UNKNOWN/started/uncertain -> reconciliation
-only, no resend. Human operator handoff is a separate operating context. Preserve
+only, no resend. No Codex manual fallback. Human operator handoff is a separate operating context and cannot bypass denial. Preserve
 publication/task/job/release/lease/attempt/fact history. Receipt is not success.
