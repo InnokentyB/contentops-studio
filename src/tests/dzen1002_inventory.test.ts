@@ -95,3 +95,31 @@ test('INV010 pagination conflicts and wrong-host routes are explicit gaps', asyn
     assert.equal(route.diagnostics[0]?.reason, 'ROUTE_INVALID');
     assert.equal(JSON.stringify(route).includes('SECRET'), false);
 });
+
+// Collection names follow the sanitized native shape captured after main@4ddad2b.
+// Row values below are synthetic: native draft rows/end-of-list were not captured.
+test('INV011 native dual collections select drafts without hiding an exact-title duplicate', async () => {
+    const result = await enumerateDzen1002Inventory(fixture([
+        { publications: [row('p', 'published')], drafts: [], hasMore: false }
+    ], [{ publications: [], drafts: [row('d', 'draft', 'Exact title')], hasMore: false }]));
+    assert.equal(result.complete, true);
+    assert.deepEqual(result.publications.map(r => r.provider_object_id), ['p', 'd']);
+    assert.equal(result.diagnostics[1].count, 1);
+});
+test('INV012 dual collection shape does not prove end-of-list from a short page', async () => {
+    const result = await enumerateDzen1002Inventory(fixture([
+        { publications: [row('p', 'published')], drafts: [] }
+    ], [{ publications: [], drafts: [row('d', 'draft')] }]));
+    assert.equal(result.complete, false);
+    assert.deepEqual(result.diagnostics.map(d => d.reason), ['PAGINATION_UNKNOWN', 'PAGINATION_UNKNOWN']);
+    assert.equal(result.diagnostics[1].count, 1);
+});
+test('INV013 malformed or contradictory drafts cannot fall back to empty publications', async () => {
+    for (const drafts of [null, {}, [row('wrong-state', 'published')]]) {
+        const result = await enumerateDzen1002Inventory(fixture([
+            { publications: [], drafts: [], hasMore: false }
+        ], [{ publications: [], drafts, hasMore: false }]));
+        assert.equal(result.complete, false);
+        assert.notEqual(result.diagnostics[1].reason, 'COMPLETE');
+    }
+});

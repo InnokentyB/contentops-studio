@@ -1,6 +1,6 @@
 /** Operating route identity only; this is not permission, adapter health or provider evidence. */
 export const VK_PUBLICATION_ROUTE = 'planner_registered_independent_adapter' as const;
-export const VK_PUBLICATION_BOOTSTRAP_RULE = 'VK owned publication: use ONLY documented Planner commands -> registered independent adapter. Never use Codex CUA/cua.getTab/ComputerUse, personal browser tabs, CDP or session injection, including preflight and UAT. Adapter unavailable or failed -> BLOCKED and repair, never fallback. Explicit action/site denial remains blocked; UNKNOWN/started/uncertain never retry. Human operator context is separate; receipt is not a publication fact. Contract: docs/operations/vk-owned-publication-route.md';
+export const VK_PUBLICATION_BOOTSTRAP_RULE = 'Dzen and VK owned publication: use ONLY documented Planner commands -> registered independent adapter. Never use Codex CUA/cua.getTab/ComputerUse, personal browser tabs, CDP or session injection, including preflight and UAT. Adapter unavailable or failed -> BLOCKED and repair, never browser or manual fallback. Explicit action/site denial remains blocked across adapters/processes/agents; UNKNOWN/started/uncertain never retry. Human operator context is separate; receipt is not a publication fact. Contract: docs/operations/vk-owned-publication-route.md';
 export function assertVkPublicationRoute(route: unknown): asserts route is typeof VK_PUBLICATION_ROUTE {
     if (route !== VK_PUBLICATION_ROUTE) throw new Error('[VK_PUBLICATION_WRONG_ROUTE]');
 }
@@ -19,4 +19,15 @@ export function rejectVkDirectPublication(): void {
 
 export function isVkPublicationPlatform(platform: unknown): boolean {
     return typeof platform === 'string' && platform.trim().toLowerCase() === 'vk';
+}
+
+export function isDzenPublicationPlatform(platform: unknown): boolean {
+    return typeof platform === 'string' && ['dzen', 'zen', 'zen_article'].includes(platform.trim().toLowerCase());
+}
+
+/** No provider state or raw exception is used to construct this blocked handoff. */
+export function dzenPublicationAdapterRequired() {
+    return { code: 'DZEN_INDEPENDENT_ADAPTER_REQUIRED' as const,
+        message: 'Use the documented Planner command and registered independent Dzen adapter. If unavailable, keep BLOCKED and repair. Codex browser/manual fallback is forbidden; explicit action/site denial persists.',
+        retry_via_api: false as const, next_route: 'dzen_adapter_required' as const, required_route: VK_PUBLICATION_ROUTE };
 }

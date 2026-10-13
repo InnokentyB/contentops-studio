@@ -68,3 +68,16 @@ test('VKROUTE-004 direct runtime session entry also rejects a changed route befo
     await assert.rejects(runtime.withSession(async () => undefined), /VK_PUBLICATION_WRONG_ROUTE/);
     assert.equal(admission + launches, 0);
 });
+test('DZENROUTE-001 all Dzen-connected roles receive the shared adapter-only contract', () => {
+    for (const type of ['dzen', 'zen', 'zen_article']) {
+        const manifest = buildAgentWorkspaceManifest({ project: { id: 10, name: 'fixture', slug: 'fixture', updatedAt: new Date(0) },
+            channels: [{ id: 116, name: 'fixture', type, updatedAt: new Date(0) }], settings: [] });
+        for (const chat of manifest.chats) {
+            const rule = chat.startup_instructions.find(s => s.includes('vk-owned-publication-route.md'));
+            assert.ok(rule, `missing shared rule for ${type}/${chat.id}`);
+            assert.match(rule, /Dzen.*VK/);
+            assert.match(rule, /manual fallback/);
+            assert.match(rule, /denial/);
+        }
+    }
+});

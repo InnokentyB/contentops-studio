@@ -51,7 +51,11 @@ export async function enumerateDzen1002Inventory(port: InventoryPort,
                 || current.searchParams.get('state') !== state || current.username || current.password) {
                 diagnostic.reason = 'ROUTE_INVALID'; break;
             }
-            const parsed = extractDzenStudioPublications(response.payload);
+            const root = record(response.payload);
+            // Native Studio has separate collections. An explicit drafts field
+            // wins even when malformed; never hide it behind empty publications.
+            const collection = state === 'draft' && Object.prototype.hasOwnProperty.call(root, 'drafts') ? root.drafts : root.publications;
+            const parsed = extractDzenStudioPublications({ ...root, publications: collection });
             if (!parsed) { diagnostic.reason = 'PAYLOAD_INVALID'; break; }
             diagnostic.count = parsed.publications.length;
             if (!parsed.title_readback_complete || parsed.publications.some(row => !row.provider_object_id || row.state !== state)) {
@@ -64,7 +68,7 @@ export async function enumerateDzen1002Inventory(port: InventoryPort,
                 seen.add(id); added++; result.publications.push(row);
             }
             if (result.publications.length > maxObjects) { diagnostic.reason = 'OBJECT_LIMIT'; break; }
-            const root = record(response.payload); const pagination = record(root.pagination);
+            const pagination = record(root.pagination);
             const more = [root.hasMore, root.has_more, pagination.hasMore, pagination.has_more].find(v => typeof v === 'boolean');
             const total = [root.total, root.totalCount, root.total_count, pagination.total, pagination.totalCount]
                 .find((v): v is number => typeof v === 'number' && Number.isSafeInteger(v) && v >= 0);

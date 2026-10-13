@@ -4,9 +4,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import ts from 'typescript';
 /** Traverse actual local provider imports; comments/docs are not executable API calls. */
-test('VKROUTE-005 governed adapter graph cannot import Computer Use or call personal-tab/CDP controls', () => {
+test('VKROUTE-005 Dzen/VK adapter graphs cannot import Computer Use or call personal-tab/CDP controls', () => {
     const root = path.resolve('src');
-    const pending = ['workers/vk_connector_consumer.ts', 'services/vk1048_operator_dispatch.ts', 'services/vk1048_provider_execution.ts']
+    const pending = ['workers/vk_connector_consumer.ts', 'services/vk1048_operator_dispatch.ts', 'services/vk1048_provider_execution.ts',
+        'services/dzen_task1002_route.service.ts', 'services/dzen1002_inventory_browser.ts']
         .map(file => path.join(root, file));
     const seen = new Set<string>(), forbidden: string[] = [];
     while (pending.length) {

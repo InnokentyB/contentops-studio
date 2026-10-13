@@ -4,6 +4,8 @@ import publicationAdapterService from '../publication_adapter.service';
 import artDirectionService from '../art_direction.service';
 import publicationFactService from '../publication_fact.service';
 import { resolvePublicationExecutionRoute, browserFallbackReason, vkAdapterPublicationHandoff, isVkPublicationPlatform } from '../publication_execution_route';
+import { isDzenPublicationPlatform } from '../vk_publication_route_contract';
+import { dzenAdapterPublicationHandoff } from '../publication_execution_route';
 import { connectorAutoModeGuard } from '../publication_approval_guard';
 import { derivePublicationContentState } from '../publication_content_state';
 import { resolveEffectiveChannelConfig } from '../../utils/channel.utils';
@@ -43,6 +45,7 @@ export class PublicationDispatcher {
 
     async routeToBrowserPublication(task: any, bundle: any, reason: Record<string, unknown>) {
         if (isVkPublicationPlatform(task.channel?.type)) return vkAdapterPublicationHandoff(task.status);
+        if (isDzenPublicationPlatform(task.channel?.type)) return dzenAdapterPublicationHandoff(task.status);
         const now = new Date().toISOString();
         const qualityReport = {
             ...((task.quality_report as any) || {}),

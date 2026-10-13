@@ -4,7 +4,7 @@ import { describeDzen1002Pagination } from '../services/dzen1002_pagination_shap
 import { enumerateDzen1002Inventory } from '../services/dzen1002_inventory';
 import { Dzen1002ReadFailure } from '../services/dzen1002_read_failure';
 
-// Synthetic diagnostic fixtures only: actual sanitized provider shape is pending.
+// Synthetic values; dual collection names verified by the 2026-10-13 native shape.
 test('SHAPE001 retains pagination field names/types and safe numeric/boolean values', () => {
     const shape = describeDzen1002Pagination({ publications: Array(13).fill({ title: 'PRIVATE', id: 'PRIVATE' }),
         paging: { hasNextPage: false, total: 13, cursor: 'SECRET' }, extraStructure: { body: 'PRIVATE' } },
@@ -14,6 +14,12 @@ test('SHAPE001 retains pagination field names/types and safe numeric/boolean val
     assert.deepEqual(shape.nested.paging.find(f => f.name === 'hasNextPage'), { name: 'hasNextPage', type: 'boolean', value: false });
     assert.deepEqual(shape.nested.paging.find(f => f.name === 'cursor'), { name: 'cursor', type: 'string' });
     assert.equal(JSON.stringify(shape).includes('SECRET'), false);
+    assert.equal(JSON.stringify(shape).includes('PRIVATE'), false);
+});
+test('SHAPE006 counts both native collections without exporting private rows', () => {
+    const shape = describeDzen1002Pagination({ publications: [], drafts: [{ title: 'PRIVATE', id: 'PRIVATE' }] },
+        'https://dzen.ru/editor-api/v3/publications?state=draft&pageSize=30');
+    assert.deepEqual(shape.fields.find(f => f.name === 'drafts'), { name: 'drafts', type: 'array', count: 1 });
     assert.equal(JSON.stringify(shape).includes('PRIVATE'), false);
 });
 test('SHAPE002 allowlists response pagination headers without emitting raw header values', () => {
