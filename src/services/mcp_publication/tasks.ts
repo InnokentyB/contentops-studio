@@ -169,6 +169,7 @@ export async function getPublicationTask(projectId: number, taskId: number) {
         include: {
             channel: true,
             selected_asset: true,
+            image_assets: true,
             publication_fact: true,
             metric_snapshots: { orderBy: { scheduled_for: 'asc' } },
             work_items: { select: { kind: true, state: true } }
@@ -482,7 +483,7 @@ export async function configureVkStoryPoll(input: {
 export async function preparePublicationTask(projectId: number, taskId: number) {
     const item = await prisma.contentItem.findFirst({
         where: { id: taskId, project_id: projectId },
-        include: { channel: true, selected_asset: true }
+        include: { channel: true, selected_asset: true, image_assets: true }
     });
 
     if (!item) {
