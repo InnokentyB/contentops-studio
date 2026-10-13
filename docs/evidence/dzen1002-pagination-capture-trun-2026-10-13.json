@@ -17,7 +17,12 @@
     {"id": "CAPTURE-GREEN-003", "build_result": "PASS", "passed": 23, "failed": 0, "skipped": 0,
       "errors": [], "log": "/tmp/dzen1002-diagnostics-focused.log"},
     {"id": "CAPTURE-REGRESSION-004", "build": "backend/full build", "build_result": "PASS", "passed": 52, "failed": 0,
-      "quality": "PASS; baseline77/no hard stops", "errors": [], "log": "/tmp/dzen1002-capture-final-focused.log"}
+      "quality": "PASS; baseline77/no hard stops", "errors": [], "log": "/tmp/dzen1002-capture-final-focused.log"},
+    {"id": "CAPTURE-MAIN-005", "tested_commit": "8df9a6e", "main_base": "f757f0d",
+      "build": "backend/full build", "build_result": "PASS", "passed": 1052, "failed": 0, "skipped": 0,
+      "quality": "PASS; baseline77/no hard stops", "errors": [],
+      "logs": ["/tmp/dzen1002-capture-main-suite.log", "/tmp/dzen1002-capture-main-build.log",
+        "/tmp/dzen1002-capture-main-fullbuild.log", "/tmp/dzen1002-capture-main-quality.log"]}
   ],
   "provider_calls_from_development": 0,
   "provider_writes": 0,
