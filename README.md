@@ -2,6 +2,12 @@
 
 Dzen External Radar coverage and search-screening semantics: [read-only operator contract](docs/dzen-radar-readonly-contract.md).
 
+VK local browser search, Clip editor modules and post verification: [operator readiness and offline runner](docs/operations/vk-browser-adapter-readiness.md). Real-provider enablement remains gated; offline tests do not establish live delivery.
+
+Standalone VK infrastructure dispatch: [consumer bootstrap](docs/operations/vk-connector-consumer-bootstrap.md).
+Planner now has a gated pilot1048 queue/receipt/health contract. The consumer is
+infrastructure-only and cannot open VK, publish or prove public absence.
+
 ContentOps Studio is a governed content operations workspace for teams that need to turn research into an approved cross-channel plan, coordinate human and AI contributors, publish safely, and learn from outcomes.
 
 [Open the product demo](https://publishplanner-production.up.railway.app) | [5-minute walkthrough](docs/PRODUCT_DEMO.md) | [Connect an MCP agent](docs/MCP_SETUP.md) | [Architecture](docs/ARCHITECTURE.md)

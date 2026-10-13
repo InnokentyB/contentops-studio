@@ -1,0 +1,92 @@
+{
+  "date": "2026-10-12",
+  "base_revision": "e17b4b6",
+  "specification": "docs/tdpd/015-vk-browser-search-clips-posts.md",
+  "scope": "Local Clip driver implementation and synthetic DOM fixtures only",
+  "live_provider_access": false,
+  "live_dom_contract_verified": false,
+  "owner_uat": "pending",
+  "runs": [
+    {
+      "id": "TRUN-VK-CLIP-UI-RED-001",
+      "command": "node --test -r ts-node/register src/tests/vk_clip_playwright_ui.test.ts",
+      "exit_code": 1,
+      "phase": "RED",
+      "scenarios": [
+        {
+          "name": "Clip driver processes only local DOM fixtures and rejects premature or unverifiable confirmation",
+          "verdict": "failed_expected",
+          "error": "Expected VK_CLIP_UI_UNVERIFIED; stub returned VK_CLIP_DRIVER_NOT_IMPLEMENTED",
+          "reason": "Driver behavior absent; test environment and local Chromium initialized successfully"
+        }
+      ]
+    },
+    {
+      "id": "TRUN-VK-CLIP-UI-VERIFY-002",
+      "command": "node --test -r ts-node/register src/tests/vk_clip_playwright_ui.test.ts",
+      "exit_code": 0,
+      "phase": "offline_verification",
+      "network": "All requests aborted; navigation replaced by setContent with local synthetic fixture",
+      "scenarios": [
+        {
+          "name": "Clip driver processes only local DOM fixtures and rejects premature or unverifiable confirmation",
+          "verdict": "pass",
+          "assertions": ["explicit upload route", "processed state", "Story distribution off with exact owner label Опубликовать в истории", "comments/duets/community defaults read without mutation", "missing or ambiguous switches block before submit", "exact caption", "one upload", "draft permalink cannot confirm", "media acknowledgement required", "provider time preserved"]
+        },
+        {
+          "name": "missing verification and independent provider collector fail before any navigation",
+          "verdict": "pass",
+          "assertions": ["default driver blocked", "missing collector blocked", "page remains about:blank"]
+        },
+        {
+          "name": "provider relative date, missing media binding and wrong community cannot confirm a fixture Clip",
+          "verdict": "pass",
+          "assertions": ["hash mismatch prevents upload", "relative date rejected", "foreign community rejected", "missing acknowledgement rejected", "credential-bearing acknowledgement URL rejected", "second submit rejected"]
+        }
+      ],
+      "skipped": [],
+      "errors": []
+    },
+    {
+      "id": "TRUN-VK-CLIP-UI-TYPES-003",
+      "command": "npx tsc --noEmit",
+      "exit_code": 2,
+      "phase": "shared_build_in_progress",
+      "errors": [
+        "PlaywrightVkBrowserUi.capturePostBaseline returns Promise<VkPostBaseline>, shared VkBrowserUi expects Promise<void>",
+        "src/tests/vk_post_confirmation.test.ts references not-yet-present ../services/vk_post_confirmation",
+        "Worker UI assignment inherits capturePostBaseline mismatch"
+      ],
+      "clip_driver_type_errors": [],
+      "verdict": "not_green_requires_root_integration_recheck"
+    },
+    {
+      "id": "TRUN-VK-CLIP-UI-QUALITY-004",
+      "command": "npm run quality:gate",
+      "timestamp": "2026-10-12T16:42:50.087Z",
+      "exit_code": 0,
+      "score": 77,
+      "baseline": 77,
+      "hard_stops": [],
+      "verdict": "pass"
+    },
+    {
+      "id": "TRUN-VK-CLIP-UI-BUILD-005",
+      "command": "npm run build:backend",
+      "exit_code": 0,
+      "phase": "shared_backend_build_after_parallel_integration",
+      "errors": [],
+      "verdict": "pass"
+    }
+  ],
+  "limits": [
+    "Screenshot-derived semantic selectors remain tentative; no live DOM is verified",
+    "Independent permitted provider evidence collector is not implemented by this module",
+    "Exact provider timestamp and explicit upload-media acknowledgement are mandatory; local hash/clock cannot supply provider proof",
+    "Default real driver readiness denied; CLI live gate must remain disabled",
+    "Named comment/duet/show-in-community switches are read in fixtures; their actual live DOM labels remain unverified",
+    "Cover check establishes a single cover control, not an actual default/selected thumbnail identity",
+    "Processing timeout is 180 seconds; operation and orchestration bounds remain root integration responsibility",
+    "No commit, push, deployment, credentials, provider state or manual Kafka Clip was changed"
+  ]
+}

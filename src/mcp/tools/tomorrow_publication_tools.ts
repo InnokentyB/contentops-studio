@@ -34,6 +34,25 @@ export function registerTomorrowPublicationTools(server: McpServer): void {
             dryRun: z.boolean().optional().default(true), idempotencyKey: z.string().min(1).optional() }
     }, async args => asToolResult(await dzenTaskPublicationService.execute(args)));
 
+    server.registerTool('ba_release_threads_task1108_api', {
+        description: 'Owner-only audited release of exact p10 Threads task1108 revision1/decision290. Verifies personal identity, provider history, manifest, native length and absence of facts or attempts. Never publishes.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
+        inputSchema: {
+            projectId: z.literal(10), taskId: z.literal(1108),
+            actorId: z.string().regex(/^user:\d+$/),
+            expectedManifestChecksum: z.literal(MANIFEST),
+            approvalReference: z.string().min(10), idempotencyKey: z.string().min(1)
+        }
+    }, async args => asToolResult(await releasePendingThreadsTask(args)));
+    server.registerTool('ba_publish_threads_task1108', {
+        description: 'Exact dry-run or one-shot task-native API publication for owner-released Threads task1108 revision1. An uncertain provider result freezes retry and records no publication fact.',
+        annotations: EXTERNAL_PUBLICATION_ANNOTATIONS,
+        inputSchema: {
+            projectId: z.literal(10), taskId: z.literal(1108),
+            dryRun: z.boolean().optional().default(true), idempotencyKey: z.string().min(1).optional()
+        }
+    }, async args => asToolResult(await threadsTaskPublicationService.execute(args)));
+
     server.registerTool('ba_release_threads_task1110_api', {
         description: 'Owner-only audited release of exact p10 Threads task1110 revision2/decision299. Verifies personal identity, provider history, manifest, native length and absence of facts or attempts. Never publishes.',
         annotations: INTERNAL_MUTATION_ANNOTATIONS,

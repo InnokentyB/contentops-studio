@@ -1,0 +1,362 @@
+{
+  "date": "2026-10-13",
+  "input": "owner-approved LOCK/QAR/ARCH/RISK/AUT-VK-017",
+  "specification": "docs/tdpd/017-vk1048-provider-delta.md",
+  "scenarios": "docs/tdpd/017-vk1048-provider-scenarios.md",
+  "scope": "Existing immutable project10/task1048/channel117/feed job, revision1/asset130",
+  "required_scenarios": ["VK017-01", "VK017-02", "VK017-03", "VK017-04", "VK017-05", "VK017-06", "VK017-07", "VK017-08", "VK017-09", "VK017-10", "VK017-11", "VK017-12", "VK017-13", "VK017-14", "VK017-15", "VK017-16"],
+  "runs": [
+    {
+      "id": "TRUN-VK017-RECONCILE-RED-001",
+      "command": "node --test dist/tests/vk_connector_reconciliation.test.js",
+      "evidence_source": "/tmp/vk017-reconcile-red.log",
+      "exit_code": 1,
+      "phase": "RED",
+      "scenarios": [
+        { "name": "unique exact owner/text/approved media/provider date yields exact match", "mapped_id": "VK017-04", "verdict": "failed_expected", "error": "unknown !== exact_match" },
+        { "name": "absence requires complete release-through-now bounded wall coverage", "mapped_id": "VK017-05", "verdict": "failed_expected", "error": "unknown !== proven_absence" },
+        { "name": "text match with missing/unacknowledged/different media cannot permit resend", "mapped_id": "VK017-06", "verdict": "pass" },
+        { "name": "ambiguous objects, relative date, foreign link and object overflow remain unknown", "mapped_id": "VK017-06", "verdict": "pass" }
+      ]
+    },
+    {
+      "id": "TRUN-VK017-RECONCILE-IMPLEMENTATION-002",
+      "phase": "parent_reported_offline_verification",
+      "evidence_source": "Parent root tool run report",
+      "command": "node --test dist/tests/vk_connector_reconciliation.test.js",
+      "exit_code": 0,
+      "passed": 4,
+      "scope": "Earlier reconciliation implementation only; subsequent independent review raised body-binding/coverage/absence-time findings",
+      "overall_green": false
+    },
+    {
+      "id": "TRUN-VK017-RECONCILE-REVIEW-003",
+      "command": "node --test -r ts-node/register src/tests/vk_connector_reconciliation.test.ts",
+      "exit_code": 1,
+      "phase": "parallel_integration_type_error",
+      "errors": ["TS2344: JobPatch includes canonicalLeaseSha256/canonicalLeaseExpiresAt not yet present on keyof ConnectorJob"],
+      "scenario_execution": "not_started_due_to_compile_error",
+      "behavioral_red": false,
+      "rerun_required": true
+    },
+    {
+      "id": "TRUN-VK017-RECONCILE-HASH-RED-004",
+      "command": "node --test dist/tests/vk_connector_reconciliation.test.js",
+      "evidence_source": "/tmp/vk017-reconcile-hash-red.log",
+      "phase": "review_regression_RED",
+      "exit_code": 1,
+      "passed": 4,
+      "failed": 1,
+      "scenario": "changed accepted caption cannot establish absence",
+      "mapped_id": "VK017-02",
+      "error": "Evaluator accepted evidence for a caption not bound to package.bodySha256"
+    },
+    {
+      "id": "TRUN-VK017-RECONCILE-SCOPE-RED-005",
+      "command": "node --test dist/tests/vk_connector_reconciliation.test.js",
+      "evidence_source": "/tmp/vk017-reconcile-scope-red.log",
+      "phase": "review_regression_RED",
+      "exit_code": 1,
+      "passed": 4,
+      "failed": 2,
+      "scenarios": [
+        { "name": "changed accepted caption cannot establish absence", "mapped_id": "VK017-02", "verdict": "failed_expected" },
+        { "name": "one exact candidate in partial inventory or outside release window stays unknown", "mapped_id": "VK017-06", "verdict": "failed_expected" }
+      ]
+    },
+    {
+      "id": "TRUN-VK017-RECONCILE-ISOLATED-006",
+      "command": "TS_NODE_TRANSPILE_ONLY=1 node --test -r ts-node/register src/tests/vk_connector_reconciliation.test.ts",
+      "phase": "isolated_offline_verification_after_review_fixes",
+      "exit_code": 0,
+      "scenarios": [
+        { "name": "unique exact owner/text/approved media/provider date yields exact match", "mapped_id": "VK017-04", "verdict": "pass" },
+        { "name": "absence requires complete release-through-now bounded wall coverage", "mapped_id": "VK017-05", "verdict": "pass" },
+        { "name": "text match with missing/unacknowledged/different media cannot permit resend", "mapped_id": "VK017-06", "verdict": "pass" },
+        { "name": "ambiguous objects, relative date, foreign link and object overflow remain unknown", "mapped_id": "VK017-06", "verdict": "pass" },
+        { "name": "changed accepted caption cannot establish absence", "mapped_id": "VK017-02", "verdict": "pass" },
+        { "name": "one exact candidate in partial inventory or outside release window stays unknown", "mapped_id": "VK017-06", "verdict": "pass" },
+        { "name": "complete inventory ending at a fresh capture does not invent future coverage", "mapped_id": "VK017-05", "verdict": "pass" },
+        { "name": "coverage beyond its observed capture is unconfirmed", "mapped_id": "VK017-06", "verdict": "pass" }
+      ],
+      "typecheck_bypassed": true,
+      "build_green_claimed": false,
+      "errors": [],
+      "skipped": []
+    },
+    {
+      "id": "TRUN-VK017-SHARED-BUILD-007",
+      "evidence_source": "/tmp/vk017-reconcile-final-build.log",
+      "phase": "parallel_schema_integration_build_error",
+      "errors": [
+        "TS2339: generated ConnectorDispatchJob lacks canonical_lease_sha256 and canonical_lease_expires_at",
+        "TS2353: generated ConnectorDispatchJob update input lacks canonical_lease_sha256"
+      ],
+      "rerun_required": true,
+      "build_green_claimed": false
+    },
+    {
+      "id": "TRUN-VK017-QUALITY-IN-PROGRESS-008",
+      "command": "npm run quality:gate",
+      "evidence_source": "/tmp/vk017-quality-in-progress.json",
+      "phase": "in_progress_changed_code_quality",
+      "verdict": "pass",
+      "score": 77,
+      "baseline": 77,
+      "hard_stops": [],
+      "final_changed_code_recheck_required": true
+    },
+    {
+      "id": "TRUN-VK017-ENGINE-RED-009",
+      "command": "node --require ts-node/register --test src/tests/vk1048_provider_execution.test.ts",
+      "evidence_source": "Worker agent recorded tool run",
+      "phase": "RED",
+      "failed": 2,
+      "errors": ["VK1048_PROVIDER_NOT_IMPLEMENTED"],
+      "scenarios": [
+        { "name": "production permission is unverified and no browser/control action occurs", "mapped_id": "VK017-01", "verdict": "failed_expected" },
+        { "name": "UNKNOWN reconciliation permits no claim/upload/submit", "mapped_id": "VK017-06", "verdict": "failed_expected" }
+      ]
+    },
+    {
+      "id": "TRUN-VK017-ENGINE-OFFLINE-010",
+      "command": "TELEGRAM_BOT_TOKEN=123456789:local-test-placeholder node --require ts-node/register --test src/tests/vk1048_provider_execution.test.ts",
+      "evidence_source": "Worker agent reported tool run; broader integration recheck pending",
+      "phase": "offline_dependency_fixture_verification",
+      "passed": 7,
+      "scenarios": [
+        { "name": "production permission is unverified and no browser/control action occurs", "mapped_id": "VK017-01", "verdict": "pass" },
+        { "name": "UNKNOWN reconciliation permits no claim/upload/submit", "mapped_id": "VK017-06", "verdict": "pass" },
+        { "name": "exact existing object reconciles without a lease or new provider submit", "mapped_id": "VK017-04", "verdict": "pass" },
+        { "name": "proven absence reuses worker and durable start precedes one upload/submit", "mapped_id": "VK017-05", "verdict": "pass" },
+        { "name": "missing media acknowledgement never confirms visible-image-only result", "mapped_id": "VK017-10", "verdict": "pass" },
+        { "name": "wrong downloaded asset hash prevents provider lifecycle and lease", "mapped_id": "VK017-02", "verdict": "pass" },
+        { "name": "uncertain existing durable attempt forbids upload and submit on restart", "mapped_id": "VK017-08", "verdict": "pass" }
+      ],
+      "live_provider_pass_claimed": false,
+      "overall_green": false
+    },
+    {
+      "id": "TRUN-VK017-MIGRATION-011", "phase": "offline_SQL_verification_not_RED",
+      "command": "TS_NODE_TRANSPILE_ONLY=1 node --test -r ts-node/register src/tests/vk_connector_provider_migration.test.ts",
+      "evidence_source": "/tmp/vk017-migration-tests.log", "passed": 2, "failed": 0, "skipped": 0,
+      "scenarios": [
+        { "name": "provider migration preserves old job/state/receipt/package and initializes null canonical lease fields", "mapped_id": "VK017-14", "verdict": "pass" },
+        { "name": "additive rollback keeps all jobs, canonical leases and publication history", "mapped_id": "VK017-14", "verdict": "pass" }
+      ],
+      "database": "temporary PGlite, both exact additive migrations", "real_canonical_pipeline_DB_claimed": false
+    },
+    {
+      "id": "TRUN-VK017-BUILD-TYPED-QUERY-012", "command": "npm run build:backend",
+      "evidence_source": "/tmp/vk017-backend-integration-build.log", "phase": "intermediate_build_error",
+      "errors": ["TS2571: two root migration-test count query results were unknown; fixed with typed db.query<{count:number}>"], "behavioral_red": false
+    },
+    {
+      "id": "TRUN-VK017-BUILD-INTERMEDIATE-013", "command": "npm run build:backend",
+      "evidence_source": "/tmp/vk017-backend-integration-build2.log", "phase": "intermediate_build",
+      "verdict": "pass", "final_changed_code_recheck_required": true
+    },
+    {
+      "id": "TRUN-VK017-FOCUSED-COMPILED-014", "phase": "intermediate_compiled_verification",
+      "evidence_source": "/tmp/vk017-focused-integration.log", "passed": 23, "failed": 0, "skipped": 0,
+      "scope": "reconciliation proof, exact SQL migration, resume and provider-entry fixtures", "final_changed_code_recheck_required": true
+    },
+    {
+      "id": "TRUN-VK017-FRONTEND-015", "command": "npm run build --prefix frontend",
+      "evidence_source": "/tmp/vk017-frontend-build.log", "phase": "intermediate_frontend_build", "verdict": "pass"
+    },
+    {
+      "id": "TRUN-VK017-FULL-INTERMEDIATE-016", "command": "node --test --test-concurrency=1 dist/tests/*.test.js",
+      "evidence_source": "/tmp/vk017-full-integration-tests.log", "phase": "intermediate_compiled_full_suite",
+      "environment": "parent offline DB/test configuration", "passed": 977, "failed": 0, "skipped": 0,
+      "duration_seconds_approx": 42, "final_changed_code_recheck_required": true
+    },
+    {
+      "id": "TRUN-VK017-BUILD-MODE-017", "command": "npm run build:backend",
+      "evidence_source": "/tmp/vk017-backend-integration-build3.log", "phase": "intermediate_build_error",
+      "errors": ["TS2345: two provider entry call sites omitted new required identity.mode"], "behavioral_red": false
+    },
+    {
+      "id": "TRUN-VK017-SERVICE-INTEGRATION-ALIGNMENT-018", "phase": "new_fixture_API_alignment_errors_not_behavioral_RED",
+      "errors": [
+        "New in-process admission port initially absent from integration fixture; default correctly returned PERMISSION_UNVERIFIED",
+        "Parallel API added verifyMediaAcknowledgement, store.bindLease and cancelPendingOperations; fixture adapted",
+        "Guard fixture referenced non-existent metricCheckpoint delegate; corrected to actual models",
+        "Prisma dynamic delegate/proxy methods lack ordinary descriptors for t.mock.method; scoped trusted auth mock and restored transaction override used",
+        "Explicit mock parameter types repaired two TS7006 errors"
+      ], "all_repaired": true
+    },
+    {
+      "id": "TRUN-VK017-SERVICE-INTEGRATION-019",
+      "command": "TELEGRAM_BOT_TOKEN=123456789:local-test-placeholder node --test -r ts-node/register src/tests/vk1048_provider_integration.test.ts",
+      "phase": "independent_service_backed_offline_verification", "passed": 5, "failed": 0, "skipped": 0,
+      "scenarios": [
+        { "name": "service-backed MCP DTOs claim/start/confirm one exact synthetic package", "mapped_ids": ["VK017-05", "VK017-10", "VK017-15"], "verdict": "pass" },
+        { "name": "exact existing post reconciles without synthetic attempt or provider send", "mapped_id": "VK017-04", "verdict": "pass" },
+        { "name": "trusted admission unavailable blocks even an injected offline UI", "mapped_id": "VK017-01", "verdict": "pass" },
+        { "name": "transport fence loss after upload freezes durable attempt before submit/fact", "mapped_ids": ["VK017-07", "VK017-09"], "verdict": "pass" },
+        { "name": "actual fact service runs transport beforeWrite guard before any canonical write", "mapped_id": "VK017-11", "verdict": "pass" }
+      ],
+      "limits": "Actual execution service and PublicationFactService beforeWrite hook invoked; canonical mutation ports/transaction are scoped mocks. Real canonical DB concurrency/rollback/checkpoints are not established.",
+      "live_provider_pass_claimed": false
+    },
+    {
+      "id": "TRUN-VK017-MIGRATION-CAS-020", "phase": "offline_SQL_CAS_verification",
+      "evidence_source": "/tmp/vk017-migration-tests2.log", "passed": 3, "failed": 0, "skipped": 0,
+      "added_scenario": "Two competing exact transport SQL lease-binding CAS commands have one generation winner; WI count preserved",
+      "mapped_id": "VK017-07", "limits": "Temporary PGlite transport SQL, not a real canonical Prisma pipeline race"
+    },
+    {
+      "id": "TRUN-VK017-ENGINE-FENCE-RED-021", "phase": "behavioral_review_RED",
+      "evidence_source": "Worker agent recorded PROVIDER-008 run",
+      "scenario": "Lost transport fence before upload/submit must not return offline fixture confirmation",
+      "mapped_id": "VK017-07", "error": "Previously returned offline_fixture_confirmed despite fence loss", "failed": 1
+    },
+    {
+      "id": "TRUN-VK017-ENGINE-FINAL-SOURCE-022", "phase": "worker_offline_source_verification",
+      "evidence_source": "Worker agent final handoff", "passed": 13, "failed": 0, "skipped": 0,
+      "scope": "Entry admission, package/media bytes, reconciliation, bounded cancellation, fenced UI/confirmation, absolute date/media proof, 31-second heartbeat loss",
+      "production_factory": "PERMISSION_UNVERIFIED before package/profile/UI",
+      "live_provider_pass_claimed": false
+    },
+    {
+      "id": "TRUN-VK017-MCP-WIRE-023",
+      "command": "node --test -r ts-node/register src/tests/vk_connector_provider_mcp.test.ts",
+      "evidence_source": "/tmp/vk017-mcp-wire-test.log", "phase": "registered_tool_schema_and_default_authority_verification",
+      "verdict": "pass", "boundary": "InMemoryTransport, actual registered tool schemas/service default ports",
+      "assertions": ["all eight provider-control tool names present", "claim/reconcile/check/start reject NOT_CHECKED before DB", "caller evidence cannot grant permission", "raw bracket reason rejected by uncertainty wire schema"],
+      "real_credentials_DB_provider_network_used": false
+    },
+    {
+      "id": "TRUN-VK017-SERVICE-INTEGRATION-FINAL-SOURCE-024",
+      "command": "TELEGRAM_BOT_TOKEN=123456789:local-test-placeholder node --test -r ts-node/register src/tests/vk1048_provider_integration.test.ts",
+      "phase": "independent_source_recheck_after_host_mode_guard", "passed": 5, "failed": 0, "skipped": 0,
+      "assertions": ["fixture explicitly polls vk_feed_provider mode", "same-transaction lease binding checks", "beforeWrite guard rejects before canonical writes"],
+      "real_canonical_DB_pipeline_verification_claimed": false
+    },
+    {
+      "id": "TRUN-VK017-ARTIFACT-RED-025", "phase": "actual_standalone_runtime_RED_hard_stop",
+      "evidence_source": "/tmp/vk017-artifact-red.json", "mapped_id": "VK017-16",
+      "probe": "Actual bundled executable startup with missing config; no real credential/provider access",
+      "verdict": "fail", "error": "TypeError: Class2 is not a constructor in SDK/zod schema initialization before main",
+      "build_success_did_not_establish_runtime_readiness": true,
+      "release_blocked_until_runtime_regression_pass": true,
+      "production_changed": false
+    },
+    {
+      "id": "TRUN-VK017-FULL-CURRENT-026",
+      "command": "node --test --test-concurrency=1 dist/tests/*.test.js",
+      "evidence_source": "/tmp/vk017-final-full-tests.log", "phase": "current_compiled_full_suite_snapshot",
+      "passed": 992, "failed": 0, "skipped": 0, "duration_seconds_approx": 32,
+      "subsequent_source_guard_changes_require_recheck": true,
+      "standalone_artifact_hard_stop_remains": true
+    },
+    {
+      "id": "TRUN-VK017-QUALITY-CURRENT-027", "command": "npm run quality:gate",
+      "evidence_source": "/tmp/vk017-final-quality.log", "phase": "current_quality_snapshot",
+      "verdict": "pass", "score": 77, "baseline": 77,
+      "standalone_runtime_readiness_claimed": false
+    },
+    {
+      "id": "TRUN-VK017-ARTIFACT-REPAIR-028",
+      "command": "node --require ts-node/register --test src/tests/vk_connector_bundle.test.ts",
+      "phase": "actual_copied_standalone_runtime_verification_after_repair", "evidence_source": "Worker agent recorded runs",
+      "passed": 3, "failed": 0, "skipped": 0,
+      "repair": "Existing esbuild aliases public Zod and SDK client entries to canonical CJS resolution; no new dependency or credential substitution",
+      "scenarios": [
+        { "name": "copied artifact outside checkout, missing config reaches VK_CONNECTOR_STOPPED instead of pre-main Class2 constructor crash", "mapped_id": "VK017-16", "verdict": "pass" },
+        { "name": "private provider-mode config with missing existing environment credential stops AUTH_UNAVAILABLE before runtime creation", "mapped_ids": ["VK017-13", "VK017-16"], "verdict": "pass" },
+        { "name": "existing private lock and synthetic credential stops ALREADY_RUNNING_OR_STALE_LOCK, preserves lock and creates no health", "mapped_ids": ["VK017-07", "VK017-16"], "verdict": "pass" }
+      ],
+      "environment": "minimal child environment; copied artifact; no real key, provider, network, browser or profile",
+      "initial_runtime_failure_retained": true,
+      "final_combined_regression_required": true
+    },
+    {
+      "id": "TRUN-VK017-RELEASE-FULL-FAILURE-029",
+      "command": "node --test --test-concurrency=1 dist/tests/*.test.js",
+      "evidence_source": "/tmp/vk017-release-full-tests.log", "phase": "release_candidate_fixture_contract_alignment_failure",
+      "total": 995, "passed": 994, "failed": 1,
+      "error": "MCP wire fixture incorrectly required reconciliation to avoid all DB reads; existing canonical-fact replay legitimately performs scoped owner/data checks before provider admission",
+      "repair": "Keep claim/check/start mutation pre-admission assertions; allow reconciliation scoped canonical read/replay",
+      "behavioral_red": false,
+      "final_build_and_full_rerun_required": true
+    },
+    {
+      "id": "TRUN-VK017-WIRE-SCOPE-RECHECK-030",
+      "evidence_sources": ["/tmp/vk017-mcp-wire-test2.log", "/tmp/vk017-mcp-scope-test.log"],
+      "phase": "actual_wire_and_remote_principal_recheck", "verdict": "pass",
+      "assertions": ["two actual MCP wire cases pass", "all eight new provider names included in remote principal scoping test", "caller project/actor cannot widen authenticated authority"],
+      "provider_DB_mutation_claimed": false
+    },
+    {
+      "id": "TRUN-VK017-ACCEPTED-BACKEND-031", "command": "npm run build:backend",
+      "evidence_source": "/tmp/vk017-accepted-backend-build.log", "phase": "source_frozen_release_candidate",
+      "verdict": "pass"
+    },
+    {
+      "id": "TRUN-VK017-ACCEPTED-FULL-032",
+      "command": "node --test --test-concurrency=1 dist/tests/*.test.js",
+      "evidence_source": "/tmp/vk017-accepted-full-tests.log", "phase": "source_frozen_release_candidate",
+      "passed": 996, "failed": 0, "skipped": 0, "duration_seconds_approx": 37,
+      "includes": ["all eight new remote MCP principal scope names", "three actual copied-artifact startup regressions", "service-backed in-memory integration and atomic beforeWrite no-write guard", "exact additive SQL migration/CAS fixtures", "existing canonical publication regressions"],
+      "live_provider_or_owner_UAT_established": false
+    },
+    {
+      "id": "TRUN-VK017-ACCEPTED-QUALITY-033", "command": "npm run quality:gate",
+      "evidence_source": "/tmp/vk017-accepted-quality.log", "phase": "source_frozen_release_candidate",
+      "verdict": "pass", "score": 77, "baseline": 77
+    },
+    {
+      "id": "TRUN-VK017-PRODUCTION-READONLY-PREFLIGHT-034",
+      "evidence_source": "/tmp/vk017-prod-preflight.json", "phase": "parent_authorized_readonly_preflight",
+      "observed_at": "2026-10-13T09:04:57Z",
+      "scope": "existing immutable project10/task1048 job",
+      "job_count": 1, "generation": 1, "state": "existing_blocked_unchanged",
+      "attempt_count": 0, "fact_count": 0,
+      "work_item": "1699 unchanged, existing expired lease",
+      "mutations": 0, "new_migrations_applied": false,
+      "provider_absence_proven": false
+    },
+    {
+      "id": "TRUN-VK017-ACCEPTED-ARTIFACT-035",
+      "evidence_source": "/tmp/vk017-accepted-artifact.json", "phase": "source_frozen_final_artifact",
+      "sha256": "79539f501bfa0ef0772d952212f352b993376c7d2c0f46757e942af9755643f1",
+      "byte_size": 2235660,
+      "copied_standalone_startup_regressions_passed": 3,
+      "parent_missing_config_startup_probe": "VK_CONNECTOR_STOPPED",
+      "provider_ready_or_live_execution_established": false
+    }
+  ],
+  "test_verdict": "offline_release_verification_pass__live_completion_blocked__owner_UAT_pending",
+  "release_review": {
+    "verdict": "prepared_blocked_surface_only",
+    "scope": "Reviewed code/additive schema/compatible readers may be released with default unavailable production admission and no provider enablement",
+    "actual_automatic_publication_ready": false,
+    "owner_UAT_granted": false,
+    "initial_artifact_hard_stop": "repaired and included in final 996-test regression pass",
+    "production_live_send_authorized_by_test_results": false
+  },
+  "production_admission": "blocked_pending_trusted_assessment_of_execution_context",
+  "denial_provenance": { "source": "Browser Use site-safety control", "observed_date": "2026-10-08", "new_check_claimed": false },
+  "live_provider_operations": 0,
+  "real_provider_smoke": "blocked_until_trusted_permitted_execution_context_exists",
+  "owner_uat": "pending",
+  "remaining_engineering_limits": [
+    "No trusted production action-time admission, actual provider inventory or media acknowledgement implementation is available",
+    "A long admitted reconciliation may exceed the 30-second host heartbeat freshness because the sequential engine has no proven concurrent live heartbeat lifecycle",
+    "After stale-host freeze, a new instance needs an explicit reconciliation-only transport handoff; retaining the old job instance safely fences execution but does not establish complete restart reconciliation",
+    "Actual canonical DB pipeline race/rollback/exactly-once checkpoint evidence is not established by scoped mutation-port mocks",
+    "Final stable offline build/full suite/review pass; no actual provider smoke or owner UAT has occurred"
+  ],
+  "scenario_scope_interpretation": "Offline fixture passes verify guarded control flow only. Real-provider admission, session/community, inventory/media acknowledgement, smoke and owner UAT remain blocked or NOT_CHECKED; none is counted as a live pass.",
+  "review_findings": [
+    "An owner GO, mode flag or self-issued application permit cannot lift actual platform/site-control denial",
+    "Existing ordinary-feed local image hash and image_present proof are insufficient for provider media identity",
+    "Actual provider execution requires canonical lease plus transport fencing, not transport generation alone",
+    "Reconciliation evaluator must bind its caption input to package.bodySha256",
+    "Unique existing match requires independent uniqueness scope; a partial inventory cannot prove that alone",
+    "Absence scope must not pretend to cover the interval after capture through a later evaluator clock"
+  ],
+  "commit_push_deploy_performed_by_review_agent": false
+}

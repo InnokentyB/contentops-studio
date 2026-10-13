@@ -34,6 +34,9 @@ const WRITER_TOOLS = new Set([
 ]);
 
 const PLANNER_TOOLS = new Set([
+    'ba_preview_vk_connector_dispatch',
+    'ba_get_vk_connector_health',
+    'ba_get_vk_connector_job',
     'ba_get_agent_workspace_manifest',
     'ba_get_agent_workspace_updates',
     'ba_get_agent_chat_bootstrap',
@@ -72,6 +75,7 @@ const PLANNER_TOOLS = new Set([
     'ba_require_task973_publication_visual',
     'ba_repair_task972_publication_metadata',
     'ba_bind_task960_linkedin_identity',
+    'ba_adapt_task1091_tdpd_source',
     'ba_create_task970_t72_checkpoint',
     'ba_upsert_initiative',
     'ba_link_initiatives',
@@ -119,6 +123,8 @@ const ART_DIRECTOR_TOOLS = new Set([
 const EDITOR_TOOLS = new Set([
     'ba_recover_oct08_content_review',
     'ba_repair_task1051_review_collision',
+    'ba_repair_task1091_review_collision',
+    'ba_repair_task1091_rev4_review_collision',
     'ba_get_agent_workspace_manifest',
     'ba_get_agent_workspace_updates',
     'ba_get_agent_chat_bootstrap',
@@ -140,6 +146,8 @@ const EDITOR_TOOLS = new Set([
 ]);
 
 const PUBLISHER_TOOLS = new Set([
+    'ba_release_threads_task1108_api',
+    'ba_publish_threads_task1108',
     'ba_release_dzen_task1002',
     'ba_preflight_dzen_task1002',
     'ba_publish_dzen_task1002',
@@ -245,6 +253,25 @@ const PUBLISHER_TOOLS = new Set([
     'ba_hold_vk_task1084',
     'ba_restore_vk_task1084_from_erroneous_retirement',
     'ba_claim_x_browser_publication',
+    'ba_preview_vk_connector_dispatch',
+    'ba_get_vk_connector_health',
+    'ba_get_vk_connector_job',
+    'ba_dispatch_vk_connector_job',
+    'ba_poll_vk_connector_jobs',
+    'ba_ack_vk_connector_job',
+    'ba_report_vk_connector_job',
+    'ba_reconcile_vk_connector_job',
+    'ba_resume_vk_connector_job',
+    'ba_get_vk_connector_execution_package',
+    'ba_claim_vk_connector_execution',
+    'ba_reconcile_vk_connector_execution',
+    'ba_check_vk_connector_execution',
+    'ba_start_vk_connector_submission',
+    'ba_confirm_vk_connector_submission',
+    'ba_mark_vk_connector_submission_uncertain',
+    'ba_renew_vk_connector_heartbeat',
+    'ba_rebind_vk_connector_reconciliation',
+    'ba_issue_vk_connector_challenge',
     'ba_claim_vk_browser_publication',
     'ba_start_vk_browser_submission',
     'ba_confirm_vk_browser_submission',
@@ -323,6 +350,7 @@ const STRATEGIST_EXCLUDED = new Set([
     'ba_repair_task972_publication_metadata',
     'ba_repair_telegram_task1099_story_placement',
     'ba_bind_task960_linkedin_identity',
+    'ba_adapt_task1091_tdpd_source',
     'ba_create_task970_t72_checkpoint'
 ]);
 

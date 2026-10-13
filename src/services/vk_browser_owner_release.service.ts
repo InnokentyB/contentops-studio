@@ -5,6 +5,7 @@ import publicationAdapterService from './publication_adapter.service';
 import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
 import { loadAgentWorkspaceManifest } from './agent_workspace_manifest.service';
 import workQueueService from './work_queue.service';
+import { assertApprovedVkClipAsset } from './publication_plan/handoff';
 
 export type VkBrowserReleaseArgs = {
     projectId: number;
@@ -18,7 +19,7 @@ export type VkBrowserReleaseArgs = {
     expectedSelectedAssetId: number;
     expectedAssetSha256: string;
     expectedScheduleAt: string;
-    expectedPlacement?: 'feed' | 'article_cover' | 'video_cover' | 'story';
+    expectedPlacement?: 'feed' | 'article_cover' | 'video_cover' | 'story' | 'clip';
     expectedManifestChecksum: string;
     approvalReference: string;
     idempotencyKey: string;
@@ -115,6 +116,7 @@ export async function releaseVkBrowserTask(dependencies: VkBrowserReleaseDepende
             project_id: args.projectId,
             content_item_id: args.taskId
         } })) throw new Error('[DELIVERY_ATTEMPT_EXISTS]');
+        if (expectedPlacement === 'clip') assertApprovedVkClipAsset(task);
         if (await tx.workItem.findFirst({ where: {
             project_id: args.projectId,
             content_item_id: args.taskId,
