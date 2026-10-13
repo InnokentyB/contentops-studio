@@ -589,7 +589,8 @@ export class DzenTaskPublicationService {
             : await dzen.testConnection(config);
         if (check?.authenticated !== true || check?.editor_available !== true
             || !String(check?.editor_url || '').includes(`/id/${config.channel_id}`)) {
-            throw new Error('[DZEN_CONNECTOR_NOT_READY] Authenticated channel editor was not verified');
+            throw new Error(`[DZEN_CONNECTOR_NOT_READY] Authenticated channel editor was not verified${providerInventoryRequired
+                ? ` ${JSON.stringify({ diagnostics: check?.inventory_diagnostics || [] })}` : ''}`);
         }
         let reconciliation: Record<string, unknown> | undefined;
         let inventory: Record<string, unknown> | undefined;

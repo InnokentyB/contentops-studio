@@ -1,0 +1,26 @@
+{
+  "defect": "DZEN1002-INV-001",
+  "stage": "actual provider shape capture, NOT completeness repair or publication completion",
+  "owner_scope": "Existing approved task1002 bounded read-only Published+Drafts investigation",
+  "actual_observation_supplied_by_ops": {
+    "published": "Earlier HTTP200/count13/PAGINATION_UNKNOWN; latest READ_FAILED",
+    "draft": "HTTP200/count0/PAGINATION_UNKNOWN",
+    "actual_payload_fixture": "NOT_RETAINED; Ops confirmed only final diagnostics exist"
+  },
+  "diagnostic_boundary": "Root/paging field names/types; fixed pagination numeric/boolean fields; numeric request page controls; allowlisted range/count header projection. No publication bodies/titles/author IDs, string values, credentials, raw headers/URLs/errors. Capture is not interpreted as end-of-list proof.",
+  "read_failure_boundary": "Owned navigation/response/body timeout, auth/CAPTCHA, HTTP, JSON/size/route codes; safe observed API states/statuses. Unknown raw errors remain sanitized. First response wait restores legacy30sec within overall60sec. No automatic retries.",
+  "runs": [
+    {"id": "CAPTURE-RED-001", "build_result": "PASS", "test": "dzen1002_pagination_shape", "passed": 0, "failed": 4,
+      "errors": "Missing diagnostic shape projection and owning inventory attachment", "log": "/tmp/dzen1002-shape-red.log"},
+    {"id": "CAUSE-RED-002", "build_result": "PASS", "passed": 4, "failed": 1,
+      "errors": "Owned RESPONSE_TIMEOUT reduced to READ_FAILED", "log": "/tmp/dzen1002-cause-red.log"},
+    {"id": "CAPTURE-GREEN-003", "build_result": "PASS", "passed": 23, "failed": 0, "skipped": 0,
+      "errors": [], "log": "/tmp/dzen1002-diagnostics-focused.log"},
+    {"id": "CAPTURE-REGRESSION-004", "build": "backend/full build", "build_result": "PASS", "passed": 52, "failed": 0,
+      "quality": "PASS; baseline77/no hard stops", "errors": [], "log": "/tmp/dzen1002-capture-final-focused.log"}
+  ],
+  "provider_calls_from_development": 0,
+  "provider_writes": 0,
+  "p7_changes": "No p7 production changes; separate approval proposal only",
+  "next": "Owning p10 Publisher captures one fresh native preflight after deployment. Preserve its sanitized pagination_shape/cause evidence as actual fixture; only then implement and test observed exhaustive semantics. Never force coverage from13/0."
+}

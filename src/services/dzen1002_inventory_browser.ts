@@ -1,7 +1,8 @@
-import puppeteer, { type Page } from 'puppeteer';
+import puppeteer, { TimeoutError, type Page } from 'puppeteer';
 import { enumerateDzen1002Inventory, type InventoryPage, type InventoryDiagnostic } from './dzen1002_inventory';
 import { parseBrowserCookieHeader, type DzenStudioPublication } from './puppeteer/dzen_dom_helpers';
 import puppeteerPublisherService from './puppeteer_publisher.service';
+import { Dzen1002ReadFailure, type Dzen1002ObservedResponse } from './dzen1002_read_failure';
 
 const CHANNEL = '6a8029aba055ec36033bf81c';
 const LIST = `https://dzen.ru/profile/editor/id/${CHANNEL}/publications`;
@@ -25,7 +26,16 @@ export async function readDzen1002Inventory(config: { cookies?: string; channel_
         const page = await browser.newPage(); const expires = Date.now() + 60_000;
         let interceptionFailed = false; let authenticated = false;
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-        const timeout = () => Math.max(1, Math.min(8_000, expires - Date.now()));
+        const timeout = (maximum = 8_000) => Math.max(1, Math.min(maximum, expires - Date.now()));
+        let observed: Dzen1002ObservedResponse[] = [];
+        page.on('response', response => {
+            if (!URL.canParse(response.url())) return;
+            const url = new URL(response.url());
+            if (url.origin !== 'https://dzen.ru' || url.pathname !== PATH) return;
+            const state = url.searchParams.get('state');
+            observed.push({ path: PATH, status: response.status(), state: state === 'published' || state === 'draft' ? state : 'other' });
+            if (observed.length > 6) observed.shift();
+        });
         await page.setRequestInterception(true);
         page.on('request', request => {
             void (['GET', 'HEAD'].includes(request.method().toUpperCase()) ? request.continue() : request.abort('blockedbyclient'))
@@ -34,23 +44,38 @@ export async function readDzen1002Inventory(config: { cookies?: string; channel_
         await page.setCookie(...['dzen.ru', '.dzen.ru', '.yandex.ru'].flatMap(domain => parseBrowserCookieHeader(config.cookies!, domain)));
         const result = await enumerateDzen1002Inventory({
             first: async state => {
+                observed = [];
                 const pending = page.waitForResponse(response => {
                     const url = new URL(response.url());
                     return url.origin === 'https://dzen.ru' && url.pathname === PATH && url.searchParams.get('state') === state;
-                }, { timeout: timeout() }).then(response => ({ response }), () => ({ response: null }));
-                await page.goto(`${LIST}?state=${state}`, { waitUntil: 'domcontentloaded', timeout: timeout() });
+                }, { timeout: timeout(30_000) }).then(response => ({ response, reason: 'REQUEST_FAILED' as const }),
+                    (error: unknown) => ({ response: null, reason: error instanceof TimeoutError ? 'RESPONSE_TIMEOUT' as const : 'REQUEST_FAILED' as const }));
+                try { await page.goto(`${LIST}?state=${state}`, { waitUntil: 'domcontentloaded', timeout: timeout(30_000) }); }
+                catch (error: unknown) { throw new Dzen1002ReadFailure(error instanceof TimeoutError ? 'NAVIGATION_TIMEOUT' : 'REQUEST_FAILED', null, observed); }
                 authenticated = false;
-                await verifyDzen1002StudioPage(page, () => puppeteerPublisherService.assertDzenAuthenticated(page));
+                try { await boundedRead(verifyDzen1002StudioPage(page, () => puppeteerPublisherService.assertDzenAuthenticated(page)), timeout()); }
+                catch (error: unknown) {
+                    if (error instanceof Dzen1002ReadFailure) throw error;
+                    const message = error instanceof Error ? error.message : '';
+                    throw new Dzen1002ReadFailure(message.includes('CAPTCHA') ? 'CHALLENGE_REQUIRED'
+                        : message.includes('authentication failed') ? 'AUTH_REQUIRED' : 'STUDIO_ROUTE_MISMATCH', null, observed);
+                }
                 authenticated = true;
-                const { response } = await pending;
-                if (!response) throw new Error('[DZEN1002_INVENTORY_RESPONSE_MISSING]');
-                if (response.status() !== 200) return { url: response.url(), status: response.status(), payload: null };
+                const { response, reason } = await pending;
+                if (!response) throw new Dzen1002ReadFailure(reason, null, observed);
+                const paginationHeaders = Object.fromEntries(['x-total-count', 'x-total', 'x-pagination-total-count', 'content-range', 'link']
+                    .map(name => [name, response.headers()[name]]));
+                if (response.status() !== 200) return { url: response.url(), status: response.status(), payload: null, paginationHeaders };
                 const size = Number(response.headers()['content-length']);
-                if (size > 2 * 1024 * 1024) throw new Error('[DZEN1002_INVENTORY_RESPONSE_LIMIT]');
-                const body = await boundedRead(response.buffer(), timeout());
-                if (body.length > 2 * 1024 * 1024) throw new Error('[DZEN1002_INVENTORY_RESPONSE_LIMIT]');
-                const payload: unknown = JSON.parse(Buffer.from(body).toString('utf8'));
-                return { url: response.url(), status: response.status(), payload };
+                if (size > 2 * 1024 * 1024) throw new Dzen1002ReadFailure('RESPONSE_TOO_LARGE', response.status(), observed);
+                let body: Uint8Array;
+                try { body = await boundedRead(response.buffer(), timeout()); }
+                catch (error: unknown) { throw new Dzen1002ReadFailure(error instanceof Dzen1002ReadFailure ? error.reason : 'BODY_READ_FAILED', response.status(), observed); }
+                if (body.length > 2 * 1024 * 1024) throw new Dzen1002ReadFailure('RESPONSE_TOO_LARGE', response.status(), observed);
+                let payload: unknown;
+                try { payload = JSON.parse(Buffer.from(body).toString('utf8')); }
+                catch { throw new Dzen1002ReadFailure('PAYLOAD_INVALID', response.status(), observed); }
+                return { url: response.url(), status: response.status(), payload, paginationHeaders };
             },
             next: url => readNextPage(page, url, timeout())
         });
@@ -86,7 +111,7 @@ async function readNextPage(page: Page, target: string, timeout: number): Promis
 async function boundedRead<T>(work: Promise<T>, timeout: number): Promise<T> {
     let timer: ReturnType<typeof setTimeout> | undefined;
     try { return await Promise.race([work, new Promise<never>((_resolve, reject) => {
-        timer = setTimeout(() => reject(new Error('[DZEN1002_INVENTORY_READ_TIMEOUT]')), timeout);
+        timer = setTimeout(() => reject(new Dzen1002ReadFailure('READ_TIMEOUT')), timeout);
     })]); }
     finally { if (timer) clearTimeout(timer); }
 }
