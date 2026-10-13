@@ -51,3 +51,10 @@ test('CAUSE001 application-owned timeout/status cause survives without raw provi
     assert.equal(result.diagnostics[0].reason, 'RESPONSE_TIMEOUT');
     assert.equal(result.diagnostics[0].status, 200);
 });
+test('SHAPE005 numeric and boolean string metadata is projected without raw strings or cursor values', () => {
+    const shape = describeDzen1002Pagination({ pagination: { totalCount: '13', hasMore: 'false', nextCursor: '12345' } },
+        'https://dzen.ru/editor-api/v3/publications?state=published');
+    assert.deepEqual(shape.nested.pagination.find(f => f.name === 'totalCount'), { name: 'totalCount', type: 'string', value: 13 });
+    assert.deepEqual(shape.nested.pagination.find(f => f.name === 'hasMore'), { name: 'hasMore', type: 'string', value: false });
+    assert.deepEqual(shape.nested.pagination.find(f => f.name === 'nextCursor'), { name: 'nextCursor', type: 'string' });
+});

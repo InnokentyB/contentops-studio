@@ -20,6 +20,8 @@ function fields(value: unknown): PaginationField[] {
             const field: PaginationField = { name, type: item === null ? 'null' : Array.isArray(item) ? 'array' : typeof item };
             if (VALUES.has(name) && typeof item === 'boolean') field.value = item;
             if (VALUES.has(name) && typeof item === 'number' && Number.isSafeInteger(item) && item >= 0 && item <= 10_000_000) field.value = item;
+            if (VALUES.has(name) && typeof item === 'string' && /^\d{1,8}$/.test(item) && Number(item) <= 10_000_000) field.value = Number(item);
+            if (VALUES.has(name) && (item === 'true' || item === 'false')) field.value = item === 'true';
             if (name === 'publications' && Array.isArray(item)) field.count = item.length;
             return field;
         });

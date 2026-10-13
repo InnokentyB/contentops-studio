@@ -22,7 +22,14 @@
       "build": "backend/full build", "build_result": "PASS", "passed": 1052, "failed": 0, "skipped": 0,
       "quality": "PASS; baseline77/no hard stops", "errors": [],
       "logs": ["/tmp/dzen1002-capture-main-suite.log", "/tmp/dzen1002-capture-main-build.log",
-        "/tmp/dzen1002-capture-main-fullbuild.log", "/tmp/dzen1002-capture-main-quality.log"]}
+        "/tmp/dzen1002-capture-main-fullbuild.log", "/tmp/dzen1002-capture-main-quality.log"]},
+    {"id": "CAPTURE-NUMERIC-RED-006", "build_result": "PASS", "passed": 5, "failed": 1,
+      "errors": "Diagnostic projection lost normalized numeric/boolean string metadata", "log": "/tmp/dzen1002-numeric-shape-red.log"},
+    {"id": "CAPTURE-FINAL-007", "build_result": "PASS", "passed": 1053, "failed": 0, "skipped": 0,
+      "quality": "PASS; baseline77/no hard stops", "errors": [],
+      "note": "String metadata type remains visible; only fixed numeric/boolean paging values are projected. Cursor/string contents never exported, completeness interpretation unchanged.",
+      "logs": ["/tmp/dzen1002-capture-value-build.log", "/tmp/dzen1002-capture-value-suite.log",
+        "/tmp/dzen1002-capture-value-fullbuild.log", "/tmp/dzen1002-capture-value-quality.log"]}
   ],
   "provider_calls_from_development": 0,
   "provider_writes": 0,
