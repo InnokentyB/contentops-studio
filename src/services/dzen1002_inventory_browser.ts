@@ -13,6 +13,7 @@ export async function readDzen1002Inventory(config: { cookies?: string; channel_
     try {
         const page = await browser.newPage(); const expires = Date.now() + 60_000;
         let interceptionFailed = false;
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
         const timeout = () => Math.max(1, Math.min(8_000, expires - Date.now()));
         await page.setRequestInterception(true);
         page.on('request', request => {

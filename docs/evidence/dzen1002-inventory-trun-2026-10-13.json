@@ -32,7 +32,13 @@
       "passed": 1040, "failed": 0, "skipped": 0, "errors": [],
       "quality": "PASS; score77, no hard stops", "diff_check": "PASS",
       "logs": ["/tmp/dzen1002-inventory-main-suite.log", "/tmp/dzen1002-inventory-main-build.log",
-        "/tmp/dzen1002-inventory-main-fullbuild.log", "/tmp/dzen1002-inventory-main-quality.log"]}
+        "/tmp/dzen1002-inventory-main-fullbuild.log", "/tmp/dzen1002-inventory-main-quality.log"]},
+    {"id": "INV-FINAL-COMPAT-007", "change": "Preserve the existing Dzen page user-agent; no authentication changes",
+      "build": "npm run build:backend; npm run build", "build_result": "PASS",
+      "test": "All source-mapped tests, concurrency1", "passed": 1040, "failed": 0, "skipped": 0,
+      "quality": "PASS; score77, no hard stops", "diff_check": "PASS", "errors": [],
+      "logs": ["/tmp/dzen1002-inventory-compat-final-suite.log", "/tmp/dzen1002-inventory-compat-final-build.log",
+        "/tmp/dzen1002-inventory-compat-final-fullbuild.log", "/tmp/dzen1002-inventory-compat-final-quality.log"]}
   ],
   "remaining": "Actual provider response schema/session and per-page readback remain unverified; new diagnostics must be examined by p10 Publisher in a fresh preflight after deployment, before any publication. Unknown coverage still blocks."
 }
