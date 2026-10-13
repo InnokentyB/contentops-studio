@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createHash } from 'crypto';
 import { isToolAllowedForProfile } from '../mcp/capabilities';
+import { TASK1100_ACCEPTED_BODY } from '../services/telegram_task1100_story_sequence';
 
 process.env.TELEGRAM_BOT_TOKEN ||= 'test:telegram-task-publication';
 process.env.SUPABASE_URL ||= 'https://example.supabase.co';
@@ -109,6 +110,17 @@ function harness(task = approvedTask(), options: { cached?: any; providerError?:
                 metrics: { telegram_story_id: 42 }
             };
         },
+        publishTelegramPersonalStorySequenceMtproto: async (payload: any) => {
+            calls.provider.push(payload);
+            if (options.providerError) throw options.providerError;
+            return {
+                adapter: 'telegram_story_sequence', deliveryMethod: 'mtproto_personal_story_sequence',
+                publishedLink: 'https://t.me/i/s/44', evidenceRef: 'https://t.me/i/s/44',
+                metrics: { telegram_story_ids: [42, 43, 44], telegram_story_links: [
+                    'https://t.me/i/s/42', 'https://t.me/i/s/43', 'https://t.me/i/s/44'
+                ] }
+            };
+        },
         publishVkPersonalStory: async () => { throw new Error('Unexpected VK story call'); },
         publishVkTask: async () => { throw new Error('Unexpected VK call'); }
     };
@@ -122,6 +134,41 @@ function harness(task = approvedTask(), options: { cached?: any; providerError?:
         service: new TelegramTaskPublicationService({ prisma, publisher, publicationFacts: facts }),
         calls
     };
+}
+
+function task1100Frame(id: number, frameIndex: number, sha256: string) {
+    return {
+        id, project_id: 10, content_item_id: 1100, decision_id: 304,
+        content_revision: 4, placement: 'story', status: 'approved',
+        file_url: `https://cdn.example/task1100-frame-${frameIndex}.jpg`,
+        provenance: {
+            sequence_key: 'p10-task1100-story-r4', frame_count: 3, frame_index: frameIndex,
+            body_sha256: '0b8962ebc8d9b36e793e887149617b0fac3cc21ba6400f6da94c49c1e26125a1',
+            planner_storage: { managed: true, mime_type: 'image/jpeg', width: 1080, height: 1920, sha256 },
+            ...(frameIndex === 3 ? { native_link_sticker: {
+                required: true, must_be_native_clickable: true, label: 'Читать разбор',
+                url: 'https://t.me/spherical_analyst/1279',
+                placement: { center_x_px: 540, center_y_px: 1495, width_px: 480, height_px: 110 }
+            } } : {})
+        }
+    };
+}
+
+function task1100() {
+    const frames = [
+        task1100Frame(153, 1, '6033ef06d5a0f463109a09046457fb12c7ab3b284f8c9f6de57aa63a877e4754'),
+        task1100Frame(154, 2, 'a33c851994f7a63a946aea17dae7de75d930f1c764f09ad884bac17247e37a13'),
+        task1100Frame(155, 3, 'c34a7b109d01392029b6186ee82b48dba39623a85b5e1ee4be23bffbda038fbf')
+    ];
+    return approvedTask({
+        id: 1100, channel_id: 108, type: 'publication', visual_placement: 'story',
+        visual_decision_version: 4,
+        publication_mode: 'owner_released', status: 'ready_for_execution',
+        draft_text: TASK1100_ACCEPTED_BODY,
+        content_revision: 4, accepted_revision: 4,
+        schedule_at: new Date('2026-10-11T23:59:59.000Z'), selected_asset_id: 155,
+        selected_asset: frames[2], image_assets: frames, publication_fact: null
+    });
 }
 
 test('Planner capability exposes task-native Telegram publication but not raw direct publication', () => {
@@ -252,6 +299,55 @@ test('owner-released personal Telegram story is executable through MTProto perso
     const preview = await h.service.execute({ projectId: 10, taskId: story.id, dryRun: true });
     assert.equal(preview.delivery, 'mtproto_personal_story');
     assert.equal(preview.route_executable, true);
+});
+
+test('task1100 dry-run and live send preserve all three ordered frames and the native link area', async () => {
+    const story: any = task1100();
+    const releaseEvent = { after_state: {
+        task_id: 1100, channel_id: 108, content_revision: 4, accepted_revision: 4,
+        schedule_at: story.schedule_at.toISOString(),
+        body_sha256: createHash('sha256').update(story.draft_text).digest('hex'),
+        placement: 'story', publication_mode: 'owner_released', selected_asset_id: 155
+    } };
+    const dry = harness(story, { releaseEvent });
+    const preview: any = await dry.service.execute({ projectId: 10, taskId: 1100, dryRun: true });
+    assert.equal(preview.delivery, 'mtproto_personal_story_sequence');
+    assert.equal(preview.route_executable, true);
+    assert.deepEqual(preview.payload_preview.story_frames.map((frame: any) => ({
+        order: frame.order, asset_id: frame.asset_id, checksum_sha256: frame.checksum_sha256,
+        native_link_url: frame.native_link?.url || null
+    })), [
+        { order: 1, asset_id: 153, checksum_sha256: '6033ef06d5a0f463109a09046457fb12c7ab3b284f8c9f6de57aa63a877e4754', native_link_url: null },
+        { order: 2, asset_id: 154, checksum_sha256: 'a33c851994f7a63a946aea17dae7de75d930f1c764f09ad884bac17247e37a13', native_link_url: null },
+        { order: 3, asset_id: 155, checksum_sha256: 'c34a7b109d01392029b6186ee82b48dba39623a85b5e1ee4be23bffbda038fbf', native_link_url: 'https://t.me/spherical_analyst/1279' }
+    ]);
+    assert.equal(dry.calls.provider.length, 0);
+
+    const live = harness(story, { releaseEvent });
+    const result: any = await live.service.execute({ projectId: 10, taskId: 1100,
+        idempotencyKey: 'publish-p10-1100-r4-sequence-v1' });
+    assert.equal(result.delivery_method, 'mtproto_personal_story_sequence');
+    assert.equal(result.external_id, '42,43,44');
+    assert.equal(live.calls.provider.length, 1);
+    assert.deepEqual(live.calls.provider[0].frames.map((frame: any) => frame.assetId), [153, 154, 155]);
+    assert.equal(live.calls.provider[0].frames[2].nativeLink.url, 'https://t.me/spherical_analyst/1279');
+    assert.equal(live.calls.facts[0].providerObjectId, '42,43,44');
+});
+
+test('task1100 refuses a partial or reordered approved story sequence before claim', async () => {
+    const story: any = task1100();
+    story.image_assets = [story.image_assets[0], story.image_assets[2]];
+    const releaseEvent = { after_state: {
+        task_id: 1100, channel_id: 108, content_revision: 4, accepted_revision: 4,
+        schedule_at: story.schedule_at.toISOString(),
+        body_sha256: createHash('sha256').update(story.draft_text).digest('hex'),
+        placement: 'story', publication_mode: 'owner_released', selected_asset_id: 155
+    } };
+    const h = harness(story, { releaseEvent });
+    await assert.rejects(h.service.execute({ projectId: 10, taskId: 1100, dryRun: true }),
+        /TELEGRAM_STORY_SEQUENCE_INCOMPLETE/);
+    assert.equal(h.calls.provider.length, 0);
+    assert.equal(h.calls.updates.length, 0);
 });
 
 test('browser-only feed and a real concurrent publication claim return different errors', async () => {

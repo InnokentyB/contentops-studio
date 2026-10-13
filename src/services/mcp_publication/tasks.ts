@@ -39,7 +39,7 @@ export function publicationHandoffWithLanguage<T extends Record<string, unknown>
 export async function getPublicationTaskResources(projectId: number, taskId: number, maxChars = 12000) {
     const item = await prisma.contentItem.findFirst({
         where: { id: taskId, project_id: projectId },
-        include: { channel: true, selected_asset: true }
+        include: { channel: true, selected_asset: true, image_assets: true }
     });
 
     if (!item) {
