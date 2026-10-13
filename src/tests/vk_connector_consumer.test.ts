@@ -275,3 +275,21 @@ test('CONSUMER-020 provider lock records requested surface while admission remai
     lock.release();
     assert.equal(fs.existsSync(path.join(config.runtimeDir, 'consumer.lock')), false);
 });
+
+test('CONSUMER-023 optional private operator resource paths remain compatible and cannot grant launch permission', (t) => {
+    const f = localConfig(t);
+    fs.writeFileSync(f.file, JSON.stringify({ ...f.config, profileDirectory: '/existing/profile', evidenceDir: '/private/evidence' }));
+    assert.equal(loadVkConnectorConfig(f.file).profileDirectory, '/existing/profile');
+    fs.writeFileSync(f.file, JSON.stringify({ ...f.config, profileDirectory: '/existing/profile', evidenceDir: '/private/evidence', platformPermitted: true }));
+    assert.throws(() => loadVkConnectorConfig(f.file));
+});
+
+test('CONSUMER-024 provider terminal confirmation never reports an old-generation blocker', async () => {
+    const f = fixtureControl();
+    const control: VkConnectorControl = { close: f.control.close, call: async (name, args) => name === 'ba_poll_vk_connector_jobs'
+        ? { jobs: [job], health: { ...health, mode: 'vk_feed_provider' } } : f.control.call(name, args) };
+    const result = await consumeVkConnectorOnce({ ...identity, mode: 'vk_feed_provider' }, control, undefined, 15_000, undefined,
+        async () => ({ status: 'provider_confirmed', executionContext: 'production_admitted', reason: 'EXACT_NEW_OBJECT', factId: 1 }));
+    assert.equal(result.status, 'provider_confirmed'); assert.equal(result.receipts[0].state, 'confirmed');
+    assert.equal(f.calls.some(call => call.name === 'ba_report_vk_connector_job'), false);
+});

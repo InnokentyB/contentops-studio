@@ -55,7 +55,7 @@ test('PROVIDER-001 production permission is unverified and no browser/control ac
     let calls = 0;
     const result = await runVk1048ProviderJob({}, { close: async () => {}, call: async () => { calls += 1; } });
     assert.equal(result.status, 'PERMISSION_UNVERIFIED'); assert.equal(calls, 0);
-    assert.equal(result.restriction?.observedAt, '2026-10-08');
+    assert.equal(result.restriction?.observedAt, '2026-10-13');
 });
 test('PROVIDER-002 UNKNOWN reconciliation permits no claim/upload/submit', async (t) => {
     const f = fixture(t); const result = await runVk1048ProviderJob(input, f.control, f.harness);

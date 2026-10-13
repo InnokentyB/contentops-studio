@@ -10,18 +10,18 @@ function fail(code: string): never { throw new Error(`[VK_CONNECTOR_${code}]`); 
 export class VkConnectorExecutionService {
     constructor(private readonly dispatch: VkConnectorDispatchService, private readonly repository: ConnectorRepository,
         private readonly ports: VkConnectorExecutionPorts, private readonly now = () => new Date()) {}
-    private async permission(): Promise<void> {
-        const status = await this.ports.admission();
+    private async permission(args: ConnectorExecutionIdentity, purpose: 'wall_read' | 'submission' | 'post_confirm'): Promise<void> {
+        const status = await this.ports.admission(args, purpose);
         if (status !== 'PERMITTED') fail(status === 'POLICY_DENIED' ? 'POLICY_DENIED' : 'PROVIDER_PERMISSION_UNVERIFIED');
     }
     async package(args: ConnectorExecutionIdentity) {
         const execution = await this.dispatch.executionPackage(args);
-        const permissionStatus = await this.ports.admission();
+        const permissionStatus = await this.ports.admission(args);
         return { ...execution, lease: null, permissionStatus,
             providerExecution: permissionStatus === 'PERMITTED' ? 'permitted' as const : 'blocked' as const };
     }
-    private async context(args: ConnectorExecutionIdentity) {
-        await this.permission();
+    private async context(args: ConnectorExecutionIdentity, purpose: 'wall_read' | 'submission' | 'post_confirm' = 'wall_read') {
+        await this.permission(args, purpose);
         const execution = await this.dispatch.executionPackage(args);
         await this.repository.transaction(async store => {
             const host = await store.host(args.projectId, args.hostId);
@@ -104,7 +104,7 @@ export class VkConnectorExecutionService {
         }
     }
     async check(args: ConnectorExecutionIdentity & { leaseToken: string }): Promise<{ status: 'validated'; generation: number }> {
-        await this.context(args);
+        await this.context(args, 'submission');
         await this.repository.transaction(async store => {
             const job = await this.job(store, args);
             if (!['ready', 'executing', 'reconciling'].includes(job.state) || !job.canonicalLeaseSha256 || !connectorSecretEqual(job.canonicalLeaseSha256, connectorHash(args.leaseToken))
@@ -126,7 +126,7 @@ export class VkConnectorExecutionService {
     async confirm(args: ConnectorConfirmArgs) {
         const recorded = await this.recorded(args);
         if (recorded) return { publication_fact_id: recorded.factId, replayed: true };
-        const execution = await this.context(args);
+        const execution = await this.context(args, 'post_confirm');
         validateVkPostConfirmation(args, String(execution.binding.communityId), this.now());
         const ack = args.mediaAcknowledgement;
         if (ack?.acknowledged !== true || ack.assetSha256 !== execution.binding.assetSha256

@@ -1,0 +1,240 @@
+{
+  "checkedAt": "2026-10-13T10:03:53.969Z",
+  "pullRequest": "https://github.com/InnokentyB/contentops-studio/pull/131",
+  "productionCommit": "1f52285d1a88890c824deb054efb1fb36cd571f2",
+  "testedSourceCommit": "31bab341d85052df42aa83940bdd8cad6595a3a8",
+  "sameSourceTree": "35ace7b89c1a9dcbad59953a64cbb56e7d9bab7b",
+  "tests": {
+    "passed": 996,
+    "failed": 0,
+    "skipped": 0,
+    "qualityScore": 77
+  },
+  "deployments": [
+    {
+      "service": "planner-app",
+      "id": "ba227a49-7795-4597-942c-4f62ccb99a5b",
+      "status": "SUCCESS",
+      "commit": "1f52285d1a88890c824deb054efb1fb36cd571f2"
+    },
+    {
+      "service": "planner-mcp",
+      "id": "4fcadcaf-480a-4d5d-ad4b-d32e65178ac8",
+      "status": "SUCCESS",
+      "commit": "1f52285d1a88890c824deb054efb1fb36cd571f2"
+    }
+  ],
+  "migrations": [
+    {
+      "checkedAt": "2026-10-13T09:12:34.959Z",
+      "phase": "columns",
+      "name": "20261013100000_vk_connector_provider_fencing",
+      "checksum": "d6f39e8eff06a1a6475bf16d9c41e1d4fb6c04925d2b5206d8281d1404615a3d",
+      "reused": false,
+      "publicationStateUnchanged": true,
+      "columns": [
+        "canonical_lease_expires_at",
+        "canonical_lease_sha256"
+      ],
+      "providerModeConstraint": false,
+      "providerOperations": 0
+    },
+    {
+      "checkedAt": "2026-10-13T09:23:02.687Z",
+      "phase": "mode",
+      "name": "20261013110000_vk_connector_provider_mode",
+      "checksum": "58da41ae6d2c4cb6472d20e8deeaf0beefbbe685f17d2ef48450703cf3641985",
+      "reused": false,
+      "publicationStateUnchanged": true,
+      "columns": [
+        "canonical_lease_expires_at",
+        "canonical_lease_sha256"
+      ],
+      "providerModeConstraint": true,
+      "providerOperations": 0
+    }
+  ],
+  "consumer": {
+    "pid": 83910,
+    "instanceId": "aaf6f403-dba8-4440-ace4-d90201441261",
+    "mode": "vk_feed_provider",
+    "artifact": {
+      "sha256": "79539f501bfa0ef0772d952212f352b993376c7d2c0f46757e942af9755643f1",
+      "bytes": 2235660,
+      "isolatedStartupFailClosed": true,
+      "providerOperations": 0
+    },
+    "oldProcessStopped": true,
+    "privateCredentialNotChanged": true
+  },
+  "command": {
+    "checkedAt": "2026-10-13T10:00:07.249Z",
+    "registeredProviderTools": 8,
+    "packageSha256": "00636df473f9fae9f7dee61a3c358d5c64e3f28b8e856aed8374c1302bc2aaea",
+    "manifestChecksum": "sha256:4bfec7ca8399251c6c8f132a34d9e0952adbf1eef049d29325808cbd9db3975b",
+    "job": {
+      "jobId": "3f9f1d08-1d1f-49a9-8f2c-cc17d00ac2de",
+      "state": "queued",
+      "packageSha256": "00636df473f9fae9f7dee61a3c358d5c64e3f28b8e856aed8374c1302bc2aaea",
+      "generation": 2,
+      "receiptAt": "2026-10-12T19:48:02.088Z",
+      "blocker": "PROVIDER_PERMISSION_UNVERIFIED",
+      "attemptId": null,
+      "factId": null,
+      "publicUrl": null
+    },
+    "health": {
+      "hostId": "vk-connector-local-1048",
+      "mode": "vk_feed_provider",
+      "providerExecution": "blocked",
+      "status": "online",
+      "heartbeatAt": "2026-10-13T10:00:04.879Z"
+    },
+    "appStatus": 200,
+    "resume": {
+      "jobId": "3f9f1d08-1d1f-49a9-8f2c-cc17d00ac2de",
+      "state": "queued",
+      "packageSha256": "00636df473f9fae9f7dee61a3c358d5c64e3f28b8e856aed8374c1302bc2aaea",
+      "generation": 2,
+      "receiptAt": "2026-10-12T19:48:02.088Z",
+      "blocker": "PROVIDER_PERMISSION_UNVERIFIED",
+      "attemptId": null,
+      "factId": null,
+      "publicUrl": null
+    },
+    "replay": {
+      "jobId": "3f9f1d08-1d1f-49a9-8f2c-cc17d00ac2de",
+      "state": "queued",
+      "packageSha256": "00636df473f9fae9f7dee61a3c358d5c64e3f28b8e856aed8374c1302bc2aaea",
+      "generation": 2,
+      "receiptAt": "2026-10-12T19:48:02.088Z",
+      "blocker": "PROVIDER_PERMISSION_UNVERIFIED",
+      "attemptId": null,
+      "factId": null,
+      "publicUrl": null
+    },
+    "providerOperations": 0
+  },
+  "finalControl": {
+    "checkedAt": "2026-10-13T10:00:37.529Z",
+    "registeredProviderTools": 8,
+    "packageSha256": "00636df473f9fae9f7dee61a3c358d5c64e3f28b8e856aed8374c1302bc2aaea",
+    "manifestChecksum": "sha256:4bfec7ca8399251c6c8f132a34d9e0952adbf1eef049d29325808cbd9db3975b",
+    "job": {
+      "jobId": "3f9f1d08-1d1f-49a9-8f2c-cc17d00ac2de",
+      "state": "blocked",
+      "packageSha256": "00636df473f9fae9f7dee61a3c358d5c64e3f28b8e856aed8374c1302bc2aaea",
+      "generation": 3,
+      "receiptAt": "2026-10-13T10:00:10.979Z",
+      "blocker": "PROVIDER_PERMISSION_UNVERIFIED",
+      "attemptId": null,
+      "factId": null,
+      "publicUrl": null
+    },
+    "health": {
+      "hostId": "vk-connector-local-1048",
+      "mode": "vk_feed_provider",
+      "providerExecution": "blocked",
+      "status": "online",
+      "heartbeatAt": "2026-10-13T10:00:34.252Z"
+    },
+    "appStatus": 200,
+    "resume": null,
+    "replay": null,
+    "providerOperations": 0
+  },
+  "canonicalState": {
+    "checkedAt": "2026-10-13T10:00:39.496Z",
+    "task": [
+      {
+        "id": 1048,
+        "project_id": 10,
+        "channel_id": 117,
+        "content_revision": 1,
+        "accepted_revision": 1,
+        "status": "browser_required",
+        "publication_mode": "browser_required",
+        "handoff_state": "ready",
+        "selected_asset_id": 130,
+        "has_link": false
+      }
+    ],
+    "item": [
+      {
+        "id": 1699,
+        "state": "claimed",
+        "result_version": 0,
+        "lease_expires_at": "2026-10-11T22:23:39.215Z"
+      }
+    ],
+    "jobs": [
+      {
+        "id": "3f9f1d08-1d1f-49a9-8f2c-cc17d00ac2de",
+        "state": "blocked",
+        "generation": 3,
+        "package_sha256": "00636df473f9fae9f7dee61a3c358d5c64e3f28b8e856aed8374c1302bc2aaea",
+        "receipt_at": "2026-10-13T10:00:10.979Z",
+        "blocker_code": "PROVIDER_PERMISSION_UNVERIFIED",
+        "attempt_id": null,
+        "publication_fact_id": null
+      }
+    ],
+    "counts": {
+      "attempts": 0,
+      "facts": 0
+    },
+    "migrations": [
+      {
+        "migration_name": "20261013100000_vk_connector_provider_fencing",
+        "checksum": "d6f39e8eff06a1a6475bf16d9c41e1d4fb6c04925d2b5206d8281d1404615a3d",
+        "finished_at": "2026-10-13T09:12:34.227Z"
+      },
+      {
+        "migration_name": "20261013110000_vk_connector_provider_mode",
+        "checksum": "58da41ae6d2c4cb6472d20e8deeaf0beefbbe685f17d2ef48450703cf3641985",
+        "finished_at": "2026-10-13T09:23:01.987Z"
+      }
+    ],
+    "providerOperations": 0,
+    "productionMutations": 0
+  },
+  "execution": {
+    "failureLayer": "code/admission-factory",
+    "reason": "ACTION_TIME_ADMISSION_UNAVAILABLE",
+    "liveProviderLifecycle": "not_connected",
+    "vkReadOnlyReconciliation": "not_started",
+    "profileOpened": false,
+    "loginAndCommunityRights": "NOT_CHECKED",
+    "vkUpload": "not_started",
+    "vkSubmit": "not_started",
+    "externalPostPresence": "UNKNOWN",
+    "freshSitePolicyDenialClaimed": false,
+    "providerOperations": 0
+  },
+  "remaining": [
+    "trusted permitted provider lifecycle",
+    "real bounded wall inventory and media identity acknowledgement",
+    "heartbeat renewal and reconciliation-only instance handoff",
+    "live provider smoke and explicit owner UAT"
+  ],
+  "result": "PREPARED_CODE_DEPLOYED; CONTROL_DELIVERY_CONFIRMED; VK_PUBLICATION_NOT_EXECUTED",
+  "current_tool_site_restriction": {
+    "observed_at": "2026-10-13T10:15:00Z",
+    "timestamp_precision": "approximate; exact event retained in tool transcript",
+    "operation": "cua.getTab existing Chrome browser2 tab1468840686 read-only inspection",
+    "url": "https://vk.ru/club240051152",
+    "outcome": "REJECTED_SITE_SAFETY",
+    "reason": "Browser use is not permitted on https://vk.ru/club240051152",
+    "user_prompt_attempted": false,
+    "auto_review_attempted": false,
+    "same_outcome_workarounds_prohibited": true,
+    "provider_activation_performed": false,
+    "not_a_vk_login_or_token_failure": true
+  },
+  "historical_denial_scope_correction": {
+    "date": "2026-10-08",
+    "operation": "cua.getTab existing Chrome browser2 private conversation",
+    "url": "https://vk.ru/im/convo/-22884714?entrypoint=list_all",
+    "interpretation": "Does not establish a permanent blanket domain ban; current community rejection above is separate evidence."
+  }
+}

@@ -1,5 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import { VkConnectorAppAuthority } from '../../services/vk_connector_app_authority';
 import { VkConnectorExecutionService } from '../../services/vk_connector_execution.service';
 import { createVkConnectorExecutionPorts } from '../../services/vk_connector_execution_ports';
 import { VkConnectorDispatchService } from '../../services/vk_connector_dispatch.service';
@@ -14,7 +15,12 @@ const job = { ...identity, jobId: z.uuid() };
 const receipt = { ...consumer, jobId: z.uuid(), generation: z.number().int().nonnegative() };
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const service = new VkConnectorDispatchService(vkConnectorRepository, process.env.VK_CONNECTOR_DISPATCH_ENABLED === '1');
-const execution = new VkConnectorExecutionService(service, vkConnectorRepository, createVkConnectorExecutionPorts());
+const appAuthority = new VkConnectorAppAuthority(service, vkConnectorRepository);
+const execution = new VkConnectorExecutionService(service, vkConnectorRepository, createVkConnectorExecutionPorts({
+    admission: (args, purpose) => appAuthority.admission(args, purpose),
+    verifyEvidence: (args, content, proof) => appAuthority.verifyEvidence(args, content, proof),
+    verifyMediaAcknowledgement: (args, content) => appAuthority.verifyMediaAcknowledgement(args, content)
+}));
 async function safe(run: () => Promise<Record<string, unknown>>) {
     try { return asToolResult(await run()); }
     catch (error) {
@@ -45,6 +51,15 @@ export function registerVkConnectorTools(server: McpServer) {
     }, args => safe(() => service.status(args)));
     if (process.env.VK_CONNECTOR_DISPATCH_ENABLED !== '1') return;
     const fenced = { ...receipt, packageSha256: hash };
+    server.registerTool('ba_renew_vk_connector_heartbeat', { description: 'Renew the same authenticated host instance heartbeat without polling, claiming or changing any job.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: consumer
+    }, args => safe(() => service.heartbeat(args)));
+    server.registerTool('ba_rebind_vk_connector_reconciliation', { description: 'CAS rebind SAME uncertain job to current host instance for read-only reconciliation. Retains attempt/lease; never grants a send.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: fenced
+    }, args => safe(() => service.rebindReconciliation(args)));
+    server.registerTool('ba_issue_vk_connector_challenge', { description: 'Ephemeral120s managed application-host capability scoped to SAME job/hash/instance/generation/purpose. Not platform/tool-policy permission. No persisted credential.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: { ...fenced, purpose: z.enum(['wall_read','submission','post_confirm']) }
+    }, args => safe(() => appAuthority.issue(args)));
     const canonical = { ...fenced, taskId: z.literal(1048), channelId: z.literal(117), workItemId: z.literal(1699),
         leaseToken: z.string().min(1).max(200), approvalReference: z.string().min(10).max(2048),
         idempotencyKey: z.string().min(1).max(200), contentRevision: z.literal(1),
@@ -74,7 +89,7 @@ export function registerVkConnectorTools(server: McpServer) {
             publishedAt: z.iso.datetime(), evidenceSha256: hash, providerTimestampSource: z.literal('provider'),
             postBaselineCapturedAt: z.iso.datetime(), postBaselineObjectIds: z.array(z.string().regex(/^-240051152_[1-9]\d*$/)).max(100),
             postSubmissionStartedAt: z.iso.datetime(), readbackObservedAt: z.iso.datetime(),
-            mediaAcknowledgement: z.object({ assetSha256: hash, providerMediaId: z.string().regex(/^photo-240051152_[1-9]\d*$/),
+            providerAttestation: z.unknown().optional(), mediaAcknowledgement: z.object({ assetSha256: hash, providerMediaId: z.string().regex(/^photo-240051152_[1-9]\d*$/),
                 acknowledged: z.literal(true), providerObjectId: z.string().regex(/^-240051152_[1-9]\d*$/) }).strict() }
     }, args => safe(() => execution.confirm(args)));
     server.registerTool('ba_mark_vk_connector_submission_uncertain', { description: 'Freeze a generation-bound started attempt after lost/uncertain provider result. Expired lease never permits resend.',
@@ -108,7 +123,11 @@ export function registerVkConnectorTools(server: McpServer) {
         description: 'Record infrastructure-only consumer blocker. No publication, attempt, lease reset or retry.',
         annotations: INTERNAL_MUTATION_ANNOTATIONS,
         inputSchema: { ...receipt, blocker: z.enum(['PROVIDER_CONTROL_DENIED','PROVIDER_PERMISSION_UNVERIFIED','NOT_CONNECTED','LOGIN_REQUIRED','COVERAGE_UNKNOWN','MEDIA_UNCONFIRMED','ACTIVE_ATTEMPT','POLICY_DENIED']) }
-    }, args => safe(() => service.report(args)));
+    }, args => safe(async () => {
+        const result = await service.report(args);
+        if (args.blocker === 'POLICY_DENIED') appAuthority.revoke({ ...args, packageSha256: result.packageSha256 });
+        return result;
+    }));
     server.registerTool('ba_reconcile_vk_connector_job', {
         description: 'Project canonical existing fact/attempt into transport state. Provider inspection unavailable: reports control-denied/UNKNOWN, never absence or retry permission.',
         annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: job

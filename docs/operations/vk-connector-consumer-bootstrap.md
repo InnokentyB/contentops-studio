@@ -74,3 +74,50 @@ reviewed file into a private versioned release directory; use the installed Node
 executable, copied artifact and private config as LaunchAgent ProgramArguments.
 The preferred credential source is the existing pinned launch environment; the
 LaunchAgent contains no raw token EnvironmentVariables.
+
+## Explicit human operator handoff
+
+The managed command above never injects the provider runtime. Resource fields
+`profileDirectory` and `evidenceDir` are optional absolute paths in the existing
+private config; they do not grant permission or activate the managed consumer.
+The existing profile resource is
+`/Users/innokentyb/Library/Application Support/ContentOps/vk-browser/profile`.
+The operator launch validates that it already exists; it never provisions a new profile.
+
+A human operator can use the reviewed checkout and its pinned dependencies with:
+
+```sh
+node dist/workers/vk_connector_consumer.js --operator-run /absolute/private/config.json
+```
+
+This entry requires installed Playwright and its matching browser assets. The
+standalone artifact remains dependency-free for managed infrastructure mode;
+operator mode additionally requires resolvable pinned Playwright dependencies.
+Stop the managed consumer first and retain its exclusive-lock safeguards. The
+operator entry uses the same existing Publisher credential, immutable package,
+application-host challenges, scoped heartbeat, generation/lease fences and durable
+attempt. Wall and confirmation evidence include original-photo identity and byte
+hashes; missing absolute dates, incomplete pagination or changed/re-encoded image
+bytes leaves verification required and cannot publish again automatically.
+
+On 2026-10-13 the agent's attempt to open the owned community was explicitly denied
+by site-safety, including indirect execution through another browser or adapter.
+The agent must not invoke this entry or install it in the managed LaunchAgent to
+obtain that prohibited outcome. Application challenges authorize product actions;
+they do not clear that tool restriction. This is a handoff to the human operator,
+not a live validation result. Live VK selectors and original-download availability
+remain unverified; local tests use fresh network-blocked contexts only.
+
+For the SAME frozen verification-required job, the explicit human recovery entry is:
+
+```sh
+node dist/workers/vk_connector_consumer.js --operator-reconcile /absolute/private/config.json
+```
+
+It registers the current host, reads pinned job
+`3f9f1d08-1d1f-49a9-8f2c-cc17d00ac2de`, rebinds with exact generation/hash CAS,
+and performs read-only reconciliation. Proven absence cannot acquire a send lease;
+this entry never resumes or resets the uncertain attempt. All resource directories
+must already exist, be owned by the current user, mode `0700` and non-symlinks.
+Context cleanup has a 30-second deadline. Unconfirmed cleanup stops provider work,
+quarantines further sessions and preserves the lock for explicit operator review.

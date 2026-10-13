@@ -1,0 +1,68 @@
+{
+  "date": "2026-10-13",
+  "scope": "Existing task1048 ordinary image feed; passive release, no current agent provider activation",
+  "runs": [
+    {
+      "id": "FOLLOWTHROUGH-FULL-001",
+      "phase": "integration_regression",
+      "command": "offline node --test --test-concurrency=1 dist/tests/*.test.js",
+      "log": "/tmp/vk017-followthrough-full-tests.log",
+      "tests": 1021,
+      "passed": 1020,
+      "failed": 1,
+      "skipped": 0,
+      "failure": "CONNECTOR-BUNDLE-001: bundling Playwright attempted to resolve unavailable chromium-bidi modules",
+      "resolved_by": "Playwright externalized; managed copied artifact remains standalone; operator entry requires checkout dependency and vendor browser assets"
+    },
+    {
+      "id": "FOLLOWTHROUGH-BUNDLE-002",
+      "phase": "GREEN",
+      "command": "node --test dist/tests/vk_connector_bundle.test.js",
+      "log": "/tmp/vk017-followthrough-bundle-tests.log",
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "FOLLOWTHROUGH-FOCUSED-003",
+      "phase": "provenance_expectation_regression",
+      "command": "node --test dist/tests/vk1048*.test.js dist/tests/vk_connector*.test.js",
+      "log": "/tmp/vk017-followthrough-focused.log",
+      "failure": "PROVIDER-001 asserted historical denial date2026-10-08 after current community denial provenance was updated to2026-10-13",
+      "rerun_required": true
+    },
+    {
+      "id": "FOLLOWTHROUGH-FROZEN-FULL-004",
+      "phase": "GREEN_OFFLINE",
+      "command": "offline node --test --test-concurrency=1 dist/tests/*.test.js",
+      "log": "/tmp/vk017-followthrough-frozen-full-tests.log",
+      "tests": 1029,
+      "passed": 1029,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "id": "FOLLOWTHROUGH-BUILDS-005",
+      "phase": "GREEN",
+      "backend_log": "/tmp/vk017-followthrough-frozen-backend.log",
+      "frontend_log": "/tmp/vk017-followthrough-frontend.log",
+      "quality_log": "/tmp/vk017-followthrough-frozen-quality.log",
+      "quality_verdict": "PASS; baseline77 retained; no hard stops"
+    }
+  ],
+  "review_findings": [
+    "Wall evidence envelope was passed in unread MCP field; corrected to evidence field",
+    "Confirmation strict proof contained unrelated canonical command fields including lease; corrected provider-only projection",
+    "Wall challenge issued after package permission gate; reordered before gate",
+    "Trusted Publisher host proof is not independent DOM/absence attestation",
+    "Browser context cleanup must be bounded and unconfirmed closure must stop further operator cycles"
+  ],
+  "live_vk": "NOT_PERFORMED; current community site-safety rejection prohibits indirect same-outcome attempts",
+  "owner_uat": "NOT_PERFORMED",
+  "deployment": "AUTHORIZED_PASSIVE_RELEASE_PENDING_REMOTE_VERIFICATION",
+  "independent_review": {
+    "outstanding_code_blockers": 0,
+    "scope": "Passive release only; actual authority parsers, corrected broker wire, recovery and bounded cleanup quarantine reviewed",
+    "assurance_limitations": "Live selectors/login/media availability/owner UAT unverified; authenticated Publisher host remains trusted for DOM and absence evidence"
+  }
+}
