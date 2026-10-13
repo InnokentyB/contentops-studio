@@ -1,4 +1,5 @@
 import prisma from '../db';
+import { guardManualPublicationFact } from './publication_manual_fact_guard';
 import { Prisma } from '@prisma/client';
 import { guardVkClipFactWrite, type VkClipFactGuard } from './vk_clip_fact_guard';
 import { requireProjectActorAccess } from './project_access.service';
@@ -126,6 +127,8 @@ export class PublicationFactService {
         }
 
         return prisma.$transaction(async (tx) => {
+            await guardManualPublicationFact(tx, { projectId: args.projectId, taskId: args.taskId,
+                internalConfirmation: typeof args.beforeWrite === 'function' });
             if (args.beforeWrite) await args.beforeWrite(tx);
             if (args.clipConfirmation) await guardVkClipFactWrite(tx, args, args.clipConfirmation);
             const item = await tx.contentItem.findFirst({
@@ -287,7 +290,7 @@ export class PublicationFactService {
                 created_metric_work_items: createdMetricWorkItems,
                 replayed: false
             };
-        }, (args.clipConfirmation || args.beforeWrite) ? { isolationLevel: Prisma.TransactionIsolationLevel.Serializable } : undefined);
+        }, (args.clipConfirmation || args.beforeWrite || (args.projectId === 10 && args.taskId === 1048)) ? { isolationLevel: Prisma.TransactionIsolationLevel.Serializable } : undefined);
     }
 
     async get(projectId: number, taskId: number, actorId: string) {

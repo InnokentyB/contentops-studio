@@ -1,3 +1,5 @@
+import { registerPublicationAdapterStatus } from './publication_adapter_status';
+import { readPublicationAdapterStatus } from '../../services/publication_adapter_status';
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { Prisma } from '@prisma/client';
 import prisma from '../../db';
@@ -48,6 +50,7 @@ interface IdParams {
 }
 
 export default async function publicationTasksRoutes(fastify: FastifyInstance): Promise<void> {
+    registerPublicationAdapterStatus(fastify, readPublicationAdapterStatus);
     fastify.get('/api/publication-tasks', async (request: FastifyRequest, reply: FastifyReply) => {
         const projectId = (request as unknown as { projectId?: number }).projectId;
         if (!projectId) return reply.code(400).send({ error: 'Project ID required' });
