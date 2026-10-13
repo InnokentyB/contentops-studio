@@ -42,7 +42,17 @@
     {"id": "INV-TYPE-BOUNDARY-008", "change": "Explicit browser-reader return contract; runtime behavior unchanged",
       "build": "npm run build", "build_result": "PASS", "test": "Focused inventory and neighboring routes, concurrency1",
       "passed": 49, "failed": 0, "skipped": 0, "quality": "PASS; score77, no hard stops", "errors": [],
-      "logs": ["/tmp/dzen1002-inventory-typed-build.log", "/tmp/dzen1002-inventory-typed-focused.log", "/tmp/dzen1002-inventory-typed-quality.log"]}
+      "logs": ["/tmp/dzen1002-inventory-typed-build.log", "/tmp/dzen1002-inventory-typed-focused.log", "/tmp/dzen1002-inventory-typed-quality.log"]},
+    {"id": "INV-AUTH-RED-009", "scenario_ids": ["INV012", "INV013"], "build_result": "PASS",
+      "passed": 1, "failed": 1, "skipped": 0,
+      "errors": "INV012 failed because authentication hook was not invoked; this final review gap blocked handoff to Ops",
+      "log": "/tmp/dzen1002-auth-red.log"},
+    {"id": "INV-AUTH-GREEN-010", "change": "Reuse original assertDzenAuthenticated before inventory acceptance; no new authentication policy",
+      "build": "npm run build:backend; npm run build", "build_result": "PASS",
+      "test": "All source-mapped tests, concurrency1", "passed": 1042, "failed": 0, "skipped": 0,
+      "final_focused_passed": 51, "final_focused_failed": 0, "quality": "PASS; score77, no hard stops", "errors": [],
+      "logs": ["/tmp/dzen1002-auth-green-suite.log", "/tmp/dzen1002-auth-fullbuild.log",
+        "/tmp/dzen1002-auth-final-focused.log", "/tmp/dzen1002-auth-final-quality.log"]}
   ],
   "remaining": "Actual provider response schema/session and per-page readback remain unverified; new diagnostics must be examined by p10 Publisher in a fresh preflight after deployment, before any publication. Unknown coverage still blocks."
 }
