@@ -150,6 +150,36 @@ export class VkConnectorDispatchService {
                 heartbeatAt: host?.heartbeatAt.toISOString() || null };
         });
     }
+    /** Dedicated liveness renewal never polls, claims, rebinds or changes job generation. */
+    async heartbeat(args: ConsumerIdentity): Promise<ConnectorHealth> {
+        this.consumer(args); this.liveInfrastructure();
+        return this.repository.transaction(async store => {
+            await store.authorize(args.projectId, args.actorId, true);
+            const host = await store.host(args.projectId, args.hostId);
+            if (!host || host.instanceId !== args.instanceId) fail('FENCED');
+            const heartbeatAt = this.now();
+            await store.saveHost({ ...host, heartbeatAt });
+            return { hostId: args.hostId, mode: host.mode, providerExecution: 'blocked',
+                status: 'online', heartbeatAt: heartbeatAt.toISOString() };
+        });
+    }
+    /** A recovered uncertain job grants only read-only reconciliation, never a new send. */
+    async rebindReconciliation(args: ConsumerJobIdentity & { packageSha256: string }): Promise<ConnectorJobStatus> {
+        this.consumer(args); this.liveInfrastructure();
+        return this.repository.transaction(async store => {
+            await store.authorize(args.projectId, args.actorId, true);
+            const job = await store.job(args.projectId, args.jobId), host = await store.host(args.projectId, args.hostId);
+            if (!job || !host || host.instanceId !== args.instanceId || host.mode !== 'vk_feed_provider'
+                || this.now().getTime() - host.heartbeatAt.getTime() > FRESH_MS
+                || job.generation !== args.generation || job.packageSha256 !== args.packageSha256
+                || job.state !== 'verification_required') fail('FENCED');
+            const current = await this.exact(store, args, job);
+            if (current.attemptId !== job.attemptId) fail('ATTEMPT_CHANGED');
+            await this.patch(store, job, { hostId: args.hostId, instanceId: args.instanceId,
+                generation: job.generation + 1, blocker: 'RECONCILIATION_ONLY', updatedAt: this.now() }, args.actorId);
+            return view(job, current.publicUrl);
+        });
+    }
     async poll(args: ConsumerIdentity & { buildVersion: string; mode?: 'infrastructure_only' | 'vk_feed_provider' }): Promise<ConnectorPoll> {
         this.consumer(args); this.liveInfrastructure();
         if (!/^[a-zA-Z0-9._-]{1,80}$/.test(args.buildVersion)) fail('BUILD_INVALID');

@@ -5,14 +5,14 @@ export type ConnectorExecutionIdentity = ConsumerJobIdentity & { packageSha256: 
 export type ConnectorExecutionLease = { workItemId: 1699; leaseToken: string; leaseExpiresAt: string; generation: number };
 export type ConnectorStartArgs = ConnectorExecutionIdentity & Parameters<typeof startVkBrowserSubmission>[1];
 export type ConnectorConfirmArgs = ConnectorExecutionIdentity & Parameters<typeof confirmVkBrowserSubmission>[1] & {
-    mediaAcknowledgement: { assetSha256: string; providerMediaId: string; acknowledged: true; providerObjectId: string } };
+    providerAttestation?: unknown; mediaAcknowledgement: { assetSha256: string; providerMediaId: string; acknowledged: true; providerObjectId: string } };
 export type ConnectorUncertainArgs = ConnectorExecutionIdentity & Parameters<typeof markVkBrowserSubmissionUncertain>[1];
 export type ConnectorStartResult = { status: 'started'; attempt_id: number }
     | { status: 'confirmed'; attempt_id: number; publication_fact_id: number; public_url: string | null }
     | { status: 'verification_required'; attempt_id: number; retry_allowed: false };
 /** Trusted server-side ports are not populated by public tool arguments or environment flags. */
 export interface VkConnectorExecutionPorts {
-    admission(): Promise<'NOT_CHECKED' | 'POLICY_DENIED' | 'PERMITTED'>;
+    admission(identity?: ConnectorExecutionIdentity, purpose?: 'wall_read' | 'submission' | 'post_confirm'): Promise<'NOT_CHECKED' | 'POLICY_DENIED' | 'PERMITTED'>;
     verifyEvidence(identity: ConnectorExecutionIdentity, execution: ConnectorExecutionPackage,
         supplied: unknown): Promise<VkConnectorWallEvidence | null>;
     verifyMediaAcknowledgement(args: ConnectorConfirmArgs, execution: ConnectorExecutionPackage): Promise<boolean>;

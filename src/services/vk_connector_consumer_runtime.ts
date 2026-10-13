@@ -2,6 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
+import type { Vk1048ProviderRuntime } from './vk1048_playwright_runtime';
+import type { Vk1048ProviderResult } from './vk1048_provider_execution';
 import type { Vk1048OfflineHarness } from './vk1048_provider_execution';
 import { connectorPackageHash } from './vk_connector_contract';
 
@@ -11,12 +13,13 @@ const ConfigBaseSchema = z.object({
     projectId: z.literal(10), hostId: z.literal('vk-connector-local-1048'),
     endpoint: z.literal('https://planner-mcp-production.up.railway.app/mcp/publisher'),
     runtimeDir: z.string().refine(path.isAbsolute),
+    profileDirectory: z.string().refine(path.isAbsolute).optional(), evidenceDir: z.string().refine(path.isAbsolute).optional(),
     mode: z.enum(['infrastructure_only', 'vk_feed_provider']), buildVersion: z.string().min(1).max(100)
 }).strict();
 export const VkConnectorConfigSchema = z.union([
     ConfigBaseSchema.extend({ tokenFile: z.string().refine(path.isAbsolute) }),
     ConfigBaseSchema.extend({ tokenEnvVar: z.literal('CONTENTOPS_ANALYSTCRAFT_PUBLISHER_TOKEN') })
-]);
+]).refine(config => Boolean(config.profileDirectory) === Boolean(config.evidenceDir), { message: 'Operator resources must be provided together' });
 export type VkConnectorConfig = z.infer<typeof VkConnectorConfigSchema>;
 /** Immutable restricted pilot binding; it is a restriction, never publication authority. */
 export const VkConnectorPilotPackageSchema = z.object({ projectId: z.literal(10), taskId: z.literal(1048),
@@ -36,17 +39,17 @@ const PollSchema = z.object({ jobs: z.array(JobSchema).max(1), health: HealthSch
 const AckSchema = z.object({ jobId: z.string().uuid(), generation: z.number().int().nonnegative(),
     state: z.enum(['accepted', 'blocked']), blocker: z.string().max(100).nullable().optional() }).strip();
 const ReportSchema = z.object({ jobId: z.string().uuid(), generation: z.number().int().nonnegative(),
-    state: z.literal('blocked'), blocker: z.enum(['PROVIDER_CONTROL_DENIED', 'PROVIDER_PERMISSION_UNVERIFIED']) }).strip();
+    state: z.literal('blocked'), blocker: z.enum(['PROVIDER_CONTROL_DENIED', 'PROVIDER_PERMISSION_UNVERIFIED', 'NOT_CONNECTED', 'POLICY_DENIED']) }).strip();
 /** Outbound authenticated MCP port, isolated from every provider implementation. */
 export interface VkConnectorControl {
     call(name: string, args: Record<string, unknown>, signal?: AbortSignal): Promise<unknown>;
     close(): Promise<void>;
 }
-interface Receipt { jobId: string; generation: number; state: 'accepted' | 'blocked'; }
+interface Receipt { jobId: string; generation: number; state: 'accepted' | 'blocked' | 'confirmed' | 'verification_required'; }
 export interface VkConnectorCycleResult {
-    status: 'idle_provider_blocked' | 'receipt_provider_blocked' | 'stale_generation' | 'invalid_response' | 'auth_or_control_unavailable';
-    mode: 'infrastructure_only' | 'vk_feed_provider'; providerExecution: 'blocked'; blocker: 'PROVIDER_CONTROL_DENIED' | 'PROVIDER_PERMISSION_UNVERIFIED';
-    receipts: Receipt[]; heartbeatAt: string | null;
+    status: 'idle_provider_blocked' | 'receipt_provider_blocked' | 'stale_generation' | 'invalid_response' | 'auth_or_control_unavailable' | 'provider_confirmed' | 'provider_verification_required';
+    mode: 'infrastructure_only' | 'vk_feed_provider'; providerExecution: 'blocked' | 'confirmed'; blocker: 'PROVIDER_CONTROL_DENIED' | 'PROVIDER_PERMISSION_UNVERIFIED' | 'NOT_CONNECTED' | 'POLICY_DENIED' | null;
+    providerReason?: string; receipts: Receipt[]; heartbeatAt: string | null;
 }
 /** Stable package digest uses this fixed ordered projection in both producer and consumer. */
 export function vkConnectorPackageSha256(rawPackage: unknown): string {
@@ -75,8 +78,10 @@ async function boundedCall(control: VkConnectorControl, name: string, args: Reco
         signal?.removeEventListener('abort', stop);
     }
 }
+export interface VkConnectorProviderInput { identity: VkConnectorIdentity; jobId: string; generation: number; packageSha256: string; binding: VkConnectorPilotPackage; }
+export type VkConnectorProviderDispatch = (input: VkConnectorProviderInput, control: VkConnectorControl, signal?: AbortSignal) => Promise<Vk1048ProviderResult>;
 /** One serial poll/ack/report cycle. There is no provider-navigation or publication capability. */
-export async function consumeVkConnectorOnce(rawIdentity: unknown, control: VkConnectorControl, signal?: AbortSignal, timeoutMs = 15_000, offlineHarness?: Vk1048OfflineHarness): Promise<VkConnectorCycleResult> {
+export async function consumeVkConnectorOnce(rawIdentity: unknown, control: VkConnectorControl, signal?: AbortSignal, timeoutMs = 15_000, offlineHarness?: Vk1048OfflineHarness | Vk1048ProviderRuntime, providerDispatch?: VkConnectorProviderDispatch): Promise<VkConnectorCycleResult> {
     const identity = IdentitySchema.parse(rawIdentity);
     if (!Number.isInteger(timeoutMs) || timeoutMs < 10 || timeoutMs > 15_000) throw new Error('[VK_CONNECTOR_TIMEOUT_INVALID]');
     const call = (name: string, args: Record<string, unknown>): Promise<unknown> => boundedCall(control, name, args, signal, timeoutMs);
@@ -104,10 +109,19 @@ export async function consumeVkConnectorOnce(rawIdentity: unknown, control: VkCo
             result.receipts.push({ jobId: job.jobId, generation, state: 'accepted' });
             if (identity.mode === 'vk_feed_provider') {
                 const { runVk1048ProviderJob } = await import('./vk1048_provider_execution');
-                const provider = await runVk1048ProviderJob({ identity, jobId: job.jobId, generation,
-                    packageSha256: job.packageSha256, binding: job.package }, control, offlineHarness, signal);
+                const input = { identity, jobId: job.jobId, generation, packageSha256: job.packageSha256, binding: job.package };
+                const provider = providerDispatch ? await providerDispatch(input, control, signal)
+                    : await runVk1048ProviderJob(input, control, offlineHarness, signal);
+                if (provider.status === 'provider_confirmed') {
+                    result.status = 'provider_confirmed'; result.providerExecution = 'confirmed'; result.blocker = null;
+                    result.receipts[result.receipts.length - 1] = { jobId: job.jobId, generation: provider.generation ?? generation, state: 'confirmed' }; break;
+                }
+                if (provider.status === 'verification_required') {
+                    result.providerReason = provider.reason; result.status = 'provider_verification_required'; result.receipts[result.receipts.length - 1].state = 'verification_required'; break;
+                }
+                if (provider.reason === 'NOT_CONNECTED') result.blocker = 'NOT_CONNECTED';
                 // Production admission is unverified. No job/config/MCP value can supply an offline harness.
-                result.blocker = 'PROVIDER_PERMISSION_UNVERIFIED';
+                result.blocker ??= 'PROVIDER_PERMISSION_UNVERIFIED';
                 if (provider.executionContext === 'offline_fixture') { result.status = 'invalid_response'; break; }
             }
             const report = ReportSchema.safeParse(await call('ba_report_vk_connector_job', { ...identity,

@@ -1,0 +1,76 @@
+{
+  "date": "2026-10-13",
+  "branch": "codex/vk1048-live-provider",
+  "base_revision": "f7b2bcb",
+  "scope": "Approved017 scoped application-host authority, heartbeat and reconciliation-only recovery",
+  "status": "OFFLINE_ENGINEERING_VERIFIED_AWAITING_INTEGRATION_AND_OWNER_UAT",
+  "red_records": [
+    {
+      "suite": "vk_connector_recovery.test.ts",
+      "result": "2 FAIL",
+      "reason": "Missing heartbeat and reconciliation rebind methods"
+    },
+    {
+      "suite": "vk_connector_attestation.test.ts",
+      "result": "FAIL",
+      "reason": "Application authority module absent (implementation missing)"
+    },
+    {
+      "suite": "vk_connector_photo_proof.test.ts",
+      "result": "FAIL",
+      "reason": "Original-photo verifier module absent (implementation missing)"
+    }
+  ],
+  "green": {
+    "backend_build": "PASS",
+    "focused_tests": 36,
+    "focused_failed": 0,
+    "remote_auth_tests": 13,
+    "remote_auth_failed": 0,
+    "quality_gate": "PASS77"
+  },
+  "scenario_groups": {
+    "attestation": 7,
+    "photo_verifier": 2,
+    "recovery": 3
+  },
+  "resolved_verification_errors": [
+    "Initial concurrent worker operationTimeoutMs type error; worker fixed it",
+    "Optional remote auth suite import failed with absent TELEGRAM_BOT_TOKEN; rerun with explicit dummy offline fixture token passed13"
+  ],
+  "controls": [
+    "Dedicated same-instance heartbeat never polls or mutates job generation",
+    "Replacement reconciliation rebind preserves same job, package, attempt and lease; new generation retains verification_required and never grants send",
+    "120s process-local challenge binds authenticated app actor, host, instance, job, generation, package hash and purpose",
+    "Single-use proof nonce, nonce digest only in memory; restart invalidates all grants",
+    "wall_read capability grants no submission capability",
+    "New generation requires new capability; captured wall action/readback must follow challenge issuance",
+    "Structured bounded wall evidence evaluated with existing reconciliation rules",
+    "Full canonical provider confirmation fields and exact media/source association required",
+    "Server separately hashes bounded public original-photo bytes using pinned VK/userapi domains, no cookies/auth/redirects, 10s20MB bounds",
+    "New challenge/renewal/rebind tools are Publisher-only/project10-only with server-bound actor"
+  ],
+  "trust_boundary": {
+    "application_authorization": "Existing authenticated Publisher/owner host is trusted to report observed inventory and post/photo/URL association. Nonce authenticates scope and prevents proof replay; it does not make host DOM claims unforgeable.",
+    "independent_check": "Only downloaded public original-photo bytes are independently checked against approved SHA. This does not independently prove their post/photo association.",
+    "platform_authorization": "Application challenge does not authorize or clear actual site/tool restrictions. Current concrete own-community site-safety denial reported by root blocks affected live and indirect actions."
+  },
+  "integration_review": [
+    "Worker notified to issue wall challenge before package PERMITTED gate",
+    "Worker notified to pass attestation envelope as evidence for claim/reconcile",
+    "Worker notified to project provider-only confirmation proof and exclude actor/task/raw lease from proof"
+  ],
+  "actions": {
+    "live_vk_access": false,
+    "production_mutation": false,
+    "provider_activation": false,
+    "migration": false,
+    "commit": false,
+    "deploy": false
+  },
+  "remaining": [
+    "Final worker/consumer broker integration review",
+    "No live provider acceptance or owner UAT",
+    "Actual current site-safety denial remains binding; zero provider sends"
+  ]
+}

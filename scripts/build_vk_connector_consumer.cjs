@@ -20,6 +20,9 @@ esbuild.buildSync({ absWorkingDir: root, entryPoints: ['src/workers/vk_connector
         '@modelcontextprotocol/sdk/client/index.js': require.resolve('@modelcontextprotocol/sdk/client/index.js'),
         '@modelcontextprotocol/sdk/client/streamableHttp.js': require.resolve('@modelcontextprotocol/sdk/client/streamableHttp.js')
     },
+    // Managed startup remains standalone. Explicit operator execution uses the
+    // checkout's pinned Playwright installation and vendor browser assets.
+    external: ['playwright'],
     bundle: true, platform: 'node', target: 'node20', format: 'cjs', outfile: destination,
     sourcemap: false, logLevel: 'warning' });
 process.stdout.write('Standalone consumer built; provider admission remains blocked. No credential or profile included.\n');
