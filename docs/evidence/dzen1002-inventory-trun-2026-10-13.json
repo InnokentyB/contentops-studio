@@ -1,0 +1,31 @@
+{
+  "defect": "DZEN1002-INV-001",
+  "scope": "task1002 read-only preflight, exact released rev3/asset151/channel116",
+  "base_commit": "e17b4b6",
+  "provider_calls": 0,
+  "publication_calls": 0,
+  "owner_uat": "NOT_PERFORMED",
+  "runs": [
+    {"id": "INV-RED-001", "build": "npm run build:backend", "build_result": "PASS",
+      "test": "node --test dist/tests/dzen1002_inventory.test.js", "passed": 0, "failed": 7,
+      "scenario_ids": ["INV001", "INV002", "INV003", "INV004", "INV005", "INV006", "INV007"],
+      "errors": "Behavioral assertions: stub returned no diagnostics/objects and incomplete coverage; not infrastructure failure"},
+    {"id": "INV-GREEN-002", "build": "npm run build:backend", "build_result": "PASS",
+      "test": "inventory fixtures + route + task service + task1036 reconciliation + tomorrow routes, concurrency1",
+      "passed": 49, "failed": 0, "skipped": 0,
+      "scenario_ids": ["INV001", "INV002", "INV003", "INV004", "INV005", "INV006", "INV007", "INV008", "INV009", "INV010", "INV011"],
+      "log": "/tmp/dzen1002-inventory-regression.log", "errors": []},
+    {"id": "INV-STALE-DIST-003", "test": "dist/tests/dzen*.test.js, concurrency1",
+      "passed": 168, "failed": 2, "skipped": 0,
+      "errors": "Stale dzen_profile_binding compiled tests not represented by current checkout source; no source/test modifications to suppress them",
+      "log": "/tmp/dzen1002-inventory-all-dzen.log"},
+    {"id": "INV-SOURCE-REGRESSION-004", "test": "Only compiled Dzen tests mapped from current src/tests source, concurrency1",
+      "passed": 161, "failed": 0, "skipped": 0, "errors": [],
+      "log": "/tmp/dzen1002-inventory-current-source.log"},
+    {"id": "INV-GATES-005", "build": "npm run build", "build_result": "PASS",
+      "quality": "npm run quality:gate", "quality_result": "PASS", "baseline_score": 77,
+      "hard_stops": [], "diff_check": "PASS", "errors": [],
+      "logs": ["/tmp/dzen1002-inventory-fullbuild.log", "/tmp/dzen1002-inventory-quality.log"]}
+  ],
+  "remaining": "Actual provider response schema/session and per-page readback remain unverified; new diagnostics must be examined by p10 Publisher in a fresh preflight after deployment, before any publication. Unknown coverage still blocks."
+}

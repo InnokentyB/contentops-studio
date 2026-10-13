@@ -147,7 +147,7 @@ type Dependencies = {
     dzen: {
         publishPost(config: any, text: string, imageUrl?: string, title?: string, type?: 'article' | 'post'): Promise<string>;
         testConnection(config: any): Promise<any>;
-        readStudioPublications(config: { cookies?: string; channel_id?: string; [key: string]: unknown }): Promise<{
+        readStudioPublications(config: { cookies?: string; channel_id?: string; [key: string]: unknown }, taskId?: 1002): Promise<{
             authenticated: boolean;
             editor_available: boolean;
             editor_url: string;
@@ -156,6 +156,7 @@ type Dependencies = {
             publication_timestamp_readback_complete: boolean;
             state_readback_complete?: boolean;
             coverage_complete?: boolean;
+            inventory_diagnostics?: import('./dzen1002_inventory').InventoryDiagnostic[];
             publications: DzenStudioPublicationReadback[];
             checked_at: string;
         }>;
@@ -584,7 +585,7 @@ export class DzenTaskPublicationService {
         }
         const providerInventoryRequired = spec.taskId === 1002;
         const check = frozen992 || providerInventoryRequired
-            ? await dzen.readStudioPublications(config)
+            ? await dzen.readStudioPublications(config, providerInventoryRequired ? 1002 : undefined)
             : await dzen.testConnection(config);
         if (check?.authenticated !== true || check?.editor_available !== true
             || !String(check?.editor_url || '').includes(`/id/${config.channel_id}`)) {
@@ -602,7 +603,9 @@ export class DzenTaskPublicationService {
                 publications: Array.isArray(check.publications) ? check.publications : []
             });
             if (classification.classification === 'incomplete') {
-                throw new Error('[DZEN1002_PROVIDER_INVENTORY_INCOMPLETE] Release remains provider-write blocked');
+                throw new Error(`[DZEN1002_PROVIDER_INVENTORY_INCOMPLETE] ${JSON.stringify({
+                    diagnostics: check.inventory_diagnostics || [], title_readback_complete: check.title_readback_complete,
+                    coverage_complete: check.coverage_complete === true })}`);
             }
             if (classification.classification === 'duplicate') {
                 throw new Error('[DZEN1002_PROVIDER_DUPLICATE_FOUND] Reconcile the existing provider object');
@@ -613,7 +616,8 @@ export class DzenTaskPublicationService {
                 publications_scanned: Array.isArray(check.publications) ? check.publications.length : 0,
                 coverage_complete: true,
                 expected_public_title: expectedTitle,
-                provider_channel_id: config.channel_id
+                provider_channel_id: config.channel_id,
+                diagnostics: check.inventory_diagnostics || []
             };
         }
         if (frozen992) {
