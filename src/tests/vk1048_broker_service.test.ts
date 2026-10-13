@@ -37,7 +37,7 @@ test('BROKER-SERVICE-001 real authority receives wall envelope and challenge pre
         throw new Error(`Unexpected test route ${name}`);
     } };
     const broker = createVk1048ApplicationBroker(control, identity, () => now);
-    const runtime: Vk1048ProviderRuntime = { broker, executionContext: 'production_admitted', evidenceDir: '/unused', now: () => now,
+    const runtime: Vk1048ProviderRuntime = { route: 'planner_registered_independent_adapter', broker, executionContext: 'production_admitted', evidenceDir: '/unused', now: () => now,
         admission: { assess: async () => ({ status: 'ACTION_ADMITTED', executionContext: 'production_admitted' }) },
         loadApprovedImage: async () => ({ buffer: bytes, filename: 'fixture.png' }), withSession: async run => run({
             ui: { navigate: async () => undefined, loginRequired: async () => false, openWallComposer: async () => undefined,

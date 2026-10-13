@@ -100,90 +100,43 @@ function harness(task = approvedVkTask(), providerError?: Error) {
     return { service: new TelegramTaskPublicationService({ prisma, publisher, publicationFacts }), calls };
 }
 
-test('VK dry-run and live use the same accepted text and approved durable visual', async () => {
-    const dry = harness();
-    const preview = await dry.service.execute({ projectId: 10, taskId: 900, dryRun: true });
-    const live = harness();
-    const result = await live.service.execute({ projectId: 10, taskId: 900, idempotencyKey: 'publish:vk:900:r3' });
-
-    assert.deepEqual(preview.payload_preview, {
-        text: 'Accepted VK publication text',
-        image_url: 'https://cdn.example/approved-vk.png',
-        has_image: true
-    });
-    assert.equal(preview.delivery, 'vk_api');
-    assert.deepEqual(live.calls.provider, [{
-        projectId: 10,
-        taskId: 900,
-        channel: approvedVkTask().channel,
-        text: preview.payload_preview.text,
-        imageUrl: preview.payload_preview.image_url,
-        idempotencyKey: 'publish:vk:900:r3'
-    }]);
-    assert.equal(result.external_id, 'wall-123_456');
-    assert.equal(live.calls.facts[0].providerObjectId, 'wall-123_456');
-    assert.match(live.calls.facts[0].correctionReason, /removed/i);
+test('VK task dry-run and live require the independent adapter before any provider or fact', async () => {
+    const { service, calls } = harness();
+    for (const dryRun of [true, false]) {
+        const result = await service.execute({ projectId: 10, taskId: 900, dryRun, idempotencyKey: 'fixture-route' });
+        assert.equal(result.reason, 'vk_adapter_required'); assert.equal(result.route_executable, false);
+        assert.equal(result.adapter_requirement.retry_via_api, false);
+    }
+    assert.equal(calls.provider.length, 0); assert.equal(calls.facts.length, 0); assert.equal(calls.updates.length, 0);
 });
 
-test('VK dry-run validates payload while reporting missing provider configuration', async () => {
-    const task = approvedVkTask({
-        channel: { ...approvedVkTask().channel, config: { platform: 'vk' } }
-    });
+test('VK missing API credentials never change the required independent-adapter route', async () => {
+    const task = approvedVkTask({ channel: { ...approvedVkTask().channel, config: { platform: 'vk' } } });
     const { service, calls } = harness(task);
-    const preview = await service.execute({ projectId: 10, taskId: 900, dryRun: true });
-    assert.equal(preview.connector_ready, false);
-    assert.equal(preview.connector_reason, 'vk_credentials_missing');
-    await assert.rejects(service.execute({
-        projectId: 10,
-        taskId: 900,
-        idempotencyKey: 'publish:vk:missing-credentials'
-    }), /VK_CONNECTOR_NOT_READY/);
-    assert.equal(calls.provider.length, 0);
+    const result = await service.execute({ projectId: 10, taskId: 900, idempotencyKey: 'fixture-route' });
+    assert.equal(result.reason, 'vk_adapter_required'); assert.equal(result.connector_ready, null);
+    assert.equal(calls.provider.length, 0); assert.equal(calls.updates.length, 0);
 });
 
-test('VK text-only feed remains ready with only the community token', async () => {
-    const task = approvedVkTask({
-        visual_state: 'PENDING_ASSESSMENT',
-        selected_asset_id: null,
-        selected_asset: null,
-        channel: {
-            ...approvedVkTask().channel,
-            config: { vk_id: '-123', publish_access_token: 'community-token' }
-        }
-    });
-    const preview = await harness(task).service.execute({ projectId: 10, taskId: 900, dryRun: true });
-    assert.equal(preview.connector_ready, true);
-    assert.equal(preview.connector_reason, null);
-    assert.equal(preview.payload_preview.has_image, false);
+test('VK text-only feed with a community token is not a direct publication permission', async () => {
+    const task = approvedVkTask({ selected_asset_id: null, selected_asset: null,
+        channel: { ...approvedVkTask().channel, config: { vk_id: '-123', publish_access_token: 'fixture-token' } } });
+    const result = await harness(task).service.execute({ projectId: 10, taskId: 900, dryRun: true });
+    assert.equal(result.reason, 'vk_adapter_required'); assert.equal(result.route_executable, false);
 });
 
-test('VK feed image preflight requires the separate classic user token', async () => {
-    const task = approvedVkTask({
-        channel: {
-            ...approvedVkTask().channel,
-            config: { vk_id: '-123', publish_access_token: 'community-token' }
-        }
-    });
+test('VK image task cannot request direct API fallback when the user media token is absent', async () => {
+    const task = approvedVkTask({ channel: { ...approvedVkTask().channel, config: { vk_id: '-123', publish_access_token: 'fixture-token' } } });
     const { service, calls } = harness(task);
-    const preview = await service.execute({ projectId: 10, taskId: 900, dryRun: true });
-    assert.equal(preview.connector_ready, false);
-    assert.equal(preview.connector_reason, 'vk_user_media_token_missing');
-    await assert.rejects(
-        service.execute({ projectId: 10, taskId: 900, idempotencyKey: 'vk-image-without-user-token' }),
-        /VK_MEDIA_CONNECTOR_NOT_READY/
-    );
-    assert.equal(calls.provider.length, 0);
+    const result = await service.execute({ projectId: 10, taskId: 900, idempotencyKey: 'fixture-route' });
+    assert.equal(result.adapter_requirement.retry_via_api, false); assert.equal(calls.provider.length, 0);
 });
 
-test('VK provider failure stays uncertain and never writes a publication fact', async () => {
-    const { service, calls } = harness(approvedVkTask(), new Error('connection lost'));
-    await assert.rejects(
-        service.execute({ projectId: 10, taskId: 900, idempotencyKey: 'publish:vk:900:r3' }),
-        /VK_PUBLICATION_UNCERTAIN/
-    );
-    assert.equal(calls.facts.length, 0);
-    assert.equal(calls.events.length, 1);
-    assert.equal(calls.updates[calls.updates.length - 1].status, 'publishing');
+test('VK unavailable direct provider is never attempted or labelled uncertain by the blocked task route', async () => {
+    const { service, calls } = harness(approvedVkTask(), new Error('Must not call the provider'));
+    const result = await service.execute({ projectId: 10, taskId: 900, idempotencyKey: 'fixture-route' });
+    assert.equal(result.mode, 'blocked'); assert.equal(calls.provider.length, 0);
+    assert.equal(calls.facts.length, 0); assert.equal(calls.updates.length, 0);
 });
 
 test('strict VK provider passes a stable guid and returns validated provider identity', async () => {
@@ -351,208 +304,54 @@ test('strict VK story provider rejects a missing or changed native poll readback
     );
 });
 
-test('VK personal story uses the accepted vertical asset and records story identity', async () => {
-    const task = approvedVkTask({
-        type: 'vk_story',
-        visual_placement: 'story',
-        channel: {
-            ...approvedVkTask().channel,
-            config: {
-                vk_oauth_access_token: 'vk2.server-access',
-                vk_refresh_token: 'vk2.server-refresh',
-                vk_device_id: 'server-device',
-                oauth_token_profile: 'server_refreshed',
-                oauth_expires_at: new Date(Date.now() + 60 * 60_000).toISOString(),
-                oauth_user_id: 42,
-                oauth_provider: 'vk_id'
-            }
-        }
-    });
-    const dry = harness(task);
-    const preview = await dry.service.execute({ projectId: 10, taskId: 900, dryRun: true });
-    assert.equal(preview.delivery, 'vk_api_personal_story');
-    assert.equal(preview.target, 'personal_profile');
-    assert.equal(preview.payload_preview.has_image, true);
-    assert.equal(preview.payload_preview.text, '');
-
-    const live = harness(task);
-    const result = await live.service.execute({ projectId: 10, taskId: 900, idempotencyKey: 'publish:vk-story:900:r3' });
-    assert.deepEqual(live.calls.provider, [{
-        projectId: 10,
-        taskId: 900,
-        channel: task.channel,
-        imageUrl: 'https://cdn.example/approved-vk.png',
-        idempotencyKey: 'publish:vk-story:900:r3'
-    }]);
-    assert.equal(result.external_id, 'story42_88');
-    assert.equal(live.calls.facts[0].artifactKind, 'story');
-    assert.equal(live.calls.facts[0].providerObjectId, 'story42_88');
+test('VK personal story retains accepted content while requiring the independent adapter', async () => {
+    const task = approvedVkTask({ type: 'vk_story', visual_placement: 'story' });
+    const { service, calls } = harness(task);
+    const result = await service.execute({ projectId: 10, taskId: 900, idempotencyKey: 'fixture-story-route' });
+    assert.equal(result.reason, 'vk_adapter_required'); assert.equal(calls.provider.length, 0);
+    assert.equal(calls.facts.length, 0); assert.equal(calls.updates.length, 0);
+    assert.equal(task.selected_asset_id, 18); assert.equal(task.accepted_revision, 3);
 });
 
-test('VK personal story passes only the revision-bound native poll to the provider', async () => {
-    const poll = {
-        question: 'What should we explain next?',
-        answers: ['Metrics', 'Architecture'],
-        anonymous: false,
-        multiple: false,
-        content_revision: 3
-    };
-    const task = approvedVkTask({
-        type: 'vk_story',
-        visual_placement: 'story',
-        assets: { vk_story_poll: poll },
-        channel: {
-            ...approvedVkTask().channel,
-            config: { user_access_token: 'user-token', oauth_user_id: 42 }
-        }
-    });
-    const dry = harness(task);
-    const preview = await dry.service.execute({ projectId: 10, taskId: 900, dryRun: true });
-    assert.deepEqual(preview.payload_preview.native_poll, poll);
-
-    const live = harness(task);
-    await live.service.execute({ projectId: 10, taskId: 900, idempotencyKey: 'publish:vk-story-poll:900:r3' });
-    assert.deepEqual(live.calls.provider[0].poll, poll);
-
-    const stale = harness({ ...task, assets: { vk_story_poll: { ...poll, content_revision: 2 } } });
-    await assert.rejects(
-        stale.service.execute({ projectId: 10, taskId: 900, dryRun: true }),
-        /VK_STORY_POLL_REVISION_MISMATCH/
-    );
+test('VK personal-story native poll does not bypass the independent adapter gate', async () => {
+    const task = approvedVkTask({ type: 'vk_story', visual_placement: 'story', assets: { vk_story_poll: {
+        question: 'Fixture?', answers: ['Yes', 'No'], content_revision: 3 } } });
+    const { service, calls } = harness(task);
+    const result = await service.execute({ projectId: 10, taskId: 900, idempotencyKey: 'fixture-story-poll' });
+    assert.equal(result.reason, 'vk_adapter_required'); assert.equal(calls.provider.length, 0);
 });
 
-test('VK personal story dry-run requires OAuth profile identity and an approved visual', async () => {
-    const missingIdentity = approvedVkTask({
-        type: 'vk_story',
-        visual_placement: 'story',
-        channel: { ...approvedVkTask().channel, config: { user_access_token: 'user-token' } }
-    });
-    const identityHarness = harness(missingIdentity);
-    const preview = await identityHarness.service.execute({ projectId: 10, taskId: 900, dryRun: true });
-    assert.equal(preview.connector_ready, false);
-    assert.equal(preview.connector_reason, 'vk_personal_oauth_identity_missing');
-
-    const missingVisual = approvedVkTask({
-        type: 'vk_story', visual_placement: 'story', selected_asset_id: null, selected_asset: null,
-        visual_state: 'PENDING_ASSESSMENT',
-        channel: { ...approvedVkTask().channel, config: { user_access_token: 'user-token', oauth_user_id: 42 } }
-    });
-    await assert.rejects(
-        harness(missingVisual).service.execute({ projectId: 10, taskId: 900, dryRun: true }),
-        /VK_STORY_MEDIA_REQUIRED/
-    );
-});
-
-test('task publisher resolves top-level VK credentials even when raw_account exists', async () => {
-    const publisherService = require('../services/publisher.service').default;
-    const vkService = require('../services/vk.service').default;
-    const original = vkService.publishPostWithIdentity;
-    const calls: any[] = [];
-    vkService.publishPostWithIdentity = async (...args: any[]) => {
-        calls.push(args);
-        return { ownerId: '-123', postId: '456', publishedLink: 'https://vk.com/wall-123_456' };
-    };
-    try {
-        const result = await publisherService.publishVkTask({
-            projectId: 10,
-            taskId: 900,
-            channel: {
-                ...approvedVkTask().channel,
-                config: {
-                    vk_id: '-123',
-                    publish_access_token: 'top-level-token',
-                    user_access_token: 'top-level-user-token',
-                    raw_account: { platform: 'vk' }
-                }
-            },
-            text: '  Accepted VK publication text  ',
-            imageUrl: 'https://cdn.example/approved-vk.png',
-            idempotencyKey: 'publish:vk:900:r3'
-        });
-        assert.equal(calls[0][0], '-123');
-        assert.equal(calls[0][1], 'top-level-token');
-        assert.equal(calls[0][2], 'Accepted VK publication text');
-        assert.equal(calls[0][3], 'https://cdn.example/approved-vk.png');
-        assert.match(calls[0][4].guid, /^planner-[a-f0-9]{32}$/);
-        assert.equal(calls[0][4].mediaUploadToken, 'top-level-user-token');
-        assert.equal(result.metrics.vk_post_id, '456');
-    } finally {
-        vkService.publishPostWithIdentity = original;
+test('VK story missing OAuth or visual stays adapter-blocked and never advertises direct API readiness', async () => {
+    for (const task of [approvedVkTask({ type: 'vk_story', channel: { ...approvedVkTask().channel, config: {} } }),
+        approvedVkTask({ type: 'vk_story', selected_asset_id: null, selected_asset: null })]) {
+        const result = await harness(task).service.execute({ projectId: 10, taskId: 900, dryRun: true });
+        assert.equal(result.reason, 'vk_adapter_required'); assert.equal(result.connector_ready, null);
     }
 });
 
-test('VK story preflight resolves OAuth credentials encrypted at rest', async () => {
-    const task = approvedVkTask({
-        type: 'vk_story',
-        visual_placement: 'story',
-        channel: {
-            ...approvedVkTask().channel,
-            config: prepareChannelConfigForStorage('vk', {
-                vk_id: '-123',
-                vk_oauth_access_token: 'vk2.server-access',
-                vk_refresh_token: 'vk2.server-refresh',
-                vk_device_id: 'server-device',
-                oauth_token_profile: 'server_refreshed',
-                oauth_expires_at: new Date(Date.now() + 60 * 60_000).toISOString(),
-                oauth_user_id: 42,
-                oauth_provider: 'vk_id',
-                raw_account: { platform: 'vk' }
-            })
-        }
-    });
-
-    const preview = await harness(task).service.execute({ projectId: 10, taskId: 900, dryRun: true });
-    assert.equal(preview.connector_ready, true);
-    assert.equal(preview.connector_reason, null);
-    assert.equal(preview.delivery, 'vk_api_personal_story');
-});
-
-test('VK personal story prefers the server-refreshed OAuth token over the classic media token', async () => {
+test('task publisher cannot use top-level or nested VK credentials as a direct route', async () => {
     const publisherService = require('../services/publisher.service').default;
-    const vkService = require('../services/vk.service').default;
-    const vkOAuthService = require('../services/vk_oauth.service').default;
-    const original = vkService.publishPersonalPhotoStoryWithIdentity;
-    const originalRefresh = vkOAuthService.refreshStoredChannelToken;
-    const calls: any[] = [];
-    const refreshCalls: any[] = [];
-    vkOAuthService.refreshStoredChannelToken = async (...args: any[]) => {
-        refreshCalls.push(args);
-        return { accessToken: 'vk2.server-access', refreshToken: 'vk2.server-refresh', userId: 42, expiresAt: null };
-    };
-    vkService.publishPersonalPhotoStoryWithIdentity = async (...args: any[]) => {
-        calls.push(args);
-        return { ownerId: '42', storyId: '88', publishedLink: 'https://vk.com/story42_88' };
-    };
-    try {
-        await publisherService.publishVkPersonalStory({
-            projectId: 10,
-            taskId: 900,
-            channel: {
-                ...approvedVkTask().channel,
-                config: {
-                    user_access_token: 'classic-media-token',
-                    vk_oauth_access_token: 'vk2.server-access',
-                    vk_refresh_token: 'vk2.server-refresh',
-                    vk_device_id: 'server-device',
-                    oauth_token_profile: 'server_refreshed',
-                    oauth_expires_at: new Date(Date.now() + 60 * 60_000).toISOString(),
-                    oauth_user_id: 42
-                }
-            },
-            imageUrl: 'https://cdn.example/approved-vk.png',
-            idempotencyKey: 'publish:vk-story:900:r3'
-        });
-        assert.equal(refreshCalls.length, 1);
-        assert.equal(refreshCalls[0][1], 120);
-        assert.equal(calls[0][0], 'vk2.server-access');
-        assert.equal(calls[0][1], '42');
-    } finally {
-        vkService.publishPersonalPhotoStoryWithIdentity = original;
-        vkOAuthService.refreshStoredChannelToken = originalRefresh;
-    }
+    await assert.rejects(publisherService.publishVkTask({ projectId: 10, taskId: 900,
+        channel: { config: { vk_id: '-123', publish_access_token: 'fixture-token', raw_account: { platform: 'vk' } } },
+        text: 'Fixture text', idempotencyKey: 'fixture-route' }), /VK_INDEPENDENT_ADAPTER_REQUIRED/);
 });
 
-test('scheduled VK adapter returns provider identity and a stable retry guid', async () => {
+test('encrypted OAuth configuration never grants direct VK story publication', async () => {
+    const task = approvedVkTask({ type: 'vk_story', channel: { ...approvedVkTask().channel, config: prepareChannelConfigForStorage('vk', {
+        vk_id: '-123', vk_oauth_access_token: 'fixture-access', vk_refresh_token: 'fixture-refresh', vk_device_id: 'fixture-device',
+        oauth_token_profile: 'server_refreshed', oauth_user_id: 42, raw_account: { platform: 'vk' } }) } });
+    const result = await harness(task).service.execute({ projectId: 10, taskId: 900, dryRun: true });
+    assert.equal(result.reason, 'vk_adapter_required'); assert.equal(result.connector_ready, null);
+});
+
+test('VK personal-story facade requires the independent adapter even with configured OAuth', async () => {
+    const publisherService = require('../services/publisher.service').default;
+    await assert.rejects(publisherService.publishVkPersonalStory({ projectId: 10, taskId: 900,
+        channel: { id: 120, config: { user_access_token: 'fixture-token', vk_oauth_access_token: 'fixture-oauth', oauth_user_id: 42 } },
+        imageUrl: 'https://fixture.test/image.png', idempotencyKey: 'fixture-story-route' }), /VK_INDEPENDENT_ADAPTER_REQUIRED/);
+});
+
+test('scheduled VK feed requires the independent adapter and never calls the direct provider', async () => {
     const publisherService = require('../services/publisher.service').default;
     const vkService = require('../services/vk.service').default;
     const original = vkService.publishPostWithIdentity;
@@ -569,28 +368,16 @@ test('scheduled VK adapter returns provider identity and a stable retry guid', a
             task.channel.config,
             { actions: [], assets: {}, accounts: {} }
         );
-        assert.equal(calls.length, 1);
-        assert.equal(calls[0][0], '-123');
-        assert.equal(calls[0][1], 'community-token');
-        assert.equal(calls[0][2], 'Accepted VK publication text');
-        assert.equal(calls[0][3], 'https://cdn.example/approved-vk.png');
-        assert.match(calls[0][4].guid, /^planner-[a-f0-9]{32}$/);
-        assert.equal(calls[0][4].mediaUploadToken, 'user-media-token');
-        assert.deepEqual(result, {
-            adapter: 'vk',
-            publishedLink: 'https://vk.com/wall-123_456',
-            metrics: {
-                vk_owner_id: '-123',
-                vk_post_id: '456',
-                vk_guid: calls[0][4].guid
-            }
-        });
+        assert.equal(calls.length, 0);
+        assert.equal(result.success, false);
+        assert.equal(result.reason, 'vk_adapter_required');
+        assert.equal(result.adapter_requirement.required_route, 'planner_registered_independent_adapter');
     } finally {
         vkService.publishPostWithIdentity = original;
     }
 });
 
-test('scheduled VK story dispatches through the personal story provider instead of wall.post', async () => {
+test('scheduled VK story requires the independent adapter without direct provider fallback', async () => {
     const publisherService = require('../services/publisher.service').default;
     const original = publisherService.publishVkPersonalStory;
     const calls: any[] = [];
@@ -619,14 +406,10 @@ test('scheduled VK story dispatches through the personal story provider instead 
             task.channel.config,
             { actions: [], assets: {}, accounts: {} }
         );
-        assert.deepEqual(calls, [{
-            projectId: 10,
-            taskId: 900,
-            channel: task.channel,
-            imageUrl: 'https://cdn.example/approved-vk.png',
-            idempotencyKey: 'scheduler:vk-story:10:900:r3'
-        }]);
-        assert.equal(result.publishedLink, 'https://vk.com/story42_88');
+        assert.deepEqual(calls, []);
+        assert.equal(result.success, false);
+        assert.equal(result.reason, 'vk_adapter_required');
+        assert.equal(result.adapter_requirement.retry_via_api, false);
     } finally {
         publisherService.publishVkPersonalStory = original;
     }

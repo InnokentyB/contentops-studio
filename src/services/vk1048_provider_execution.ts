@@ -1,3 +1,4 @@
+import { assertVkPublicationRoute } from './vk_publication_route_contract';
 import type { Vk1048ApplicationBroker } from './vk1048_application_broker';
 import type { Vk1048MediaSource } from './vk1048_wall_collector';
 import type { Vk1048ProviderRuntime } from './vk1048_playwright_runtime';
@@ -150,6 +151,10 @@ function fencedWallUi(ui: VkBrowserUi, check: () => Promise<void>, budget: numbe
 /** Wire ordinary-image-feed worker behind immutable-package, reconciliation, lease and admission boundaries. */
 export async function runVk1048ProviderJob(rawInput: unknown, control: VkConnectorControl,
     harness?: Vk1048OfflineHarness | Vk1048ProviderRuntime, signal?: AbortSignal): Promise<Vk1048ProviderResult> {
+    if (harness?.executionContext === 'production_admitted') {
+        try { assertVkPublicationRoute(harness.route); }
+        catch { return { status: 'verification_required', executionContext: 'production_blocked', reason: 'VK_PUBLICATION_WRONG_ROUTE' }; }
+    }
     // This gate precedes package download, UI lifecycle, profile access and every provider operation.
     const admission = await (harness?.admission ?? vk1048DefaultAdmission).assess();
     if (!harness || (harness.executionContext === 'offline_fixture' ? admission.status !== 'OFFLINE_FIXTURE_ADMITTED' : admission.status !== 'ACTION_ADMITTED'))

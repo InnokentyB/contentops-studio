@@ -1,3 +1,5 @@
+import { resolveLegacyPublicationChannel, selectLegacyNonVkPosts } from './legacy_publication_channel';
+import { isVkPublicationPlatform, rejectVkDirectPublication, vkPublicationAdapterRequired } from '../vk_publication_route_contract';
 import prisma from '../../db';
 import storageService from '../storage.service';
 import threadsService from '../threads.service';
@@ -24,8 +26,11 @@ export class LegacyPostPublisher {
 
     async resetStuckPublishingPosts(): Promise<number> {
         try {
+            const candidates = await prisma.post.findMany({ where: { status: 'publishing' } });
+            const safe = await selectLegacyNonVkPosts(prisma, candidates);
+            if (!safe.length) return 0;
             const result = await prisma.post.updateMany({
-                where: { status: 'publishing' },
+                where: { id: { in: safe.map(post => post.id) }, status: 'publishing' },
                 data: { status: 'scheduled' }
             });
             if (result.count > 0) {
@@ -41,7 +46,7 @@ export class LegacyPostPublisher {
     async publishDuePosts(): Promise<number> {
         const now = new Date();
 
-        const duePosts = await prisma.post.findMany({
+        const candidates = await prisma.post.findMany({
             where: {
                 status: {
                     in: ['scheduled', 'scheduled_native']
@@ -49,10 +54,12 @@ export class LegacyPostPublisher {
                 publish_at: { lte: now }
             },
             include: {
-                week: true
+                week: true, channel: { select: { type: true } }
             }
         });
 
+        const duePosts = await selectLegacyNonVkPosts(prisma, candidates);
+        if (duePosts.length !== candidates.length) logToFile('INFO', vkPublicationAdapterRequired().code);
         if (duePosts.length === 0) {
             return 0;
         }
@@ -69,18 +76,10 @@ export class LegacyPostPublisher {
             if (post.status === 'scheduled_native') continue;
 
             try {
-                let channel = null;
-                if (post.channel_id) {
-                    channel = await prisma.socialChannel.findUnique({
-                        where: { id: post.channel_id }
-                    });
-                }
-
-                if (!channel) {
-                    logToFile('INFO', `[Publisher] Post ${post.id} has no channel_id or channel not found. Trying default...`);
-                    channel = await prisma.socialChannel.findFirst({
-                        where: { project_id: post.project_id, type: 'telegram' }
-                    });
+                const channel = await resolveLegacyPublicationChannel(prisma, post);
+                if (!channel || isVkPublicationPlatform(channel.type)) {
+                    logToFile('INFO', 'LEGACY_PUBLICATION_BINDING_HELD');
+                    continue; // A claim may already exist; unknown/VK binding never becomes a blind retry.
                 }
 
                 if (!channel || !channel.config) {
@@ -116,7 +115,8 @@ export class LegacyPostPublisher {
                         logToFile('ERROR', `[Publisher] Failed to publish post ${post.id} to Threads:`, threadsErr);
                         continue;
                     }
-                } else if (channel.type === 'vk') {
+                } else if (isVkPublicationPlatform(channel.type)) {
+                    rejectVkDirectPublication();
                     logToFile('INFO', `[Publisher] Publishing to VK for post ${post.id}`);
                     const vkConfig = vkPublisher.extractVkAccountConfig(channel.config as Record<string, unknown>);
                     const vkId = vkConfig.vk_id;
@@ -337,17 +337,11 @@ export class LegacyPostPublisher {
             throw new Error(`Post ${postId} not found`);
         }
 
+        const effectiveChannel = await resolveLegacyPublicationChannel(prisma, post);
+        if (effectiveChannel && isVkPublicationPlatform(effectiveChannel.type)) rejectVkDirectPublication();
+        if (!effectiveChannel) throw new Error(`Channel config not found for post ${postId}`);
         try {
-            let channel = null;
-            if (post.channel_id) {
-                channel = await prisma.socialChannel.findUnique({ where: { id: post.channel_id } });
-            }
-
-            if (!channel) {
-                channel = await prisma.socialChannel.findFirst({
-                    where: { project_id: post.project_id, type: 'telegram' }
-                });
-            }
+            const channel = effectiveChannel;
 
             if (!channel || !channel.config) {
                 throw new Error(`Channel config not found for post ${postId}`);
@@ -374,7 +368,8 @@ export class LegacyPostPublisher {
                     throw new Error(`Threads config missing user_id/token for post ${postId}`);
                 }
                 publishedLink = await threadsService.publishPost(threadsUserId, accessToken, text, post.image_url || undefined);
-            } else if (channel.type === 'vk') {
+            } else if (isVkPublicationPlatform(channel.type)) {
+                    rejectVkDirectPublication();
                 const vkConfig = vkPublisher.extractVkAccountConfig(channel.config as Record<string, unknown>);
                 const vkId = vkConfig.vk_id;
                 const apiKey = vkConfig.publish_access_token;

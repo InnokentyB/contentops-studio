@@ -17,3 +17,15 @@ Shape/Plan/Audit do not authorize implementation or live publication.
 Approve LOCK (goal/specification), QAR (measurable non-functional requirements), ARCH (architecture) and RISK (security/adversarial review) with the human before scenarios.
 Keep TRUN scenario-level results and errors for each build; GREEN requires explicit owner UAT.
 Pre-sync local work is preserved in `backup/contentops-pre-sync-20261010` (stash snapshot). Reconcile individual packages before restoring them; never overwrite current provider implementations with older local versions.
+
+## Mandatory VK operating route
+
+Read `docs/operations/vk-owned-publication-route.md` before any governed VK work.
+VK owned-publication execution, control and read-only preflight use only documented
+Planner commands -> registered independent adapter/consumer. No Codex role uses
+CUA/cua.getTab/ComputerUse, personal tabs, CDP or session injection for VK, including
+login checks, diagnostics or UAT. Failed/not-ready adapter -> BLOCKED + repair;
+never a Codex-browser, API, worker or other-chat fallback. Existing explicit
+action/site denials remain applicable. UNKNOWN/started/uncertain -> reconciliation
+only, no resend. Human operator handoff is a separate operating context. Preserve
+publication/task/job/release/lease/attempt/fact history. Receipt is not success.

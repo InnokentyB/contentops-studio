@@ -1,3 +1,4 @@
+import { rejectVkDirectPublication } from '../vk_publication_route_contract';
 import prisma from '../../db';
 import vkService from '../vk.service';
 import vkOAuthService from '../vk_oauth.service';
@@ -85,6 +86,7 @@ export class VkPublisher {
         imageUrl?: string;
         idempotencyKey: string;
     }) {
+        rejectVkDirectPublication();
         const text = typeof params.text === 'string' ? params.text.trim() : '';
         if (!text) throw new Error('[VK_TEXT_REQUIRED] VK publication text must not be empty');
 
@@ -118,6 +120,7 @@ export class VkPublisher {
      * Publish personal photo story to VK ID profile.
      */
     async publishVkPersonalStory(params: VkStoryParams) {
+        rejectVkDirectPublication();
         const vkConfig = this.extractVkAccountConfig(params.channel?.config || {});
         if (!vkConfig.oauth_user_id) {
             throw new Error('[VK_PERSONAL_STORY_CONNECTOR_NOT_READY] Personal VK story requires a verified profile ID');

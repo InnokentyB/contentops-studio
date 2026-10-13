@@ -121,3 +121,12 @@ this entry never resumes or resets the uncertain attempt. All resource directori
 must already exist, be owned by the current user, mode `0700` and non-symlinks.
 Context cleanup has a 30-second deadline. Unconfirmed cleanup stops provider work,
 quarantines further sessions and preserves the lock for explicit operator review.
+
+## Single mandatory operating source
+
+Follow `docs/operations/vk-owned-publication-route.md`. Documented Planner command
+-> registered independent adapter is the only governed VK route. Codex never
+opens VK with CUA/ComputerUse or private tabs/CDP/session injection, including
+preflight and UAT. Not-ready/failed adapter -> BLOCKED + repair, no browser/API/
+worker/chat fallback. Existing action/site denial and uncertain no-retry rules
+remain unchanged. This bootstrap does not activate provider execution.

@@ -1,0 +1,152 @@
+{
+  "date": "2026-10-13",
+  "branch": "codex/vk-independent-route-contract",
+  "revision": "6e9375f61b8c294e1cedc1d2bad49fe43b6fa3b5",
+  "scope": "Remaining app-owned VK task publication, facade/task publisher, direct MCP and legacy boundaries",
+  "red": [
+    {
+      "suite": "vk_task_route_boundary.test.ts",
+      "failed": 4,
+      "passed": 0,
+      "reason": "Existing entrypoints advertise or invoke direct VK API, and legacy claims before route guard"
+    },
+    {
+      "suite": "vk_task_route_boundary.test.ts orphan effective-channel regression",
+      "failed": 1,
+      "passed": 5,
+      "reason": "Missing joined channel allowed legacy batch publishing/rollback writes before resolving VK fallback"
+    },
+    {
+      "suite": "explicit missing or foreign legacy binding regression",
+      "failed": 1,
+      "passed": 0,
+      "reason": "Failed scoped explicit channel lookup silently selected default Telegram"
+    },
+    {
+      "suite": "legacy explicit binding disappears between preclassification and inner lookup",
+      "failed": 1,
+      "passed": 0,
+      "reason": "Duplicated inner lookup used unscoped findUnique and default fallback, then catch reset an already-claimed post"
+    }
+  ],
+  "green": {
+    "focused_passed": 51,
+    "focused_failed": 0,
+    "backend_build": "PASS",
+    "quality_gate": "PASS77"
+  },
+  "test_expectation_mapping": [
+    {
+      "previous_scenario": "VK dry-run and live use the same accepted text and approved durable visual",
+      "new_owner_policy_scenario": "VK task dry-run and live require the independent adapter before any provider or fact",
+      "result": "PASS",
+      "reason": "Task-owned direct API execution/readiness is prohibited; independent-adapter block occurs before provider/claim/fact. Raw transport checks remain separately covered."
+    },
+    {
+      "previous_scenario": "VK dry-run validates payload while reporting missing provider configuration",
+      "new_owner_policy_scenario": "VK missing API credentials never change the required independent-adapter route",
+      "result": "PASS",
+      "reason": "Task-owned direct API execution/readiness is prohibited; independent-adapter block occurs before provider/claim/fact. Raw transport checks remain separately covered."
+    },
+    {
+      "previous_scenario": "VK text-only feed remains ready with only the community token",
+      "new_owner_policy_scenario": "VK text-only feed with a community token is not a direct publication permission",
+      "result": "PASS",
+      "reason": "Task-owned direct API execution/readiness is prohibited; independent-adapter block occurs before provider/claim/fact. Raw transport checks remain separately covered."
+    },
+    {
+      "previous_scenario": "VK feed image preflight requires the separate classic user token",
+      "new_owner_policy_scenario": "VK image task cannot request direct API fallback when the user media token is absent",
+      "result": "PASS",
+      "reason": "Task-owned direct API execution/readiness is prohibited; independent-adapter block occurs before provider/claim/fact. Raw transport checks remain separately covered."
+    },
+    {
+      "previous_scenario": "VK provider failure stays uncertain and never writes a publication fact",
+      "new_owner_policy_scenario": "VK unavailable direct provider is never attempted or labelled uncertain by the blocked task route",
+      "result": "PASS",
+      "reason": "Task-owned direct API execution/readiness is prohibited; independent-adapter block occurs before provider/claim/fact. Raw transport checks remain separately covered."
+    },
+    {
+      "previous_scenario": "VK personal story uses the accepted vertical asset and records story identity",
+      "new_owner_policy_scenario": "VK personal story retains accepted content while requiring the independent adapter",
+      "result": "PASS",
+      "reason": "Task-owned direct API execution/readiness is prohibited; independent-adapter block occurs before provider/claim/fact. Raw transport checks remain separately covered."
+    },
+    {
+      "previous_scenario": "VK personal story passes only the revision-bound native poll to the provider",
+      "new_owner_policy_scenario": "VK personal-story native poll does not bypass the independent adapter gate",
+      "result": "PASS",
+      "reason": "Task-owned direct API execution/readiness is prohibited; independent-adapter block occurs before provider/claim/fact. Raw transport checks remain separately covered."
+    },
+    {
+      "previous_scenario": "VK personal story dry-run requires OAuth profile identity and an approved visual",
+      "new_owner_policy_scenario": "VK story missing OAuth or visual stays adapter-blocked and never advertises direct API readiness",
+      "result": "PASS",
+      "reason": "Task-owned direct API execution/readiness is prohibited; independent-adapter block occurs before provider/claim/fact. Raw transport checks remain separately covered."
+    },
+    {
+      "previous_scenario": "task publisher resolves top-level VK credentials even when raw_account exists",
+      "new_owner_policy_scenario": "task publisher cannot use top-level or nested VK credentials as a direct route",
+      "result": "PASS",
+      "reason": "Task-owned direct API execution/readiness is prohibited; independent-adapter block occurs before provider/claim/fact. Raw transport checks remain separately covered."
+    },
+    {
+      "previous_scenario": "VK story preflight resolves OAuth credentials encrypted at rest",
+      "new_owner_policy_scenario": "encrypted OAuth configuration never grants direct VK story publication",
+      "result": "PASS",
+      "reason": "Task-owned direct API execution/readiness is prohibited; independent-adapter block occurs before provider/claim/fact. Raw transport checks remain separately covered."
+    },
+    {
+      "previous_scenario": "VK personal story prefers the server-refreshed OAuth token over the classic media token",
+      "new_owner_policy_scenario": "VK personal-story facade requires the independent adapter even with configured OAuth",
+      "result": "PASS",
+      "reason": "Task-owned direct API execution/readiness is prohibited; independent-adapter block occurs before provider/claim/fact. Raw transport checks remain separately covered."
+    }
+  ],
+  "preserved_raw_transport_scenarios": [
+    "strict VK provider passes a stable guid and returns validated provider identity",
+    "strict VK provider uploads a personal photo story and verifies its identity by readback",
+    "strict VK personal story provider rejects a mismatched readback identity",
+    "strict VK story provider creates and verifies a native poll sticker",
+    "strict VK story provider rejects a missing or changed native poll readback",
+    "strict VK provider never drops a requested visual and rejects missing post identity"
+  ],
+  "raw_transport_bodies_identical_to_HEAD": true,
+  "scenario_counts": {
+    "existing_vk_task_file_total": 19,
+    "raw_transport_unchanged": 6,
+    "owner_policy_task_replacements": 11,
+    "worker_generic_scheduled_cases": 2,
+    "new_boundary_cases": 9,
+    "other_Telegram_and_generic_regressions": 23
+  },
+  "controls": [
+    "Project-scoped task/channel lookup remains before route result",
+    "Approval-required owner gate and canonical published replay retained",
+    "Task dry-run reports direct execution false while adapter readiness remains NOT_CHECKED/null",
+    "Facade and VkPublisher task methods reject before credentials, refresh or provider",
+    "MCP raw-direct VK channel returns BLOCKED after scoped channel resolution, before provider/event writes",
+    "Legacy effective channel is resolved read-only before batch/manual/reset writes; VK and unknown held; known non-VK flow retained",
+    "No API/alternate-browser fallback, direct queue, lease reset or synthetic fact is created",
+    "Explicit legacy channel assignment never falls back when scoped lookup fails; default resolution is only for channel_id=null",
+    "Legacy inner provider lookup uses the same scoped explicit-or-truly-unassigned resolver; a null/VK result is held without catch-driven rollback/reset"
+  ],
+  "decomposition": "Existing oversized task and legacy modules receive only guard calls/selection integration. Effective legacy-channel classification is extracted to a small typed module; no broad module refactor.",
+  "limitations": [
+    "Guard coverage is application-owned publication entrypoints, not global enforcement of external AI/computer-use tools",
+    "Raw vk.service transport remains callable for its library tests; guarded task/facade/MCP/legacy routes cannot invoke it for VK owned publication",
+    "Legacy unsupported VK rows remain held without DB state rewrites; scheduler returns zero with blocked-route diagnostic",
+    "Readiness/session/provider status was not checked, and registered adapter functionality for other tasks is not implied",
+    "Legacy channel classification is not race-atomic canonical017 fencing: a batch publishing claim can precede later binding disappearance. Regression observes one claim followed by zero fallback/provider/reset writes; the held row needs repair rather than blind retry."
+  ],
+  "verification_error_resolved": "One targeted run failed Telegram1099 import due missing TELEGRAM_BOT_TOKEN; rerun used explicit dummy offline token and passed49.",
+  "actions": {
+    "provider_access": false,
+    "production_mutation": false,
+    "activation": false,
+    "migration": false,
+    "commit": false,
+    "deployment": false,
+    "owner_uat": false
+  }
+}

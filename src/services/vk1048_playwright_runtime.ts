@@ -1,3 +1,4 @@
+import { VK_PUBLICATION_ROUTE, assertVkPublicationRoute } from './vk_publication_route_contract';
 import fs from 'node:fs';
 import { createVk1048PhotoDigestVerifier, createVk1048PlaywrightPhotoSource } from './vk1048_photo_identity';
 import type { Vk1048ApplicationBroker } from './vk1048_application_broker';
@@ -21,7 +22,7 @@ export interface Vk1048TrustedMediaPort extends Vk1048WallMediaVerifier {
 }
 export interface Vk1048ProviderRuntime {
     reconcileOnly?: boolean; broker?: Vk1048ApplicationBroker;
-    executionContext: 'production_admitted'; evidenceDir: string; admission: Vk1048AdmissionPort;
+    readonly route: typeof VK_PUBLICATION_ROUTE; executionContext: 'production_admitted'; evidenceDir: string; admission: Vk1048AdmissionPort;
     withSession<T>(run: (session: Vk1048ProviderSession) => Promise<T>): Promise<T>;
     loadApprovedImage(url: string): Promise<{ buffer: Buffer; filename: string; contentType?: string }>;
     now?: () => Date;
@@ -39,9 +40,10 @@ export function createVk1048PlaywrightRuntime(options: {
             executionContext: 'production_blocked' as const, reason: 'ACTION_TIME_ADMISSION_UNAVAILABLE' };
         return { status: 'ACTION_ADMITTED' as const, executionContext: 'production_admitted' as const };
     };
-    return { reconcileOnly: options.reconcileOnly, broker: options.broker, executionContext: 'production_admitted', evidenceDir: options.evidenceDir,
+    const runtime: Vk1048ProviderRuntime = { route: VK_PUBLICATION_ROUTE, reconcileOnly: options.reconcileOnly, broker: options.broker, executionContext: 'production_admitted', evidenceDir: options.evidenceDir,
         admission: { assess }, loadApprovedImage: options.loadApprovedImage, now: options.now,
         withSession: async run => {
+            assertVkPublicationRoute(runtime.route);
             if (quarantined) throw new Error('[VK1048_SESSION_CLEANUP_UNCONFIRMED]');
             if ((await assess()).status !== 'ACTION_ADMITTED') throw new Error('[VK1048_PERMISSION_UNVERIFIED]');
             const context = await (options.launch ?? vk1048PlaywrightLaunch).launch(options.profileDirectory);
@@ -78,4 +80,5 @@ export function createVk1048PlaywrightRuntime(options: {
                 return await run(session);
             } finally { await close(); }
         } };
+    return runtime;
 }
