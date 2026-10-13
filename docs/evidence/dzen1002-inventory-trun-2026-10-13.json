@@ -25,7 +25,14 @@
     {"id": "INV-GATES-005", "build": "npm run build", "build_result": "PASS",
       "quality": "npm run quality:gate", "quality_result": "PASS", "baseline_score": 77,
       "hard_stops": [], "diff_check": "PASS", "errors": [],
-      "logs": ["/tmp/dzen1002-inventory-fullbuild.log", "/tmp/dzen1002-inventory-quality.log"]}
+      "logs": ["/tmp/dzen1002-inventory-fullbuild.log", "/tmp/dzen1002-inventory-quality.log"]},
+    {"id": "INV-MAIN-COMPAT-006", "tested_commit": "35e7607", "main_base": "6e9375f",
+      "build": "npm run build:backend; npm run build", "build_result": "PASS",
+      "test": "All compiled tests mapped from current src/tests source, concurrency1",
+      "passed": 1040, "failed": 0, "skipped": 0, "errors": [],
+      "quality": "PASS; score77, no hard stops", "diff_check": "PASS",
+      "logs": ["/tmp/dzen1002-inventory-main-suite.log", "/tmp/dzen1002-inventory-main-build.log",
+        "/tmp/dzen1002-inventory-main-fullbuild.log", "/tmp/dzen1002-inventory-main-quality.log"]}
   ],
   "remaining": "Actual provider response schema/session and per-page readback remain unverified; new diagnostics must be examined by p10 Publisher in a fresh preflight after deployment, before any publication. Unknown coverage still blocks."
 }
