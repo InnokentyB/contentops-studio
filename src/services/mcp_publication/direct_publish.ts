@@ -1,3 +1,4 @@
+import { isVkPublicationPlatform, vkPublicationAdapterRequired, rejectVkDirectPublication } from '../vk_publication_route_contract';
 import prisma from '../../db';
 import { Prisma } from '@prisma/client';
 import publisherService from '../publisher.service';
@@ -23,6 +24,12 @@ export async function publishDirect(
     channelResolver: (projectId: number, channelId?: number, channelType?: string) => Promise<Awaited<ReturnType<typeof resolveChannel>>> = resolveChannel
 ) {
     const channel = await channelResolver(params.projectId, params.channelId, params.channelType);
+    if (isVkPublicationPlatform(channel.type)) return {
+        mode: params.dryRun ? 'dry_run' : 'blocked', project_id: params.projectId,
+        channel: { id: channel.id, name: channel.name, type: channel.type },
+        success: false, blocked: true, provider_execution: 'blocked', reason: 'vk_adapter_required',
+        route_executable: false, adapter_requirement: vkPublicationAdapterRequired()
+    };
     const config = resolveEffectiveChannelConfig(channel.type, channel.config) as Record<string, unknown> | null;
     const telegramPayload = channel.type === 'telegram'
         ? normalizeTelegramDeliveryPayload(params)
@@ -95,7 +102,8 @@ export async function publishDirect(
         }
 
         publishedLink = await threadsService.publishPost(threadsUserId, accessToken, params.text, params.imageUrl);
-    } else if (channel.type === 'vk') {
+    } else if (isVkPublicationPlatform(channel.type)) {
+        rejectVkDirectPublication();
         const vkId = config?.vk_id as string | number | undefined;
         const apiKey = (config?.publish_access_token || config?.api_key) as string | undefined;
         if (!vkId || !apiKey) {

@@ -56,3 +56,34 @@ test('approval-required task with an automated bundle remains waiting', () => {
     assert.equal(resolvePublicationExecutionRoute({ ...ready, publicationMode: 'approval_required' }), 'waiting');
     assert.equal(resolvePublicationExecutionRoute({ ...ready, publicationMode: 'owner_released' }), 'waiting');
 });
+
+test('VK ready publications use only the registered independent adapter regardless of direct API or browser mode', () => {
+    for (const publicationMode of ['connector_auto', 'browser_required', 'manual_handoff', null]) {
+        for (const directExecutionSupported of [true, false]) {
+            const input = { ...ready, platform: 'vk', publicationMode, directExecutionSupported };
+            assert.equal(resolvePublicationExecutionRoute(input), 'vk_adapter_required');
+        }
+    }
+});
+
+test('VK adapter route preserves publication and readiness gates', () => {
+    const input = { ...ready, platform: 'vk' };
+    assert.equal(resolvePublicationExecutionRoute({ ...input, published: true }), 'published');
+    for (const gate of [{ contentReady: false }, { visualReady: false }, { due: false }, { publicationMode: 'approval_required' }, { publicationMode: 'owner_released' }]) {
+        assert.equal(resolvePublicationExecutionRoute({ ...input, ...gate }), 'waiting');
+    }
+});
+
+test('VK errors never grant browser or direct API fallback and exclude raw provider diagnostics', () => {
+    const fallback = browserFallbackReason(new Error('raw credential-like provider error'), 'vk');
+    assert.equal(fallback.code, 'VK_INDEPENDENT_ADAPTER_REQUIRED');
+    assert.equal(fallback.next_route, 'vk_adapter_required'); assert.equal(fallback.retry_via_api, false);
+    assert.equal(fallback.message.includes('raw credential-like'), false);
+});
+
+test('public VK platform names are normalized before route and fallback decisions', () => {
+    for (const platform of ['VK', ' vk ', 'Vk']) {
+        assert.equal(resolvePublicationExecutionRoute({ ...ready, platform }), 'vk_adapter_required');
+        assert.equal(browserFallbackReason(new Error('provider error'), platform).next_route, 'vk_adapter_required');
+    }
+});

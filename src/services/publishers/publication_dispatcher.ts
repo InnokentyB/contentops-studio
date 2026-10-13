@@ -3,7 +3,7 @@ import publicationPlanService from '../publication_plan.service';
 import publicationAdapterService from '../publication_adapter.service';
 import artDirectionService from '../art_direction.service';
 import publicationFactService from '../publication_fact.service';
-import { resolvePublicationExecutionRoute, browserFallbackReason } from '../publication_execution_route';
+import { resolvePublicationExecutionRoute, browserFallbackReason, vkAdapterPublicationHandoff, isVkPublicationPlatform } from '../publication_execution_route';
 import { connectorAutoModeGuard } from '../publication_approval_guard';
 import { derivePublicationContentState } from '../publication_content_state';
 import { resolveEffectiveChannelConfig } from '../../utils/channel.utils';
@@ -42,6 +42,7 @@ export class PublicationDispatcher {
     }
 
     async routeToBrowserPublication(task: any, bundle: any, reason: Record<string, unknown>) {
+        if (isVkPublicationPlatform(task.channel?.type)) return vkAdapterPublicationHandoff(task.status);
         const now = new Date().toISOString();
         const qualityReport = {
             ...((task.quality_report as any) || {}),
@@ -207,6 +208,7 @@ export class PublicationDispatcher {
         publisherFacade?: any
     ): Promise<AutomatedPublicationResult | any> {
         const channelType = task.channel?.type;
+        if (isVkPublicationPlatform(channelType)) return vkAdapterPublicationHandoff(task.status);
         const action = (task.assets as any)?.action || {};
         const directTelegramPayload = channelType === 'telegram'
             ? normalizeTelegramDeliveryPayload({
@@ -677,6 +679,7 @@ export class PublicationDispatcher {
             platform: rawAccount.platform || task.channel?.type
         });
         const route = resolvePublicationExecutionRoute({
+            platform: task.channel?.type,
             contentReady: derivePublicationContentState(task) === 'ready',
             visualReady: visualReadiness.ready,
             due: !task.schedule_at || new Date(task.schedule_at).getTime() <= Date.now(),
@@ -685,6 +688,11 @@ export class PublicationDispatcher {
             directExecutionSupported,
             publicationMode: task.publication_mode
         });
+
+        if (isVkPublicationPlatform(task.channel?.type)) {
+            if (route === 'waiting' || route === 'published') return { success: false, status: task.status, skipped: true, reason: route };
+            return vkAdapterPublicationHandoff(task.status);
+        }
 
         if (task.status === 'publishing') {
             return this.routeToBrowserPublication(task, bundle, {
@@ -765,7 +773,7 @@ export class PublicationDispatcher {
                 }
             }
         } catch (error) {
-            const fallback = browserFallbackReason(error);
+            const fallback = browserFallbackReason(error, task.channel?.type);
             logToFile('WARN', `[Publisher] Connector failed for task ${task.id}; routed to browser publication.`, fallback);
             return this.routeToBrowserPublication(task, bundle, fallback);
         }

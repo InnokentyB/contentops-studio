@@ -1,0 +1,83 @@
+{
+  "date": "2026-10-13",
+  "owner_input": "HQ human turn01a1354f-36ec-7562-a124-e369cc491ab8, userMessage01a1354f-396c-76d0-9ce5-424e35ea18a9",
+  "input_contract": "docs/tdpd/017-vk-owner-route-amendment.md",
+  "single_source": "docs/operations/vk-owned-publication-route.md",
+  "runs": [
+    {
+      "phase": "RED",
+      "scope": "required route/wrong runtime route/all7bootstraps",
+      "log": "/tmp/vk-route-contract-red.log",
+      "tests": 3,
+      "failed_expected": 3
+    },
+    {
+      "phase": "GREEN",
+      "scope": "route/runtime/session/bootstrap/static dependency graph",
+      "log": "/tmp/vk-route-contract-final-focused.log",
+      "tests": 5,
+      "passed": 5
+    },
+    {
+      "phase": "full_policy_regression",
+      "log": "/tmp/vk-route-frozen-full-tests.log",
+      "tests": 1048,
+      "passed": 1047,
+      "failed": 1,
+      "error": "Native feed video preflight expected old legacy unsupported reason; stricter owner adapter-only route now blocks earlier. Test updated; feed-video-not-clip contract retained."
+    },
+    {
+      "phase": "GREEN",
+      "scope": "native feed video guard",
+      "log": "/tmp/vk-route-native-video-guard-green.log",
+      "tests": 2,
+      "passed": 2
+    },
+    {
+      "phase": "FROZEN_FULL_GREEN",
+      "log": "/tmp/vk-route-final-full-tests.log",
+      "tests": 1049,
+      "passed": 1049,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "phase": "BUILD_QUALITY_GREEN",
+      "backend_log": "/tmp/vk-route-final2-backend.log",
+      "quality_log": "/tmp/vk-route-final2-quality.log",
+      "quality": "PASS; baseline77 retained; no new hard stops"
+    }
+  ],
+  "additional_evidence": "docs/evidence/vk-task-route-boundary-trun-2026-10-13.json",
+  "independent_review": {
+    "generic_route": 18,
+    "task_boundary_final": 9,
+    "outstanding_blockers": 0,
+    "limits": "Static app route and offline fake provider/DB; no live VK/real session/media/owner UAT"
+  },
+  "guard_scope": [
+    "Generic dispatcher/direct execution/browser fallback before writes",
+    "Task-facing Publisher/VkPublisher and task service",
+    "Direct MCP publication channel scoped lookup",
+    "Legacy scheduling/manual/reset scoped channel classification and no unknown fallback",
+    "Production route before admission/control/session/profile",
+    "Seven VK-connected workspace/bootstrap profiles",
+    "AST adapter import graph has no CUA/personal-tab/CDP controls"
+  ],
+  "limits": [
+    "Does not disable global Codex tool inventory or prove all future agents obey instructions",
+    "Route marker is not permission, health or cryptographic provider observation",
+    "Legacy batch claim can precede a later binding disappearance; hold without send/reset, not race-atomic zero writes",
+    "Existing explicit action/site denial retained; no provider activation or UAT"
+  ],
+  "actions": {
+    "live_vk": false,
+    "provider_activation": false,
+    "job_mutation": false,
+    "publication_release_mutation": false,
+    "credentials_changed": false,
+    "migration": false
+  },
+  "deployment": "PENDING_PASSIVE_CODE_RELEASE",
+  "owner_uat": "NOT_PERFORMED"
+}

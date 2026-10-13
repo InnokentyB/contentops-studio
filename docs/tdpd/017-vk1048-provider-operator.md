@@ -108,3 +108,14 @@ never another send. Record the resulting canonical fact/permalink or the precise
 UNKNOWN blocker. Accept only after real provider selectors, login/community
 rights, inventory completeness, media identity and single-send behavior have
 been checked and the owner has performed UAT.
+
+## Mandatory route rule (owner amendment, 2026-10-13)
+
+The single operating source is `docs/operations/vk-owned-publication-route.md`.
+All Codex roles use only documented Planner control commands and the registered
+independent adapter. Never open VK through Codex CUA/ComputerUse, personal tabs,
+CDP/session injection or fallback, even for preflight, login checks or UAT. A
+failed/unavailable adapter remains BLOCKED for engineering repair. Explicit
+site/action denials remain binding; independent architecture grants no override.
+The human operator handoff above is separate and does not grant this agent a
+provider execution context. UNKNOWN/started/uncertain never becomes a resend.

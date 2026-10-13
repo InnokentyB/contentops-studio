@@ -1,3 +1,4 @@
+import { isVkPublicationPlatform, vkPublicationAdapterRequired } from './vk_publication_route_contract';
 import prisma from '../db';
 import publisherService from './publisher.service';
 import publicationFactService from './publication_fact.service';
@@ -253,6 +254,13 @@ export class TelegramTaskPublicationService {
                 delivery_method: delivery, replayed: true
             };
         }
+
+        if (isVkPublicationPlatform(task.channel?.type)) return {
+            mode: args.dryRun ? 'dry_run' : 'blocked', project_id: args.projectId, task_id: task.id,
+            success: false, blocked: true, provider_execution: 'blocked', reason: 'vk_adapter_required',
+            route_executable: false, direct_execution_supported: false, connector_ready: null, adapter_readiness: 'NOT_CHECKED',
+            adapter_requirement: vkPublicationAdapterRequired()
+        };
 
         const prepared = prepareTaskPayload(task, args.dryRun === true);
         const routeAuthorized = task.publication_mode === 'connector_auto'

@@ -23,7 +23,9 @@ test('VK video dry-run refuses the legacy photo adapter even when credentials ex
     });
     const result = await service.execute({ projectId: 10, taskId: 1084, dryRun: true });
     assert.equal(result.direct_execution_supported, false);
-    assert.equal(result.connector_reason, 'vk_native_video_adapter_unsupported');
+    assert.equal(result.reason, 'vk_adapter_required');
+    assert.equal(result.adapter_requirement?.code, 'VK_INDEPENDENT_ADAPTER_REQUIRED');
+    assert.equal(result.adapter_readiness, 'NOT_CHECKED');
     assert.equal(result.route_executable, false);
 });
 

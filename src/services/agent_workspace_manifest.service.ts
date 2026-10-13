@@ -1,3 +1,4 @@
+import { VK_PUBLICATION_BOOTSTRAP_RULE } from './vk_publication_route_contract';
 import { createHash } from 'crypto';
 import prisma from '../db';
 
@@ -122,7 +123,9 @@ export function buildAgentWorkspaceManifest(input: ManifestInput): AgentWorkspac
         schema_version: '1.1' as const,
         revision,
         project: { id: input.project.id, name: input.project.name, slug: input.project.slug },
-        chats,
+        chats: input.channels.some(channel => channel.type.trim().toLowerCase() === 'vk')
+            ? chats.map(chat => ({ ...chat, startup_instructions: [...chat.startup_instructions, VK_PUBLICATION_BOOTSTRAP_RULE] }))
+            : chats,
         handoffs,
         channels: input.channels
             .map(({ id, name, type }) => ({ id, name, type }))

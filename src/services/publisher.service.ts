@@ -1,3 +1,4 @@
+import { rejectVkDirectPublication } from './vk_publication_route_contract';
 import prisma, { pool } from '../db';
 import {
     TelegramRouteTrace,
@@ -188,10 +189,12 @@ export class PublisherService {
         imageUrl?: string;
         idempotencyKey: string;
     }) {
+        rejectVkDirectPublication();
         return vkPublisher.publishVkTask(params);
     }
 
     async publishVkPersonalStory(params: VkStoryParams & { poll?: VkStoryPoll | null }) {
+        rejectVkDirectPublication();
         return vkPublisher.publishVkPersonalStory(params);
     }
 
