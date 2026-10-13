@@ -234,9 +234,13 @@ class DzenService {
     }
 
     /** Read the authenticated Studio publication list for duplicate-safe incident reconciliation. */
-    async readStudioPublications(config: DzenConfig) {
+    async readStudioPublications(config: DzenConfig, taskId?: 1002) {
         if (!config.cookies?.trim()) {
             throw new Error('An authenticated Dzen session is required');
+        }
+        if (taskId === 1002) {
+            const { readDzen1002Inventory } = await import('./dzen1002_inventory_browser');
+            return readDzen1002Inventory(config);
         }
         return puppeteerPublisherService.readDzenStudioPublications({ ...config, cookies: config.cookies.trim() });
     }
