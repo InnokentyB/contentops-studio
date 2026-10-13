@@ -17,6 +17,8 @@ import {
     telegramAccountSecretsAreEncrypted,
     telegramPhoneHint
 } from '../utils/telegram_account_secrets';
+import { buildTelegramStoryMediaAreas } from './telegram_story_native_link';
+import type { TelegramStoryNativeLink } from './telegram_task1100_story_sequence';
 
 config();
 
@@ -241,6 +243,7 @@ export class TelegramClientService {
         imageUrl: string;
         idempotencyKey: string;
         mediaMetadata?: { mimeType: 'video/mp4'; width: number; height: number; durationSeconds: number };
+        nativeLink?: TelegramStoryNativeLink;
     }): Promise<{ storyId: number; publicLink: string | null }> {
         const client = await this.getClient(params.projectId);
         if (!client) throw new Error('[MTPROTO_UNAVAILABLE] Telegram Client is not initialized');
@@ -266,6 +269,7 @@ export class TelegramClientService {
         const digest = createHash('sha256').update(params.idempotencyKey).digest('hex').slice(0, 15);
         const randomId = bigInt(digest, 16);
         const [caption, entities] = MarkdownParser.parse(params.caption.trim());
+        const mediaAreas = buildTelegramStoryMediaAreas(params.nativeLink);
         const result: any = await client.invoke(new Api.stories.SendStory({
             peer,
             media: document
@@ -274,6 +278,7 @@ export class TelegramClientService {
                 : new Api.InputMediaUploadedPhoto({ file: uploaded }),
             caption,
             entities,
+            mediaAreas,
             privacyRules: [new Api.InputPrivacyValueAllowAll()],
             randomId,
             period: 86400

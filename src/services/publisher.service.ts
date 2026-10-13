@@ -169,6 +169,17 @@ export class PublisherService {
         return telegramPublisher.publishTelegramPersonalStoryMtproto(params);
     }
 
+    async publishTelegramPersonalStorySequenceMtproto(params: {
+        projectId: number;
+        taskId: number;
+        idempotencyKey: string;
+        frames: Array<{ order: number; assetId: number; imageUrl: string; checksumSha256: string;
+            caption: string; nativeLink?: { url: string; label: string; canvasWidth: number; canvasHeight: number;
+                centerX: number; centerY: number; width: number; height: number } }>;
+    }) {
+        return telegramPublisher.publishTelegramPersonalStorySequenceMtproto(params);
+    }
+
     async publishVkTask(params: {
         projectId: number;
         taskId: number;
