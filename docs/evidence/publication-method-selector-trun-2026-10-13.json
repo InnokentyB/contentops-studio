@@ -75,7 +75,14 @@
     "uiContracts": "PASS",
     "qualityGate": "PASS (existing baseline 77)",
     "designDetector": "PASS (no findings)",
-    "visualInspection": "desktop and 375px local fixture"
+    "visualInspection": "desktop and 375px local fixture",
+    "regressionAfterMainSync": {
+      "tests": 1077,
+      "pass": 1077,
+      "fail": 0,
+      "skip": 0,
+      "base": "20ebb8fde694609471c97b003e22220738cac868"
+    }
   },
   "sourceContractLimits": [
     "UI choice changes presentation only; no task status or publication_mode update",
@@ -86,5 +93,5 @@
   "productionProviderActions": 0,
   "providerUat": "NOT_PERFORMED",
   "ownerUat": "PENDING",
-  "commitPushDeploy": "PENDING"
+  "commitPushDeploy": "PR140 pushed; CI PASS; deployment pending"
 }

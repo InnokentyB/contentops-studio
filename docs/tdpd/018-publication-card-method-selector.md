@@ -87,3 +87,28 @@ tenant isolation, and uncertain/published states. Then implement and run focused
 tests, quality:gate, relevant backend/frontend builds, and owner UAT.
 
 This draft does not claim engineering completion, deployment or live VK success.
+
+## Implemented read contract and delivery evidence
+
+GET `/api/publication-tasks/:id/adapter-status` uses the authenticated request's
+project/user and the server-resolved task/channel/job. It accepts no client
+actor, host or job selection. Response: supported, canExecute (false for this
+pilot), manualRecordAllowed, state, blocker, connection, heartbeatAt, publicUrl,
+and observedAt. Errors are fixed AUTH_REQUIRED / INVALID_TASK_ID /
+PUBLICATION_TASK_NOT_FOUND / ADAPTER_STATUS_UNAVAILABLE; no raw provider payload.
+This endpoint reads the owning state only. It never queues, resumes or executes.
+
+The selector is keyed by project/task and resets on task changes. VK status reads
+must be fresh (30 seconds) for manual recording; active pilot jobs also reject
+competing generic fact writes on the server, including caller-labelled automatic
+writes. Internal canonical confirmations retain their private transaction fence.
+
+RED: two card scenarios failed for the absent selector. GREEN: seven local-browser
+scenarios, 1077 backend tests after main synchronization, frontend/backend builds,
+UI contracts and quality gate passed. Per-run errors and limitations are retained
+in docs/evidence/publication-method-selector-trun-2026-10-13.json. Browser tests use
+mocked APIs; they are not provider UAT. No production provider operation occurred.
+
+Operator UAT: open #1048, switch both panels, refresh state, confirm its blocker
+is visible and switching never submits a post. Then inspect a supported non-VK
+card for its existing explicit publish action without sending during UI review.
