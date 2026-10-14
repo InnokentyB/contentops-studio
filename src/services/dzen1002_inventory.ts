@@ -11,6 +11,7 @@ export interface InventoryPort {
 export type InventoryDiagnostic = { state: InventoryState; page: number; status: number | null;
     count: number; reason: string; path: '/editor-api/v3/publications';
     pagination_shape?: import('./dzen1002_pagination_shape').PaginationShape;
+    native_contract_observation?: Record<string, unknown>;
     observed_responses?: Dzen1002ObservedResponse[] };
 export type InventoryResult = { publications: DzenStudioPublication[]; complete: boolean;
     diagnostics: InventoryDiagnostic[] };

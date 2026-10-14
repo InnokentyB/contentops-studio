@@ -3,6 +3,7 @@ import { enumerateDzen1002Inventory, type InventoryPage, type InventoryDiagnosti
 import { parseBrowserCookieHeader, type DzenStudioPublication } from './puppeteer/dzen_dom_helpers';
 import puppeteerPublisherService from './puppeteer_publisher.service';
 import { Dzen1002ReadFailure, type Dzen1002ObservedResponse } from './dzen1002_read_failure';
+import { createDzen1002NativeCapture, requireDzen1002DiagnosticAdmission } from './dzen1002_native_capture';
 
 const CHANNEL = '6a8029aba055ec36033bf81c';
 const LIST = `https://dzen.ru/profile/editor/id/${CHANNEL}/publications`;
@@ -10,7 +11,14 @@ const PATH = '/editor-api/v3/publications';
 type Dzen1002Readback = { authenticated: boolean; editor_available: boolean; editor_url: string;
     publications_payload_received: boolean; title_readback_complete: boolean; state_readback_complete: boolean;
     publication_timestamp_readback_complete: boolean; coverage_complete: boolean;
-    publications: DzenStudioPublication[]; inventory_diagnostics: InventoryDiagnostic[]; checked_at: string };
+    publications: DzenStudioPublication[]; inventory_diagnostics: InventoryDiagnostic[]; checked_at: string;
+    native_contract_diagnostics: Record<string, unknown> };
+
+/** Disabled until a legitimate runtime admission source is integrated. Config flags never grant admission. */
+export async function readDzen1002NativeDiagnostic(config: { cookies?: string; channel_id?: string }): Promise<Dzen1002Readback> {
+    await requireDzen1002DiagnosticAdmission();
+    return readDzen1002Inventory(config);
+}
 
 /** Authentication parity seam: a Studio URL alone is never login/CAPTCHA clearance. */
 export async function verifyDzen1002StudioPage(page: Pick<Page, 'url'>, authenticate: () => Promise<void>): Promise<void> {
@@ -21,6 +29,11 @@ export async function verifyDzen1002StudioPage(page: Pick<Page, 'url'>, authenti
 /** Read only task1002's configured Studio; intercept all non-GET/HEAD traffic. */
 export async function readDzen1002Inventory(config: { cookies?: string; channel_id?: string }): Promise<Dzen1002Readback> {
     if (!config.cookies?.trim() || config.channel_id !== CHANNEL) throw new Error('[DZEN1002_INVENTORY_SCOPE_MISMATCH]');
+    const capture = createDzen1002NativeCapture();
+    const pageCounts = { published: 0, draft: 0 };
+    const observe = (state: 'published' | 'draft', frame: InventoryPage) => {
+        capture.observe({ ...frame, state, page: ++pageCounts[state] }); return frame;
+    };
     const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] });
     try {
         const page = await browser.newPage(); const expires = Date.now() + 60_000;
@@ -75,14 +88,29 @@ export async function readDzen1002Inventory(config: { cookies?: string; channel_
                 let payload: unknown;
                 try { payload = JSON.parse(Buffer.from(body).toString('utf8')); }
                 catch { throw new Dzen1002ReadFailure('PAYLOAD_INVALID', response.status(), observed); }
-                return { url: response.url(), status: response.status(), payload, paginationHeaders };
+                return observe(state, { url: response.url(), status: response.status(), payload, paginationHeaders });
             },
-            next: url => readNextPage(page, url, timeout())
+            next: async url => {
+                const state = new URL(url).searchParams.get('state');
+                if (state !== 'published' && state !== 'draft') throw new Dzen1002ReadFailure('REQUEST_FAILED', null, observed);
+                return observe(state, await readNextPage(page, url, timeout()));
+            }
         });
         if (interceptionFailed) {
             result.complete = false;
             result.diagnostics.push({ state: 'draft', page: 0, status: null, count: 0,
                 path: PATH, reason: 'REQUEST_INTERCEPTION_FAILED' });
+        }
+        const nativeDiagnostics = capture.report();
+        for (const diagnostic of result.diagnostics) {
+            const frame = nativeDiagnostics.pages.find(value => value.state === diagnostic.state && value.page === diagnostic.page);
+            if (frame) diagnostic.native_contract_observation = { ...frame,
+                native_end_rule_verified: false, coverage_verified: false, ownership_verified: false };
+        }
+        if (nativeDiagnostics.stop_reason) {
+            result.complete = false;
+            result.diagnostics.push({ state: 'draft', page: 0, status: null, count: 0,
+                path: PATH, reason: `NATIVE_CAPTURE_${nativeDiagnostics.stop_reason}` });
         }
         const verifiedStudio = page.url().startsWith(LIST);
         return { authenticated: verifiedStudio && authenticated, editor_available: verifiedStudio && authenticated, editor_url: page.url(),
@@ -90,7 +118,8 @@ export async function readDzen1002Inventory(config: { cookies?: string; channel_
             title_readback_complete: result.complete, state_readback_complete: result.complete,
             publication_timestamp_readback_complete: result.publications.every(p => p.state === 'draft' || p.published_at !== null),
             coverage_complete: result.complete, publications: result.publications,
-            inventory_diagnostics: result.diagnostics, checked_at: new Date().toISOString() };
+            inventory_diagnostics: result.diagnostics, checked_at: new Date().toISOString(),
+            native_contract_diagnostics: nativeDiagnostics };
     } finally { await browser.close(); }
 }
 
