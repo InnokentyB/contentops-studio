@@ -5,6 +5,7 @@ import publicationAdapterService from './publication_adapter.service';
 import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
 import { loadAgentWorkspaceManifest } from './agent_workspace_manifest.service';
 import workQueueService from './work_queue.service';
+import { assertLinkedIn1128ReleaseIdentity, linkedIn1128ManualHandoff } from './linkedin1128_release_policy';
 
 export type LinkedInBrowserReleaseArgs = {
     projectId: number;
@@ -138,6 +139,10 @@ export async function releaseLinkedInBrowserTask(
         const task = await tx.contentItem.findFirst({ where: { id: args.taskId, project_id: args.projectId },
             include: { channel: true, selected_asset: true, publication_fact: true } });
         const bodyHash = dependencies.hashBody(task?.draft_text || '');
+        if (args.taskId === 1128) {
+            if (!task) throw new Error('[LINKEDIN1128_TASK_REQUIRED]');
+            await assertLinkedIn1128ReleaseIdentity(tx.workflowEvent, task, args);
+        }
         const noVisual = args.expectedSelectedAssetId === null;
         const decision = noVisual ? await tx.artDirectionDecision?.findFirst({ where: {
             project_id: args.projectId, content_item_id: args.taskId, status: 'active',
@@ -196,11 +201,14 @@ export async function releaseLinkedInBrowserTask(
             content_revision: args.expectedContentRevision, accepted_revision: args.expectedAcceptedRevision,
             text_state: 'accepted', visual_state: task.visual_state, visual_placement: 'feed',
             ...(noVisual ? { visual_decision_version: task.visual_decision_version } : {}),
-            selected_asset_id: args.expectedSelectedAssetId, schedule_at: expectedSchedule
+            selected_asset_id: args.expectedSelectedAssetId, schedule_at: expectedSchedule,
+            ...(args.taskId === 1128 ? { publish_at: expectedSchedule, draft_text: task.draft_text } : {})
         }, data: {
             status: 'browser_required', publication_mode: 'browser_required',
             quality_report: {
                 ...((task.quality_report as Record<string, unknown> | null) || {}),
+                ...(args.taskId === 1128 ? { handoff_bundle: linkedIn1128ManualHandoff(
+                    ((task.quality_report as Record<string, unknown> | null)?.handoff_bundle as Record<string, unknown>) || {}, task.quality_report) } : {}),
                 publication_route: 'browser_required',
                 owner_release: {
                     publication_authorized: true, actor_id: args.actorId,

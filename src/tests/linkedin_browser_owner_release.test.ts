@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { releaseLinkedInBrowserTask } from '../services/linkedin_browser_owner_release.service';
 import { isToolAllowedForProfile } from '../mcp/capabilities';
+import { LINKEDIN1128 } from '../services/linkedin1128_identity.service';
+import { linkedIn1128ManualHandoff } from '../services/linkedin1128_release_policy';
 
 const bodyHash = '4ead1918d3caefebacdc336372c639e4758bb0a5674cb7965baa29a6db9ac1e7';
 const assetHash = '2a5431fec64e6d6f92cd0a12c690ce78ca0793b5c1ef3708fec88195302568b3';
@@ -25,7 +27,7 @@ function harness(overrides: Record<string, unknown> = {}) {
     const tx = {
         projectMember: { findUnique: async () => ({ role: 'owner' }) },
         workflowEvent: {
-            findFirst: async () => null,
+            findFirst: async (_query: unknown): Promise<{ before_state?: Record<string, unknown>; after_state?: Record<string, unknown> } | null> => null,
             create: async ({ data }: { data: Record<string, unknown> }) => (events.push(data), { id: 1, ...data })
         },
         contentItem: {
@@ -49,7 +51,7 @@ function harness(overrides: Record<string, unknown> = {}) {
         getManifestChecksum: async () => manifestChecksum,
         hashBody: () => bodyHash
     };
-    return { task, events, workItems, deps };
+    return { task, events, workItems, deps, tx };
 }
 
 const args = {
@@ -128,4 +130,67 @@ test('prepared browser state is recoverable only when an exact tool opts in', as
     const result = await releaseLinkedInBrowserTask(h.deps, { ...args, allowPreparedBrowserState: true });
     assert.equal(result.browser_work_item_id, 2001);
     assert.equal(h.workItems.length, 1);
+});
+
+test('task1128 cannot use the generic release to bypass its separately approved task identity binding', async () => {
+    const h = harness({ id: 1128 });
+    await assert.rejects(() => releaseLinkedInBrowserTask(h.deps, { ...args, taskId: 1128 }), /LINKEDIN1128/);
+    assert.equal(h.workItems.length, 0);
+    assert.equal(h.events.length, 0);
+});
+
+const binding1128 = { binding_scope: 'task_1128_only', project_id: 7, task_id: 1128, channel_id: 6,
+    content_revision: 1, accepted_revision: 1, body_sha256: LINKEDIN1128.body,
+    schedule_at: LINKEDIN1128.schedule, publish_at: LINKEDIN1128.schedule,
+    visual_decision_id: 305, visual_decision_version: 1, selected_asset_id: null,
+    profile_ref: 'profile_seturon_linkedin_page', identity_ref: 'identity_seturon',
+    linkedin_company_id: '97416172', account_ref: 'seturon_linkedin_page',
+    canonical_url: 'https://www.linkedin.com/company/seturon/',
+    verification_basis: 'owner_adopted_registry_binding', provider_identity_verified: false,
+    registry_current_verified: false, manifest_checksum: LINKEDIN1128.manifest,
+    actor_id: 'user:2', approval_reference: 'owner-approved task-only identity binding',
+    audit_command: LINKEDIN1128.command, audit_idempotency_key: 'bind1128-v1' };
+const args1128 = { ...args, taskId: 1128, expectedBodySha256: LINKEDIN1128.body,
+    expectedManifestChecksum: LINKEDIN1128.manifest, expectedScheduleAt: LINKEDIN1128.schedule,
+    expectedVisualDecisionId: 305, expectedAssetSha256: null, expectedSelectedAssetId: null };
+function fixture1128() {
+    const h = harness({ id: 1128, visual_state: 'NO_VISUAL_NEEDED', visual_decision_version: 1,
+        selected_asset_id: null, selected_asset: null, schedule_at: new Date(LINKEDIN1128.schedule),
+        publish_at: new Date(LINKEDIN1128.schedule), channel: { type: 'linkedin', name: 'seturon_linkedin_page',
+            config: { account_ref: 'seturon_linkedin_page', account_type: 'company_page', execution_modes: ['manual'],
+                raw_account: { url: binding1128.canonical_url } } },
+        quality_report: { identity_binding: binding1128, handoff_bundle: { mode: 'automated', task: { id: 1128 } } } });
+    h.deps.hashBody = () => LINKEDIN1128.body;
+    h.deps.getManifestChecksum = async () => LINKEDIN1128.manifest;
+    h.tx.artDirectionDecision.findFirst = async () => ({ id: 305, decision: 'NO_VISUAL_NEEDED',
+        source_content_revision: 1, decision_version: 1, channel: 'linkedin', placement: 'feed', status: 'active' });
+    h.tx.workflowEvent.findFirst = async query => {
+        const q = query as { where: { command: string } };
+        return q.where.command === LINKEDIN1128.command ? { after_state: { applied: true, identity_binding: binding1128 } } : null;
+    };
+    return h;
+}
+test('1128 audited binding releases one manual WI and preserves the unverified company projection on prepare', async () => {
+    const h = fixture1128(); await releaseLinkedInBrowserTask(h.deps, args1128);
+    assert.equal(h.workItems.length, 1);
+    const handoff = linkedIn1128ManualHandoff({ mode: 'automated' }, h.task.quality_report);
+    assert.equal(handoff.mode, 'manual'); assert.equal(handoff.account.ref, 'seturon_linkedin_page');
+    assert.equal(handoff.account.details.linkedin_company_id, '97416172');
+    assert.equal(h.events.length, 1);
+});
+test('1128 caller binding without audited adoption or drift in publish_at cannot release', async () => {
+    const forged = fixture1128(); forged.tx.workflowEvent.findFirst = async () => null;
+    await assert.rejects(releaseLinkedInBrowserTask(forged.deps, args1128), /AUDITED_BINDING_REQUIRED/);
+    const drift = fixture1128(); drift.task.publish_at = new Date('2026-10-15T10:00:00Z');
+    await assert.rejects(releaseLinkedInBrowserTask(drift.deps, args1128), /EXACT_PACKAGE_REQUIRED/);
+    assert.equal(forged.workItems.length + drift.workItems.length, 0);
+});
+test('1128 exact identity/release tools remain isolated to owner and Publisher discovery', () => {
+    for (const tool of ['ba_bind_linkedin_task1128_identity', 'ba_release_linkedin_task1128_browser']) {
+        assert.equal(isToolAllowedForProfile('owner', tool), true);
+        assert.equal(isToolAllowedForProfile('publisher', tool), true);
+        for (const role of ['planner', 'strategist', 'writer', 'editor', 'art_director', 'growth_analyst', 'organization_researcher'] as const) {
+            assert.equal(isToolAllowedForProfile(role, tool), false);
+        }
+    }
 });

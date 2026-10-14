@@ -16,6 +16,7 @@ import { loadPublicationPlanContext } from './plans';
 import { resolveTaskScheduleAt, assertPublicationTaskMutableForMcp } from './helpers';
 import { PublicationOutcome } from './types';
 import { sanitizeChannelConfig } from '../../utils/channel.utils';
+import { linkedIn1128ManualHandoff } from '../linkedin1128_release_policy';
 
 type PublicationTaskWithChannel = {
     channel?: ({ type: string; config: unknown } & Record<string, unknown>) | null;
@@ -206,7 +207,9 @@ export async function getPublicationTask(projectId: number, taskId: number) {
     }
 
     const bundle = publicationPlanService.buildHandoffBundle({ ...plan, actions: [action] } as unknown as Parameters<typeof publicationPlanService.buildHandoffBundle>[0], item);
-    const bundleWithLanguage = publicationHandoffWithLanguage(bundle, item.channel, item.quality_report);
+    const languageBundle = publicationHandoffWithLanguage(bundle, item.channel, item.quality_report);
+    const bundleWithLanguage = item.id === 1128 && projectId === 7
+        ? linkedIn1128ManualHandoff(languageBundle, item.quality_report) : languageBundle;
     return sanitizePublicationTaskChannel({
         ...item,
         generation_stage: derivePublicationGenerationStage({
