@@ -123,3 +123,12 @@ test('INV013 malformed or contradictory drafts cannot fall back to empty publica
         assert.notEqual(result.diagnostics[1].reason, 'COMPLETE');
     }
 });
+test('INV014 unverified pinned collection cannot disappear from complete absence evidence', async () => {
+    for (const pinned of [[{ id: 'pinned-only', title: 'Exact title' }], null, {}]) {
+        const result = await enumerateDzen1002Inventory(fixture([
+            { publications: [], drafts: [], pinedPublications: pinned, hasMore: false }
+        ], [{ publications: [], drafts: [], hasMore: false }]));
+        assert.equal(result.complete, false);
+        assert.equal(result.diagnostics[0].reason, 'PINNED_COLLECTION_UNVERIFIED');
+    }
+});

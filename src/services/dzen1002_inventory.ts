@@ -52,6 +52,12 @@ export async function enumerateDzen1002Inventory(port: InventoryPort,
                 diagnostic.reason = 'ROUTE_INVALID'; break;
             }
             const root = record(response.payload);
+            // Native pinned row schema/end semantics are not yet observed.
+            // Never silently omit pinned objects from an exhaustive absence proof.
+            if (Object.prototype.hasOwnProperty.call(root, 'pinedPublications')
+                && (!Array.isArray(root.pinedPublications) || root.pinedPublications.length > 0)) {
+                diagnostic.reason = 'PINNED_COLLECTION_UNVERIFIED'; break;
+            }
             // Native Studio has separate collections. An explicit drafts field
             // wins even when malformed; never hide it behind empty publications.
             const collection = state === 'draft' && Object.prototype.hasOwnProperty.call(root, 'drafts') ? root.drafts : root.publications;
