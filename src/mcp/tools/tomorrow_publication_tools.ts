@@ -59,7 +59,8 @@ export function registerTomorrowPublicationTools(server: McpServer): void {
         inputSchema: {
             projectId: z.literal(10), taskId: z.literal(1110),
             actorId: z.string().regex(/^user:\d+$/),
-            expectedManifestChecksum: z.literal(MANIFEST),
+            // The canonical release service verifies equality with the live manifest.
+            expectedManifestChecksum: z.string().regex(/^sha256:[a-f0-9]{64}$/),
             approvalReference: z.string().min(10), idempotencyKey: z.string().min(1)
         }
     }, async args => asToolResult(await releasePendingThreadsTask(args)));
