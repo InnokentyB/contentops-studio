@@ -128,3 +128,134 @@ no attestation proof, no task/release/fact writes, cleanup and fail-closed timeo
 Human LOCK/QAR/ARCH/RISK approval and permission admission are both required
 before expanding this seam. If no observed contract is supplied, the defect stays
 open; deployment of the protective slice is not a completeness fix.
+
+## Readiness / owner decision packet — DZEN1002-NATIVE-DIAG-001, 2026-10-14
+
+Owning ACK: Planner development owns #142; VK #143 remains with its existing
+VK maintainer. Status: OPEN / NOT OPERATIONALLY ACCEPTED. This packet proposes
+the additional diagnostic slice; it is not a LOCK/QAR/ARCH/RISK verdict.
+
+### Recorded verdict — 2026-10-14
+
+Portfolio OS relayed the direct human answer to this exact packet:
+"Утверждаю пакет #142" (source chat01a0df21-ea6c-71f2-9c1b-40393de0e105).
+LOCK/QAR/ARCH/RISK for DZEN1002-NATIVE-DIAG-001 are APPROVED exactly as below.
+This is engineering authorization only. Existing provider/tool denials remain;
+no live admission, manifest rebind, publication or operational UAT is implied.
+Independent live verification must still use a genuinely permitted context.
+
+Approved slice scenarios: DIAG001 unavailable/denied/expired admission => zero
+session access or capture; DIAG002 foreign/stale package => zero capture;
+DIAG003 admitted deterministic fixture => bounded sanitized collection/row
+shapes and local candidate equality, never provider/end/absence proof;
+DIAG004 secret/raw-title/raw-ID/cursor exclusion; DIAG005 page/object/response/
+time limits and errors => incomplete, no retries; DIAG006 existing browser
+reader emits observations from responses it already receives, no added requests.
+Production diagnostic entry remains disabled until a trusted runtime admission
+source exists; caller-supplied config flags are not an admission source.
+Current task route also pins manifest4bfec7 while the independently read current
+p10 manifest is cc2cc6: STALE_MANIFEST must stop; this approval does not permit
+rebinding it. Native-end proof and positive permitted live UAT remain unavailable.
+
+Implementation slice: an in-memory bounded native response-shape collector now
+adds native_contract_observation to the existing inventory_diagnostics path.
+It observes only responses already read by the existing adapter; no extra
+navigation/fetch/next-page request is introduced. Row field types are allowlisted,
+raw candidate IDs become local equality references, title comparisons emit only
+booleans (or UNKNOWN/null when no target exists), and ownership/end/coverage
+verification remain false. Diagnostic limits fail closed and do not retry.
+The separate readDzen1002NativeDiagnostic adapter entry is explicitly DISABLED:
+missing legitimate runtime admission raises ADMISSION_SOURCE_UNAVAILABLE before
+any config-cookie access/browser launch. Config PERMITTED flags cannot clear it.
+No new MCP tool/public permission surface is advertised while admission is absent.
+The legacy ordinary reader's admission guarantees are not expanded or claimed
+by this diagnostic-only entry; the canonical no-provider-denial-bypass rule remains.
+
+TRUN: initial admission/capture absence RED; existing-preflight observation gap
+separately RED before wiring; source focused GREEN31/31 and backend build PASS.
+All inputs were synthetic/mocked; positive native end/owned pinned contract was
+NOT fabricated. Full regression/quality/CI/deployment recorded separately when
+complete. This is not operational acceptance or a publication-readiness proof.
+
+Verification completion: source-mapped compiled full suite1102/1102 PASS,
+zero failures/skips, explicit test-concurrency1; quality gate PASS and backend
+build PASS. Shared-host contention made this run slow; no timeout assertion or
+gate was weakened. No admitted native provider run was performed. Diagnostics
+remain observations, not end/ownership/absence proof. Engineering approval does
+not rebind the stale task manifest or clear provider/action denial.
+
+**What works:** registered Planner-owned task1002 preflight selection; separate
+published/draft collection parsing; bounded, secret-free counts/shape diagnostics;
+fail-closed authentication, invalid state/title/identity, unknown pagination,
+unverified pinned collections and limits; no generic Codex-browser fallback.
+These are code/control-plane properties, not proof of a working provider session.
+PR144 protective guard shipped in 80a27d3 and remains in later merged releases.
+Existing test rerun on 2026-10-14: 25/25 PASS, zero failures/skips; four source
+test files dzen1002_inventory, inventory_auth, inventory_boundary and
+pagination_shape. This rerun used synthetic/mocked inputs, no live provider.
+
+**Exact defect:** native evidence lacks owned pinned row identity/title/state
+and the actual continuation/end rule. The stored sanitized native-shape artifact
+eb913403817ba1780992c53c06f37db903118d5e886ebec64366965f74369208
+does not establish those rules. PAGINATION_UNKNOWN / PINNED_COLLECTION_UNVERIFIED
+must remain incomplete, never absence or cookie-expiry diagnosis.
+
+### One approval question (four explicit verdicts)
+
+Approve DZEN1002-NATIVE-DIAG-001 with the following bounded gates?
+
+- LOCK: diagnostic-only native observation for p10/task1002/rev3/decision300/
+  asset151/ch116; no text/date/channel/manifest/release/job/attempt/fact changes.
+- QAR: at most10 pages per state,1000 unique objects overall,60seconds overall,
+  2MiB per response, no retries; bounded cleanup. Export JSON field names/types,
+  counts/status/page controls, continuation presence/type (never value),
+  title-present/exact-match booleans and equality-preserving local surrogate IDs.
+  No HAR, raw IDs/titles/bodies/cookies/tokens/headers/signed URLs.
+- ARCH: one diagnostic seam in the SAME registered independent adapter reached
+  through documented Planner control. No new browser/worker/API/chat route,
+  CUA/CDP/session injection or credential. No guessed page requests/end rule.
+- RISK: trusted applicable action admission must pass BEFORE session access;
+  explicit site/action denial cannot be overridden by owner consent. GET/HEAD
+  interception only; no publish/upload/notification-read mutations, attestation
+  proof or task/release/fact writes. Unknown/started/uncertain never resend.
+
+Engineering approval and actual runtime admission are independent prerequisites.
+No new diagnostic command is implemented or advertised as runnable by this packet.
+
+### Next slice, checks and independent acceptance
+
+After explicit four-gate approval: finalize scenarios, RED at the registered
+Planner/adapter boundary (denied/missing admission proves zero session/provider
+access), then implement minimal capture, sanitization and cleanup. Negatives
+must cover foreign/stale package, auth challenge, partial/malformed collections,
+unknown end, pinned identity mismatch, duplicate/no-progress, timeout/size limits
+and secret leakage. Positive contract replay must use an admitted actual fixture,
+not invented fields. Run focused tests, quality gate, builds and CI before deploy.
+
+Independent evidence owner: AnalystCraft Ops / actually permitted independent
+adapter operator; human UAT owner: Innokenty. Positive LIVE readback: NOT COLLECTED.
+Negative LIVE readback: NOT COLLECTED in a permitted context. Existing mocked
+negative proofs are not live negative acceptance. No permission-clearing authority
+or newly admitted context was supplied to development with this handoff.
+
+### Current supported operator instruction
+
+1. Human approves/rejects the four engineering gates; identifies a genuinely
+   permitted operator context and trusted applicable admission source. A new
+   token, login, generic GO or owner-written PERMITTED flag does not clear denial.
+2. Operator reads exact Planner package/current manifest without provider access;
+   stale binding stops for owner revalidation, never automatic rebind/release.
+3. ONLY after genuine admission, use the existing documented read-only command
+   ba_preflight_dzen_task1002 once through the registered adapter. If denied,
+   admission unknown or evidence incomplete, stop with its exact sanitized cause.
+   This packet does not authorize running it from a prohibited context.
+4. Do not manually scroll personal tabs or guess continuation requests. The new
+   capture surface requires the above approval and verified deployment first.
+5. Operator retains time, adapter/deployment version, exact package binding and
+   positive/negative sanitized readbacks. Owner explicitly accepts UAT only when
+   published/draft/pinned coverage and native end are independently demonstrated.
+
+Publication remains a separate sole-Publisher action under exact existing GO and
+permission; fixture/test/deploy/receipt is not a publication fact. Until admitted
+native evidence and UAT exist, #142 remains open. Rollback is code-only and
+preserves all existing audit/release/lease/attempt/fact history.
