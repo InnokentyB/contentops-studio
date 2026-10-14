@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { registerVkConnectorTools } from './vk_connector_tools';
 import { registerLinkedInTask1076ReleaseTool } from './linkedin_task1076_release_tool';
+import { registerLinkedInTask1128IdentityTool } from './linkedin_task1128_identity_tool';
 import { registerLinkedInTask1090ReleaseTool } from './linkedin_task1090_release_tool';
 import { registerLinkedInTask1132LanguageRepairTool } from './linkedin_task1132_language_repair_tool';
 import { registerExactBrowserPublication1133And1132Tools } from './exact_browser_publication_1133_1132_tools';
@@ -56,6 +57,7 @@ import {
 export function registerReleaseControlTools(server: McpServer): void {
     registerVkConnectorTools(server);
     registerLinkedInTask1076ReleaseTool(server);
+    registerLinkedInTask1128IdentityTool(server);
     registerLinkedInTask1090ReleaseTool(server);
     registerLinkedInTask1132LanguageRepairTool(server);
     registerExactBrowserPublication1133And1132Tools(server);

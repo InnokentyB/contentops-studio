@@ -195,6 +195,8 @@ const PUBLISHER_TOOLS = new Set([
     'ba_release_approved_vk_browser_task',
     'ba_claim_linkedin_browser_publication',
     'ba_release_linkedin_task1076_browser',
+    'ba_bind_linkedin_task1128_identity',
+    'ba_release_linkedin_task1128_browser',
     'ba_release_linkedin_task1077_browser',
     'ba_release_linkedin_task1090_browser',
     'ba_release_dzen_task1036',
