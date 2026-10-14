@@ -77,6 +77,53 @@ export async function runVkConnectorConsumer(configFile: string, signal: AbortSi
         finally { if (!preserveLock) lock.release(); }
     }
 }
+/** Preflight owns its client before waiting for connection: even a stuck handshake can be cleaned up. */
+async function connectPreflight(config: VkConnectorConfig, token: string, signal: AbortSignal): Promise<VkConnectorControl> {
+    const client = new Client({ name: 'contentops-vk-readiness-consumer', version: config.buildVersion });
+    const transport = new StreamableHTTPClientTransport(new URL(config.endpoint), {
+        requestInit: { headers: { Authorization: `Bearer ${token}` }, redirect: 'error' }
+    });
+    const connected = client.connect(transport, { signal, timeout: 15000 }).then(
+        () => true, () => false); // Read calls report the fixed connection failure; no raw SDK error is exposed.
+    return { async call(name, args, callerSignal) {
+        if (!await connected) throw new Error('[VK_CONNECTOR_AUTH_OR_CONTROL_UNAVAILABLE]');
+        return parseVkConnectorToolResponse(await client.callTool({ name, arguments: args }, undefined,
+            { signal: callerSignal, timeout: 15000 }));
+    }, close: () => client.close() };
+}
+/** Readiness only: no polling, lock acquisition, provider dispatch or canonical mutation. */
+export async function runVkConnectorOperatorPreflight(configFile: string, signal: AbortSignal,
+    connector: (config: VkConnectorConfig, token: string, signal: AbortSignal) => Promise<VkConnectorControl> = connectPreflight): Promise<void> {
+    const config = loadVkConnectorConfig(configFile);
+    const token = readVkConnectorToken(config);
+    const deadline = new AbortController();
+    const timer = setTimeout(() => deadline.abort(), 120000);
+    const active = AbortSignal.any([signal, deadline.signal]);
+    let control: VkConnectorControl | undefined;
+    let result: import('../services/vk1048_operator_preflight').Vk1048PreflightResult | undefined;
+    let closeFailed = false;
+    try {
+        control = await connector(config, token, active);
+        const { runVk1048OperatorPreflight } = await import('../services/vk1048_operator_preflight');
+        result = await runVk1048OperatorPreflight(config, control, { signal: active });
+    } finally {
+        deadline.abort();
+        if (control) {
+            let cleanupTimer: ReturnType<typeof setTimeout> | undefined;
+            try {
+                await Promise.race([Promise.resolve().then(() => control!.close()), new Promise<never>((_resolve, reject) => {
+                    cleanupTimer = setTimeout(() => reject(new Error('[VK1048_CONTROL_CLEANUP_UNCONFIRMED]')), 30000);
+                })]);
+            } catch { closeFailed = true; } // Report the unknown cleanup outcome below, never retry or release another process lock.
+            finally { if (cleanupTimer) clearTimeout(cleanupTimer); }
+        }
+        clearTimeout(timer);
+    }
+    if (result) {
+        if (closeFailed) { result.status = 'UNKNOWN'; result.reason = 'CONTROL_CLEANUP_UNCONFIRMED'; result.quarantineRequired = true; }
+        process.stdout.write(`${JSON.stringify(result)}\n`);
+    }
+}
 /** Explicit one-shot human recovery; never used by the managed polling entry. */
 export async function runVkConnectorOperatorReconcile(configFile: string, signal: AbortSignal): Promise<void> {
     const config = loadVkConnectorConfig(configFile); const token = readVkConnectorToken(config); const lock = acquireVkConnectorLock(config);
@@ -94,10 +141,12 @@ if (require.main === module) {
     const abort = new AbortController();
     process.once('SIGTERM', () => abort.abort());
     process.once('SIGINT', () => abort.abort());
+    const preflight = process.argv[2] === '--operator-preflight';
     const operator = process.argv[2] === '--operator-run';
     const reconcile = process.argv[2] === '--operator-reconcile';
-    const file = process.argv[operator || reconcile ? 3 : 2] ?? '';
+    const file = process.argv[operator || reconcile || preflight ? 3 : 2] ?? '';
     const run = async () => {
+        if (preflight) return runVkConnectorOperatorPreflight(file, abort.signal);
         if (reconcile) return runVkConnectorOperatorReconcile(file, abort.signal);
         if (!operator) return runVkConnectorConsumer(file, abort.signal);
         const { createVk1048OperatorDispatch } = await import('../services/vk1048_operator_dispatch');

@@ -130,3 +130,35 @@ opens Dzen or VK with CUA/ComputerUse or private tabs/CDP/session injection, inc
 preflight and UAT. Not-ready/failed adapter -> BLOCKED + repair, no browser/API/
 worker/chat/manual fallback. Existing action/site denial and uncertain no-retry rules
 remain unchanged. This bootstrap does not activate provider execution.
+
+## Readiness-only operator check (#143)
+
+Use the reviewed checkout with its installed dependencies, the existing private
+configuration and its existing credential source. Do not paste a token into chat
+or shell history. The pinned launch environment is an existing credential source;
+this command does not automatically import it into a different shell.
+
+```sh
+node dist/workers/vk_connector_consumer.js --operator-preflight \
+  "/Users/innokentyb/Library/Application Support/ContentOps/vk-connector-1048/config.json"
+```
+
+This command is now implemented, but is not a live VK login check. It may run
+alongside the managed consumer because it never acquires its lock or polls jobs.
+It reads Planner status and private directory metadata only, then returns sanitized
+JSON. BLOCKED/ACTION_TIME_ADMISSION_UNAVAILABLE is an internal restriction, not a
+VK rejection. UNCONFIGURED profile/evidence means the corresponding existing
+resources have not been set in the private config. PASS dependency means library
+resolution only; browser assets/session/rights/provider media remain NOT_CHECKED.
+The card separately displays the admission reason after refreshing status.
+
+Do not stop the consumer, delete a lock, modify config/credentials, resume a job,
+record a manual fact or run operator-run/reconcile merely to obtain this readiness
+report. ProductionReady staysfalse. Config/environment flags cannot change it.
+
+Actual live admission is still unavailable in the restricted agent context. A
+human handoff does not override denial. Once a genuinely permitted diagnostic
+context is established separately, its own registered-adapter window may require
+personal login/OTP and community-right verification; no such window is opened by
+this command. No current button or approval can be claimed to clear that boundary.
+Report only sanitized status/scope/time, never cookies/headers/profile exports.

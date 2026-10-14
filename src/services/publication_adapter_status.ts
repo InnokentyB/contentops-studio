@@ -25,7 +25,7 @@ export const readPublicationAdapterStatus: AdapterStatusReader = async identity 
     const [job, health] = await Promise.all([
         service.status({ ...identity, jobId: row.id }), service.health({ ...identity, hostId: VK_CONNECTOR_HOST })
     ]);
-    return { ...base, supported: true,
+    return { ...base, supported: true, admissionReason: 'ACTION_TIME_ADMISSION_UNAVAILABLE',
         manualRecordAllowed: job.state === 'confirmed' || (job.state === 'cancelled' && job.attemptId === null),
         state: job.state, blocker: job.blocker, connection: health.status,
         heartbeatAt: health.heartbeatAt, publicUrl: job.publicUrl };

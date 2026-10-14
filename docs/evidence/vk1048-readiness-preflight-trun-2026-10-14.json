@@ -1,0 +1,103 @@
+{
+  "issue": "https://github.com/InnokentyB/contentops-studio/issues/143",
+  "packet": "issuecomment-6167975083",
+  "ownerApproval": {
+    "turn": "01a13a61-c070-7760-a82b-402c8ae80ca4",
+    "message": "01a13a63-4729-7511-9e90-ae05d66b536f",
+    "verdict": "Утверждаю пакет #143",
+    "gates": [
+      "LOCK143",
+      "QAR143",
+      "ARCH143",
+      "RISK143"
+    ]
+  },
+  "red": {
+    "operatorTests": 8,
+    "fail": 8,
+    "basis": "new readiness module absent before implementation"
+  },
+  "repairRuns": [
+    {
+      "kind": "review finding",
+      "reason": "sync assertion and unbounded CLI close",
+      "resolved": true
+    },
+    {
+      "kind": "environment contention",
+      "reason": "overlapping local compiles stopped; final serial build completed",
+      "resolved": true
+    },
+    {
+      "kind": "independent review before build",
+      "verdict": "UNAVAILABLE",
+      "reason": "dist module not emitted yet; not behavioral RED"
+    },
+    {
+      "kind": "isolated emit infrastructure failure",
+      "reason": "esbuild CommonJS isolated emit preserved extensionless dynamic imports; worker tests failed module resolution",
+      "resolved": true,
+      "resolution": "Full TypeScript typecheck completed; official TypeScript CommonJS source transpile restored runtime imports;12/12 final focused PASS"
+    }
+  ],
+  "focused": {
+    "tests": 12,
+    "pass": 12,
+    "fail": 0,
+    "skip": 0
+  },
+  "independentReview": {
+    "tests": 12,
+    "pass": 12,
+    "hardStops": [],
+    "providerCalls": 0
+  },
+  "frontend": {
+    "browserScenarios": 7,
+    "pass": 7,
+    "build": "PASS",
+    "uiContracts": "PASS"
+  },
+  "backendBuild": "PASS; full typecheck plus standard CommonJS emit",
+  "consumerBundle": "PASS",
+  "qualityGate": "PASS",
+  "controlOnlyNegativeSmoke": {
+    "status": "BLOCKED",
+    "reason": "ACTION_TIME_ADMISSION_UNAVAILABLE",
+    "scope": {
+      "projectId": 10,
+      "taskId": 1048,
+      "channelId": 117,
+      "revision": 1,
+      "selectedAssetId": 130,
+      "communityId": -240051152,
+      "placement": "feed",
+      "jobId": "3f9f1d08-1d1f-49a9-8f2c-cc17d00ac2de"
+    },
+    "admission": "ACTION_TIME_ADMISSION_UNAVAILABLE",
+    "productionReady": false,
+    "observedAt": "2026-10-14T13:30:25.421Z",
+    "generation": 3,
+    "packageSha256": "00636df473f9fae9f7dee61a3c358d5c64e3f28b8e856aed8374c1302bc2aaea",
+    "connection": "online",
+    "resources": {
+      "profile": "UNCONFIGURED",
+      "evidence": "UNCONFIGURED",
+      "dependency": "PASS"
+    }
+  },
+  "providerActions": 0,
+  "jobMutations": 0,
+  "profileContentReads": 0,
+  "operatorLivePositive": "NOT_PERFORMED_ACTION_ADMISSION_UNAVAILABLE",
+  "operatorLiveNegative": "NOT_PERFORMED; actual control/local negative check is not provider evidence",
+  "ownerUat": "PENDING",
+  "regression": {
+    "tests": 1095,
+    "pass": 1095,
+    "fail": 0,
+    "skip": 0,
+    "note": "Final isolated connection ownership/scope delta additionally covered by12 focused cases and24 transport/API regressions"
+  },
+  "deploy": "PENDING_PASSIVE_RELEASE"
+}
