@@ -21,7 +21,7 @@ for (const width of [1440, 375]) {
             let body: unknown = [];
             if (path === '/api/auth/me') body = { user: { id: 2, email: 'fixture@example.test' }, projects: [{ id: 10, name: 'Fixture' }] };
             else if (path.endsWith('/adapter-status')) body = { supported: true, canExecute: false,
-                manualRecordAllowed: false, state: 'blocked', blocker: 'PROVIDER_PERMISSION_UNVERIFIED',
+                manualRecordAllowed: false, admissionReason: 'ACTION_TIME_ADMISSION_UNAVAILABLE', state: 'blocked', blocker: 'PROVIDER_PERMISSION_UNVERIFIED',
                 connection: 'online', heartbeatAt: new Date().toISOString(), observedAt: new Date().toISOString(), publicUrl: null };
             else if (path === '/api/publication-tasks/1048') body = task;
             else if (path === '/api/publication-tasks') body = [task];
@@ -32,6 +32,7 @@ for (const width of [1440, 375]) {
         const selector = page.getByRole('combobox', { name: /Publication method|Способ публикации/ });
         await expect(selector).toBeVisible();
         await expect(page.getByText('PROVIDER_PERMISSION_UNVERIFIED', { exact: true })).toBeVisible();
+        await expect(page.getByText('ACTION_TIME_ADMISSION_UNAVAILABLE', { exact: true })).toBeVisible();
         await expect(page.getByRole('button', { name: /Publish through adapter|Опубликовать через адаптер/ })).toBeDisabled();
         await selector.selectOption('record');
         await expect(page.getByRole('button', { name: /Record publication fact|Зафиксировать факт публикации/ })).toBeDisabled();

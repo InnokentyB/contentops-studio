@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 export interface AdapterStatusIdentity { projectId: number; taskId: number; actorId: string }
 export const PublicationAdapterStatusSchema = z.object({
+    admissionReason: z.literal('ACTION_TIME_ADMISSION_UNAVAILABLE').optional(),
     supported: z.boolean(), canExecute: z.literal(false), manualRecordAllowed: z.boolean(),
     state: z.string(), blocker: z.string().nullable(), connection: z.enum(['online', 'offline', 'disabled', 'unavailable']),
     heartbeatAt: z.string().nullable(), publicUrl: z.string().nullable(), observedAt: z.string()
