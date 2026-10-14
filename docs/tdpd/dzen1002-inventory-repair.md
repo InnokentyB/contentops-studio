@@ -46,3 +46,85 @@ Existing pagination tests continue requiring explicit hasMore/total evidence.
 The captured provider response has neither: exhaustive end-of-list semantics
 remain BLOCKED pending permission-allowed native evidence. A short/empty page
 is never accepted as exhaustive; this repair does not unblock publication.
+
+## Development continuation — 2026-10-14
+
+Status: OPEN / NATIVE_CONTRACT_EVIDENCE_REQUIRED, not completed by PR141 or
+its offline test suite. Owner directive «Отдавай чётко в разработку» relayed by
+Portfolio HQ `01a041f1-23c2-7092-a53a-4d4141a55a62` authorizes continuation
+of this same defect. Implementation owner: ContentOps Planner development
+(this repository maintainer); operational evidence owner: AnalystCraft Ops /
+the permitted independent Dzen adapter operator. No parallel duplicate defect.
+Governed engineering issue: [#142](https://github.com/InnokentyB/contentops-studio/issues/142).
+Ops confirmed no newer fixture on 2026-10-14. Existing sanitized native-shape
+artifact SHA-256: `eb913403817ba1780992c53c06f37db903118d5e886ebec64366965f74369208`.
+It records pinedPublications only as array, not count/row schema or end proof.
+
+LOCK: exact p10/task1002/rev3/asset151/channel116; investigate native published,
+draft and pinned collections and provider-observed end-of-list. No task body,
+date, release, manifest binding, fact or attempt change. Current safe slice only
+blocks exhaustive absence for unverified nonempty/malformed pinedPublications
+and projects its count without rows. QAR: existing10page/1000object/60second/
+2MiB bounds, dedupe, cleanup, explicit errors and no retry remain. ARCH: retain
+task1002 enumerator/registered adapter seam; no new browser/process/tool route.
+RISK: no provider calls from development under current denial; no automatic
+owner attestation, raw HAR, tokens, cookies, identifiers or payload secrets.
+
+### Acceptance criteria for the open defect
+
+1. Retain an actual sanitized fixture from a permission-allowed native adapter
+   observation, including published/draft/pinned row structure and the real
+   continuation/end mechanism. Record provenance and capture limits.
+2. Validate identity/title/state per owned object; account for pinned duplicates
+   by the same provider identity, not title alone. Do not infer pinned row type
+   from the field name. Promotion cards are not assumed to be owned objects.
+3. Prove exhaustive coverage by the observed contract for both states and pinned
+   semantics. No short-page, zero-page, count13/pageSize30 or repeated-page guess.
+4. Positive replay uses the actual contract; negatives cover partial/malformed
+   payloads, unknown state/title/id, paging conflict, failed page, duplicates,
+   limits and unverified pinned collections. No secret leakage.
+5. Run focused regression, source-mapped full suite, builds and quality gate;
+   deploy only within approved boundaries. Preserve exact owner/revision/fact/
+   attempt guards. Independent permission-allowed readonly verification and
+   explicit owner UAT are separate; no live publication in this issue.
+
+### Permission-gated operator evidence steps
+
+1. Resolve the affected site/action denial in the permitted operator context.
+   If denied or permission unknown, STOP and return the fixed permission blocker.
+   Owner development approval is not provider admission. Never switch browser,
+   worker, API, agent or chat to bypass denial. No Codex CUA/manual fallback.
+2. Read Planner metadata for the exact package and manifest without provider
+   access. If binding is stale, STOP for owner revalidation; do not rebind or
+   release automatically. Do not call any publish/send/resume/reset command.
+3. Only if admitted, invoke the documented registered-adapter readonly preflight
+   once. Retain current sanitized diagnostics, both collection counts and limits.
+   The existing reader cannot observe a native continuation without recognized
+   metadata; it must return PAGINATION_UNKNOWN, not manufacture coverage.
+4. If that fixture still lacks the native end mechanism, stop. Do NOT manually
+   scroll a personal tab or guess offset/cursor requests. Propose a separately
+   approved adapter-owned diagnostic seam before collecting further evidence.
+5. Any admitted capture must keep GET/HEAD-only enforcement and existing limits.
+   Export JSON, not HAR: task/revision/asset/channel binding, adapter/version,
+   permission outcome, capture time, state/page index, fixed origin/path, numeric
+   paging controls, continuation-present/type (no token value), HTTP status,
+   collection names/counts, row field names/types, explicit state booleans/enums,
+   title-present/exact-target-match booleans and stable local surrogate object IDs
+   preserving cross-page/collection equality. Never export titles, bodies, raw
+   IDs, headers, cookies, tokens, signed URLs or continuation strings.
+6. Record how the native client requests next pages and recognizes end, including
+   a sanitized code/response rule and pinned handling, not merely an operator
+   statement that everything was loaded. Partial/bounded observation remains
+   incomplete. Fixtures alone do not grant publication authority.
+
+### Approval boundary if additional instrumentation is needed
+
+Proposed, NOT implemented: LOCK — diagnostic-only observation of native list
+continuation/end for this package; QAR — existing bounds and sanitized artifact
+fields above; ARCH — one seam inside the same registered independent adapter,
+no CUA/CDP injection/new credential or alternate transport; RISK — provider
+admission checked first, GET/HEAD only, no publish/read-notification mutations,
+no attestation proof, no task/release/fact writes, cleanup and fail-closed timeout.
+Human LOCK/QAR/ARCH/RISK approval and permission admission are both required
+before expanding this seam. If no observed contract is supplied, the defect stays
+open; deployment of the protective slice is not a completeness fix.

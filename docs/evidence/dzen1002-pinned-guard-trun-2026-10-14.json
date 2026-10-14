@@ -1,0 +1,30 @@
+{
+  "defect": "DZEN1002-INV-001",
+  "issue": "https://github.com/InnokentyB/contentops-studio/issues/142",
+  "implementation_owner": "ContentOps Planner development / repository maintainer InnokentyB",
+  "evidence_owner": "AnalystCraft Ops / permission-admitted registered independent Dzen adapter operator",
+  "stage": "protective pinned-collection guard; NOT exhaustive inventory completion",
+  "base_commit": "355b9bd",
+  "actual_sanitized_shape_sha256": "eb913403817ba1780992c53c06f37db903118d5e886ebec64366965f74369208",
+  "actual_shape_limit": "pinedPublications observed as array only; pinned rows/count and native continuation/end not retained. Ops confirmed no newer fixture on 2026-10-14.",
+  "runs": [
+    { "id": "PINNED-RED", "tests": 22, "passed": 20, "failed": 2,
+      "scenarios": ["INV014 ignored nonempty or malformed pinned collection permitted completeness", "SHAPE007 pinned/promo counts missing"],
+      "log": "/tmp/dzen1002-pinned-red.log" },
+    { "id": "PINNED-FOCUSED-GREEN", "tests": 53, "passed": 53, "failed": 0, "skipped": 0,
+      "log": "/tmp/dzen-pinned-green.log" },
+    { "id": "PINNED-SOURCE-REGRESSION", "tests": 1086, "passed": 1086, "failed": 0, "skipped": 0, "concurrency": 1,
+      "log": "/tmp/dzen-pinned-regression.log" },
+    { "id": "PINNED-BUILDS-QUALITY", "backend": "PASS", "frontend_backend": "PASS", "quality": "PASS", "score": 77, "hard_stops": [],
+      "logs": ["/tmp/dzen-pinned-green-build.log", "/tmp/dzen-pinned-fullbuild.log", "/tmp/dzen-pinned-quality.log"] }
+  ],
+  "positive_actual_end_contract": "BLOCKED / not supplied, not replaced by a synthetic positive test",
+  "limits_unchanged": "10 pages/state,1000 objects,60 seconds,2MiB response; unknown/partial/conflicting evidence remains incomplete",
+  "provider_calls": 0,
+  "provider_writes": 0,
+  "task_release_revision_manifest_fact_attempt_changes": 0,
+  "architecture_extension": "Proposal only in existing specification; additional adapter diagnostic seam requires human LOCK/QAR/ARCH/RISK approval and independent provider permission",
+  "rollback": "Revert protective delta only under reviewed deployment rollback while task1002 stays held; never reinterpret omitted pinned objects as complete evidence or weaken release/attempt guards",
+  "uat": "NOT_RUN; explicit site/action denial persists; no CUA/browser/manual or process fallback",
+  "issue_state": "OPEN; does not close on protective PR merge"
+}

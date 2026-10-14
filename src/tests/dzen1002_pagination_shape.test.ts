@@ -22,6 +22,13 @@ test('SHAPE006 counts both native collections without exporting private rows', (
     assert.deepEqual(shape.fields.find(f => f.name === 'drafts'), { name: 'drafts', type: 'array', count: 1 });
     assert.equal(JSON.stringify(shape).includes('PRIVATE'), false);
 });
+test('SHAPE007 projects observed pinned and promo collection counts without exporting row contents', () => {
+    const shape = describeDzen1002Pagination({ pinedPublications: [{ id: 'PRIVATE' }], pinPromoPublications: [] },
+        'https://dzen.ru/editor-api/v3/publications?state=published&pageSize=30');
+    assert.deepEqual(shape.fields.find(f => f.name === 'pinedPublications'), { name: 'pinedPublications', type: 'array', count: 1 });
+    assert.deepEqual(shape.fields.find(f => f.name === 'pinPromoPublications'), { name: 'pinPromoPublications', type: 'array', count: 0 });
+    assert.equal(JSON.stringify(shape).includes('PRIVATE'), false);
+});
 test('SHAPE002 allowlists response pagination headers without emitting raw header values', () => {
     const shape = describeDzen1002Pagination({}, 'https://dzen.ru/', {
         'content-range': 'publications 0-12/13', 'x-total-count': '13',
