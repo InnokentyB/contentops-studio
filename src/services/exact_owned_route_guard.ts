@@ -6,6 +6,7 @@ export function exactOwnedRouteBlock(input: unknown) {
     if (!parsed.success) return null;
     const task = parsed.data;
     const command = task.project_id === 10 && task.id === 1114 ? 'ba_publish_threads_task1114'
+        : task.project_id === 10 && task.id === 1113 ? 'ba_start_x_task1113_browser_submission'
         : task.project_id === 7 && task.id === 1128 ? 'ba_start_linkedin_task1128_browser_submission' : null;
     if (!command) return null;
     return { success: false, blocked: true, skipped: true, status: task.status || 'blocked',

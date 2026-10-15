@@ -1,5 +1,280 @@
 # P10-PERSONAL-REL-001 — consolidated exact X/Threads release proposal
 
+## X1113-NATIVE-002 — bounded decision packet, PROPOSED 2026-10-15
+
+This section is a proposed change to ARCH/RISK146, NOT approved implementation,
+installation, permission grant or send. PR154 stays Draft with all three P1s open.
+No new architecture code is authorized by this packet. Existing release approval
+for the accepted1113 package is preserved; it is not a standing publication GO.
+
+### Evidence: the exact missing hook
+
+At code132867c, `x1113_tools.ts` directly calls `preSubmitX1113` with caller fields.
+`executeX1113NativeSubmit` accepts injected read/click callbacks but is called only
+by tests; it has no production native-provider binding. `checkX1113LiveContext`
+validates a normalized BrowserInfo object supplied by the caller. A profile tag,
+fresh timestamp or recomputable SHA cannot authenticate its origin. The exposed
+CUA BrowserInfo API supplies profileName and ephemeral browser IDs, not a signed
+runtime receipt or a server-verifiable final-click hook. No trusted hook is
+registered in this repository. This is an inspected gap, not a claim that CUA
+cannot show the correct profile to the owning Publisher.
+
+Do not invent an app RPC, wrap a caller assertion in another hash, patch the
+vendor Codex app/extension or describe a test callback as admitted execution.
+Development never inspects or drives the personal X browser. Dzen/VK denials
+and adapter-only routes remain outside this proposal and unchanged.
+
+### LOCK-X1113-NATIVE-002
+
+Pilot only p10/task1113/channel164/@naraHeTc, accepted rev1, existing exact body,
+decision308v1, null asset and both original dates. One task, one browser WI,
+one attempt and at most one native Post invocation. No X API, paid service,
+credential import/export, browser-session injection, working-profile fallback,
+new queue or schema migration. Preserve existing owner GO, audit and idempotency.
+
+Proposed component: one small first-party X-only browser extension, installed
+once by the human in the personal browser profile labelled Innokenty. It is a
+new trusted local execution boundary, explicitly requiring architecture/risk
+approval. It is not a new browser daemon or a component per post. Existing vendor
+CUA is not forked. An event-driven extension background component and X-page
+content script own native DOM reads, the final click and result readback.
+Do not claim that the existing CUA connection already implements this bridge.
+
+### ARCH-X1113-NATIVE-002
+
+Enrollment and rights:
+
+- Human installs/enables a reviewed packaged build in only the personal profile;
+  it stays off until explicit enrollment. Request only X-page DOM access and
+  HTTPS access to the fixed Planner execution origin. No cookies API, history,
+  all-sites access, filesystem, native messaging, arbitrary JS evaluator or
+  externally callable message endpoint. No automatic login or CAPTCHA handling.
+- Generate a non-exportable signing key inside extension origin; persist its
+  key handle locally, never in chat/config/env or page context. Planner stores
+  the public key/fingerprint and an audited owner-approved installation binding.
+  Use a supported browser cryptographic store; persistence/permissions must be
+  proved by a no-send compatibility spike, not assumed from a mocked test.
+- Human pairs that installation using a short-lived one-time challenge, sees
+  the public fingerprint and native current X account, and approves only
+  p10/channel164/@naraHeTc. No publishing OAuth or provider cookie leaves browser.
+  The label Innokenty is explanatory; possession of the enrolled installation
+  key plus actual native account readback is the binding. The working profile
+  has no enrolled key and cannot acquire admission by naming itself Innokenty.
+
+Execution, using the existing governed lifecycle:
+
+1. Publisher requests execution of the already released exact WI through Planner.
+   This request is not a click permission. Existing owner/project/GO/package/
+   manifest/lease gates remain. No normal Publisher RPC returns a raw reusable
+   submission_permitted=true. Remove or deny raw start/preSubmit/confirm bypasses.
+2. The enrolled extension retrieves only that authorized WI and a one-time
+   server challenge. It constructs observations itself from the selected native
+   X page: account, exact editor text, new-post mode, zero attachments, enabled
+   Post and bounded duplicate history. It never signs observations supplied by
+   an agent or webpage. Missing/incomplete native evidence blocks, not empty.
+3. A signed challenge response binds installation, tenant, task, channel, WI,
+   actor, immutable package SHA/revision, release/send keys, manifest, phase,
+   nonce and expiry. Server validates registered public key, revocation, purpose,
+   exact package and nonce consumption before creating the sole pending attempt.
+   Persist nonce/receipt hashes and execution states in the existing bounded
+   workflow audit, not a parallel delivery queue. If existing persistence cannot
+   provide atomic uniqueness, return to ARCH approval before any schema change.
+4. The extension re-reads native account/editor/tab immediately before Post.
+   A single-use signed final challenge is consumed atomically for that attempt;
+   the permit is returned only to the paired executor, expires within15s and is
+   never exposed as an agent-callable click authority. The local durable journal
+   records click-start before exactly one invocation. No retry on timeout/crash.
+   Renavigation, account switch, hidden/disabled editor, hold, revocation or
+   package drift blocks. Recheck current server authority just before click.
+5. The same extension reads the resulting native status, not merely composer
+   disappearance: exact author, status ID, canonical URL, actual native timestamp
+   and accepted text under one documented whitespace-only normalization. Content,
+   URL and time must come from the same object; no arbitrary evidence hash or
+   user-supplied timestamp is sufficient. A signed result receipt binds this
+   object to the original attempt/challenge/package. If timestamp or text cannot
+   be verified, remain UNKNOWN; do not derive it from the requested slot.
+6. Internal verification atomically validates the signed result and original
+   attempt, then writes delivered attempt/audit/canonical fact. Normal Publisher
+   may read the receipt/fact, not forge an internal native confirmation. Existing
+   manual fact form must not bypass this contract. Receipt alone is not success.
+
+The signing key proves the enrolled software installation, not an independent
+X server attestation or protection against a compromised local OS. Review the
+extension code/package and enrollment as the new trusted computing boundary.
+
+### QAR-X1113-NATIVE-002
+
+- Safety targets: zero duplicate clicks, false facts, cross-tenant admissions,
+  working-profile sends, raw credential logs or unreviewed capability expansion.
+- Native observations at start/final gate age<=30s; final permit TTL<=15s;
+  single-flight1 per installation/account; no provider mutation retries.
+- Active execution uses bounded heartbeat (at most one per60s) and a30min lease.
+  Bound result readback to120s and at most20 native statuses; partial/history gaps
+  remain UNKNOWN. Report actionable blocked/unknown status within120s after the
+  executor detects failure; no guarantee that X accepts a post.
+- RED scenarios: direct raw MCP preSubmit/confirm; forged or replayed receipt;
+  unpaired/revoked/wrong-profile key; wrong actor/tenant/account; stale nonce/
+  manifest/revision; wrong text/media; duplicate/incomplete history; disabled Post;
+  simultaneous execution; crash before/after click; lost permit/result response;
+  unrelated numeric status or fabricated time; expired lease before/after start;
+  DB rollback/CAS conflict; secret-bearing errors; disabling extension mid-flight.
+- Tests first with deterministic native ports; real isolated PostgreSQL races
+  for nonce/attempt/fact transactions; backend/build/quality gates. Then explicit
+  owner no-send UAT of enrollment/profile mismatch, followed by exact1113 live
+  UAT in the owning operational context. Development never clicks Post.
+
+### Lease expiry and uncertainty (closing the third P1)
+
+Before any attempt OR final permit: audited same-WI/same-actor renewal with exact
+old expiry/fence fingerprint and CAS; preview default, no new claim/release/WI.
+Any existing attempt/permit forbids this pre-execution renewal. Same-key replay
+returns the same fence/expiry, never another extension of authority.
+
+After an attempt or click-start: lease expiry must NOT prevent truthful
+reconciliation and must NEVER grant another Submit. Freeze pending/unknown,
+retain historical fence SHA, installation identity, original package and keys.
+Issue a new short-lived READ-ONLY challenge scoped to that original attempt,
+authenticated by its enrolled executor and current authorized owner. It can read
+native result/history and admit one matching signed result but cannot rotate
+send authority or invoke the submit path. Ambiguous/zero/partial matches remain
+UNKNOWN. Concurrent confirmed replay returns the existing canonical fact. Drift
+of the task or executor binding quarantines evidence for explicit reconciliation,
+not automatic rebinding. No lease clear/cancel/new claim to recover uncertainty.
+
+### RISK-X1113-NATIVE-002 and rollback
+
+High reliance: public personal publication is hard to reverse. A native extension
+is security-sensitive new access; installation/enrollment require explicit human
+approval. Compromised OS/browser/extension or deliberate profile-data/key cloning
+is residual risk, not solved by a profile label or non-exportable key handle.
+No signing key in the page/content script, arbitrary signing endpoint, or broad
+Planner bearer in the extension. Pairing uses only bounded executor capabilities;
+keys are revocable. Standard TLS, strict origins, CSP and input schemas apply.
+Logs contain IDs/status/codes/checksums only; no cookies, tokens, authorization
+headers, full page HTML/feed or unrelated private content. Evidence storage is
+scoped/private and minimizes capture to the confirmed post; define retention at
+implementation review before capture, not by silently saving the whole screen.
+
+Rollout flag off by default, allow only1113 after no-send UAT. Disable executor
+admission and revoke its key to stop new permits, then disable/uninstall only
+this extension. Preserve WI/leases/attempts/releases/nonce and receipt audit/facts.
+Already issued or consumed click authority can be in-flight; rollback is not a
+promise to undo a post. Such attempts remain reconciliation-only. Never delete
+history or automatically fall back to CUA, another profile, API or another chat.
+
+### Reuse, scope and the requested decision
+
+This is one reusable native-execution boundary attached to existing Planner
+work/release/attempt/fact primitives, not a new component per publication. The
+initial allowlist stays1113. Later X tasks need their ordinary package-specific
+GO and policy eligibility, not a new installation or architecture approval per
+post. Adding another provider/profile, broader extension permissions or schema/
+queue requires a separate material-scope review. No paid X API is introduced;
+existing platform restrictions/rate limits still apply.
+
+Requested verdicts: LOCK-X1113-NATIVE-002, QAR-X1113-NATIVE-002,
+ARCH-X1113-NATIVE-002, RISK-X1113-NATIVE-002. Approving these permits bounded
+test-first implementation and the no-send compatibility/enrollment UAT, not
+development provider sends. Rejection leaves154 Draft and1113 held; existing
+Threads publication and LinkedIn1128 same-WI recovery are independent.
+
+### LinkedIn1128 client-catalog refresh handoff (not OAuth)
+
+Only configured connection `contentops_seturon_p7_publisher`, displayed as
+Contentops_seturon_p7_publisher, needs tool rediscovery in the owning Publisher
+chat `01a06dbc-7cf1-7d83-8ddd-2a0539f2a3d6`. Fixed URL:
+https://planner-mcp-production.up.railway.app/mcp/publisher . Keep its existing
+CONTENTOPS_SETURON_P7_PUBLISHER_TOKEN env reference; never copy its value.
+No planner/editor/art-director/p10 connection or provider OAuth change is needed.
+
+Official supported app-server operation is `config/mcpServer/reload` (reload
+configuration/queue refresh for loaded threads), then `mcpServerStatus/list`
+filtered by serverName and threadId with toolsAndAuthOnly detail. The reload
+operation is not documented here as server-filterable: do not invent parameters
+or promise its refresh is limited to one server. This is catalog rediscovery,
+NOT restarting chats/processes or reauthorizing LinkedIn. A fresh independent
+SDK tools/list already sees renewal; that does not refresh the existing chat.
+
+Current agent tools expose neither the app-server reload nor a plugin refresh
+operation. Codex UI access was explicitly denied by Computer Use; no alternate
+UI/IPC process may bypass that denial. Thus client refresh was NOT performed.
+In the supported app UI, target only that existing MCP connection's refresh/
+rediscovery action if offered; exact button wording in this installed build is
+unverified. Do not uninstall/recreate the connection, alter tokens, toggle every
+plugin, start OAuth, edit config merely to trigger reload, or restart all chats.
+App operator must use the supported reload surface and verify that the original
+Publisher chat discovers `ba_renew_linkedin_task1128_browser_lease` with apply
+defaultfalse and expiry/SHA inputs. If that surface is absent, request a screenshot
+of this connection's menu rather than invent a click path.
+
+After confirmed discovery, the owning Publisher previews and applies recovery
+on SAME WI1924/actor/original package using one stable renewal key and the exact
+preview expiry/SHA. New fence stays private; continue original submission key.
+Do not bind/release/claim again. Production153 merge10a6bee and both deployments
+are verified SUCCESS; publication fact for1128 remains absent at last readback.
+
+Official references inspected2026-10-15:
+https://learn.chatgpt.com/docs/app-server (config/mcpServer/reload and scoped
+mcpServerStatus/list); https://developers.openai.com/plugins/build/mcp-server
+(refresh custom MCP connection after metadata changes). These establish the
+supported operation, not an observed UI label or a completed refresh.
+
+## 1113 exact browser lifecycle — 2026-10-15
+
+**DRAFT / NOT RELEASE-READY.** PR154 independent review found three P1 gaps:
+the native helper is not wired to a trusted callable owning executor (raw MCP
+pre-submit remains bypassable), resulting-status content/time lacks trusted native
+readback, and expired leases have no complete recovery/reconciliation path.
+Stage-bound hashes validate consistency, not actual native-source admission.
+No X production enablement/release/send occurred. The 1131 source-mapped tests,
+focused mocks, build and baseline quality gate pass, but do not resolve these
+findings or constitute owner UAT. Do not merge or instruct Ops to execute this
+draft. A concrete owning-runtime hook is required; adding a new native worker or
+transport needs an explicit architecture/risk change, not an inferred approval.
+
+Approved issue146 implementation, not a new transport. Fresh read-only Planner
+readback confirms task1113/channel164/@naraHeTc, exact accepted rev1/body269,
+both original dates, active decision308v1/reviewWI1897result2/artWI1901result1,
+manual-only channel and manifest cc2cc620. No live API or browser from development.
+
+Exact controls: ba_release_x_task1113_browser → ba_claim_x_task1113_browser →
+ba_start_x_task1113_browser_submission → ba_pre_submit_x_task1113_browser_submission
+→ ba_confirm_x_task1113_browser_submission. Ambiguity uses
+ba_mark_x_task1113_browser_submission_uncertain on the same attempt/key.
+Release atomically rebuilds an English manual handoff from current channel/body,
+audits GO and creates one revision-bound WI. Claim returns a private fence only
+to its owning executor. Release/claim/send keys are separate stable keys;
+every execution boundary carries the original releaseIdempotencyKey. No alternate
+key can create another attempt. No paid API, channel config, body, date, revision,
+asset or visual record is changed. Generic dispatch/fallback and generic manual
+fact entry are blocked for this exact task.
+
+Native execution contract: owning Publisher must call checkX1113LiveContext
+against freshly observed native BrowserInfo + selected tab/account before claim
+and start. IDs are runtime-only, never persist them as profile identity. Before
+Post, executeX1113NativeSubmit performs native editor/profile validation, one-shot
+server preSubmit, then a second fresh native check on the same browser/tab/URL,
+and exactly one bound click callback. The callbacks MUST read/click the actual
+owning native surface; stored tags, fabricated caller observations and a server
+receipt alone are not admission. The server records server_browser_verified=false.
+If the owning runtime cannot run the native guard, stop before attempt/Submit;
+do not choose the working profile or API. Development does not run these callbacks.
+
+Keep the pre-submit proof fields for confirmation (fresh observedAt is required
+for start/preSubmit, not historical confirmation). Native readback must verify
+author @naraHeTc, exact text, numeric status ID, canonical
+https://x.com/naraHeTc/status/ID and actual publication time. Fact.beforeWrite
+rechecks active lease/package/attempt, matches pre-submit proof and rejects an
+object older than the attempt/permission minus explicit120s clock tolerance.
+Delivered attempt/audit/fact are one transaction. Uncertain state permits only
+reconciliation of that same identity, never another Post.
+
+TRUN: missing lifecycle reproduced three RED assertions; generic manual-fact
+bypass reproduced RED separately. Focused runtime/lifecycle/dispatcher/fact tests
+pass; transaction mocks do not prove real provider access or production races.
+Owner UAT/publication remains separate. Rollback removes exact registrations
+without deleting or rewriting task/WI/release/lease/attempt/fact history.
+
 Status: APPROVED for LOCK-P10-PERSONAL/QAR-P10-PERSONAL/ARCH-P10-PERSONAL/
 RISK-P10-PERSONAL by direct human reply in this development chat on 2026-10-14:
 «Да, даю разрешение на обе задачи», after explicit explanation of issues145/146.

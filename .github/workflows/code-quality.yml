@@ -36,6 +36,10 @@ jobs:
           node --test --test-concurrency=1 tests/tdpd/linkedin1128-lease.unit.test.js
           node --test --test-concurrency=1 tests/tdpd/manifest-transaction.unit.test.js
           node --test --test-concurrency=1 dist/tests/exact_owned_route_guard.test.js dist/tests/vk_generic_publication_route.test.js
+      - name: X1113 native-boundary and exact lifecycle contracts (no browser or provider calls)
+        run: |
+          node --test --test-concurrency=1 dist/tests/x1113*.test.js dist/tests/publication_manual_fact_guard.test.js
+          node --test --test-concurrency=1 tests/tdpd/x1113-store.unit.test.js
   threads1114-contract:
     name: Threads1114 exact lifecycle contracts
     runs-on: ubuntu-latest

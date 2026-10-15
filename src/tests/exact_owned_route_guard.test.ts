@@ -4,7 +4,8 @@ process.env.TELEGRAM_BOT_TOKEN = '000000:synthetic-route-test';
 process.env.SUPABASE_URL ||= 'https://example.supabase.co';
 process.env.SUPABASE_KEY ||= 'synthetic-route-test';
 
-for (const binding of [{ id: 1114, project_id: 10, platform: 'threads' }, { id: 1128, project_id: 7, platform: 'linkedin' }]) {
+for (const binding of [{ id: 1114, project_id: 10, platform: 'threads' }, { id: 1128, project_id: 7, platform: 'linkedin' },
+    { id: 1113, project_id: 10, platform: 'x' }]) {
     test(`exact task${binding.id} cannot use generic send, processing or browser fallback`, async t => {
         let external = 0; let state = 0; let readiness = 0;
         t.mock.method(globalThis, 'fetch', async () => { external += 1; throw new Error('Provider calls forbidden in this test'); });
