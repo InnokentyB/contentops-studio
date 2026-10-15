@@ -65,3 +65,11 @@ test('1114 identical release overlapping another commit returns the recorded pro
     assert.deepEqual(await feature().releaseThreads1114(f.ports, args), { publication_authorized: true, replayed: true });
     assert.deepEqual(f.calls, []);
 });
+test('1114 overlapping identical send returns durable reconciliation without a second dispatch', async () => {
+    const f = fixture(); const api = feature(); await api.releaseThreads1114(f.ports, args);
+    let reads = 0;
+    f.ports.replay = async () => ++reads === 1 ? null : { mode: 'verification_required', retry_allowed: false };
+    f.ports.claim = async () => { throw new Error('synthetic concurrent claim'); };
+    assert.deepEqual(await api.executeThreads1114(f.ports, args), { mode: 'verification_required', retry_allowed: false });
+    assert.ok(!f.calls.includes('publish')); assert.ok(!f.calls.includes('uncertain'));
+});

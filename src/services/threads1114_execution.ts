@@ -42,15 +42,24 @@ export async function releaseThreads1114(ports: Threads1114Ports, args: Threads1
 export async function executeThreads1114(ports: Threads1114Ports, args: Threads1114Request): Promise<Record<string, unknown>> {
     validate(args);
     if (!args.dryRun) { const prior = await ports.replay(args, 'send'); if (prior) return prior; }
-    const checked = await ports.inspect(args, true); assertThreads1114Snapshot(checked.snapshot, true);
-    if (!checked.releaseValid) throw new Error('[THREADS1114_OWNER_RELEASE_REQUIRED]');
-    if (!checked.credentialReady) throw new Error('[THREADS1114_CONNECTOR_NOT_READY]');
-    if (args.dryRun) return { mode: 'dry_run', task_id: 1114, channel_id: 138,
-        live_publish_supported: true, route_executable: true, provider_checks_not_performed: true,
-        accepted_revision: 1, selected_asset_id: null, delivery_method: 'threads_api', published: false };
-    if (ports.now() < Date.parse(p.schedule)) throw new Error('[THREADS1114_NOT_DUE]');
-    await ports.preflight();
-    const claim = await ports.claim(args);
+    let claim: { id: number; body: string };
+    try {
+        const checked = await ports.inspect(args, true); assertThreads1114Snapshot(checked.snapshot, true);
+        if (!checked.releaseValid) throw new Error('[THREADS1114_OWNER_RELEASE_REQUIRED]');
+        if (!checked.credentialReady) throw new Error('[THREADS1114_CONNECTOR_NOT_READY]');
+        if (args.dryRun) return { mode: 'dry_run', task_id: 1114, channel_id: 138,
+            live_publish_supported: true, route_executable: true, provider_checks_not_performed: true,
+            accepted_revision: 1, selected_asset_id: null, delivery_method: 'threads_api', published: false };
+        if (ports.now() < Date.parse(p.schedule)) throw new Error('[THREADS1114_NOT_DUE]');
+        await ports.preflight();
+        claim = await ports.claim(args);
+    } catch (error: unknown) {
+        if (!args.dryRun) {
+            const concurrent = await ports.replay(args, 'send');
+            if (concurrent) return concurrent;
+        }
+        throw error;
+    }
     try {
         await ports.assertDispatch(args, claim.id);
         const result = await ports.publish(claim.body); identity(result);
