@@ -91,4 +91,11 @@ test('1113 real package guard validates exact accepted body, current manifest an
     task.channel.config.account_ref = p.account; task.draft_text += 'changed';
     await assert.rejects(guard.xPackage(value, a, false), /EXACT_PACKAGE_REQUIRED/);
 });
+test('1113 scoped tool never exposes an unexpected secret-bearing internal error', async t => {
+    const service = feature(); const captured = {};
+    t.mock.method(service, 'startX1113', async () => { throw new Error('synthetic-private-fence-value'); });
+    require('../../dist/mcp/tools/x1113_tools').registerX1113Tools({ registerTool(name, _config, handler) { captured[name] = handler; } });
+    await assert.rejects(captured.ba_start_x_task1113_browser_submission(a), error =>
+        error.message.includes('X1113_CONTROL_FAILED') && !error.message.includes('synthetic-private'));
+});
 test.after(async () => { await db.default.$disconnect(); await db.pool.end(); });
