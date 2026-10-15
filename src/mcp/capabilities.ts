@@ -147,6 +147,15 @@ const EDITOR_TOOLS = new Set([
 
 const PUBLISHER_TOOLS = new Set([
     'ba_release_approved_threads_task',
+    'ba_repair_linkedin_task1086_metadata',
+    'ba_release_linkedin_task1086_browser',
+    'ba_claim_linkedin_task1086_browser',
+    'ba_renew_linkedin_task1086_browser_lease',
+    'ba_start_linkedin_task1086_browser_submission',
+    'ba_pre_submit_linkedin_task1086_browser_submission',
+    'ba_confirm_linkedin_task1086_browser_submission',
+    'ba_reconcile_linkedin_task1086_browser_submission',
+    'ba_mark_linkedin_task1086_browser_submission_uncertain',
     'ba_release_threads_task1108_api',
     'ba_publish_threads_task1108',
     'ba_release_dzen_task1002',

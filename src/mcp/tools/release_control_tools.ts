@@ -1,4 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerLinkedIn1086Tools } from './linkedin1086_tools';
 import { registerLinkedIn1128Rev3Tools } from './linkedin1128_rev3_tools';
 import { registerLinkedIn1128SubmissionTools } from './linkedin1128_submission_tools';
 import { registerThreads1114Tools } from './threads1114_tools';
@@ -59,6 +60,7 @@ import {
  * @param server - Target MCP server instance.
  */
 export function registerReleaseControlTools(server: McpServer): void {
+    registerLinkedIn1086Tools(server);
     registerLinkedIn1128Rev3Tools(server);
     registerLinkedIn1128SubmissionTools(server);
     registerThreads1114Tools(server);
