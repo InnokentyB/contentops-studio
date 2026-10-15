@@ -22,6 +22,10 @@ export function submissionRequestHash(a: LinkedIn1128Submission) {
         actorId: a.actorId, approvalReference: a.approvalReference, idempotencyKey: a.idempotencyKey,
         manifest: a.expectedManifestChecksum, body: a.textSha256, revision: 1, asset: null }));
 }
+export function submissionReadbackHash(a: LinkedIn1128Submission) {
+    return submissionHash(JSON.stringify({ request: submissionRequestHash(a), company: a.observedCompanyId,
+        authorEvidence: a.authorEvidenceSha256, duplicateCheck: a.duplicateCheckReference }));
+}
 export async function check1128Owner(tx: Prisma.TransactionClient, a: LinkedIn1128Submission) {
     if (!linkedin1128SubmissionSchema.safeParse(a).success) throw new Error('[LINKEDIN1128_SCOPE_MISMATCH]');
     const uid = Number(a.actorId.slice(5));
@@ -30,7 +34,7 @@ export async function check1128Owner(tx: Prisma.TransactionClient, a: LinkedIn11
 }
 export async function check1128(tx: Prisma.TransactionClient, a: LinkedIn1128Submission) {
     await check1128Owner(tx, a);
-    const manifest = await loadAgentWorkspaceManifest(7, Number(a.actorId.slice(5)));
+    const manifest = await loadAgentWorkspaceManifest(7, Number(a.actorId.slice(5)), tx);
     if (manifest.checksum !== p.manifest || manifest.project.slug !== 'seturon') throw new Error('[STALE_MANIFEST]');
     const [task, work, decision] = await Promise.all([
         tx.contentItem.findFirst({ where: { id: 1128, project_id: 7 }, include: { channel: true, publication_fact: true } }),
@@ -59,6 +63,7 @@ export async function check1128(tx: Prisma.TransactionClient, a: LinkedIn1128Sub
     if (proof.publication_authorized !== true || proof.body_sha256 !== p.body || proof.channel_id !== 6
         || proof.content_revision !== 1 || proof.selected_asset_id !== null || proof.asset_sha256 !== null
         || owner.publication_authorized !== true || owner.body_sha256 !== p.body || owner.content_revision !== 1
+        || owner.actor_id !== a.actorId
         || owner.approval_reference !== a.approvalReference || owner.selected_asset_id !== null || owner.asset_sha256 !== null) {
         throw new Error('[LINKEDIN1128_RELEASE_PROOF_INVALID]');
     }

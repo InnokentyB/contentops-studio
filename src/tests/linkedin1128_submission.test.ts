@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { isToolAllowedForProfile } from '../mcp/capabilities';
-import { linkedin1128SubmissionSchema, submissionRequestHash } from '../services/linkedin1128_submission_guard';
+import { linkedin1128SubmissionSchema, submissionRequestHash, submissionReadbackHash } from '../services/linkedin1128_submission_guard';
 import { confirmLinkedIn1128 } from '../services/linkedin1128_submission.service';
 import { LINKEDIN1128 as p } from '../services/linkedin1128_identity.service';
 const args = { projectId: 7 as const, taskId: 1128 as const, channelId: 6 as const, workItemId: 1924 as const,
@@ -27,6 +27,8 @@ test('1128 scope cannot adopt another work item, author, revision or body', () =
         assert.equal(linkedin1128SubmissionSchema.safeParse({ ...args, ...patch }).success, false);
     }
     assert.notEqual(submissionRequestHash(args), submissionRequestHash({ ...args, approvalReference: 'changed owner reference' }));
+    assert.notEqual(submissionReadbackHash(args), submissionReadbackHash({ ...args, authorEvidenceSha256: 'b'.repeat(64) }));
+    assert.notEqual(submissionReadbackHash(args), submissionReadbackHash({ ...args, duplicateCheckReference: 'changed duplicate readback' }));
 });
 test('1128 rejects invalid provider identity and backdated facts before database work', async () => {
     const base = { ...args, attemptId: 123, publicUrl: 'https://www.linkedin.com/feed/update/urn:li:activity:123/',

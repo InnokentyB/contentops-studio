@@ -217,3 +217,15 @@ CI includes these contracts with synthetic import-only Telegram configuration.
 Independent review and current production catalog readback remain required.
 Rollback unregisters these controls while preserving WI1924, binding/release,
 pending attempts, audit and facts; an in-flight attempt remains reconcile-only.
+
+Independent PR152 review identified readback evidence replay and an out-of-
+transaction manifest read. Phase-specific evidence hashes now bind company,
+author screenshot SHA and duplicate reference, including exact pre-submit to
+confirm comparison. Start replay binds its initial readback separately so a
+fresh pre-submit observation does not rewrite the start record. Manifest loading
+accepts a transaction reader; this lifecycle passes its current transaction.
+The shared loader's prior two-argument behavior remains compatible. An isolated
+transaction-reader test reproduced GLOBAL_CLIENT_MUST_NOT_BE_USED before the
+change and passes afterward. Five store-contract mocks cover failed CAS,
+reconciliation, expired lease inside fact confirmation, changed author evidence
+and successful attempt/audit/fact ordering. No provider send was performed.

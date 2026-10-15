@@ -3,7 +3,7 @@ import prisma from '../db';
 import publicationFactService from './publication_fact.service';
 import { LINKEDIN1128 as p } from './linkedin1128_identity.service';
 import { check1128, check1128Owner, submissionObject as object, submissionHash as hash,
-    submissionRequestHash, type LinkedIn1128Submission as Args } from './linkedin1128_submission_guard';
+    submissionRequestHash, submissionReadbackHash, type LinkedIn1128Submission as Args } from './linkedin1128_submission_guard';
 
 const serial = { isolationLevel: Prisma.TransactionIsolationLevel.Serializable } as const;
 const startCommand = 'ba_start_linkedin_task1128_browser_submission';
@@ -13,7 +13,7 @@ async function audit(tx: Prisma.TransactionClient, a: Args, command: string, aft
         actor_id: a.actorId, command, idempotency_key: a.idempotencyKey,
         before_state: { request_hash: requestHash }, after_state: after } });
 }
-async function pending(tx: Prisma.TransactionClient, a: Args, attemptId: number) {
+async function pending(tx: Prisma.TransactionClient, a: Args, attemptId: number, verifyStartEvidence = false) {
     const attempts = await tx.deliveryAttempt.findMany({ where: { project_id: 7, content_item_id: 1128 } });
     if (attempts.length !== 1 || attempts[0].id !== attemptId || attempts[0].status !== 'pending'
         || attempts[0].channel_id !== 6 || attempts[0].idempotency_key !== a.idempotencyKey) {
@@ -22,13 +22,14 @@ async function pending(tx: Prisma.TransactionClient, a: Args, attemptId: number)
     const start = await tx.workflowEvent.findFirst({ where: { project_id: 7, content_item_id: 1128,
         work_item_id: 1924, actor_id: a.actorId, command: startCommand, idempotency_key: a.idempotencyKey } });
     if (object(start?.before_state).request_hash !== submissionRequestHash(a)) throw new Error('[IDEMPOTENCY_CONFLICT]');
+    if (verifyStartEvidence && object(start?.after_state).readback_hash !== submissionReadbackHash(a)) throw new Error('[IDEMPOTENCY_CONFLICT]');
 }
 export async function startLinkedIn1128(a: Args) {
     return prisma.$transaction(async tx => {
         const { task } = await check1128(tx, a);
         const prior = await tx.deliveryAttempt.findFirst({ where: { project_id: 7, content_item_id: 1128 } });
         if (prior) {
-            if (prior.idempotency_key === a.idempotencyKey) await pending(tx, a, prior.id);
+            if (prior.idempotency_key === a.idempotencyKey) await pending(tx, a, prior.id, true);
             return { mode: 'verification_required', attempt_id: prior.id, retry_allowed: false };
         }
         if (task.status !== 'browser_required') throw new Error('[LINKEDIN1128_START_STATE_INVALID]');
@@ -39,6 +40,7 @@ export async function startLinkedIn1128(a: Args) {
             mode: 'assisted', status: 'pending', attempt_number: 1, requires_manual_confirmation: true,
             scheduled_at: task.schedule_at, idempotency_key: a.idempotencyKey } });
         await audit(tx, a, startCommand, { attempt_id: attempt.id, company_id: '97416172',
+            readback_hash: submissionReadbackHash(a),
             author_evidence_sha256: a.authorEvidenceSha256, duplicate_check_reference: a.duplicateCheckReference }, submissionRequestHash(a));
         return { mode: 'started', attempt_id: attempt.id, retry_allowed: false };
     }, serial);
@@ -50,13 +52,13 @@ export async function preSubmitLinkedIn1128(a: Args & { attemptId: number }) {
         await pending(tx, a, a.attemptId);
         const prior = await tx.workflowEvent.findFirst({ where: { project_id: 7, content_item_id: 1128,
             actor_id: a.actorId, command: 'ba_pre_submit_linkedin_task1128_browser_submission', idempotency_key: a.idempotencyKey } });
-        if (prior && object(prior.before_state).request_hash !== submissionRequestHash(a)) throw new Error('[IDEMPOTENCY_CONFLICT]');
+        if (prior && object(prior.before_state).request_hash !== submissionReadbackHash(a)) throw new Error('[IDEMPOTENCY_CONFLICT]');
         if (prior) return object(prior.after_state);
         const result = { mode: 'pre_submit_checked', attempt_id: a.attemptId,
             company_id: '97416172', author_evidence_sha256: a.authorEvidenceSha256,
             provider_identity_source: 'owning_publisher_browser_readback',
             server_provider_verification: false, retry_allowed: false };
-        await audit(tx, a, 'ba_pre_submit_linkedin_task1128_browser_submission', result, submissionRequestHash(a));
+        await audit(tx, a, 'ba_pre_submit_linkedin_task1128_browser_submission', result, submissionReadbackHash(a));
         return result;
     }, serial);
 }
@@ -70,7 +72,7 @@ export async function confirmLinkedIn1128(a: LinkedIn1128Confirm) {
         || url.pathname !== `/feed/update/${a.providerObjectId}/` || !/^[a-f0-9]{64}$/.test(a.evidenceSha256)
         || !Number.isFinite(Date.parse(a.publishedAt)) || Date.parse(a.publishedAt) < Date.parse(p.schedule)
         || Date.parse(a.publishedAt) > Date.now() + 300_000) throw new Error('[LINKEDIN1128_PROVIDER_IDENTITY_INVALID]');
-    const requestHash = hash(JSON.stringify({ request: submissionRequestHash(a), id: a.providerObjectId,
+    const requestHash = hash(JSON.stringify({ request: submissionReadbackHash(a), id: a.providerObjectId,
         url: a.publicUrl, time: a.publishedAt, evidence: a.evidenceSha256, attempt: a.attemptId }));
     const replay = await prisma.$transaction(async tx => {
         await check1128Owner(tx, a);
@@ -99,6 +101,7 @@ export async function confirmLinkedIn1128(a: LinkedIn1128Confirm) {
                 command: 'ba_pre_submit_linkedin_task1128_browser_submission', actor_id: a.actorId,
                 idempotency_key: a.idempotencyKey }, orderBy: { id: 'desc' } });
             if (object(submit?.after_state).attempt_id !== a.attemptId) throw new Error('[LINKEDIN1128_PRE_SUBMIT_REQUIRED]');
+            if (object(submit?.before_state).request_hash !== submissionReadbackHash(a)) throw new Error('[IDEMPOTENCY_CONFLICT]');
             const changed = await tx.deliveryAttempt.updateMany({ where: { id: a.attemptId, project_id: 7,
                 content_item_id: 1128, status: 'pending', idempotency_key: a.idempotencyKey }, data: {
                 status: 'delivered', actual_published_at: new Date(a.publishedAt), requires_manual_confirmation: false } });
