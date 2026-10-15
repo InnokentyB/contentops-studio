@@ -31,13 +31,13 @@ export function registerLinkedIn1128Rev3Tools(server: McpServer) {
         annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: { ...attempted, actionTimeConfirmationReference: z.string().min(10), observedEditorText: z.string().min(1).max(10000) }
     }, async a => control(() => preSubmitLinkedIn1128Rev3(a)));
     for (const reconcile of [false, true]) server.registerTool(reconcile ? 'ba_reconcile_linkedin_task1128_rev3_browser_submission' : 'ba_confirm_linkedin_task1128_rev3_browser_submission', {
-        description: 'Record same r3 attempt only from owning native post readback: exact English text, company97416172, canonical numeric object/permalink and actual matching timestamp. Historical same-actor/fence may reconcile after expiry but cannot Submit. No provider call or retry. Server does not claim independent provider verification.',
+        description: `${reconcile ? 'Reconcile after expiry with the historical SAME actor/fence; audit as reconciliation.' : 'Normal confirmation requires the active lease; audit as confirmation.'} Record only the same r3 attempt from owning native post readback: exact English text, company97416172, numeric object/permalink and matching actual time. No provider call, Submit or retry. Server does not claim independent provider verification.`,
         annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: { ...attempted, actionTimeConfirmationReference: z.string().min(10),
             observedEditorText: z.string().min(1).max(10000),
             publicUrl: z.string().url(), providerObjectId: z.string().regex(/^urn:li:activity:\d+$/), publishedAt: z.string().datetime({ offset: true }),
             evidenceSha256: z.string().regex(/^[a-f0-9]{64}$/), observedPostText: z.string().min(1).max(10000),
             observedAuthorCompanyId: z.literal('97416172'), observedPublishedAt: z.string().datetime({ offset: true }) }
-    }, async a => control(() => confirmLinkedIn1128Rev3(a)));
+    }, async a => control(() => confirmLinkedIn1128Rev3(a, reconcile)));
     server.registerTool('ba_mark_linkedin_task1128_rev3_browser_submission_uncertain', {
         description: 'Freeze the same r3 attempt for reconciliation, including after lease expiry. Does not clear a fence, release work or grant another Submit.',
         annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: attempted

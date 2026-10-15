@@ -39,7 +39,7 @@ test('1128 atomic confirmation rechecks lease inside canonical fact before mutat
     t.mock.method(guard, 'check1128Rev3', async () => { throw new Error('[LINKEDIN1128_REV3_LEASE_REQUIRED]'); });
     let writes = 0;
     t.mock.method(fact, 'record', async input => {
-        assert.equal(input.confirmationMode, 'reconciled');
+        assert.equal(input.confirmationMode, 'manual');
         await input.beforeWrite({ deliveryAttempt: { updateMany: async () => { writes += 1; } } });
         writes += 1;
     });
@@ -149,4 +149,16 @@ test('r3 historical fence allows reconciliation after expiry but never another S
     assert.equal((await guard.check1128Rev3(tx, a, true)).work.id, 2001);
     work.lease_token = 'different-fence';
     await assert.rejects(guard.check1128Rev3(tx, a, true), /LEASE_REQUIRED/);
+});
+test('r3 normal confirmation and reconciliation use different lease policies', async t => {
+    t.mock.method(guard, 'check1128Rev3Owner', async () => undefined);
+    transaction(t, { workflowEvent: { findFirst: async () => null } });
+    const modes = [];
+    t.mock.method(guard, 'check1128Rev3', async (_tx, _a, historical) => { modes.push(historical); throw new Error('synthetic-stop'); });
+    t.mock.method(fact, 'record', async input => input.beforeWrite({}));
+    const value = { ...a, attemptId: 123, publicUrl: 'https://www.linkedin.com/feed/update/urn:li:activity:123/',
+        providerObjectId: 'urn:li:activity:123', publishedAt: '2026-10-14T10:01:00Z', evidenceSha256: 'b'.repeat(64) };
+    await assert.rejects(service.confirmLinkedIn1128Rev3(value, false), /synthetic-stop/);
+    await assert.rejects(service.confirmLinkedIn1128Rev3(value, true), /synthetic-stop/);
+    assert.deepEqual(modes, [false, true]);
 });

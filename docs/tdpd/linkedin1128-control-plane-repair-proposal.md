@@ -67,6 +67,17 @@ reconciled, not destructively restored to rev1. Development performs tests and
 deployment/catalog checks only. Engineering GREEN does not replace owner UAT or
 a canonical confirmed publication fact.
 
+PR155 review corrections: the canonical fact service now accepts an INTERNAL
+browserWorkItemId only with an atomic beforeWrite guard, so r3 completion touches
+only its new WI and preserves blocked WI1924/reason/proof. Legacy callers retain
+their existing completion policy. Normal r3 confirm requires an active lease and
+audits ba_confirm_linkedin_task1128_rev3_browser_submission; only the dedicated
+reconcile command admits the historical same fence and audits
+ba_reconcile_linkedin_task1128_rev3_browser_submission. A replay may return an
+already confirmed matching fact without issuing a new permission or audit.
+Both review defects were reproduced RED before the fixes, including an actual
+canonical-fact transaction fixture that showed old1924 being overwritten.
+
 ## 2026-10-15: same-WI expired-lease recovery
 
 The owning Publisher reports WI1924 expired before any provider attempt or Post.

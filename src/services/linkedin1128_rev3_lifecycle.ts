@@ -7,7 +7,6 @@ import { check1128Rev3, check1128Rev3Owner, submissionObject as object, submissi
 
 const serial = { isolationLevel: Prisma.TransactionIsolationLevel.Serializable } as const;
 const startCommand = 'ba_start_linkedin_task1128_rev3_browser_submission';
-const confirmCommand = 'ba_confirm_linkedin_task1128_rev3_browser_submission';
 async function audit(tx: Prisma.TransactionClient, a: Args, command: string, after: Prisma.InputJsonObject, requestHash: string) {
     await tx.workflowEvent.create({ data: { project_id: 7, content_item_id: 1128, work_item_id: a.workItemId,
         actor_id: a.actorId, command, idempotency_key: a.idempotencyKey,
@@ -72,7 +71,8 @@ export async function preSubmitLinkedIn1128Rev3(a: Args & { attemptId: number })
 }
 export type LinkedIn1128Rev3Confirm = Args & { attemptId: number; publicUrl: string; providerObjectId: string;
     publishedAt: string; evidenceSha256: string; observedPostText: string; observedAuthorCompanyId: '97416172'; observedPublishedAt: string };
-export async function confirmLinkedIn1128Rev3(a: LinkedIn1128Rev3Confirm) {
+export async function confirmLinkedIn1128Rev3(a: LinkedIn1128Rev3Confirm, reconcile = false) {
+    const confirmCommand = reconcile ? 'ba_reconcile_linkedin_task1128_rev3_browser_submission' : 'ba_confirm_linkedin_task1128_rev3_browser_submission';
     let url: URL;
     try { url = new URL(a.publicUrl); } catch { throw new Error('[LINKEDIN1128_REV3_PROVIDER_IDENTITY_INVALID]'); }
     if (url.protocol !== 'https:' || url.hostname !== 'www.linkedin.com' || url.username || url.password
@@ -87,7 +87,7 @@ export async function confirmLinkedIn1128Rev3(a: LinkedIn1128Rev3Confirm) {
     const replay = await prisma.$transaction(async tx => {
         await check1128Rev3Owner(tx, a);
         const prior = await tx.workflowEvent.findFirst({ where: { project_id: 7, content_item_id: 1128,
-            actor_id: a.actorId, command: confirmCommand, idempotency_key: a.idempotencyKey } });
+            actor_id: a.actorId, command: { in: ['ba_reconcile_linkedin_task1128_rev3_browser_submission', 'ba_confirm_linkedin_task1128_rev3_browser_submission'] }, idempotency_key: a.idempotencyKey } });
         if (!prior) return null;
         if (object(prior.before_state).request_hash !== requestHash) throw new Error('[IDEMPOTENCY_CONFLICT]');
         const fact = await tx.publicationFact.findFirst({ where: { project_id: 7, content_item_id: 1128 } });
@@ -102,10 +102,11 @@ export async function confirmLinkedIn1128Rev3(a: LinkedIn1128Rev3Confirm) {
         published_at: a.publishedAt, attempt_id: a.attemptId, retry_allowed: false,
         confirmation_source: 'owning_publisher_native_readback', server_provider_verification: false };
     await publicationFactService.record({ projectId: 7, taskId: 1128, actorId: a.actorId,
-        artifactKind: 'post', outcome: 'published', confirmationMode: 'reconciled', publishedAt: a.publishedAt,
+        browserWorkItemId: a.workItemId,
+        artifactKind: 'post', outcome: 'published', confirmationMode: reconcile ? 'reconciled' : 'manual', publishedAt: a.publishedAt,
         publicUrl: a.publicUrl, providerObjectId: a.providerObjectId,
         evidence: { type: 'screenshot', ref: `sha256:${a.evidenceSha256}` }, beforeWrite: async tx => {
-            const { task } = await check1128Rev3(tx, a, true);
+            const { task } = await check1128Rev3(tx, a, reconcile);
             if (task.status !== 'publishing') throw new Error('[LINKEDIN1128_REV3_START_REQUIRED]');
             const attempt = await pending(tx, a, a.attemptId, { allowReconciliation: true });
             const submit = await tx.workflowEvent.findFirst({ where: { project_id: 7, content_item_id: 1128,
