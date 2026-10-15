@@ -2,6 +2,8 @@ name: X native no-send compatibility
 on:
   pull_request:
     paths:
+      - 'package.json'
+      - 'package-lock.json'
       - 'extensions/x-native/**'
       - 'tests/tdpd/x1113-native-*.test.mjs'
       - '.github/workflows/x-native-compatibility.yml'

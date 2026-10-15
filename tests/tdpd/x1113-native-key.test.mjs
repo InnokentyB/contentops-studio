@@ -4,6 +4,11 @@ import { readFile } from 'node:fs/promises';
 import { webcrypto } from 'node:crypto';
 
 const root = new URL('../../extensions/x-native/', import.meta.url);
+test('X-NATIVE-04 dependency updates cannot bypass browser compatibility CI', async () => {
+    const workflow = await readFile(new URL('../../.github/workflows/x-native-compatibility.yml', import.meta.url), 'utf8');
+    assert.match(workflow, /'package\.json'/);
+    assert.match(workflow, /'package-lock\.json'/);
+});
 test('X-NATIVE-01 compatibility build has no provider, network, content-script or background capability', async () => {
     const manifest = JSON.parse(await readFile(new URL('manifest.json', root), 'utf8'));
     assert.equal(manifest.manifest_version, 3);
