@@ -178,6 +178,8 @@ const PUBLISHER_TOOLS = new Set([
     'ba_pre_submit_linkedin_task1128_browser_submission',
     'ba_confirm_linkedin_task1128_browser_submission',
     'ba_mark_linkedin_task1128_browser_submission_uncertain',
+    'ba_release_threads_task1114_api',
+    'ba_publish_threads_task1114',
     'ba_repair_linkedin_task1132_language',
     'ba_cancel_task1001_owner',
     'ba_get_agent_workspace_manifest',
