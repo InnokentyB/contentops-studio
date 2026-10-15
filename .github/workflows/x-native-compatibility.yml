@@ -1,0 +1,23 @@
+name: X native no-send compatibility
+on:
+  pull_request:
+    paths:
+      - 'extensions/x-native/**'
+      - 'tests/tdpd/x1113-native-*.test.mjs'
+      - '.github/workflows/x-native-compatibility.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  no-send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npx playwright install --with-deps chromium
+      - run: node --test --test-concurrency=1 tests/tdpd/x1113-native-key.test.mjs tests/tdpd/x1113-native-browser.test.mjs
