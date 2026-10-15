@@ -142,3 +142,47 @@ backend/frontend build and quality gate PASS included this unchanged local
 slice. This is not production release, provider preflight or publication proof.
 1113/1114 implementation and owner UAT remain outstanding; no live readiness
 claim for those tasks. Deployment and owning Ops release of1110 remain separate.
+
+## 1114 implementation slice — 2026-10-15 (not operational acceptance)
+
+Exact commands implemented in this slice:
+`ba_release_threads_task1114_api` and `ba_publish_threads_task1114`.
+Both require project10/task1114, authenticated owner actor, pinned current
+manifest, approvalReference and idempotencyKey. Publish defaults to dryRun=true.
+Use separate stable release and send keys; never change the send key to recover
+an uncertain operation. Development does not call either live command.
+
+Release validates server-derived immutable task/decision/review/art bindings
+before bounded operational identity/history reads, then serializable CAS/audit.
+Send rechecks release/package, rejects existing attempts/facts, performs bounded
+identity/history reads, atomically claims one pending attempt with a conservative
+manual-confirmation fence, and rechecks package plus credentials before dispatch.
+Provider numeric ID, author, exact text, permalink and actual timestamp are read
+back. Canonical PublicationFactService.beforeWrite atomically revalidates the
+attempt and writes delivered status/audit together with the publication fact.
+Any post-claim ambiguity leaves the existing attempt frozen for reconciliation;
+there is no automatic resend, browser fallback or alternative-key recovery.
+Original timestamps are not shifted; actual publication time is not backdated.
+
+Verification: missing verified-send method and missing role capability each
+reproduced RED. Backend build and quality gate PASS; focused regression 26 PASS;
+store transaction-contract mocks 5 PASS. Store harness command:
+`node --test --test-concurrency=1 tests/tdpd/threads1114-store.unit.test.js`.
+It mocks transaction/provider boundaries and does not prove a real database race,
+provider credentials, production deployment or owner UAT. No isolated test DB
+was configured in this run. Independent review, CI/deployment, current catalog
+readback and owning operational dry-run/publication remain required.
+
+Rollback removes exact1114 registration/capability/runtime code without altering
+release/attempt/fact history. Any existing pending/uncertain attempt remains
+reconcile-only after rollback. This slice does not complete X1113 or LinkedIn1128.
+
+Safe configuration readback on 2026-10-15: Threads ch138 active, configured
+@innokentybo/user39421253764155091, API publish enabled and credential field
+nonempty (encrypted presence only, not token validity). LinkedIn ch5 personal:
+active, browser_required/manual, API publish disabled. Ch6 company_page:
+active, API publish flag enabled but execution_modes manual only. Both expose
+nonempty credential fields, not verified scopes/expiry/provider author. No live
+provider authentication test was performed by development. No owner OAuth
+action is justified by these unknowns; a scoped secret-free readiness diagnostic
+for personal/Page is separate proposed scope, not silently included here.

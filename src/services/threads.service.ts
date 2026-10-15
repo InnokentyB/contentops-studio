@@ -8,7 +8,7 @@ export type ThreadsPost = {
     is_reply?: boolean; is_reply_owned_by_me?: boolean;
     root_post?: { id?: string }; replied_to?: { id?: string };
 };
-type ThreadsPage = { data?: ThreadsPost[]; paging?: { cursors?: { after?: string } } };
+type ThreadsPage = { data?: ThreadsPost[]; paging?: { cursors?: { after?: string }; next?: string } };
 
 export class ThreadsProviderError extends Error {
     constructor(public readonly code: string, public readonly operation: string, public readonly status?: number) {
@@ -46,9 +46,9 @@ class ThreadsService {
         }
     }
 
-    private async permalink(postId: string, token: string): Promise<string> {
+    private async permalink(postId: string, token: string, signal?: AbortSignal): Promise<string> {
         const result = await this.request<{ permalink?: string }>('read_permalink',
-            `${API}/${encodeURIComponent(postId)}?fields=${encodeURIComponent('id,permalink')}`, token);
+            `${API}/${encodeURIComponent(postId)}?fields=${encodeURIComponent('id,permalink')}`, token, { signal });
         if (!result.permalink) throw new ThreadsProviderError('THREADS_INVALID_PERMALINK', 'read_permalink');
         let url: URL;
         try { url = new URL(result.permalink); } catch {
@@ -76,14 +76,37 @@ class ThreadsService {
         throw new ThreadsProviderError('THREADS_CONTAINER_TIMEOUT', 'container_status');
     }
 
-    private async publishTextPost(userId: string, token: string, text: string, replyToId?: string) {
+    private async publishTextPost(userId: string, token: string, text: string, replyToId?: string, signal?: AbortSignal) {
         const container = await this.request<{ id: string }>('create_text_container', `${API}/${encodeURIComponent(userId)}/threads`, token, {
-            method: 'POST', body: JSON.stringify({ media_type: 'TEXT', text, ...(replyToId ? { reply_to_id: replyToId } : {}) })
+            signal, method: 'POST', body: JSON.stringify({ media_type: 'TEXT', text, ...(replyToId ? { reply_to_id: replyToId } : {}) })
         });
         const published = await this.request<{ id: string }>('publish_text_container', `${API}/${encodeURIComponent(userId)}/threads_publish`, token, {
-            method: 'POST', body: JSON.stringify({ creation_id: container.id })
+            signal, method: 'POST', body: JSON.stringify({ creation_id: container.id })
         });
-        return { id: published.id, url: await this.permalink(published.id, token) };
+        return { id: published.id, url: await this.permalink(published.id, token, signal) };
+    }
+
+    /** For fenced API execution: a failed readback is uncertain, never permission to resend. */
+    async publishVerifiedText(userId: string, token: string, text: string, username: string) {
+        if (!/^\d+$/.test(userId) || !/^[A-Za-z0-9_.]+$/.test(username) || !text.trim() || text.length > 500) {
+            throw new ThreadsProviderError('THREADS_INVALID_PUBLICATION_INPUT', 'verified_publish');
+        }
+        const signal = AbortSignal.timeout(30_000);
+        const result = await this.publishTextPost(userId, token, text, undefined, signal);
+        const post = await this.request<ThreadsPost>('verify_publication',
+            `${API}/${encodeURIComponent(result.id)}?fields=${encodeURIComponent('id,text,username,permalink,timestamp')}`, token, { signal });
+        let url: URL;
+        try { url = new URL(post.permalink || ''); } catch {
+            throw new ThreadsProviderError('THREADS_PUBLICATION_READBACK_MISMATCH', 'verify_publication');
+        }
+        if (!/^\d+$/.test(result.id) || post.id !== result.id || post.username !== username || post.text !== text
+            || !post.timestamp || !Number.isFinite(Date.parse(post.timestamp)) || url.protocol !== 'https:'
+            || url.username || url.password || url.port || url.search || url.hash
+            || !['threads.net', 'www.threads.net', 'threads.com', 'www.threads.com'].includes(url.hostname)
+            || !new RegExp(`^/@${username.replace(/\./g, '\\.')}\\/post\\/[A-Za-z0-9_-]+\\/?$`).test(url.pathname)) {
+            throw new ThreadsProviderError('THREADS_PUBLICATION_READBACK_MISMATCH', 'verify_publication');
+        }
+        return { id: result.id, url: url.toString(), publishedAt: post.timestamp };
     }
 
     async publishThread(userId: string, token: string, posts: string[]) {
@@ -118,11 +141,14 @@ class ThreadsService {
             `${API}/${encodeURIComponent(postId)}?fields=${encodeURIComponent('id,text,username,permalink,timestamp,media_type,has_replies')}`, token);
     }
 
-    async getOwnPosts(token: string, userId: string, after?: string) {
+    async getOwnPosts(token: string, userId: string, after?: string, signal?: AbortSignal) {
         const params = new URLSearchParams({ fields: 'id,text,permalink,timestamp,username', limit: '100' });
         if (after) params.set('after', after);
         const result = await this.request<ThreadsPage>('read_own_posts',
-            `${API}/${encodeURIComponent(userId)}/threads?${params}`, token);
+            `${API}/${encodeURIComponent(userId)}/threads?${params}`, token, { signal });
+        if (!Array.isArray(result.data) || (result.paging?.next && !result.paging.cursors?.after)) {
+            throw new ThreadsProviderError('THREADS_HISTORY_INCOMPLETE', 'read_own_posts');
+        }
         return { items: result.data || [], after: result.paging?.cursors?.after || null };
     }
 
