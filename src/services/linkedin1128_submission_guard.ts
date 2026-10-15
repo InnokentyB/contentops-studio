@@ -13,6 +13,12 @@ export const linkedin1128SubmissionSchema = z.object({ projectId: z.literal(7), 
     observedCompanyId: z.literal('97416172'), authorEvidenceSha256: z.string().regex(/^[a-f0-9]{64}$/),
     duplicateCheckReference: z.string().min(10) });
 export type LinkedIn1128Submission = z.infer<typeof linkedin1128SubmissionSchema>;
+export const linkedin1128PackageSchema = linkedin1128SubmissionSchema.omit({
+    observedCompanyId: true, authorEvidenceSha256: true, duplicateCheckReference: true
+});
+export const linkedin1128RecoverySchema = linkedin1128PackageSchema.omit({ leaseToken: true });
+export type LinkedIn1128LeasePackage = z.infer<typeof linkedin1128PackageSchema>;
+export type LinkedIn1128Recovery = z.infer<typeof linkedin1128RecoverySchema>;
 export function submissionObject(value: unknown): Record<string, unknown> {
     return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
@@ -26,14 +32,22 @@ export function submissionReadbackHash(a: LinkedIn1128Submission) {
     return submissionHash(JSON.stringify({ request: submissionRequestHash(a), company: a.observedCompanyId,
         authorEvidence: a.authorEvidenceSha256, duplicateCheck: a.duplicateCheckReference }));
 }
-export async function check1128Owner(tx: Prisma.TransactionClient, a: LinkedIn1128Submission) {
-    if (!linkedin1128SubmissionSchema.safeParse(a).success) throw new Error('[LINKEDIN1128_SCOPE_MISMATCH]');
+async function require1128Owner(tx: Prisma.TransactionClient, a: LinkedIn1128Recovery) {
     const uid = Number(a.actorId.slice(5));
     const member = await tx.projectMember.findUnique({ where: { project_id_user_id: { project_id: 7, user_id: uid } } });
     if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
 }
-export async function check1128(tx: Prisma.TransactionClient, a: LinkedIn1128Submission) {
-    await check1128Owner(tx, a);
+export async function check1128Owner(tx: Prisma.TransactionClient, a: LinkedIn1128Submission) {
+    if (!linkedin1128SubmissionSchema.safeParse(a).success) throw new Error('[LINKEDIN1128_SCOPE_MISMATCH]');
+    await require1128Owner(tx, a);
+}
+export async function check1128RecoveryOwner(tx: Prisma.TransactionClient, a: LinkedIn1128Recovery) {
+    if (!linkedin1128RecoverySchema.safeParse(a).success) throw new Error('[LINKEDIN1128_SCOPE_MISMATCH]');
+    await require1128Owner(tx, a);
+}
+async function checked1128Lease(tx: Prisma.TransactionClient, a: LinkedIn1128LeasePackage, phase: 'active' | 'expired_recovery') {
+    if (!linkedin1128PackageSchema.safeParse(a).success) throw new Error('[LINKEDIN1128_SCOPE_MISMATCH]');
+    await require1128Owner(tx, a);
     const manifest = await loadAgentWorkspaceManifest(7, Number(a.actorId.slice(5)), tx);
     if (manifest.checksum !== p.manifest || manifest.project.slug !== 'seturon') throw new Error('[STALE_MANIFEST]');
     const [task, work, decision] = await Promise.all([
@@ -50,7 +64,11 @@ export async function check1128(tx: Prisma.TransactionClient, a: LinkedIn1128Sub
         || task.schedule_at?.toISOString() !== p.schedule || task.publication_fact || task.published_link
         || work.kind !== 'browser_publish' || work.assignee_role !== 'browser_publisher' || work.state !== 'claimed'
         || work.input_context_version !== 1 || work.lease_actor_id !== a.actorId || work.lease_token !== a.leaseToken
-        || !work.lease_expires_at || work.lease_expires_at.getTime() <= Date.now()) throw new Error('[LINKEDIN1128_ACTIVE_PACKAGE_LEASE_REQUIRED]');
+        || !work.lease_expires_at) throw new Error('[LINKEDIN1128_ACTIVE_PACKAGE_LEASE_REQUIRED]');
+    const expired = work.lease_expires_at.getTime() <= Date.now();
+    if ((phase === 'active' && expired) || (phase === 'expired_recovery' && !expired)) {
+        throw new Error(phase === 'active' ? '[LINKEDIN1128_ACTIVE_PACKAGE_LEASE_REQUIRED]' : '[LINKEDIN1128_EXPIRED_LEASE_REQUIRED]');
+    }
     const binding = linkedIn1128Binding(task.quality_report);
     await assertLinkedIn1128ReleaseIdentity({ findFirst: async () => {
         const event = await tx.workflowEvent.findFirst({ where: { project_id: 7, content_item_id: 1128,
@@ -74,4 +92,13 @@ export async function check1128(tx: Prisma.TransactionClient, a: LinkedIn1128Sub
         || release?.actor_id !== owner.actor_id
         || submissionObject(release?.before_state).manifest_checksum !== p.manifest) throw new Error('[LINKEDIN1128_AUDITED_RELEASE_REQUIRED]');
     return { task, work };
+}
+/** Normal submission/confirmation never accepts an expired lease. */
+export function check1128(tx: Prisma.TransactionClient, a: LinkedIn1128Submission) {
+    if (!linkedin1128SubmissionSchema.safeParse(a).success) throw new Error('[LINKEDIN1128_SCOPE_MISMATCH]');
+    return checked1128Lease(tx, a, 'active');
+}
+/** Internal recovery-only boundary; no caller-controlled flag can select this phase. */
+export function check1128RecoverySnapshot(tx: Prisma.TransactionClient, a: LinkedIn1128LeasePackage, phase: 'active' | 'expired_recovery') {
+    return checked1128Lease(tx, a, phase);
 }

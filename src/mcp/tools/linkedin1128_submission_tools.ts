@@ -3,7 +3,12 @@ import { z } from 'zod';
 import { linkedin1128SubmissionSchema } from '../../services/linkedin1128_submission_guard';
 import { startLinkedIn1128, preSubmitLinkedIn1128, confirmLinkedIn1128, uncertainLinkedIn1128 } from '../../services/linkedin1128_submission.service';
 import { asToolResult, INTERNAL_MUTATION_ANNOTATIONS } from './common';
+import { linkedin1128LeaseSchema, renewLinkedIn1128Lease } from '../../services/linkedin1128_lease.service';
 export function registerLinkedIn1128SubmissionTools(server: McpServer) {
+    server.registerTool('ba_renew_linkedin_task1128_browser_lease', {
+        description: 'Preview by default returns old expiry/fence SHA, never the old token. Apply requires those exact preview values and no attempt/fact/start; owner-only CAS renews the same WI1924 for the same actor/package. Never rebinds, releases, claims, sends or creates work. New fence returns only to its owning executor.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: linkedin1128LeaseSchema.shape
+    }, async args => asToolResult(await renewLinkedIn1128Lease(args)));
     const boundary = linkedin1128SubmissionSchema.shape;
     const attempted = { ...boundary, attemptId: z.number().int().positive() };
     server.registerTool('ba_start_linkedin_task1128_browser_submission', {
