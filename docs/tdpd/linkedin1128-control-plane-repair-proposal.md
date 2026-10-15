@@ -1,5 +1,39 @@
 # LI1128-REL-001 — exact company LinkedIn release repair
 
+## 2026-10-15: same-WI expired-lease recovery
+
+The owning Publisher reports WI1924 expired before any provider attempt or Post.
+The exact recovery stays within approved issue145: it changes neither publication
+authority nor the accepted package. `ba_renew_linkedin_task1128_browser_lease`
+defaults to read-only preview. It requires the original owner, actor, approval,
+manifest and immutable package. Preview returns the stored expiry and fence SHA,
+never the old token. Apply requires those exact preview values and the same stable
+renewal key. A serializable CAS rotates only WI1924 lease token/expiry, keeping
+the same actor, state and revision. Any attempt or submission lifecycle event
+blocks recovery. An active lease cannot be renewed through this repair.
+
+LOCK: no new work, bind, release, content, date, channel, visual or send.
+QAR: zero writes on failed guards/preview; one rotation and audit per renewal
+key; identical replay returns the same active fence without extending its expiry.
+ARCH: existing WorkItem/WorkflowEvent transaction; no migration or new queue.
+RISK: raw fences are absent from audits/errors, and only the authenticated owning
+executor receives its new fence. Normal start/preSubmit/confirm still require an
+unexpired lease. Unknown errors are redacted; ambiguity requires reconciliation.
+
+Operator sequence: preview with apply=false and exact existing metadata; apply
+with apply=true, the returned expectedExpiredLeaseAt/expectedExpiredLeaseSha256,
+and the same renewal key. Keep the new lease_token private. Continue the original
+submission key/package, not a new attempt key. Do not repeat bind/release/claim.
+The expiry must come from preview, not a rounded timestamp in a chat report.
+Development performs no recovery mutation or provider send. Rollback is code-only
+and preserves renewed fences and every existing audit/release/attempt/fact.
+
+TRUN: secret-bearing unexpected-error scenario reproduced RED against the old
+compiled implementation; after redaction and rebuild the seven focused recovery
+unit scenarios pass, including the real guard's active/expired/foreign-actor
+boundaries. These use a transaction double, not production mutation or
+proof of provider access. Broader checks/deployment and owner UAT remain separate.
+
 Status: APPROVED for LOCK-LI1128/QAR-LI1128/ARCH-LI1128/RISK-LI1128.
 Direct human approval in development chat on 2026-10-14: «Да, даю разрешение на
 обе задачи», following explicit explanation of issues145/146 and all four gates.
