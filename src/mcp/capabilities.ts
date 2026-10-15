@@ -146,6 +146,7 @@ const EDITOR_TOOLS = new Set([
 ]);
 
 const PUBLISHER_TOOLS = new Set([
+    'ba_release_approved_threads_task',
     'ba_release_threads_task1108_api',
     'ba_publish_threads_task1108',
     'ba_release_dzen_task1002',
