@@ -22,7 +22,7 @@ export async function ownerOnly(tx: Prisma.TransactionClient, a: Threads1114Requ
 }
 export async function ownerManifest(tx: Prisma.TransactionClient, a: Threads1114Request) {
     const userId = await ownerOnly(tx, a);
-    const manifest = await loadAgentWorkspaceManifest(10, userId);
+    const manifest = await loadAgentWorkspaceManifest(10, userId, tx);
     if (a.expectedManifestChecksum !== p.manifest || manifest.checksum !== p.manifest || manifest.project.slug !== 'analystcraft-2') throw new Error('[STALE_MANIFEST]');
 }
 /** Exact release proof is not transferable between owner principals or release operations. */

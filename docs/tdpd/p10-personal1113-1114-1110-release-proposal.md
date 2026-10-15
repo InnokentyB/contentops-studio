@@ -200,3 +200,12 @@ Confirmed send replay also checks the current canonical fact against its proof.
 RED reproductions were added for overlapping release and manifest drift before
 their fixes. CI uses a nonfunctional synthetic Telegram token solely because
 legacy module import initializes TelegramService; no provider calls are made.
+
+Manifest/package mutations now pass their serializable transaction reader into
+the shared compatible manifest loader. CI additionally provisions a dedicated
+ephemeral PostgreSQL16 service for the release/claim race test. That test refuses
+any fallback DATABASE_URL, non-CI context, non-loopback host, wrong database name
+or preexisting fixture project. It mocks identity/package acceptance only to
+isolate real database CAS/audit concurrency; it performs no provider calls and
+does not replace identity tests or owner UAT. Local Docker was unavailable, so
+real PostgreSQL evidence is a CI gate, not a claimed local result.

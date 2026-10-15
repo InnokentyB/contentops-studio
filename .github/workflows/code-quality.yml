@@ -18,9 +18,22 @@ jobs:
     name: Threads1114 exact lifecycle contracts
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-ci-only
+          POSTGRES_DB: codex_lifecycle_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d codex_lifecycle_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       PUPPETEER_SKIP_DOWNLOAD: 'true'
       TELEGRAM_BOT_TOKEN: '000000:synthetic-test-token-never-used-for-provider-calls'
+      TDPD_TEST_DATABASE_URL: 'postgresql://postgres:synthetic-ci-only@127.0.0.1:5432/codex_lifecycle_ci'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -33,6 +46,11 @@ jobs:
         run: |
           node --test --test-concurrency=1 dist/tests/threads1114*.test.js dist/tests/threads_verified_publication.test.js dist/tests/threads_publication.test.js dist/tests/threads1110_current_manifest_tool.test.js dist/tests/remote_mcp_auth.test.js dist/tests/threads_engagement.test.js dist/tests/threads_task_publication.service.test.js dist/tests/threads_pending_release.test.js
           node --test --test-concurrency=1 tests/tdpd/threads1114-store.unit.test.js
+          node --test --test-concurrency=1 tests/tdpd/manifest-transaction.unit.test.js
+      - name: Real PostgreSQL CAS race in an ephemeral CI database only
+        run: |
+          DATABASE_URL="$TDPD_TEST_DATABASE_URL" npx prisma db push
+          node --test --test-concurrency=1 tests/tdpd/threads1114-postgres.integration.test.js
   audit:
     name: Code Quality & Security Gate
     runs-on: ubuntu-latest
