@@ -178,3 +178,42 @@ Engineering tests are not owner UAT. Production binding/release/claim/send have
 NOT been performed by development. Deployment readback and owning Publisher
 handoff remain separate; no publication success is claimed. Rollback is code-only
 and must preserve any subsequently written binding/audit/release/WI history.
+
+## Existing WI1924 submission lifecycle — implementation slice 2026-10-15
+
+Scope is completion of the already-approved exact1128 manual company-page route,
+not a new OAuth/API route. No release, bind or claim is repeated. New exact
+owner/Publisher commands: ba_start_linkedin_task1128_browser_submission,
+ba_pre_submit_linkedin_task1128_browser_submission,
+ba_confirm_linkedin_task1128_browser_submission,
+ba_mark_linkedin_task1128_browser_submission_uncertain.
+
+All bind project7/task1128/channel6/rev1/body SHA above/null asset/decision305v1,
+both unchanged original dates, task-only company97416172 binding audit, existing
+release audit and exact claimed browser WI1924. Caller identity is replaced by
+remote MCP principal. Current owner, pinned manifest and unexpired matching lease
+are required before start/pre-submit/confirmation. Expired lease is BLOCKED;
+this code neither resets it nor claims/recreates work. New author evidence uses
+observedCompanyId97416172 plus screenshot SHA and duplicateCheckReference from
+the owning Publisher's actual browser readback; it is explicitly NOT server/API
+verification. Development never opens or sends to LinkedIn.
+
+Start serializable CAS creates one conservative pending attempt. Any existing
+attempt is reconcile-only, including a different key. Pre-submit revalidates the
+current package/lease and records the owning author's evidence. Confirmation
+requires that pre-submit event, actual public activity URN/permalink/time and
+evidence SHA. PublicationFactService.beforeWrite atomically rechecks all guards
+and updates the attempt/audit with the canonical fact. Confirmed replay checks
+current fact and current owner membership without requiring a historic manifest
+to stay current. No backdating, body/date/asset/channel changes, API fallback,
+automatic resend or administrative history rewrite.
+
+RED: exact submission capability absent. Focused tests cover role/schema scope,
+wrong company/WI/revision/body, invalid URL/object and backdated confirmation.
+Transaction mocks cover CAS conflict/no extra work, prior-attempt reconciliation
+and lease recheck inside canonical fact before any writes. These mocks are not
+real DB concurrency, provider author verification, deployment or owner UAT.
+CI includes these contracts with synthetic import-only Telegram configuration.
+Independent review and current production catalog readback remain required.
+Rollback unregisters these controls while preserving WI1924, binding/release,
+pending attempts, audit and facts; an in-flight attempt remains reconcile-only.

@@ -14,6 +14,25 @@ permissions:
   issues: write
 
 jobs:
+  linkedin1128-contract:
+    name: LinkedIn1128 claimed-WI lifecycle contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: 'true'
+      TELEGRAM_BOT_TOKEN: '000000:synthetic-test-token-never-used-for-provider-calls'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build:backend
+      - name: Mocked existing-WI and principal contracts (no provider calls)
+        run: |
+          node --test --test-concurrency=1 dist/tests/linkedin1128_submission.test.js dist/tests/linkedin1128_identity.test.js dist/tests/linkedin_browser_owner_release.test.js dist/tests/remote_mcp_auth.test.js
+          node --test --test-concurrency=1 tests/tdpd/linkedin1128-store.unit.test.js
   audit:
     name: Code Quality & Security Gate
     runs-on: ubuntu-latest

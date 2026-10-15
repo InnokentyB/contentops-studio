@@ -27,11 +27,11 @@ export async function check1128Owner(tx: Prisma.TransactionClient, a: LinkedIn11
     const uid = Number(a.actorId.slice(5));
     const member = await tx.projectMember.findUnique({ where: { project_id_user_id: { project_id: 7, user_id: uid } } });
     if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
-    const manifest = await loadAgentWorkspaceManifest(7, uid);
-    if (manifest.checksum !== p.manifest || manifest.project.slug !== 'seturon') throw new Error('[STALE_MANIFEST]');
 }
 export async function check1128(tx: Prisma.TransactionClient, a: LinkedIn1128Submission) {
     await check1128Owner(tx, a);
+    const manifest = await loadAgentWorkspaceManifest(7, Number(a.actorId.slice(5)));
+    if (manifest.checksum !== p.manifest || manifest.project.slug !== 'seturon') throw new Error('[STALE_MANIFEST]');
     const [task, work, decision] = await Promise.all([
         tx.contentItem.findFirst({ where: { id: 1128, project_id: 7 }, include: { channel: true, publication_fact: true } }),
         tx.workItem.findFirst({ where: { id: 1924, project_id: 7, content_item_id: 1128 } }),
@@ -66,6 +66,7 @@ export async function check1128(tx: Prisma.TransactionClient, a: LinkedIn1128Sub
         command: 'ba_release_approved_linkedin_browser_task' }, orderBy: { id: 'desc' } });
     const released = submissionObject(release?.after_state);
     if (released.browser_work_item_id !== 1924 || released.body_sha256 !== p.body || released.channel_id !== 6
+        || release?.actor_id !== owner.actor_id
         || submissionObject(release?.before_state).manifest_checksum !== p.manifest) throw new Error('[LINKEDIN1128_AUDITED_RELEASE_REQUIRED]');
     return { task, work };
 }

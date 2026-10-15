@@ -52,11 +52,12 @@ export async function preSubmitLinkedIn1128(a: Args & { attemptId: number }) {
             actor_id: a.actorId, command: 'ba_pre_submit_linkedin_task1128_browser_submission', idempotency_key: a.idempotencyKey } });
         if (prior && object(prior.before_state).request_hash !== submissionRequestHash(a)) throw new Error('[IDEMPOTENCY_CONFLICT]');
         if (prior) return object(prior.after_state);
-        await audit(tx, a, 'ba_pre_submit_linkedin_task1128_browser_submission', { attempt_id: a.attemptId,
+        const result = { mode: 'pre_submit_checked', attempt_id: a.attemptId,
             company_id: '97416172', author_evidence_sha256: a.authorEvidenceSha256,
-            provider_identity_source: 'owning_publisher_browser_readback', server_provider_verification: false }, submissionRequestHash(a));
-        return { mode: 'pre_submit_checked', attempt_id: a.attemptId, provider_identity_source: 'owning_publisher_browser_readback',
+            provider_identity_source: 'owning_publisher_browser_readback',
             server_provider_verification: false, retry_allowed: false };
+        await audit(tx, a, 'ba_pre_submit_linkedin_task1128_browser_submission', result, submissionRequestHash(a));
+        return result;
     }, serial);
 }
 export type LinkedIn1128Confirm = Args & { attemptId: number; publicUrl: string; providerObjectId: string;
