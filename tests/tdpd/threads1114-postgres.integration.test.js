@@ -4,10 +4,19 @@ const assert = require('node:assert/strict');
 const target = process.env.TDPD_TEST_DATABASE_URL;
 if (!target) throw new Error('Explicit isolated TDPD_TEST_DATABASE_URL required');
 const parsed = new URL(target);
-if (process.env.CI !== 'true' || parsed.hostname !== '127.0.0.1' || parsed.pathname !== '/codex_lifecycle_ci') {
+if (process.env.CI !== 'true' || parsed.protocol !== 'postgresql:' || parsed.search || parsed.hash
+    || parsed.hostname !== '127.0.0.1' || parsed.pathname !== '/codex_lifecycle_ci') {
     throw new Error('Only the dedicated ephemeral CI PostgreSQL database is permitted');
 }
 process.env.DATABASE_URL = target;
+// Bootstrap may prefer an APP/Supabase URL from an environment file. Validate
+// the effective target before importing anything that creates a connection pool.
+require('../../dist/bootstrap-env');
+const effective = new URL(process.env.DATABASE_URL || '');
+if (effective.hostname !== parsed.hostname || effective.port !== parsed.port || effective.pathname !== parsed.pathname
+    || effective.protocol !== parsed.protocol || effective.username !== parsed.username || effective.password !== parsed.password) {
+    throw new Error('Database bootstrap changed the explicitly isolated test target');
+}
 const db = require('../../dist/db');
 const guard = require('../../dist/services/threads1114_store_guard');
 const store = require('../../dist/services/threads1114_store');
