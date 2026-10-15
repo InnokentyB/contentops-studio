@@ -2,6 +2,17 @@
 
 ## 1113 exact browser lifecycle — 2026-10-15
 
+**DRAFT / NOT RELEASE-READY.** PR154 independent review found three P1 gaps:
+the native helper is not wired to a trusted callable owning executor (raw MCP
+pre-submit remains bypassable), resulting-status content/time lacks trusted native
+readback, and expired leases have no complete recovery/reconciliation path.
+Stage-bound hashes validate consistency, not actual native-source admission.
+No X production enablement/release/send occurred. The 1131 source-mapped tests,
+focused mocks, build and baseline quality gate pass, but do not resolve these
+findings or constitute owner UAT. Do not merge or instruct Ops to execute this
+draft. A concrete owning-runtime hook is required; adding a new native worker or
+transport needs an explicit architecture/risk change, not an inferred approval.
+
 Approved issue146 implementation, not a new transport. Fresh read-only Planner
 readback confirms task1113/channel164/@naraHeTc, exact accepted rev1/body269,
 both original dates, active decision308v1/reviewWI1897result2/artWI1901result1,
