@@ -1,5 +1,83 @@
 # LI1128-REL-001 — exact company LinkedIn release repair
 
+## 2026-10-15 owner correction: English accepted revision3 supersedes Russian1
+
+Direct human instruction in owning Ops turn01a13f6e-6e5f-74b2-b389-739d1b256b53:
+«переделываем полностью, чтобы был англоязычный пост». Owning Publisher stopped
+before Post. Fresh Planner read confirms accepted/content3, body SHA
+31f5ec957c336d751fe0684b93bf5746d0b2863798273214c7c7f929876d2ddb,
+decision315v2 active NO_VISUAL_NEEDED, asset null, channel6/company97416172,
+both original dates unchanged. Old decision305v1 is stale and remains history.
+The rev1 command schemas/proofs are not widened; they must fail against rev3.
+
+LOCK delta within approved145: English replacement only, no new transport.
+QAR: serializable exact-task CAS and replay, no write on preview/failed guard,
+zero new publication facts or provider actions during replacement. ARCH: reuse
+WorkItem/DeliveryAttempt/WorkflowEvent/identity projection, no migration or queue.
+RISK: retain old records/audits; no deletion, lease reset to resend an uncertain
+operation, body/date/channel/visual mutation, secret logging or developer send.
+Actual publication still belongs to owning Publisher after owner action-time
+confirmation, native company/editor/duplicate readback and one-shot permission.
+
+Read-only DB evidence: sole attempt38 pending/manual-confirmation, key
+start-linkedin-p7-1128-wi1924-20261015-01, actual_published_at=null;
+start event3243, actor user:2/WI1924, and no preSubmit/confirm/uncertain event.
+This is absence of governed Submit permission plus owning executor no-click
+report, NOT independent provider verification. Any conflicting permission,
+ambiguity, delivery/extra attempt or wrong actor blocks pre-provider supersede.
+
+New exact release ba_release_linkedin_task1128_rev3_browser defaults preview.
+Apply atomically marks attempt38 superseded_pre_provider (never delivered),
+blocks old WI1924 and invalidates its fence with hashed provenance, preserves its
+result payload, rebinds current task identity/release to rev3 and creates one new
+available revision3 browser WI. No old decision/event is rewritten. The shared
+channel, accepted text, dates and credentials remain unchanged. Run only from
+owning operational context, not development. Same release key reuses the result.
+
+Then ba_claim_linkedin_task1128_rev3_browser preview/apply on that NEW WI;
+ba_start_linkedin_task1128_rev3_browser_submission;
+ba_pre_submit_linkedin_task1128_rev3_browser_submission;
+ba_confirm_linkedin_task1128_rev3_browser_submission. Use separate stable
+release/claim/send keys and the original releaseIdempotencyKey at every boundary.
+Never reuse the old rev1 send key/WI or press Post in its Russian composer.
+preSubmit requires actual native English editor text, company/duplicate evidence
+and owner actionTimeConfirmationReference. One permission permits one click;
+replayed permission is false, not a retry. Prepare preserves the English manual
+projection even though shared legacy channel language is not edited.
+
+Confirmation/reconcile requires native observedPostText, company97416172,
+object/permalink and matching observedPublishedAt/actual publishedAt. Normalize
+only CRLF, NBSP and outer whitespace; do not copy the intended text as readback.
+Expand the native post first. Screenshot hash alone is insufficient. Server
+explicitly records owning-Publisher readback, not independent provider API proof.
+The preSubmit proof must match; delivered attempt/audit/fact are one transaction.
+
+ba_mark_linkedin_task1128_rev3_browser_submission_uncertain freezes the same
+attempt. ba_reconcile_linkedin_task1128_rev3_browser_submission can confirm it
+using the historical SAME actor/fence after expiry, but cannot Submit. Normal
+start/preSubmit still require active lease. ba_renew_linkedin_task1128_rev3_browser_lease
+defaults preview, requires expiry/SHA CAS and can rotate only before ANY rev3
+attempt or start/preSubmit event; replay never extends twice. Old superseded38
+is excluded only after its exact audited replacement is validated. Any additional
+attempt remains blocking. No alternative-key recovery or automatic provider retry.
+
+Rollback removes new registrations, preserving all old/new records, supersede,
+release/fence/audit and any in-flight attempt. A released package is held or
+reconciled, not destructively restored to rev1. Development performs tests and
+deployment/catalog checks only. Engineering GREEN does not replace owner UAT or
+a canonical confirmed publication fact.
+
+PR155 review corrections: the canonical fact service now accepts an INTERNAL
+browserWorkItemId only with an atomic beforeWrite guard, so r3 completion touches
+only its new WI and preserves blocked WI1924/reason/proof. Legacy callers retain
+their existing completion policy. Normal r3 confirm requires an active lease and
+audits ba_confirm_linkedin_task1128_rev3_browser_submission; only the dedicated
+reconcile command admits the historical same fence and audits
+ba_reconcile_linkedin_task1128_rev3_browser_submission. A replay may return an
+already confirmed matching fact without issuing a new permission or audit.
+Both review defects were reproduced RED before the fixes, including an actual
+canonical-fact transaction fixture that showed old1924 being overwritten.
+
 ## 2026-10-15: same-WI expired-lease recovery
 
 The owning Publisher reports WI1924 expired before any provider attempt or Post.

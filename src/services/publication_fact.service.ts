@@ -8,6 +8,8 @@ export type ArtifactKind = 'post' | 'article' | 'video' | 'story' | 'email' | 'c
 export type PublicationOutcome = 'published' | 'blocked' | 'removed' | 'restricted';
 
 export interface RecordPublicationFactArgs {
+    /** Internal exact lifecycle completion scope; never exposed by generic fact tools. */
+    browserWorkItemId?: number;
     /** Internal atomic transport guard; never exposed by generic fact MCP arguments. */
     beforeWrite?: (tx: Prisma.TransactionClient) => Promise<void>;
     /** Internal exact browser proof, rechecked atomically before writing a clip fact. */
@@ -112,6 +114,8 @@ function serializeFact(fact: any) {
 
 export class PublicationFactService {
     async record(args: RecordPublicationFactArgs) {
+        if (args.browserWorkItemId !== undefined && (!Number.isSafeInteger(args.browserWorkItemId)
+            || args.browserWorkItemId < 1 || typeof args.beforeWrite !== 'function')) throw new Error('SCOPED_BROWSER_COMPLETION_REQUIRES_GUARD');
         await requireProjectActorAccess(args.projectId, args.actorId);
         const publishedAt = validDate(args.publishedAt);
         if (args.outcome === 'published' && !publishedAt) throw new Error('PUBLISHED_AT_REQUIRED');
@@ -195,6 +199,7 @@ export class PublicationFactService {
                         project_id: args.projectId,
                         content_item_id: item.id,
                         kind: 'browser_publish',
+                        ...(args.browserWorkItemId === undefined ? {} : { id: args.browserWorkItemId }),
                         state: { notIn: ['completed', 'cancelled'] }
                     },
                     data: {

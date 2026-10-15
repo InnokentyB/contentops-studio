@@ -1,6 +1,7 @@
 import { isDeepStrictEqual } from 'util';
 import { z } from 'zod';
 import { LINKEDIN1128 } from './linkedin1128_identity.service';
+import { linkedIn1128Rev3Handoff } from './linkedin1128_rev3_projection';
 
 const Binding = z.object({ binding_scope: z.literal('task_1128_only'), project_id: z.literal(7),
     task_id: z.literal(1128), channel_id: z.literal(6), content_revision: z.literal(1), accepted_revision: z.literal(1),
@@ -50,6 +51,7 @@ export async function assertLinkedIn1128ReleaseIdentity(events: EventReader, tas
 
 /** Keep prepare/readback manual; no inferred OAuth URN or provider verification. */
 export function linkedIn1128ManualHandoff<T extends Record<string, unknown>>(bundle: T, quality: unknown) {
+    if (object(object(quality).identity_binding).content_revision === 3) return linkedIn1128Rev3Handoff(bundle, quality);
     const binding = linkedIn1128Binding(quality);
     return { ...bundle, mode: 'manual' as const,
         account: { ref: 'seturon_linkedin_page', details: {
