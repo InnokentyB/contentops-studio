@@ -67,7 +67,7 @@ jobs:
       - run: npm run build:backend
       - name: Isolated provider and transaction contract mocks (no live credentials)
         run: |
-          node --test --test-concurrency=1 dist/tests/threads1114*.test.js dist/tests/threads_verified_publication.test.js dist/tests/threads_publication.test.js dist/tests/threads1110_current_manifest_tool.test.js dist/tests/remote_mcp_auth.test.js dist/tests/threads_engagement.test.js dist/tests/threads_task_publication.service.test.js dist/tests/threads_pending_release.test.js
+          node --test --test-concurrency=1 dist/tests/threads1114*.test.js dist/tests/threads_generic_release.test.js dist/tests/threads_verified_publication.test.js dist/tests/threads_publication.test.js dist/tests/threads1110_current_manifest_tool.test.js dist/tests/remote_mcp_auth.test.js dist/tests/threads_engagement.test.js dist/tests/threads_task_publication.service.test.js dist/tests/threads_pending_release.test.js
           node --test --test-concurrency=1 tests/tdpd/threads1114-store.unit.test.js
           node --test --test-concurrency=1 tests/tdpd/manifest-transaction.unit.test.js
       - name: Real PostgreSQL CAS race in an ephemeral CI database only

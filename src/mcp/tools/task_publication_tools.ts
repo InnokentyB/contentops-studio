@@ -5,6 +5,7 @@ import publicationFactService from '../../services/publication_fact.service';
 import weekPackageRepairService from '../../services/week_package_repair.service';
 import dzenTaskPublicationService from '../../services/dzen_task_publication.service';
 import threadsTaskPublicationService from '../../services/threads_task_publication.service';
+import genericThreadsReleaseService from '../../services/threads_generic_release.service';
 import telegramTaskPublicationService from '../../services/telegram_task_publication.service';
 import {
     INTERNAL_MUTATION_ANNOTATIONS,
@@ -285,13 +286,28 @@ export function registerTaskPublicationTools(server: McpServer): void {
     }, async (args) => asToolResult(await executePublicationTaskByChannel(args)));
 
     server.registerTool('ba_publish_threads_task', {
-        description: 'Read-only dry-run resolves any canonical Threads task dynamically and reports its accepted payload plus connector identity readiness. Live publication remains limited to explicitly supported owner-released task-native specs.',
+        description: 'Dry-run any canonical Threads task. Live publication of a generic text-only feed task requires an exact audited generic release, creates a durable attempt before dispatch, verifies provider readback, and freezes uncertain outcomes.',
         annotations: EXTERNAL_PUBLICATION_ANNOTATIONS,
         inputSchema: {
             projectId: z.number().int().positive(),
             taskId: z.number().int().positive(),
             dryRun: z.boolean().optional(),
-            idempotencyKey: z.string().min(1).max(500).optional()
+            idempotencyKey: z.string().min(1).max(500).optional(),
+            actorId: z.string().regex(/^user:[1-9]\d*$/).optional(),
+            approvalReference: z.string().min(10).optional(),
+            expectedManifestChecksum: z.string().regex(/^sha256:[a-f0-9]{64}$/).optional(),
+            releaseIdempotencyKey: z.string().min(1).max(500).optional()
         }
-    }, async (args) => asToolResult(await threadsTaskPublicationService.execute(args)));
+    }, async (args) => {
+        if (args.actorId && args.approvalReference && args.expectedManifestChecksum
+            && args.releaseIdempotencyKey && args.idempotencyKey) {
+            return asToolResult(await genericThreadsReleaseService.publish({
+                projectId: args.projectId, taskId: args.taskId, actorId: args.actorId,
+                approvalReference: args.approvalReference, expectedManifestChecksum: args.expectedManifestChecksum,
+                releaseIdempotencyKey: args.releaseIdempotencyKey, idempotencyKey: args.idempotencyKey,
+                dryRun: args.dryRun
+            }));
+        }
+        return asToolResult(await threadsTaskPublicationService.execute(args));
+    });
 }
