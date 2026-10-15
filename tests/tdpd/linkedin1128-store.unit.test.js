@@ -53,6 +53,24 @@ test('1128 pre-submit rejects changed author evidence under an existing phase ke
             : { before_state: { request_hash: guard.submissionReadbackHash(a) } } } });
     await assert.rejects(service.preSubmitLinkedIn1128({ ...a, attemptId: 123, authorEvidenceSha256: 'c'.repeat(64) }), /IDEMPOTENCY_CONFLICT/);
 });
+test('1128 uncertainty forbids another pre-submit permission', async t => {
+    t.mock.method(guard, 'check1128', async () => ({ task: { status: 'publishing' } }));
+    transaction(t, { deliveryAttempt: { findMany: async () => [{ id: 123, status: 'pending', channel_id: 6,
+        idempotency_key: a.idempotencyKey, error_message: 'LINKEDIN1128_UNCERTAIN_RECONCILE_ONLY' }] },
+        workflowEvent: { findFirst: async ({ where }) => where.command.startsWith('ba_start_')
+            ? { before_state: { request_hash: guard.submissionRequestHash(a) } }
+            : { before_state: { request_hash: guard.submissionReadbackHash(a) }, after_state: { submission_permitted: true } } } });
+    await assert.rejects(service.preSubmitLinkedIn1128({ ...a, attemptId: 123 }), /RECONCILE_ONLY/);
+});
+test('1128 replay of an issued pre-submit check never grants a second Submit', async t => {
+    t.mock.method(guard, 'check1128', async () => ({ task: { status: 'publishing' } }));
+    transaction(t, { deliveryAttempt: { findMany: async () => [{ id: 123, status: 'pending', channel_id: 6, idempotency_key: a.idempotencyKey }] },
+        workflowEvent: { findFirst: async ({ where }) => where.command.startsWith('ba_start_')
+            ? { before_state: { request_hash: guard.submissionRequestHash(a) } }
+            : { before_state: { request_hash: guard.submissionReadbackHash(a) }, after_state: { submission_permitted: true } } } });
+    const result = await service.preSubmitLinkedIn1128({ ...a, attemptId: 123 });
+    assert.equal(result.submission_permitted, false); assert.equal(result.retry_allowed, false);
+});
 test('1128 valid confirmation updates attempt and audit inside the canonical fact hook', async t => {
     const calls = [];
     t.mock.method(guard, 'check1128Owner', async () => undefined);
@@ -60,12 +78,12 @@ test('1128 valid confirmation updates attempt and audit inside the canonical fac
     transaction(t, { workflowEvent: { findFirst: async () => null } });
     t.mock.method(fact, 'record', async input => {
         await input.beforeWrite({ deliveryAttempt: {
-            findMany: async () => [{ id: 123, status: 'pending', channel_id: 6, idempotency_key: a.idempotencyKey }],
+            findMany: async () => [{ id: 123, status: 'pending', channel_id: 6, idempotency_key: a.idempotencyKey, created_at: new Date('2026-10-14T10:00:30Z') }],
             updateMany: async ({ data }) => { assert.equal(data.status, 'delivered'); calls.push('attempt'); return { count: 1 }; }
         }, workflowEvent: {
             findFirst: async ({ where }) => where.command.startsWith('ba_start_')
                 ? { before_state: { request_hash: guard.submissionRequestHash(a) } }
-                : { before_state: { request_hash: guard.submissionReadbackHash(a) }, after_state: { attempt_id: 123 } },
+                : { before_state: { request_hash: guard.submissionReadbackHash(a) }, after_state: { attempt_id: 123 }, created_at: new Date('2026-10-14T10:00:45Z') },
             create: async () => calls.push('audit')
         } });
         calls.push('fact'); return {};
@@ -74,5 +92,27 @@ test('1128 valid confirmation updates attempt and audit inside the canonical fac
         publicUrl: 'https://www.linkedin.com/feed/update/urn:li:activity:123/', providerObjectId: 'urn:li:activity:123',
         publishedAt: '2026-10-14T10:01:00Z', evidenceSha256: 'b'.repeat(64) });
     assert.equal(result.mode, 'published'); assert.deepEqual(calls, ['guard', 'attempt', 'audit', 'fact']);
+});
+test('1128 cannot attach an older publication to a newly started attempt', async t => {
+    let writes = 0;
+    t.mock.method(guard, 'check1128Owner', async () => undefined);
+    t.mock.method(guard, 'check1128', async () => ({ task: { status: 'publishing' } }));
+    transaction(t, { workflowEvent: { findFirst: async () => null } });
+    t.mock.method(fact, 'record', async input => {
+        await input.beforeWrite({ deliveryAttempt: {
+            findMany: async () => [{ id: 123, status: 'pending', channel_id: 6, idempotency_key: a.idempotencyKey, created_at: new Date('2026-10-15T07:00:00Z') }],
+            updateMany: async () => { writes += 1; return { count: 1 }; }
+        }, workflowEvent: {
+            findFirst: async ({ where }) => where.command.startsWith('ba_start_')
+                ? { before_state: { request_hash: guard.submissionRequestHash(a) } }
+                : { before_state: { request_hash: guard.submissionReadbackHash(a) }, after_state: { attempt_id: 123 }, created_at: new Date('2026-10-15T07:00:30Z') },
+            create: async () => undefined
+        } });
+        return {};
+    });
+    await assert.rejects(service.confirmLinkedIn1128({ ...a, attemptId: 123,
+        publicUrl: 'https://www.linkedin.com/feed/update/urn:li:activity:123/', providerObjectId: 'urn:li:activity:123',
+        publishedAt: '2026-10-14T10:01:00Z', evidenceSha256: 'b'.repeat(64) }), /PUBLISHED_BEFORE_ATTEMPT/);
+    assert.equal(writes, 0);
 });
 test.after(async () => { await db.default.$disconnect(); await db.pool.end(); });

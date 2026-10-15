@@ -13,23 +13,28 @@ async function audit(tx: Prisma.TransactionClient, a: Args, command: string, aft
         actor_id: a.actorId, command, idempotency_key: a.idempotencyKey,
         before_state: { request_hash: requestHash }, after_state: after } });
 }
-async function pending(tx: Prisma.TransactionClient, a: Args, attemptId: number, verifyStartEvidence = false) {
+async function pending(tx: Prisma.TransactionClient, a: Args, attemptId: number,
+    options: { verifyStartEvidence?: boolean; allowReconciliation?: boolean } = {}) {
     const attempts = await tx.deliveryAttempt.findMany({ where: { project_id: 7, content_item_id: 1128 } });
-    if (attempts.length !== 1 || attempts[0].id !== attemptId || attempts[0].status !== 'pending'
+    if (!options.allowReconciliation && attempts.length === 1 && (['uncertain', 'verification_required'].includes(attempts[0].status)
+        || attempts[0].error_message === 'LINKEDIN1128_UNCERTAIN_RECONCILE_ONLY')) throw new Error('[LINKEDIN1128_RECONCILE_ONLY]');
+    if (attempts.length !== 1 || attempts[0].id !== attemptId
+        || !['pending', ...(options.allowReconciliation ? ['uncertain', 'verification_required'] : [])].includes(attempts[0].status)
         || attempts[0].channel_id !== 6 || attempts[0].idempotency_key !== a.idempotencyKey) {
         throw new Error('[LINKEDIN1128_ATTEMPT_NOT_CONFIRMABLE]');
     }
     const start = await tx.workflowEvent.findFirst({ where: { project_id: 7, content_item_id: 1128,
         work_item_id: 1924, actor_id: a.actorId, command: startCommand, idempotency_key: a.idempotencyKey } });
     if (object(start?.before_state).request_hash !== submissionRequestHash(a)) throw new Error('[IDEMPOTENCY_CONFLICT]');
-    if (verifyStartEvidence && object(start?.after_state).readback_hash !== submissionReadbackHash(a)) throw new Error('[IDEMPOTENCY_CONFLICT]');
+    if (options.verifyStartEvidence && object(start?.after_state).readback_hash !== submissionReadbackHash(a)) throw new Error('[IDEMPOTENCY_CONFLICT]');
+    return attempts[0];
 }
 export async function startLinkedIn1128(a: Args) {
     return prisma.$transaction(async tx => {
         const { task } = await check1128(tx, a);
         const prior = await tx.deliveryAttempt.findFirst({ where: { project_id: 7, content_item_id: 1128 } });
         if (prior) {
-            if (prior.idempotency_key === a.idempotencyKey) await pending(tx, a, prior.id, true);
+            if (prior.idempotency_key === a.idempotencyKey && prior.status === 'pending') await pending(tx, a, prior.id, { verifyStartEvidence: true });
             return { mode: 'verification_required', attempt_id: prior.id, retry_allowed: false };
         }
         if (task.status !== 'browser_required') throw new Error('[LINKEDIN1128_START_STATE_INVALID]');
@@ -53,8 +58,9 @@ export async function preSubmitLinkedIn1128(a: Args & { attemptId: number }) {
         const prior = await tx.workflowEvent.findFirst({ where: { project_id: 7, content_item_id: 1128,
             actor_id: a.actorId, command: 'ba_pre_submit_linkedin_task1128_browser_submission', idempotency_key: a.idempotencyKey } });
         if (prior && object(prior.before_state).request_hash !== submissionReadbackHash(a)) throw new Error('[IDEMPOTENCY_CONFLICT]');
-        if (prior) return object(prior.after_state);
+        if (prior) return { mode: 'verification_required', attempt_id: a.attemptId, submission_permitted: false, retry_allowed: false };
         const result = { mode: 'pre_submit_checked', attempt_id: a.attemptId,
+            submission_permitted: true,
             company_id: '97416172', author_evidence_sha256: a.authorEvidenceSha256,
             provider_identity_source: 'owning_publisher_browser_readback',
             server_provider_verification: false, retry_allowed: false };
@@ -96,14 +102,16 @@ export async function confirmLinkedIn1128(a: LinkedIn1128Confirm) {
         evidence: { type: 'screenshot', ref: `sha256:${a.evidenceSha256}` }, beforeWrite: async tx => {
             const { task } = await check1128(tx, a);
             if (task.status !== 'publishing') throw new Error('[LINKEDIN1128_START_REQUIRED]');
-            await pending(tx, a, a.attemptId);
+            const attempt = await pending(tx, a, a.attemptId, { allowReconciliation: true });
             const submit = await tx.workflowEvent.findFirst({ where: { project_id: 7, content_item_id: 1128,
                 command: 'ba_pre_submit_linkedin_task1128_browser_submission', actor_id: a.actorId,
                 idempotency_key: a.idempotencyKey }, orderBy: { id: 'desc' } });
-            if (object(submit?.after_state).attempt_id !== a.attemptId) throw new Error('[LINKEDIN1128_PRE_SUBMIT_REQUIRED]');
+            if (!submit || object(submit.after_state).attempt_id !== a.attemptId) throw new Error('[LINKEDIN1128_PRE_SUBMIT_REQUIRED]');
             if (object(submit?.before_state).request_hash !== submissionReadbackHash(a)) throw new Error('[IDEMPOTENCY_CONFLICT]');
+            const earliest = Math.max(attempt.created_at.getTime(), submit.created_at.getTime()) - 120_000;
+            if (!Number.isFinite(earliest) || Date.parse(a.publishedAt) < earliest) throw new Error('[LINKEDIN1128_PUBLISHED_BEFORE_ATTEMPT]');
             const changed = await tx.deliveryAttempt.updateMany({ where: { id: a.attemptId, project_id: 7,
-                content_item_id: 1128, status: 'pending', idempotency_key: a.idempotencyKey }, data: {
+                content_item_id: 1128, status: { in: ['pending', 'uncertain', 'verification_required'] }, idempotency_key: a.idempotencyKey }, data: {
                 status: 'delivered', actual_published_at: new Date(a.publishedAt), requires_manual_confirmation: false } });
             if (changed.count !== 1) throw new Error('[LINKEDIN1128_CAS_CONFLICT]');
             await audit(tx, a, confirmCommand, result, requestHash);
@@ -112,13 +120,13 @@ export async function confirmLinkedIn1128(a: LinkedIn1128Confirm) {
 }
 export async function uncertainLinkedIn1128(a: Args & { attemptId: number }) {
     return prisma.$transaction(async tx => {
-        await check1128(tx, a); await pending(tx, a, a.attemptId);
+        await check1128(tx, a); await pending(tx, a, a.attemptId, { allowReconciliation: true });
         const prior = await tx.workflowEvent.findFirst({ where: { project_id: 7, content_item_id: 1128,
             actor_id: a.actorId, command: 'ba_mark_linkedin_task1128_browser_submission_uncertain', idempotency_key: a.idempotencyKey } });
         if (prior) return object(prior.after_state);
         const changed = await tx.deliveryAttempt.updateMany({ where: { id: a.attemptId, project_id: 7, content_item_id: 1128,
-            status: 'pending', idempotency_key: a.idempotencyKey }, data: {
-            requires_manual_confirmation: true, error_message: 'LINKEDIN1128_UNCERTAIN_RECONCILE_ONLY' } });
+            status: { in: ['pending', 'uncertain', 'verification_required'] }, idempotency_key: a.idempotencyKey }, data: {
+            status: 'verification_required', requires_manual_confirmation: true, error_message: 'LINKEDIN1128_UNCERTAIN_RECONCILE_ONLY' } });
         if (changed.count !== 1) throw new Error('[LINKEDIN1128_CAS_CONFLICT]');
         await audit(tx, a, 'ba_mark_linkedin_task1128_browser_submission_uncertain', {
             attempt_id: a.attemptId, retry_allowed: false }, submissionRequestHash(a));

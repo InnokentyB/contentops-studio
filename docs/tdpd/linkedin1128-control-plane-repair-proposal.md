@@ -229,3 +229,15 @@ transaction-reader test reproduced GLOBAL_CLIENT_MUST_NOT_BE_USED before the
 change and passes afterward. Five store-contract mocks cover failed CAS,
 reconciliation, expired lease inside fact confirmation, changed author evidence
 and successful attempt/audit/fact ordering. No provider send was performed.
+
+Further independent review reproduced an unsafe pre-submit replay after an
+uncertain outcome and acceptance of a provider timestamp older than its attempt.
+Pre-submit now issues permission once: a repeated check is reconciliation-only,
+not another Submit permit. Uncertainty sets the existing terminal
+verification_required status; it blocks start/pre-submit but allows evidenced
+confirmation of that same attempt. Confirmation additionally requires actual
+publication time at or after the later attempt/pre-submit creation time, with
+an explicit 120-second clock tolerance, and never before the original schedule.
+Three targeted tests reproduced these gaps RED before the fixes. The owning
+Publisher must require submission_permitted=true and use it immediately once;
+any replay/unknown result is reconciliation-only, never a second Submit.
