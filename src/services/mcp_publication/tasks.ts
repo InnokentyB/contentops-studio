@@ -17,6 +17,7 @@ import { resolveTaskScheduleAt, assertPublicationTaskMutableForMcp } from './hel
 import { PublicationOutcome } from './types';
 import { sanitizeChannelConfig } from '../../utils/channel.utils';
 import { linkedIn1128ManualHandoff } from '../linkedin1128_release_policy';
+import { preserve1086Handoff } from '../linkedin1086_projection';
 
 type PublicationTaskWithChannel = {
     channel?: ({ type: string; config: unknown } & Record<string, unknown>) | null;
@@ -31,7 +32,7 @@ export function sanitizePublicationTaskChannel<T extends PublicationTaskWithChan
 
 export function publicationHandoffWithLanguage<T extends Record<string, unknown>>(bundle: T,
     channel: Parameters<typeof publicationContentLanguage>[0], taskMetadata: unknown) {
-    return { ...bundle, content_language: publicationContentLanguage(channel, taskMetadata) };
+    return preserve1086Handoff({ ...bundle, content_language: publicationContentLanguage(channel, taskMetadata) }, taskMetadata);
 }
 
 /**
