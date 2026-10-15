@@ -17,3 +17,5 @@ export const x1113BoundarySchema = x1113ReleaseSchema.extend({ channelId: z.lite
     contextSource: z.literal('owning_publisher_live_browser_info') });
 export type X1113Release = z.infer<typeof x1113ReleaseSchema>;
 export type X1113Boundary = z.infer<typeof x1113BoundarySchema>;
+export const x1113ClaimSchema = x1113BoundarySchema.omit({ leaseToken: true });
+export type X1113Claim = z.infer<typeof x1113ClaimSchema>;

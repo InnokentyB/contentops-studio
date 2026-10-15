@@ -1,5 +1,50 @@
 # P10-PERSONAL-REL-001 — consolidated exact X/Threads release proposal
 
+## 1113 exact browser lifecycle — 2026-10-15
+
+Approved issue146 implementation, not a new transport. Fresh read-only Planner
+readback confirms task1113/channel164/@naraHeTc, exact accepted rev1/body269,
+both original dates, active decision308v1/reviewWI1897result2/artWI1901result1,
+manual-only channel and manifest cc2cc620. No live API or browser from development.
+
+Exact controls: ba_release_x_task1113_browser → ba_claim_x_task1113_browser →
+ba_start_x_task1113_browser_submission → ba_pre_submit_x_task1113_browser_submission
+→ ba_confirm_x_task1113_browser_submission. Ambiguity uses
+ba_mark_x_task1113_browser_submission_uncertain on the same attempt/key.
+Release atomically rebuilds an English manual handoff from current channel/body,
+audits GO and creates one revision-bound WI. Claim returns a private fence only
+to its owning executor. Release/claim/send keys are separate stable keys;
+every execution boundary carries the original releaseIdempotencyKey. No alternate
+key can create another attempt. No paid API, channel config, body, date, revision,
+asset or visual record is changed. Generic dispatch/fallback and generic manual
+fact entry are blocked for this exact task.
+
+Native execution contract: owning Publisher must call checkX1113LiveContext
+against freshly observed native BrowserInfo + selected tab/account before claim
+and start. IDs are runtime-only, never persist them as profile identity. Before
+Post, executeX1113NativeSubmit performs native editor/profile validation, one-shot
+server preSubmit, then a second fresh native check on the same browser/tab/URL,
+and exactly one bound click callback. The callbacks MUST read/click the actual
+owning native surface; stored tags, fabricated caller observations and a server
+receipt alone are not admission. The server records server_browser_verified=false.
+If the owning runtime cannot run the native guard, stop before attempt/Submit;
+do not choose the working profile or API. Development does not run these callbacks.
+
+Keep the pre-submit proof fields for confirmation (fresh observedAt is required
+for start/preSubmit, not historical confirmation). Native readback must verify
+author @naraHeTc, exact text, numeric status ID, canonical
+https://x.com/naraHeTc/status/ID and actual publication time. Fact.beforeWrite
+rechecks active lease/package/attempt, matches pre-submit proof and rejects an
+object older than the attempt/permission minus explicit120s clock tolerance.
+Delivered attempt/audit/fact are one transaction. Uncertain state permits only
+reconciliation of that same identity, never another Post.
+
+TRUN: missing lifecycle reproduced three RED assertions; generic manual-fact
+bypass reproduced RED separately. Focused runtime/lifecycle/dispatcher/fact tests
+pass; transaction mocks do not prove real provider access or production races.
+Owner UAT/publication remains separate. Rollback removes exact registrations
+without deleting or rewriting task/WI/release/lease/attempt/fact history.
+
 Status: APPROVED for LOCK-P10-PERSONAL/QAR-P10-PERSONAL/ARCH-P10-PERSONAL/
 RISK-P10-PERSONAL by direct human reply in this development chat on 2026-10-14:
 «Да, даю разрешение на обе задачи», after explicit explanation of issues145/146.
