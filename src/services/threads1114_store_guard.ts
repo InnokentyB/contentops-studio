@@ -52,6 +52,7 @@ export async function checked1114(tx: Prisma.TransactionClient, a: Threads1114Re
             actor_id: a.actorId, idempotency_key: a.releaseIdempotencyKey }, orderBy: { id: 'desc' } })
     ]);
     if (!task || task.channel?.type !== 'threads' || task.channel.name !== 'innokenty_threads'
+        || !task.draft_text?.trim() || task.draft_text.length > 500 || task.visual_mode === 'required'
         || task.selected_asset || object(task.quality_report).publication_hold
         || (attemptId !== undefined && (task.status !== 'publishing' || attempt?.id !== attemptId
             || attempt.status !== 'pending' || attempt.idempotency_key !== a.idempotencyKey))) throw new Error('[THREADS1114_PACKAGE_GUARD_FAILED]');

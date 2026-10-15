@@ -178,3 +178,75 @@ Engineering tests are not owner UAT. Production binding/release/claim/send have
 NOT been performed by development. Deployment readback and owning Publisher
 handoff remain separate; no publication success is claimed. Rollback is code-only
 and must preserve any subsequently written binding/audit/release/WI history.
+
+## Existing WI1924 submission lifecycle — implementation slice 2026-10-15
+
+Scope is completion of the already-approved exact1128 manual company-page route,
+not a new OAuth/API route. No release, bind or claim is repeated. New exact
+owner/Publisher commands: ba_start_linkedin_task1128_browser_submission,
+ba_pre_submit_linkedin_task1128_browser_submission,
+ba_confirm_linkedin_task1128_browser_submission,
+ba_mark_linkedin_task1128_browser_submission_uncertain.
+
+All bind project7/task1128/channel6/rev1/body SHA above/null asset/decision305v1,
+both unchanged original dates, task-only company97416172 binding audit, existing
+release audit and exact claimed browser WI1924. Caller identity is replaced by
+remote MCP principal. Current owner, pinned manifest and unexpired matching lease
+are required before start/pre-submit/confirmation. Expired lease is BLOCKED;
+this code neither resets it nor claims/recreates work. New author evidence uses
+observedCompanyId97416172 plus screenshot SHA and duplicateCheckReference from
+the owning Publisher's actual browser readback; it is explicitly NOT server/API
+verification. Development never opens or sends to LinkedIn.
+
+Start serializable CAS creates one conservative pending attempt. Any existing
+attempt is reconcile-only, including a different key. Pre-submit revalidates the
+current package/lease and records the owning author's evidence. Confirmation
+requires that pre-submit event, actual public activity URN/permalink/time and
+evidence SHA. PublicationFactService.beforeWrite atomically rechecks all guards
+and updates the attempt/audit with the canonical fact. Confirmed replay checks
+current fact and current owner membership without requiring a historic manifest
+to stay current. No backdating, body/date/asset/channel changes, API fallback,
+automatic resend or administrative history rewrite.
+
+RED: exact submission capability absent. Focused tests cover role/schema scope,
+wrong company/WI/revision/body, invalid URL/object and backdated confirmation.
+Transaction mocks cover CAS conflict/no extra work, prior-attempt reconciliation
+and lease recheck inside canonical fact before any writes. These mocks are not
+real DB concurrency, provider author verification, deployment or owner UAT.
+CI includes these contracts with synthetic import-only Telegram configuration.
+Independent review and current production catalog readback remain required.
+Rollback unregisters these controls while preserving WI1924, binding/release,
+pending attempts, audit and facts; an in-flight attempt remains reconcile-only.
+
+Independent PR152 review identified readback evidence replay and an out-of-
+transaction manifest read. Phase-specific evidence hashes now bind company,
+author screenshot SHA and duplicate reference, including exact pre-submit to
+confirm comparison. Start replay binds its initial readback separately so a
+fresh pre-submit observation does not rewrite the start record. Manifest loading
+accepts a transaction reader; this lifecycle passes its current transaction.
+The shared loader's prior two-argument behavior remains compatible. An isolated
+transaction-reader test reproduced GLOBAL_CLIENT_MUST_NOT_BE_USED before the
+change and passes afterward. Five store-contract mocks cover failed CAS,
+reconciliation, expired lease inside fact confirmation, changed author evidence
+and successful attempt/audit/fact ordering. No provider send was performed.
+
+Further independent review reproduced an unsafe pre-submit replay after an
+uncertain outcome and acceptance of a provider timestamp older than its attempt.
+Pre-submit now issues permission once: a repeated check is reconciliation-only,
+not another Submit permit. Uncertainty sets the existing terminal
+verification_required status; it blocks start/pre-submit but allows evidenced
+confirmation of that same attempt. Confirmation additionally requires actual
+publication time at or after the later attempt/pre-submit creation time, with
+an explicit 120-second clock tolerance, and never before the original schedule.
+Three targeted tests reproduced these gaps RED before the fixes. The owning
+Publisher must require submission_permitted=true and use it immediately once;
+any replay/unknown result is reconciliation-only, never a second Submit.
+
+Dispatcher decomposition decision: retain the baselined legacy module, extract
+the exact-task denial policy into the bounded typed exact_owned_route_guard
+module, and add only its three entry hooks. Exact1128 and1114 cannot use central
+processing, low-level generic send or browser fallback to rewrite a claimed WI,
+reset a fence or create alternate work. Other task routes are unchanged. RED
+tests reproduced generic connector entry instead of the required denial; GREEN
+asserts zero provider calls, state writes or generic readiness calls at all three
+entries. Existing Dzen/VK no-fallback route tests remain intact.
