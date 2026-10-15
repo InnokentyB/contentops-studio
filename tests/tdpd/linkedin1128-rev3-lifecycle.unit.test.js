@@ -162,3 +162,27 @@ test('r3 normal confirmation and reconciliation use different lease policies', a
     await assert.rejects(service.confirmLinkedIn1128Rev3(value, true), /synthetic-stop/);
     assert.deepEqual(modes, [false, true]);
 });
+test('r3 uncertain state cannot be confirmed through the normal tool even with an active lease', async t => {
+    t.mock.method(guard, 'check1128Rev3Owner', async () => undefined);
+    t.mock.method(guard, 'check1128Rev3', async () => ({ task: { status: 'publishing' } }));
+    transaction(t, { workflowEvent: { findFirst: async () => null } });
+    let writes = 0; const commands = [];
+    t.mock.method(fact, 'record', async input => input.beforeWrite({
+        deliveryAttempt: { findMany: async () => [{ id: 123, channel_id: 6, status: 'verification_required',
+            idempotency_key: a.idempotencyKey, created_at: new Date('2026-10-14T10:00:30Z') }],
+            updateMany: async () => { writes += 1; return { count: 1 }; } },
+        workflowEvent: { findFirst: async ({ where }) => where.command.startsWith('ba_start_')
+            ? { before_state: { request_hash: guard.submissionRequestHash(a) } }
+            : { before_state: { request_hash: guard.submissionReadbackHash(a) }, after_state: { attempt_id: 123 }, created_at: new Date('2026-10-14T10:00:45Z') },
+            create: async ({ data }) => commands.push(data.command) }
+    }));
+    await assert.rejects(service.confirmLinkedIn1128Rev3({ ...a, attemptId: 123,
+        publicUrl: 'https://www.linkedin.com/feed/update/urn:li:activity:123/', providerObjectId: 'urn:li:activity:123',
+        publishedAt: '2026-10-14T10:01:00Z', evidenceSha256: 'b'.repeat(64) }, false), /RECONCILE_ONLY/);
+    assert.equal(writes, 0);
+    const result = await service.confirmLinkedIn1128Rev3({ ...a, attemptId: 123,
+        publicUrl: 'https://www.linkedin.com/feed/update/urn:li:activity:123/', providerObjectId: 'urn:li:activity:123',
+        publishedAt: '2026-10-14T10:01:00Z', evidenceSha256: 'b'.repeat(64) }, true);
+    assert.equal(result.mode, 'published'); assert.equal(writes, 1);
+    assert.deepEqual(commands, ['ba_reconcile_linkedin_task1128_rev3_browser_submission']);
+});

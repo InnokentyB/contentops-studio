@@ -108,7 +108,7 @@ export async function confirmLinkedIn1128Rev3(a: LinkedIn1128Rev3Confirm, reconc
         evidence: { type: 'screenshot', ref: `sha256:${a.evidenceSha256}` }, beforeWrite: async tx => {
             const { task } = await check1128Rev3(tx, a, reconcile);
             if (task.status !== 'publishing') throw new Error('[LINKEDIN1128_REV3_START_REQUIRED]');
-            const attempt = await pending(tx, a, a.attemptId, { allowReconciliation: true });
+            const attempt = await pending(tx, a, a.attemptId, { allowReconciliation: reconcile });
             const submit = await tx.workflowEvent.findFirst({ where: { project_id: 7, content_item_id: 1128,
                 command: 'ba_pre_submit_linkedin_task1128_rev3_browser_submission', actor_id: a.actorId,
                 idempotency_key: a.idempotencyKey }, orderBy: { id: 'desc' } });
