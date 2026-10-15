@@ -31,8 +31,9 @@ jobs:
       - run: npm run build:backend
       - name: Mocked existing-WI and principal contracts (no provider calls)
         run: |
-          node --test --test-concurrency=1 dist/tests/linkedin1128_submission.test.js dist/tests/linkedin1128_identity.test.js dist/tests/linkedin_browser_owner_release.test.js dist/tests/remote_mcp_auth.test.js
+          node --test --test-concurrency=1 dist/tests/linkedin1128*.test.js dist/tests/linkedin_browser_owner_release.test.js dist/tests/remote_mcp_auth.test.js
           node --test --test-concurrency=1 tests/tdpd/linkedin1128-store.unit.test.js
+          node --test --test-concurrency=1 tests/tdpd/linkedin1128-lease.unit.test.js
           node --test --test-concurrency=1 tests/tdpd/manifest-transaction.unit.test.js
           node --test --test-concurrency=1 dist/tests/exact_owned_route_guard.test.js dist/tests/vk_generic_publication_route.test.js
       - name: X1113 native-boundary and exact lifecycle contracts (no browser or provider calls)
