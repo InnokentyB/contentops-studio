@@ -1,6 +1,7 @@
 import { VK_PUBLICATION_BOOTSTRAP_RULE } from './vk_publication_route_contract';
 import { createHash } from 'crypto';
 import prisma from '../db';
+import type { Prisma } from '@prisma/client';
 
 export type AgentWorkspaceChat = {
     id: string;
@@ -155,8 +156,10 @@ export function getAgentWorkspaceUpdate(manifest: AgentWorkspaceManifest, knownC
     return { changed: true as const, checksum: manifest.checksum, revision: manifest.revision, manifest };
 }
 
-export async function loadAgentWorkspaceManifest(projectId: number, userId: number) {
-    const project = await prisma.project.findUnique({
+/** Supply the transaction reader when manifest equality fences a mutation. */
+export async function loadAgentWorkspaceManifest(projectId: number, userId: number,
+    reader: Pick<Prisma.TransactionClient, 'project' | 'projectMember'> = prisma) {
+    const project = await reader.project.findUnique({
         where: { id: projectId },
         include: {
             channels: { where: { is_active: true }, orderBy: { id: 'asc' } },
@@ -173,7 +176,7 @@ export async function loadAgentWorkspaceManifest(projectId: number, userId: numb
         }
     });
     if (!project) throw new Error(`Project ${projectId} not found`);
-    const membership = await prisma.projectMember.findUnique({
+    const membership = await reader.projectMember.findUnique({
         where: { project_id_user_id: { project_id: projectId, user_id: userId } },
         select: { id: true }
     });
