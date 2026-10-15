@@ -1,4 +1,5 @@
 import prisma from '../../db';
+import { exactOwnedRouteBlock } from '../exact_owned_route_guard';
 import publicationPlanService from '../publication_plan.service';
 import publicationAdapterService from '../publication_adapter.service';
 import artDirectionService from '../art_direction.service';
@@ -44,6 +45,7 @@ export class PublicationDispatcher {
     }
 
     async routeToBrowserPublication(task: any, bundle: any, reason: Record<string, unknown>) {
+        const exact = exactOwnedRouteBlock(task); if (exact) return exact;
         if (isVkPublicationPlatform(task.channel?.type)) return vkAdapterPublicationHandoff(task.status);
         if (isDzenPublicationPlatform(task.channel?.type)) return dzenAdapterPublicationHandoff(task.status);
         const now = new Date().toISOString();
@@ -210,6 +212,7 @@ export class PublicationDispatcher {
         requestHost?: string,
         publisherFacade?: any
     ): Promise<AutomatedPublicationResult | any> {
+        const exact = exactOwnedRouteBlock(task); if (exact) return exact;
         const channelType = task.channel?.type;
         if (isVkPublicationPlatform(channelType)) return vkAdapterPublicationHandoff(task.status);
         const action = (task.assets as any)?.action || {};
@@ -631,6 +634,7 @@ export class PublicationDispatcher {
     }
 
     async processPublicationTaskItem(task: any, options: { manualTrigger?: boolean; requestHost?: string; publisherFacade?: any } = {}) {
+        const exact = exactOwnedRouteBlock(task); if (exact) return exact;
         const visualReadiness = await artDirectionService.getReadiness(task.project_id, task.id);
         if (!visualReadiness.ready) {
             if (options.manualTrigger) throw new Error(`[VISUAL_GATE_BLOCKED] ${visualReadiness.reason}`);

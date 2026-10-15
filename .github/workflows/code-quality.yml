@@ -34,6 +34,7 @@ jobs:
           node --test --test-concurrency=1 dist/tests/linkedin1128_submission.test.js dist/tests/linkedin1128_identity.test.js dist/tests/linkedin_browser_owner_release.test.js dist/tests/remote_mcp_auth.test.js
           node --test --test-concurrency=1 tests/tdpd/linkedin1128-store.unit.test.js
           node --test --test-concurrency=1 tests/tdpd/manifest-transaction.unit.test.js
+          node --test --test-concurrency=1 dist/tests/exact_owned_route_guard.test.js dist/tests/vk_generic_publication_route.test.js
   threads1114-contract:
     name: Threads1114 exact lifecycle contracts
     runs-on: ubuntu-latest

@@ -241,3 +241,12 @@ an explicit 120-second clock tolerance, and never before the original schedule.
 Three targeted tests reproduced these gaps RED before the fixes. The owning
 Publisher must require submission_permitted=true and use it immediately once;
 any replay/unknown result is reconciliation-only, never a second Submit.
+
+Dispatcher decomposition decision: retain the baselined legacy module, extract
+the exact-task denial policy into the bounded typed exact_owned_route_guard
+module, and add only its three entry hooks. Exact1128 and1114 cannot use central
+processing, low-level generic send or browser fallback to rewrite a claimed WI,
+reset a fence or create alternate work. Other task routes are unchanged. RED
+tests reproduced generic connector entry instead of the required denial; GREEN
+asserts zero provider calls, state writes or generic readiness calls at all three
+entries. Existing Dzen/VK no-fallback route tests remain intact.
