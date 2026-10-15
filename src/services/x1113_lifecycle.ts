@@ -25,7 +25,7 @@ async function pending(tx: Prisma.TransactionClient, a: Args, id: number, reconc
 export async function startX1113(input: Args) {
     const a = x1113BoundarySchema.parse(input);
     return prisma.$transaction(async tx => {
-        const { task } = await xBoundary(tx, a, true);
+        const { task } = await xBoundary(tx, a, 'start');
         const prior = await tx.deliveryAttempt.findFirst({ where: { project_id: 10, content_item_id: 1113 } });
         if (prior) return { mode: 'verification_required', attempt_id: prior.id, retry_allowed: false };
         if (task.status !== 'browser_required') throw new Error('[X1113_START_STATE_INVALID]');
@@ -43,7 +43,7 @@ export async function startX1113(input: Args) {
 export async function preSubmitX1113(input: Args & { attemptId: number }) {
     const a = { ...x1113BoundarySchema.parse(input), attemptId: input.attemptId };
     return prisma.$transaction(async tx => {
-        const { task } = await xBoundary(tx, a, true);
+        const { task } = await xBoundary(tx, a, 'submit');
         if (task.status !== 'publishing') throw new Error('[X1113_START_REQUIRED]');
         await pending(tx, a, a.attemptId);
         const prior = await tx.workflowEvent.findFirst({ where: { project_id: 10, content_item_id: 1113,

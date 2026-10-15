@@ -58,7 +58,7 @@ export async function releaseX1113(input: X1113Release) {
 export async function claimX1113(input: X1113Claim) {
     const a = { ...x1113ClaimSchema.parse(input), leaseToken: '' };
     return prisma.$transaction(async tx => {
-        const { work } = await xReleasedWork(tx, a, true);
+        const { work } = await xReleasedWork(tx, a, 'start');
         if (await tx.deliveryAttempt.findFirst({ where: { project_id: 10, content_item_id: 1113 } })) throw new Error('[X1113_RECONCILE_ONLY]');
         const prior = await tx.workflowEvent.findFirst({ where: { project_id: 10, content_item_id: 1113,
             work_item_id: work.id, actor_id: a.actorId, command: 'ba_claim_x_task1113_browser', idempotency_key: a.idempotencyKey } });

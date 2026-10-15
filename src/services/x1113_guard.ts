@@ -50,7 +50,17 @@ export function xReadbackHash(a: X1113Boundary) {
     return xHash(JSON.stringify({ request: xRequestHash(a), profile: a.browserProfile, account: a.observedAccountRef,
         observedAt: a.observedAt, runtimeGuard: a.clientRuntimeGuardSha256, duplicate: a.duplicateCheckReference }));
 }
-export async function xReleasedWork(tx: Prisma.TransactionClient, a: X1113Boundary, freshContext: boolean) {
+export function requireX1113RuntimeProof(a: Pick<X1113Boundary, 'browserProfile' | 'observedAccountRef' | 'observedAt'
+    | 'contextSource' | 'clientRuntimeGuardSha256'>, stage: 'start' | 'submit', now = Date.now()) {
+    const age = now - Date.parse(a.observedAt);
+    const expected = xHash(JSON.stringify({ browserProfile: p.browserProfile, observedAccountRef: p.account,
+        observedAt: a.observedAt, contextSource: 'owning_publisher_live_browser_info',
+        editorTextSha256: stage === 'submit' ? p.bodySha256 : null }));
+    if (a.browserProfile !== p.browserProfile || a.observedAccountRef !== p.account
+        || a.contextSource !== 'owning_publisher_live_browser_info' || !Number.isFinite(age)
+        || age < -5000 || age > 30000 || a.clientRuntimeGuardSha256 !== expected) throw new Error('[X1113_LIVE_PERSONAL_CONTEXT_REQUIRED]');
+}
+export async function xReleasedWork(tx: Prisma.TransactionClient, a: X1113Boundary, freshContext: false | 'start' | 'submit') {
     const task = await xPackage(tx, a, true);
     const [work, release] = await Promise.all([
         tx.workItem.findFirst({ where: { id: a.workItemId, project_id: 10, content_item_id: 1113, kind: 'browser_publish' } }),
@@ -66,15 +76,11 @@ export async function xReleasedWork(tx: Prisma.TransactionClient, a: X1113Bounda
         || !isDeepStrictEqual(proof, xObject(work.result_payload))
         || xObject(release?.after_state).browser_work_item_id !== work.id) throw new Error('[X1113_AUDITED_RELEASE_REQUIRED]');
     if (freshContext) {
-        const age = Date.now() - Date.parse(a.observedAt);
-        if (a.browserProfile !== 'Innokenty' || a.observedAccountRef !== p.account
-            || a.contextSource !== 'owning_publisher_live_browser_info' || age < -5_000 || age > 30_000) {
-            throw new Error('[X1113_LIVE_PERSONAL_CONTEXT_REQUIRED]');
-        }
+        requireX1113RuntimeProof(a, freshContext);
     }
     return { task, work };
 }
-export async function xBoundary(tx: Prisma.TransactionClient, a: X1113Boundary, freshContext: boolean) {
+export async function xBoundary(tx: Prisma.TransactionClient, a: X1113Boundary, freshContext: false | 'start' | 'submit') {
     const checked = await xReleasedWork(tx, a, freshContext);
     const work = checked.work;
     if (work.state !== 'claimed' || work.lease_actor_id !== a.actorId || work.lease_token !== a.leaseToken
