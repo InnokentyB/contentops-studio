@@ -20,6 +20,7 @@ jobs:
     timeout-minutes: 15
     env:
       PUPPETEER_SKIP_DOWNLOAD: 'true'
+      TELEGRAM_BOT_TOKEN: '000000:synthetic-test-token-never-used-for-provider-calls'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -148,8 +148,9 @@ claim for those tasks. Deployment and owning Ops release of1110 remain separate.
 Exact commands implemented in this slice:
 `ba_release_threads_task1114_api` and `ba_publish_threads_task1114`.
 Both require project10/task1114, authenticated owner actor, pinned current
-manifest, approvalReference and idempotencyKey. Publish defaults to dryRun=true.
-Use separate stable release and send keys; never change the send key to recover
+manifest, approvalReference, idempotencyKey and releaseIdempotencyKey. Publish defaults to dryRun=true.
+Release uses idempotencyKey=releaseIdempotencyKey; send supplies its separate
+stable send key plus the original releaseIdempotencyKey. Never change the send key to recover
 an uncertain operation. Development does not call either live command.
 
 Release validates server-derived immutable task/decision/review/art bindings
@@ -186,3 +187,16 @@ nonempty credential fields, not verified scopes/expiry/provider author. No live
 provider authentication test was performed by development. No owner OAuth
 action is justified by these unknowns; a scoped secret-free readiness diagnostic
 for personal/Page is separate proposed scope, not silently included here.
+
+Independent review on PR151 identified actor/release-key transfer, overlapping
+release replay and post-completion manifest drift. Dispatch now requires the
+exact releasing actor and explicit release key in the durable proof; release
+rechecks replay within its serializable transaction and bounds serialization
+retries to three database-only attempts. An overlapping preflight/package check
+returns an identical already-recorded release rather than creating another.
+Recorded replay authenticates current owner membership without requiring the old
+manifest to remain current; fresh writes/dispatch still require exact manifest.
+Confirmed send replay also checks the current canonical fact against its proof.
+RED reproductions were added for overlapping release and manifest drift before
+their fixes. CI uses a nonfunctional synthetic Telegram token solely because
+legacy module import initializes TelegramService; no provider calls are made.

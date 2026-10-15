@@ -3,7 +3,7 @@ import test from 'node:test';
 import { z } from 'zod';
 import { THREADS1114 as p } from '../services/threads1114_contract';
 type Args = { projectId: number; taskId: number; actorId: string; expectedManifestChecksum: string;
-    approvalReference: string; idempotencyKey: string; dryRun?: boolean };
+    approvalReference: string; idempotencyKey: string; releaseIdempotencyKey: string; dryRun?: boolean };
 type Ports = { replay(args: Args, operation: 'release' | 'send'): Promise<Record<string, unknown> | null>;
     inspect(args: Args, released: boolean): Promise<{ snapshot: unknown; credentialReady: boolean; releaseValid: boolean }>;
     preflight(): Promise<void>; release(args: Args): Promise<Record<string, unknown>>;
@@ -20,7 +20,7 @@ function feature() {
     const parsed = Contract.safeParse(raw); assert.ok(parsed.success, 'exact1114 release/send lifecycle absent'); return parsed.data;
 }
 const args: Args = { projectId: 10, taskId: 1114, actorId: 'user:2', expectedManifestChecksum: p.manifest,
-    approvalReference: 'owner evening1114 exact GO', idempotencyKey: '1114-send-v1' };
+    approvalReference: 'owner evening1114 exact GO', idempotencyKey: '1114-send-v1', releaseIdempotencyKey: '1114-send-v1' };
 function fixture() {
     let released = false; let prior: Record<string, unknown> | null = null; const calls: string[] = [];
     const snapshot = { ...p, acceptedRevision: 1, revision: 1, bodySha256: p.bodySha256,
@@ -57,4 +57,11 @@ test('1114 uncertain result is sanitized/frozen and identical replay does not re
     await assert.rejects(api.executeThreads1114(f.ports, args), (e: unknown) => e instanceof Error && /UNCERTAIN/.test(e.message) && !e.message.includes('TOKEN_SECRET'));
     assert.equal((await api.executeThreads1114(f.ports, args)).retry_allowed, false);
     assert.equal(f.calls.filter(v => v === 'publish').length, 1); assert.ok(!f.calls.includes('confirm'));
+});
+test('1114 identical release overlapping another commit returns the recorded proof', async () => {
+    const f = fixture(); let reads = 0;
+    f.ports.replay = async () => ++reads === 1 ? null : { publication_authorized: true, replayed: true };
+    f.ports.inspect = async () => { throw new Error('[THREADS1114_PACKAGE_GUARD_FAILED]'); };
+    assert.deepEqual(await feature().releaseThreads1114(f.ports, args), { publication_authorized: true, replayed: true });
+    assert.deepEqual(f.calls, []);
 });

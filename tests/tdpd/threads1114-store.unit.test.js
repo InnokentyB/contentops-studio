@@ -6,9 +6,10 @@ const fact = require('../../dist/services/publication_fact.service').default;
 const store = require('../../dist/services/threads1114_store');
 const p = require('../../dist/services/threads1114_contract').THREADS1114;
 const args = { projectId: 10, taskId: 1114, actorId: 'user:2', expectedManifestChecksum: p.manifest,
-    approvalReference: 'synthetic exact owner approval', idempotencyKey: 'synthetic-1114-key' };
+    approvalReference: 'synthetic exact owner approval', idempotencyKey: 'synthetic-1114-key', releaseIdempotencyKey: 'synthetic-1114-key' };
 
 function transaction(t, tx) {
+    t.mock.method(guard, 'ownerOnly', async () => 2);
     const original = db.default.$transaction;
     db.default.$transaction = async (callback, options) => {
         assert.equal(options.isolationLevel, 'Serializable');
@@ -67,5 +68,30 @@ test('1114 pending replay is reconcile-only with no new attempt', async t => {
         deliveryAttempt: { findFirst: async () => ({ id: 123, status: 'pending' }) },
         publicationFact: { findFirst: async () => null } });
     assert.deepEqual(await store.replay1114(args, 'send'), { mode: 'verification_required', retry_allowed: false, task_id: 1114 });
+});
+test('1114 recorded replay remains available after manifest drift without new writes', async t => {
+    t.mock.method(guard, 'ownerManifest', async () => { throw new Error('[STALE_MANIFEST]'); });
+    const proof = { publication_authorized: true };
+    transaction(t, { projectMember: { findUnique: async () => ({ role: 'owner' }) },
+        workflowEvent: { findFirst: async () => ({ before_state: { request_hash: guard.requestHash(args, 'release') }, after_state: proof }) } });
+    assert.deepEqual(await store.replay1114(args, 'release'), proof);
+});
+test('1114 identical release rechecks its durable proof inside the CAS transaction', async t => {
+    t.mock.method(guard, 'checked1114', async () => { throw new Error('must replay before package CAS'); });
+    t.mock.method(guard, 'ownerManifest', async () => undefined);
+    const proof = { publication_authorized: true, actor_id: args.actorId, release_idempotency_key: args.idempotencyKey };
+    transaction(t, { projectMember: { findUnique: async () => ({ role: 'owner' }) },
+        workflowEvent: { findFirst: async () => ({ before_state: { request_hash: guard.requestHash(args, 'release') }, after_state: proof }) } });
+    assert.deepEqual(await store.release1114(args), proof);
+});
+test('1114 release proof cannot transfer across owners or release keys', () => {
+    const release = { before_state: { approval_reference: args.approvalReference }, after_state: {
+        publication_authorized: true, body_sha256: p.bodySha256, actor_id: args.actorId,
+        release_idempotency_key: args.releaseIdempotencyKey, manifest_checksum: p.manifest,
+        channel_id: 138, accepted_revision: 1, threads_user_id: p.userId, schedule_at: p.schedule,
+        publish_at: p.schedule, decision_id: 309, selected_asset_id: null } };
+    assert.equal(guard.validRelease1114(args, release), true);
+    assert.equal(guard.validRelease1114({ ...args, actorId: 'user:3' }, release), false);
+    assert.equal(guard.validRelease1114({ ...args, releaseIdempotencyKey: 'other-release' }, release), false);
 });
 test.after(async () => { await db.default.$disconnect(); await db.pool.end(); });

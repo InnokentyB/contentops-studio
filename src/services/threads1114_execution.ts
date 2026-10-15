@@ -1,6 +1,6 @@
 import { threads1114ArgsSchema, assertThreads1114Snapshot, THREADS1114 as p } from './threads1114_contract';
 export type Threads1114Request = { projectId: number; taskId: number; actorId: string; expectedManifestChecksum: string;
-    approvalReference: string; idempotencyKey: string; dryRun?: boolean };
+    approvalReference: string; idempotencyKey: string; releaseIdempotencyKey: string; dryRun?: boolean };
 export type Threads1114Result = { id: string; url: string; publishedAt: string };
 export type Threads1114Ports = {
     replay(args: Threads1114Request, operation: 'release' | 'send'): Promise<Record<string, unknown> | null>;
@@ -27,10 +27,17 @@ function identity(result: Threads1114Result) {
 }
 export async function releaseThreads1114(ports: Threads1114Ports, args: Threads1114Request) {
     validate(args);
+    if (args.idempotencyKey !== args.releaseIdempotencyKey) throw new Error('[THREADS1114_RELEASE_KEY_MISMATCH]');
     const prior = await ports.replay(args, 'release'); if (prior) return prior;
-    const checked = await ports.inspect(args, false); assertThreads1114Snapshot(checked.snapshot, false);
-    if (!checked.credentialReady) throw new Error('[THREADS1114_CONNECTOR_NOT_READY]');
-    await ports.preflight(); return ports.release(args);
+    try {
+        const checked = await ports.inspect(args, false); assertThreads1114Snapshot(checked.snapshot, false);
+        if (!checked.credentialReady) throw new Error('[THREADS1114_CONNECTOR_NOT_READY]');
+        await ports.preflight(); return await ports.release(args);
+    } catch (error: unknown) {
+        const concurrent = await ports.replay(args, 'release');
+        if (concurrent) return concurrent;
+        throw error;
+    }
 }
 export async function executeThreads1114(ports: Threads1114Ports, args: Threads1114Request): Promise<Record<string, unknown>> {
     validate(args);

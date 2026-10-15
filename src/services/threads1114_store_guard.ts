@@ -11,15 +11,29 @@ export function hash(value: string) { return createHash('sha256').update(value).
 export function requestHash(a: Threads1114Request, operation: string) {
     return hash(JSON.stringify({ package: p, operation, projectId: a.projectId, taskId: a.taskId,
         actorId: a.actorId, expectedManifestChecksum: a.expectedManifestChecksum,
-        approvalReference: a.approvalReference, idempotencyKey: a.idempotencyKey }));
+        approvalReference: a.approvalReference, idempotencyKey: a.idempotencyKey, releaseIdempotencyKey: a.releaseIdempotencyKey }));
 }
-export async function ownerManifest(tx: Prisma.TransactionClient, a: Threads1114Request) {
+export async function ownerOnly(tx: Prisma.TransactionClient, a: Threads1114Request) {
     const match = /^user:([1-9]\d*)$/.exec(a.actorId);
     if (!match) throw new Error('[OWNER_REQUIRED]');
     const member = await tx.projectMember.findUnique({ where: { project_id_user_id: { project_id: 10, user_id: Number(match[1]) } } });
     if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
-    const manifest = await loadAgentWorkspaceManifest(10, Number(match[1]));
+    return Number(match[1]);
+}
+export async function ownerManifest(tx: Prisma.TransactionClient, a: Threads1114Request) {
+    const userId = await ownerOnly(tx, a);
+    const manifest = await loadAgentWorkspaceManifest(10, userId);
     if (a.expectedManifestChecksum !== p.manifest || manifest.checksum !== p.manifest || manifest.project.slug !== 'analystcraft-2') throw new Error('[STALE_MANIFEST]');
+}
+/** Exact release proof is not transferable between owner principals or release operations. */
+export function validRelease1114(a: Threads1114Request, release: { after_state?: unknown; before_state?: unknown } | null) {
+    const proof = object(release?.after_state);
+    return proof.publication_authorized === true && proof.body_sha256 === p.bodySha256
+        && proof.actor_id === a.actorId && proof.release_idempotency_key === a.releaseIdempotencyKey
+        && proof.manifest_checksum === p.manifest && proof.channel_id === 138 && proof.accepted_revision === 1
+        && proof.threads_user_id === p.userId && proof.schedule_at === p.schedule && proof.publish_at === p.schedule
+        && proof.decision_id === 309 && proof.selected_asset_id === null
+        && object(release?.before_state).approval_reference === a.approvalReference;
 }
 export async function checked1114(tx: Prisma.TransactionClient, a: Threads1114Request,
     released: boolean, attemptId?: number) {
@@ -34,7 +48,8 @@ export async function checked1114(tx: Prisma.TransactionClient, a: Threads1114Re
             state: 'completed', input_context_version: 1, result_version: 1 } }),
         tx.deliveryAttempt.findFirst({ where: { project_id: 10, content_item_id: 1114 }, orderBy: { id: 'asc' } }),
         tx.workItem.findFirst({ where: { project_id: 10, content_item_id: 1114, kind: 'browser_publish', state: { notIn: ['completed', 'cancelled'] } } }),
-        tx.workflowEvent.findFirst({ where: { project_id: 10, content_item_id: 1114, command: p.releaseCommand }, orderBy: { id: 'desc' } })
+        tx.workflowEvent.findFirst({ where: { project_id: 10, content_item_id: 1114, command: p.releaseCommand,
+            actor_id: a.actorId, idempotency_key: a.releaseIdempotencyKey }, orderBy: { id: 'desc' } })
     ]);
     if (!task || task.channel?.type !== 'threads' || task.channel.name !== 'innokenty_threads'
         || task.selected_asset || object(task.quality_report).publication_hold
@@ -58,12 +73,7 @@ export async function checked1114(tx: Prisma.TransactionClient, a: Threads1114Re
     if (attemptId !== undefined && await tx.deliveryAttempt.count({ where: { project_id: 10, content_item_id: 1114 } }) !== 1) {
         throw new Error('[THREADS1114_ATTEMPT_CONFLICT]');
     }
-    const proof = object(release?.after_state);
-    const releaseValid = proof.publication_authorized === true && proof.body_sha256 === p.bodySha256
-        && proof.manifest_checksum === p.manifest && proof.channel_id === 138 && proof.accepted_revision === 1
-        && proof.threads_user_id === p.userId && proof.schedule_at === p.schedule && proof.publish_at === p.schedule
-        && proof.decision_id === 309 && proof.selected_asset_id === null
-        && object(release?.before_state).approval_reference === a.approvalReference;
+    const releaseValid = validRelease1114(a, release);
     if (released && !releaseValid) throw new Error('[THREADS1114_OWNER_RELEASE_REQUIRED]');
     return { task, snapshot, credentialReady: Boolean(config.access_token), releaseValid };
 }

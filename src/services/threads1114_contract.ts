@@ -37,6 +37,6 @@ export function assertThreads1114Snapshot(input: unknown, released: boolean) {
 export const threads1114ArgsSchema = z.object({
     projectId: z.literal(10), taskId: z.literal(1114), actorId: z.string().regex(/^user:[1-9]\d*$/),
     expectedManifestChecksum: z.literal(THREADS1114.manifest),
-    approvalReference: z.string().min(10), idempotencyKey: z.string().min(1)
+    approvalReference: z.string().min(10), idempotencyKey: z.string().min(1), releaseIdempotencyKey: z.string().min(1)
 });
 export type Threads1114Args = z.infer<typeof threads1114ArgsSchema>;
