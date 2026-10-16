@@ -29,8 +29,31 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build:backend
+      - name: Install pinned bundle build dependencies
+        run: npm ci --prefix frontend --no-audit --no-fund
+      - name: Build isolated consumer fixture artifact
+        run: npm run build:vk:connector
+      - name: Install Chrome for loopback-only browser regression fixtures
+        run: npx puppeteer browsers install chrome
+      - name: Install Chromium for local Playwright DOM fixtures
+        run: npx playwright install chromium
+      - name: Full backend regression with synthetic auth and bundled consumer
+        env:
+          # Legacy recurring-trigger fixtures assert Lisbon wall-clock dates.
+          TZ: Europe/Lisbon
+          JWT_SECRET: 'synthetic-regression-secret-not-a-production-key'
+          DATABASE_URL: 'postgresql://synthetic:synthetic@127.0.0.1:1/synthetic'
+        run: |
+          while IFS= read -r source; do
+            target="${source/src\//dist/}"
+            target="${target%.ts}.js"
+            echo "::group::${target}"
+            timeout 60s node --test --test-concurrency=1 "$target"
+            echo "::endgroup::"
+          done < <(find src/tests -name '*.test.ts' -print | sort)
       - name: Mocked existing-WI and principal contracts (no provider calls)
         run: |
+          node --test --test-concurrency=1 tests/tdpd/review-handoff-repair.unit.test.js dist/tests/manual_only_handoff.test.js
           node --test --test-concurrency=1 dist/tests/dzen1002_manifest_fence.test.js dist/tests/dzen_task1002_route.test.js dist/tests/dzen1002_inventory*.test.js
           node --test --test-concurrency=1 dist/tests/linkedin1128*.test.js dist/tests/linkedin_browser_owner_release.test.js dist/tests/remote_mcp_auth.test.js
           node --test --test-concurrency=1 tests/tdpd/linkedin1128-store.unit.test.js
@@ -75,6 +98,7 @@ jobs:
         run: |
           DATABASE_URL="$TDPD_TEST_DATABASE_URL" npx prisma db push
           node --test --test-concurrency=1 tests/tdpd/threads1114-postgres.integration.test.js
+          node --test --test-concurrency=1 tests/tdpd/review-handoff-postgres.integration.test.js
   audit:
     name: Code Quality & Security Gate
     runs-on: ubuntu-latest
