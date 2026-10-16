@@ -72,16 +72,19 @@ test('Dzen interaction navigation does not wait for permanent background request
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
     const address = server.address();
     assert.ok(address && typeof address !== 'string');
-    const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
+    let browser: Awaited<ReturnType<typeof puppeteer.launch>> | undefined;
     try {
+        browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
         const page = await browser.newPage();
         const started = Date.now();
         await navigateDzenInteractionPage(page, `http://127.0.0.1:${address.port}`, 2_000);
         assert.equal(await page.$eval('main', (node) => node.textContent), 'ready');
         assert.ok(Date.now() - started < 2_000);
     } finally {
-        await browser.close();
-        for (const socket of sockets) socket.destroy();
-        await new Promise<void>((resolve) => server.close(() => resolve()));
+        try { await browser?.close(); }
+        finally {
+            for (const socket of sockets) socket.destroy();
+            await new Promise<void>((resolve) => server.close(() => resolve()));
+        }
     }
 });
