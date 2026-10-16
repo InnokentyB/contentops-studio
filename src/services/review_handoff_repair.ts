@@ -26,17 +26,28 @@ function record(value: unknown): Record<string, unknown> {
         ? value as Record<string, unknown> : {};
 }
 export function reviewRepairMetadataHash(task: { assets?: unknown; quality_report?: unknown; metrics?: unknown;
-    visual_mode?: unknown; visual_state?: unknown; visual_decision_version?: unknown; selected_asset_id?: unknown }) {
+    visual_mode?: unknown; visual_state?: unknown; visual_decision_version?: unknown; selected_asset_id?: unknown;
+    title?: unknown; item_key?: unknown; type?: unknown; layer?: unknown; visual_placement?: unknown; channel?: unknown }) {
+    const channel = record(task.channel);
     return hash(JSON.stringify({ assets: task.assets ?? null, quality_report: task.quality_report ?? null,
         metrics: task.metrics ?? null, visual_mode: task.visual_mode ?? null,
         visual_state: task.visual_state ?? null, visual_decision_version: task.visual_decision_version ?? null,
-        selected_asset_id: task.selected_asset_id ?? null }));
+        selected_asset_id: task.selected_asset_id ?? null, title: task.title ?? null,
+        item_key: task.item_key ?? null, type: task.type ?? null, layer: task.layer ?? null,
+        visual_placement: task.visual_placement ?? null,
+        channel: { id: channel.id ?? null, project_id: channel.project_id ?? null,
+            name: channel.name ?? null, type: channel.type ?? null } }));
 }
 export function reviewRepairStateHash(review: { result_payload?: unknown; note?: unknown; reason_code?: unknown;
-    input_context_version?: unknown; result_version?: unknown; lease_expires_at?: unknown }) {
+    input_context_version?: unknown; result_version?: unknown; lease_expires_at?: unknown;
+    due_at?: unknown; week_package_id?: unknown; item_key?: unknown; assignee_role?: unknown;
+    kind?: unknown; depends_on_item_id?: unknown }) {
     return hash(JSON.stringify({ result_payload: review.result_payload ?? null, note: review.note ?? null,
         reason_code: review.reason_code ?? null, input_context_version: review.input_context_version,
-        result_version: review.result_version, lease_expires_at: review.lease_expires_at ?? null }));
+        result_version: review.result_version, lease_expires_at: review.lease_expires_at ?? null,
+        due_at: review.due_at ?? null, week_package_id: review.week_package_id ?? null,
+        item_key: review.item_key ?? null, assignee_role: review.assignee_role ?? null,
+        kind: review.kind ?? null, depends_on_item_id: review.depends_on_item_id ?? null }));
 }
 async function assertOwner(db: Db, args: Args) {
     const owner = await db.projectMember.findUnique({ where: { project_id_user_id: {
@@ -54,7 +65,7 @@ async function exactState(db: Db, args: Args) {
         db.deliveryAttempt.count({ where: { project_id: args.projectId, content_item_id: args.taskId } }),
         db.workItem.count({ where: { project_id: args.projectId, content_item_id: args.taskId,
             id: { not: args.workItemId }, kind: 'content_review',
-            state: { in: ['pending', 'available', 'claimed', 'waiting_approval'] } } })
+            state: { in: ['pending', 'available', 'claimed', 'waiting_approval', 'blocked'] } } })
     ]);
     if (!task || task.project_id !== args.projectId || task.channel_id !== args.expectedChannelId
         || !task.channel || task.channel.project_id !== args.projectId || task.channel.id !== args.expectedChannelId
@@ -69,6 +80,7 @@ async function exactState(db: Db, args: Args) {
         || task.publication_fact || task.published_link || attempts || competing
         || !review || review.project_id !== args.projectId || review.content_item_id !== args.taskId
         || review.kind !== 'content_review' || review.assignee_role !== 'content_reviewer'
+        || review.depends_on_item_id != null
         || review.state !== 'waiting_approval' || review.input_context_version !== args.expectedRevision
         || review.result_version !== args.expectedResultVersion || review.lease_actor_id || review.lease_token
         || reviewRepairStateHash(review) !== args.expectedReviewStateSha256
@@ -99,14 +111,13 @@ export async function repairReviewHandoff(input: Args, database: typeof prisma =
     };
     const prior = await replay(database);
     if (prior) return prior;
-    const current = await exactState(database, args);
-    const preview = { project_id: args.projectId, task_id: args.taskId,
-        superseded_work_item_id: args.workItemId, historical_approval_id: current.approval.id,
+    const preview = (state: Awaited<ReturnType<typeof exactState>>) => ({ project_id: args.projectId, task_id: args.taskId,
+        superseded_work_item_id: args.workItemId, historical_approval_id: state.approval.id,
         replacement_input_context_version: args.expectedRevision, replacement_result_version: 0,
         handoff_mode: 'manual', connector_authority: 'manual_only',
         preserved_body_sha256: args.expectedBodySha256, publication_authorized: false,
-        delivery_attempt_count: 0, publication_fact: null };
-    if (!apply) return { mode: 'preview', ...preview };
+        delivery_attempt_count: 0, publication_fact: null });
+    if (!apply) return { mode: 'preview', ...preview(await exactState(database, args)) };
     return database.$transaction(async tx => {
         const repeated = await replay(tx);
         if (repeated) return repeated;
@@ -131,7 +142,7 @@ export async function repairReviewHandoff(input: Args, database: typeof prisma =
             quality_report: { equals: state.task.quality_report ?? Prisma.JsonNull } },
         data: { quality_report: quality as Prisma.InputJsonValue } });
         if (changed.count !== 1) throw new Error('[REVIEW_HANDOFF_CAS_CONFLICT]');
-        const result = { mode: 'applied', ...preview, replacement_work_item_id: replacement.id, replayed: false };
+        const result = { mode: 'applied', ...preview(state), replacement_work_item_id: replacement.id, replayed: false };
         const event = await tx.workflowEvent.create({ data: { project_id: args.projectId,
             content_item_id: args.taskId, work_item_id: replacement.id, actor_id: args.actorId,
             command: COMMAND, idempotency_key: args.idempotencyKey,

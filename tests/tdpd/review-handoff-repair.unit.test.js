@@ -95,3 +95,32 @@ test('audit failure rolls back review supersession, replacement, projection', as
     await assert.rejects(repairReviewHandoff({ ...args, apply: true }, f.db), /audit unavailable/);
     assert.deepEqual(f.state, before);
 });
+test('apply snapshot reads occur only inside the replay transaction', async () => {
+    const f = fixture(); let inTransaction = false; let outsideReads = 0;
+    const load = f.db.contentItem.findFirst;
+    f.db.contentItem.findFirst = async args => { if (!inTransaction) outsideReads++; return load(args); };
+    const transact = f.db.$transaction;
+    f.db.$transaction = async run => transact(async tx => { inTransaction = true;
+        try { return await run(tx); } finally { inTransaction = false; } });
+    await repairReviewHandoff({ ...args, apply: true }, f.db);
+    assert.equal(outsideReads, 0);
+});
+test('blocked competing review is not a second review path', async () => {
+    const f = fixture(); f.db.workItem.count = async ({ where }) => where.state.in.includes('blocked') ? 1 : 0;
+    await assert.rejects(repairReviewHandoff({ ...args, apply: true }, f.db), /SNAPSHOT_CHANGED/);
+    assert.equal(f.state.replacements.length, 0);
+});
+test('placement, title, item identity, account name/type and review scheduling are snapshot-bound', async () => {
+    for (const mutate of [f => f.state.task.visual_placement = 'carousel', f => f.state.task.title = 'drift',
+        f => f.state.task.item_key = 'foreign-slot', f => f.state.task.channel.name = 'foreign-account',
+        f => f.state.task.channel.type = 'x', f => f.state.review.due_at = new Date('2026-10-17')]) {
+        const f = fixture(); mutate(f);
+        await assert.rejects(repairReviewHandoff({ ...args, apply: true }, f.db), /SNAPSHOT_CHANGED/);
+    }
+});
+test('repair cannot discard a review prerequisite when creating available work', async () => {
+    const f = fixture(); f.state.review.depends_on_item_id = 9;
+    const input = { ...args, apply: true, expectedReviewStateSha256: reviewRepairStateHash(f.state.review) };
+    await assert.rejects(repairReviewHandoff(input, f.db), /SNAPSHOT_CHANGED/);
+    assert.equal(f.state.replacements.length, 0);
+});

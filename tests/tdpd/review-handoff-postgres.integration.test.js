@@ -46,7 +46,8 @@ test('real PostgreSQL repair rolls back on audit failure and concurrent apply le
             expectedChannelId: 6, expectedRevision: 2, expectedBodySha256: sha('Synthetic unchanged body'),
             expectedChannelConfigSha256: sha(JSON.stringify(config)), expectedScheduleAt: date, expectedPublishAt: date,
             expectedResultVersion: 2, idempotencyKey: 'synthetic-recovery', reason: 'Synthetic owner recovery approval', apply: true };
-        args.expectedTaskMetadataSha256 = reviewRepairMetadataHash(await db.contentItem.findUnique({ where: { id: 1136 } }));
+        args.expectedTaskMetadataSha256 = reviewRepairMetadataHash(await db.contentItem.findUnique({
+            where: { id: 1136 }, include: { channel: true } }));
         args.expectedReviewStateSha256 = reviewRepairStateHash(await db.workItem.findUnique({ where: { id: 1948 } }));
         const failingDb = new Proxy(db, { get(object, key) {
             if (key !== '$transaction') return Reflect.get(object, key);

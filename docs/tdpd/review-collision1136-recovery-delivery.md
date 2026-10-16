@@ -23,7 +23,10 @@ old WI/result version, channel-config SHA256, task-metadata SHA256 and old-revie
 state SHA256, reason and stable idempotency key. Metadata hash covers assets,
 quality_report (including task identity), metrics, visual state/mode/decision
 version/selected asset. Review hash covers result_payload/note/reason/context/
-result/lease expiry. Only hashes, old note/reason, IDs and bounded reason enter
+result/lease expiry and scheduling/dependency fields. Task title/type/layer/
+item_key/placement and channel id/project/name/type are also snapshot-bound.
+Non-null review prerequisites block rather than silently creating available
+work without its dependency. Only hashes, old note/reason, IDs and bounded reason enter
 audit; channel config/body/secrets are not copied into the audit. Obtain exact
 hashes through the existing metadata read, not provider access. Missing/current
 snapshot drift, competing review, active lease, non-owner, attempts or fact block.
