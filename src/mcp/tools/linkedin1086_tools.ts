@@ -5,6 +5,7 @@ import { controlLinkedIn1086 } from '../../services/linkedin1086_release';
 import { lease1086Schema, leaseLinkedIn1086 } from '../../services/linkedin1086_lease';
 import { startLinkedIn1086, preSubmitLinkedIn1086, confirmLinkedIn1086, uncertainLinkedIn1086 } from '../../services/linkedin1086_lifecycle';
 import { asToolResult, INTERNAL_MUTATION_ANNOTATIONS } from './common';
+import { recoverLinkedIn1086Attempt41, recovery1086Schema } from '../../services/linkedin1086_recovery';
 async function control(run: () => Promise<Record<string, unknown>>) {
     try { return asToolResult(await run()); } catch (error: unknown) {
         const code = error instanceof Error ? /^\[([A-Z0-9_]+)\]/.exec(error.message)?.[1] : undefined;
@@ -13,6 +14,14 @@ async function control(run: () => Promise<Record<string, unknown>>) {
     }
 }
 export function registerLinkedIn1086Tools(server: McpServer) {
+    server.registerTool('ba_record_linkedin_task1086_recovery_approval', {
+        description: 'Record the exact16Oct human risk verdict for same attempt41/generation1. Preview default. Owner-only immutable approval audit; no lease/task/attempt/provider mutation or Submit permission.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: recovery1086Schema.shape
+    }, async a => control(() => recoverLinkedIn1086Attempt41(a, true)));
+    server.registerTool('ba_recover_linkedin_task1086_attempt41', {
+        description: 'Preview default. Exact owner-approved residual-duplicate-risk recovery of SAME attempt41/WI1946, generation1 only. Preserves release/start/body/date and old audit; no new attempt/WI, no provider action. Apply returns private lease once, not Submit authority. Replay/expiry/uncertainty never re-arm.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: recovery1086Schema.shape
+    }, async a => control(() => recoverLinkedIn1086Attempt41(a)));
     server.registerTool('ba_repair_linkedin_task1086_metadata', {
         description: 'Preview/apply exact1086 English/manual metadata only. Preserves accepted body, revision, decision, dates and channel; never releases or sends.',
         annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: release1086Schema.shape
@@ -38,7 +47,7 @@ export function registerLinkedIn1086Tools(server: McpServer) {
         description: `${reconcile ? 'Reconcile after expiry with the historical SAME actor/fence; audit as reconciliation.' : 'Normal confirmation requires the active lease; audit as confirmation.'} Record only the same1086 attempt from owning native post readback: exact English text, personal innokentyb, numeric object/permalink and matching actual time. No provider call, Submit or retry. Server does not claim independent provider verification.`,
         annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: { ...attempted, actionTimeConfirmationReference: z.string().min(10),
             observedEditorText: z.string().min(1).max(10000),
-            publicUrl: z.string().url(), providerObjectId: z.string().regex(/^urn:li:activity:\d+$/), publishedAt: z.string().datetime({ offset: true }),
+            publicUrl: z.string().url(), providerObjectId: z.string().regex(/^urn:li:(activity|share):\d+$/), publishedAt: z.string().datetime({ offset: true }),
             evidenceSha256: z.string().regex(/^[a-f0-9]{64}$/), observedPostText: z.string().min(1).max(10000),
             observedAuthorProfileUrl: z.literal('https://www.linkedin.com/in/innokentyb/'), observedPublishedAt: z.string().datetime({ offset: true }) }
     }, async a => control(() => confirmLinkedIn1086(a, reconcile)));

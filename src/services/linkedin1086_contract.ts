@@ -20,6 +20,8 @@ export const submission1086Schema = base1086Schema.extend({
     releaseIdempotencyKey: z.string().min(1), observedProfileUrl: z.literal(LINKEDIN1086.profile),
     authorEvidenceSha256: z.string().regex(/^[a-f0-9]{64}$/), duplicateCheckReference: z.string().min(10),
     actionTimeConfirmationReference: z.string().min(10).optional(),
+    recoveryGeneration: z.literal(1).optional(),
+    recoveryObservedAt: z.string().datetime({ offset: true }).optional(),
     observedEditorText: z.string().min(1).max(10000).optional()
 });
 export const claim1086Schema = submission1086Schema.omit({ leaseToken: true });

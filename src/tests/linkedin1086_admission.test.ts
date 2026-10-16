@@ -18,3 +18,12 @@ test('generic dispatch must not bypass exact1086 release/attempt controls', () =
         'ba_start_linkedin_task1086_browser_submission');
     assert.equal(exactOwnedRouteBlock({project_id:10,id:1086}), null);
 });
+
+test('same41 approval/recovery tools remain Publisher-only and never expose writer/planner authority', () => {
+    for (const name of ['ba_recover_linkedin_task1086_attempt41', 'ba_record_linkedin_task1086_recovery_approval']) {
+        assert.equal(isToolAllowedForProfile('publisher', name), true);
+        for (const role of ['writer', 'planner', 'editor', 'art_director', 'strategist', 'growth_analyst'] as const) {
+            assert.equal(isToolAllowedForProfile(role, name), false, `${role}:${name}`);
+        }
+    }
+});
