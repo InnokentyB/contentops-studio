@@ -37,6 +37,8 @@ jobs:
         run: npx puppeteer browsers install chrome
       - name: Full backend regression with synthetic auth and bundled consumer
         env:
+          # Legacy recurring-trigger fixtures assert Lisbon wall-clock dates.
+          TZ: Europe/Lisbon
           JWT_SECRET: 'synthetic-regression-secret-not-a-production-key'
           DATABASE_URL: 'postgresql://synthetic:synthetic@127.0.0.1:1/synthetic'
         run: |
