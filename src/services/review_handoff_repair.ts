@@ -18,6 +18,8 @@ export const reviewHandoffRepairSchema = z.object({
     apply: z.boolean().default(false)
 }).strict();
 type Args = z.input<typeof reviewHandoffRepairSchema>;
+export const reviewRepairSnapshotSchema = reviewHandoffRepairSchema.pick({
+    projectId: true, taskId: true, workItemId: true, actorId: true });
 type Db = Pick<Prisma.TransactionClient, 'projectMember' | 'contentItem' | 'workItem'
     | 'approvalDecision' | 'deliveryAttempt' | 'workflowEvent'>;
 const COMMAND = 'ba_repair_content_review_handoff';
@@ -49,7 +51,7 @@ export function reviewRepairStateHash(review: { result_payload?: unknown; note?:
         item_key: review.item_key ?? null, assignee_role: review.assignee_role ?? null,
         kind: review.kind ?? null, depends_on_item_id: review.depends_on_item_id ?? null }));
 }
-async function assertOwner(db: Db, args: Args) {
+async function assertOwner(db: Db, args: Pick<Args, 'projectId' | 'actorId'>) {
     const owner = await db.projectMember.findUnique({ where: { project_id_user_id: {
         project_id: args.projectId, user_id: Number(args.actorId.slice(5)) } } });
     if (owner?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
@@ -93,6 +95,35 @@ async function exactState(db: Db, args: Args) {
         throw new Error('[MANUAL_ONLY_CHANNEL_REQUIRED]');
     }
     return { task, review, approval, bundle };
+}
+
+/** Secret-free read-only operator snapshot; never requires raw configuration export. */
+export async function getReviewRepairSnapshot(input: z.input<typeof reviewRepairSnapshotSchema>,
+    database: typeof prisma = prisma) {
+    const scope = reviewRepairSnapshotSchema.parse(input);
+    await assertOwner(database, scope);
+    const [task, review] = await Promise.all([
+        database.contentItem.findFirst({ where: { id: scope.taskId, project_id: scope.projectId },
+            include: { channel: true, publication_fact: true } }),
+        database.workItem.findFirst({ where: { id: scope.workItemId, project_id: scope.projectId,
+            content_item_id: scope.taskId } })
+    ]);
+    if (!task?.channel || !review || task.project_id !== scope.projectId
+        || review.project_id !== scope.projectId || review.content_item_id !== scope.taskId
+        || !task.schedule_at || !task.publish_at) throw new Error('[REVIEW_HANDOFF_SNAPSHOT_CHANGED]');
+    const expected = reviewHandoffRepairSchema.omit({ apply: true, idempotencyKey: true, reason: true }).parse({
+        ...scope, expectedChannelId: task.channel_id, expectedRevision: task.content_revision,
+        expectedBodySha256: hash(task.draft_text || ''),
+        expectedChannelConfigSha256: hash(JSON.stringify(task.channel.config)),
+        expectedTaskMetadataSha256: reviewRepairMetadataHash(task),
+        expectedReviewStateSha256: reviewRepairStateHash(review),
+        expectedScheduleAt: task.schedule_at.toISOString(), expectedPublishAt: task.publish_at.toISOString(),
+        expectedResultVersion: review.result_version
+    });
+    const state = await exactState(database, { ...expected,
+        idempotencyKey: 'readonly-snapshot', reason: 'Read-only exact recovery snapshot', apply: false });
+    return { mode: 'snapshot', expected_snapshot: expected, historical_approval_id: state.approval.id,
+        publication_authorized: false, provider_contacted: false };
 }
 
 /** Owner-only metadata/review recovery. No acceptance, art decision or publication authority. */

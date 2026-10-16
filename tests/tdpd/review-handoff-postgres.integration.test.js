@@ -18,7 +18,7 @@ if (effective.protocol !== url.protocol || effective.hostname !== url.hostname
     throw Error('Bootstrap changed isolated database target');
 }
 const { default: db, pool } = require('../../dist/db');
-const { repairReviewHandoff, reviewRepairMetadataHash, reviewRepairStateHash } = require('../../dist/services/review_handoff_repair');
+const { repairReviewHandoff, getReviewRepairSnapshot } = require('../../dist/services/review_handoff_repair');
 const sha = value => createHash('sha256').update(value).digest('hex');
 const slug = 'isolated_review_handoff_fixture';
 let projectCreated = false; let userId;
@@ -46,9 +46,10 @@ test('real PostgreSQL repair rolls back on audit failure and concurrent apply le
             expectedChannelId: 6, expectedRevision: 2, expectedBodySha256: sha('Synthetic unchanged body'),
             expectedChannelConfigSha256: sha(JSON.stringify(config)), expectedScheduleAt: date, expectedPublishAt: date,
             expectedResultVersion: 2, idempotencyKey: 'synthetic-recovery', reason: 'Synthetic owner recovery approval', apply: true };
-        args.expectedTaskMetadataSha256 = reviewRepairMetadataHash(await db.contentItem.findUnique({
-            where: { id: 1136 }, include: { channel: true } }));
-        args.expectedReviewStateSha256 = reviewRepairStateHash(await db.workItem.findUnique({ where: { id: 1948 } }));
+        const snapshot = await getReviewRepairSnapshot({ projectId: 7, taskId: 1136,
+            workItemId: 1948, actorId: `user:${userId}` });
+        assert.equal(JSON.stringify(snapshot).includes('Synthetic unchanged body'), false);
+        Object.assign(args, snapshot.expected_snapshot);
         const failingDb = new Proxy(db, { get(object, key) {
             if (key !== '$transaction') return Reflect.get(object, key);
             return (run, options) => db.$transaction(tx => run(new Proxy(tx, { get(client, field) {

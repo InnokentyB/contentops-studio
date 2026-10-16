@@ -11,6 +11,13 @@ separate from content acceptance and governed Art ingest/binding.
 
 ## Operator tool
 
+`ba_get_content_review_repair_snapshot` provides server-computed expected hashes
+through MCP without raw body/config/review export or out-of-band database access.
+Call it with project/task/old WI/actor; all owner/tenant/current collision gates
+apply. Verify returned body/revision/channel/dates against the approved package.
+Then pass its expected_snapshot to `ba_repair_content_review_handoff` with the
+owner reason and stable key, first preview, then explicit apply.
+
 `ba_repair_content_review_handoff` (owner and scoped Editor profile; authenticated
 actor is overwritten by MCP principal). Preview default `apply=false`; apply
 atomically supersedes the collision WI as completed without rewriting result,
@@ -28,7 +35,7 @@ item_key/placement and channel id/project/name/type are also snapshot-bound.
 Non-null review prerequisites block rather than silently creating available
 work without its dependency. Only hashes, old note/reason, IDs and bounded reason enter
 audit; channel config/body/secrets are not copied into the audit. Obtain exact
-hashes through the existing metadata read, not provider access. Missing/current
+hashes through the new safe snapshot read, not provider access. Missing/current
 snapshot drift, competing review, active lease, non-owner, attempts or fact block.
 Same-key exact replay returns the same replacement, changed input conflicts.
 

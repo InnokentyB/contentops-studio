@@ -1,7 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createHash } = require('node:crypto');
-const { repairReviewHandoff, reviewRepairMetadataHash, reviewRepairStateHash } = require('../../dist/services/review_handoff_repair');
+const { repairReviewHandoff, reviewRepairMetadataHash, reviewRepairStateHash,
+    getReviewRepairSnapshot } = require('../../dist/services/review_handoff_repair');
 const sha = value => createHash('sha256').update(value).digest('hex');
 const date = '2026-10-16T14:00:00.000Z';
 const args = { projectId: 7, taskId: 1136, workItemId: 1948, actorId: 'user:2',
@@ -95,6 +96,14 @@ test('audit failure rolls back review supersession, replacement, projection', as
     await assert.rejects(repairReviewHandoff({ ...args, apply: true }, f.db), /audit unavailable/);
     assert.deepEqual(f.state, before);
 });
+test('safe snapshot rejects a non-owner and foreign task without writes', async () => {
+    for (const mutate of [f => f.state.owner = false, f => f.state.task.project_id = 8]) {
+        const f = fixture(); mutate(f); const before = structuredClone(f.state);
+        await assert.rejects(getReviewRepairSnapshot({ projectId: 7, taskId: 1136,
+            workItemId: 1948, actorId: 'user:2' }, f.db));
+        assert.deepEqual(f.state, before);
+    }
+});
 test('apply snapshot reads occur only inside the replay transaction', async () => {
     const f = fixture(); let inTransaction = false; let outsideReads = 0;
     const load = f.db.contentItem.findFirst;
@@ -123,4 +132,15 @@ test('repair cannot discard a review prerequisite when creating available work',
     const input = { ...args, apply: true, expectedReviewStateSha256: reviewRepairStateHash(f.state.review) };
     await assert.rejects(repairReviewHandoff(input, f.db), /SNAPSHOT_CHANGED/);
     assert.equal(f.state.replacements.length, 0);
+});
+test('owner can obtain safe server-computed snapshot through the operator boundary', async () => {
+    assert.equal(typeof getReviewRepairSnapshot, 'function');
+    const f = fixture(); const before = structuredClone(f.state);
+    const r = await getReviewRepairSnapshot({ projectId: 7, taskId: 1136, workItemId: 1948, actorId: 'user:2' }, f.db);
+    assert.equal(r.expected_snapshot.expectedTaskMetadataSha256, args.expectedTaskMetadataSha256);
+    assert.equal(r.expected_snapshot.expectedReviewStateSha256, args.expectedReviewStateSha256);
+    assert.equal(r.expected_snapshot.expectedChannelConfigSha256, args.expectedChannelConfigSha256);
+    assert.equal(JSON.stringify(r).includes('same body'), false);
+    assert.equal(JSON.stringify(r).includes('Historical review note'), false);
+    assert.deepEqual(f.state, before);
 });
