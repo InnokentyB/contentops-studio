@@ -9,8 +9,22 @@ import { asToolResult, EXTERNAL_PUBLICATION_ANNOTATIONS, INTERNAL_MUTATION_ANNOT
 
 const MANIFEST = 'sha256:4bfec7ca8399251c6c8f132a34d9e0952adbf1eef049d29325808cbd9db3975b';
 
-/** Exact route for the accepted, native Threads package scheduled for 13 October. */
-export function registerTomorrowPublicationTools(server: McpServer): void {
+type Dzen1002Commands = {
+    publish(input: unknown): Promise<Record<string, unknown>>;
+    reconcile(input: unknown): Promise<Record<string, unknown>>;
+};
+/** Exact publication commands. Optional internal ports support boundary tests, never request overrides. */
+export function registerTomorrowPublicationTools(server: McpServer, dzen1002Commands: Dzen1002Commands = {
+    publish: async input => dzenTaskPublicationService.execute(z.object({
+        projectId: z.literal(10), taskId: z.literal(1002), actorId: z.string(),
+        expectedManifestChecksum: z.string(), dryRun: z.boolean().optional().default(true),
+        idempotencyKey: z.string().optional()
+    }).strict().parse(input)),
+    reconcile: async input => {
+        const { reconcileExactDzen1002 } = await import('../../services/dzen1002_runtime_production');
+        return { ...await reconcileExactDzen1002(input) };
+    }
+}): void {
     const dzen1002 = {
         projectId: z.literal(DZEN1002_ROUTE.projectId), taskId: z.literal(DZEN1002_ROUTE.taskId),
         actorId: z.string().regex(/^user:\d+$/),
@@ -33,7 +47,14 @@ export function registerTomorrowPublicationTools(server: McpServer): void {
         inputSchema: { projectId: z.literal(10), taskId: z.literal(1002),
             actorId: z.string().regex(/^user:\d+$/), expectedManifestChecksum: z.literal(DZEN1002_ROUTE.manifest),
             dryRun: z.boolean().optional().default(true), idempotencyKey: z.string().min(1).optional() }
-    }, async args => asToolResult(await dzenTaskPublicationService.execute(args)));
+    }, async args => asToolResult(await dzen1002Commands.publish(args)));
+    server.registerTool('ba_reconcile_dzen_task1002', {
+        description: 'Complete the original task1002 attempt from its retained verified receipt only. Never creates, edits, uploads or sends; missing receipt stays reconciliation-required.',
+        annotations: INTERNAL_MUTATION_ANNOTATIONS,
+        inputSchema: { projectId: z.literal(10), taskId: z.literal(1002),
+            actorId: z.string().regex(/^user:[1-9]\d*$/), expectedManifestChecksum: z.literal(DZEN1002_ROUTE.manifest),
+            attemptId: z.number().int().positive(), idempotencyKey: z.string().min(1).max(200) }
+    }, async args => asToolResult(await dzen1002Commands.reconcile(args)));
 
     server.registerTool('ba_release_threads_task1108_api', {
         description: 'Owner-only audited release of exact p10 Threads task1108 revision1/decision290. Verifies personal identity, provider history, manifest, native length and absence of facts or attempts. Never publishes.',

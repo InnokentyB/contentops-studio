@@ -1,18 +1,5 @@
 import { describeDzen1002Pagination } from './dzen1002_pagination_shape';
 
-type Admission = { state: string; expiresAt?: number };
-/** Internal runtime seam, not a config/request attestation. No production authority is configured. */
-export async function requireDzen1002DiagnosticAdmission(probe?: () => Promise<Admission>): Promise<void> {
-    if (!probe) throw new Error('[DZEN1002_ADMISSION_SOURCE_UNAVAILABLE]');
-    let decision: Admission;
-    try { decision = await probe(); }
-    catch { throw new Error('[DZEN1002_ADMISSION_SOURCE_UNAVAILABLE]'); }
-    const now = Date.now();
-    if (decision.state !== 'permitted' || !Number.isSafeInteger(decision.expiresAt)
-        || (decision.expiresAt ?? 0) <= now || (decision.expiresAt ?? 0) > now + 60_000) {
-        throw new Error('[DZEN1002_ACTION_ADMISSION_DENIED_OR_EXPIRED]');
-    }
-}
 type Frame = { state: string; page: number; url: string; status: number; payload: unknown };
 type NativeCaptureReport = { mode: 'diagnostic_only'; basis: 'observed_response_shape'; stop_reason: string | null;
     coverage_verified: false; native_end_rule_verified: false; provider_identity_verified: false;

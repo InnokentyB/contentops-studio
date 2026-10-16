@@ -3,7 +3,8 @@ import { enumerateDzen1002Inventory, type InventoryPage, type InventoryDiagnosti
 import { parseBrowserCookieHeader, type DzenStudioPublication } from './puppeteer/dzen_dom_helpers';
 import puppeteerPublisherService from './puppeteer_publisher.service';
 import { Dzen1002ReadFailure, type Dzen1002ObservedResponse } from './dzen1002_read_failure';
-import { createDzen1002NativeCapture, requireDzen1002DiagnosticAdmission } from './dzen1002_native_capture';
+import { createDzen1002NativeCapture } from './dzen1002_native_capture';
+import { requireDzen1002Action } from './dzen1002_action_restriction';
 
 const CHANNEL = '6a8029aba055ec36033bf81c';
 const LIST = `https://dzen.ru/profile/editor/id/${CHANNEL}/publications`;
@@ -14,9 +15,9 @@ type Dzen1002Readback = { authenticated: boolean; editor_available: boolean; edi
     publications: DzenStudioPublication[]; inventory_diagnostics: InventoryDiagnostic[]; checked_at: string;
     native_contract_diagnostics: Record<string, unknown> };
 
-/** Disabled until a legitimate runtime admission source is integrated. Config flags never grant admission. */
+/** Local action-scope restriction is checked before any session access. */
 export async function readDzen1002NativeDiagnostic(config: { cookies?: string; channel_id?: string }): Promise<Dzen1002Readback> {
-    await requireDzen1002DiagnosticAdmission();
+    requireDzen1002Action('inventory');
     return readDzen1002Inventory(config);
 }
 

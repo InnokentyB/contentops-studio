@@ -4,10 +4,10 @@ import puppeteer from 'puppeteer';
 import puppeteerPublisherService from '../services/puppeteer_publisher.service';
 import { readDzen1002Inventory } from '../services/dzen1002_inventory_browser';
 import { z } from 'zod';
+import { requireDzen1002Action } from '../services/dzen1002_action_restriction';
 type Collector = { observe(input: { state: string; page: number; url: string; status: number; payload: unknown }): void;
     report(): Record<string, unknown> };
-const Contract = z.object({ createDzen1002NativeCapture: z.custom<(title?: string) => Collector>(v => typeof v === 'function'),
-    requireDzen1002DiagnosticAdmission: z.custom<(check?: () => Promise<{ state: string; expiresAt?: number }>) => Promise<void>>(v => typeof v === 'function') });
+const Contract = z.object({ createDzen1002NativeCapture: z.custom<(title?: string) => Collector>(v => typeof v === 'function') });
 function feature() {
     let raw: unknown;
     try { raw = require('../services/dzen1002_native_capture'); }
@@ -17,14 +17,10 @@ function feature() {
     const parsed = Contract.safeParse(raw); assert.ok(parsed.success, 'native diagnostic admission/capture seam absent');
     return parsed.data;
 }
-test('DIAG001 missing/denied/expired admission stops before session access; config attestation cannot clear it', async () => {
-    const f = feature(); let sessions = 0;
-    for (const check of [undefined, async () => ({ state: 'denied' }),
-        async () => ({ state: 'permitted', expiresAt: Date.now() - 1 })]) {
-        await assert.rejects((async () => { await f.requireDzen1002DiagnosticAdmission(check); sessions++; })());
+test('DIAG001 unresolved action scope stops before session access without a permission callback', () => {
+    for (const operation of ['inventory', 'publish', 'readback'] as const) {
+        assert.throws(() => requireDzen1002Action(operation), /DZEN1002_ACTION_SCOPE_UNRESOLVED/);
     }
-    assert.equal(sessions, 0);
-    await f.requireDzen1002DiagnosticAdmission(async () => ({ state: 'permitted', expiresAt: Date.now() + 1000 }));
 });
 test('DIAG003/004 capture is sanitized observation, never ownership/end/absence proof', () => {
     const c = feature().createDzen1002NativeCapture('PRIVATE_TITLE');
@@ -71,7 +67,7 @@ test('DIAG001 production diagnostic stays disabled before cookie/profile/browser
     let browsers = 0; let sessionReads = 0;
     const launch = mock.method(puppeteer, 'launch', async () => { browsers++; throw new Error('No live browser allowed'); });
     const config = { provider_admission: 'permitted', get cookies() { sessionReads++; return 'fixture=SECRET'; } };
-    try { await assert.rejects(module.data.readDzen1002NativeDiagnostic(config), /ADMISSION_SOURCE_UNAVAILABLE/); }
+    try { await assert.rejects(module.data.readDzen1002NativeDiagnostic(config), /DZEN1002_ACTION_SCOPE_UNRESOLVED/); }
     finally { launch.mock.restore(); }
     assert.equal(browsers, 0); assert.equal(sessionReads, 0);
 });
