@@ -87,6 +87,9 @@ export async function recoverLinkedIn1086Attempt41(input: unknown, recordApprova
         if (approval && !isDeepStrictEqual(object(approval.after_state).risk_acceptance, approvedRisk)) {
             throw new Error('[LINKEDIN1086_EXACT_HUMAN_VERDICT_REQUIRED]');
         }
+        if (approval && object(approval.before_state).request_hash !== requestHash) {
+            throw new Error('[LINKEDIN1086_APPROVAL_PACKET_MISMATCH]');
+        }
         if (recordApprovalOnly) {
             if (!approval) await tx.workflowEvent.create({ data: { project_id: 7, content_item_id: 1086, work_item_id: 1946,
                 actor_id: a.actorId, command: LI1086_APPROVAL_COMMAND, idempotency_key: 'attempt41-generation1',

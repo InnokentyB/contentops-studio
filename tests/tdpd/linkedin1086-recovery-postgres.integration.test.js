@@ -98,6 +98,15 @@ test('real PG same41 recovery rollback/races, original-fence isolation, one perm
     }
     assert.equal((await service.recoverLinkedIn1086Attempt41(apply,true)).mode,'owner_risk_approval_recorded');
     assert.equal((await service.recoverLinkedIn1086Attempt41(apply,true)).replayed,true);
+    for(const patch of [{localEvidence:{...apply.localEvidence,reference:'changed ops packet'}},
+        {ownerObservation:{...apply.ownerObservation,reference:'changed owner packet'}}]) {
+        for(const approvalOnly of [true,false]) {
+            await assert.rejects(service.recoverLinkedIn1086Attempt41({...apply,...patch},approvalOnly),/APPROVAL_PACKET_MISMATCH/);
+        }
+    }
+    assert.deepEqual(await db.workItem.findUnique({where:{id:1946}}),initial);
+    assert.equal(await db.workflowEvent.count({where:{command:service.LI1086_APPROVAL_COMMAND}}),1);
+    assert.equal(await db.workflowEvent.count({where:{command:fence.LI1086_RECOVERY_COMMAND}}),0);
     db.$transaction=async(callback,opts)=>originalTx(async tx=>{await callback(tx);throw Error('synthetic rollback');},opts);
     await assert.rejects(service.recoverLinkedIn1086Attempt41(apply),/synthetic rollback/);restoreTransaction();
     assert.deepEqual(await db.workItem.findUnique({where:{id:1946}}),initial);

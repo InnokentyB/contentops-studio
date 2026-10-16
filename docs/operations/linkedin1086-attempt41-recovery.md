@@ -23,6 +23,8 @@ The new1087 visual job is outside scope. No migration or new secret/config.
    key `attempt-linkedin-p7-1086-r1-20261015-v1`, Ops evidence/owner observation.
    This returns the exact human risk audit projection. Apply with that projection
    records ONE immutable approval event only; no lease/task/attempt/provider change.
+   Approval replay and recovery apply require the exact recorded request hash,
+   including both evidence references; a changed packet is rejected without writes.
    Human source is attributed to the operator; server does not authenticate Codex
    message history. Never substitute a boolean or another approval reference.
 3. Immediately before the real operator is ready, preview/apply
@@ -69,7 +71,7 @@ UNKNOWN/lost-permit outcomes remain frozen for reconciliation.
 
 ## Verification boundaries
 
-Pure10/10 and existing focused lifecycle tests are separate from real PostgreSQL
+Pure11/11 and existing focused lifecycle tests are separate from real PostgreSQL
 CAS/race/rollback tests. New integration suite runs only with explicit loopback
 ephemeral `codex_lifecycle_ci` target; rejects production/remote DB URLs. It checks
 pre-recovery discovered-object fact transaction, risk audit/replay, recovery
@@ -81,3 +83,19 @@ under the16Oct retirement instruction. Tower availability is not assumed.
 Owner no-send UAT is still explicit. Engineering fixture/build/CI/review does not
 replace the owner's acceptance or native Publisher readback. Record final checked
 commit/deploy/production preview separately; do not claim publication from readiness.
+
+### Build/test trace, 2026-10-16
+
+- `1d71d4c`: Linux CI38952202228 reached the real recovery and rejected an
+  incorrect pinned publication-key digest. No production mutation was performed.
+- `2b3bede`: corrected digest from bounded READ ONLY attempt41 readback; R10
+  failed before correction, then passed. CI38953623556 all four jobs PASS,
+  including real PostgreSQL rollback/races and full backend on the merge-ref
+  combining this revision with Dzen main `b2b5015`.
+- Follow-up review P1: approval existence alone did not bind its original evidence
+  packet. New mock scenario failed with missing expected rejection; exact
+  `approval.before_state.request_hash` comparison now passes all30 focused tests,
+  backend build and quality gate77/77 at19:21:38Z. Real PostgreSQL test additionally
+  asserts changed Ops/owner references reject for approval replay and recovery,
+  with original WI unchanged and one approval/no recovery event. Fresh Linux CI
+  and final review must pass for this follow-up before deployment.
