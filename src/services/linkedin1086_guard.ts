@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { loadAgentWorkspaceManifest } from './agent_workspace_manifest.service';
 import { submissionObject as object, submissionHash as hash } from './linkedin1128_submission_guard';
 import { LINKEDIN1086 as p, base1086Schema, submission1086Schema, type Base1086, type Submission1086 as Args } from './linkedin1086_contract';
+import { historical1086Fence } from './linkedin1086_recovery_fence';
 export { object as submissionObject, hash as submissionHash };
 export type { Submission1086 } from './linkedin1086_contract';
 
@@ -74,7 +75,8 @@ export async function releasedWork1086(tx: Prisma.TransactionClient, a: Args) {
 export async function check1086(tx: Prisma.TransactionClient, a: Args, historical = false) {
     if (!submission1086Schema.safeParse(a).success) throw new Error('[LINKEDIN1086_SCOPE_MISMATCH]');
     const checked = await releasedWork1086(tx, a); const w = checked.work;
-    if (w.state !== 'claimed' || w.lease_actor_id !== a.actorId || w.lease_token !== a.leaseToken || !w.lease_expires_at
+    const sameFence = w.lease_token === a.leaseToken || (historical && await historical1086Fence(tx, a));
+    if (w.state !== 'claimed' || w.lease_actor_id !== a.actorId || !sameFence || !w.lease_expires_at
         || (!historical && w.lease_expires_at.getTime() <= Date.now())) throw new Error('[LINKEDIN1086_LEASE_REQUIRED]');
     return checked;
 }

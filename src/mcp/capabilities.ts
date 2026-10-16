@@ -158,6 +158,8 @@ const PUBLISHER_TOOLS = new Set([
     'ba_diagnose_linkedin_task1135_browser',
     'ba_release_approved_threads_task',
     'ba_repair_linkedin_task1086_metadata',
+    'ba_recover_linkedin_task1086_attempt41',
+    'ba_record_linkedin_task1086_recovery_approval',
     'ba_release_linkedin_task1086_browser',
     'ba_claim_linkedin_task1086_browser',
     'ba_renew_linkedin_task1086_browser_lease',

@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import prisma from '../db';
 import publicationFactService from './publication_fact.service';
+import { check1086RecoverySubmit } from './linkedin1086_recovery_fence';
 import { LINKEDIN1086 as p } from './linkedin1086_contract';
 import { check1086, check1086Owner, submissionObject as object, submissionHash as hash,
     submissionRequestHash, submissionReadbackHash, type Submission1086 as Args } from './linkedin1086_guard';
@@ -53,18 +54,21 @@ export async function preSubmitLinkedIn1086(a: Args & { attemptId: number }) {
     if (!a.actionTimeConfirmationReference || a.actionTimeConfirmationReference.length < 10) throw new Error('[LINKEDIN1086_ACTION_TIME_CONFIRMATION_REQUIRED]');
     if (!a.observedEditorText || hash(a.observedEditorText.replace(/\r\n/g, '\n').replace(/\u00a0/g, ' ').trim()) !== p.body) throw new Error('[LINKEDIN1086_NATIVE_EDITOR_MISMATCH]');
     return prisma.$transaction(async tx => {
-        const { task } = await check1086(tx, a);
+        const { task, work } = await check1086(tx, a);
         if (task.status !== 'publishing') throw new Error('[LINKEDIN1086_START_REQUIRED]');
         await pending(tx, a, a.attemptId);
         const prior = await tx.workflowEvent.findFirst({ where: { project_id: 7, content_item_id: 1086,
-            actor_id: a.actorId, command: 'ba_pre_submit_linkedin_task1086_browser_submission', idempotency_key: a.idempotencyKey } });
+            actor_id: a.actorId, command: 'ba_pre_submit_linkedin_task1086_browser_submission',
+            ...(a.workItemId === 1946 ? {} : { idempotency_key: a.idempotencyKey }) } });
         if (prior && object(prior.before_state).request_hash !== submissionReadbackHash(a)) throw new Error('[IDEMPOTENCY_CONFLICT]');
         if (prior) return { mode: 'verification_required', attempt_id: a.attemptId, submission_permitted: false, retry_allowed: false };
+        const permitDeadline = await check1086RecoverySubmit(tx, a, work?.updated_at, new Date(), work?.lease_expires_at);
         const result = { mode: 'pre_submit_checked', attempt_id: a.attemptId,
             submission_permitted: true,
             profile_url: p.profile, author_evidence_sha256: a.authorEvidenceSha256,
             provider_identity_source: 'owning_publisher_browser_readback',
-            server_provider_verification: false, retry_allowed: false };
+            server_provider_verification: false, retry_allowed: false,
+            ...(permitDeadline ? { recovery_generation: 1, permit_expires_at: permitDeadline } : {}) };
         await audit(tx, a, 'ba_pre_submit_linkedin_task1086_browser_submission', result, submissionReadbackHash(a));
         return result;
     }, serial);
@@ -76,7 +80,7 @@ export async function confirmLinkedIn1086(a: LinkedIn1086Confirm, reconcile = fa
     let url: URL;
     try { url = new URL(a.publicUrl); } catch { throw new Error('[LINKEDIN1086_PROVIDER_IDENTITY_INVALID]'); }
     if (url.protocol !== 'https:' || url.hostname !== 'www.linkedin.com' || url.username || url.password
-        || url.port || url.search || url.hash || !/^urn:li:activity:\d+$/.test(a.providerObjectId)
+        || url.port || url.search || url.hash || !/^urn:li:(activity|share):\d+$/.test(a.providerObjectId)
         || url.pathname !== `/feed/update/${a.providerObjectId}/` || !/^[a-f0-9]{64}$/.test(a.evidenceSha256)
         || typeof a.observedPostText !== 'string' || hash(a.observedPostText.replace(/\r\n/g, '\n').replace(/\u00a0/g, ' ').trim()) !== p.body
         || a.observedAuthorProfileUrl !== p.profile || a.observedPublishedAt !== a.publishedAt
@@ -107,14 +111,16 @@ export async function confirmLinkedIn1086(a: LinkedIn1086Confirm, reconcile = fa
         publicUrl: a.publicUrl, providerObjectId: a.providerObjectId,
         evidence: { type: 'screenshot', ref: `sha256:${a.evidenceSha256}` }, beforeWrite: async tx => {
             const { task } = await check1086(tx, a, reconcile);
-            if (task.status !== 'publishing') throw new Error('[LINKEDIN1086_START_REQUIRED]');
+            const recoveredObject = reconcile && a.workItemId === 1946 && a.attemptId === 41;
+            if (task.status !== 'publishing' && !(recoveredObject && task.status === 'browser_required')) throw new Error('[LINKEDIN1086_START_REQUIRED]');
             const attempt = await pending(tx, a, a.attemptId, { allowReconciliation: reconcile });
             const submit = await tx.workflowEvent.findFirst({ where: { project_id: 7, content_item_id: 1086,
                 command: 'ba_pre_submit_linkedin_task1086_browser_submission', actor_id: a.actorId,
                 idempotency_key: a.idempotencyKey }, orderBy: { id: 'desc' } });
-            if (!submit || object(submit.after_state).attempt_id !== a.attemptId) throw new Error('[LINKEDIN1086_PRE_SUBMIT_REQUIRED]');
-            if (object(submit?.before_state).request_hash !== submissionReadbackHash(a)) throw new Error('[IDEMPOTENCY_CONFLICT]');
-            const earliest = Math.max(attempt.created_at.getTime(), submit.created_at.getTime()) - 120_000;
+            if (!recoveredObject && (!submit || object(submit.after_state).attempt_id !== a.attemptId)) throw new Error('[LINKEDIN1086_PRE_SUBMIT_REQUIRED]');
+            if (!recoveredObject && object(submit?.before_state).request_hash !== submissionReadbackHash(a)) throw new Error('[IDEMPOTENCY_CONFLICT]');
+            const earliest = (recoveredObject ? attempt.created_at.getTime()
+                : Math.max(attempt.created_at.getTime(), submit!.created_at.getTime())) - 120_000;
             if (!Number.isFinite(earliest) || Date.parse(a.publishedAt) < earliest) throw new Error('[LINKEDIN1086_PUBLISHED_BEFORE_ATTEMPT]');
             const changed = await tx.deliveryAttempt.updateMany({ where: { id: a.attemptId, project_id: 7,
                 content_item_id: 1086, status: { in: ['pending', 'uncertain', 'verification_required'] }, idempotency_key: a.idempotencyKey }, data: {
