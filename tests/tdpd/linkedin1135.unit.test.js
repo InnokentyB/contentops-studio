@@ -14,7 +14,8 @@ function fixture(){
             quality_report:{content_language:'en',handoff_bundle:{content_language:'en'},history:'preserve'},
             channel:{id:179,project_id:10,type:'linkedin',is_active:true,config:{account_ref:p.targetProfileUrl,
                 channel_url:p.targetProfileUrl,account_type:'company_page',workflow_mode:'browser_required',capability_flags:{browser_publish:true}}},
-            selected_asset:{id:163,status:'approved',content_revision:2,decision_id:323,provenance:{planner_storage:{sha256:p.assetSha256}}},
+            selected_asset:{id:163,status:'approved',content_revision:2,decision_id:323,file_url:'https://media.synthetic.invalid/image163.jpg',
+                provenance:{planner_storage:{sha256:p.assetSha256,managed:true,provider:'r2',mime_type:'image/jpeg'}}},
             art_direction_decisions:[{id:323,decision_version:2,source_content_revision:2,placement:'feed',status:'active',decision:'GENERATE'}]}};
     const db={projectMember:{findUnique:async()=>({role:state.owner?'owner':'editor'})},
         contentItem:{findFirst:async()=>state.task,updateMany:async({where,data})=>{
@@ -96,6 +97,14 @@ test('pre-submit rejects collapsed paragraphs, wrong author, wrong image or miss
     assert.equal(f.state.events.filter(e=>e.command.includes('pre_submit')).length,0);
     await svc.preSubmitLinkedIn1135({...boundary,...observed,attemptId:70},f.db);
     assert.equal((await svc.preSubmitLinkedIn1135({...boundary,...observed,attemptId:70},f.db)).replayed,true);
+});
+test('source URL or channel configuration drift after release cannot reach pre-submit',async()=>{
+    for(const mutate of [f=>f.state.task.selected_asset.file_url='https://media.synthetic.invalid/changed.jpg',
+        f=>f.state.task.channel.config.additional_binding='changed']){
+        const f=await started();mutate(f);
+        await assert.rejects(svc.preSubmitLinkedIn1135({...boundary,...observed,attemptId:70},f.db),/RELEASE_PROOF_INVALID/);
+        assert.equal(f.state.fact,null);
+    }
 });
 test('confirmation requires pre-submit; failure rolls back attempt/audit with no fact',async()=>{
     const f=await started();await assert.rejects(svc.confirmLinkedIn1135(confirmation,f.db,writer(f)),/PRE_SUBMIT_REQUIRED/);

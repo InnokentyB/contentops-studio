@@ -5,7 +5,7 @@ import prisma from '../db';
 import publicationFactService, { RecordPublicationFactArgs } from './publication_fact.service';
 import { EXACT_BROWSER_PACKAGES, checkedBoundary, loadTask, assertPackage,
     releaseExactBrowserTask, startExactBrowserSubmission,
-    validateProviderIdentity, BoundaryArgs } from './exact_browser_publication_1133_1132.service';
+    validateProviderIdentity, assertLinkedIn1135ReleaseFingerprint, BoundaryArgs } from './exact_browser_publication_1133_1132.service';
 
 /** New exact package reuses the existing browser release/claim/start engine. */
 export const LINKEDIN1135 = EXACT_BROWSER_PACKAGES.linkedin1135;
@@ -162,6 +162,7 @@ async function confirm(input: ConfirmInput | ReconcileInput, reconcile: boolean,
         const work = await tx.workItem.findFirst({ where: { id: args.workItemId, project_id: 10, content_item_id: 1135,
             kind: 'browser_publish', assignee_role: 'browser_publisher', input_context_version: 2 } });
         const proof = record(work?.result_payload), ownerProof = record(record(task!.quality_report).owner_release);
+        assertLinkedIn1135ReleaseFingerprint(task!, proof, ownerProof);
         if (!work || proof.publication_authorized !== true || ownerProof.publication_authorized !== true
             || proof.approval_reference !== args.approvalReference || ownerProof.approval_reference !== args.approvalReference
             || proof.body_sha256 !== p.bodySha256 || proof.asset_sha256 !== p.assetSha256

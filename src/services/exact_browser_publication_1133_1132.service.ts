@@ -169,8 +169,11 @@ statuses: string[], released: boolean) {
         || (config.account_ref === pkg.targetProfileUrl && config.channel_url === pkg.targetProfileUrl
             && config.account_type === pkg.accountType && config.workflow_mode === 'browser_required'
             && object(config.capability_flags).browser_publish === true);
+    const storage = object(object(task?.selected_asset?.provenance).planner_storage);
     const current1135Asset = pkg.taskId !== 1135 || (task?.channel?.project_id === 10
-        && task.selected_asset?.content_revision === 2 && task.selected_asset.decision_id === 323);
+        && task.selected_asset?.content_revision === 2 && task.selected_asset.decision_id === 323
+        && Boolean(task.selected_asset.file_url?.startsWith('https://')) && storage.managed === true
+        && storage.provider === 'r2' && ['image/jpeg','image/png'].includes(String(storage.mime_type)));
     if (!task || task.channel_id !== pkg.channelId || task.channel?.type !== pkg.channelType
         || task.channel.is_active !== true || !statuses.includes(task.status)
         || task.publication_mode !== (released ? 'browser_required' : 'approval_required')
@@ -249,6 +252,8 @@ export async function releaseExactBrowserTask(packageKey: ExactBrowserPackageKey
             body_sha256: pkg.bodySha256, selected_asset_id: pkg.assetId,
             asset_sha256: pkg.assetSha256, channel_id: pkg.channelId,
             placement: pkg.placement, duplicate_check_reference: args.duplicateCheckReference || null,
+            ...(pkg.taskId === 1135 ? { image_url_sha256: hash(task!.selected_asset!.file_url!),
+                channel_config_sha256: hash(JSON.stringify(task!.channel!.config)) } : {}),
             ...('targetProfileUrl' in pkg ? { target_profile_url: pkg.targetProfileUrl,
                 browser_profile: pkg.browserProfile } : {}),
             released_at: new Date().toISOString() };
@@ -321,6 +326,7 @@ export async function checkedBoundary(tx: Prisma.TransactionClient, args: Bounda
     assertPackage(task, pkg, statuses, true);
     const proof = object(work.result_payload);
     const ownerProof = object(object(task!.quality_report).owner_release);
+    if (pkg.taskId === 1135) assertLinkedIn1135ReleaseFingerprint(task!, proof, ownerProof);
     if (proof.publication_authorized !== true || ownerProof.publication_authorized !== true
         || proof.approval_reference !== args.approvalReference
         || ownerProof.approval_reference !== args.approvalReference
@@ -331,6 +337,15 @@ export async function checkedBoundary(tx: Prisma.TransactionClient, args: Bounda
         throw new Error('[EXACT_BROWSER_RELEASE_PROOF_INVALID]');
     }
     return { pkg, task: task!, work };
+}
+
+/** Reuse the same current-source/identity fingerprint in normal confirmation and expired-lease reconciliation. */
+export function assertLinkedIn1135ReleaseFingerprint(task: NonNullable<Awaited<ReturnType<typeof loadTask>>>,
+    proof: Record<string, unknown>, ownerProof: Record<string, unknown>): void {
+    const image = hash(task.selected_asset?.file_url || ''), config = hash(JSON.stringify(task.channel?.config));
+    if ([proof, ownerProof].some(value => value.image_url_sha256 !== image || value.channel_config_sha256 !== config)) {
+        throw new Error('[EXACT_BROWSER_RELEASE_PROOF_INVALID]');
+    }
 }
 
 function equalLease(stored: string | null, supplied: string): boolean {

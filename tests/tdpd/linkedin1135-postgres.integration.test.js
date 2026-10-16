@@ -31,7 +31,7 @@ test('real PostgreSQL release/start races, rollback and atomic fact confirmation
         source_content_revision:2,channel:'linkedin',placement:'feed',decision:'GENERATE',reason:'Synthetic image',status:'active'}});
     await db.imageAsset.create({data:{id:163,project_id:10,content_item_id:1135,decision_id:323,content_revision:2,
         placement:'feed',prompt:'Synthetic image',file_url:'https://media.synthetic.invalid/asset163.jpg',status:'approved',
-        provenance:{planner_storage:{sha256:p.assetSha256,mime_type:'image/jpeg',managed:true}}}});
+        provenance:{planner_storage:{sha256:p.assetSha256,mime_type:'image/jpeg',managed:true,provider:'r2'}}}});
     await db.contentItem.update({where:{id:1135},data:{selected_asset_id:163}});
     const release={projectId:10,taskId:1135,actorId,expectedManifestChecksum:p.manifest,
         expectedBodySha256:p.bodySha256,expectedScheduleAt:p.schedule,approvalReference:'Synthetic owner exact company GO',
