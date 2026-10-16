@@ -66,8 +66,9 @@ test('real PG same41 recovery rollback/races, original-fence isolation, one perm
     // Exercise the FULL canonical fact transaction before any recovery/permit,
     // then deliberately roll it back to retain this fixture for dispatch races.
     const originalTx=db.$transaction.bind(db);
+    const restoreTransaction=()=>{db.$transaction=originalTx;};t.after(restoreTransaction);
     let sawPreRecoveryFact=false;
-    const rollbackDiscovered=t.mock.method(db,'$transaction',async(callback,opts)=>originalTx(async tx=>{
+    db.$transaction=async(callback,opts)=>originalTx(async tx=>{
         const value=await callback(tx);
         if(value?.publication_fact){
             sawPreRecoveryFact=true;
@@ -79,13 +80,13 @@ test('real PG same41 recovery rollback/races, original-fence isolation, one perm
             throw Error('synthetic discovered-object fact rollback');
         }
         return value;
-    },opts));
+    },opts);
     const discoveredTime='2026-10-15T19:20:00.000Z';
     await assert.rejects(lifecycle.confirmLinkedIn1086({...a,leaseToken:old,attemptId:41,
         publicUrl:'https://www.linkedin.com/feed/update/urn:li:share:7001086/',providerObjectId:'urn:li:share:7001086',
         publishedAt:discoveredTime,observedPublishedAt:discoveredTime,evidenceSha256:'b'.repeat(64),
         observedPostText:body,observedAuthorProfileUrl:p.profile},true),/synthetic discovered-object fact rollback/);
-    rollbackDiscovered.mock.restore();assert.equal(sawPreRecoveryFact,true);
+    restoreTransaction();assert.equal(sawPreRecoveryFact,true);
     assert.equal(await db.publicationFact.count({where:{content_item_id:1086}}),0);
     const preview=await service.recoverLinkedIn1086Attempt41(recovery);assert.equal(preview.mode,'preview');
     assert.equal(await db.workflowEvent.count({where:{content_item_id:1086}}),3);
@@ -97,8 +98,8 @@ test('real PG same41 recovery rollback/races, original-fence isolation, one perm
     }
     assert.equal((await service.recoverLinkedIn1086Attempt41(apply,true)).mode,'owner_risk_approval_recorded');
     assert.equal((await service.recoverLinkedIn1086Attempt41(apply,true)).replayed,true);
-    const fail=t.mock.method(db,'$transaction',async(callback,opts)=>originalTx(async tx=>{await callback(tx);throw Error('synthetic rollback');},opts));
-    await assert.rejects(service.recoverLinkedIn1086Attempt41(apply),/synthetic rollback/);fail.mock.restore();
+    db.$transaction=async(callback,opts)=>originalTx(async tx=>{await callback(tx);throw Error('synthetic rollback');},opts);
+    await assert.rejects(service.recoverLinkedIn1086Attempt41(apply),/synthetic rollback/);restoreTransaction();
     assert.deepEqual(await db.workItem.findUnique({where:{id:1946}}),initial);
     assert.equal(await db.workflowEvent.count({where:{command:fence.LI1086_RECOVERY_COMMAND}}),0);
     const race=await Promise.allSettled([service.recoverLinkedIn1086Attempt41(apply),service.recoverLinkedIn1086Attempt41(apply)]);
