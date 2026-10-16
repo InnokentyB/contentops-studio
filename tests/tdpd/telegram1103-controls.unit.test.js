@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { TG1103 } = require('../../dist/services/telegram1103/contract');
 const { rebindTelegram1103Asset, releaseTelegram1103 } = require('../../dist/services/telegram1103/control');
-const body = 'Удобный деплой. А цена роста?\n\nУправляемая инфраструктура снимает часть забот при запуске небольшого проекта. При росте нагрузки стоит заново сравнить стоимость и сопровождение вариантов. Это мнение из лекции, а не расчёт актуальных тарифов или универсальный совет уходить в self-hosting.\n\nПро создание продуктов и работу с AI в Telegram «Про продукты и системы»: https://t.me/+T79t_ZLStRg2ODky';
+const {body}=require('./telegram1103.fixture');
 process.env.R2_PUBLIC_BASE_URL = 'https://media.synthetic.invalid';
 const base = { projectId: 10, taskId: 1103, actorId: 'user:2', expectedBodySha256: TG1103.bodySha,
     expectedAssetSha256: TG1103.assetSha, reason: 'Owner-approved exact Telegram video recovery',
@@ -87,6 +87,10 @@ test('rebind cannot accept content, overwrite history or release; transaction fa
     await assert.rejects(release(f),/audit unavailable/);assert.deepEqual(f.state,before);
 });
 module.exports={fixture,base,body};
+test('generic manual fact cannot bypass the exact video readback lifecycle',async()=>{
+    const {guardManualPublicationFact}=require('../../dist/services/publication_manual_fact_guard');
+    await assert.rejects(guardManualPublicationFact({}, {projectId:10,taskId:1103,internalConfirmation:false}),/TELEGRAM1103_EXACT_CONFIRMATION_REQUIRED/);
+});
 test('committed release replay survives manifest outage but still requires current owner', async()=>{
     const f=fixture();await release(f);
     let manifestCalls=0;const outage=async()=>{manifestCalls++;throw Error('manifest unavailable');};
