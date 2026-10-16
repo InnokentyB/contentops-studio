@@ -35,6 +35,24 @@ export function publicationPlacementAssetContract(
     placement: string,
     media: { mime_type?: string; width?: number | null; height?: number | null } = {}
 ): PublicationPlacementAssetContract {
+    const contract = basePlacementAssetContract(channel, placement, media);
+    const config = channel.config !== null && typeof channel.config === 'object'
+        && !Array.isArray(channel.config) ? channel.config as Record<string, unknown> : {};
+    const modes = config.execution_modes;
+    // An explicit manual-only channel cannot gain API authority from stale capability flags.
+    if (Array.isArray(modes) && modes.length > 0
+        && modes.every(mode => typeof mode === 'string'
+            && ['manual', 'manual_handoff', 'browser_required', 'browser'].includes(mode))) {
+        return { ...contract, transport: { ...contract.transport, connector_authority: 'manual_only' } };
+    }
+    return contract;
+}
+
+function basePlacementAssetContract(
+    channel: { type: string; config?: unknown },
+    placement: string,
+    media: { mime_type?: string; width?: number | null; height?: number | null } = {}
+): PublicationPlacementAssetContract {
     const normalizedType = channel.type.trim().toLowerCase();
     if (normalizedType === 'vk' && placement === 'clip') {
         // Editorial canvas, not an assertion about VK upload limits. Live Clip UAT is pending.

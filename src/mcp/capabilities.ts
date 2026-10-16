@@ -121,6 +121,7 @@ const ART_DIRECTOR_TOOLS = new Set([
 ]);
 
 const EDITOR_TOOLS = new Set([
+    'ba_repair_content_review_handoff',
     'ba_recover_oct08_content_review',
     'ba_repair_task1051_review_collision',
     'ba_repair_task1091_review_collision',
