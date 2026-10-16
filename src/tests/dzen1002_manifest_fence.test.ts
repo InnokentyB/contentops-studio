@@ -136,11 +136,11 @@ test('production task1002 reader has no session access without action-time admis
     let cookieReads = 0;
     const config = { channel_id: binding.providerChannelId, provider_admission: 'permitted',
         get cookies() { cookieReads++; return ''; } };
-    await assert.rejects(dzenService.readStudioPublications(config, 1002), /DZEN1002_ADMISSION_SOURCE_UNAVAILABLE/);
+    await assert.rejects(dzenService.readStudioPublications(config, 1002), /DZEN1002_ACTION_SCOPE_UNRESOLVED/);
     assert.equal(cookieReads, 0);
 });
 test('reviewed manifest and a cached proof cannot admit a live send without runtime authority', async () => {
     const h = harness();
-    await assert.rejects(h.service.execute({ ...args, dryRun: false }), /DZEN1002_ADMISSION_SOURCE_UNAVAILABLE/);
+    await assert.rejects(h.service.execute({ ...args, dryRun: false }), /DZEN1002_ACTION_SCOPE_UNRESOLVED/);
     assert.deepEqual(h.calls, ['owner', 'manifest']);
 });

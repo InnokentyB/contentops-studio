@@ -14,6 +14,44 @@ permissions:
   issues: write
 
 jobs:
+  dzen1002-runtime-contract:
+    name: Dzen1002 durable attempt and receipt contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: dzen_synthetic
+          POSTGRES_PASSWORD: dzen_synthetic_only
+          POSTGRES_DB: dzen_store_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dzen_synthetic -d dzen_store_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: 'true'
+      TELEGRAM_BOT_TOKEN: '000000:synthetic-test-token-never-used-for-provider-calls'
+      DATABASE_URL: 'postgresql://fixture:fixture@127.0.0.1:1/fixture'
+      DZEN1002_TEST_DATABASE_URL: 'postgresql://dzen_synthetic:dzen_synthetic_only@127.0.0.1:5432/dzen_store_test'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build:backend
+      - name: Bounded commands, fact bypass and native fixtures without provider access
+        run: |
+          node --test --test-concurrency=1 tests/tdpd/dzen1002-runtime.test.cjs tests/tdpd/dzen1002-fact-boundary.test.cjs tests/tdpd/dzen1002-store-custody.test.cjs tests/tdpd/dzen1002-native-*.cjs
+          node --test --test-concurrency=1 dist/tests/dzen1002*.test.js dist/tests/dzen_task1002_route.test.js dist/tests/dzen_task_publication.service.test.js dist/tests/remote_mcp_auth.test.js dist/tests/delivery.service.test.js
+      - name: Real PostgreSQL races, rollback and post-submit receipt custody
+        run: |
+          npx prisma db push --config tests/fixtures/dzen1002-store-prisma.config.ts
+          node --test --test-concurrency=1 tests/tdpd/dzen1002-store.test.cjs
+      - run: npm run quality:gate
   linkedin1128-contract:
     name: LinkedIn1128 claimed-WI lifecycle contracts
     runs-on: ubuntu-latest

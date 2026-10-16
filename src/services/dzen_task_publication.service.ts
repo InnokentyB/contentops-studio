@@ -6,7 +6,7 @@ import publicationFactService from './publication_fact.service';
 import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
 import { publicDzenArticleTitle } from './dzen_public_title';
 import { assertDzen1002CurrentManifest, DZEN1002_MANIFEST, type Dzen1002ManifestLoader } from './dzen_task1002_manifest';
-import { requireDzen1002DiagnosticAdmission } from './dzen1002_native_capture';
+import { requireDzen1002Action } from './dzen1002_action_restriction';
 
 export const DZEN_TASK_SPECS = {
     1002: {
@@ -699,8 +699,12 @@ export class DzenTaskPublicationService {
                 project_id: 10, user_id: Number(actor[1]) } } });
             if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
             await assertDzen1002CurrentManifest(Number(actor[1]), this.dependencies.manifestLoader);
-            // No production admission source exists; stored proof cannot grant it.
-            if (!args.dryRun) await requireDzen1002DiagnosticAdmission();
+            // Stored proof cannot resolve action applicability or enter the legacy sender.
+            if (!args.dryRun) {
+                requireDzen1002Action('publish');
+                const { publishExactDzen1002 } = await import('./dzen1002_runtime_production');
+                return publishExactDzen1002(args);
+            }
         }
         const key = args.idempotencyKey?.trim() || null;
         if (!args.dryRun && !key) throw new Error('[IDEMPOTENCY_KEY_REQUIRED]');
@@ -795,6 +799,8 @@ export class DzenTaskPublicationService {
                 proof: verified, inventoryRequired: true, now: Date.now() }) } : {}),
             ...(!connectorReady ? { route_blocker: 'DZEN_CONNECTOR_NOT_READY' }
                 : !spec.allowedStatuses.includes(task.status) ? { route_blocker: 'PUBLICATION_ROUTE_NOT_EXECUTABLE' } : {}),
+            ...(spec.taskId === 1002 ? { route_executable: false,
+                route_blocker: 'DZEN1002_ACTION_SCOPE_UNRESOLVED' } : {}),
             payload_preview: preview };
         if (!connectorReady) throw new Error('[DZEN_CONNECTOR_NOT_READY] Current task-bound stored connector preflight proof is missing, stale or invalid');
         if (!spec.allowedStatuses.includes(task.status)) throw new Error('[DZEN_PUBLICATION_STATE_CHANGED]');
