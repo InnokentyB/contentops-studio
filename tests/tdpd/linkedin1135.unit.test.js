@@ -135,3 +135,27 @@ test('expired-lease recovery requires owner and exact public readback; reconcili
 test('generic manual fact cannot bypass exact lifecycle',async()=>{await assert.rejects(guardManualPublicationFact({},
     {projectId:10,taskId:1135,internalConfirmation:false}),/EXACT_CONFIRMATION_REQUIRED/);});
 module.exports={fixture,releaseArgs,boundary,observed,confirmation};
+test('native share identity reconciles the existing attempt without converting it to an activity or sending again',async()=>{
+    const f=await started();f.state.work.lease_expires_at=new Date(0);
+    const {leaseToken,...input}=confirmation;
+    const args={...input,publicUrl:'https://www.linkedin.com/feed/update/urn:li:share:777/?actorCompanyId=79633032',providerObjectId:'urn:li:share:777'};
+    const result=await svc.reconcileLinkedIn1135(args,f.db,writer(f));
+    assert.equal(result.provider_object_id,'urn:li:share:777');
+    assert.equal(result.public_url,'https://www.linkedin.com/feed/update/urn:li:share:777/');
+    assert.equal(f.state.attempts.length,1);assert.equal(f.state.attempts[0].status,'delivered');
+    assert.equal((await svc.reconcileLinkedIn1135(args,f.db,writer(f))).replayed,true);
+});
+test('share confirmation rejects mismatched object kind/id, foreign company, credentials and unrelated host/path',async()=>{
+    for(const patch of [
+        {providerObjectId:'urn:li:activity:777'}, {providerObjectId:'urn:li:share:778'},
+        {publicUrl:'https://www.linkedin.com/feed/update/urn:li:share:777/?actorCompanyId=97416172'},
+        {publicUrl:'https://attacker.invalid/feed/update/urn:li:share:777/'},
+        {publicUrl:'https://user:private@www.linkedin.com/feed/update/urn:li:share:777/'},
+        {publicUrl:'https://www.linkedin.com/in/innokentyb/'},
+        {publicUrl:'https://www.linkedin.com/feed/update/urn:li:share:777/?token=private'}]){
+        const f=await started();const {leaseToken,...input}=confirmation;
+        await assert.rejects(svc.reconcileLinkedIn1135({...input,publicUrl:'https://www.linkedin.com/feed/update/urn:li:share:777/',
+            providerObjectId:'urn:li:share:777',...patch},f.db,writer(f)));
+        assert.equal(f.state.fact,null);assert.equal(f.state.attempts.length,1);
+    }
+});
