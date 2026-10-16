@@ -28,7 +28,7 @@ test('real PostgreSQL release/start races, rollback and atomic fact confirmation
         visual_placement:'feed',handoff_state:'ready',status:'ready_for_execution',publication_mode:'approval_required',
         schedule_at:new Date(p.schedule),publish_at:new Date(p.schedule),quality_report:{content_language:'en',handoff_bundle:{content_language:'en'}}}});
     await db.artDirectionDecision.create({data:{id:323,project_id:10,content_item_id:1135,decision_version:2,
-        source_content_revision:2,channel:'linkedin',placement:'feed',decision:'GENERATE',reason:'Synthetic image',status:'active'}});
+        source_content_revision:2,channel:'linkedin',placement:'feed',decision:'GENERATE',reason:'Synthetic image',status:'active',actor_id:actorId}});
     await db.imageAsset.create({data:{id:163,project_id:10,content_item_id:1135,decision_id:323,content_revision:2,
         placement:'feed',prompt:'Synthetic image',file_url:'https://media.synthetic.invalid/asset163.jpg',status:'approved',
         provenance:{planner_storage:{sha256:p.assetSha256,mime_type:'image/jpeg',managed:true,provider:'r2'}}}});
