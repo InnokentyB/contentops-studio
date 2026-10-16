@@ -35,6 +35,8 @@ jobs:
         run: npm run build:vk:connector
       - name: Install Chrome for loopback-only browser regression fixtures
         run: npx puppeteer browsers install chrome
+      - name: Install Chromium for local Playwright DOM fixtures
+        run: npx playwright install chromium
       - name: Full backend regression with synthetic auth and bundled consumer
         env:
           # Legacy recurring-trigger fixtures assert Lisbon wall-clock dates.
