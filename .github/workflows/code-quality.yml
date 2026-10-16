@@ -29,6 +29,14 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build:backend
+      - name: Full backend regression with synthetic auth and bundled consumer
+        env:
+          JWT_SECRET: 'synthetic-regression-secret-not-a-production-key'
+          DATABASE_URL: 'postgresql://synthetic:synthetic@127.0.0.1:1/synthetic'
+        run: |
+          npm ci --prefix frontend
+          npm run build:vk:connector
+          find src/tests -name '*.test.ts' -print | sed 's#^src/#dist/#;s#\.ts$#.js#' | xargs node --test --test-concurrency=1
       - name: Mocked existing-WI and principal contracts (no provider calls)
         run: |
           node --test --test-concurrency=1 tests/tdpd/review-handoff-repair.unit.test.js dist/tests/manual_only_handoff.test.js

@@ -28,9 +28,9 @@ test('API-capable and unspecified channels retain configured transport; manual-o
 
 test('repair is owner/Editor scoped; remote principal prevents caller impersonation and foreign project', () => {
     const command = 'ba_repair_content_review_handoff';
-    assert.equal(isToolAllowedForProfile(command, 'editor'), true);
+    assert.equal(isToolAllowedForProfile('editor', command), true);
     for (const role of ['writer', 'publisher', 'art_director', 'planner'] as const) {
-        assert.equal(isToolAllowedForProfile(command, role), false);
+        assert.equal(isToolAllowedForProfile(role, command), false);
     }
     const principal = { userId: 2, actorId: 'user:2', projectId: 7, profile: 'editor' as const };
     const request = { jsonrpc: '2.0', id: 1, method: 'tools/call', params: {
