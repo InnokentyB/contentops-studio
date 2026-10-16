@@ -6,6 +6,7 @@ import { registerTomorrowPublicationTools } from '../mcp/tools/tomorrow_publicat
 import { DzenTaskPublicationService } from '../services/dzen_task_publication.service';
 import { assertDzen1002CurrentManifest } from '../services/dzen_task1002_manifest';
 import { DZEN1002_ROUTE as binding } from '../services/dzen_task1002_route.service';
+import dzenService from '../services/dzen.service';
 
 const current = 'sha256:cc2cc620612463792340ae39c2a815f61d603edad17cd01e49cff6f369a50dc7';
 const old = 'sha256:4bfec7ca8399251c6c8f132a34d9e0952adbf1eef049d29325808cbd9db3975b';
@@ -130,4 +131,16 @@ test('current manifest preserves release3126/package guards and dry-run remains 
     await assert.rejects(service.execute(args), /DZEN_OWNER_RELEASE_PROOF_MISMATCH/);
     assert.equal(JSON.stringify(release), releaseBefore);
     assert.deepEqual(h.calls, []);
+});
+test('production task1002 reader has no session access without action-time admission', async () => {
+    let cookieReads = 0;
+    const config = { channel_id: binding.providerChannelId, provider_admission: 'permitted',
+        get cookies() { cookieReads++; return ''; } };
+    await assert.rejects(dzenService.readStudioPublications(config, 1002), /DZEN1002_ADMISSION_SOURCE_UNAVAILABLE/);
+    assert.equal(cookieReads, 0);
+});
+test('reviewed manifest and a cached proof cannot admit a live send without runtime authority', async () => {
+    const h = harness();
+    await assert.rejects(h.service.execute({ ...args, dryRun: false }), /DZEN1002_ADMISSION_SOURCE_UNAVAILABLE/);
+    assert.deepEqual(h.calls, ['owner', 'manifest']);
 });

@@ -68,6 +68,33 @@ unexecuted and cannot be inferred from these fixtures.
 
 ## Ops handoff after reviewed deployment only
 
+### P1 review correction and remaining runtime blocker
+
+GitHub review on3219a28 found that correcting the checksum exposed the legacy
+raw inventory reader, which had no action-time admission check. The earlier
+independent clean review missed that reachable path and was not sufficient.
+Merge was stopped. Two added tests reproduced RED: the production reader read
+cookies before admission and a live cached result succeeded without admission.
+
+Correction: dedicated preflight now calls the existing unavailable-admission
+guard before verifyConnector; the task1002 production service reader selects
+the protected native diagnostic before any cookie read; live execute requires
+admission before cached replay. No caller/config/environment attestation is
+accepted and no production admission source is invented. Dry-run is metadata
+only and does not authorize a live action. Independent follow-up review found
+no further P1/P2 and explicitly confirmed the remaining runtime blocker.
+
+Post-correction verification: backend build PASS, then a fresh sequential
+expanded suite210/210 PASS (no skips), quality gate PASS77/min77, diff check PASS.
+The two admission regressions first failed for the reported behavior and now
+pass without raw reader/session/provider activity.
+
+Therefore the expected native outcome remains
+`DZEN1002_ADMISSION_SOURCE_UNAVAILABLE`, not native readiness. Owning route must
+establish a legitimately permitted registered-adapter/action-time context under
+its separate authority; this change cannot clear a recorded denial. Do not
+retry preflight just to demonstrate this known stop and do not send.
+
 Load fresh manifest and tool schema. Dedicated preflight remains
 `ba_preflight_dzen_task1002` with projectId10/taskId1002, authenticated actor,
 the exact reviewed expectedManifestChecksum above,

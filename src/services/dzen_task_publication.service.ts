@@ -6,6 +6,7 @@ import publicationFactService from './publication_fact.service';
 import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
 import { publicDzenArticleTitle } from './dzen_public_title';
 import { assertDzen1002CurrentManifest, DZEN1002_MANIFEST, type Dzen1002ManifestLoader } from './dzen_task1002_manifest';
+import { requireDzen1002DiagnosticAdmission } from './dzen1002_native_capture';
 
 export const DZEN_TASK_SPECS = {
     1002: {
@@ -698,6 +699,8 @@ export class DzenTaskPublicationService {
                 project_id: 10, user_id: Number(actor[1]) } } });
             if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
             await assertDzen1002CurrentManifest(Number(actor[1]), this.dependencies.manifestLoader);
+            // No production admission source exists; stored proof cannot grant it.
+            if (!args.dryRun) await requireDzen1002DiagnosticAdmission();
         }
         const key = args.idempotencyKey?.trim() || null;
         if (!args.dryRun && !key) throw new Error('[IDEMPOTENCY_KEY_REQUIRED]');

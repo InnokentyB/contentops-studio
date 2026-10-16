@@ -1,4 +1,5 @@
 import { assertDzen1002CurrentManifest, DZEN1002_MANIFEST } from './dzen_task1002_manifest';
+import { requireDzen1002DiagnosticAdmission } from './dzen1002_native_capture';
 import { releaseDzenTaskWithPrisma } from './dzen_owner_release.service';
 import dzenTaskPublicationService from './dzen_task_publication.service';
 
@@ -59,6 +60,8 @@ export async function preflightDzenTask1002(args: RouteArgs) {
     assertScope(args);
     const userId = ownerUserId(args.actorId);
     await assertDzen1002CurrentManifest(userId);
+    // Manifest approval never substitutes for the unavailable runtime authority.
+    await requireDzen1002DiagnosticAdmission();
     return dzenTaskPublicationService.verifyConnector({ projectId: 10, taskId: 1002,
         actorId: args.actorId, idempotencyKey: args.idempotencyKey });
 }
