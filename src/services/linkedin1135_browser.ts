@@ -185,6 +185,7 @@ async function confirm(input: ConfirmInput | ReconcileInput, reconcile: boolean,
     };
     // Guard again inside the fact transaction; no state gap between confirmation and audit/attempt completion.
     const fact = await recordFact({ projectId: 10, taskId: 1135, actorId: args.actorId, artifactKind: 'post',
+        browserWorkItemId: args.workItemId,
         outcome: 'published', publishedAt: identity.publishedAt, publicUrl: identity.publicUrl,
         providerObjectId: identity.providerObjectId, confirmationMode: reconcile ? 'reconciled' : 'automatic',
         evidence: { type: 'screenshot', ref: `sha256:${args.evidenceSha256}` }, utmStatus: 'not_applicable',

@@ -224,12 +224,11 @@ export async function releaseExactBrowserTask(packageKey: ExactBrowserPackageKey
     }
     const userId = actorUserId(args.actorId);
     const requestHash = hash(JSON.stringify({ packageKey, ...args }));
-    const currentManifest = await dependencies.manifest(pkg.projectId, userId);
-    return dependencies.db.$transaction(async tx => {
+    const command = `ba_release_${platform}_task${pkg.taskId}_browser`;
+    const readPrior = async (tx: Prisma.TransactionClient) => {
         const member = await tx.projectMember.findUnique({ where: { project_id_user_id: {
             project_id: pkg.projectId, user_id: userId } } });
         if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
-        const command = `ba_release_${platform}_task${pkg.taskId}_browser`;
         const prior = await tx.workflowEvent.findFirst({ where: { project_id: pkg.projectId,
             content_item_id: pkg.taskId, actor_id: args.actorId, command,
             idempotency_key: args.idempotencyKey } });
@@ -237,6 +236,14 @@ export async function releaseExactBrowserTask(packageKey: ExactBrowserPackageKey
             if (object(prior.before_state).request_hash !== requestHash) throw new Error('[IDEMPOTENCY_CONFLICT]');
             return { ...object(prior.after_state), replayed: true };
         }
+        return null;
+    };
+    const cached = await dependencies.db.$transaction(readPrior);
+    if (cached) return cached;
+    const currentManifest = await dependencies.manifest(pkg.projectId, userId);
+    return dependencies.db.$transaction(async tx => {
+        const replay = await readPrior(tx);
+        if (replay) return replay;
         if (currentManifest.checksum !== pkg.manifest) {
             throw new Error('[STALE_MANIFEST]');
         }
@@ -356,6 +363,28 @@ function equalLease(stored: string | null, supplied: string): boolean {
 
 export async function startExactBrowserSubmission(args: BoundaryArgs, database = prisma) {
     return database.$transaction(async tx => {
+        const pkg = exact(args.packageKey);
+        const requestHash = hash(JSON.stringify({ packageKey: args.packageKey, actor: args.actorId,
+            project: args.projectId, task: args.taskId, channel: args.channelId, work: args.workItemId,
+            revision: args.contentRevision, body: args.textSha256, asset: args.selectedAssetId,
+            image: args.imageSha256, approval: args.approvalReference, key: args.idempotencyKey }));
+        if (pkg.taskId === 1135) {
+            assertBoundaryArgs(args, pkg);
+            const member = await tx.projectMember.findUnique({ where: { project_id_user_id: {
+                project_id: 10, user_id: actorUserId(args.actorId) } } });
+            if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
+            const priorStart = await tx.workflowEvent.findFirst({ where: { project_id: 10, content_item_id: 1135,
+                work_item_id: args.workItemId, actor_id: args.actorId,
+                command: 'ba_start_linkedin_task1135_browser_submission', idempotency_key: args.idempotencyKey } });
+            if (priorStart) {
+                if (object(priorStart.before_state).request_hash !== requestHash) throw new Error('[IDEMPOTENCY_CONFLICT]');
+                const priorAttempt = await latestAttempt(tx, pkg);
+                if (!priorAttempt || priorAttempt.idempotency_key !== args.idempotencyKey
+                    || priorAttempt.id !== object(priorStart.after_state).delivery_attempt_id) throw new Error('[EXACT_BROWSER_ATTEMPT_UNCERTAIN]');
+                return { status: 'verification_required', attempt_id: priorAttempt.id,
+                    retry_allowed: false, submission_permitted: false, replayed: true };
+            }
+        }
         const checked = await checkedBoundary(tx, args, ['browser_required']);
         const prior = await latestAttempt(tx, checked.pkg);
         const classification = classifyPriorAttempt(prior);
@@ -377,6 +406,7 @@ export async function startExactBrowserSubmission(args: BoundaryArgs, database =
             actor_id: args.actorId,
             command: `ba_start_${checked.pkg.channelType}_task${checked.pkg.taskId}_browser_submission`,
             idempotency_key: args.idempotencyKey, before_state: { status: checked.task.status,
+                ...(pkg.taskId === 1135 ? { request_hash: requestHash } : {}),
                 prior_attempt: classification } as Prisma.InputJsonValue,
             after_state: { status: 'publishing', delivery_attempt_id: attempt.id } } });
         return { status: 'started', attempt_id: attempt.id, retry_allowed: false, replayed: false };

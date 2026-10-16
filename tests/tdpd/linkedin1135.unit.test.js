@@ -49,6 +49,7 @@ async function started(){const f=fixture();await svc.releaseLinkedIn1135(release
     Object.assign(f.state.work,{state:'claimed',lease_actor_id:'user:2',lease_token:boundary.leaseToken,lease_expires_at:new Date(Date.now()+600000)});
     await svc.startLinkedIn1135(boundary,f.db);return f;}
 function writer(f,fail=false){return async args=>f.db.$transaction(async tx=>{await args.beforeWrite(tx);if(fail)throw Error('fact unavailable');
+    assert.equal(args.browserWorkItemId,500);
     const fact={id:900,project_id:10,channel_id:179,public_url:args.publicUrl,provider_object_id:args.providerObjectId,
         published_at:new Date(args.publishedAt),evidence_ref:args.evidence.ref};f.state.fact=fact;f.state.task.publication_fact=fact;f.state.task.status='published';
     return{publication_fact:fact};});}
@@ -59,6 +60,12 @@ test('owner release creates one revision-bound WI, no attempt or provider call, 
     assert.equal(r.browser_work_item_id,500);assert.equal(f.state.work.input_context_version,2);
     assert.equal(f.state.task.draft_text,copy);assert.equal(f.state.attempts.length,0);
     assert.equal((await svc.releaseLinkedIn1135(releaseArgs,f.dependencies)).replayed,true);assert.equal(f.state.events.length,1);
+});
+test('committed release replay remains available during manifest outage, but revoked owner is denied',async()=>{
+    const f=fixture();await svc.releaseLinkedIn1135(releaseArgs,f.dependencies);
+    f.dependencies.manifest=async()=>{throw Error('manifest unavailable');};
+    assert.equal((await svc.releaseLinkedIn1135(releaseArgs,f.dependencies)).replayed,true);
+    f.state.owner=false;await assert.rejects(svc.releaseLinkedIn1135(releaseArgs,f.dependencies),/OWNER_REQUIRED/);
 });
 test('claim returns its lease only to owning executor; durable audit contains only its hash',async()=>{
     const f=fixture();await svc.releaseLinkedIn1135(releaseArgs,f.dependencies);
@@ -86,7 +93,10 @@ test('start creates one durable attempt; UNKNOWN and different keys never create
     const f=await started();assert.equal(f.state.attempts.length,1);assert.equal(f.state.task.status,'publishing');
     await svc.markLinkedIn1135Uncertain({...boundary,attemptId:70,reasonCode:'PROVIDER_RESULT_UNCERTAIN'},f.db);
     assert.equal(f.state.attempts[0].requires_manual_confirmation,true);
-    for(const key of ['publish1135','other'])await assert.rejects(svc.startLinkedIn1135({...boundary,idempotencyKey:key},f.db));
+    const replay=await svc.startLinkedIn1135(boundary,f.db);assert.equal(replay.attempt_id,70);
+    assert.equal(replay.retry_allowed,false);assert.equal(replay.submission_permitted,false);
+    await assert.rejects(svc.startLinkedIn1135({...boundary,idempotencyKey:'other'},f.db));
+    await assert.rejects(svc.startLinkedIn1135({...boundary,approvalReference:'different owner reference'},f.db),/IDEMPOTENCY_CONFLICT/);
     assert.equal(f.state.attempts.length,1);assert.equal(f.state.fact,null);
 });
 test('pre-submit rejects collapsed paragraphs, wrong author, wrong image or missing attachment',async()=>{

@@ -46,7 +46,7 @@ test('real PostgreSQL release/start races, rollback and atomic fact confirmation
         approvalReference:release.approvalReference,idempotencyKey:'pg-send1135',contentRevision:2,textSha256:p.bodySha256,
         selectedAssetId:163,imageSha256:p.assetSha256};
     const starts=await Promise.allSettled([svc.startLinkedIn1135(boundary),svc.startLinkedIn1135(boundary)]);
-    assert.equal(starts.filter(r=>r.status==='fulfilled').length,1);
+    assert.equal(starts.filter(r=>r.status==='fulfilled'&&r.value.status==='started').length,1);
     assert.equal(await db.deliveryAttempt.count({where:{project_id:10,content_item_id:1135}}),1);
     const attempt=await db.deliveryAttempt.findFirst({where:{project_id:10,content_item_id:1135}});
     const observed={...boundary,attemptId:attempt.id,observedAuthorUrl:p.targetProfileUrl,observedAccountType:'company_page',
@@ -55,6 +55,8 @@ test('real PostgreSQL release/start races, rollback and atomic fact confirmation
     await svc.preSubmitLinkedIn1135(observed);
     const confirm={...observed,publicUrl:'https://www.linkedin.com/feed/update/urn:li:activity:777/',
         providerObjectId:'urn:li:activity:777',publishedAt:'2026-10-16T15:00:00.000Z'};
+    const other=await db.workItem.create({data:{project_id:10,content_item_id:1135,item_key:'unrelated-history',
+        kind:'browser_publish',state:'available',assignee_role:'browser_publisher',input_context_version:1}});
     const failWriter=async args=>db.$transaction(async tx=>{await args.beforeWrite(tx);throw Error('synthetic fact failure');});
     await assert.rejects(svc.confirmLinkedIn1135(confirm,db,failWriter),/synthetic fact failure/);
     assert.equal((await db.deliveryAttempt.findUnique({where:{id:attempt.id}})).status,'pending');
@@ -64,6 +66,7 @@ test('real PostgreSQL release/start races, rollback and atomic fact confirmation
     assert.ok(result.publication_fact.id);assert.equal((await db.deliveryAttempt.findUnique({where:{id:attempt.id}})).status,'delivered');
     assert.equal((await db.contentItem.findUnique({where:{id:1135}})).draft_text,body);
     assert.equal((await db.workItem.findUnique({where:{id:workId}})).state,'completed');
+    assert.equal((await db.workItem.findUnique({where:{id:other.id}})).state,'available');
     const events=await db.workflowEvent.findMany({where:{content_item_id:1135}});
     assert.equal(JSON.stringify(events).includes(lease.lease_token),false);
 });
