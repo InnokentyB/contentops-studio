@@ -18,7 +18,7 @@ test('Dzen task1002 route binds the exact accepted package and provider identity
         decisionId: 300, decisionVersion: 2, selectedAssetId: 151,
         assetSha256: '003dae64a6087ee456bb9af583b78955c6a6738de294ca7cf75c83b151d06a12',
         placement: 'article_cover', schedule: '2026-10-13T11:30:00.000Z',
-        manifest: 'sha256:4bfec7ca8399251c6c8f132a34d9e0952adbf1eef049d29325808cbd9db3975b',
+        manifest: 'sha256:cc2cc620612463792340ae39c2a815f61d603edad17cd01e49cff6f369a50dc7',
         providerChannelId: '6a8029aba055ec36033bf81c'
     });
     assert.deepEqual(DZEN_TASK_SPECS[1002], {

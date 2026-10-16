@@ -31,6 +31,7 @@ export function registerTomorrowPublicationTools(server: McpServer): void {
         description: 'Exact dry-run or one-shot create/edit/submit/confirm route for owner-released and freshly preflighted Dzen task1002. Provider ambiguity freezes retry and records no publication fact.',
         annotations: EXTERNAL_PUBLICATION_ANNOTATIONS,
         inputSchema: { projectId: z.literal(10), taskId: z.literal(1002),
+            actorId: z.string().regex(/^user:\d+$/), expectedManifestChecksum: z.literal(DZEN1002_ROUTE.manifest),
             dryRun: z.boolean().optional().default(true), idempotencyKey: z.string().min(1).optional() }
     }, async args => asToolResult(await dzenTaskPublicationService.execute(args)));
 
