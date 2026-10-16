@@ -34,7 +34,7 @@ jobs:
       - name: Build isolated consumer fixture artifact
         run: npm run build:vk:connector
       - name: Install Chrome for loopback-only browser regression fixtures
-        run: npx puppeteer browsers install chrome --install-deps
+        run: npx puppeteer browsers install chrome
       - name: Full backend regression with synthetic auth and bundled consumer
         env:
           JWT_SECRET: 'synthetic-regression-secret-not-a-production-key'
