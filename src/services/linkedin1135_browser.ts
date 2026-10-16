@@ -3,9 +3,10 @@ import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import prisma from '../db';
 import publicationFactService, { RecordPublicationFactArgs } from './publication_fact.service';
+import { validateLinkedIn1135Identity } from './linkedin1135_identity';
 import { EXACT_BROWSER_PACKAGES, checkedBoundary, loadTask, assertPackage,
     releaseExactBrowserTask, startExactBrowserSubmission,
-    validateProviderIdentity, assertLinkedIn1135ReleaseFingerprint, BoundaryArgs } from './exact_browser_publication_1133_1132.service';
+    assertLinkedIn1135ReleaseFingerprint, BoundaryArgs } from './exact_browser_publication_1133_1132.service';
 
 /** New exact package reuses the existing browser release/claim/start engine. */
 export const LINKEDIN1135 = EXACT_BROWSER_PACKAGES.linkedin1135;
@@ -37,7 +38,7 @@ export const linkedin1135PreSubmitSchema = linkedin1135BoundarySchema.extend({ .
     attemptId: z.number().int().positive(), evidenceSha256: checksum }).strict();
 /** Public company-post readback must prove exact text blocks, original image and provider identity. */
 export const linkedin1135ConfirmSchema = linkedin1135PreSubmitSchema.extend({ publicUrl: z.string().url(),
-    providerObjectId: z.string().regex(/^urn:li:activity:[1-9]\d*$/),
+    providerObjectId: z.string().regex(/^urn:li:(?:activity|share):[1-9]\d*$/),
     publishedAt: z.string().datetime({ offset: true }) }).strict();
 /** Owner reconciliation records an existing object only; it does not renew or require a lost lease. */
 export const linkedin1135ReconcileSchema = linkedin1135ConfirmSchema.omit({ leaseToken: true }).strict();
@@ -140,7 +141,7 @@ type ConfirmInput = z.input<typeof linkedin1135ConfirmSchema>;
 type ReconcileInput = z.input<typeof linkedin1135ReconcileSchema>;
 async function confirm(input: ConfirmInput | ReconcileInput, reconcile: boolean, database: typeof prisma, recordFact: FactWriter) {
     const args = reconcile ? linkedin1135ReconcileSchema.parse(input) : linkedin1135ConfirmSchema.parse(input);
-    const identity = validateProviderIdentity('linkedin', args.publicUrl, args.providerObjectId, args.publishedAt);
+    const identity = validateLinkedIn1135Identity(args.publicUrl, args.providerObjectId, args.publishedAt);
     await owner(database, args.actorId);
     const priorFact = await database.publicationFact.findUnique({ where: { content_item_id: 1135 } });
     if (priorFact) {

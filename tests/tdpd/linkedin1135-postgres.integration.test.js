@@ -53,8 +53,8 @@ test('real PostgreSQL release/start races, rollback and atomic fact confirmation
         observedTextSha256:p.bodySha256,observedImageSha256:p.assetSha256,attachedImageCount:1,
         paragraphBlockSha256:svc.linkedin1135Paragraphs(body),duplicateAbsent:true,evidenceSha256:'1'.repeat(64)};
     await svc.preSubmitLinkedIn1135(observed);
-    const confirm={...observed,publicUrl:'https://www.linkedin.com/feed/update/urn:li:activity:777/',
-        providerObjectId:'urn:li:activity:777',publishedAt:'2026-10-16T15:00:00.000Z'};
+    const confirm={...observed,publicUrl:'https://www.linkedin.com/feed/update/urn:li:share:777/?actorCompanyId=79633032',
+        providerObjectId:'urn:li:share:777',publishedAt:'2026-10-16T15:00:00.000Z'};
     const other=await db.workItem.create({data:{project_id:10,content_item_id:1135,item_key:'unrelated-history',
         kind:'browser_publish',state:'available',assignee_role:'browser_publisher',input_context_version:1}});
     const failWriter=async args=>db.$transaction(async tx=>{await args.beforeWrite(tx);throw Error('synthetic fact failure');});
@@ -64,6 +64,8 @@ test('real PostgreSQL release/start races, rollback and atomic fact confirmation
     assert.equal(await db.workflowEvent.count({where:{content_item_id:1135,command:'ba_confirm_linkedin_task1135_browser_submission'}}),0);
     const result=await svc.confirmLinkedIn1135(confirm,db,args=>facts.record(args));
     assert.ok(result.publication_fact.id);assert.equal((await db.deliveryAttempt.findUnique({where:{id:attempt.id}})).status,'delivered');
+    assert.equal(result.provider_object_id,'urn:li:share:777');
+    assert.equal(result.public_url,'https://www.linkedin.com/feed/update/urn:li:share:777/');
     assert.equal((await db.contentItem.findUnique({where:{id:1135}})).draft_text,body);
     assert.equal((await db.workItem.findUnique({where:{id:workId}})).state,'completed');
     assert.equal((await db.workItem.findUnique({where:{id:other.id}})).state,'available');
