@@ -98,6 +98,7 @@ const PLANNER_TOOLS = new Set([
 ]);
 
 const ART_DIRECTOR_TOOLS = new Set([
+    'ba_rebind_telegram_video_task1103_asset',
     'ba_get_agent_workspace_manifest',
     'ba_get_agent_workspace_updates',
     'ba_get_agent_chat_bootstrap',
@@ -148,6 +149,8 @@ const EDITOR_TOOLS = new Set([
 ]);
 
 const PUBLISHER_TOOLS = new Set([
+    'ba_release_telegram_video_task1103',
+    'ba_publish_telegram_video_task1103',
     'ba_release_linkedin_task1135_browser',
     'ba_claim_linkedin_task1135_browser_publication',
     'ba_start_linkedin_task1135_browser_submission',

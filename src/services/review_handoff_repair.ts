@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import prisma from '../db';
 import { buildGeneratedContentItemHandoff } from './publication_plan/handoff';
+import { TG1103 } from './telegram1103/contract';
 
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
 const checksum = z.string().regex(/^[a-f0-9]{64}$/);
@@ -91,7 +92,11 @@ async function exactState(db: Db, args: Args) {
         throw new Error('[REVIEW_HANDOFF_SNAPSHOT_CHANGED]');
     }
     const bundle = buildGeneratedContentItemHandoff(task);
-    if (bundle.mode !== 'manual' || bundle.transport.connector_authority !== 'manual_only') {
+    const video1103 = task.project_id === TG1103.project && task.id === TG1103.task
+        && task.channel_id === TG1103.channel && task.channel.type === 'telegram'
+        && task.visual_placement === 'video_cover' && task.content_revision === TG1103.revision
+        && review.id === TG1103.oldReview && hash(task.draft_text || '') === TG1103.bodySha;
+    if (!video1103 && (bundle.mode !== 'manual' || bundle.transport.connector_authority !== 'manual_only')) {
         throw new Error('[MANUAL_ONLY_CHANNEL_REQUIRED]');
     }
     return { task, review, approval, bundle };
@@ -145,7 +150,7 @@ export async function repairReviewHandoff(input: Args, database: typeof prisma =
     const preview = (state: Awaited<ReturnType<typeof exactState>>) => ({ project_id: args.projectId, task_id: args.taskId,
         superseded_work_item_id: args.workItemId, historical_approval_id: state.approval.id,
         replacement_input_context_version: args.expectedRevision, replacement_result_version: 0,
-        handoff_mode: 'manual', connector_authority: 'manual_only',
+        handoff_mode: state.bundle.mode, connector_authority: state.bundle.transport.connector_authority,
         preserved_body_sha256: args.expectedBodySha256, publication_authorized: false,
         delivery_attempt_count: 0, publication_fact: null });
     if (!apply) return { mode: 'preview', ...preview(await exactState(database, args)) };

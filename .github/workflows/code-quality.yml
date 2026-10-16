@@ -53,6 +53,7 @@ jobs:
           done < <(find src/tests -name '*.test.ts' -print | sort)
       - name: Mocked existing-WI and principal contracts (no provider calls)
         run: |
+          node --test --test-concurrency=1 tests/tdpd/telegram1103-*.unit.test.js dist/tests/telegram1103_*.test.js
           node --test --test-concurrency=1 tests/tdpd/linkedin1135.unit.test.js dist/tests/linkedin1135_contract.test.js
           node --test --test-concurrency=1 tests/tdpd/review-handoff-repair.unit.test.js dist/tests/manual_only_handoff.test.js
           node --test --test-concurrency=1 dist/tests/dzen1002_manifest_fence.test.js dist/tests/dzen_task1002_route.test.js dist/tests/dzen1002_inventory*.test.js
@@ -101,6 +102,7 @@ jobs:
           node --test --test-concurrency=1 tests/tdpd/threads1114-postgres.integration.test.js
           node --test --test-concurrency=1 tests/tdpd/review-handoff-postgres.integration.test.js
           node --test --test-concurrency=1 tests/tdpd/linkedin1135-postgres.integration.test.js
+          node --test --test-concurrency=1 tests/tdpd/telegram1103-postgres.integration.test.js
   audit:
     name: Code Quality & Security Gate
     runs-on: ubuntu-latest

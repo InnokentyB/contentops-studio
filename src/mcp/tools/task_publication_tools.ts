@@ -46,6 +46,7 @@ export async function executePublicationTaskByChannel(
         telegram: telegramTaskPublicationService
     }
 ): Promise<Record<string, unknown>> {
+    if (args.projectId === 10 && args.taskId === 1103) throw new Error('[TELEGRAM1103_EXACT_PUBLISHER_TOOL_REQUIRED]');
     if (dependencies.isDzenTask(args.projectId, args.taskId)) return dependencies.dzen.execute(args);
     if (await dependencies.threads.isThreadsTask(args)) return dependencies.threads.execute(args);
     return dependencies.telegram.execute(args);

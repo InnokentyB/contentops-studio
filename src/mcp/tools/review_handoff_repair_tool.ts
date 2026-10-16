@@ -10,7 +10,7 @@ export function registerReviewHandoffRepairTool(server: McpServer): void {
         inputSchema: reviewRepairSnapshotSchema.shape
     }, async args => asToolResult(await getReviewRepairSnapshot(args)));
     server.registerTool('ba_repair_content_review_handoff', {
-        description: 'Owner-only preview/apply for an exact draft review-version collision on a manual-only channel. Atomically supersedes the old review with immutable result/approval history retained, creates one fresh unclaimed revision-bound review, and rebuilds manual handoff metadata. Does not accept copy, change dates/identity/art, release, publish or contact a provider. Snapshot drift and any delivery attempt/fact block.',
+        description: 'Owner-only preview/apply for an exact draft review-version collision on a manual-only channel, or the fixed owner-approved Telegram1103/r2/WI1756 recovery. Atomically supersedes the old review with immutable result/approval history retained, creates one fresh unclaimed revision-bound review, and rebuilds canonical handoff metadata. Does not accept copy, change dates/identity/art, release, publish or contact a provider. Snapshot drift and any delivery attempt/fact block.',
         annotations: INTERNAL_MUTATION_ANNOTATIONS,
         inputSchema: reviewHandoffRepairSchema.shape
     }, async args => asToolResult(await repairReviewHandoff(args)));

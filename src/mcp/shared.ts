@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { registerVkSearchTools } from './tools/vk_search_tools';
 import { registerReviewHandoffRepairTool } from './tools/review_handoff_repair_tool';
+import { registerTelegram1103Tools } from './tools/telegram1103_tools';
 import { registerLinkedIn1135Tools } from './tools/linkedin1135_tools';
 import prisma, { pool } from '../db';
 import workQueueService from '../services/work_queue.service';
@@ -76,6 +77,7 @@ export function createPlannerMcpServer(options: { profile?: McpCapabilityProfile
  */
 export function registerPlannerTools(server: McpServer): void {
     registerReviewHandoffRepairTool(server);
+    registerTelegram1103Tools(server);
     registerLinkedIn1135Tools(server);
     // 1. Intelligence & Agent manifest tools
     registerIntelligenceTools(server);
