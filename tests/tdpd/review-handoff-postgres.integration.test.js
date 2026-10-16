@@ -8,7 +8,15 @@ if (process.env.CI !== 'true' || url.protocol !== 'postgresql:' || url.hostname 
     || url.pathname !== '/codex_lifecycle_ci' || url.search || url.hash) throw Error('Ephemeral CI database only');
 process.env.DATABASE_URL = target;
 require('../../dist/bootstrap-env');
-if (process.env.DATABASE_URL !== target) throw Error('Bootstrap changed isolated database target');
+const effective = new URL(process.env.DATABASE_URL || '');
+if (effective.protocol !== url.protocol || effective.hostname !== url.hostname
+    || effective.port !== url.port || effective.pathname !== url.pathname
+    || effective.username !== url.username || effective.password !== url.password || effective.hash
+    || effective.searchParams.get('schema') !== 'planner'
+    || effective.searchParams.get('options') !== '-c search_path=planner'
+    || [...effective.searchParams.keys()].some(key => !['schema', 'options'].includes(key))) {
+    throw Error('Bootstrap changed isolated database target');
+}
 const { default: db, pool } = require('../../dist/db');
 const { repairReviewHandoff, reviewRepairMetadataHash, reviewRepairStateHash } = require('../../dist/services/review_handoff_repair');
 const sha = value => createHash('sha256').update(value).digest('hex');
