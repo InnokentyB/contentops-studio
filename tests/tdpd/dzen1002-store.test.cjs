@@ -100,3 +100,17 @@ test('R06/R07 post-submit package, hold, owner and manifest drift cannot lose re
  assert.equal((await db.deliveryAttempt.findUnique({where:{id:c.attemptId}})).status,'verification_required');
  await assert.rejects(drifted.confirm(a,c));await assert.rejects(drifted.claim({...a,idempotencyKey:'another'}));assert.equal(await db.publicationFact.count(),0);
 });
+
+test('R08 real durable attempt timestamp bounds receipt publication time with120 second skew',async()=>{
+ const c=await store.claim(a);await store.start(a,c);
+ const attempt=await db.deliveryAttempt.findUnique({where:{id:c.attemptId}});
+ assert.equal(attempt.created_at.toISOString(),'2026-10-16T12:00:00.000Z');
+ for(const publishedAt of ['2026-10-14T12:00:00.000Z','2026-10-16T11:57:59.999Z']){
+  await assert.rejects(store.saveReceipt(a,c,{...receipt(c),publishedAt}),/DZEN1002_RECEIPT_PREDATES_CLAIM/);
+  assert.equal(await db.workflowEvent.count({where:{command:'ba_publish_dzen_task1002:receipt'}}),0);
+  assert.equal((await db.deliveryAttempt.findUnique({where:{id:c.attemptId}})).status,'pending');
+ }
+ await store.saveReceipt(a,c,{...receipt(c),publishedAt:'2026-10-16T11:58:00.000Z'});
+ assert.equal(await db.workflowEvent.count({where:{command:'ba_publish_dzen_task1002:receipt'}}),1);
+ assert.equal((await db.deliveryAttempt.findUnique({where:{id:c.attemptId}})).status,'verification_required');
+});

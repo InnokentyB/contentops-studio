@@ -80,7 +80,7 @@ export async function dzen1002ReadClaim(tx: Prisma.TransactionClient, a: Args, i
 }
 /** Internal receipt custody survives post-submit eligibility/owner/manifest drift. */
 export async function dzen1002CommittedClaim(tx: Prisma.TransactionClient, a: Args, c: Dzen1002Claim,
-    d: Dzen1002StoreDependencies): Promise<Dzen1002Claim> {
+    d: Dzen1002StoreDependencies): Promise<Dzen1002Claim & { createdAt: Date }> {
     if (a.projectId !== 10 || a.taskId !== 1002 || c.key !== a.idempotencyKey
         || a.expectedManifestChecksum !== p.manifest) throw new Error('[DZEN1002_CLAIM_MISMATCH]');
     const event = await tx.workflowEvent.findFirst({ where: { project_id: 10, content_item_id: 1002,
@@ -93,7 +93,7 @@ export async function dzen1002CommittedClaim(tx: Prisma.TransactionClient, a: Ar
     if (!attempt || state.attempt_id !== c.attemptId || state.actor_id !== a.actorId || state.release_id !== 3126
         || digest !== dzen1002Hash(JSON.stringify(data)) || JSON.stringify(pkg) !== JSON.stringify(c.package)
         || (d.hashBody || dzen1002Hash)(pkg.body) !== p.bodySha256) throw new Error('[DZEN1002_CLAIM_MISMATCH]');
-    return { attemptId: c.attemptId, key: c.key, package: pkg };
+    return { attemptId: c.attemptId, key: c.key, package: pkg, createdAt: attempt.created_at };
 }
 export async function dzen1002RequireStarted(tx: Prisma.TransactionClient, c: Dzen1002Claim) {
     const started = await tx.workflowEvent.findFirst({ where: { project_id: 10, content_item_id: 1002,

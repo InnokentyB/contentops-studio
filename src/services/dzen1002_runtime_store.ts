@@ -37,7 +37,7 @@ export class Dzen1002RuntimeStore {
             if (changed.count !== 1) throw new Error('[DZEN1002_CAS_CONFLICT]');
             const created = await tx.deliveryAttempt.create({ data: { project_id: 10, content_item_id: 1002,
                 channel_id: 116, mode: 'automatic', status: 'pending', attempt_number: 1, idempotency_key: a.idempotencyKey,
-                scheduled_at: snap.task.schedule_at, requires_manual_confirmation: true } });
+                scheduled_at: snap.task.schedule_at, created_at: this.now(), requires_manual_confirmation: true } });
             await dzen1002Event(tx, 'claim', a.idempotencyKey, { actor_id: a.actorId, attempt_id: created.id,
                 package: { ...snap.package }, release_id: 3126 });
             return { attemptId: created.id, key: a.idempotencyKey, package: snap.package };
@@ -69,7 +69,12 @@ export class Dzen1002RuntimeStore {
     async saveReceipt(a: Args, c: Claim, value: Dzen1002Receipt): Promise<void> {
         const receipt = validateDzen1002Receipt(value, c, this.now());
         await this.dependencies.db.$transaction(async tx => {
-            await dzen1002CommittedClaim(tx, a, c, this.dependencies); await dzen1002RequireStarted(tx, c);
+            const committed = await dzen1002CommittedClaim(tx, a, c, this.dependencies);
+            // A native publication must belong to this attempt, allowing bounded clock skew.
+            if (Date.parse(receipt.publishedAt) < committed.createdAt.getTime() - 120_000) {
+                throw new Error('[DZEN1002_RECEIPT_PREDATES_CLAIM]');
+            }
+            await dzen1002RequireStarted(tx, c);
             const prior = await this.receipt(tx, c);
             if (prior) {
                 if (JSON.stringify(prior) !== JSON.stringify(receipt)) throw new Error('[DZEN1002_RECEIPT_CONFLICT]');

@@ -57,9 +57,20 @@ requires supported action-specific evidence and a separately reviewed change.
   zero skipped. Quality gate PASS77/min77/no gate hard stops. Diff check PASS.
 - Independent follow-up implementation review: both findings closed, no remaining
   P1/P2. Reviewer independently ran41 offline tests, all PASS, no skips.
-- Fresh final14-test PostgreSQL suite: PENDING isolated Linux CI, not yet GREEN.
-  Existing-repository GitHubActions Postgres pattern explicitly authorized by
-  Portfolio OS; no paid runner, new secrets, self-hosted runner or production DB.
+- Linux CI at code14874df, run38952148492: all four jobs PASS. Dzen job
+  117145913672 ran14/14 actual PostgreSQL tests PASS,0 skipped, including the
+  post-submit drift correction. Other provider regressions and shared gate PASS.
+  Existing-repository GitHubActions pattern was explicitly authorized; no paid
+  runner, new secrets, self-hosted runner or production database.
+- Final targeted review identified R08 stale publication timestamp before attempt.
+  Added deterministic attempt time and immutable receipt lower bound with120-second
+  clock tolerance. RED had two decisive missing-rejection failures; custody suite
+  then5/5 PASS. Expanded real PostgreSQL suite15 tests awaits new-head CI; earlier
+  14 PASS remains exact14874df evidence. After the timestamp fix,54/54 offline
+  tests PASS, TypeScript/backend build and quality gate PASS; independent
+  timestamp follow-up review closed P2 with5/5 tests independently rerun.
+  Canonical current verification is the
+  Dzen1002 check attached to PR165, not the historical numbers above.
 
 Local commands:
 
@@ -75,8 +86,9 @@ rejects anything outside that explicit synthetic localhost database.
 
 ## Compatibility and rollback
 
-No schema/dependency/environment change. The only new environment name is a
-mandatory synthetic test DB input in tests/CI, not an application configuration.
+No schema/dependency/application-environment change. The only new environment name is a
+mandatory synthetic test DB input in tests/CI, documented empty in .env.example;
+it is not an application configuration.
 Adapter requires exact same-account/object primary body and approved original
 cover bytes; transformed/missing cover or unsupported response is uncertain.
 
@@ -92,3 +104,13 @@ No production credentials, DB rows, provider request, live browser, send or
 publication fact was accessed/created. Engineering completion is withheld until
 required fresh CI results. Owner UAT remains explicit after engineering gates;
 no native readiness, publication success or rollout acceptance is claimed.
+
+## Host infrastructure readback (separate from platform policy)
+
+Portfolio OS reported a read-only tower-linux check: project Node dependencies
+and downloaded Puppeteer browser are present, but a memory-HTML-only headless
+launch failed code127 because system libatk is missing; additional GUI/audio
+libraries are absent, and Docker/Podman are not in PATH. No libraries or services
+were installed by this chat. This is host infrastructure evidence, not Dzen
+permission, Railway production readiness or a provider response. CI runs on its
+own Linux runner; no actual Dzen/browser smoke was inferred.

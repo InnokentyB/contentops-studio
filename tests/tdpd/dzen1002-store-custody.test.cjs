@@ -11,9 +11,21 @@ function fixture(){
  const a={projectId:10,taskId:1002,actorId:'user:2',idempotencyKey:c.key,expectedManifestChecksum:p.manifest};
  const receipt={schemaVersion:'dzen1002-native-v1',attemptId:c.attemptId,key:c.key,packageDigest:c.package.digest,accountId:p.providerChannelId,objectId:'Synthetic1002',url:'https://dzen.ru/a/Synthetic1002',publishedAt:'2026-10-16T11:59:00.000Z',observedAt:'2026-10-16T12:00:00.000Z',bodySha256:p.bodySha256,assetSha256:p.assetSha256,title:c.package.title};
  let writes=0;
- const tx={workflowEvent:{findFirst:async x=>x.where.command.endsWith(':claim')?{after_state:{actor_id:a.actorId,attempt_id:c.attemptId,package:c.package,release_id:3126}}:x.where.command.endsWith(':started')?{after_state:{package_digest:c.package.digest}}:null,create:async()=>{writes++;}},deliveryAttempt:{findFirst:async()=>({id:c.attemptId,status:'pending'}),updateMany:async()=>({count:1})},projectMember:{findUnique:async()=>{throw Error('current owner drift');}},contentItem:{findFirst:async()=>{throw Error('current package drift');}}};
+ const tx={workflowEvent:{findFirst:async x=>x.where.command.endsWith(':claim')?{after_state:{actor_id:a.actorId,attempt_id:c.attemptId,package:c.package,release_id:3126}}:x.where.command.endsWith(':started')?{after_state:{package_digest:c.package.digest}}:null,create:async()=>{writes++;}},deliveryAttempt:{findFirst:async()=>({id:c.attemptId,status:'pending',created_at:new Date('2026-10-16T12:00:00.000Z')}),updateMany:async()=>({count:1})},projectMember:{findUnique:async()=>{throw Error('current owner drift');}},contentItem:{findFirst:async()=>{throw Error('current package drift');}}};
  const store=new Dzen1002RuntimeStore({db:{$transaction:fn=>fn(tx)},loadManifest:async()=>{throw Error('current manifest drift');},facts:{record:async()=>{throw Error('fact unavailable');}},now:()=>new Date('2026-10-16T12:00:00.000Z'),hashBody:()=>p.bodySha256});
  return {a,c,receipt,store,writes:()=>writes};
 }
 test('R07 immutable post-submit receipt custody ignores current mutable eligibility',async()=>{const f=fixture();await f.store.saveReceipt(f.a,f.c,f.receipt);assert.equal(f.writes(),1);await assert.rejects(f.store.confirm(f.a,f.c),/current owner drift/);});
 test('R08 immutable custody still rejects foreign actor and altered package',async()=>{const f=fixture();await assert.rejects(f.store.saveReceipt({...f.a,actorId:'user:3'},f.c,f.receipt),/CLAIM_MISMATCH/);await assert.rejects(f.store.saveReceipt(f.a,{...f.c,package:{...f.c.package,title:'altered'}},f.receipt));assert.equal(f.writes(),0);});
+
+test('R08 receipt predating durable claim by more than120 seconds is rejected before writes',async()=>{
+ const f=fixture();
+ await assert.rejects(f.store.saveReceipt(f.a,f.c,{...f.receipt,publishedAt:'2026-10-14T12:00:00.000Z'}),/DZEN1002_RECEIPT_PREDATES_CLAIM/);
+ assert.equal(f.writes(),0);
+});
+test('R08 receipt exactly120 seconds before claim is accepted despite current eligibility drift',async()=>{
+ const f=fixture();await f.store.saveReceipt(f.a,f.c,{...f.receipt,publishedAt:'2026-10-16T11:58:00.000Z'});assert.equal(f.writes(),1);
+});
+test('R08 receipt one millisecond outside120 second claim tolerance is rejected',async()=>{
+ const f=fixture();await assert.rejects(f.store.saveReceipt(f.a,f.c,{...f.receipt,publishedAt:'2026-10-16T11:57:59.999Z'}),/DZEN1002_RECEIPT_PREDATES_CLAIM/);assert.equal(f.writes(),0);
+});
