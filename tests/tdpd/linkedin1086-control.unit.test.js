@@ -96,6 +96,7 @@ test('same41 recovery and approval replay reject evidence different from the rec
         idempotencyKey:'attempt-linkedin-p7-1086-r1-20261015-v1',observedProfileUrl:p.profile,
         authorEvidenceSha256:'a'.repeat(64),duplicateCheckReference:'synthetic historical readback',
         expectedExpiredLeaseSha256:guard.submissionHash(old),expectedExpiredLeaseAt:f.current.oldLeaseExpiresAt,
+        expectedOriginalReadbackSha256:'b'.repeat(64),
         localEvidence:f.localEvidence,ownerObservation:f.ownerObservation};
     const work={id:1946,state:'claimed',lease_actor_id:'user:2',lease_token:old,
         lease_expires_at:new Date(a.expectedExpiredLeaseAt),updated_at:new Date()};
@@ -106,7 +107,9 @@ test('same41 recovery and approval replay reject evidence different from the rec
         contentItem:{updateMany:async()=>{writes.push('task');return {count:1};}},
         workItem:{updateMany:async()=>{writes.push('lease');return {count:1};}},workflowEvent:{
             findFirst:async({where})=>{
-                if(where.id===3265)return {before_state:{request_hash:guard.submissionRequestHash(a)},after_state:{attempt_id:41}};
+                if(where.id===3265)return {before_state:{request_hash:guard.submissionRequestHash(a)},after_state:{attempt_id:41,
+                    readback_hash:a.expectedOriginalReadbackSha256,author_evidence_sha256:a.authorEvidenceSha256,
+                    duplicate_check_reference:a.duplicateCheckReference,profile_url:a.observedProfileUrl}};
                 if(where.id===3264)return {after_state:{lease_sha256:a.expectedExpiredLeaseSha256,lease_expires_at:a.expectedExpiredLeaseAt}};
                 return where.command===recovery.LI1086_APPROVAL_COMMAND?approval:null;
             },create:async({data})=>{writes.push('audit');if(data.command===recovery.LI1086_APPROVAL_COMMAND)approval=data;return data;}}};
@@ -118,7 +121,10 @@ test('same41 recovery and approval replay reject evidence different from the rec
     assert.equal((await recovery.recoverLinkedIn1086Attempt41(approved,true)).replayed,true);
     assert.deepEqual(writes,['audit']);
     for(const patch of [{localEvidence:{...a.localEvidence,reference:'different ops observation'}},
-        {ownerObservation:{...a.ownerObservation,reference:'different owner observation'}}]) {
+        {ownerObservation:{...a.ownerObservation,reference:'different owner observation'}},
+        {authorEvidenceSha256:'c'.repeat(64)},{duplicateCheckReference:'different historical native reference'},
+        {observedEditorText:body},{actionTimeConfirmationReference:'different action time reference'},
+        {expectedOriginalReadbackSha256:'f'.repeat(64)}]) {
         for(const approvalOnly of [true,false]) {
             await assert.rejects(recovery.recoverLinkedIn1086Attempt41({...approved,...patch},approvalOnly),/APPROVAL_PACKET_MISMATCH/);
             assert.deepEqual(writes,['audit']);

@@ -21,10 +21,15 @@ The new1087 visual job is outside scope. No migration or new secret/config.
 2. `ba_record_linkedin_task1086_recovery_approval` preview (`apply=false`), with
    exact existing owner-release fields, old lease SHA/expiry, original operation
    key `attempt-linkedin-p7-1086-r1-20261015-v1`, Ops evidence/owner observation.
+   `expectedOriginalReadbackSha256` must equal retained start3265 readback SHA;
+   author SHA, duplicate-check reference and profile must equal that same start's
+   historical fields. These are NOT the fresh post-recovery native checks.
    This returns the exact human risk audit projection. Apply with that projection
    records ONE immutable approval event only; no lease/task/attempt/provider change.
    Approval replay and recovery apply require the exact recorded request hash,
    including both evidence references; a changed packet is rejected without writes.
+   Every validated input except `apply` is hashed, including optional editor,
+   action-time and native-evidence fields. Missing/changed original readback blocks.
    Human source is attributed to the operator; server does not authenticate Codex
    message history. Never substitute a boolean or another approval reference.
 3. Immediately before the real operator is ready, preview/apply
@@ -99,3 +104,9 @@ commit/deploy/production preview separately; do not claim publication from readi
   asserts changed Ops/owner references reject for approval replay and recovery,
   with original WI unchanged and one approval/no recovery event. Fresh Linux CI
   and final review must pass for this follow-up before deployment.
+- `970b4f9`: all four Linux CI jobs PASS (38954380579). Next review identified
+  native author/history fields missing from the approval hash. Expanded test
+  reproduced RED missing rejection; the full validated packet now binds those
+  fields and checks original start's readback fingerprint/author/history/profile.
+  Focused30/30, backend build and quality77/77 PASS at19:26:16Z. Latest real
+  PostgreSQL CI and final review are required before deployment.

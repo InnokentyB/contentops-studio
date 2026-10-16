@@ -23,6 +23,7 @@ const observationSchema = z.object({ kind: z.literal('owner_observed_absence'), 
     providerVerified: z.literal(false), capturedAt: z.null() }).strict();
 export const recovery1086Schema = claim1086Schema.extend({ actorId: z.literal('user:2'), workItemId: z.literal(1946),
     attemptId: z.literal(41), apply: z.boolean().default(false), expectedExpiredLeaseSha256: sha,
+    expectedOriginalReadbackSha256: sha,
     expectedExpiredLeaseAt: z.literal(RECOVERY1086_SCOPE.oldLeaseExpiresAt), riskAcceptance: riskSchema.optional(),
     localEvidence: evidenceSchema, ownerObservation: observationSchema }).strict();
 
@@ -36,9 +37,8 @@ export function recovery1086RiskAudit(scopeSha256: string): z.infer<typeof riskS
 /** Owner-only same41 generation1 recovery. No browser call, new attempt, release or WI; replay never returns a lease. */
 export async function recoverLinkedIn1086Attempt41(input: unknown, recordApprovalOnly = false): Promise<Record<string, unknown>> {
     const a = recovery1086Schema.parse(input), args = { ...a, leaseToken: '' };
-    const requestHash = hash(JSON.stringify({ request: submissionRequestHash(args), risk: a.riskAcceptance,
-        evidence: a.localEvidence, observation: a.ownerObservation, old: a.expectedExpiredLeaseSha256,
-        expiry: a.expectedExpiredLeaseAt }));
+    // Bind every validated evidence/identity field; apply is the sole preview/apply switch.
+    const requestHash = hash(JSON.stringify({ ...a, apply: undefined }));
     return prisma.$transaction(async tx => {
         const { task, work } = await releasedWork1086(tx, args);
         if (hash(a.idempotencyKey) !== RECOVERY1086_SCOPE.publicationKeySha256) throw new Error('[LINKEDIN1086_ORIGINAL_KEY_REQUIRED]');
@@ -60,6 +60,11 @@ export async function recoverLinkedIn1086Attempt41(input: unknown, recordApprova
                     'ba_mark_linkedin_task1086_browser_submission_uncertain'] } } })
         ]);
         const attempt = attempts[0];
+        const originalReadback = object(start?.after_state);
+        if (originalReadback.readback_hash !== a.expectedOriginalReadbackSha256
+            || originalReadback.author_evidence_sha256 !== a.authorEvidenceSha256
+            || originalReadback.duplicate_check_reference !== a.duplicateCheckReference
+            || originalReadback.profile_url !== a.observedProfileUrl) throw new Error('[LINKEDIN1086_APPROVAL_PACKET_MISMATCH]');
         if (!attempt || attempts.length !== 1 || attempt.id !== 41 || attempt.channel_id !== 5 || attempt.status !== 'pending'
             || attempt.idempotency_key !== a.idempotencyKey || attempt.actual_published_at || permit
             || object(start?.after_state).attempt_id !== 41 || object(start?.before_state).request_hash !== submissionRequestHash(args)
@@ -114,6 +119,7 @@ export async function recoverLinkedIn1086Attempt41(input: unknown, recordApprova
             actor_id: a.actorId, command: LI1086_RECOVERY_COMMAND, idempotency_key: 'attempt41-generation1',
             before_state: { request_hash: requestHash, old_lease_sha256: a.expectedExpiredLeaseSha256,
                 old_expiry: a.expectedExpiredLeaseAt, release_event_id: 3263, claim_event_id: 3264, start_event_id: 3265,
+                original_readback_sha256: a.expectedOriginalReadbackSha256,
                 old_start_before_sha256: hash(JSON.stringify(start?.before_state ?? null)), old_start_after_sha256: hash(JSON.stringify(start?.after_state ?? null)) },
             after_state: { attempt_id: 41, recovery_generation: 1, lease_sha256: hash(token), lease_expires_at: expires.toISOString(),
                 publication_key_sha256: hash(a.idempotencyKey), submission_permitted: false, owner_verdict_text: LI1086_VERDICT,

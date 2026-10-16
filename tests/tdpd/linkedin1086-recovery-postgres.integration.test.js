@@ -27,6 +27,7 @@ const a={projectId:7,taskId:1086,channelId:5,workItemId:1946,actorId,releaseIdem
     contentRevision:1,textSha256:p.body,selectedAssetId:null,imageSha256:null,observedProfileUrl:p.profile,
     authorEvidenceSha256:'a'.repeat(64),duplicateCheckReference:'synthetic fresh native readback',observedEditorText:body};
 const f=fixture();const recovery={...a,attemptId:41,apply:false,expectedExpiredLeaseSha256:guard.submissionHash(old),
+    expectedOriginalReadbackSha256:guard.submissionReadbackHash(a),
     expectedExpiredLeaseAt:f.current.oldLeaseExpiresAt,localEvidence:f.localEvidence,ownerObservation:f.ownerObservation};
 const slug='seturon';let created=false,createdUser=false;
 test('real PG same41 recovery rollback/races, original-fence isolation, one permit, uncertainty and atomic factual reconcile',
@@ -57,7 +58,9 @@ test('real PG same41 recovery rollback/races, original-fence isolation, one perm
     for(const data of [{id:3263,command:p.command,idempotency_key:a.releaseIdempotencyKey,after_state:{browser_work_item_id:1946}},
         {id:3264,command:'ba_claim_linkedin_task1086_browser',idempotency_key:'synthetic-claim',after_state:{lease_sha256:guard.submissionHash(old),lease_expires_at:f.current.oldLeaseExpiresAt}},
         {id:3265,command:'ba_start_linkedin_task1086_browser_submission',idempotency_key:key,
-            before_state:{request_hash:guard.submissionRequestHash({...a,leaseToken:old})},after_state:{attempt_id:41}}]) {
+            before_state:{request_hash:guard.submissionRequestHash({...a,leaseToken:old})},after_state:{attempt_id:41,
+                readback_hash:guard.submissionReadbackHash(a),author_evidence_sha256:a.authorEvidenceSha256,
+                duplicate_check_reference:a.duplicateCheckReference,profile_url:a.observedProfileUrl}}]) {
         await db.workflowEvent.create({data:{project_id:7,content_item_id:1086,work_item_id:1946,actor_id:actorId,...data}});
     }
     t.mock.method(manifest,'loadAgentWorkspaceManifest',async()=>({checksum:p.manifest,project:{slug}}));
@@ -99,7 +102,10 @@ test('real PG same41 recovery rollback/races, original-fence isolation, one perm
     assert.equal((await service.recoverLinkedIn1086Attempt41(apply,true)).mode,'owner_risk_approval_recorded');
     assert.equal((await service.recoverLinkedIn1086Attempt41(apply,true)).replayed,true);
     for(const patch of [{localEvidence:{...apply.localEvidence,reference:'changed ops packet'}},
-        {ownerObservation:{...apply.ownerObservation,reference:'changed owner packet'}}]) {
+        {ownerObservation:{...apply.ownerObservation,reference:'changed owner packet'}},
+        {authorEvidenceSha256:'c'.repeat(64)},{duplicateCheckReference:'different historical native reference'},
+        {observedEditorText:body+'changed'},{actionTimeConfirmationReference:'different action time reference'},
+        {expectedOriginalReadbackSha256:'f'.repeat(64)}]) {
         for(const approvalOnly of [true,false]) {
             await assert.rejects(service.recoverLinkedIn1086Attempt41({...apply,...patch},approvalOnly),/APPROVAL_PACKET_MISMATCH/);
         }
