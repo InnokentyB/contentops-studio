@@ -7,6 +7,7 @@ import dzenTaskPublicationService from '../../services/dzen_task_publication.ser
 import threadsTaskPublicationService from '../../services/threads_task_publication.service';
 import genericThreadsReleaseService from '../../services/threads_generic_release.service';
 import telegramTaskPublicationService from '../../services/telegram_task_publication.service';
+import telegram1103Publication from '../../services/telegram1103/publication';
 import {
     INTERNAL_MUTATION_ANNOTATIONS,
     EXTERNAL_PUBLICATION_ANNOTATIONS,
@@ -35,6 +36,7 @@ type PublicationTaskRoutingDependencies = {
     dzen: TaskExecutor;
     threads: ThreadsTaskExecutor;
     telegram: TaskExecutor;
+    telegramVideo?: TaskExecutor;
 };
 
 export async function executePublicationTaskByChannel(
@@ -43,9 +45,11 @@ export async function executePublicationTaskByChannel(
         isDzenTask: isTaskNativeDzenPublication,
         dzen: dzenTaskPublicationService,
         threads: threadsTaskPublicationService,
-        telegram: telegramTaskPublicationService
+        telegram: telegramTaskPublicationService,
+        telegramVideo: telegram1103Publication
     }
 ): Promise<Record<string, unknown>> {
+    if (args.projectId === 10 && args.taskId === 1103) return (dependencies.telegramVideo || telegram1103Publication).execute({ ...args, projectId: 10, taskId: 1103 });
     if (dependencies.isDzenTask(args.projectId, args.taskId)) return dependencies.dzen.execute(args);
     if (await dependencies.threads.isThreadsTask(args)) return dependencies.threads.execute(args);
     return dependencies.telegram.execute(args);

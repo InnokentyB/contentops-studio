@@ -44,6 +44,25 @@ function fixture() {
     return { db, get state() { return state; } };
 }
 const reference = fixture().state;
+test('exact Telegram1103 r2 collision gets a fresh review without granting send or changing history', async () => {
+    const f = fixture();
+    Object.assign(f.state.task, { id: 1103, project_id: 10, channel_id: 109,
+        visual_placement: 'video_cover', draft_text: 'Удобный деплой. А цена роста?\n\nУправляемая инфраструктура снимает часть забот при запуске небольшого проекта. При росте нагрузки стоит заново сравнить стоимость и сопровождение вариантов. Это мнение из лекции, а не расчёт актуальных тарифов или универсальный совет уходить в self-hosting.\n\nПро создание продуктов и работу с AI в Telegram «Про продукты и системы»: https://t.me/+T79t_ZLStRg2ODky',
+        channel: { id: 109, project_id: 10, type: 'telegram', name: 'analystcraft', config: { execution_modes: ['automated', 'manual'] } } });
+    Object.assign(f.state.review, { id: 1756, project_id: 10, content_item_id: 1103 });
+    const snapshot = await getReviewRepairSnapshot({ projectId: 10, taskId: 1103,
+        workItemId: 1756, actorId: 'user:2' }, f.db);
+    const original = structuredClone(f.state.approval);
+    const r = await repairReviewHandoff({ ...snapshot.expected_snapshot, idempotencyKey: 'tg1103',
+        reason: 'Owner approved exact video recovery', apply: true }, f.db);
+    assert.equal(r.publication_authorized, false);
+    assert.equal(f.state.replacements[0].input_context_version, 2);
+    assert.equal(f.state.replacements[0].result_version, 0);
+    assert.equal(f.state.review.state, 'completed');
+    assert.deepEqual(f.state.approval, original);
+    assert.equal(f.state.task.accepted_revision, null);
+    assert.equal(f.state.task.publication_mode, 'approval_required');
+});
 args.expectedTaskMetadataSha256 = reviewRepairMetadataHash(reference.task);
 args.expectedReviewStateSha256 = reviewRepairStateHash(reference.review);
 test('preview has no writes or approval', async () => {

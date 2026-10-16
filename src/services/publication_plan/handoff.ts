@@ -179,7 +179,7 @@ export function buildHandoffBundle(
         ? bindVkStoryPollToRevision(nativePollCandidate, Number(item.content_revision))
         : null;
     const selectedAssetMetadata = selectedAsset ? visualMetadataFromProvenance(selectedAsset.provenance) : {};
-    const isVideo = canonicalChannelType === 'vk'
+    const isVideo = ['vk', 'telegram'].includes(canonicalChannelType)
         && (placement === 'clip' || placement === 'video_cover' || (placement === 'feed' && selectedAssetMetadata.mime_type === 'video/mp4'));
     const inferPersistedFileName = (runtimeFileName: string | null | undefined, persistedAsset: Record<string, unknown>) => {
         if (runtimeFileName) return runtimeFileName;
