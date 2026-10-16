@@ -10,6 +10,31 @@ All code changes follow `/Users/innokentyb/Documents/Product/PM/PORTFOLIO_CODE_Q
 - Engineering completion is not acceptance: owner UAT remains explicit.
 - Existing debt is baselined; changed code must introduce no new `any`, silent catches, oversized modules, or weaker controls.
 
+## Reusable production behavior — no publication-specific code
+
+- A new ordinary publication must be executable as data through shared provider
+  adapters and publication/review/recovery lifecycle contracts, without new
+  production code or a deploy for its business identifiers.
+- Do not create production functions, exports, modules, routes/endpoints,
+  MCP commands, schema literals, capabilities or dispatch/allowlist branches for
+  individual task IDs, actors, accounts, channels, revisions or release packages.
+  Pass their IDs, hashes, dates and approval bindings as validated data; resolve
+  the current tenant-owned records and capabilities at the execution boundary.
+- Keep owner authorization, tenant isolation, exact accepted revision/manifest,
+  asset identity, idempotency, audit and UNKNOWN/reconciliation controls. Replace
+  task-specific checks with data-driven checks, never delete or bypass them.
+- An actual provider/protocol limitation may require shared provider code. A
+  new business task/account or an unimplemented generic lifecycle is not such a
+  limitation; document the missing shared mechanism rather than adding an exact
+  task implementation or a synthetic admission prerequisite.
+- Numeric protocol constants, limits, dimensions and version formats are valid.
+  Fixtures, isolated test scenarios, seeds, historical migrations and immutable
+  audit/recovery records may name concrete business IDs. They must not be
+  imported or promoted into executable task-specific production authority.
+- Existing debt is not permission to copy it. Any temporary exception needs an
+  exact, reviewable scope, reason, owner and removal plan. No blanket file,
+  provider or security-check exemption is acceptable.
+
 ## TDPD 0.13
 
 Read `.tdpd/core/FRAMEWORK.md` and `.tdpd/core/QUICKSTART.md` before product work.

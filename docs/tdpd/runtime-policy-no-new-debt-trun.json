@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 1,
+  "contract": "RUNTIME-POLICY-NO-NEW-DEBT-001",
+  "observedAtUTC": "2026-10-16T20:28:50Z",
+  "auditedBase": "12025f29ddf51d30e90825caf2d90e09e1045a1b",
+  "execution": {
+    "host": "tower-linux",
+    "snapshot": "/home/innokenty/codex-work/planner-policy-quality-7ARajm",
+    "syntheticGitRevision": "1ceba35",
+    "dirtyAfterSnapshot": true,
+    "qualification": "Source was copied from codex/runtime-policy-audit review worktree. Synthetic Git revision is not the eventual review commit. Input hashes identify final executable gate/test inputs; docs-only changes afterward do not alter these results.",
+    "network": "none for tests/quality",
+    "uid": 1000,
+    "applicationStarted": false,
+    "providersCalled": false,
+    "databasesCalled": false
+  },
+  "runs": [
+    {
+      "id": "TRUN-RP-RED-001",
+      "scenario": "Initial gate behavior and ancestor-directory symlink regression",
+      "command": "docker compose -f ops/quality/compose.yaml run --rm quality",
+      "verdict": "RED",
+      "pass": 5,
+      "fail": 16,
+      "expected": "Gate absent (RED scaffold); previous collector followed ancestor symlink."
+    },
+    {
+      "id": "TRUN-RP-RED-002",
+      "scenario": "Additional common dispatch, stale-baseline, ORM/SQL, short-X and quoted-JSON/schema cases",
+      "verdict": "RED",
+      "qualification": "Each gap reproduced in a focused container run before its fix. Parent-quality supplementary test initially had an uncommitted synthetic Git fixture (infrastructure error), corrected without weakening the assertion."
+    },
+    {
+      "id": "TRUN-RP-GREEN-001",
+      "command": "docker compose -f ops/quality/compose.yaml run --rm quality",
+      "verdict": "PASS",
+      "pass": 35,
+      "fail": 0,
+      "skip": 0,
+      "durationMs": 10882.95852
+    },
+    {
+      "id": "TRUN-RP-GREEN-002",
+      "command": "docker compose -f ops/quality/compose.yaml run --rm quality npm run quality:gate",
+      "verdict": "PASS",
+      "report": {
+        "command": "npm run quality:gate",
+        "timestamp": "2026-10-16T20:28:33.994Z",
+        "revision": "1ceba35",
+        "score": 77,
+        "minimum_score": 77,
+        "checks": [
+          {
+            "id": "remote_mcp_identity",
+            "file": "src/tests/remote_mcp_auth.test.ts",
+            "pass": true
+          },
+          {
+            "id": "mutating_tool_annotations",
+            "file": "src/tests/remote_mcp_auth.test.ts",
+            "pass": true
+          },
+          {
+            "id": "header_cookie_sanitization",
+            "file": "src/services/puppeteer_publisher.service.ts",
+            "pass": true
+          },
+          {
+            "id": "auth_rate_limits",
+            "file": "src/routes/auth.routes.ts",
+            "pass": true
+          },
+          {
+            "id": "db_pool_safety",
+            "file": "src/db.ts",
+            "pass": true
+          },
+          {
+            "id": "external_idempotency",
+            "file": "src/services/delivery.service.ts",
+            "pass": true
+          },
+          {
+            "id": "uncertain_provider_outcomes",
+            "file": "src/tests/delivery.service.test.ts",
+            "pass": true
+          },
+          {
+            "id": "browser_cleanup",
+            "file": "src/services/puppeteer_publisher.service.ts",
+            "pass": true
+          },
+          {
+            "id": "graceful_shutdown",
+            "file": "src/server.ts",
+            "pass": true
+          }
+        ],
+        "runtime_policy": {
+          "verdict": "PASS",
+          "errors": [],
+          "scannedFiles": 1000,
+          "operationalFiles": 559,
+          "findingsCount": 7096,
+          "baselineCount": 7096,
+          "elapsedMs": 2868
+        },
+        "hard_stops": [],
+        "verdict": "PASS"
+      }
+    },
+    {
+      "id": "TRUN-RP-BUILD-001",
+      "command": "docker compose -f ops/quality/compose.yaml --profile build build build-check",
+      "verdict": "PASS",
+      "backend": "npm run build:backend (prisma generate + tsc)",
+      "frontend": "npm run build --prefix frontend (tsc -b + vite)",
+      "imageConfig": "sha256:a41a97cbb3a5800a06ff13d381305d9dc9cc8376aa3e2625ee07dff1f057645a",
+      "previousAttempts": [
+        "Canceled broad chown layer; replaced with narrow build-directory ownership changes.",
+        "Prisma engine directory not writable as non-root; fixed only specific build directories."
+      ],
+      "warnings": [
+        "Existing markdown-to-jsx eval warning remains. Dependency vulnerabilities were not remediated."
+      ]
+    }
+  ],
+  "inputSha256": {
+    "scripts/runtime_policy_scanner.cjs": "60e5e6c627c9b1a519f2fe890a0d3226611d3a143149c167155f26cf5436be47",
+    "scripts/check_runtime_policy.cjs": "833087f77619bf4e4ec462002d9d59bab57fc8cce1a29044f7b6cc1647553267",
+    "scripts/runtime_policy_source.cjs": "df31edeb45ae79db33b5d0490a5c02e862b4b567ec049e8eaa909e1c565a8ea0",
+    "scripts/check_quality_gate.mjs": "fb812f49ff3e1d27f159f5a5243961c231499321341342a3606fd1f70858e435",
+    "tests/tdpd/runtime-policy-gate.test.cjs": "ffb92223e7fd4d4ed19fc4e8ce1d9daa947443b2bc870810dddd8e4aa4d480f7",
+    "tests/tdpd/runtime-policy-collector.test.cjs": "eec8951106846d75591ff5c965d3e4f51bac6b39f900a51a669d673484a4e3d5",
+    "docs/code-quality/runtime-policy-baseline.json": "c99085dddaafa3311aecb17b9dbe4cb33b55c05189be7a0fd8a27e6a5261a965"
+  },
+  "independentReview": {
+    "agent": "dzen_boundary_slice_review",
+    "verdict": "No remaining actionable P1/P2 in changed audit/policy/gate scope; all reported scanner findings closed.",
+    "runtimeFindings": "RP01–17 remain OPEN; this is not runtime-safety clearance."
+  },
+  "ownerUat": "PENDING",
+  "merge": "NOT_PERFORMED",
+  "deployment": "NOT_PERFORMED"
+}

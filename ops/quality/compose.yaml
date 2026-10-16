@@ -1,0 +1,38 @@
+name: planner-policy-quality
+services:
+  quality:
+    image: planner-policy-quality:node24
+    build:
+      context: ../..
+      dockerfile: ops/quality/Dockerfile
+      target: checks
+    platform: linux/amd64
+    user: "1000:1000"
+    init: true
+    restart: "no"
+    network_mode: none
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=512m,mode=1777
+    mem_limit: 2g
+    cpus: 2.0
+    pids_limit: 256
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      NODE_PATH: /opt/planner/node_modules
+      HOME: /tmp
+      TZ: Europe/Lisbon
+    volumes:
+      - ../..:/workspace:ro
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "2"}
+  build-check:
+    extends: quality
+    image: planner-policy-build-check:node24
+    profiles: [build]
+    build:
+      context: ../..
+      dockerfile: ops/quality/Dockerfile
+      target: buildcheck
