@@ -31,6 +31,7 @@ jobs:
       - run: npm run build:backend
       - name: Mocked existing-WI and principal contracts (no provider calls)
         run: |
+          node --test --test-concurrency=1 dist/tests/dzen1002_manifest_fence.test.js dist/tests/dzen_task1002_route.test.js dist/tests/dzen1002_inventory*.test.js
           node --test --test-concurrency=1 dist/tests/linkedin1128*.test.js dist/tests/linkedin_browser_owner_release.test.js dist/tests/remote_mcp_auth.test.js
           node --test --test-concurrency=1 tests/tdpd/linkedin1128-store.unit.test.js
           node --test --test-concurrency=1 tests/tdpd/linkedin1128-lease.unit.test.js

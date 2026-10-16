@@ -1,4 +1,4 @@
-import { loadAgentWorkspaceManifest } from './agent_workspace_manifest.service';
+import { assertDzen1002CurrentManifest, DZEN1002_MANIFEST } from './dzen_task1002_manifest';
 import { releaseDzenTaskWithPrisma } from './dzen_owner_release.service';
 import dzenTaskPublicationService from './dzen_task_publication.service';
 
@@ -8,7 +8,7 @@ export const DZEN1002_ROUTE = {
     decisionId: 300, decisionVersion: 2, selectedAssetId: 151,
     assetSha256: '003dae64a6087ee456bb9af583b78955c6a6738de294ca7cf75c83b151d06a12',
     placement: 'article_cover', schedule: '2026-10-13T11:30:00.000Z',
-    manifest: 'sha256:4bfec7ca8399251c6c8f132a34d9e0952adbf1eef049d29325808cbd9db3975b',
+    manifest: DZEN1002_MANIFEST,
     providerChannelId: '6a8029aba055ec36033bf81c'
 } as const;
 
@@ -58,10 +58,7 @@ export async function releaseDzenTask1002(args: RouteArgs) {
 export async function preflightDzenTask1002(args: RouteArgs) {
     assertScope(args);
     const userId = ownerUserId(args.actorId);
-    const manifest = await loadAgentWorkspaceManifest(10, userId);
-    if (manifest.checksum !== DZEN1002_ROUTE.manifest || manifest.project.slug !== 'analystcraft-2') {
-        throw new Error('[STALE_MANIFEST]');
-    }
+    await assertDzen1002CurrentManifest(userId);
     return dzenTaskPublicationService.verifyConnector({ projectId: 10, taskId: 1002,
         actorId: args.actorId, idempotencyKey: args.idempotencyKey });
 }

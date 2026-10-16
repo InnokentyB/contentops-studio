@@ -5,6 +5,7 @@ import dzenService, { isDzenPublishedUrl } from './dzen.service';
 import publicationFactService from './publication_fact.service';
 import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
 import { publicDzenArticleTitle } from './dzen_public_title';
+import { assertDzen1002CurrentManifest, DZEN1002_MANIFEST, type Dzen1002ManifestLoader } from './dzen_task1002_manifest';
 
 export const DZEN_TASK_SPECS = {
     1002: {
@@ -135,7 +136,8 @@ export function classifyDzenProviderInventory(input: {
         : { classification: 'absent' as const, exactTitleMatches: 0 };
 }
 
-type Args = { projectId: number; taskId: number; dryRun?: boolean; idempotencyKey?: string };
+type Args = { projectId: number; taskId: number; dryRun?: boolean; idempotencyKey?: string;
+    actorId?: string; expectedManifestChecksum?: string };
 type DzenStudioPublicationReadback = {
     title: string | null;
     public_url: string | null;
@@ -164,6 +166,7 @@ type Dependencies = {
     };
     facts: { record(args: any): Promise<any> };
     hashBody?: (body: string) => string;
+    manifestLoader?: Dzen1002ManifestLoader;
 };
 
 export class DzenTaskPublicationService {
@@ -686,6 +689,16 @@ export class DzenTaskPublicationService {
         if (args.projectId !== 10) throw new Error('[DZEN_TASK_SCOPE_MISMATCH]');
         const spec = taskSpec(args.taskId);
         const { db, dzen, facts } = this.dependencies;
+        // This exact route must not replay cached readiness across manifest drift.
+        if (spec.taskId === 1002) {
+            if (args.expectedManifestChecksum !== DZEN1002_MANIFEST) throw new Error('[STALE_MANIFEST]');
+            const actor = /^user:(\d+)$/.exec(args.actorId || '');
+            if (!actor) throw new Error('[OWNER_REQUIRED]');
+            const member = await db.projectMember.findUnique({ where: { project_id_user_id: {
+                project_id: 10, user_id: Number(actor[1]) } } });
+            if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
+            await assertDzen1002CurrentManifest(Number(actor[1]), this.dependencies.manifestLoader);
+        }
         const key = args.idempotencyKey?.trim() || null;
         if (!args.dryRun && !key) throw new Error('[IDEMPOTENCY_KEY_REQUIRED]');
         if (key) {
