@@ -30,6 +30,9 @@ tokens, R2 object and every other task remain unchanged. No regeneration.
    publishing claim and durable pending attempt before one native sendFile.
    Readback verifies exact target, caption, video type, size and message identity
    before atomic video fact/attempt completion. Generic manual fact is denied.
+   The generic ba_publish_publication_task surface rejects #1103, including
+   dry-run; use its dedicated Publisher command. Other non-story Telegram MP4s
+   remain manual-only/unsupported and cannot fall through to the photo sender.
 
 UNKNOWN/started/finalization error means reconciliation-only for every key. Do
 not reset state, resend, choose another transport or manufacture a fact. A verified

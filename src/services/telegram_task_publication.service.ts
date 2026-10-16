@@ -105,7 +105,10 @@ function prepareTaskPayload(task: any, allowUnsupportedDryRun = false) {
     const channelType = task.channel?.type;
     const isVkVideo = channelType === 'vk'
         && visualMetadataFromProvenance(task.selected_asset?.provenance).mime_type === 'video/mp4';
-    const directSupported = ['telegram', 'vk'].includes(channelType) && !isVkVideo;
+    const isTelegramVideo = channelType === 'telegram' && !isTelegramStoryTask(task)
+        && visualMetadataFromProvenance(task.selected_asset?.provenance).mime_type === 'video/mp4';
+    const directSupported = ['telegram', 'vk'].includes(channelType) && !isVkVideo && !isTelegramVideo;
+    if (isTelegramVideo && !allowUnsupportedDryRun) throw new Error('[TELEGRAM_NATIVE_VIDEO_EXACT_ROUTE_REQUIRED]');
     if (isVkVideo && !allowUnsupportedDryRun) {
         throw new Error('[VK_NATIVE_VIDEO_ADAPTER_UNSUPPORTED] Native video transport is not enabled; do not use the photo adapter');
     }
@@ -116,7 +119,8 @@ function prepareTaskPayload(task: any, allowUnsupportedDryRun = false) {
         throw new Error('[ACCEPTED_REVISION_REQUIRED] Publication requires the current accepted text revision');
     }
     let connectorReady = directSupported;
-    let connectorReason: string | null = isVkVideo ? 'vk_native_video_adapter_unsupported' : null;
+    let connectorReason: string | null = isVkVideo ? 'vk_native_video_adapter_unsupported'
+        : isTelegramVideo ? 'telegram_native_video_exact_route_required' : null;
     const isTelegramStory = isTelegramStoryTask(task);
     const isVkPersonalStory = isVkPersonalStoryTask(task);
     const isStory = isTelegramStory || isVkPersonalStory;
@@ -165,11 +169,11 @@ function prepareTaskPayload(task: any, allowUnsupportedDryRun = false) {
     const payload = storyFrames
         ? { text: '', imageUrl: null }
         : channelType === 'telegram'
-        ? normalizeTelegramDeliveryPayload({ text, imageUrl: selectedAsset?.file_url })
+        ? normalizeTelegramDeliveryPayload({ text, imageUrl: isTelegramVideo ? undefined : selectedAsset?.file_url })
         : { text: isVkPersonalStory ? '' : text, imageUrl: isVkVideo ? null : selectedAsset?.file_url || null };
     return {
         channelType, payload, selectedAsset, directSupported, connectorReady, connectorReason,
-        isStory, isTelegramStory, isVkPersonalStory, isVkVideo, nativePoll, storyFrames
+        isStory, isTelegramStory, isVkPersonalStory, isVkVideo, isTelegramVideo, nativePoll, storyFrames
     };
 }
 
@@ -277,7 +281,7 @@ export class TelegramTaskPublicationService {
                 checksum_sha256: frame.checksumSha256,
                 ...(frame.nativeLink ? { native_link: frame.nativeLink } : {})
             })) } : {}),
-            ...(prepared.isVkVideo ? { video_url: selectedAsset?.file_url, has_video: true } : {}),
+            ...(prepared.isVkVideo || prepared.isTelegramVideo ? { video_url: selectedAsset?.file_url, has_video: true } : {}),
             ...(prepared.nativePoll ? { native_poll: prepared.nativePoll } : {})
         };
         if (args.dryRun) {

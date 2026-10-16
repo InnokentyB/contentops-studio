@@ -22,6 +22,7 @@ test('Telegram MP4 materializes as video, never an image, in both canonical buil
     assert.equal(imported.publication.image_url, null);
     assert.equal(imported.publication.video_url, item.selected_asset.file_url);
     assert.equal(imported.resource_files.find(r => r.ref === 'selected_asset')?.type, 'video');
+    assert.equal(imported.task.action_type,'telegram_video:publish');
 });
 
 test('Telegram video contract is canonical; JPEG feed and Story keep their existing meaning', () => {
@@ -30,6 +31,8 @@ test('Telegram video contract is canonical; JPEG feed and Story keep their exist
     assert.equal(c.artifact_kind, 'video');
     assert.equal(c.transport.materialization, 'video');
     assert.deepEqual(c.accepted_mime_types, ['video/mp4']);
+    assert.equal(c.transport.connector_authority,'manual_only');
+    assert.equal(publicationPlacementAssetContract(item.channel,'feed',{mime_type:'video/mp4'}).transport.connector_authority,'manual_only');
     assert.equal(publicationPlacementAssetContract(item.channel, 'feed', { mime_type: 'image/jpeg' }).artifact_kind, 'feed');
     assert.equal(publicationPlacementAssetContract(item.channel, 'story', { mime_type: 'video/mp4' }).artifact_kind, 'story');
 });

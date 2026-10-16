@@ -107,7 +107,9 @@ function basePlacementAssetContract(
             safe_area: null,
             accepted_mime_types: ['video/mp4'],
             poll: { supported: false, configuration_mode: 'not_applicable', render_in_asset: false },
-            transport: { materialization: 'video', connector_authority: normalizedType === 'telegram' ? 'configured' : 'manual_only' }
+            // Canonical video placement alone grants no generic transport authority.
+            // Exact task1103 uses its separately owner-released publisher-only command.
+            transport: { materialization: 'video', connector_authority: 'manual_only' }
         };
     }
     if (normalizedType === 'setka' && placement === 'feed') {

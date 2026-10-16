@@ -384,7 +384,7 @@ export function buildHandoffBundle(
             channel: canonicalChannelType,
             action_type: canonicalChannelType === 'vk' && placement === 'clip'
                 ? 'vk_clip:publish'
-                : isVideo ? 'vk_video:publish' : action.action_type || item.type,
+                : isVideo ? `${canonicalChannelType}_video:publish` : action.action_type || item.type,
             schedule_at: scheduleAtString,
             scheduled_date: action.scheduled_date || item.schedule_at,
             time_window: action.scheduled_time_window || null,

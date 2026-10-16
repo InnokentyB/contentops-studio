@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { isToolAllowedForProfile } from '../mcp/capabilities';
 import { scopeRemoteMcpRequest } from '../mcp/remote-auth';
+import { executePublicationTaskByChannel } from '../mcp/tools/task_publication_tools';
 
 test('Telegram video release/send is publisher-only; rebind is Art-only and all actors are principal-bound',()=>{
     for (const name of ['ba_release_telegram_video_task1103','ba_publish_telegram_video_task1103']) {
@@ -16,4 +17,11 @@ test('Telegram video release/send is publisher-only; rebind is Art-only and all 
     const scoped=scopeRemoteMcpRequest(req,principal);
     assert.equal(scoped.allowed,true);assert.equal(scoped.body.params.arguments.actorId,'user:2');
     assert.equal(scopeRemoteMcpRequest({...req,params:{...req.params,arguments:{projectId:7}}},principal).allowed,false);
+});
+test('generic task publication cannot bypass the publisher-only exact Telegram1103 command',async()=>{
+    let calls=0;const execute=async()=>{calls++;return{};};
+    const dependencies={isDzenTask:()=>false,dzen:{execute},telegram:{execute},
+        threads:{execute,isThreadsTask:async()=>false},telegramVideo:{execute}};
+    await assert.rejects(executePublicationTaskByChannel({projectId:10,taskId:1103,idempotencyKey:'synthetic-generic'},dependencies),/TELEGRAM1103_EXACT_PUBLISHER_TOOL_REQUIRED/);
+    assert.equal(calls,0);
 });
