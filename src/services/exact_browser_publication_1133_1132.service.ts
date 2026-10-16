@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import prisma from '../db';
 import { loadAgentWorkspaceManifest } from './agent_workspace_manifest.service';
@@ -6,6 +6,16 @@ import publicationFactService from './publication_fact.service';
 import workQueueService from './work_queue.service';
 
 export const EXACT_BROWSER_PACKAGES = {
+    linkedin1135: {
+        projectId: 10, taskId: 1135, channelId: 179, revision: 2,
+        bodySha256: 'b9a402f4b864ef3808f79515ea820d5c337300d521381ad2aea451230309093c',
+        assetId: 163, assetSha256: 'b8de74ce57aaf6abc0c4b2c75521e18972caaa39abd0ebc7c60bf337bfc0a838',
+        placement: 'feed', schedule: '2026-10-16T10:30:00.000Z',
+        manifest: 'sha256:cc2cc620612463792340ae39c2a815f61d603edad17cd01e49cff6f369a50dc7',
+        channelType: 'linkedin', artifactKind: 'post', decisionId: 323,
+        targetProfileUrl: 'https://www.linkedin.com/company/79633032/', accountType: 'company_page',
+        browserProfile: 'Innokenty', duplicateCheckRequired: true
+    },
     medium: {
         projectId: 10, taskId: 1133, channelId: 172, revision: 2,
         bodySha256: '627b9253d5c6fcabc4505a4bf59cf93cb7fed6cefc310360ca3b5db65ff23430',
@@ -61,7 +71,7 @@ export type ExactBrowserPlatform = 'medium' | 'linkedin' | 'x';
 type ExactPackage = typeof EXACT_BROWSER_PACKAGES[ExactBrowserPackageKey];
 type AttemptSummary = { id: number; status: string; requires_manual_confirmation: boolean;
     error_message: string | null };
-type BoundaryArgs = { packageKey: ExactBrowserPackageKey; projectId: number; taskId: number; channelId: number;
+export type BoundaryArgs = { packageKey: ExactBrowserPackageKey; projectId: number; taskId: number; channelId: number;
     actorId: string; workItemId: number; leaseToken: string; approvalReference: string;
     idempotencyKey: string; contentRevision: number; textSha256: string;
     selectedAssetId: number | null; imageSha256: string | null };
@@ -127,7 +137,8 @@ providerObjectId: string, publishedAt: string) {
         providerObjectId, publishedAt: published.toISOString() };
 }
 
-async function loadTask(tx: Prisma.TransactionClient, pkg: ExactPackage) {
+/** Read the canonical package through the caller transaction; no provider access. */
+export async function loadTask(tx: Prisma.TransactionClient, pkg: ExactPackage) {
     return tx.contentItem.findFirst({ where: { id: pkg.taskId, project_id: pkg.projectId },
         include: { channel: true, selected_asset: true, publication_fact: true,
             art_direction_decisions: { where: { status: 'active' } } } });
@@ -138,7 +149,8 @@ async function latestAttempt(tx: Prisma.TransactionClient, pkg: ExactPackage) {
     select: { id: true, status: true, requires_manual_confirmation: true, error_message: true,
         attempt_number: true, idempotency_key: true } });
 }
-function assertPackage(task: Awaited<ReturnType<typeof loadTask>>, pkg: ExactPackage,
+/** Shared revision, identity, English copy and approved image boundary. */
+export function assertPackage(task: Awaited<ReturnType<typeof loadTask>>, pkg: ExactPackage,
 statuses: string[], released: boolean) {
     const quality = object(task?.quality_report);
     const handoff = object(quality.handoff_bundle);
@@ -157,12 +169,17 @@ statuses: string[], released: boolean) {
         || (config.account_ref === pkg.targetProfileUrl && config.channel_url === pkg.targetProfileUrl
             && config.account_type === pkg.accountType && config.workflow_mode === 'browser_required'
             && object(config.capability_flags).browser_publish === true);
+    const storage = object(object(task?.selected_asset?.provenance).planner_storage);
+    const current1135Asset = pkg.taskId !== 1135 || (task?.channel?.project_id === 10
+        && task.selected_asset?.content_revision === 2 && task.selected_asset.decision_id === 323
+        && Boolean(task.selected_asset.file_url?.startsWith('https://')) && storage.managed === true
+        && storage.provider === 'r2' && ['image/jpeg','image/png'].includes(String(storage.mime_type)));
     if (!task || task.channel_id !== pkg.channelId || task.channel?.type !== pkg.channelType
         || task.channel.is_active !== true || !statuses.includes(task.status)
         || task.publication_mode !== (released ? 'browser_required' : 'approval_required')
         || task.handoff_state !== 'ready' || task.content_revision !== pkg.revision
         || task.accepted_revision !== pkg.revision || task.text_state !== 'accepted'
-        || hash(task.draft_text || '') !== pkg.bodySha256 || !visualOk || !exactDecisionOk || !exactIdentityOk
+        || hash(task.draft_text || '') !== pkg.bodySha256 || !visualOk || !exactDecisionOk || !exactIdentityOk || !current1135Asset
         || task.schedule_at?.toISOString() !== pkg.schedule || task.publish_at?.toISOString() !== pkg.schedule
         || task.publication_fact || task.published_link
         || (['linkedin', 'x'].includes(pkg.channelType) && (quality.content_language !== 'en'
@@ -194,7 +211,7 @@ export async function diagnoseLinkedInTask1132() {
 export async function releaseExactBrowserTask(packageKey: ExactBrowserPackageKey, args: {
     projectId: number; taskId: number; actorId: string; expectedManifestChecksum: string;
     expectedBodySha256: string; expectedScheduleAt: string; approvalReference: string; idempotencyKey: string;
-    duplicateCheckReference?: string }) {
+    duplicateCheckReference?: string }, dependencies = { db: prisma, manifest: loadAgentWorkspaceManifest }) {
     const pkg = exact(packageKey);
     const platform = pkg.channelType as ExactBrowserPlatform;
     if (args.projectId !== pkg.projectId || args.taskId !== pkg.taskId
@@ -207,8 +224,11 @@ export async function releaseExactBrowserTask(packageKey: ExactBrowserPackageKey
     }
     const userId = actorUserId(args.actorId);
     const requestHash = hash(JSON.stringify({ packageKey, ...args }));
-    return prisma.$transaction(async tx => {
-        const command = `ba_release_${platform}_task${pkg.taskId}_browser`;
+    const command = `ba_release_${platform}_task${pkg.taskId}_browser`;
+    const readPrior = async (tx: Prisma.TransactionClient) => {
+        const member = await tx.projectMember.findUnique({ where: { project_id_user_id: {
+            project_id: pkg.projectId, user_id: userId } } });
+        if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
         const prior = await tx.workflowEvent.findFirst({ where: { project_id: pkg.projectId,
             content_item_id: pkg.taskId, actor_id: args.actorId, command,
             idempotency_key: args.idempotencyKey } });
@@ -216,16 +236,22 @@ export async function releaseExactBrowserTask(packageKey: ExactBrowserPackageKey
             if (object(prior.before_state).request_hash !== requestHash) throw new Error('[IDEMPOTENCY_CONFLICT]');
             return { ...object(prior.after_state), replayed: true };
         }
-        const member = await tx.projectMember.findUnique({ where: { project_id_user_id: {
-            project_id: pkg.projectId, user_id: userId } } });
-        if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
-        if ((await loadAgentWorkspaceManifest(pkg.projectId, userId)).checksum !== pkg.manifest) {
+        return null;
+    };
+    const cached = await dependencies.db.$transaction(readPrior);
+    if (cached) return cached;
+    const currentManifest = await dependencies.manifest(pkg.projectId, userId);
+    return dependencies.db.$transaction(async tx => {
+        const replay = await readPrior(tx);
+        if (replay) return replay;
+        if (currentManifest.checksum !== pkg.manifest) {
             throw new Error('[STALE_MANIFEST]');
         }
         const [task, attempt, activeWork] = await Promise.all([loadTask(tx, pkg), latestAttempt(tx, pkg),
             tx.workItem.findFirst({ where: { project_id: pkg.projectId, content_item_id: pkg.taskId,
                 kind: 'browser_publish', state: { notIn: ['completed', 'cancelled'] } } })]);
         assertPackage(task, pkg, ['ready_for_execution'], false);
+        if (pkg.taskId === 1135 && attempt) throw new Error('[EXACT_BROWSER_ATTEMPT_UNCERTAIN]');
         if (!classifyPriorAttempt(attempt).retrySafe) throw new Error('[EXACT_BROWSER_ATTEMPT_UNCERTAIN]');
         if (activeWork) throw new Error('[EXACT_BROWSER_WORK_EXISTS]');
         const proof = { publication_authorized: true, actor_id: args.actorId,
@@ -233,6 +259,8 @@ export async function releaseExactBrowserTask(packageKey: ExactBrowserPackageKey
             body_sha256: pkg.bodySha256, selected_asset_id: pkg.assetId,
             asset_sha256: pkg.assetSha256, channel_id: pkg.channelId,
             placement: pkg.placement, duplicate_check_reference: args.duplicateCheckReference || null,
+            ...(pkg.taskId === 1135 ? { image_url_sha256: hash(task!.selected_asset!.file_url!),
+                channel_config_sha256: hash(JSON.stringify(task!.channel!.config)) } : {}),
             ...('targetProfileUrl' in pkg ? { target_profile_url: pkg.targetProfileUrl,
                 browser_profile: pkg.browserProfile } : {}),
             released_at: new Date().toISOString() };
@@ -288,20 +316,24 @@ function assertBoundaryArgs(args: BoundaryArgs, pkg: ExactPackage) {
         throw new Error('[EXACT_BROWSER_SCOPE_MISMATCH]');
     }
 }
-async function checkedBoundary(tx: Prisma.TransactionClient, args: BoundaryArgs, statuses: string[]) {
+/** Shared lease/release/package fence used by start, pre-submit and atomic confirmation. */
+export async function checkedBoundary(tx: Prisma.TransactionClient, args: BoundaryArgs, statuses: string[]) {
     const pkg = exact(args.packageKey);
     assertBoundaryArgs(args, pkg);
+    if (pkg.taskId === 1135 && (await tx.projectMember.findUnique({ where: { project_id_user_id: {
+        project_id: 10, user_id: actorUserId(args.actorId) } } }))?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
     const [work, task] = await Promise.all([
         tx.workItem.findFirst({ where: { id: args.workItemId, project_id: pkg.projectId,
             content_item_id: pkg.taskId } }), loadTask(tx, pkg)
     ]);
     if (!work || work.kind !== 'browser_publish' || work.assignee_role !== 'browser_publisher'
         || work.state !== 'claimed' || work.lease_actor_id !== args.actorId
-        || work.lease_token !== args.leaseToken || !work.lease_expires_at
+        || !equalLease(work.lease_token, args.leaseToken) || !work.lease_expires_at
         || work.lease_expires_at < new Date()) throw new Error('[EXACT_BROWSER_ACTIVE_LEASE_REQUIRED]');
     assertPackage(task, pkg, statuses, true);
     const proof = object(work.result_payload);
     const ownerProof = object(object(task!.quality_report).owner_release);
+    if (pkg.taskId === 1135) assertLinkedIn1135ReleaseFingerprint(task!, proof, ownerProof);
     if (proof.publication_authorized !== true || ownerProof.publication_authorized !== true
         || proof.approval_reference !== args.approvalReference
         || ownerProof.approval_reference !== args.approvalReference
@@ -314,11 +346,49 @@ async function checkedBoundary(tx: Prisma.TransactionClient, args: BoundaryArgs,
     return { pkg, task: task!, work };
 }
 
-export async function startExactBrowserSubmission(args: BoundaryArgs) {
-    return prisma.$transaction(async tx => {
+/** Reuse the same current-source/identity fingerprint in normal confirmation and expired-lease reconciliation. */
+export function assertLinkedIn1135ReleaseFingerprint(task: NonNullable<Awaited<ReturnType<typeof loadTask>>>,
+    proof: Record<string, unknown>, ownerProof: Record<string, unknown>): void {
+    const image = hash(task.selected_asset?.file_url || ''), config = hash(JSON.stringify(task.channel?.config));
+    if ([proof, ownerProof].some(value => value.image_url_sha256 !== image || value.channel_config_sha256 !== config)) {
+        throw new Error('[EXACT_BROWSER_RELEASE_PROOF_INVALID]');
+    }
+}
+
+function equalLease(stored: string | null, supplied: string): boolean {
+    if (!stored) return false;
+    const a = Buffer.from(stored), b = Buffer.from(supplied);
+    return a.length === b.length && timingSafeEqual(a, b);
+}
+
+export async function startExactBrowserSubmission(args: BoundaryArgs, database = prisma) {
+    return database.$transaction(async tx => {
+        const pkg = exact(args.packageKey);
+        const requestHash = hash(JSON.stringify({ packageKey: args.packageKey, actor: args.actorId,
+            project: args.projectId, task: args.taskId, channel: args.channelId, work: args.workItemId,
+            revision: args.contentRevision, body: args.textSha256, asset: args.selectedAssetId,
+            image: args.imageSha256, approval: args.approvalReference, key: args.idempotencyKey }));
+        if (pkg.taskId === 1135) {
+            assertBoundaryArgs(args, pkg);
+            const member = await tx.projectMember.findUnique({ where: { project_id_user_id: {
+                project_id: 10, user_id: actorUserId(args.actorId) } } });
+            if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
+            const priorStart = await tx.workflowEvent.findFirst({ where: { project_id: 10, content_item_id: 1135,
+                work_item_id: args.workItemId, actor_id: args.actorId,
+                command: 'ba_start_linkedin_task1135_browser_submission', idempotency_key: args.idempotencyKey } });
+            if (priorStart) {
+                if (object(priorStart.before_state).request_hash !== requestHash) throw new Error('[IDEMPOTENCY_CONFLICT]');
+                const priorAttempt = await latestAttempt(tx, pkg);
+                if (!priorAttempt || priorAttempt.idempotency_key !== args.idempotencyKey
+                    || priorAttempt.id !== object(priorStart.after_state).delivery_attempt_id) throw new Error('[EXACT_BROWSER_ATTEMPT_UNCERTAIN]');
+                return { status: 'verification_required', attempt_id: priorAttempt.id,
+                    retry_allowed: false, submission_permitted: false, replayed: true };
+            }
+        }
         const checked = await checkedBoundary(tx, args, ['browser_required']);
         const prior = await latestAttempt(tx, checked.pkg);
         const classification = classifyPriorAttempt(prior);
+        if (checked.pkg.taskId === 1135 && prior) throw new Error('[EXACT_BROWSER_ATTEMPT_UNCERTAIN]');
         if (prior?.idempotency_key === args.idempotencyKey) return { status: 'verification_required',
             attempt_id: prior.id, retry_allowed: false, replayed: true };
         if (!classification.retrySafe) throw new Error('[EXACT_BROWSER_ATTEMPT_UNCERTAIN]');
@@ -336,6 +406,7 @@ export async function startExactBrowserSubmission(args: BoundaryArgs) {
             actor_id: args.actorId,
             command: `ba_start_${checked.pkg.channelType}_task${checked.pkg.taskId}_browser_submission`,
             idempotency_key: args.idempotencyKey, before_state: { status: checked.task.status,
+                ...(pkg.taskId === 1135 ? { request_hash: requestHash } : {}),
                 prior_attempt: classification } as Prisma.InputJsonValue,
             after_state: { status: 'publishing', delivery_attempt_id: attempt.id } } });
         return { status: 'started', attempt_id: attempt.id, retry_allowed: false, replayed: false };

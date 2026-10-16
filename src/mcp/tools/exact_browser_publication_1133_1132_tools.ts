@@ -13,6 +13,7 @@ import { asToolResult, INTERNAL_MUTATION_ANNOTATIONS } from './common';
 
 export function registerExactBrowserPublication1133And1132Tools(server: McpServer): void {
     for (const packageKey of Object.keys(EXACT_BROWSER_PACKAGES) as Array<keyof typeof EXACT_BROWSER_PACKAGES>) {
+        if (packageKey === 'linkedin1135') continue; // Same engine, stronger pre-submit/atomic-confirm wrappers.
         const pkg = EXACT_BROWSER_PACKAGES[packageKey];
         const platform = pkg.channelType;
         const prefix = `${platform}_task${pkg.taskId}`;
