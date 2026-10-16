@@ -29,6 +29,13 @@ test('LI1086-R00 synthetic fixture/runner work, owner observation is not provide
     assert.equal(f.ownerObservation.providerVerified, false);
     assert.match(sha(JSON.stringify(scope)), /^[a-f0-9]{64}$/);
 });
+test('LI1086-R10 scope pins the SHA-256 of the retained attempt41 publication key', () => {
+    // Bounded production READ ONLY readback, 2026-10-16: this is an operation
+    // idempotency key, not a credential. A different digest blocks the real key.
+    const retainedKey = 'attempt-linkedin-p7-1086-r1-20261015-v1';
+    assert.equal(scope.publicationKeySha256, sha(retainedKey));
+    assert.equal(feature()(acceptRisk(fixture())).publicationKeySha256, sha(retainedKey));
+});
 test('LI1086-R01 owner absence and Dovodi do not replace exact duplicate-risk acceptance', () => {
     const assess = feature();
     for (const acceptance of [null, { verdict: 'publication_GO' }, { verdict: 'Доводи' }]) {

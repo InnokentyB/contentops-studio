@@ -18,10 +18,17 @@ Historical snapshot at2026-10-16T13:52:27.087Z: p7/task1086/channel5, sole pendi
 attempt41, claimed WI1946, actor user2, expired lease15Oct20:48:48.260Z, factnull.
 Events3262/3263/3264/3265 retain metadata repair/release/claim/start. No registered
 pre-submit/confirm/uncertain event. Original publication-key SHA256
-`29d531f3d40001aea514c054f83d59da87be3c480b787559642a83a323527153`;
+`9e4d4844b592c26cd54d7f0535114830bbf512c83db59eb457791fbd12b2a8a1`;
 old lease SHA256
 `daca078ba671310142569e4e6aa07811e8a86b3b8bb612959a55560ea0c2ac37`.
 These are fingerprints, never replacements for private lease/key possession.
+
+Fingerprint correction 2026-10-16: bounded production READ ONLY readback of
+attempt41 confirmed the unchanged original key
+`attempt-linkedin-p7-1086-r1-20261015-v1` and its SHA-256 above. The earlier
+`29d531f3d40001aea514c054f83d59da87be3c480b787559642a83a323527153`
+was a transcription error, not a second key or a changed attempt. Regression
+R10 independently derives the fingerprint from that retained operation key.
 
 Owner explicitly observed: personal post absent; latest personal post was3days
 ago. Collection mode is `owner_observed_absence`, not exhaustive native search,

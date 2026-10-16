@@ -6,7 +6,7 @@ const scope = { projectId: 7, taskId: 1086, channelId: 5, attemptId: 41, workIte
     bodySha256: '52da1d66f2c06e3b953ac41f7e132a6a34ff6d83b4817edf9603fdcb8d9d865b',
     profileUrl: 'https://www.linkedin.com/in/innokentyb/',
     scheduleAt: '2026-10-15T09:00:00.000Z', publishAt: '2026-10-15T09:00:00.000Z',
-    publicationKeySha256: '29d531f3d40001aea514c054f83d59da87be3c480b787559642a83a323527153',
+    publicationKeySha256: '9e4d4844b592c26cd54d7f0535114830bbf512c83db59eb457791fbd12b2a8a1',
     oldLeaseSha256: 'daca078ba671310142569e4e6aa07811e8a86b3b8bb612959a55560ea0c2ac37',
     oldLeaseExpiresAt: '2026-10-15T20:48:48.260Z' };
 function fixture() {
