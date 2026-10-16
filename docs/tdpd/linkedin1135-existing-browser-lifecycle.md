@@ -93,3 +93,19 @@ plus normal claim/pre-submit/atomic fact completion. Fixture contains only
 owner-approved public copy, no provider/session/credential material. CI and
 production results are recorded with the resulting PR/deploy/readback, not
 inferred from these assertions. Human UAT/publication outcome stays explicit.
+
+## Provider identity compatibility repair (2026-10-16)
+
+Live attempt42 received LinkedIn's native `urn:li:share` object, not an activity.
+The exact task1135 confirm/reconcile boundary accepts either actual namespace and
+requires matching HTTPS `www.linkedin.com/feed/update/<same-URN>/`; it never
+converts a share number into an activity number. An optional actorCompanyId must
+be exactly 79633032; credentials, foreign hosts, mismatching IDs and other query
+parameters fail closed. Other task packages and all submission/retry controls
+are unchanged. UNKNOWN remains reconciliation-only, including after lease expiry.
+
+RED: native-share reconciliation failed on the former activity-only schema.
+GREEN requires the focused contracts and isolated PostgreSQL atomic fact test.
+Rollback: revert this compatibility patch; preserve attempt42, pre-submit audit
+3339 and uncertain audit3340. Do not reset/release/retry the provider action.
+Live readback must verify source link expansion when LinkedIn shortens its URL.
