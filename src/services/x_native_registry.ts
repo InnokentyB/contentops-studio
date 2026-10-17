@@ -2,7 +2,7 @@ import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { browserRequestSchema, browserDefaults, checkedBrowserContext, requireBrowserOwner,
     hash, object, type BrowserDb, type BrowserDependencies, type BrowserSnapshot } from './browser_publication_contract';
-import { nativePublicKeySchema, nativeKeyFingerprint } from './x_native_receipt';
+import { nativePublicKeySchema, nativeKeyFingerprint, nativeBundleSchema } from './x_native_receipt';
 import { consumeNativePairing } from './x_native_pairing';
 
 export const nativeSerial = { isolationLevel: Prisma.TransactionIsolationLevel.Serializable } as const;
@@ -10,9 +10,9 @@ export const nativeScopeSchema = z.object({ projectId: z.number().int().positive
     installationId: z.string().regex(/^[a-f0-9]{64}$/), actorId: z.string().regex(/^user:[1-9]\d*$/) }).strict();
 export type NativeScope = z.infer<typeof nativeScopeSchema>;
 export const nativeRegistrationSchema = browserRequestSchema.safeExtend({ publicKey: nativePublicKeySchema,
-    installationId: z.string().regex(/^[a-f0-9]{64}$/), extensionId: z.string().regex(/^[a-p]{32}$/),
+    installationId: z.string().regex(/^[a-f0-9]{64}$/), bundleSha256: nativeBundleSchema, extensionId: z.string().regex(/^[a-p]{32}$/),
     uatReference: z.string().trim().min(10).max(500), pairingNonce: z.string().regex(/^[a-f0-9]{64}$/).optional() });
-export const nativeInstallationSchema = nativeScopeSchema.extend({ publicKey: nativePublicKeySchema,
+export const nativeInstallationSchema = nativeScopeSchema.extend({ publicKey: nativePublicKeySchema, bundleSha256: nativeBundleSchema,
     extensionId: z.string().regex(/^[a-p]{32}$/), uatReference: z.string().min(10).max(500), revoked: z.boolean() }).strict();
 export type NativeInstallation = z.infer<typeof nativeInstallationSchema>;
 const installationKey = (scope: NativeScope) => `x_native:installation:v1:${scope.channelId}:${scope.installationId}`;
@@ -33,7 +33,7 @@ export async function registerNativeInstallation(input: unknown, deps: BrowserDe
     return deps.db.$transaction(async tx => {
         await checkedBrowserContext(tx, a, deps);
         const record = nativeInstallationSchema.parse({ projectId: a.projectId, channelId: a.snapshot.channelId,
-            actorId: a.actorId, publicKey: a.publicKey, installationId: a.installationId,
+            actorId: a.actorId, publicKey: a.publicKey, installationId: a.installationId, bundleSha256: a.bundleSha256,
             extensionId: a.extensionId, uatReference: a.uatReference, revoked: false });
         const key = installationKey(record);
         const prior = await tx.projectSettings.findUnique({ where: { project_id_key: { project_id: a.projectId, key } } });
@@ -42,12 +42,13 @@ export async function registerNativeInstallation(input: unknown, deps: BrowserDe
             await installedNative(tx, record);
             return { mode: 'registered', replayed: true, publication_authorized: false };
         }
-        if (!a.apply) return { mode: 'preview', installation_id: a.installationId, publication_authorized: false };
+        if (!a.apply) return { mode: 'preview', installation_id: a.installationId, bundle_sha256: a.bundleSha256, publication_authorized: false };
         const pairingHash = await consumeNativePairing(tx, a, record, deps);
         await tx.projectSettings.create({ data: { project_id: a.projectId, key, value: JSON.stringify(record) } });
         await tx.workflowEvent.create({ data: { project_id: a.projectId, content_item_id: a.taskId, actor_id: a.actorId,
             command: 'x_native_register_installation', idempotency_key: `${record.channelId}:${record.installationId}`,
             after_state: { installation_id: record.installationId, channel_id: record.channelId,
+                bundle_sha256: record.bundleSha256,
                 registration_sha256: hash(JSON.stringify(record)), pairing_nonce_sha256: pairingHash,
                 uat_reference: a.uatReference, publication_authorized: false } } });
         return { mode: 'registered', installation_id: record.installationId, publication_authorized: false };

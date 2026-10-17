@@ -2,7 +2,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { z } from 'zod';
 import { hash, object, type BrowserDb, type BrowserDependencies } from './browser_publication_contract';
 import { browserBoundarySchema, checkedBrowserRelease, assertBrowserLease, type BrowserBoundary } from './browser_publication_guard';
-import { nativeChallengeSchema, nativeReceiptSchema, verifyNativeReceipt, type NativeChallenge } from './x_native_receipt';
+import { nativeChallengeSchema, nativeReceiptSchema, verifyNativeReceipt, assertNativeBundle, type NativeChallenge } from './x_native_receipt';
 import { installedNative, requireNativeSnapshot } from './x_native_registry';
 import { assertNativeExtensionOrigin } from './x_native_origin';
 
@@ -67,11 +67,12 @@ export async function consumeNativeReceipt(tx: BrowserDb, input: unknown, args: 
     const registration = await installedNative(tx, { projectId: args.projectId, channelId: args.snapshot.channelId,
         actorId: args.actorId, installationId: c.installationId });
     assertNativeExtensionOrigin(origin, registration.extensionId);
+    assertNativeBundle(c.bundleSha256, registration.bundleSha256);
     await nativeAttempts(tx, args, c.phase, c.attemptId);
     if (c.workItemId !== work.id || c.actorId !== args.actorId || c.leaseSha256 !== hash(args.leaseToken)
         || c.releaseKeySha256 !== hash(String(proof.release_key)) || c.sendKeySha256 !== hash(args.idempotencyKey)) throw new Error('[X_NATIVE_CHALLENGE_MISMATCH]');
     verifyNativeReceipt(receipt, { expectedChallenge: state.challenge, publicKey: registration.publicKey,
-        installationId: registration.installationId, actorId: args.actorId, revoked: registration.revoked,
+        installationId: registration.installationId, bundleSha256: registration.bundleSha256, actorId: args.actorId, revoked: registration.revoked,
         expectedText: task.draft_text || '', now: Date.now() });
     const receiptHash = hash(JSON.stringify(receipt));
     if (state.consumedSha256 !== null) throw new Error('[X_NATIVE_NONCE_ALREADY_CONSUMED]');
@@ -80,6 +81,7 @@ export async function consumeNativeReceipt(tx: BrowserDb, input: unknown, args: 
     await tx.workflowEvent.create({ data: { project_id: args.projectId, content_item_id: args.taskId, work_item_id: work.id,
         actor_id: args.actorId, command: 'x_native_consume_receipt', idempotency_key: hash(c.nonce),
         after_state: { phase: c.phase, attempt_id: c.attemptId, installation_id: registration.installationId,
+            bundle_sha256: registration.bundleSha256,
             receipt_sha256: receiptHash, nonce_sha256: hash(c.nonce) } } });
     return { receipt, receiptHash };
 }

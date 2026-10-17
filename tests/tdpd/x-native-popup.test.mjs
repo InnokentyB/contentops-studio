@@ -49,6 +49,14 @@ test('public rendering never reflects lease/context/secrets or foreign status UR
     assert.equal(c.view().canRun, false);
 });
 
+test('public identity includes measured bundle; legacy identity cannot be enrolled from the popup', () => {
+    const identity = { publication_authorized: false, installationId: 'a'.repeat(64), extensionId: 'a'.repeat(32),
+        bundleSha256: 'b'.repeat(64), publicKey: { kty: 'EC', crv: 'P-256', x: 'a'.repeat(43), y: 'b'.repeat(43) } };
+    assert.equal(publicView(identity).installation.bundleSha256, identity.bundleSha256);
+    const { bundleSha256: _missing, ...legacy } = identity;
+    assert.equal(publicView(legacy).status, 'LOCAL_RESPONSE_INVALID');
+});
+
 test('a late readiness response cannot authorize an edited package', async () => {
     let resolve; const c = createController({ send: () => new Promise(done => { resolve = done; }) });
     c.edit(input); const checking = c.perform('readiness');

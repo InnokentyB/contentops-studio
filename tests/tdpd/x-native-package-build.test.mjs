@@ -8,14 +8,14 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const script = fileURLToPath(new URL('../../scripts/build_x_native_extension.mjs', import.meta.url));
-const files = ['key.mjs', 'store.mjs', 'package.mjs', 'native-wire.mjs', 'pilot-click.mjs',
+const files = ['bundle.mjs', 'key.mjs', 'store.mjs', 'package.mjs', 'native-wire.mjs', 'pilot-click.mjs',
     'pilot-background.mjs', 'pilot-native.js', 'pilot.html', 'pilot-ui.mjs', 'pilot-ui-controller.mjs', 'pilot.css', 'README.md'];
 const manifest = {
     manifest_version: 3, name: 'Synthetic X executor', version: '0.2.0', description: 'Synthetic package, never installed.',
     permissions: [], host_permissions: ['https://x.com/*', 'https://publishplanner-production.up.railway.app/*'],
     background: { service_worker: 'pilot-background.mjs', type: 'module' }, action: { default_popup: 'pilot.html' },
     options_page: 'pilot.html', content_scripts: [{ matches: ['https://x.com/*'], js: ['pilot-native.js'], run_at: 'document_idle' }],
-    content_security_policy: { extension_pages: "default-src 'self'; script-src 'self'; object-src 'none'; connect-src https://publishplanner-production.up.railway.app; base-uri 'none'" }
+    content_security_policy: { extension_pages: "default-src 'self'; script-src 'self'; object-src 'none'; connect-src 'self' https://publishplanner-production.up.railway.app; base-uri 'none'" }
 };
 const sha = value => createHash('sha256').update(value).digest('hex');
 async function fixture(t) {
@@ -23,7 +23,7 @@ async function fixture(t) {
     t.after(() => rm(root, { recursive: true, force: true }));
     const source = path.join(root, 'source'); await mkdir(source);
     for (const name of files) await writeFile(path.join(source, name), name.endsWith('.mjs') ? 'export const synthetic = true;\n'
-        : name.endsWith('.js') ? '(() => {})();\n' : name.endsWith('.css') ? 'body { color: black; }\n' : 'Synthetic instructions.\n');
+        : name.endsWith('.js') ? "(() => { const READER_BUILD_SHA256 = '__X_NATIVE_READER_BUILD__'; })();\n" : name.endsWith('.css') ? 'body { color: black; }\n' : 'Synthetic instructions.\n');
     await writeFile(path.join(source, 'pilot.html'), '<!doctype html><html><head><link rel="stylesheet" href="pilot.css"></head><body><script type="module" src="pilot-ui.mjs"></script></body></html>');
     await writeFile(path.join(source, 'pilot-ui.mjs'), "import './pilot-ui-controller.mjs';\n");
     await writeFile(path.join(source, 'pilot-manifest.json'), JSON.stringify(manifest));

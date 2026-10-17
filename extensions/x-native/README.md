@@ -10,6 +10,10 @@ Installation, public-key registration, no-send pairing and owner release are
 separate events. Building or loading an extension never grants publication
 authority. Only an operator-approved, reviewed build may be installed. The
 extension ID must be registered against the owner/project/channel installation.
+The public identity also exposes `bundleSha256`. Ops must compare it with the
+independent reviewed build receipt and pass that digest explicitly to owner
+pairing, enrollment and challenge controls. A client self-report alone is not
+approval of a build. Missing/legacy build bindings fail closed.
 
 Open exactly one X tab in the focused browser window. The profile and already
 open accepted draft must match the Planner package; unknown drafts are never
@@ -22,6 +26,23 @@ publication release. Without a code, the local check also needs the accepted
 text and does not establish server enrollment. Public installation details
 contain only the public key and IDs; the non-exportable private key remains
 in extension IndexedDB.
+
+Every authority boundary re-reads the allowlisted packaged bytes and integrity
+manifest. A changed bundle gets a different non-exportable key slot and needs
+fresh signed no-send pairing/owner enrollment. Old keys and permanent journals
+are preserved, not reset or automatically enrolled. Finish or quarantine
+in-flight work before updating; revocation is audited. After a quiescent update,
+reload the extension itself (never edit its loaded directory in place), then
+save your draft and reload the X editor tab: the content reader must match the
+built reader identity before a click can be sent. History/readback use a separate
+temporary profile tab; the original editor is never navigated or replaced.
+
+This is software self-measurement, not remote/device attestation. A deliberately
+modified extension, compromised browser/OS or cloned profile/key can lie; those
+remain the approved trusted-executor residual risks. Do not treat this mechanism
+as proof against malicious code replacement on the enrolled host.
+Disk-byte measurement also does not prove which background modules were already
+loaded before an in-place edit; the quiescent reload discipline is mandatory.
 
 Sending is disabled by default. A fresh exact-package Planner readiness check
 and deliberate checkbox are required before **Опубликовать один раз**. The local

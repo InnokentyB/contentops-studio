@@ -2,6 +2,7 @@ import { publicInstallation, readProof, receiptProof, pairingProof, textSha } fr
 import { validatePackage, validateChallenge, assertSamePackage, journalKey } from './package.mjs';
 import { journal } from './store.mjs';
 import { nativeClickOnce } from './pilot-click.mjs';
+import { verifyBundle } from './bundle.mjs';
 const API = 'https://publishplanner-production.up.railway.app/api/integrations/x-native/';
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 let heartbeatState = null;
@@ -18,26 +19,47 @@ async function target() {
     if (tabs.length !== 1 || !Number.isInteger(tabs[0].id)) throw Error('NATIVE_TAB_AMBIGUOUS');
     return tabs[0].id;
 }
-async function navigate(tab, url, expected) {
-    if (![expected.profileUrl, 'https://x.com/compose/post'].includes(url)) throw Error('NATIVE_TARGET_INVALID');
-    await chrome.tabs.update(tab, { url });
-    for (let count = 0; count < 75; count++) {
-        const state = await chrome.tabs.get(tab);
-        if (state.status === 'complete' && state.url === url) return;
+async function profileObservation(editorTab, expected, observe) {
+    const original = await chrome.tabs.get(editorTab);
+    const profileTab = await chrome.tabs.create({ url: 'about:blank', active: false, windowId: original.windowId });
+    if (!Number.isInteger(profileTab.id) || profileTab.id === editorTab) throw Error('NATIVE_PROFILE_TAB_INVALID');
+    try {
+        // Establish the controlled tab before its single, fixed-profile navigation.
         await wait(200);
+        await chrome.tabs.update(profileTab.id, { url: expected.profileUrl });
+        for (let count = 0; count < 75; count++) {
+            const state = await chrome.tabs.get(profileTab.id);
+            if (state.status === 'complete' && state.url === expected.profileUrl) return await observe(profileTab.id);
+            await wait(200);
+        }
+        throw Error('NATIVE_NAVIGATION_TIMEOUT');
+    } finally {
+        // Only the controlled read-only profile tab is removed. Never navigate or replace the operator's editor.
+        await chrome.tabs.remove(profileTab.id);
     }
-    throw Error('NATIVE_NAVIGATION_TIMEOUT');
 }
 async function native(tab, operation, text, expected, permit) {
-    const result = await chrome.tabs.sendMessage(tab, { operation, text, packageData: expected, ...(permit ? { permit } : {}) });
-    if (result?.ok !== true) throw Error(/^NATIVE_[A-Z0-9_]+$/.test(result?.code || '') ? result.code : 'NATIVE_SURFACE_BLOCKED');
-    return result.value;
+    // A pre-update content script must fail the read handshake before it can receive a click.
+    if (operation === 'click') await native(tab, 'editor', text, expected);
+    const { readerBuildSha256 } = await verifyBundle();
+    for (let count = 0; count < 20; count++) {
+        let result;
+        try { result = await chrome.tabs.sendMessage(tab, { operation, text, readerBuildSha256, packageData: expected, ...(permit ? { permit } : {}) }); }
+        catch (error) {
+            // document_idle readers may attach just after tab load. Never retry a possibly dispatched click.
+            if (operation === 'click' || error?.message !== 'Could not establish connection. Receiving end does not exist.') throw error;
+            await wait(100); continue;
+        }
+        if (result?.ok !== true) throw Error(/^NATIVE_[A-Z0-9_]+$/.test(result?.code || '') ? result.code : 'NATIVE_SURFACE_BLOCKED');
+        if (result.readerBuildSha256 !== readerBuildSha256) throw Error('NATIVE_READER_BUILD_MISMATCH');
+        return result.value;
+    }
+    throw Error('NATIVE_READER_NOT_READY');
 }
 async function prepare(tab, text, expected) {
     if (typeof text !== 'string' || text.length < 1 || text.length > 280 || await textSha(text) !== expected.bodySha256) throw Error('LOCAL_BODY_MISMATCH');
-    await navigate(tab, expected.profileUrl, expected);
-    const history = await native(tab, 'history', text, expected);
-    await navigate(tab, 'https://x.com/compose/post', expected);
+    await native(tab, 'editor', text, expected);
+    const history = await profileObservation(tab, expected, profileTab => native(profileTab, 'history', text, expected));
     // Native reader only compares the existing draft. It never replaces unknown content.
     return { ...await native(tab, 'editor', text, expected), ...history };
 }
@@ -62,9 +84,8 @@ function publicResult(value) {
     return result;
 }
 async function readResult(tab, stage, expected) {
-    await navigate(tab, expected.profileUrl, expected);
     let observation;
-    try { observation = await native(tab, 'result', stage.accepted_text, expected); }
+    try { observation = await profileObservation(tab, expected, profileTab => native(profileTab, 'result', stage.accepted_text, expected)); }
     catch { observation = { kind: 'unknown', observedAt: new Date().toISOString(), reason: 'native_gap' }; }
     return observation;
 }
@@ -130,6 +151,7 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
         signedRequest('heartbeat', heartbeat.nonce, heartbeat.packageData).catch(() => { heartbeat.failed = true; });
     }, 60000) : null;
     (async () => {
+        await verifyBundle();
         if (message.operation === 'identity') return { ...await publicInstallation(), extensionId: chrome.runtime.id, publication_authorized: false };
         const expected = validatePackage(message.packageData);
         if (message.operation === 'uat') {

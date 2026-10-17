@@ -25,7 +25,7 @@ export function journalKey(kind, value) {
 }
 export function validateChallenge(challenge) {
     validatePackage(challenge);
-    if (challenge.version !== 1 || !sha(challenge.nonce) || !sha(challenge.installationId)
+    if (challenge.version !== 1 || !sha(challenge.nonce) || !sha(challenge.installationId) || !sha(challenge.bundleSha256)
         || !/^sha256:[a-f0-9]{64}$/.test(challenge.manifest || '') || typeof challenge.actorId !== 'string'
         || !challenge.actorId || !Number.isFinite(Date.parse(challenge.issuedAt))
         || !Number.isFinite(Date.parse(challenge.expiresAt))) throw Error('LOCAL_CHALLENGE_INVALID');

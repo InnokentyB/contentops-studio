@@ -9,5 +9,5 @@
   "action": { "default_popup": "pilot.html" },
   "options_page": "pilot.html",
   "content_scripts": [{ "matches": ["https://x.com/*"], "js": ["pilot-native.js"], "run_at": "document_idle" }],
-  "content_security_policy": { "extension_pages": "default-src 'self'; script-src 'self'; object-src 'none'; connect-src https://publishplanner-production.up.railway.app; base-uri 'none'" }
+  "content_security_policy": { "extension_pages": "default-src 'self'; script-src 'self'; object-src 'none'; connect-src 'self' https://publishplanner-production.up.railway.app; base-uri 'none'" }
 }

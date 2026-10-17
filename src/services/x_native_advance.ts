@@ -1,5 +1,5 @@
 import { browserDefaults, object, requireBrowserOwner, type BrowserDependencies } from './browser_publication_contract';
-import { nativeReadSchema, verifyNativeRead, type NativeChallenge } from './x_native_receipt';
+import { nativeReadSchema, verifyNativeRead, assertNativeBundle, type NativeChallenge } from './x_native_receipt';
 import { installedNative, nativeSerial } from './x_native_registry';
 import { nativeBoundary, loadNativeState, restoredNativeContext, safeNativeContext } from './x_native_state';
 import { issueNativeChallenge } from './x_native_control';
@@ -13,7 +13,8 @@ export async function advanceNativeChallenge(input: unknown, reconcileOnly = fal
         const registration = await installedNative(tx, { projectId: c.projectId, channelId: c.channelId,
             actorId: c.actorId, installationId: c.installationId });
         assertNativeExtensionOrigin(origin, registration.extensionId);
-        verifyNativeRead(request, registration.publicKey, Date.now(), reconcileOnly ? 'reconcile' : 'advance');
+        assertNativeBundle(c.bundleSha256, registration.bundleSha256);
+        verifyNativeRead(request, registration.publicKey, Date.now(), reconcileOnly ? 'reconcile' : 'advance', registration.bundleSha256);
         if (request.channelId !== c.channelId || request.installationId !== c.installationId) throw new Error('[X_NATIVE_INSTALLATION_INVALID]');
         await requireBrowserOwner(tx, state.context);
         const attempts = await tx.deliveryAttempt.findMany({ where: { project_id: c.projectId, content_item_id: c.taskId } });
@@ -60,7 +61,7 @@ export async function advanceNativeChallenge(input: unknown, reconcileOnly = fal
     }, nativeSerial);
     if ('published' in next) return next.published;
     if ('prestart' in next) return next.prestart;
-    const issued = await issueNativeChallenge({ context: next.context, installationId: request.installationId,
+    const issued = await issueNativeChallenge({ context: next.context, installationId: request.installationId, bundleSha256: request.bundleSha256,
         phase: next.phase, attemptId: next.attemptId }, deps);
     return { ...issued, context: safeNativeContext(next.context), accepted_text: next.acceptedText };
 }

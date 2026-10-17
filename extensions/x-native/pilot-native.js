@@ -1,4 +1,5 @@
 (() => {
+    const READER_BUILD_SHA256 = '__X_NATIVE_READER_BUILD__';
     const visible = element => element && element.getClientRects().length > 0
         && getComputedStyle(element).visibility !== 'hidden';
     function packageData(value) {
@@ -101,9 +102,12 @@
         if (!['history', 'editor', 'click', 'result'].includes(message.operation)) return false;
         (async () => {
             const expected = packageData(message.packageData);
+            if (message.operation === 'click' && Date.now() < Date.parse(expected.scheduleAt)) throw Error('NATIVE_NOT_DUE');
+            if (message.readerBuildSha256 !== READER_BUILD_SHA256 || !/^[a-f0-9]{64}$/.test(READER_BUILD_SHA256)) {
+                throw Error('NATIVE_READER_BUILD_MISMATCH');
+            }
             if (message.operation === 'history') return history(message.text, expected);
             if (message.operation === 'result') return result(message.text, expected);
-            if (message.operation === 'click' && Date.now() < Date.parse(expected.scheduleAt)) throw Error('NATIVE_NOT_DUE');
             const checked = editor(message.text, expected);
             if (message.operation === 'click') {
                 const expires = Date.parse(message.permit?.expiresAt);
@@ -113,7 +117,7 @@
                 checked.button.click(); return { click_invoked: true };
             }
             const { button: _element, ...observation } = checked; return observation;
-        })().then(value => respond({ ok: true, value }), error => respond({ ok: false,
+        })().then(value => respond({ ok: true, readerBuildSha256: READER_BUILD_SHA256, value }), error => respond({ ok: false,
             code: error instanceof Error && /^NATIVE_[A-Z0-9_]+$/.test(error.message) ? error.message : 'NATIVE_SURFACE_BLOCKED' }));
         return true;
     });

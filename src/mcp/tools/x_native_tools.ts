@@ -4,6 +4,7 @@ import { browserBoundarySchema } from '../../services/browser_publication_guard'
 import { nativeRegistrationSchema, nativeScopeSchema, registerNativeInstallation, revokeNativeInstallation } from '../../services/x_native_registry';
 import { nativePairingIssueSchema, issueNativePairing } from '../../services/x_native_pairing';
 import { issueNativeChallenge } from '../../services/x_native_control';
+import { nativeBundleSchema } from '../../services/x_native_receipt';
 import { asToolResult, INTERNAL_MUTATION_ANNOTATIONS } from './common';
 
 /** Only scoped owner/Publisher controls belong here. Signed executor mutations are HTTP-only. */
@@ -31,13 +32,13 @@ export function registerXNativeTools(server: McpServer, enabled = process.env.X_
         annotations: INTERNAL_MUTATION_ANNOTATIONS,
         inputSchema: nativeScopeSchema.extend({ reference: z.string().trim().min(10).max(500) }).shape
     }, async args => safe(() => revokeNativeInstallation(args)));
-    const issue = browserBoundarySchema.safeExtend({ installationId: z.string().regex(/^[a-f0-9]{64}$/),
+    const issue = browserBoundarySchema.safeExtend({ installationId: z.string().regex(/^[a-f0-9]{64}$/), bundleSha256: nativeBundleSchema,
         phase: z.enum(['start', 'permit', 'result', 'reconcile']), attemptId: z.number().int().positive().nullable() });
     server.registerTool('ba_issue_x_native_challenge', {
         description: 'Owner-bound challenge for an already released/claimed canonical X package. Never returns a lease or click authority. Signed HTTP receipt must consume the nonce atomically with the shared lifecycle mutation.',
         annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: issue.shape
     }, async args => safe(() => {
-        const { installationId, phase, attemptId, ...boundary } = issue.parse(args);
-        return issueNativeChallenge({ context: browserBoundarySchema.parse(boundary), installationId, phase, attemptId });
+        const { installationId, bundleSha256, phase, attemptId, ...boundary } = issue.parse(args);
+        return issueNativeChallenge({ context: browserBoundarySchema.parse(boundary), installationId, bundleSha256, phase, attemptId });
     }));
 }

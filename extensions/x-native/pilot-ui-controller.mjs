@@ -33,11 +33,13 @@ export function publicView(value, expected) {
         return { status: 'RECONCILIATION_REQUIRED' };
     }
     if (value.publication_authorized === false && /^[a-f0-9]{64}$/.test(value.installationId || '')
+        && typeof value.bundleSha256 === 'string' && /^[a-f0-9]{64}$/.test(value.bundleSha256)
         && /^[a-p]{32}$/.test(value.extensionId || '') && value.publicKey?.kty === 'EC'
         && value.publicKey.crv === 'P-256' && ['x', 'y'].every(k => /^[A-Za-z0-9_-]{43}$/.test(value.publicKey[k] || ''))
         && value.publicKey.d === undefined) {
         return { status: 'LOCAL_IDENTITY_NOT_ENROLLED', installation: { installationId: value.installationId,
-            extensionId: value.extensionId, publicKey: { kty: 'EC', crv: 'P-256', x: value.publicKey.x, y: value.publicKey.y } } };
+            extensionId: value.extensionId, bundleSha256: value.bundleSha256,
+            publicKey: { kty: 'EC', crv: 'P-256', x: value.publicKey.x, y: value.publicKey.y } } };
     }
     return { status: 'LOCAL_RESPONSE_INVALID' };
 }

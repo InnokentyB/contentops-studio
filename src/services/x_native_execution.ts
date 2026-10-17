@@ -6,7 +6,7 @@ import type { NativeGate } from './browser_publication_native';
 import { nativeReceiptSchema } from './x_native_receipt';
 import { consumeNativeReceipt, loadNativeState, restoredNativeContext, nativeBoundary } from './x_native_state';
 import { installedNative, nativeSerial } from './x_native_registry';
-import { verifyNativeReceipt } from './x_native_receipt';
+import { verifyNativeReceipt, assertNativeBundle } from './x_native_receipt';
 import { assertNativeExtensionOrigin } from './x_native_origin';
 
 export const nativeExecutionSchema = z.object({ receipt: nativeReceiptSchema }).strict();
@@ -19,10 +19,11 @@ export async function executeNativeReceipt(input: unknown, deps: BrowserDependen
         const installation = await installedNative(tx, { projectId: c.projectId, channelId: c.channelId,
             actorId: c.actorId, installationId: c.installationId });
         assertNativeExtensionOrigin(origin, installation.extensionId);
+        assertNativeBundle(c.bundleSha256, installation.bundleSha256);
         const boundary = await restoredNativeContext(tx, state);
         const { task } = await nativeBoundary(tx, boundary, deps, c.phase === 'reconcile');
         verifyNativeReceipt(receipt, { expectedChallenge: state.challenge, publicKey: installation.publicKey,
-            installationId: installation.installationId, actorId: boundary.actorId, revoked: installation.revoked,
+            installationId: installation.installationId, bundleSha256: installation.bundleSha256, actorId: boundary.actorId, revoked: installation.revoked,
             expectedText: task.draft_text || '', now: Date.now() });
         return boundary;
     }, nativeSerial);

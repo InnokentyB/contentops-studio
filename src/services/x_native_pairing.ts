@@ -5,13 +5,13 @@ import { z } from 'zod';
 import { browserRequestSchema, browserDefaults, checkedBrowserContext, hash, object, snapshotHash,
     type BrowserDb, type BrowserDependencies, type BrowserRequest } from './browser_publication_contract';
 import { nativeChallengeSchema, nativePublicKeySchema, nativeKeyFingerprint, nativeCanonical,
-    nativeReadSchema, verifyNativeRead, verifyNativeSignature } from './x_native_receipt';
+    nativeReadSchema, verifyNativeRead, verifyNativeSignature, nativeBundleSchema, assertNativeBundle } from './x_native_receipt';
 import { requireNativeSnapshot, type NativeInstallation } from './x_native_registry';
 import { assertNativeExtensionOrigin } from './x_native_origin';
 
 const serial = { isolationLevel: Prisma.TransactionIsolationLevel.Serializable } as const;
 export const nativePairingIssueSchema = browserRequestSchema.safeExtend({ publicKey: nativePublicKeySchema,
-    installationId: z.string().regex(/^[a-f0-9]{64}$/), extensionId: z.string().regex(/^[a-p]{32}$/) });
+    installationId: z.string().regex(/^[a-f0-9]{64}$/), bundleSha256: nativeBundleSchema, extensionId: z.string().regex(/^[a-p]{32}$/) });
 export const nativePairingChallengeSchema = nativeChallengeSchema.omit({ workItemId: true, attemptId: true,
     phase: true, leaseSha256: true, releaseKeySha256: true, sendKeySha256: true }).extend({
     purpose: z.literal('pair'), extensionId: z.string().regex(/^[a-p]{32}$/) }).strict();
@@ -47,15 +47,15 @@ export async function issueNativePairing(input: unknown, deps: BrowserDependenci
         const challenge = nativePairingChallengeSchema.parse({ version: 1, purpose: 'pair', projectId: a.projectId,
             taskId: a.taskId, channelId: s.channelId, revision: s.contentRevision, bodySha256: s.bodySha256,
             manifest: s.manifestChecksum, account: s.identity.accountRef, profileUrl: s.identity.profileUrl,
-            scheduleAt: s.scheduleAt, installationId: a.installationId, actorId: a.actorId, extensionId: a.extensionId,
+            scheduleAt: s.scheduleAt, installationId: a.installationId, bundleSha256: a.bundleSha256, actorId: a.actorId, extensionId: a.extensionId,
             nonce: randomBytes(32).toString('hex'), issuedAt: new Date(now).toISOString(), expiresAt: new Date(now + 300000).toISOString() });
         const context = browserRequestSchema.parse(Object.fromEntries(Object.entries(a).filter(([name]) =>
-            !['publicKey', 'installationId', 'extensionId'].includes(name))));
+            !['publicKey', 'installationId', 'extensionId', 'bundleSha256'].includes(name))));
         await tx.projectSettings.create({ data: { project_id: a.projectId, key: key(challenge.nonce),
             value: JSON.stringify({ challenge, context, publicKey: a.publicKey, verifiedSha256: null, consumed: false }) } });
         await tx.workflowEvent.create({ data: { project_id: a.projectId, content_item_id: a.taskId, actor_id: a.actorId,
             command: 'x_native_issue_pairing', idempotency_key: hash(challenge.nonce),
-            after_state: { installation_id: a.installationId, challenge_sha256: hash(JSON.stringify(challenge)),
+            after_state: { installation_id: a.installationId, bundle_sha256: a.bundleSha256, challenge_sha256: hash(JSON.stringify(challenge)),
                 snapshot_sha256: snapshotHash(s), publication_authorized: false } } });
         return { mode: 'pairing_challenge', challenge, publication_authorized: false };
     }, serial);
@@ -67,7 +67,7 @@ export async function readNativePairing(input: unknown, deps: BrowserDependencie
         if (!row) throw new Error('[X_NATIVE_PAIRING_REQUIRED]');
         const state = storedSchema.parse(JSON.parse(row.value)); validTime(state.challenge); await audited(tx, state);
         assertNativeExtensionOrigin(origin, state.challenge.extensionId);
-        verifyNativeRead(request, state.publicKey, Date.now(), 'pair');
+        verifyNativeRead(request, state.publicKey, Date.now(), 'pair', state.challenge.bundleSha256);
         if (state.consumed || request.channelId !== state.challenge.channelId
             || request.installationId !== state.challenge.installationId) throw new Error('[X_NATIVE_PAIRING_REQUIRED]');
         const task = await checkedBrowserContext(tx, state.context, deps);
@@ -103,12 +103,14 @@ export async function verifyNativePairing(input: unknown, deps: BrowserDependenc
     }, serial);
 }
 /** Consume proof inside the same enrollment transaction; a caller attestation cannot replace it. */
-export async function consumeNativePairing(tx: BrowserDb, a: BrowserRequest & { pairingNonce?: string },
+export async function consumeNativePairing(tx: BrowserDb, a: BrowserRequest & { pairingNonce?: string; bundleSha256: string },
     installation: NativeInstallation, deps: BrowserDependencies) {
     if (!a.pairingNonce) throw new Error('[X_NATIVE_PAIRING_REQUIRED]');
     const row = await tx.projectSettings.findUnique({ where: { project_id_key: { project_id: a.projectId, key: key(a.pairingNonce) } } });
     if (!row) throw new Error('[X_NATIVE_PAIRING_REQUIRED]');
     const state = storedSchema.parse(JSON.parse(row.value)); validTime(state.challenge); await audited(tx, state);
+    assertNativeBundle(state.challenge.bundleSha256, installation.bundleSha256);
+    assertNativeBundle(a.bundleSha256, installation.bundleSha256);
     await checkedBrowserContext(tx, state.context, deps);
     const audit = await tx.workflowEvent.findFirst({ where: { project_id: a.projectId, content_item_id: a.taskId,
         actor_id: a.actorId, command: 'x_native_pairing_verified', idempotency_key: hash(a.pairingNonce) } });

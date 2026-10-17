@@ -12,12 +12,13 @@ attempt, audit and fact fences.
 Enabling the flag only exposes the bridge/control plane; it cannot enroll an
 installation or release a post. Owner/Publisher MCP has these generic controls:
 
-- `ba_issue_x_native_pairing`: exact canonical package + public key + extension ID;
+- `ba_issue_x_native_pairing`: exact canonical package + public key + extension ID
+  + independently reviewed `bundleSha256`;
 - `ba_register_x_native_installation`: preview/apply, signed one-shot pairing and
-  explicit real owner no-send UAT reference;
+  explicit real owner no-send UAT reference and the same reviewed `bundleSha256`;
 - `ba_revoke_x_native_installation`: sticky, audited channel-scoped revocation;
 - `ba_issue_x_native_challenge`: flattened shared claim boundary, installation,
-  phase and attempt. Never returns a raw lease or click permit.
+  reviewed bundle digest, phase and attempt. Never returns a raw lease or click permit.
 
 Remote MCP binds project/actor from the authenticated principal. Shared services
 also require current project-owner access. These controls do not create an
@@ -60,12 +61,35 @@ checks. This is not a hostile-filesystem race guarantee. `INTEGRITY.json` has
 deterministic file byte counts/SHA-256 and a bundle digest; no machine path/time.
 Build never evaluates extension source, installs it, enrolls it or sends.
 
+Runtime software self-measurement checks that fixed, exact manifest inventory,
+byte counts and file digests still match the independently reviewed receipt.
+It does not enumerate arbitrary unreferenced files on disk. The reader is stamped
+with its template SHA at build time and read-handshaken before any click; an old
+loaded content script cannot silently act as the reviewed reader. CSP adds only
+`connect-src 'self'` for these packaged resources; no remote host/permission grows.
+The digest is immutable in audited enrollment and bound into signed reads and
+pairing/execution challenges. Missing legacy bindings fail closed. Each bundle
+uses a distinct non-exportable key slot; no automatic enrollment or key/journal
+reset occurs. Updating requires quiescent/in-flight reconciliation or explicit
+quarantine, reloading the extension itself and X editor, and new pairing/enrollment;
+keep old journals. Never edit an already-loaded directory in place: measuring
+disk bytes cannot attest which background modules were loaded earlier.
+
+This implements the approved trusted-executor model, **not device/remote
+attestation**. A malicious replacement retaining a key could lie about a digest;
+compromised extension/browser/OS and deliberate profile/key cloning remain the
+explicitly approved residual risk. Defending against that requires a separate
+trust boundary, not a stronger claim for this self-check.
+
 ## Operational sequence and stop conditions
 
 1. Review the exact code and verify bundle integrity before approved installation.
+   Ops supplies the independent bundle receipt; do not approve a digest merely
+   because the extension reported it.
 2. In the approved owner browser, obtain only the public installation identity.
    Complete real signed no-send pairing/UAT against the exact canonical package;
    record actual evidence, never invent an acceptance reference.
+   Keep the accepted editor open; scanning uses a separate disposable profile tab.
 3. Owner enrolls that key/extension for the channel, separately from releasing
    the accepted publication via the shared audited lifecycle.
 4. Sole operational Publisher claims the exact released package and issues its
@@ -99,3 +123,26 @@ These synthetic checks do not establish production endpoint compatibility or
 real-account pairing. Do not claim activation, enrolled real installation or
 real no-send UAT before those actual steps and explicit owner acceptance.
 Publication remains solely with Ops.
+
+## Minimal first-install no-send handoff
+
+Ops prepares the exact current canonical eight-field public package, accepted
+text, reviewed artifact/receipt and one-shot pairing code. No tokens, cookies or
+leases belong in the packet. The existing publication GO is not requested again.
+
+Owner steps, after Ops confirms deployment/flag and releases only the no-send
+pairing flow:
+
+1. Load the verified built directory as an unpacked extension in the intended
+   personal Chrome profile. Keep one X tab with the exact accepted draft; after
+   installation/update save the draft and reload that tab.
+2. Open the extension and choose **Показать данные установки**. Return only its
+   public JSON. Ops compares its bundle digest with the reviewed receipt and
+   issues the exact pairing code.
+3. Paste the supplied public package and pairing code, then choose **Проверить
+   без отправки**. Report the actual result; leave **Опубликовать один раз** alone.
+   Ops records the real owner UAT reference and performs preview/apply enrollment.
+
+This packet does not authorize engineering to send. Sole Ops then follows the
+existing exact-package release/claim lifecycle. A started/uncertain attempt is
+reconciliation-only, including across bundle changes.

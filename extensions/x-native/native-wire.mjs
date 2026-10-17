@@ -15,6 +15,7 @@ function base64url(buffer) {
 }
 async function sign(purpose, value) {
     const pair = await installationKeyPair();
+    if ((value.bundleSha256 ?? value.challenge?.bundleSha256) !== pair.bundleSha256) throw Error('LOCAL_BUNDLE_MISMATCH');
     return base64url(await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, pair.privateKey,
         new TextEncoder().encode(`ContentOps:X-native:${purpose}:v1\n${canonical(value)}`)));
 }
@@ -22,19 +23,21 @@ export async function publicInstallation() {
     const pair = await installationKeyPair();
     const { kty, crv, x, y } = await crypto.subtle.exportKey('jwk', pair.publicKey);
     const { fingerprint } = await localKeyProof(pair);
-    return { publicKey: { kty, crv, x, y }, installationId: fingerprint };
+    return { publicKey: { kty, crv, x, y }, installationId: fingerprint, bundleSha256: pair.bundleSha256 };
 }
 export async function readProof(nonce, operation, packageData) {
     const { projectId, channelId } = validatePackage(packageData);
     if (!/^[a-f0-9]{64}$/.test(nonce || '')) throw Error('LOCAL_NONCE_INVALID');
     if (!['read', 'advance', 'reconcile', 'refresh', 'pair', 'heartbeat'].includes(operation)) throw Error('LOCAL_OPERATION_INVALID');
-    const { installationId } = await publicInstallation();
-    const value = { operation, projectId, channelId, installationId, nonce, observedAt: new Date().toISOString() };
+    const { installationId, bundleSha256 } = await publicInstallation();
+    const value = { operation, projectId, channelId, installationId, bundleSha256, nonce, observedAt: new Date().toISOString() };
     return { ...value, signature: await sign('read-challenge', value) };
 }
 export async function receiptProof(challenge, observation) {
     validateChallenge(challenge);
-    if (challenge.purpose === 'pair' || challenge.installationId !== (await publicInstallation()).installationId) throw Error('LOCAL_INSTALLATION_MISMATCH');
+    const identity = await publicInstallation();
+    if (challenge.purpose === 'pair' || challenge.installationId !== identity.installationId
+        || challenge.bundleSha256 !== identity.bundleSha256) throw Error('LOCAL_INSTALLATION_MISMATCH');
     const value = { challenge, observation };
     return { ...value, signature: await sign('receipt', value) };
 }
@@ -46,6 +49,7 @@ export async function pairingProof(challenge, observation) {
     validateChallenge(challenge);
     const identity = await publicInstallation();
     if (challenge.purpose !== 'pair' || challenge.installationId !== identity.installationId
+        || challenge.bundleSha256 !== identity.bundleSha256
         || challenge.extensionId !== chrome.runtime.id || observation.account !== challenge.account
         || await textSha(observation.text) !== challenge.bodySha256) throw Error('LOCAL_PAIRING_MISMATCH');
     const value = { challenge, account: observation.account, observedAt: observation.observedAt, bodySha256: challenge.bodySha256 };

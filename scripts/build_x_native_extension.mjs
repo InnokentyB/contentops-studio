@@ -7,14 +7,14 @@ import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
 import { isDeepStrictEqual } from 'node:util';
 
-const FILES = Object.freeze(['key.mjs', 'store.mjs', 'package.mjs', 'native-wire.mjs', 'pilot-click.mjs',
+const FILES = Object.freeze(['bundle.mjs', 'key.mjs', 'store.mjs', 'package.mjs', 'native-wire.mjs', 'pilot-click.mjs',
     'pilot-background.mjs', 'pilot-native.js', 'pilot.html', 'pilot-ui.mjs', 'pilot-ui-controller.mjs', 'pilot.css', 'README.md']);
 const EXPECTED_MANIFEST = {
     manifest_version: 3, permissions: [],
     host_permissions: ['https://x.com/*', 'https://publishplanner-production.up.railway.app/*'],
     background: { service_worker: 'pilot-background.mjs', type: 'module' }, action: { default_popup: 'pilot.html' },
     options_page: 'pilot.html', content_scripts: [{ matches: ['https://x.com/*'], js: ['pilot-native.js'], run_at: 'document_idle' }],
-    content_security_policy: { extension_pages: "default-src 'self'; script-src 'self'; object-src 'none'; connect-src https://publishplanner-production.up.railway.app; base-uri 'none'" }
+    content_security_policy: { extension_pages: "default-src 'self'; script-src 'self'; object-src 'none'; connect-src 'self' https://publishplanner-production.up.railway.app; base-uri 'none'" }
 };
 const sha = value => createHash('sha256').update(value).digest('hex');
 const fail = code => { throw new Error(`X_NATIVE_PACKAGE_${code}`); };
@@ -134,6 +134,10 @@ async function validateSources(source) {
     if (/@import\b|url\s*\(/i.test(buffers.get('pilot.css').toString('utf8'))) fail('CSS_DEPENDENCY_INVALID');
     const ts = createRequire(import.meta.url)('typescript');
     for (const [name, content] of buffers) if (/\.(mjs|js)$/.test(name)) validateJavaScript(name, content, names, ts);
+    const reader = buffers.get('pilot-native.js').toString('utf8');
+    const marker = "const READER_BUILD_SHA256 = '__X_NATIVE_READER_BUILD__';";
+    if (reader.split(marker).length !== 2) fail('READER_IDENTITY_INVALID');
+    buffers.set('pilot-native.js', Buffer.from(reader.replace(marker, `const READER_BUILD_SHA256 = '${sha(reader)}';`)));
     buffers.set('manifest.json', buffers.get('pilot-manifest.json'));
     buffers.delete('pilot-manifest.json');
     return buffers;

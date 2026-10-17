@@ -55,6 +55,19 @@ test('a future-scheduled native click is rejected before any page interaction', 
     assert.equal(result.code, 'NATIVE_NOT_DUE'); assert.equal(pageReads, 0);
 });
 
+test('stale loaded reader fails the handshake before it can receive a click', async () => {
+    const operations = [];
+    const source = (await readFile('extensions/x-native/pilot-background.mjs', 'utf8')).replace(/^import[^\n]+\n/gm, '');
+    const surface = { verifyBundle: async () => ({ readerBuildSha256: 'a'.repeat(64) }),
+        chrome: { runtime: { onMessage: { addListener() {} } }, tabs: { async sendMessage(_tab, message) {
+            operations.push(message.operation);
+            return { ok: true, readerBuildSha256: 'b'.repeat(64), value: {} };
+        } } } };
+    vm.runInNewContext(source, surface);
+    await assert.rejects(surface.native(1, 'click', 'Synthetic', {}, {}), /NATIVE_READER_BUILD_MISMATCH/);
+    assert.deepEqual(operations, ['editor'], 'never send click to the incompatible loaded reader');
+});
+
 test('popup errors explain recovery and unchanged live status is not rewritten on timer ticks', async () => {
     const elements = new Map(); const timers = [];
     const state = { busy: false, canRun: false, canConsent: false, consent: false, result: { status: 'NOT_CHECKED' } };

@@ -16,7 +16,7 @@ const control = require(path.join(base, 'services/x_native_control.js'));
 const advance = require(path.join(base, 'services/x_native_advance.js'));
 const execution = require(path.join(base, 'services/x_native_execution.js'));
 const wire = require(path.join(base, 'services/x_native_receipt.js'));
-const deps = { db, manifest }, extensionId = 'a'.repeat(32), origin = `chrome-extension://${extensionId}`;
+const deps = { db, manifest }, extensionId = 'a'.repeat(32), bundleSha256 = '8'.repeat(64), origin = `chrome-extension://${extensionId}`;
 test.after(async () => { await db.$disconnect(); await pool.end(); });
 const fulfilled = results => results.filter(r => r.status === 'fulfilled');
 async function setup(t) {
@@ -54,13 +54,13 @@ async function setup(t) {
     const publicKey = wire.nativePublicKeySchema.parse({ kty: raw.kty, crv: raw.crv, x: raw.x, y: raw.y });
     const installationId = wire.nativeKeyFingerprint(publicKey);
     const signature = value => sign('sha256', Buffer.from(value), { key: keys.privateKey, dsaEncoding: 'ieee-p1363' }).toString('base64url');
-    const pair = await pairing.issueNativePairing({ ...args, publicKey, installationId, extensionId }, deps);
+    const pair = await pairing.issueNativePairing({ ...args, publicKey, installationId, bundleSha256, extensionId }, deps);
     const unsigned = { challenge: pair.challenge, account: snapshot.identity.accountRef, bodySha256: snapshot.bodySha256, observedAt: new Date().toISOString() };
     await pairing.verifyNativePairing({ ...unsigned, signature: signature(pairing.nativePairingMessage(unsigned)) }, deps, origin);
-    const enrollment = { ...args, publicKey, installationId, extensionId, pairingNonce: pair.challenge.nonce,
+    const enrollment = { ...args, publicKey, installationId, bundleSha256, extensionId, pairingNonce: pair.challenge.nonce,
         uatReference: 'Explicit synthetic owner no-send UAT' };
     const read = (challenge, operation) => {
-        const value = { projectId: args.projectId, channelId: snapshot.channelId, installationId,
+        const value = { projectId: args.projectId, channelId: snapshot.channelId, installationId, bundleSha256,
             operation, nonce: challenge.nonce, observedAt: new Date().toISOString() };
         return { ...value, signature: signature(wire.nativeReadMessage(value)) };
     };
@@ -71,7 +71,7 @@ async function setup(t) {
                 historyComplete: true, scannedStatuses: 1, duplicateFound: false } };
         return { receipt: { ...value, signature: signature(wire.nativeMessage(value)) } };
     };
-    return { args, enrollment, installationId, read, receipt };
+    return { args, enrollment, installationId, read, receipt, signMessage: signature };
 }
 async function ready(t) {
     const state = await setup(t);
@@ -79,7 +79,7 @@ async function ready(t) {
     const released = await release.releaseBrowserPublication(state.args, deps), workItemId = released.browser_work_item_id;
     const lease = await lifecycle.claimBrowserPublication({ ...state.args, workItemId, idempotencyKey: 'claim' }, deps);
     const context = { ...state.args, apply: false, workItemId, leaseToken: lease.lease_token, idempotencyKey: 'send' };
-    const issued = await control.issueNativeChallenge({ context, installationId: state.installationId, phase: 'start', attemptId: null }, deps);
+    const issued = await control.issueNativeChallenge({ context, installationId: state.installationId, bundleSha256, phase: 'start', attemptId: null }, deps);
     return { ...state, context, challenge: issued.challenge };
 }
 test('PostgreSQL concurrent enrollment consumes one signed pairing and creates one audited installation', async t => {
@@ -127,6 +127,23 @@ test('PostgreSQL later attempt-audit failure rolls back nonce consumption and at
     const row = await db.projectSettings.findFirst({ where: { project_id: s.args.projectId, key: { startsWith: 'x_native:challenge:' } } });
     assert.equal(JSON.parse(row.value).consumedSha256, null);
     assert.equal((await db.contentItem.findUnique({ where: { id: s.args.taskId } })).status, 'browser_required');
+});
+test('PostgreSQL build mismatch and legacy enrollment cannot consume a nonce or create an attempt', async t => {
+    const s = await ready(t);
+    const wrong = { ...s.read(s.challenge, 'read'), bundleSha256: '9'.repeat(64) };
+    wrong.signature = s.signMessage(wire.nativeReadMessage(wrong));
+    await assert.rejects(control.readNativeChallenge(wrong, deps, origin), /BUNDLE_MISMATCH/);
+    await assert.rejects(execution.executeNativeReceipt(s.receipt({ ...s.challenge, bundleSha256: '9'.repeat(64) }), deps, origin), /BUNDLE_MISMATCH/);
+    await assert.rejects(control.issueNativeChallenge({ context: s.context, installationId: s.installationId,
+        bundleSha256: '9'.repeat(64), phase: 'start', attemptId: null }, deps), /BUNDLE_MISMATCH/);
+    const installed = await db.projectSettings.findFirst({ where: { project_id: s.args.projectId, key: { startsWith: 'x_native:installation:' } } });
+    const legacy = JSON.parse(installed.value); delete legacy.bundleSha256;
+    await db.projectSettings.update({ where: { id: installed.id }, data: { value: JSON.stringify(legacy) } });
+    await assert.rejects(execution.executeNativeReceipt(s.receipt(s.challenge), deps, origin));
+    assert.equal(await db.deliveryAttempt.count({ where: { content_item_id: s.args.taskId } }), 0);
+    assert.equal(await db.workflowEvent.count({ where: { content_item_id: s.args.taskId, command: 'x_native_consume_receipt' } }), 0);
+    const nonce = await db.projectSettings.findFirst({ where: { project_id: s.args.projectId, key: { startsWith: 'x_native:challenge:' } } });
+    assert.equal(JSON.parse(nonce.value).consumedSha256, null);
 });
 test('PostgreSQL UNKNOWN and expired lease remain reconciliation-only; revocation stops signed delegates', async t => {
     const s = await ready(t); await execution.executeNativeReceipt(s.receipt(s.challenge), deps, origin);

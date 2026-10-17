@@ -6,6 +6,7 @@ const pairing = require(base + '/services/x_native_pairing.js');
 const control = require(base + '/services/x_native_control.js');
 const advance = require(base + '/services/x_native_advance.js');
 const execute = require(base + '/services/x_native_execution.js');
+const nativeState = require(base + '/services/x_native_state.js');
 const wire = require(base + '/services/x_native_receipt.js');
 const release = require(base + '/services/browser_publication_release.js');
 const lifecycle = require(base + '/services/browser_publication_execution.js');
@@ -14,12 +15,12 @@ const { body } = require('./shared-browser.fixture.cjs');
 const keys = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
 const jwk = keys.publicKey.export({ format: 'jwk' });
 const publicKey = wire.nativePublicKeySchema.parse({ kty: jwk.kty, crv: jwk.crv, x: jwk.x, y: jwk.y });
-const installationId = wire.nativeKeyFingerprint(publicKey), extensionId = 'a'.repeat(32);
+const installationId = wire.nativeKeyFingerprint(publicKey), extensionId = 'a'.repeat(32), bundleSha256 = '8'.repeat(64);
 const origin = `chrome-extension://${extensionId}`;
 const signature = message => sign('sha256', Buffer.from(message), { key: keys.privateKey, dsaEncoding: 'ieee-p1363' }).toString('base64url');
 const readProof = (challenge, operation) => {
     const value = { operation, projectId: challenge.projectId, channelId: challenge.channelId,
-        installationId, nonce: challenge.nonce, observedAt: new Date(Date.now()).toISOString() };
+        installationId, bundleSha256, nonce: challenge.nonce, observedAt: new Date(Date.now()).toISOString() };
     return { ...value, signature: signature(wire.nativeReadMessage(value)) };
 };
 const receipt = (challenge, unknown = false) => {
@@ -54,7 +55,7 @@ async function ready(taskId = 4801, future = false) {
     return { f, args };
 }
 async function enrolled(taskId, future = false) {
-    const { f, args } = await ready(taskId, future), setup = { ...args, publicKey, installationId, extensionId };
+    const { f, args } = await ready(taskId, future), setup = { ...args, publicKey, installationId, bundleSha256, extensionId };
     const issued = await pairing.issueNativePairing(setup, f);
     const pairingRead = await pairing.readNativePairing(readProof(issued.challenge, 'pair'), f, origin);
     assert.equal(pairingRead.accepted_text, body);
@@ -67,20 +68,61 @@ async function enrolled(taskId, future = false) {
     const workItemId = f.state.work[0].id;
     const lease = await lifecycle.claimBrowserPublication({ ...args, workItemId, idempotencyKey: 'claim' }, f);
     const context = { ...args, workItemId, leaseToken: lease.lease_token, idempotencyKey: 'send' };
-    const stage = await control.issueNativeChallenge({ context, installationId, phase: 'start', attemptId: null }, f);
+    const stage = await control.issueNativeChallenge({ context, installationId, bundleSha256, phase: 'start', attemptId: null }, f);
     return { f, args, context, challenge: stage.challenge };
 }
 test('enrollment preview is no-write and unsigned/foreign-origin pairing cannot enroll', async () => {
-    const { f, args } = await ready(), input = { ...args, publicKey, installationId, extensionId,
+    const { f, args } = await ready(), input = { ...args, publicKey, installationId, bundleSha256, extensionId,
         uatReference: 'Explicit synthetic owner no-send UAT reference' };
     const before = structuredClone(f.state);
     assert.equal((await registry.registerNativeInstallation(input, f)).mode, 'preview');
     assert.deepEqual(f.state, before);
     await assert.rejects(registry.registerNativeInstallation({ ...input, apply: true }, f), /PAIRING_REQUIRED/);
     assert.deepEqual(f.state, before);
-    const issued = await pairing.issueNativePairing({ ...args, publicKey, installationId, extensionId }, f);
+    const issued = await pairing.issueNativePairing({ ...args, publicKey, installationId, bundleSha256, extensionId }, f);
     await assert.rejects(pairing.readNativePairing(readProof(issued.challenge, 'pair'), f,
         `chrome-extension://${'b'.repeat(32)}`), /ORIGIN_DENIED/);
+});
+test('a signed pairing for one reviewed bundle cannot enroll another bundle or rewrite its proof', async () => {
+    const { f, args } = await ready(), setup = { ...args, publicKey, installationId, bundleSha256, extensionId };
+    const issued = await pairing.issueNativePairing(setup, f);
+    const unsigned = { challenge: issued.challenge, account: args.snapshot.identity.accountRef,
+        bodySha256: args.snapshot.bodySha256, observedAt: new Date().toISOString() };
+    await pairing.verifyNativePairing({ ...unsigned, signature: signature(pairing.nativePairingMessage(unsigned)) }, f, origin);
+    const before = structuredClone(f.state);
+    await assert.rejects(registry.registerNativeInstallation({ ...setup, bundleSha256: '9'.repeat(64), apply: true,
+        pairingNonce: issued.challenge.nonce, uatReference: 'Explicit synthetic owner no-send UAT reference' }, f), /BUNDLE_MISMATCH/);
+    assert.deepEqual(f.state, before);
+});
+test('all signed delegate operations and owner issue reject a different bundle before state changes', async () => {
+    const { f, context, challenge } = await enrolled(4810), before = structuredClone(f.state);
+    assert.equal(challenge.bundleSha256, bundleSha256);
+    await assert.rejects(control.issueNativeChallenge({ context, installationId, bundleSha256: '9'.repeat(64),
+        phase: 'start', attemptId: null }, f), /BUNDLE_MISMATCH/);
+    for (const operation of ['read', 'advance', 'reconcile', 'refresh', 'heartbeat']) {
+        const wrong = { ...readProof(challenge, operation), bundleSha256: '9'.repeat(64) };
+        wrong.signature = signature(wire.nativeReadMessage(wrong));
+        const call = operation === 'read' ? () => control.readNativeChallenge(wrong, f, origin)
+            : operation === 'refresh' ? () => control.refreshNativeStart(wrong, f, origin)
+            : operation === 'heartbeat' ? () => control.heartbeatNativeExecution(wrong, f, origin)
+            : () => advance.advanceNativeChallenge(wrong, operation === 'reconcile', f, origin);
+        await assert.rejects(call(), /BUNDLE_MISMATCH/);
+    }
+    const wrongReceipt = receipt({ ...challenge, bundleSha256: '9'.repeat(64) });
+    await assert.rejects(execute.executeNativeReceipt(wrongReceipt, f, origin), /BUNDLE_MISMATCH/);
+    await assert.rejects(f.db.$transaction(tx => nativeState.consumeNativeReceipt(tx, wrongReceipt.receipt,
+        context, 'start', f, origin)), /BUNDLE_MISMATCH/);
+    assert.deepEqual(f.state, before);
+});
+test('enrolled build digest is immutable and legacy missing-digest enrollment cannot execute', async () => {
+    const { f, args, challenge } = await enrolled(4811), before = structuredClone(f.state);
+    await assert.rejects(registry.registerNativeInstallation({ ...args, publicKey, installationId, extensionId,
+        bundleSha256: '9'.repeat(64), apply: true, uatReference: 'Explicit synthetic owner no-send UAT reference' }, f), /REBIND_FORBIDDEN/);
+    assert.deepEqual(f.state, before);
+    const row = f.state.nativeSettings.find(item => item.key.includes('installation'));
+    const legacy = JSON.parse(row.value); delete legacy.bundleSha256; row.value = JSON.stringify(legacy);
+    await assert.rejects(execute.executeNativeReceipt(receipt(challenge), f, origin));
+    assert.equal(f.state.attempts.length, 0);
 });
 test('signed start consumes one nonce with one durable attempt; delegate wire never contains lease', async () => {
     const { f, context, challenge } = await enrolled();
@@ -169,6 +211,6 @@ test('UNKNOWN after start remains one attempt and expired lease yields reconcili
     const recovered = await advance.advanceNativeChallenge(readProof(resultStage.challenge, 'reconcile'), true, f, origin);
     assert.equal(recovered.challenge.phase, 'reconcile'); assert.equal(recovered.submission_permitted, false);
     assert.equal(f.state.attempts.length, 1);
-    await assert.rejects(control.issueNativeChallenge({ context, installationId,
+    await assert.rejects(control.issueNativeChallenge({ context, installationId, bundleSha256,
         phase: 'permit', attemptId: f.state.attempts[0].id }, f));
 });
