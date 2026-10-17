@@ -48,12 +48,29 @@ export function publicationPlacementAssetContract(
     return contract;
 }
 
+function placementPlatform(type:string):string {
+    const normalized=type.trim().toLowerCase();
+    if(normalized==='zen')return 'dzen';
+    if(normalized==='habr_article')return 'habr';
+    if(normalized==='vc_article')return 'vc';
+    return normalized==='odnoklassniki'?'ok':normalized;
+}
+
+function declaredPlacements(type:string):string[] {
+    return type.trim().toLowerCase()==='zen_article'?['article_cover']:(DEFAULT_PLACEMENTS[placementPlatform(type)]||[]);
+}
+
+/** System-declared formats, not arbitrary configuration or a live connector readiness check. */
+export function isKnownPublicationPlacement(channel:{type:string},placement:string):boolean {
+    return declaredPlacements(channel.type).includes(placement);
+}
+
 function basePlacementAssetContract(
     channel: { type: string; config?: unknown },
     placement: string,
     media: { mime_type?: string; width?: number | null; height?: number | null } = {}
 ): PublicationPlacementAssetContract {
-    const normalizedType = channel.type.trim().toLowerCase();
+    const normalizedType = placementPlatform(channel.type);
     if (normalizedType === 'vk' && placement === 'clip') {
         // Editorial canvas, not an assertion about VK upload limits. Live Clip UAT is pending.
         return {
@@ -249,7 +266,8 @@ function configuredPlacements(config: unknown) {
 
 export function canonicalPlacementsForChannel(channel: { type: string; config?: unknown }) {
     const configured = configuredPlacements(channel.config);
-    return configured.length ? [...new Set(configured)] : (DEFAULT_PLACEMENTS[channel.type.trim().toLowerCase()] || []);
+    const placements=configured.length?[...new Set(configured)]:declaredPlacements(channel.type);
+    return channel.type.trim().toLowerCase()==='zen_article'?placements.filter(placement=>placement==='article_cover'):placements;
 }
 
 export function placementForContentAcceptance(channel: { type: string; config?: unknown }, current: string | null | undefined) {

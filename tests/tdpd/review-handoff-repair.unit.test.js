@@ -182,3 +182,73 @@ test('unsupported placement never becomes configured execution metadata during r
     await assert.rejects(getReviewRepairSnapshot({projectId:7,taskId:1136,workItemId:1948,actorId:'user:2'},f.db),/REVIEW_PLACEMENT_UNSUPPORTED/);
     assert.deepEqual(f.state,configured);
 });
+test('missing stored placement cannot silently materialize as feed',async()=>{
+    for(const placement of [null,'',' ']){
+        const f=fixture();f.state.task.visual_placement=placement;const before=structuredClone(f.state);
+        await assert.rejects(getReviewRepairSnapshot({projectId:7,taskId:1136,workItemId:1948,actorId:'user:2'},f.db),/REVIEW_PLACEMENT_UNSUPPORTED/);
+        const exact={...args,expectedTaskMetadataSha256:reviewRepairMetadataHash(f.state.task)};
+        for(const apply of [false,true])await assert.rejects(repairReviewHandoff({...exact,apply},f.db),/REVIEW_PLACEMENT_UNSUPPORTED/);
+        assert.deepEqual(f.state,before);
+    }
+});
+test('canonical Dzen article-cover aliases preserve existing manual recovery behavior',async()=>{
+    const {canonicalPlacementsForChannel,publicationPlacementAssetContract}=require('../../dist/services/publication_placement_contract');
+    for(const type of ['dzen','zen','zen_article']){
+        const f=fixture();f.state.task.channel.type=type;f.state.task.visual_placement='article_cover';
+        assert.deepEqual(canonicalPlacementsForChannel(f.state.task.channel),type==='zen_article'?['article_cover']:['article_cover','feed']);
+        for(const placement of canonicalPlacementsForChannel({type}))assert.deepEqual(
+            publicationPlacementAssetContract({type},placement),publicationPlacementAssetContract({type:'dzen'},placement));
+        const before=structuredClone(f.state);
+        const snapshot=await getReviewRepairSnapshot({projectId:7,taskId:1136,workItemId:1948,actorId:'user:2'},f.db);
+        assert.deepEqual(f.state,before);
+        const result=await repairReviewHandoff({...args,...snapshot.expected_snapshot,apply:true},f.db);
+        assert.equal(result.publication_authorized,false);assert.equal(result.handoff_mode,'manual');
+        assert.equal(result.connector_authority,'manual_only');assert.equal(f.state.task.visual_placement,'article_cover');
+        assert.equal(f.state.task.channel.type,type);assert.equal(f.state.task.accepted_revision,null);
+        assert.equal(f.state.task.publication_mode,'approval_required');assert.deepEqual(f.state.approval,before.approval);
+        assert.equal(f.state.attempts,0);
+    }
+});
+test('article-specific Dzen alias never admits feed, including configuration override',async()=>{
+    const {canonicalPlacementsForChannel}=require('../../dist/services/publication_placement_contract');
+    const {dzenPublicationTypeForAction}=require('../../dist/services/dzen_publication_route');
+    assert.equal(dzenPublicationTypeForAction('zen_feed:publish','zen_article'),'article');
+    for(const config of [{execution_modes:['manual']},{canonical_placements:['feed'],execution_modes:['automated']}]){
+        const f=fixture();f.state.task.channel.type='zen_article';f.state.task.channel.config=config;
+        assert.ok(!canonicalPlacementsForChannel(f.state.task.channel).includes('feed'));
+        const before=structuredClone(f.state);
+        await assert.rejects(getReviewRepairSnapshot({projectId:7,taskId:1136,workItemId:1948,actorId:'user:2'},f.db),/REVIEW_PLACEMENT_UNSUPPORTED/);
+        assert.deepEqual(f.state,before);
+    }
+});
+test('existing Habr, VC and OK aliases retain canonical contract and review identity',async()=>{
+    const {canonicalPlacementsForChannel,publicationPlacementAssetContract}=require('../../dist/services/publication_placement_contract');
+    for(const [type,canonical,placement] of [['habr_article','habr','article_cover'],['vc_article','vc','article_cover'],['odnoklassniki','ok','feed']]){
+        const f=fixture();f.state.task.channel.type=type;f.state.task.visual_placement=placement;
+        assert.deepEqual(canonicalPlacementsForChannel({type}),canonicalPlacementsForChannel({type:canonical}));
+        assert.deepEqual(publicationPlacementAssetContract({type},placement),publicationPlacementAssetContract({type:canonical},placement));
+        const snapshot=await getReviewRepairSnapshot({projectId:7,taskId:1136,workItemId:1948,actorId:'user:2'},f.db);
+        assert.equal((await repairReviewHandoff({...args,...snapshot.expected_snapshot,apply:true},f.db)).publication_authorized,false);
+        assert.equal(f.state.task.channel.type,type);assert.equal(f.state.task.visual_placement,placement);
+    }
+});
+test('arbitrary configuration-only feed contract cannot become configured execution metadata',async()=>{
+    const f=fixture();f.state.task.channel.type='custom';
+    f.state.task.channel.config={canonical_placements:['feed'],execution_modes:['automated']};
+    const before=structuredClone(f.state);
+    await assert.rejects(getReviewRepairSnapshot({projectId:7,taskId:1136,workItemId:1948,actorId:'user:2'},f.db),/REVIEW_PLACEMENT_UNSUPPORTED/);
+    assert.deepEqual(f.state,before);
+});
+test('established feed contracts remain recoverable without enabling unimplemented formats',async()=>{
+    for(const type of ['linkedin','x','ok','facebook','tenchat','telegram','telegram_chat','threads','vk','setka']){
+        const f=fixture();f.state.task.channel.type=type;const before=structuredClone(f.state);
+        const snapshot=await getReviewRepairSnapshot({projectId:7,taskId:1136,workItemId:1948,actorId:'user:2'},f.db);
+        assert.equal(snapshot.publication_authorized,false);assert.deepEqual(f.state,before);
+    }
+    for(const [type,placement] of [['linkedin','carousel'],['instagram','reel'],['email','body'],['video','video_cover']]){
+        const f=fixture();f.state.task.channel.type=type;f.state.task.visual_placement=placement;
+        const before=structuredClone(f.state);
+        await assert.rejects(getReviewRepairSnapshot({projectId:7,taskId:1136,workItemId:1948,actorId:'user:2'},f.db),/REVIEW_PLACEMENT_UNSUPPORTED/);
+        assert.deepEqual(f.state,before);
+    }
+});

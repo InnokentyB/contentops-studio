@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import prisma from '../db';
 import { buildGeneratedContentItemHandoff } from './publication_plan/handoff';
-import { canonicalPlacementsForChannel } from './publication_placement_contract';
+import { canonicalPlacementsForChannel,isKnownPublicationPlacement } from './publication_placement_contract';
 
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
 const checksum = z.string().regex(/^[a-f0-9]{64}$/);
@@ -91,7 +91,8 @@ async function exactState(db: Db, args: Args) {
         || !approval || approval.decision !== 'approved') {
         throw new Error('[REVIEW_HANDOFF_SNAPSHOT_CHANGED]');
     }
-    if(!canonicalPlacementsForChannel(task.channel).includes(task.visual_placement||'feed'))
+    if(!task.visual_placement?.trim()||!canonicalPlacementsForChannel(task.channel).includes(task.visual_placement)
+        ||!isKnownPublicationPlacement(task.channel,task.visual_placement))
         throw new Error('[REVIEW_PLACEMENT_UNSUPPORTED]');
     const bundle = buildGeneratedContentItemHandoff(task);
     if(bundle.transport.materialization==='asset')throw new Error('[REVIEW_PLACEMENT_UNSUPPORTED]');

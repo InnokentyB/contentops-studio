@@ -14,7 +14,9 @@ review blocks it. Normal Editor and Art work remain required afterward.
 Recovery requires a canonical placement and implemented non-generic materialization;
 unsupported placement and the generic asset fallback reject with
 `REVIEW_PLACEMENT_UNSUPPORTED`, including a configuration-only override without
-an implemented contract. Recovery reports actual handoff mode/configuration, not a
+an implemented contract. A nonblank stored placement and a system-declared
+format are required; arbitrary configuration-only feed formats cannot gain
+configured execution metadata. Recovery reports handoff mode/configuration, not a
 fabricated manual-only route. A configured transport projection is not release
 authority: content remains drafted, draft, unaccepted, visual STALE, no selected
 asset and publication_mode approval_required. Existing approval/result payloads,
@@ -46,3 +48,10 @@ assumption. It was corrected to canonical feed, with a separate RED negative
 for video_cover and configuration-only overrides. Task1103 remains blocked
 until its video placement and transport are implemented; do not disguise it
 as feed to use this repair.
+
+Compatibility correction: zen and the existing Habr/VC/OK aliases resolve to
+their established formats and geometry without changing stored channel identity.
+The article-specific zen_article alias remains article_cover-only, including
+configuration overrides, matching its existing article-only dispatcher semantics.
+Null/empty/whitespace placements reject rather than materialize a synthetic feed.
+Known/system-declared format is not a live connector-readiness or provider check.

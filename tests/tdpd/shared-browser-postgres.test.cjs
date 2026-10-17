@@ -121,10 +121,12 @@ test('004 Telegram review recovery is atomic and never accepts or releases a dra
         result_version:2,result_payload:{content_revision:2},note:'Historical note'}});
     const actorId=`user:${user.id}`;
     const approval=await db.approvalDecision.create({data:{work_item_id:work.id,result_version:2,decision:'approved',actor_id:actorId}});
-    await db.contentItem.update({where:{id:task.id},data:{visual_placement:'video_cover'}});
-    await assert.rejects(review.getReviewRepairSnapshot({projectId:project.id,taskId:task.id,workItemId:work.id,actorId},db),/REVIEW_PLACEMENT_UNSUPPORTED/);
-    assert.deepEqual((await db.contentItem.findUnique({where:{id:task.id}})).quality_report,task.quality_report);
-    assert.equal(await db.workItem.count({where:{content_item_id:task.id}}),1);
+    for(const placement of ['video_cover',null,'']){
+        await db.contentItem.update({where:{id:task.id},data:{visual_placement:placement}});
+        await assert.rejects(review.getReviewRepairSnapshot({projectId:project.id,taskId:task.id,workItemId:work.id,actorId},db),/REVIEW_PLACEMENT_UNSUPPORTED/);
+        assert.deepEqual((await db.contentItem.findUnique({where:{id:task.id}})).quality_report,task.quality_report);
+        assert.equal(await db.workItem.count({where:{content_item_id:task.id}}),1);
+    }
     await db.contentItem.update({where:{id:task.id},data:{visual_placement:'feed'}});
     const snap=await review.getReviewRepairSnapshot({projectId:project.id,taskId:task.id,workItemId:work.id,actorId},db);
     const args={...snap.expected_snapshot,reason:'Approved transport-neutral review recovery',idempotencyKey:'review-recovery',apply:true};
