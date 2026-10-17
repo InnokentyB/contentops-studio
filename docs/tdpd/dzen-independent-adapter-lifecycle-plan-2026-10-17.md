@@ -172,7 +172,10 @@ completion remains possible while native actions are restricted.
 Recognize historical protocol/event versions as validated formats, not task-ID
 execution branches. Exact wrappers/legacy claim writers must acquire/check the
 same ownership fence so they cannot race the new generic route. Complete fresh
-inventory never permits retry of a started/uncertain attempt.
+inventory never permits retry of a started/uncertain attempt. Legacy attempts
+without a job complete only their original attempt/fact/audit: never create a
+transport job for reconciliation. Job completion occurs only for an originally
+linked and validated existing job; absence is not a missing-row repair trigger.
 
 No automatic schema/data migration or backfill is proposed. Prove existing
 constraints and shared row-lock fence with separate-process real PostgreSQL
