@@ -35,7 +35,7 @@ export async function readDzen1002Inventory(config: { cookies?: string; channel_
     const observe = (state: 'published' | 'draft', frame: InventoryPage) => {
         capture.observe({ ...frame, state, page: ++pageCounts[state] }); return frame;
     };
-    const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] });
+    const browser = await puppeteer.launch({ headless: true });
     try {
         const page = await browser.newPage(); const expires = Date.now() + 60_000;
         let interceptionFailed = false; let authenticated = false;
