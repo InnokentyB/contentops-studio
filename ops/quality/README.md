@@ -17,6 +17,8 @@ artifacts, and compiles backend/frontend. It does not connect to the synthetic
 loopback database URL. The test/gate container has no network, ports or secrets,
 uses UID1000, read-only source/root, temporary bounded `/tmp`, private namespace,
 no capabilities and explicit CPU/RAM/PID/log limits. No browser is launched.
+The compiled-regression target also provides a bounded temporary log directory
+for legacy module initialization; it is not a persistent application log volume.
 Dependency installation and compilation stay inside the image build.
 
 Nothing persists: jobs use `run --rm`; no `up` is needed. Health is the process
