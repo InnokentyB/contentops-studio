@@ -13,7 +13,7 @@ const factService=require(path.join(base,'services/publication_fact.service.js')
 const deps={db,manifest};
 test.after(async()=>{await db.$disconnect();await pool.end();});
 
-async function setup(t,platform='linkedin'){
+async function setup(t,platform='linkedin',missingBundle=false){
     const source=fixture().state.task,nonce=randomUUID();
     const profileId='019c0000-0000-7000-8000-000000000001';
     const identity=platform==='setka'?{...template.identity,platform:'setka',accountType:'personal',
@@ -24,6 +24,7 @@ async function setup(t,platform='linkedin'){
             profile_url:identity.profileUrl,capability_flags:{manual_handoff:true}};
         source.quality_report.handoff_bundle.task.account_ref=identity.accountRef;
     }
+    if(missingBundle)delete source.quality_report.handoff_bundle;
     const user=await db.user.create({data:{email:`synthetic-${nonce}@example.invalid`,name:'Synthetic',password_hash:'not-a-login'}});
     const project=await db.project.create({data:{name:'Synthetic browser lifecycle',slug:`synthetic-${nonce}`}});
     t.after(async()=>{await db.project.delete({where:{id:project.id}});await db.user.delete({where:{id:user.id}});});
@@ -47,7 +48,7 @@ async function setup(t,platform='linkedin'){
     const snapshot={...template,projectId:project.id,taskId:task.id,channelId:channel.id,selectedAssetId:asset.id,
         decisionId:decision.id,manifestChecksum:current.checksum,identity};
     const args={projectId:project.id,taskId:task.id,actorId,snapshot,approvalReference:'Synthetic exact owner approval',idempotencyKey:'release',apply:true};
-    await release.repairBrowserPublicationMetadata({...args,idempotencyKey:'repair'},deps);
+    if(!missingBundle)await release.repairBrowserPublicationMetadata({...args,idempotencyKey:'repair'},deps);
     return{args,task,project,user};
 }
 async function started(t,platform='linkedin'){
@@ -64,6 +65,36 @@ async function started(t,platform='linkedin'){
     return{...state,send,observation};
 }
 const fulfilled=results=>results.filter(r=>r.status==='fulfilled');
+test('legacy Setka PostgreSQL bundle materialization rolls back audit failure, then repairs/releases once',async t=>{
+    const{args}=await setup(t,'setka',true),repair={...args,idempotencyKey:'legacy-repair'};
+    const before=await db.contentItem.findUnique({where:{id:args.taskId}});
+    assert.equal((await release.repairBrowserPublicationMetadata({...repair,apply:false},deps)).handoff_materialization.eligible,true);
+    assert.deepEqual(await db.contentItem.findUnique({where:{id:args.taskId}}),before);
+    const fail={...deps,db:{$transaction:run=>db.$transaction(async tx=>run(new Proxy(tx,{get(target,key){
+        if(key==='workflowEvent')return{...target.workflowEvent,create:async()=>{throw Error('synthetic legacy audit failure');}};
+        return target[key];}})))}};
+    await assert.rejects(release.repairBrowserPublicationMetadata(repair,fail),/legacy audit failure/);
+    assert.deepEqual(await db.contentItem.findUnique({where:{id:args.taskId}}),before);
+    await release.repairBrowserPublicationMetadata(repair,deps);
+    const repaired=await db.contentItem.findUnique({where:{id:args.taskId}});
+    assert.equal(repaired.quality_report.handoff_bundle.publication.body,body);
+    assert.equal(repaired.accepted_revision,before.accepted_revision);assert.equal(repaired.selected_asset_id,before.selected_asset_id);
+    assert.equal(repaired.schedule_at.toISOString(),before.schedule_at.toISOString());
+    assert.equal((await release.repairBrowserPublicationMetadata(repair,deps)).replayed,true);
+    await release.releaseBrowserPublication({...args,idempotencyKey:'release-after-legacy'},deps);
+    assert.equal(await db.workItem.count({where:{content_item_id:args.taskId,kind:'browser_publish'}}),1);
+    assert.equal(await db.deliveryAttempt.count({where:{content_item_id:args.taskId}}),0);
+});
+test('legacy Setka PostgreSQL repair rejects completed browser history and partial persisted bundle',async t=>{
+    const{args}=await setup(t,'setka',true);
+    await db.workItem.create({data:{project_id:args.projectId,content_item_id:args.taskId,item_key:'synthetic-history',
+        kind:'browser_publish',state:'completed',assignee_role:'browser_publisher'}});
+    const before=await db.contentItem.findUnique({where:{id:args.taskId}});
+    await assert.rejects(release.repairBrowserPublicationMetadata({...args,idempotencyKey:'history-repair'},deps),/RECONCILIATION_REQUIRED/);
+    assert.deepEqual(await db.contentItem.findUnique({where:{id:args.taskId}}),before);
+    await db.contentItem.update({where:{id:args.taskId},data:{quality_report:{...before.quality_report,handoff_bundle:{publication:{}}}}});
+    await assert.rejects(release.repairBrowserPublicationMetadata({...args,idempotencyKey:'partial-repair'},deps),/BROWSER_SNAPSHOT_MISMATCH/);
+});
 test('Setka PostgreSQL confirmation is atomic, canonical and same-attempt replay only',async t=>{
     const{args,observation}=await started(t,'setka');await exec.preSubmitBrowserSubmission(observation,deps);
     const id='019d0000-0000-7000-8000-000000000002';
