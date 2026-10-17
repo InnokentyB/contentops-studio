@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import publicationFactService,{ RecordPublicationFactArgs } from './publication_fact.service';
-import { BrowserDependencies,browserDefaults,object,hash,browserPrior,requireBrowserOwner } from './browser_publication_contract';
+import { BrowserDependencies,browserDefaults,object,hash,browserPrior,requireBrowserOwner,browserProviderUuid } from './browser_publication_contract';
 import { browserObservedSchema,checkedBrowserRelease,checkedBrowserAttempt,assertBrowserLease,
     assertBrowserObserved,browserObservationHash } from './browser_publication_guard';
 
@@ -22,6 +22,12 @@ export function assertBrowserPublicationTime(attempt:{created_at:Date},published
 export function browserProviderIdentity(args:Reconciliation) {
     const url=new URL(args.publicUrl),identity=args.snapshot.identity;
     if(url.protocol!=='https:'||url.port||url.username||url.password||url.hash)throw new Error('[PROVIDER_IDENTITY_INVALID]');
+    if(identity.platform==='setka'){
+        if(url.hostname!=='setka.ru'||url.search||!browserProviderUuid.safeParse(args.providerObjectId).success
+            ||url.pathname.replace(/\/$/,'')!==`/posts/${args.providerObjectId}`)
+            throw new Error('[PROVIDER_IDENTITY_INVALID]');
+        return `https://setka.ru/posts/${args.providerObjectId}`;
+    }
     if(identity.platform==='linkedin'){
         const match=/^\/feed\/update\/(urn:li:(?:activity|share):[1-9]\d*)\/?$/.exec(url.pathname);
         if(url.hostname!=='www.linkedin.com'||!match||match[1]!==args.providerObjectId
