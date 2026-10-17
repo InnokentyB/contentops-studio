@@ -80,6 +80,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
+      # Ubuntu's installed Chrome has an existing per-executable AppArmor userns profile.
+      # Keep Chromium sandbox enabled; do not relax global runner security settings.
+      APP_BROWSER_EXECUTABLE_PATH: '/opt/google/chrome/chrome'
       PUPPETEER_SKIP_DOWNLOAD: 'true'
       TELEGRAM_BOT_TOKEN: '000000:synthetic-test-token-never-used-for-provider-calls'
     steps:
@@ -98,6 +101,10 @@ jobs:
         run: npx puppeteer browsers install chrome
       - name: Install Chromium for local Playwright DOM fixtures
         run: npx playwright install chromium
+      - name: Verify installed Chrome sandbox on synthetic local HTML
+        run: |
+          test -x "$APP_BROWSER_EXECUTABLE_PATH"
+          node --test tests/tdpd/vk-shared-browser.test.cjs
       - name: Full backend regression with synthetic auth and bundled consumer
         env:
           # Legacy recurring-trigger fixtures assert Lisbon wall-clock dates.

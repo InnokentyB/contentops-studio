@@ -49,7 +49,8 @@
     "Type narrowing errors repaired without weakening types",
     "Removed stale files from disposable source copy before rebuild",
     "Strict poll fixtures and authenticated actor expectation corrected; null guard causal RED separately reproduced",
-    "Synthetic token supplied only for existing Telegram constructor import; no network or bot activation"
+    "Synthetic token supplied only for existing Telegram constructor import; no network or bot activation",
+    "Initial GitHub regression failed on Ubuntu AppArmor denying downloaded Chromium user namespaces. CI now selects the existing installed Chrome executable and its distro AppArmor profile, with mandatory real sandbox smoke; no sandbox flags or system-wide security settings relaxed. Final CI rerun pending."
   ],
   "review": "Independent cross-review completed; host registration, cross-host lease protection, authenticated principal sentinel and malformed restriction handling repaired and covered by regressions"
 }
