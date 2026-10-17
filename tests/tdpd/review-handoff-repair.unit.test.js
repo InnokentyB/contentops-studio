@@ -252,3 +252,18 @@ test('established feed contracts remain recoverable without enabling unimplement
         assert.deepEqual(f.state,before);
     }
 });
+test('article-only Dzen acceptance rejects feed before accepting content or creating work',async()=>{
+    const {ArtDirectionService}=require('../../dist/services/art_direction.service');
+    const {placementForContentAcceptance}=require('../../dist/services/publication_placement_contract');
+    assert.equal(placementForContentAcceptance({type:'zen_article'},null),'article_cover');
+    for(const config of [{},{canonical_placements:['feed']}]){
+        const item={id:2001,project_id:7,type:'publication',draft_text:'Synthetic unchanged draft',
+            content_revision:2,status:'drafted',text_state:'draft',accepted_revision:null,
+            visual_placement:'feed',channel:{type:'zen_article',config}};
+        const before=structuredClone(item);let writes=0;
+        const db={contentItem:{findUnique:async()=>item,update:async({data})=>{writes++;Object.assign(item,data);return item;}},
+            projectSettings:{findUnique:async()=>null},workItem:{upsert:async()=>{writes++;return{};}}};
+        await assert.rejects(new ArtDirectionService().acceptContentRevision(db,item.id,'user:2'),/PLACEMENT_(MISMATCH|CONTRACT_MISSING)/);
+        assert.equal(writes,0);assert.deepEqual(item,before);
+    }
+});

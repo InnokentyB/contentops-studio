@@ -55,3 +55,7 @@ The article-specific zen_article alias remains article_cover-only, including
 configuration overrides, matching its existing article-only dispatcher semantics.
 Null/empty/whitespace placements reject rather than materialize a synthetic feed.
 Known/system-declared format is not a live connector-readiness or provider check.
+Article-only zen_article acceptance also validates its current placement before
+writing acceptance or art work, including invalid old feed-only configurations;
+it leaves the draft unchanged on failure. Other legacy acceptance semantics and
+the established site default normalization are unchanged by this bounded fix.

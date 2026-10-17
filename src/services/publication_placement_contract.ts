@@ -272,6 +272,11 @@ export function canonicalPlacementsForChannel(channel: { type: string; config?: 
 
 export function placementForContentAcceptance(channel: { type: string; config?: unknown }, current: string | null | undefined) {
     const canonical = canonicalPlacementsForChannel(channel);
+    // This article-only provider alias must not accept an old feed binding that
+    // its native route will reinterpret as an article. Other legacy types retain
+    // their existing acceptance semantics; this is not an unrelated migration.
+    if(channel.type.trim().toLowerCase()==='zen_article')
+        return assertCanonicalPublicationPlacement(channel,current||canonical[0]||'article_cover');
     if (channel.type.trim().toLowerCase() === 'site' && current === 'feed' && canonical.includes('article_cover')) {
         return 'article_cover';
     }
