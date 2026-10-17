@@ -104,7 +104,13 @@ jobs:
       - name: Verify installed Chrome sandbox on synthetic local HTML
         run: |
           test -x "$APP_BROWSER_EXECUTABLE_PATH"
-          node --test tests/tdpd/vk-shared-browser.test.cjs
+          browser_path="$(readlink -f "$APP_BROWSER_EXECUTABLE_PATH")"
+          # Hosted toolcache executables can be group-writable. Tighten the exact
+          # installed binary instead of weakening the shared runtime path checks.
+          sudo chmod go-w "$browser_path"
+          stat -c '%F %a %U %n' "$browser_path"
+          echo "APP_BROWSER_EXECUTABLE_PATH=$browser_path" >> "$GITHUB_ENV"
+          APP_BROWSER_EXECUTABLE_PATH="$browser_path" node --test tests/tdpd/vk-shared-browser.test.cjs
       - name: Full backend regression with synthetic auth and bundled consumer
         env:
           # Legacy recurring-trigger fixtures assert Lisbon wall-clock dates.

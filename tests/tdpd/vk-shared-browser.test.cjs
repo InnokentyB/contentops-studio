@@ -4,9 +4,12 @@ const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 const modulePath='../../dist/services/browser_launch.js';
 test('BR-01 shared browser options enforce sandbox without weakening caller protections',()=>{
  const {sandboxedChromiumLaunchOptions}=require(modulePath);
- const opts=sandboxedChromiumLaunchOptions({headless:true,executablePath:process.execPath});
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'browser-options-'));const executablePath=path.join(dir,'browser');
+ try{fs.writeFileSync(executablePath,'fixture',{mode:0o755});fs.chmodSync(executablePath,0o755);
+ const opts=sandboxedChromiumLaunchOptions({headless:true,executablePath});
  assert.equal(opts.chromiumSandbox,true);assert.equal(opts.headless,true);assert.equal(opts.timeout,30000);
- assert.equal(opts.executablePath,process.execPath);assert.equal(opts.args,undefined);
+ assert.equal(opts.executablePath,executablePath);assert.equal(opts.args,undefined);
+ }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 test('BR-02 unsafe executable and unbounded launch deadlines fail before browser starts',()=>{
  const {sandboxedChromiumLaunchOptions}=require(modulePath);
