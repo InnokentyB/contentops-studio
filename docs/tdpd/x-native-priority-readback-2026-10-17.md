@@ -1,6 +1,6 @@
 # X native priority: verified route boundary, 2026-10-17
 
-Status: **ENGINEERING/ACTIVATION BLOCKED; NOT RELEASED OR PUBLISHED**.
+Status: **ENGINEERING IN PROGRESS; NOT RELEASED OR PUBLISHED**.
 This record is diagnosis and the minimal remaining decision, not another
 task-specific implementation, synthetic readiness prerequisite or renewed copy GO.
 
@@ -56,7 +56,7 @@ feature RED/GREEN or provider UAT. An earlier diagnostic also contained a mistyp
 hash and was corrected; the three issues above are from the valid rerun.
 The loaded guards additionally require APPROVED/GENERATE and one image.
 
-## Two boundaries that cannot be bypassed
+## Engineering boundary and corrected runtime scope
 
 1. **Reusable signed execution:** f7 contains executable business literals in
    schemas, package guards, settings/journal keys, account URLs and native DOM
@@ -68,26 +68,27 @@ The loaded guards additionally require APPROVED/GENERATE and one image.
    raw generic MCP caller observations cannot gain X execution authority.
    Preserve<=15s permit, durable pre-click journal, one attempt/click, exact
    identity/text/native status readback and reconciliation-only uncertainty.
-2. **Runtime decision:** approval15Oct explicitly places the native extension in
-   the human's personal browser profile. Owner policy16Oct explicitly requires
-   all browser automation in tower Docker. Priority17Oct does not specify a
-   runtime exception. Do not activate Mac automation, substitute another profile
-   or import sessions to make these instructions appear compatible.
-
-The minimal question was sent to the human: permit only the approved X extension
-in the personal Mac profile as an explicit runtime exception, with builds/tests/
-server still containerized, or require tower-only execution. No reply had arrived
-when this record was written. This is not a repeat publication GO.
+2. **Runtime correction:** the earlier version of this record incorrectly read
+   the tower policy as a blanket ban on personal Mac browser automation. Complete
+   reread of `/Users/innokentyb/.codex/AGENTS.md` establishes the literal scope:
+   "All project workloads on Ubuntu tower (`tower-linux`) MUST run inside Docker
+   containers". The Mac section prohibits Docker Desktop/local Docker daemon/VM/
+   new local containers; it does not prohibit the already-approved native X
+   extension in the personal browser. No other newer direct prohibition was
+   found. The purported runtime conflict is RETRACTED, not a new approval or
+   exception. The async exception question is obsolete and needs no answer.
+   Tower builds/tests remain container-only; existing tool/site denials remain.
 
 ## Independent review and next execution boundary
 
 Separate actor `/root/dzen_boundary_slice_review` inspected f7 against main0f.
-It confirmed the generic schema/signature gaps and runtime incompatibility.
+It confirmed the generic schema/signature gaps. Its initial runtime interpretation
+was also wrong and was expressly retracted after the same full source reread.
 It did not run a provider, edit code, prove deployment or accept UAT. Same-model
-review correlation remains a limitation. Its conclusion: no activation before
-the explicit runtime verdict and actual owner no-send UAT/pairing.
+review correlation remains a limitation. Actual owner no-send UAT/pairing still
+remains required; a nonexistent runtime exception is no longer a gate.
 
-Safe continuation after the runtime verdict: transfer shared pure/native
+Safe continuation under the existing approval: transfer shared pure/native
 mechanisms selectively, generalize all business bindings into validated data,
 write focused adversarial RED tests before runtime edits, verify unit/native
 fixture/PostgreSQL nonce/attempt/fact races and rollback in isolated tower

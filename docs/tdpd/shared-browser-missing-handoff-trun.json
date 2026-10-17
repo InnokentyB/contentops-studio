@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "slice": "shared-browser/legacy-missing-handoff-diagnostics-repair",
+  "observedDate": "2026-10-17",
+  "baseCommit": "190621a53536cdd04c7c3ed7e449f9313b8d5364",
+  "authority": {"sourceThread":"01a0c579-1ac5-7011-b7be-a99fd03cda8b","scope":"Explicit delegated narrow legacy repair implementation/review/deploy. No engineering apply, release or publication."},
+  "rootCause": {
+    "projectId": 10,
+    "taskId": 1124,
+    "field": "quality_report.handoff_bundle.publication.body",
+    "expectedSha256": "a11b9860bf5fe3a54363a6d3f9f88180da67f42b0bf7c4e1293f935d4d2a37ef",
+    "current": null,
+    "persistedBundleKeyPresent": false,
+    "reason": "Task read API derives a handoff projection; strict lifecycle reads persisted metadata. All other exact snapshot predicates passed against actual durable data.",
+    "deliveryState": {"attempts":0,"browserWorkItems":0,"fact":null}
+  },
+  "runs": [
+    {"id":"READONLY-production-reproduction","result":"PASS","observation":"Compiled PR171 strict snapshot reproduced BROWSER_SNAPSHOT_MISMATCH on actual production data. Query transaction READ ONLY with bounded statement timeout; allowlisted scalar/hash output only. No provider calls/writes."},
+    {"id":"RED-diagnostics","result":"EXPECTED_FAIL","tests":3,"failed":3,"reason":"Missing persisted handoff evidence and unsupported expectedSnapshot input."},
+    {"id":"RED-legacy-repair","result":"EXPECTED_FAIL","tests":5,"failed":5,"reason":"Strict old repair rejects wholly absent bundle; diagnostic behavior absent."},
+    {"id":"BUILD-type-error","result":"ERROR","reason":"Existing builder return is wider than Prisma JSON; repaired using runtime z.record(z.string(), z.json()) validation, not any or unchecked cast."},
+    {"id":"RED-review-metadata-container","result":"EXPECTED_FAIL","tests":1,"failed":1,"reason":"Malformed quality_report container normalized to empty object could be overwritten; new no-write regression reproduced missing expected rejection."},
+    {"id":"RED-review-checklist-identity","result":"EXPECTED_FAIL","tests":1,"failed":1,"reason":"Generated checklist retained channel display label instead of verified account_ref. New assertion reproduced missing canonical account instruction. Builder now receives a bounded projection with the verified account reference; channel row unchanged. PostgreSQL scenario asserts this too."},
+    {"id":"GREEN-final-build","result":"PASS","backend":true,"frontend":true,"runtime":"tower Docker, Node24.22.0 linux/amd64 non-root build-check"},
+    {"id":"GREEN-final-focused","result":"PASS","tests":38,"failed":0,"skipped":0,"runtime":"Same environment as CI shared-browser job, without synthetic provider credential variables."},
+    {"id":"GREEN-final-postgres","result":"PASS","tests":9,"failed":0,"skipped":0,"coverage":"Real synthetic PostgreSQL materialization/audit rollback, replay, release, completed-history and partial-bundle rejection plus existing shared race/fact/UNKNOWN scenarios."},
+    {"id":"GREEN-final-quality","result":"PASS","utc":"2026-10-17T13:41:40.523Z","score":77,"baselineCount":7096,"newDebt":0,"scannedFiles":1021,"operationalFiles":570,"note":"Source copied into isolated test snapshot; snapshot Git metadata remains a52a4b8, not a claim of PR SHA checkout. Exact PR CI checked separately."},
+    {"id":"READONLY-production-candidate-preview","result":"PASS","observation":"Candidate diagnose reports sole missing body field; candidate metadata preview eligible=true, applied=false, publication_authorized=false, provider_called=false. Actual production DB transactions enforced READ ONLY. This is not a live MCP Publisher call or UAT."},
+    {"id":"GREEN-checklist-review-followup","result":"PASS","backend":true,"frontend":true,"focusedTests":38,"postgresTests":9,"failed":0,"skipped":0,"qualityUtc":"2026-10-17T13:48:06.774Z","newDebt":0,"note":"Verified adopted account in checklist even when channel display label differs; channel row preserved. Final exact-head CI and automated review checked separately."}
+  ],
+  "independentReview": {
+    "actor":"/root/dzen_boundary_slice_review",
+    "base":"190621a",
+    "helperBlob":"49a50420ce1691f02ff4b6bfc27fbd31403025ab",
+    "regressionBlob":"64ca980388a883efecd58383a604862dd8c35276",
+    "closedP2":"Reject raw null/scalar/array quality_report before materialization; preserve exact state on failure.",
+    "remainingActionableP1P2":0,
+    "limits":"Independent source actor with same-model/context correlation; parent supplied executed test evidence. No provider UAT."
+  },
+  "rolloutRollback": "No migration/config/credential change. Existing metadata command and diagnostic schema are additive. Disable new legacy admission if needed; retain materialized bundles, audit/history and shared delivery fences. Never reset/rearm an in-flight attempt or overwrite partial/divergent evidence.",
+  "limits": [
+    "No production task/bundle/release/WI/attempt/fact was mutated by engineering. Accepted copy, dates, channel, decisions and asset remain unchanged.",
+    "Malformed canonical identity keeps existing BROWSER_IDENTITY_INVALID rejection without echoing unsafe input.",
+    "Production SSH diagnostic entry was unavailable (no offered SSH key); no key was generated/registered. Minimal database credential passed only through stdin into bounded Docker for authorized READ ONLY diagnosis, never persisted or printed.",
+    "Exact PR CI, automated review, merge and both production deployments are separate final checks. Owner/Publisher apply and live provider UAT are not claimed.",
+    "X work and Dzen sandbox/baseline consultation are excluded from this change."
+  ]
+}

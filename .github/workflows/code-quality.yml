@@ -24,12 +24,16 @@ jobs:
         run: docker compose -f ops/quality/compose.yaml --profile build build build-check
       - name: Dynamic package, permission, lease, one-attempt, fact and bypass contracts
         run: |
-          docker compose -f ops/quality/compose.yaml --profile build run --rm build-check node --test --test-concurrency=1 /workspace/tests/tdpd/shared-browser-release.test.cjs /workspace/tests/tdpd/shared-browser-execution.test.cjs /workspace/tests/tdpd/shared-browser-confirmation.test.cjs /workspace/tests/tdpd/shared-browser-fences.test.cjs /workspace/tests/tdpd/shared-browser-mcp.test.cjs
+          docker compose -f ops/quality/compose.yaml --profile build run --rm build-check node --test --test-concurrency=1 /workspace/tests/tdpd/shared-browser-release.test.cjs /workspace/tests/tdpd/shared-browser-execution.test.cjs /workspace/tests/tdpd/shared-browser-confirmation.test.cjs /workspace/tests/tdpd/shared-browser-fences.test.cjs /workspace/tests/tdpd/shared-browser-mcp.test.cjs /workspace/tests/tdpd/shared-setka-browser.test.cjs /workspace/tests/tdpd/shared-browser-diagnostics.test.cjs
+      - name: Signed X bridge, native fences and deterministic extension package (no provider)
+        run: |
+          docker compose -f ops/quality/compose.yaml --profile build run --rm build-check sh -c 'node --test --test-concurrency=1 /opt/planner/dist/tests/x_native*.test.js /workspace/tests/tdpd/shared-x-native.test.cjs /workspace/tests/tdpd/x-native-bridge.test.cjs /workspace/tests/tdpd/x-native-wiring.test.cjs /workspace/tests/tdpd/x-native-extension-package.test.mjs /workspace/tests/tdpd/x-native-local-boundary.test.mjs /workspace/tests/tdpd/x-native-popup.test.mjs /workspace/tests/tdpd/x-native-package-build.test.mjs /workspace/tests/tdpd/x-native-sandbox-boundary.test.cjs'
       - name: Real isolated PostgreSQL race and rollback scenarios
         run: |
           docker compose -f ops/publication-tests/compose.yaml up -d synthetic-db
           docker compose -f ops/publication-tests/compose.yaml run --rm tests node node_modules/prisma/build/index.js db push
           docker compose -f ops/publication-tests/compose.yaml run --rm tests
+          X_NATIVE_TEST_IMAGE=planner-policy-build-check:node24 docker compose -f ops/publication-tests/compose.yaml -f tests/tdpd/x-native-postgres.compose.yaml run --rm tests
       - name: Remove only the synthetic in-memory database stack
         if: always()
         run: docker compose -f ops/publication-tests/compose.yaml down

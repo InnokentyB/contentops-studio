@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { browserMetadataRepairContext } from './browser_publication_metadata';
 import { browserRequestSchema, BrowserDependencies, browserDefaults, checkedBrowserContext,
     browserPrior, browserCas, browserFingerprint, snapshotHash, hash, object,
     noBrowserDelivery, requireBrowserOwner, canonicalBrowserProfile } from './browser_publication_contract';
@@ -25,13 +26,17 @@ export async function repairBrowserPublicationMetadata(input:unknown,deps:Browse
     const args=browserRequestSchema.parse(input),command='ba_repair_browser_publication_metadata';
     return deps.db.$transaction(async tx=>{
         await requireBrowserOwner(tx,args);const prior=await browserPrior(tx,args,command);if(prior)return prior;
-        const task=await checkedBrowserContext(tx,args,deps);ready(task);await noBrowserDelivery(tx,args);
-        const quality=object(task.quality_report),handoff=object(quality.handoff_bundle);
+        const context=await browserMetadataRepairContext(tx,args,deps),{task,handoff}=context;
+        ready(task);await noBrowserDelivery(tx,args);
+        const quality=object(task.quality_report);
         const binding={snapshot_sha256:snapshotHash(args.snapshot),identity:args.snapshot.identity,
             verification_basis:'owner_adopted_registry_binding',provider_identity_verified:false,
             audit_command:command,audit_idempotency_key:args.idempotencyKey,actor_id:args.actorId};
         const result={project_id:args.projectId,task_id:args.taskId,identity_binding:binding,
             content_language:args.snapshot.contentLanguage,applied:args.apply,
+            handoff_materialization:{eligible:context.materialize,applied:context.materialize&&args.apply,
+                basis:context.materialize?'verified_accepted_durable_fields':null,
+                mismatches:context.mismatches,body_sha256:args.snapshot.bodySha256,asset_sha256:args.snapshot.assetSha256},
             publication_authorized:false,provider_called:false,replayed:false};
         if(!args.apply)return result;
         if(quality.browser_identity_binding&&JSON.stringify(object(quality.browser_identity_binding).identity)!==JSON.stringify(binding.identity))
@@ -41,7 +46,8 @@ export async function repairBrowserPublicationMetadata(input:unknown,deps:Browse
             handoff_bundle:{...handoff,content_language:args.snapshot.contentLanguage}} as Prisma.InputJsonValue}});
         if(changed.count!==1)throw new Error('[BROWSER_METADATA_CAS_CONFLICT]');
         await tx.workflowEvent.create({data:{project_id:args.projectId,content_item_id:args.taskId,actor_id:args.actorId,
-            command,idempotency_key:args.idempotencyKey,before_state:{request_hash:hash(JSON.stringify(args))},
+            command,idempotency_key:args.idempotencyKey,before_state:{request_hash:hash(JSON.stringify(args)),
+                missing_handoff_bundle:context.materialize},
             after_state:result as Prisma.InputJsonValue}});
         return result;
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});

@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "ContentOps X — native publication",
+  "version": "0.2.0",
+  "description": "Owner-enrolled native executor for validated Planner packages. No provider API, cookies permission or external messages.",
+  "permissions": [],
+  "host_permissions": ["https://x.com/*", "https://publishplanner-production.up.railway.app/*"],
+  "background": { "service_worker": "pilot-background.mjs", "type": "module" },
+  "action": { "default_popup": "pilot.html" },
+  "options_page": "pilot.html",
+  "content_scripts": [{ "matches": ["https://x.com/*"], "js": ["pilot-native.js"], "run_at": "document_idle" }],
+  "content_security_policy": { "extension_pages": "default-src 'self'; script-src 'self'; object-src 'none'; connect-src https://publishplanner-production.up.railway.app; base-uri 'none'" }
+}

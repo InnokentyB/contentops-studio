@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "passed": true,
+  "container": true,
+  "uid": 1000,
+  "sandbox": {
+    "namespace": true,
+    "seccomp": true,
+    "version": "153.0.8010.12"
+  },
+  "fixture": "synthetic pages and loopback Planner; network none",
+  "workerOrigin": "chrome-extension://cgndlenckikcfjpcenfpapgelhminnfh",
+  "workerOriginVerified": true,
+  "plannerRequestCount": 4,
+  "signedPairingPackages": 2,
+  "wrongAccountRejected": true,
+  "unknownDraftPreserved": true,
+  "expiredAndOverlongPermitRejected": true,
+  "onceOnlyAfterLostResponseAndRestart": true,
+  "prohibitedRequests": 0,
+  "providerCalled": false,
+  "sourceBundleSha256": "dbb044b2b6059cd6c1649d51dc1419749a8847b5b6d6551a31b788fdb78a13f2",
+  "realAccountUat": false,
+  "publicationAuthorized": false
+}
