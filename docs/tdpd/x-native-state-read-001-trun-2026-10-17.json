@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "packet": "X-NATIVE-STATE-READ-001 v1.1",
+  "packetSha256": "e053f448604f5bce1c420954a2b6110c5b09c1161c2a56cf50603634e030f6dc",
+  "implementationCommit": "9da1275",
+  "baseCommit": "5939dfff95d46078c943ad8ef1fa32b6290553a9",
+  "runtime": {
+    "host": "tower-linux", "architecture": "x86_64", "hostCpuCount": 12,
+    "hostMemoryBytes": 32481050624, "node": "24.22.0", "postgres": "16-alpine",
+    "image": "planner-x-native-state-read:20261017-r3", "imageIdPrefix": "9fa070b58b50",
+    "testContainer": { "cpuLimit": 2, "memoryLimit": "2g", "pidsLimit": 256, "poolMax": 4 },
+    "databaseContainer": { "cpuLimit": 1, "memoryLimit": "768m", "data": "synthetic tmpfs only" },
+    "sourceProvenance": "Secret-free source overlay in isolated compiler snapshot; its scaffold Git HEAD a9d7389 is not the implementation revision. New source bytes are the reviewed implementation commit; source mounted read-only. CI verifies the actual release commit."
+  },
+  "red": [
+    { "scenario": "READ-01", "build": "prior reviewed image", "result": "FAIL", "error": "Approved command absent" },
+    { "scenario": "READ-01/04", "build": "r1", "result": "FAIL", "error": "Raw schema shape was not strict; missing account classified inconsistent instead of unbound" },
+    { "scenario": "READ-07", "build": "r2", "result": "FAIL", "error": "Oversized audit payload with valid hash incorrectly reported complete/active" }
+  ],
+  "environmentErrorsResolved": [
+    "Docker default address pools exhausted: inspected inventory/routes and used separate test-only internal 10.231.71.0/28; no other networks pruned",
+    "Synthetic User fixture required name; corrected fixture",
+    "Load seed duplicated unique audit key; corrected with distinct synthetic actors, not weaker DB constraints"
+  ],
+  "verification": [
+    { "scenarios": ["READ-01", "READ-02", "READ-03", "READ-04"], "result": "PASS", "tests": 5, "includes": "Real MCP SDK linked transports: strict advertised schema and rejection before service" },
+    { "scenarios": ["READ-02", "READ-04", "READ-05", "READ-06", "READ-07", "READ-08", "READ-09", "READ-10"], "result": "PASS", "tests": 11, "includes": "Real PG readonly write rejection, coherent snapshot, sticky revocation beyond audit cap, byte limits, historical task predicates, two-reader capacity, actual statement timeout and cleanup" },
+    { "scenario": "READ-11", "result": "PASS", "requests": 100, "rps": 1, "concurrencyCeiling": 2, "maximumObservedInFlight": 1, "installations": 20, "auditRows": 80, "p95Ms": 15.86, "p99Ms": 18.38, "elapsedMs": 99076, "pool": { "waiting": 0, "idle": 4, "total": 4 }, "writes": 0 },
+    { "scenario": "READ-12", "result": "PASS", "suite": "X and shared-browser contracts", "tests": 104 },
+    { "scenario": "READ-12", "result": "PASS", "suite": "Existing real-PG shared and X lifecycle", "tests": 14 },
+    { "scenario": "READ-12", "result": "PASS", "suite": "Backend TypeScript/Prisma and frontend TypeScript/Vite build" },
+    { "scenario": "READ-12", "result": "PASS", "suite": "quality:gate", "score": 77, "baselineScore": 77, "newRuntimePolicyFindings": 0, "note": "Pre-existing repository debt remains; integrated-main check and CI recorded separately" },
+    { "scenario": "READ-13", "result": "PENDING", "reason": "Review/CI/release and authenticated sole-Publisher production readback not yet complete" }
+  ],
+  "independentReview": { "reviewer": "/root/x_security_review", "result": "No remaining P1/P2 findings in source", "resolvedFinding": "Bound audit metadata size/shape without fetching payload; preserve exhaustive revocation precedence", "runtimeNotExercisedByReviewer": true },
+  "effects": { "productionMutations": 0, "providerCalls": 0, "enrollments": 0, "submissions": 0, "extensionIdentityOrJournalChanges": 0 },
+  "engineeringStatus": "VERIFIED LOCALLY IN CONTAINERS; RELEASE PENDING",
+  "uat": "NOT PERFORMED; OWNER UAT REMAINS EXPLICIT"
+}
