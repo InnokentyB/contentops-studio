@@ -1,3 +1,5 @@
+import publicationAdapterService from './publication_adapter.service';
+
 const DEFAULT_PLACEMENTS: Record<string, string[]> = {
     habr: ['article_cover'],
     vc: ['article_cover'],
@@ -60,9 +62,19 @@ function declaredPlacements(type:string):string[] {
     return type.trim().toLowerCase()==='zen_article'?['article_cover']:(DEFAULT_PLACEMENTS[placementPlatform(type)]||[]);
 }
 
-/** System-declared formats, not arbitrary configuration or a live connector readiness check. */
-export function isKnownPublicationPlacement(channel:{type:string},placement:string):boolean {
-    return declaredPlacements(channel.type).includes(placement);
+/** Implemented materialization, not live readiness or publication authority. */
+export function isKnownPublicationPlacement(channel:{type:string;config?:unknown},placement:string):boolean {
+    const declared=declaredPlacements(channel.type);
+    if(declared.length)return declared.includes(placement);
+    // Existing adapter support may supply a feed contract absent editorial
+    // defaults. Configuration alone cannot register an executor or override an
+    // article-only provider; never trust config.platform or capability flags.
+    if(placement!=='feed'||!configuredPlacements(channel.config).includes('feed'))return false;
+    const account={platform:channel.type.trim().toLowerCase()};
+    if(publicationAdapterService.supportsDirectExecution(account))return true;
+    const derived=publicationAdapterService.buildAdapterConfig('',account);
+    return derived.capability_flags.manual_handoff
+        &&publicationPlacementAssetContract(channel,placement).transport.connector_authority==='manual_only';
 }
 
 function basePlacementAssetContract(

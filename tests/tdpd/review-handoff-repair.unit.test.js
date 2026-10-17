@@ -239,6 +239,56 @@ test('arbitrary configuration-only feed contract cannot become configured execut
     await assert.rejects(getReviewRepairSnapshot({projectId:7,taskId:1136,workItemId:1948,actorId:'user:2'},f.db),/REVIEW_PLACEMENT_UNSUPPORTED/);
     assert.deepEqual(f.state,before);
 });
+test('adapter-supported providers honor explicit data-declared feed contracts without gaining release authority',async()=>{
+    for(const type of ['reddit','tilda']){
+        const f=fixture();f.state.task.channel.type=type;
+        f.state.task.channel.config={canonical_placements:['feed'],execution_modes:['manual']};
+        const before=structuredClone(f.state);
+        const snapshot=await getReviewRepairSnapshot({projectId:7,taskId:1136,workItemId:1948,actorId:'user:2'},f.db);
+        assert.deepEqual(f.state,before);
+        const result=await repairReviewHandoff({...args,...snapshot.expected_snapshot,apply:true},f.db);
+        assert.equal(result.publication_authorized,false);assert.equal(result.connector_authority,'manual_only');
+        assert.equal(f.state.task.channel.type,type);assert.equal(f.state.task.visual_placement,'feed');
+        assert.equal(f.state.task.accepted_revision,null);assert.equal(f.state.task.publication_mode,'approval_required');
+        assert.equal(f.state.attempts,0);assert.deepEqual(f.state.approval,before.approval);
+    }
+});
+test('unregistered provider cannot spoof support through capability flags',async()=>{
+    const f=fixture();f.state.task.channel.type='custom';
+    f.state.task.channel.config={canonical_placements:['feed'],platform:'reddit',
+        capability_flags:{api_publish:true,browser_publish:true},execution_modes:['automated']};
+    const before=structuredClone(f.state);
+    await assert.rejects(getReviewRepairSnapshot({projectId:7,taskId:1136,workItemId:1948,actorId:'user:2'},f.db),/REVIEW_PLACEMENT_UNSUPPORTED/);
+    assert.deepEqual(f.state,before);
+});
+test('adapter fallback cannot override established article-only provider placement',async()=>{
+    for(const type of ['habr','habr_article','vc','vc_article']){
+        const f=fixture();f.state.task.channel.type=type;
+        f.state.task.channel.config={canonical_placements:['feed'],execution_modes:['automated']};
+        const before=structuredClone(f.state);
+        await assert.rejects(getReviewRepairSnapshot({projectId:7,taskId:1136,workItemId:1948,actorId:'user:2'},f.db),/REVIEW_PLACEMENT_UNSUPPORTED/);
+        assert.deepEqual(f.state,before);
+    }
+});
+test('derived manual-only provider compatibility never invents automated authority',async()=>{
+    const f=fixture();f.state.task.channel.type='indiehackers';
+    f.state.task.channel.config={canonical_placements:['feed'],execution_modes:['manual']};
+    const before=structuredClone(f.state);
+    const snapshot=await getReviewRepairSnapshot({projectId:7,taskId:1136,workItemId:1948,actorId:'user:2'},f.db);
+    assert.deepEqual(f.state,before);
+    const result=await repairReviewHandoff({...args,...snapshot.expected_snapshot,apply:true},f.db);
+    assert.equal(result.publication_authorized,false);assert.equal(result.connector_authority,'manual_only');
+    assert.equal(f.state.task.accepted_revision,null);assert.equal(f.state.task.publication_mode,'approval_required');
+    assert.equal(f.state.attempts,0);assert.deepEqual(f.state.approval,before.approval);
+    for(const modes of [[],['automated'],['manual','automated']]){
+        const invalid=fixture();invalid.state.task.channel.type='indiehackers';
+        invalid.state.task.channel.config={canonical_placements:['feed'],execution_modes:modes,
+            capability_flags:{api_publish:true,manual_handoff:true}};
+        const unchanged=structuredClone(invalid.state);
+        await assert.rejects(getReviewRepairSnapshot({projectId:7,taskId:1136,workItemId:1948,actorId:'user:2'},invalid.db),/REVIEW_PLACEMENT_UNSUPPORTED/);
+        assert.deepEqual(invalid.state,unchanged);
+    }
+});
 test('established feed contracts remain recoverable without enabling unimplemented formats',async()=>{
     for(const type of ['linkedin','x','ok','facebook','tenchat','telegram','telegram_chat','threads','vk','setka']){
         const f=fixture();f.state.task.channel.type=type;const before=structuredClone(f.state);

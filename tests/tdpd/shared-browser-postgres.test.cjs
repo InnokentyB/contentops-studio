@@ -135,6 +135,12 @@ test('004 Telegram review recovery is atomic and never accepts or releases a dra
         assert.equal(await db.workItem.count({where:{content_item_id:task.id}}),1);
     }
     await db.contentItem.update({where:{id:task.id},data:{visual_placement:'feed'}});
+    await db.socialChannel.update({where:{id:channel.id},data:{type:'reddit',config:{canonical_placements:['feed'],execution_modes:['manual']}}});
+    const dataDeclared=await review.getReviewRepairSnapshot({projectId:project.id,taskId:task.id,workItemId:work.id,actorId},db);
+    assert.equal(dataDeclared.publication_authorized,false);
+    assert.deepEqual((await db.contentItem.findUnique({where:{id:task.id}})).quality_report,task.quality_report);
+    assert.equal(await db.workItem.count({where:{content_item_id:task.id}}),1);
+    await db.socialChannel.update({where:{id:channel.id},data:{type:'telegram',config:{execution_modes:['automated']}}});
     const snap=await review.getReviewRepairSnapshot({projectId:project.id,taskId:task.id,workItemId:work.id,actorId},db);
     const args={...snap.expected_snapshot,reason:'Approved transport-neutral review recovery',idempotencyKey:'review-recovery',apply:true};
     const failDb=new Proxy(db,{get(target,key){if(key!=='$transaction')return Reflect.get(target,key);

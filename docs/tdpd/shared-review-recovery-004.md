@@ -14,9 +14,16 @@ review blocks it. Normal Editor and Art work remain required afterward.
 Recovery requires a canonical placement and implemented non-generic materialization;
 unsupported placement and the generic asset fallback reject with
 `REVIEW_PLACEMENT_UNSUPPORTED`, including a configuration-only override without
-an implemented contract. A nonblank stored placement and a system-declared
-format are required; arbitrary configuration-only feed formats cannot gain
-configured execution metadata. Recovery reports handoff mode/configuration, not a
+an implemented contract. A nonblank stored placement and an implemented
+format are required. Providers without editorial defaults may use an explicit
+data-declared feed contract only when the existing adapter supports that
+authoritative channel type. Configuration platform/capability flags cannot
+register an executor, and the fallback cannot override established article-only
+contracts. Existing manual-handoff providers use the adapter's server-derived
+capability only with an actual manual-only contract; empty/automated/mixed modes
+cannot invent direct execution. This is structural support, not live connector readiness. Arbitrary
+configuration-only feed formats cannot gain configured execution metadata.
+Recovery reports handoff mode/configuration, not a
 fabricated manual-only route. A configured transport projection is not release
 authority: content remains drafted, draft, unaccepted, visual STALE, no selected
 asset and publication_mode approval_required. Existing approval/result payloads,
