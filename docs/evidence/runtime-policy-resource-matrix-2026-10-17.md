@@ -77,3 +77,49 @@ Reviewed SHA256:
 No live credentials, provider calls, real transition artifact, merge, deployment
 or publication fact is part of this work. Human approval remains pending in
 Portfolio OS; no duplicate approval request is issued here.
+
+## Six scenario reachability diagnostics —14:24 UTC follow-up
+
+The six case-data configurations have now each been supplied to an actual gate
+invocation using test-only child-process clock/Git-I/O instrumentation. Explicit
+command: `node --test --test-concurrency=1 tests/tdpd/runtime-policy-budget.diagnostic.cjs`.
+Tower Docker result: **6 executed,0 PASS,6 diagnostic RED,0 skipped**, exit1.
+
+Every run had a valid one-finding/one-row synthetic fixture and returned exactly
+`FAIL/BASELINE_WIDENED`, before any transition I/O. Each trace recorded zero
+transition reads, no observed timeouts and zero fake-clock consumption, classified
+`RED_MISSING_TRANSITION_MECHANISM`. Preload initialization was verified; other
+CLI/fixture errors are explicitly classified separately and cannot count as this
+expected RED. This is a behavioral reachability limit, not a broken runner.
+
+The six executions cover submission of each scenario configuration: decreasing
+remaining budget; successful batching; child timeout; repeated short reads;
+shared metadata/blob budget; and read-count cap. **They do not execute or prove
+the six budget acceptance behaviors.** The absent transition path prevents the
+configured fault/clock sequence from being exercised. The original case-data
+status remains NOT_EXECUTED for acceptance semantics; no budget operator was
+implemented inside either the gate or the probe to manufacture a result.
+
+The probe only observes real Git calls, advances test clocks and injects configured
+child errors when those calls occur. It does not compute remaining time, enforce
+a deadline/count limit, change gate options or grant a remap. Instrumentation is
+confined to the child test process. A future implementation may use other clock
+or I/O APIs, so the probe must be rebound and full deterministic assertions added
+after LOCK; these reachability diagnostics cannot substitute for before-GREEN
+budget acceptance tests or be counted as passing admission evidence.
+
+Final raw output: `/tmp/runtime-policy-budget-six-diagnostics-final.log`.
+Quality gate remains PASS with7096 findings and no hard stops;
+`/tmp/runtime-policy-budget-diagnostic-quality.log` contains that result.
+
+Independent static review by `/root/dzen_runtime_review_retry` closed one P2:
+the initial unconditional behavior-gap label was replaced by exact validation of
+the expected gate/fixture result. Final review has no open P1/P2 and explicitly
+does not grant implementation approval. Reviewed SHA256:
+
+- Diagnostic: `3b4647c0fa80859673cd0d2212a190a0b5e5fb0297dd990294b4214c0a891e8d`
+- Probe: `fad341bf25d74dc991c42dd8eb2c6d71225889eb6b8a893a96ada63e167e49b5`
+
+Independent preparatory execution is complete. State: **WAITING_OWNER** for the
+already-pending exact decision in Portfolio OS. No repeat tests, new runtime
+entity or approval-dependent implementation is warranted until that verdict.
