@@ -1,7 +1,9 @@
 import { z } from 'zod';
+import { governedBrowserRouteBlock } from './browser_publication_fence';
 const Task = z.object({ id: z.number().int(), project_id: z.number().int(), status: z.string().optional(), content_revision: z.number().int().optional() });
 /** Central dispatch must never rewrite a fenced exact task or create fallback work. */
 export function exactOwnedRouteBlock(input: unknown) {
+    const governed = governedBrowserRouteBlock(input); if (governed) return governed;
     const parsed = Task.safeParse(input);
     if (!parsed.success) return null;
     const task = parsed.data;
