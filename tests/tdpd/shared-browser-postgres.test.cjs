@@ -103,3 +103,44 @@ test('S5 canonical fact transaction rolls back hook failures, then concurrent co
     assert.equal((await db.deliveryAttempt.findUnique({where:{id:observation.attemptId}})).status,'delivered');
     assert.equal((await confirm.confirmBrowserSubmission(confirmation,deps)).replayed,true);
 });
+test('004 Telegram review recovery is atomic and never accepts or releases a draft',async t=>{
+    const review=require(path.join(base,'services/review_handoff_repair.js'));
+    const nonce=randomUUID();
+    const user=await db.user.create({data:{email:`review-${nonce}@example.invalid`,name:'Synthetic',password_hash:'not-a-login'}});
+    const project=await db.project.create({data:{name:'Synthetic review recovery',slug:`review-${nonce}`}});
+    t.after(async()=>{await db.project.delete({where:{id:project.id}});await db.user.delete({where:{id:user.id}});});
+    await db.projectMember.create({data:{project_id:project.id,user_id:user.id,role:'owner'}});
+    const channel=await db.socialChannel.create({data:{project_id:project.id,name:'synthetic_tg',type:'telegram',
+        config:{execution_modes:['automated']}}});
+    const task=await db.contentItem.create({data:{project_id:project.id,channel_id:channel.id,type:'publication',
+        content_revision:2,draft_text:body,text_state:'draft',status:'drafted',publication_mode:'approval_required',
+        visual_state:'STALE',visual_placement:'video_cover',schedule_at:new Date(template.scheduleAt),publish_at:new Date(template.publishAt),
+        quality_report:{preserved:'history',handoff_bundle:{mode:'manual'}}}});
+    const work=await db.workItem.create({data:{project_id:project.id,content_item_id:task.id,item_key:`review-${nonce}`,
+        kind:'content_review',state:'waiting_approval',assignee_role:'content_reviewer',input_context_version:2,
+        result_version:2,result_payload:{content_revision:2},note:'Historical note'}});
+    const actorId=`user:${user.id}`;
+    const approval=await db.approvalDecision.create({data:{work_item_id:work.id,result_version:2,decision:'approved',actor_id:actorId}});
+    const snap=await review.getReviewRepairSnapshot({projectId:project.id,taskId:task.id,workItemId:work.id,actorId},db);
+    const args={...snap.expected_snapshot,reason:'Approved transport-neutral review recovery',idempotencyKey:'review-recovery',apply:true};
+    const failDb=new Proxy(db,{get(target,key){if(key!=='$transaction')return Reflect.get(target,key);
+        return (run,options)=>db.$transaction(tx=>run(new Proxy(tx,{get(client,field){
+            if(field==='workflowEvent')return{...client.workflowEvent,create:async()=>{throw Error('synthetic review audit failure');}};
+            return Reflect.get(client,field);}})),options);}});
+    await assert.rejects(review.repairReviewHandoff(args,failDb),/synthetic review audit failure/);
+    assert.equal((await db.workItem.findUnique({where:{id:work.id}})).state,'waiting_approval');
+    assert.equal(await db.workItem.count({where:{content_item_id:task.id}}),1);
+    const results=await Promise.allSettled([review.repairReviewHandoff(args,db),review.repairReviewHandoff(args,db)]);
+    assert.ok(fulfilled(results).length>=1);
+    const replay=await review.repairReviewHandoff(args,db);
+    assert.equal(replay.publication_authorized,false);assert.equal(replay.handoff_mode,'automated');
+    assert.equal(replay.connector_authority,'configured');assert.equal(replay.replayed,true);
+    assert.equal(await db.workItem.count({where:{content_item_id:task.id,state:'available',input_context_version:2,result_version:0}}),1);
+    const current=await db.contentItem.findUnique({where:{id:task.id}});
+    for(const key of ['draft_text','accepted_revision','content_revision','status','text_state','visual_state','selected_asset_id','publication_mode','channel_id'])
+        assert.deepEqual(current[key],task[key],key);
+    assert.deepEqual(current.schedule_at,task.schedule_at);assert.deepEqual(current.publish_at,task.publish_at);
+    assert.deepEqual(await db.approvalDecision.findUnique({where:{id:approval.id}}),approval);
+    assert.equal(await db.deliveryAttempt.count({where:{content_item_id:task.id}}),0);
+    assert.equal(await db.publicationFact.count({where:{content_item_id:task.id}}),0);
+});

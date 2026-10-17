@@ -1,0 +1,27 @@
+{
+  "slice": "SHARED-PUBLICATION-DATA-BOUNDARY-004/review-recovery",
+  "date": "2026-10-17",
+  "testedSourceTree": "59468756f2bdfdd83212b2d1f6f4c2c697ff67f8",
+  "runtime": "tower-linux Docker only; non-root bounded Node24 build-check; isolated synthetic PostgreSQL",
+  "runs": [
+    {"scenario":"configured Telegram review recovery","command":"node --test --test-concurrency=1 tests/tdpd/review-handoff-repair.unit.test.js","result":"EXPECTED_FAIL","passed":11,"failed":1,"cause":"MANUAL_ONLY_CHANNEL_REQUIRED before implementation"},
+    {"scenario":"review recovery and preservation regressions","command":"same review test command in rebuilt build-check","result":"PASS","passed":12,"failed":0,"skipped":0},
+    {"scenario":"browser lifecycle compatibility","command":"node --test --test-concurrency=1 shared-browser release/execution/confirmation/fences/mcp in build-check","result":"PASS","passed":27,"failed":0,"skipped":0},
+    {"scenario":"real PostgreSQL races, audit rollback, immutable review and publication gates","command":"ops/publication-tests/compose.yaml run --rm tests","result":"PASS","passed":5,"failed":0,"skipped":0},
+    {"scenario":"backend/frontend build","command":"ops/quality/compose.yaml --profile build build build-check","result":"PASS"},
+    {"scenario":"quality no-regression","command":"npm run quality:gate in quality container","timestamp":"2026-10-17T08:06:40.427Z","result":"PASS","score":77,"newDebt":0,"baselineFindings":7096}
+  ],
+  "review": {
+    "actor":"/root/dzen_boundary_slice_review",
+    "base":"3472a06450d9448b5d1a9b8adaa86f2e17fffdd6",
+    "serviceBlob":"84505e5529925694b81654a7505d18cade24d68d",
+    "actionableP1P2":0,
+    "limits":"Separate-actor source review; same-model correlation; parent executed tests. Later additions are evidence documents only."
+  },
+  "limits":[
+    "No production recovery, acceptance, asset rebind, release, provider attempt or publication was performed.",
+    "MIME-aware MP4 transport remains a separate pending 004 milestone.",
+    "Production CLI/tool exposure, apply and owner UAT remain separate gates.",
+    "No raw credentials, production database, new process/consumer, migration or scheduler activation."
+  ]
+}

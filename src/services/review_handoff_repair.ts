@@ -91,9 +91,8 @@ async function exactState(db: Db, args: Args) {
         throw new Error('[REVIEW_HANDOFF_SNAPSHOT_CHANGED]');
     }
     const bundle = buildGeneratedContentItemHandoff(task);
-    if (bundle.mode !== 'manual' || bundle.transport.connector_authority !== 'manual_only') {
-        throw new Error('[MANUAL_ONLY_CHANNEL_REQUIRED]');
-    }
+    // Review recovery is transport-neutral: draft/STALE/approval_required stay
+    // unchanged. Canonical handoff metadata is not publication authority.
     return { task, review, approval, bundle };
 }
 
@@ -145,7 +144,7 @@ export async function repairReviewHandoff(input: Args, database: typeof prisma =
     const preview = (state: Awaited<ReturnType<typeof exactState>>) => ({ project_id: args.projectId, task_id: args.taskId,
         superseded_work_item_id: args.workItemId, historical_approval_id: state.approval.id,
         replacement_input_context_version: args.expectedRevision, replacement_result_version: 0,
-        handoff_mode: 'manual', connector_authority: 'manual_only',
+        handoff_mode: state.bundle.mode, connector_authority: state.bundle.transport.connector_authority,
         preserved_body_sha256: args.expectedBodySha256, publication_authorized: false,
         delivery_attempt_count: 0, publication_fact: null });
     if (!apply) return { mode: 'preview', ...preview(await exactState(database, args)) };
