@@ -61,8 +61,14 @@ export function loadBrowserTask(tx:BrowserDb,args:Pick<BrowserRequest,'projectId
         include:{channel:true,selected_asset:true,publication_fact:true,art_direction_decisions:{where:{status:'active'}}}});
 }
 export type BrowserTask = NonNullable<Awaited<ReturnType<typeof loadBrowserTask>>>;
-/** Shared revision/tenant/identity/asset fence; no concrete business identifiers. */
-export function assertBrowserSnapshot(task:Awaited<ReturnType<typeof loadBrowserTask>>,s:BrowserSnapshot):asserts task is BrowserTask {
+export type BrowserSnapshotMismatch={field:string;expected:string|number|boolean|null;current:string|number|boolean|null;
+    representation?:'sha256';current_present?:boolean};
+const digestValue=(v:unknown):string|null=>typeof v==='string'?hash(v):null;
+const enumValue=(v:unknown,allowed:readonly string[]):string|null=>v==null?null:
+    typeof v==='string'&&allowed.includes(v)?v:'[redacted_invalid_value]';
+/** The admission predicates also produce bounded, hash-only diagnostic evidence. */
+export function browserSnapshotMismatches(task:Awaited<ReturnType<typeof loadBrowserTask>>,s:BrowserSnapshot):BrowserSnapshotMismatch[] {
+    if(!task)return[{field:'task.exists',expected:true,current:false}];
     const config=object(task?.channel?.config), quality=object(task?.quality_report);
     const asset=task?.selected_asset, storage=object(object(asset?.provenance).planner_storage);
     const profile=canonicalBrowserProfile(s.identity);
@@ -73,27 +79,64 @@ export function assertBrowserSnapshot(task:Awaited<ReturnType<typeof loadBrowser
     // readback; this does not change the shared channel or other providers.
     const legacySetkaType=s.identity.platform==='setka'&&s.identity.accountType==='personal'&&config.account_type==='unknown';
     const decision=task?.art_direction_decisions.find(d=>d.id===s.decisionId);
-    if(!task||task.project_id!==s.projectId||task.id!==s.taskId||task.channel_id!==s.channelId
-        ||task.channel?.id!==s.channelId||task.channel.project_id!==s.projectId||!task.channel.is_active
-        ||task.channel.type!==s.identity.platform||(!legacySetkaType&&config.account_type!==s.identity.accountType)
-        ||config.account_ref!==s.identity.accountRef||typeof configuredProfile!=='string'
-        ||configuredProfile.replace(/\/$/,'')!==profile
-        ||!Array.isArray(config.execution_modes)||!config.execution_modes.includes('manual')
-        ||object(config.capability_flags).manual_handoff!==true
-        ||task.content_revision!==s.contentRevision||task.accepted_revision!==s.contentRevision||task.text_state!=='accepted'
-        ||hash(task.draft_text||'')!==s.bodySha256||task.schedule_at?.toISOString()!==s.scheduleAt
-        ||task.publish_at?.toISOString()!==s.publishAt||task.handoff_state!=='ready'||quality.publication_hold
-        ||task.visual_state!=='APPROVED'||task.visual_placement!==expectedPlacement||task.selected_asset_id!==s.selectedAssetId
-        ||!asset||asset.id!==s.selectedAssetId||asset.project_id!==s.projectId||asset.content_item_id!==s.taskId
-        ||asset.content_revision!==s.contentRevision||asset.decision_id!==s.decisionId||asset.placement!==expectedPlacement
-        ||asset.status!=='approved'||!asset.file_url?.startsWith('https://')||storage.sha256!==s.assetSha256
-        ||storage.managed!==true||storage.provider!=='r2'||!['image/jpeg','image/png'].includes(String(storage.mime_type))
-        ||!decision||decision.project_id!==s.projectId||decision.content_item_id!==s.taskId
-        ||decision.source_content_revision!==s.contentRevision||decision.decision_version!==s.decisionVersion
-        ||decision.decision_version!==task.visual_decision_version||decision.status!=='active'||!visualProductionDecision.safeParse(decision.decision).success
-        ||decision.channel!==s.identity.platform||decision.placement!==expectedPlacement
-        ||object(object(quality.handoff_bundle).publication).body!==task.draft_text)
-        throw new Error('[BROWSER_SNAPSHOT_MISMATCH]');
+    const rows:BrowserSnapshotMismatch[]=[];
+    const check=(field:string,valid:boolean,expected:BrowserSnapshotMismatch['expected'],current:BrowserSnapshotMismatch['current'])=>{
+        if(!valid)rows.push({field,expected,current});};
+    const equal=(field:string,expected:number,current:number|null|undefined)=>check(field,current===expected,expected,current??null);
+    const text=(field:string,expected:string,current:unknown)=>{
+        if(current!==expected)rows.push({field,expected:hash(expected),current:digestValue(current),representation:'sha256'});};
+    const fixed=(field:string,expected:string,current:unknown,allowed:readonly string[]=[expected])=>
+        check(field,current===expected,expected,enumValue(current,allowed));
+    equal('project_id',s.projectId,task.project_id);equal('id',s.taskId,task.id);equal('channel_id',s.channelId,task.channel_id);
+    equal('channel.id',s.channelId,task.channel?.id);equal('channel.project_id',s.projectId,task.channel?.project_id);
+    check('channel.is_active',Boolean(task.channel?.is_active),true,Boolean(task.channel?.is_active));
+    fixed('channel.type',s.identity.platform,task.channel?.type,['linkedin','devto','setka']);
+    check('channel.config.account_type',legacySetkaType||config.account_type===s.identity.accountType,
+        s.identity.accountType,enumValue(config.account_type,['personal','company_page','unknown']));
+    text('channel.config.account_ref',s.identity.accountRef,config.account_ref);
+    text('channel.config.profile_url',profile,typeof configuredProfile==='string'?configuredProfile.replace(/\/$/,''):null);
+    check('channel.config.execution_modes.manual',Array.isArray(config.execution_modes)&&config.execution_modes.includes('manual'),true,
+        Array.isArray(config.execution_modes)&&config.execution_modes.includes('manual'));
+    check('channel.config.capability_flags.manual_handoff',object(config.capability_flags).manual_handoff===true,true,
+        object(config.capability_flags).manual_handoff===true);
+    equal('content_revision',s.contentRevision,task.content_revision);equal('accepted_revision',s.contentRevision,task.accepted_revision);
+    fixed('text_state','accepted',task.text_state,['accepted','draft','rejected','stale']);
+    check('draft_text.sha256',hash(task.draft_text||'')===s.bodySha256,s.bodySha256,hash(task.draft_text||''));
+    check('schedule_at',task.schedule_at?.toISOString()===s.scheduleAt,s.scheduleAt,task.schedule_at?.toISOString()??null);
+    check('publish_at',task.publish_at?.toISOString()===s.publishAt,s.publishAt,task.publish_at?.toISOString()??null);
+    fixed('handoff_state','ready',task.handoff_state,['ready','blocked','stale']);
+    check('quality_report.publication_hold',!quality.publication_hold,false,Boolean(quality.publication_hold));
+    fixed('visual_state','APPROVED',task.visual_state,['APPROVED','STALE','NO_VISUAL_NEEDED','PENDING_ASSESSMENT']);
+    fixed('visual_placement',expectedPlacement,task.visual_placement,['feed','article_cover','story']);
+    equal('selected_asset_id',s.selectedAssetId,task.selected_asset_id);equal('selected_asset.id',s.selectedAssetId,asset?.id);
+    equal('selected_asset.project_id',s.projectId,asset?.project_id);equal('selected_asset.content_item_id',s.taskId,asset?.content_item_id);
+    equal('selected_asset.content_revision',s.contentRevision,asset?.content_revision);equal('selected_asset.decision_id',s.decisionId,asset?.decision_id);
+    fixed('selected_asset.placement',expectedPlacement,asset?.placement,['feed','article_cover','story']);
+    fixed('selected_asset.status','approved',asset?.status,['approved','rejected','stale','pending']);
+    check('selected_asset.file_url.https',Boolean(asset?.file_url?.startsWith('https://')),true,Boolean(asset?.file_url?.startsWith('https://')));
+    check('selected_asset.storage.sha256',storage.sha256===s.assetSha256,s.assetSha256,checksum.safeParse(storage.sha256).success?String(storage.sha256):null);
+    check('selected_asset.storage.managed',storage.managed===true,true,storage.managed===true);
+    fixed('selected_asset.storage.provider','r2',storage.provider);
+    check('selected_asset.storage.mime_type',['image/jpeg','image/png'].includes(String(storage.mime_type)),
+        'image/jpeg or image/png',enumValue(storage.mime_type,['image/jpeg','image/png']));
+    equal('decision.id',s.decisionId,decision?.id);equal('decision.project_id',s.projectId,decision?.project_id);
+    equal('decision.content_item_id',s.taskId,decision?.content_item_id);equal('decision.source_content_revision',s.contentRevision,decision?.source_content_revision);
+    equal('decision.decision_version',s.decisionVersion,decision?.decision_version);
+    check('visual_decision_version',decision?.decision_version===task.visual_decision_version,decision?.decision_version??null,task.visual_decision_version);
+    fixed('decision.status','active',decision?.status,['active','superseded','stale']);
+    check('decision.decision',visualProductionDecision.safeParse(decision?.decision).success,'GENERATE',
+        enumValue(decision?.decision,['GENERATE','ADAPT','REUSE','BLOCKED','NO_VISUAL_NEEDED']));
+    fixed('decision.channel',s.identity.platform,decision?.channel,['linkedin','devto','setka']);
+    fixed('decision.placement',expectedPlacement,decision?.placement,['feed','article_cover','story']);
+    const handoffBody=object(object(quality.handoff_bundle).publication).body;
+    if(handoffBody!==task.draft_text)rows.push({field:'quality_report.handoff_bundle.publication.body',expected:digestValue(task.draft_text),
+        current:digestValue(handoffBody),representation:'sha256',current_present:typeof handoffBody==='string'});
+    return rows;
+}
+/** Shared revision/tenant/identity/asset fence; no concrete business identifiers. */
+export function assertBrowserSnapshot(task:Awaited<ReturnType<typeof loadBrowserTask>>,s:BrowserSnapshot):asserts task is BrowserTask {
+    const mismatches=browserSnapshotMismatches(task,s);
+    if(mismatches.length)throw new Error(`[BROWSER_SNAPSHOT_MISMATCH] ${JSON.stringify(mismatches)}`);
 }
 export async function checkedBrowserContext(tx:BrowserDb,args:BrowserRequest,deps:BrowserDependencies) {
     await requireBrowserOwner(tx,args);
