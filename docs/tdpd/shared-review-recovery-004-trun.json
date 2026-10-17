@@ -4,6 +4,10 @@
   "testedSourceTree": "59468756f2bdfdd83212b2d1f6f4c2c697ff67f8",
   "runtime": "tower-linux Docker only; non-root bounded Node24 build-check; isolated synthetic PostgreSQL",
   "runs": [
+    {"scenario":"unsupported placement correction after late external P2","command":"review unit suite against predecessor image","result":"EXPECTED_FAIL","passed":12,"failed":1,"cause":"Missing expected rejection for unsupported Telegram video_cover"},
+    {"scenario":"canonical placement, generic asset fallback rejection and preservation","command":"review unit suite in rebuilt build-check","result":"PASS","passed":13,"failed":0,"skipped":0},
+    {"scenario":"corrected PostgreSQL unsupported placement rejection plus races/rollback","command":"ops/publication-tests/compose.yaml run --rm tests","result":"PASS","passed":5,"failed":0,"skipped":0},
+    {"scenario":"placement correction quality/build","command":"Docker build-check backend/frontend build and quality npm run quality:gate","timestamp":"2026-10-17T08:13:49.629Z","result":"PASS","score":77,"newDebt":0},
     {"scenario":"configured Telegram review recovery","command":"node --test --test-concurrency=1 tests/tdpd/review-handoff-repair.unit.test.js","result":"EXPECTED_FAIL","passed":11,"failed":1,"cause":"MANUAL_ONLY_CHANNEL_REQUIRED before implementation"},
     {"scenario":"review recovery and preservation regressions","command":"same review test command in rebuilt build-check","result":"PASS","passed":12,"failed":0,"skipped":0},
     {"scenario":"browser lifecycle compatibility","command":"node --test --test-concurrency=1 shared-browser release/execution/confirmation/fences/mcp in build-check","result":"PASS","passed":27,"failed":0,"skipped":0},
@@ -19,6 +23,7 @@
     "limits":"Separate-actor source review; same-model correlation; parent executed tests. Later additions are evidence documents only."
   },
   "limits":[
+    "Late PR168 review found that the original Telegram test incorrectly expected configured metadata for noncanonical video_cover. Corrected the positive fixture to canonical feed and added explicit noncanonical/configuration-only fallback negatives; no claim that video_cover can be repaired yet. Separate source review of service blob c73e181918db451e5110174c9f442c8c2f55a141 found no new actionable P1/P2. Configured metadata is not a general live-readiness check.",
     "No production recovery, acceptance, asset rebind, release, provider attempt or publication was performed.",
     "MIME-aware MP4 transport remains a separate pending 004 milestone.",
     "Production CLI/tool exposure, apply and owner UAT remain separate gates.",

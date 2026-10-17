@@ -147,7 +147,7 @@ test('owner can obtain safe server-computed snapshot through the operator bounda
 test('configured Telegram review recovery preserves all publication gates and immutable history', async () => {
     const f=fixture();
     f.state.task.channel.type='telegram';f.state.task.channel.name='synthetic_tg';
-    f.state.task.channel.config={execution_modes:['automated']};f.state.task.visual_placement='video_cover';
+    f.state.task.channel.config={execution_modes:['automated']};
     const before=structuredClone(f.state);
     const snapshot=await getReviewRepairSnapshot({projectId:7,taskId:1136,workItemId:1948,actorId:'user:2'},f.db);
     assert.deepEqual(f.state,before);
@@ -166,4 +166,19 @@ test('configured Telegram review recovery preserves all publication gates and im
     assert.equal(f.state.replacements[0].result_version,0);assert.equal(f.state.replacements[0].input_context_version,2);
     assert.equal(f.state.task.quality_report.handoff_bundle.transport.connector_authority,'configured');
     assert.equal(f.state.attempts,0);assert.equal(f.state.task.publication_fact,null);
+});
+test('unsupported placement never becomes configured execution metadata during review recovery',async()=>{
+    const f=fixture();f.state.task.channel.type='telegram';f.state.task.channel.name='synthetic_tg';
+    f.state.task.channel.config={execution_modes:['automated']};f.state.task.visual_placement='video_cover';
+    const before=structuredClone(f.state);
+    await assert.rejects(getReviewRepairSnapshot({projectId:7,taskId:1136,workItemId:1948,actorId:'user:2'},f.db),/REVIEW_PLACEMENT_UNSUPPORTED/);
+    assert.deepEqual(f.state,before);
+    const exact={...args,expectedTaskMetadataSha256:reviewRepairMetadataHash(f.state.task),
+        expectedChannelConfigSha256:sha(JSON.stringify(f.state.task.channel.config))};
+    for(const apply of [false,true])await assert.rejects(repairReviewHandoff({...exact,apply},f.db),/REVIEW_PLACEMENT_UNSUPPORTED/);
+    assert.deepEqual(f.state,before);
+    f.state.task.channel.config.canonical_placements=['video_cover'];
+    const configured=structuredClone(f.state);
+    await assert.rejects(getReviewRepairSnapshot({projectId:7,taskId:1136,workItemId:1948,actorId:'user:2'},f.db),/REVIEW_PLACEMENT_UNSUPPORTED/);
+    assert.deepEqual(f.state,configured);
 });
