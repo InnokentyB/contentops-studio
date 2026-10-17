@@ -40,7 +40,9 @@ Extend the EXISTING `ba_publish_publication_task` with optional generic fields
 `expectedPackageSha256`, `expectedManifestChecksum`, `approvalReference`, and
 `attemptId`. Existing projectId/taskId/dryRun/idempotencyKey stay. Other providers'
 existing contracts remain compatible. Reject inconsistent field combinations.
-Actor is trusted server context. No caller transport, browser, endpoint, cookie,
+Actor is trusted server context; operation-level capabilities restrict release to
+owner credentials and owner membership even if a publisher profile can call the
+base tool. No caller transport, browser, endpoint, cookie,
 receipt-authority, permission or allowed flag.
 
 - Governed dryRun defaults true: stored package/registration/lifecycle diagnostics
@@ -59,6 +61,19 @@ receipt-authority, permission or allowed flag.
   permitted registered adapter. No claim/release/Submit capability. Missing
   permission/evidence freezes that same attempt, never changes delivery key.
 
+The effect switch is the EXISTING `dryRun` field: omitted or true always previews;
+false explicitly applies the selected operation. There is no `apply` field.
+For release apply require exact package/revision/manifest, approvalReference and
+idempotencyKey, reject attemptId. Publish apply requires exact bindings/key and a
+matching stored release; reject attemptId and inline approval creation. Reconcile
+requires original attemptId/key for preview or apply, forbids approvalReference,
+and uses immutable stored claim rather than requiring mutable current package
+bindings; reject supplied conflicting expected fields. Non-Dzen callers may not
+select new governed operations unless supported by their own provider contract.
+The package fingerprint covers immutable material/account/revision/manifest and
+approval binding, excluding generated attempt/lease IDs; release/claim identities
+are bound separately, avoiding a self-referential digest.
+
 Bounded outputs expose state/blocker/attempt identities, not content, cookies,
 raw provider payloads or lease tokens. Existing exact commands remain compatible
 wrappers with the same fences until retirement. This is one operator contract,
@@ -72,6 +87,29 @@ its existing unique package and project/idempotency constraints are candidate
 fences, not race proof alone. Resolve its WI/channel/asset/revision FKs from checked
 records. Existing VK-specific repository/consumer constants are not reused as
 permission or widened by Dzen work.
+
+### Shared-table provider isolation before any new job is inserted
+
+`vk_connector_repository.ts` currently queries active project jobs then applies
+its strict legacy VK decoder. Inserting Dzen jobs without isolating that read
+would poison VK polling. The prerequisite is a provider/protocol discriminator
+in NEW generic job binding (for example protocol `owned_provider_v1`, provider
+`dzen`, nested immutable package), checked in SELECT/claim/update predicates
+BEFORE provider decoding. Preserve existing unversioned VK rows and strict VK
+schema: legacy matching uses the linked channel/provider plus absence of the new
+protocol marker, followed by the unchanged decoder. Never treat missing protocol
+as generic Dzen or broaden the VK binding to parse Dzen.
+
+Audit every existing queue consumer/repository and lookup: candidates, job,
+jobByKey, jobByPackage, claim/CAS/update and status projections. Filter provider/
+protocol before decoding; never claim, interpret or modify another provider's
+job. Cross-provider project/idempotency collisions return explicit conflict,
+never a foreign decoded result or silently create another job. Mixed-queue tests
+must show Dzen cannot poison/starve VK polling and vice versa, while existing
+unversioned VK behavior/history is unchanged. No Dzen job admission before those
+selectors and their regressions pass. No schema change/backfill is implied.
+Generic status/manual-action projections must respect owned lifecycle markers;
+unsupported VK-only status readers cannot imply manual confirmation is allowed.
 
 A shared service acquires the SAME tenant-scoped ContentItem row lock/CAS on
 release/claim/start/submit/completion; inspect ALL prior legacy attempts/WIs/jobs/
@@ -95,6 +133,8 @@ browser/session; caller cannot choose process/endpoint. Reuse existing Planner
 server and encrypted account storage. Private bounded process IPC provides only
 necessary secret handles; child environment excludes unrelated/DB credentials.
 No raw cookies, payload secrets or IPC secret material are persisted/logged.
+Test composition roots and fixture permission/transport ports cannot be imported
+or selected by the production graph or request flags.
 No new live bot/scheduler/duplicate consumer is activated by this implementation.
 
 Dzen selectors/endpoints/network phase allowlists are provider protocol; account,
@@ -164,6 +204,7 @@ within the approved package do not need another technical approval.
 | Risk | Mitigation and verification obligation |
 | --- | --- |
 | Forged/missing principal or first-owner fallback | Trusted context across actual remote/server entry, owner/tenant validation; no context rejects before protected data/provider access. |
+| Shared queue poisons another provider | Provider/protocol predicates before decode on every read/claim/CAS/status path; preserve unversioned VK; mixed-queue and cross-key conflict regressions. |
 | Alternate dispatch or manual fact bypass | Both entry paths and every producer/fact writer use ownership fence before writes; unavailable/denied adapter is terminal. Existing Dzen/VK denial remains. |
 | Crash, new key/revision or old/new race duplicates send | Row lock/CAS + unique constraints + all-history inspection; real DB races; UNKNOWN never resends. |
 | Post-submit drift loses receipt | Separate receipt commit bound to immutable claim, independent of current eligibility; fault injection through completion/role/manifest failures. |
@@ -182,7 +223,7 @@ After combined LOCK/QAR/ARCH/RISK approval, author final operator scenarios and
 RED tests, then implement these milestones without separate routine approvals:
 
 1. Trusted principal, dynamic provider routing and immutable package/release.
-2. Shared ownership, legacy adoption/receipt readers and serializable race proof.
+2. Shared queue isolation, ownership, legacy adoption/receipt readers and serializable race proof.
 3. Registered independent adapter + actual sandboxed local inventory.
 4. Local fixture edit/upload/one Submit + receipt-before-fact fault injection.
 5. Same-attempt recovery, manual/import/batch bypass and rollback validation.
