@@ -1,0 +1,66 @@
+{
+  "status": "PROPOSED_CASE_DATA_NOT_EXECUTED_OR_RUNTIME_AUTHORITY",
+  "scope": "Deterministic fake-clock and fake-I/O tests required after LOCK before implementation GREEN; no public permission seam",
+  "deadlineMs": 2000,
+  "perReadMaxMs": 1000,
+  "maxReads": 32,
+  "cases": [
+    {
+      "name": "remaining timeout decreases and the next read is refused at exhaustion",
+      "startMs": 1000,
+      "readDurationsMs": [600, 600, 800],
+      "expectedTimeoutsMs": [1000, 1000, 800],
+      "attemptOneMoreRead": true,
+      "expectedReadCount": 3,
+      "expectedError": "TRANSITION_DEADLINE_EXCEEDED"
+    },
+    {
+      "name": "batching succeeds without requiring multiple subprocess reads",
+      "startMs": 1000,
+      "readDurationsMs": [750],
+      "expectedTimeoutsMs": [1000],
+      "attemptOneMoreRead": false,
+      "expectedReadCount": 1,
+      "expectedError": null
+    },
+    {
+      "name": "a child read timeout terminates the sequence and preserves sanitized reporting",
+      "startMs": 1000,
+      "readDurationsMs": [1000],
+      "expectedTimeoutsMs": [1000],
+      "childErrors": ["ETIMEDOUT"],
+      "privateStderr": "SYNTHETIC_PRIVATE_GIT_STDERR",
+      "attemptOneMoreRead": true,
+      "expectedReadCount": 1,
+      "expectedError": "TRANSITION_READ_TIMEOUT",
+      "expectedPrivateStderrInReport": false
+    },
+    {
+      "name": "many short reads cannot renew a global deadline",
+      "startMs": 1000,
+      "readDurationsMs": [400, 400, 400, 400, 400],
+      "expectedTimeoutsMs": [1000, 1000, 1000, 800, 400],
+      "attemptOneMoreRead": true,
+      "expectedReadCount": 5,
+      "expectedError": "TRANSITION_DEADLINE_EXCEEDED"
+    },
+    {
+      "name": "metadata and blob operations consume the same budget",
+      "startMs": 1000,
+      "readKinds": ["metadata", "artifact", "metadata", "source"],
+      "readDurationsMs": [500, 500, 500, 500],
+      "expectedTimeoutsMs": [1000, 1000, 1000, 500],
+      "attemptOneMoreRead": true,
+      "expectedReadCount": 4,
+      "expectedError": "TRANSITION_DEADLINE_EXCEEDED"
+    },
+    {
+      "name": "call count cap still applies when clock consumption is zero",
+      "startMs": 1000,
+      "repeatRead": {"durationMs": 0, "count": 32, "expectedTimeoutMs": 1000},
+      "attemptOneMoreRead": true,
+      "expectedReadCount": 32,
+      "expectedError": "TRANSITION_READ_LIMIT_EXCEEDED"
+    }
+  ]
+}
