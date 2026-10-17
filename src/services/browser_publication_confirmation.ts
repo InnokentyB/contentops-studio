@@ -61,6 +61,8 @@ async function completeBrowser(input:unknown,reconcile:boolean,deps:BrowserDepen
             if(task.status!=='publishing')throw new Error('[BROWSER_NOT_STARTED]');
             const attempt=await checkedBrowserAttempt(tx,args);assertBrowserObserved(task.draft_text!,args);
             assertBrowserPublicationTime(attempt,args.publishedAt);
+            if(reconcile&&!attempt.error_message&&(!work.lease_expires_at||work.lease_expires_at>new Date()))
+                throw new Error('[BROWSER_RECONCILIATION_NOT_REQUIRED]');
             if(!reconcile){
                 const leased=browserConfirmSchema.parse(input);assertBrowserLease(work,leased);
                 if(attempt.error_message)throw new Error('[BROWSER_RECONCILIATION_REQUIRED]');
@@ -69,6 +71,9 @@ async function completeBrowser(input:unknown,reconcile:boolean,deps:BrowserDepen
                 const proof=object(pre?.after_state);
                 if(proof.attempt_id!==args.attemptId||proof.lease_sha256!==hash(leased.leaseToken)
                     ||proof.observation_sha256!==browserObservationHash(args))throw new Error('[BROWSER_PRE_SUBMIT_REQUIRED]');
+                const deadline=typeof proof.permit_expires_at==='string'?Date.parse(proof.permit_expires_at):NaN;
+                if(!Number.isFinite(deadline)||Date.parse(args.publishedAt)>deadline)
+                    throw new Error('[BROWSER_SUBMISSION_OUTSIDE_PERMIT]');
             }
             const changed=await tx.deliveryAttempt.updateMany({where:{id:args.attemptId,project_id:args.projectId,
                 content_item_id:args.taskId,channel_id:args.snapshot.channelId,status:'pending',idempotency_key:args.idempotencyKey},

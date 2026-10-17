@@ -55,3 +55,40 @@ test('S5 UNKNOWN + expired lease reconcile only existing provider object, never 
     const result=await svc.reconcileBrowserSubmission(readback,f,writer(f));
     assert.equal(result.retry_allowed,false);assert.equal(f.state.attempts.length,1);assert.ok(f.state.fact);
 });
+test('S5 reconciliation cannot bypass pre-submit during a healthy active lease',async()=>{
+    const {f,args}=await submitted();
+    f.state.events=f.state.events.filter(event=>event.command!=='ba_pre_submit_browser_submission');
+    const before=structuredClone(f.state),{leaseToken,...readback}=args;
+    await assert.rejects(svc.reconcileBrowserSubmission(readback,f,writer(f)),/BROWSER_RECONCILIATION_NOT_REQUIRED/);
+    assert.deepEqual(f.state,before);
+});
+test('S5 normal confirmation rejects native action beyond recorded permit deadline atomically',async()=>{
+    const {f,args}=await submitted();
+    f.state.events.find(event=>event.command==='ba_pre_submit_browser_submission').after_state.permit_expires_at=new Date(Date.now()-1000).toISOString();
+    const before=structuredClone(f.state);
+    await assert.rejects(svc.confirmBrowserSubmission(args,f,writer(f)),/BROWSER_SUBMISSION_OUTSIDE_PERMIT/);
+    assert.deepEqual(f.state,before);
+});
+test('S5 missing or invalid permit deadline never confirms',async()=>{
+    for(const deadline of [undefined,'invalid']){
+        const {f,args}=await submitted();
+        f.state.events.find(event=>event.command==='ba_pre_submit_browser_submission').after_state.permit_expires_at=deadline;
+        await assert.rejects(svc.confirmBrowserSubmission(args,f,writer(f)),/BROWSER_SUBMISSION_OUTSIDE_PERMIT/);
+        assert.equal(f.state.fact,null);
+    }
+});
+test('S5 explicit UNKNOWN can reconcile existing object while lease remains active',async()=>{
+    const {f,args,send}=await submitted();
+    await exec.markBrowserSubmissionUncertain({...send,attemptId:args.attemptId,reasonCode:'PROVIDER_RESULT_UNCERTAIN'},f);
+    const {leaseToken,...readback}=args;
+    assert.equal((await svc.reconcileBrowserSubmission(readback,f,writer(f))).retry_allowed,false);
+    assert.equal(f.state.attempts.length,1);
+});
+test('S5 expired lease alone permits reconciliation, missing lease expiry does not',async()=>{
+    for(const expiry of [null,new Date(0)]){
+        const {f,args}=await submitted();f.state.work[0].lease_expires_at=expiry;
+        const {leaseToken,...readback}=args;
+        if(expiry)assert.equal((await svc.reconcileBrowserSubmission(readback,f,writer(f))).retry_allowed,false);
+        else await assert.rejects(svc.reconcileBrowserSubmission(readback,f,writer(f)),/BROWSER_RECONCILIATION_NOT_REQUIRED/);
+    }
+});

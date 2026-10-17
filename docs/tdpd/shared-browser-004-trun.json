@@ -24,6 +24,7 @@
     {"id":"GREEN-quality","command":"npm run quality:gate inside quality container","utc":"2026-10-17T07:46:06.837Z","result":"PASS","score":77,"baselineFindings":7096,"newDebt":0}
   ],
   "errorsPreserved": [
+    "GitHub review at f0db994 found active-lease reconciliation bypass and an unenforced permit deadline. Three new negative tests reproduced Missing expected rejection in tower Docker before the fix. An accidentally early rerun used the still-building old image and was not counted as GREEN; the rebuilt image then passed all 27 shared tests and all four real PostgreSQL scenarios.",
     "Confirmation schema initially used Zod omit on a refined object; runtime error repaired without loosening scope validation.",
     "TypeScript required an explicit JSON-record return type for audited replay; build failure repaired, no any added.",
     "Legacy regression setup initially lacked bounded logger tmpfs and synthetic token, and a narrow fake lacked the new quality-report read; setup repaired and 31 relevant checks rerun.",
@@ -38,6 +39,8 @@
     "limits": "separate-actor source review; same model/context correlation; execution evidence supplied by parent"
   },
   "limits": [
+    "2026-10-17 followup: confirmation requires explicit uncertainty or expired lease for reconciliation, and rejects a native action after the stored finite permit deadline. Fresh backend/frontend build, 27 shared tests, four PostgreSQL scenarios and quality gate PASS; independent source review found no new runtime P1/P2. Final CI/deploy remain separate checks.",
+    "Audit PR166 has bounded static-scanner P2 gaps: business object id literals, type-only import classification, supported directory-index extensions. Separate review classifies these as developer-control followups, not runtime authority bypasses in this reviewed browser slice. Scanner completeness is not claimed; no baseline widening or check disabling was done.",
     "Docs added after reviewed tree only record evidence/operator workflow; runtime hashes belong to the reviewed/tested tree.",
     "No production deploy, metadata mutation, release, provider attempt or publication fact has been performed by this evidence record.",
     "Telegram video/review milestone is not implemented here.",

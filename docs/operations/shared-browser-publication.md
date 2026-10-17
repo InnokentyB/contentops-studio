@@ -93,6 +93,11 @@ server-side snapshot validation also rejects a hidden different project/task.
    If absence is asserted, preserve it as operator evidence and use a separately
    governed recovery; this package does not silently authorize a second attempt.
 
+Reconciliation rejects an otherwise healthy active lease: explicit UNKNOWN or
+an expired lease is required. Normal confirmation checks the provider action
+timestamp against the recorded finite permit deadline; an on-time action may
+be read back later, but a late action cannot use ordinary confirmation.
+
 DEV.to uses the same controls with its accepted article/cover/profile snapshot;
 its permalink must belong to that profile and native article ID must be numeric.
 No API alternative or future publication authority is inferred.
