@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "slice": "SHARED-PUBLICATION-DATA-BOUNDARY-004/browser-milestone",
+  "observedDate": "2026-10-17",
+  "reviewedInputTree": "625da57be1b33676965a45ff9280cae89e995387",
+  "runtime": "tower Docker only; Node24.22.0 linux/amd64; no provider/browser calls",
+  "approval": {
+    "sourceThread": "01a041f1-23c2-7092-a53a-4d4141a55a62",
+    "humanMessage": "01a148bc-16c4-7931-817a-2814a1282d3a",
+    "verdict": "Да, разрешаю",
+    "scope": "004 implementation/test/deploy; sends through existing owning Publisher"
+  },
+  "runs": [
+    {"id":"RED-release","scenario":"S1/S2","command":"node --test shared-browser-release.test.cjs in build-check","result":"EXPECTED_FAIL","tests":6,"reason":"approved shared exports absent"},
+    {"id":"RED-execution","scenario":"S3/S4","command":"node --test shared-browser-execution.test.cjs in build-check","result":"EXPECTED_FAIL","tests":4,"reason":"shared execution exports absent"},
+    {"id":"RED-confirmation","scenario":"S5","command":"node --test shared-browser-confirmation.test.cjs in build-check","result":"EXPECTED_FAIL","tests":5,"reason":"shared confirmation exports absent"},
+    {"id":"RED-fences","scenario":"S6","command":"node --test shared-browser-fences.test.cjs in build-check","result":"EXPECTED_FAIL","tests":2,"reason":"generic dispatch/fact did not recognize shared lifecycle"},
+    {"id":"RED-mcp","scenario":"S6","command":"node --test shared-browser-mcp.test.cjs in build-check","result":"EXPECTED_FAIL","reason":"publisher capability absent"},
+    {"id":"RED-review-regressions","scenario":"S2/S3/S5","result":"EXPECTED_FAIL","reason":"old claim retrieved replacement lease; contradictory numeric company accepted; pre-attempt timestamp not rejected"},
+    {"id":"GREEN-shared","scenario":"S1-S6","command":"node --test shared-browser-{release,execution,confirmation,fences,mcp}.test.cjs in build-check","result":"PASS","tests":22,"failed":0,"skipped":0},
+    {"id":"GREEN-postgres","scenario":"S1-S5 races/rollback","command":"ops/publication-tests/compose.yaml run --rm tests","result":"PASS","tests":4,"failed":0,"skipped":0,"database":"shared_browser_synthetic; internal-only Docker network; private tmpfs; stack removed"},
+    {"id":"GREEN-legacy","scenario":"compatibility/auth/fact/route","command":"legacy1135 plus compiled exact_owned_route_guard,remote_mcp_auth,publication_fact.service,publication_manual_fact_guard tests in build-check","result":"PASS","tests":31,"failed":0,"skipped":0},
+    {"id":"GREEN-build","command":"ops/quality/compose.yaml --profile build build build-check","result":"PASS","backend":true,"frontend":true},
+    {"id":"GREEN-quality","command":"npm run quality:gate inside quality container","utc":"2026-10-17T07:46:06.837Z","result":"PASS","score":77,"baselineFindings":7096,"newDebt":0}
+  ],
+  "errorsPreserved": [
+    "GitHub review at f0db994 found active-lease reconciliation bypass and an unenforced permit deadline. Three new negative tests reproduced Missing expected rejection in tower Docker before the fix. An accidentally early rerun used the still-building old image and was not counted as GREEN; the rebuilt image then passed all 27 shared tests and all four real PostgreSQL scenarios.",
+    "Confirmation schema initially used Zod omit on a refined object; runtime error repaired without loosening scope validation.",
+    "TypeScript required an explicit JSON-record return type for audited replay; build failure repaired, no any added.",
+    "Legacy regression setup initially lacked bounded logger tmpfs and synthetic token, and a narrow fake lacked the new quality-report read; setup repaired and 31 relevant checks rerun.",
+    "Adding generic tool names inside the old ID-specific catalog changed statement fingerprints. New generic set is separate; old arrays and baseline preserved. GENERATE is validated as a protocol enum, not a fixed business identity."
+  ],
+  "independentReview": {
+    "actor": "/root/dzen_boundary_slice_review",
+    "tree": "625da57be1b33676965a45ff9280cae89e995387",
+    "previousFindingsClosed": ["publication timestamp bounds", "claim lease generation replay", "numeric company URL vs provider ID"],
+    "newActionableCodeP1P2": 0,
+    "rollbackCondition": "retain compatibility fence commit210ae93; no wholesale pre004 rollback",
+    "limits": "separate-actor source review; same model/context correlation; execution evidence supplied by parent"
+  },
+  "limits": [
+    "2026-10-17 followup: confirmation requires explicit uncertainty or expired lease for reconciliation, and rejects a native action after the stored finite permit deadline. Fresh backend/frontend build, 27 shared tests, four PostgreSQL scenarios and quality gate PASS; independent source review found no new runtime P1/P2. Final CI/deploy remain separate checks.",
+    "Audit PR166 has bounded static-scanner P2 gaps: business object id literals, type-only import classification, supported directory-index extensions. Separate review classifies these as developer-control followups, not runtime authority bypasses in this reviewed browser slice. Scanner completeness is not claimed; no baseline widening or check disabling was done.",
+    "Docs added after reviewed tree only record evidence/operator workflow; runtime hashes belong to the reviewed/tested tree.",
+    "No production deploy, metadata mutation, release, provider attempt or publication fact has been performed by this evidence record.",
+    "Telegram video/review milestone is not implemented here.",
+    "DEV.to shares the covered control contract; live provider smoke and owning-Publisher UAT remain separate.",
+    "Owner UAT is not claimed; wider CI results will be checked at the actual PR commit."
+  ]
+}

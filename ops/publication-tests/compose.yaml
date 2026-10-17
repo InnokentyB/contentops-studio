@@ -1,0 +1,63 @@
+name: planner-shared-publication-synthetic
+services:
+  synthetic-db:
+    image: postgres:16-alpine
+    platform: linux/amd64
+    user: postgres
+    restart: "no"
+    read_only: true
+    environment:
+      POSTGRES_DB: shared_browser_synthetic
+      POSTGRES_USER: synthetic
+      POSTGRES_PASSWORD: synthetic-tests-only
+      PGDATA: /var/lib/postgresql/data/pgdata
+    tmpfs:
+      - /var/lib/postgresql/data:rw,nosuid,nodev,size=256m,mode=1777
+      - /var/run/postgresql:rw,nosuid,nodev,size=16m,mode=1777
+      - /tmp:rw,nosuid,nodev,size=64m,mode=1777
+    mem_limit: 768m
+    cpus: 1.0
+    pids_limit: 128
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    networks: [synthetic]
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U synthetic -d shared_browser_synthetic]
+      interval: 2s
+      timeout: 2s
+      retries: 20
+    logging:
+      driver: json-file
+      options: {max-size: "5m", max-file: "2"}
+  tests:
+    image: planner-policy-build-check:node24
+    platform: linux/amd64
+    user: "1000:1000"
+    init: true
+    restart: "no"
+    read_only: true
+    working_dir: /opt/planner
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=512m,mode=1777
+    environment:
+      DATABASE_URL: postgresql://synthetic:synthetic-tests-only@synthetic-db:5432/shared_browser_synthetic
+      DATABASE_POOL_MAX: "4"
+      HOME: /tmp
+      NODE_PATH: /opt/planner/node_modules
+      TZ: Europe/Lisbon
+    volumes:
+      - ../..:/workspace:ro
+    depends_on:
+      synthetic-db: {condition: service_healthy}
+    networks: [synthetic]
+    mem_limit: 2g
+    cpus: 2.0
+    pids_limit: 256
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    command: [node, --test, --test-concurrency=1, /workspace/tests/tdpd/shared-browser-postgres.test.cjs]
+    logging:
+      driver: json-file
+      options: {max-size: "5m", max-file: "2"}
+networks:
+  synthetic: {internal: true}

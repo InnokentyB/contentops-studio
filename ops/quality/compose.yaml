@@ -32,6 +32,9 @@ services:
     extends: quality
     image: planner-policy-build-check:node24
     profiles: [build]
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=512m,mode=1777
+      - /opt/planner/logs:rw,nosuid,nodev,size=16m,mode=1777
     build:
       context: ../..
       dockerfile: ops/quality/Dockerfile

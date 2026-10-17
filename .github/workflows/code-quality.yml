@@ -14,6 +14,25 @@ permissions:
   issues: write
 
 jobs:
+  shared-browser-contract:
+    name: Shared browser publication contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build reviewed non-root compiler/test image (no application startup)
+        run: docker compose -f ops/quality/compose.yaml --profile build build build-check
+      - name: Dynamic package, permission, lease, one-attempt, fact and bypass contracts
+        run: |
+          docker compose -f ops/quality/compose.yaml --profile build run --rm build-check node --test --test-concurrency=1 /workspace/tests/tdpd/shared-browser-release.test.cjs /workspace/tests/tdpd/shared-browser-execution.test.cjs /workspace/tests/tdpd/shared-browser-confirmation.test.cjs /workspace/tests/tdpd/shared-browser-fences.test.cjs /workspace/tests/tdpd/shared-browser-mcp.test.cjs
+      - name: Real isolated PostgreSQL race and rollback scenarios
+        run: |
+          docker compose -f ops/publication-tests/compose.yaml up -d synthetic-db
+          docker compose -f ops/publication-tests/compose.yaml run --rm tests node node_modules/prisma/build/index.js db push
+          docker compose -f ops/publication-tests/compose.yaml run --rm tests
+      - name: Remove only the synthetic in-memory database stack
+        if: always()
+        run: docker compose -f ops/publication-tests/compose.yaml down
   dzen1002-runtime-contract:
     name: Dzen1002 durable attempt and receipt contracts
     runs-on: ubuntu-latest

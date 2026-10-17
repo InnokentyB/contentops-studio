@@ -1,4 +1,5 @@
 import type { Prisma } from '@prisma/client';
+import { hasGovernedBrowserLifecycle } from './browser_publication_fence';
 
 /** The pilot's active canonical job owns its result; a generic form cannot race it. */
 export async function guardManualPublicationFact(tx: Prisma.TransactionClient,
@@ -7,6 +8,11 @@ export async function guardManualPublicationFact(tx: Prisma.TransactionClient,
     if (!args.internalConfirmation && args.projectId === 7 && args.taskId === 1086) throw new Error('LINKEDIN1086_EXACT_CONFIRMATION_REQUIRED');
     if (!args.internalConfirmation && args.projectId === 7 && args.taskId === 1128) throw new Error('LINKEDIN1128_EXACT_CONFIRMATION_REQUIRED');
     if (!args.internalConfirmation && args.projectId === 10 && args.taskId === 1135) throw new Error('LINKEDIN1135_EXACT_CONFIRMATION_REQUIRED');
+    if (!args.internalConfirmation) {
+        const task = await tx.contentItem.findFirst({ where: { id: args.taskId, project_id: args.projectId },
+            select: { quality_report: true } });
+        if (hasGovernedBrowserLifecycle(task)) throw new Error('GOVERNED_BROWSER_CONFIRMATION_REQUIRED');
+    }
     if (args.internalConfirmation || args.projectId !== 10 || args.taskId !== 1048) return;
     await tx.$queryRaw`SELECT id FROM content_items WHERE id = ${args.taskId} AND project_id = ${args.projectId} FOR UPDATE`;
     const active = await tx.connectorDispatchJob.findFirst({ where: {
