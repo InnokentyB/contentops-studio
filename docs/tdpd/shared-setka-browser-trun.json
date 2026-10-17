@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "slice": "shared-browser/setka-personal-image",
+  "observedDate": "2026-10-17",
+  "baseCommit": "0f457ea97ebbdc20391beeaeea3523831208a5e3",
+  "runtime": "tower Docker only; Node24.22.0 linux/amd64; non-root bounded containers; no provider calls",
+  "operatorBoundary": "Generic personal Setka image lifecycle; deploy only. Owning Publisher retains exact-package authority and provider execution. No production metadata/release/claim/attempt/fact mutation by engineering.",
+  "runs": [
+    {"id":"RED-setka","scenario":"Setka admission and full lifecycle","result":"EXPECTED_FAIL","tests":5,"failed":4,"passed":1,"reason":"setka missing from shared identity enum; rejection case already passed"},
+    {"id":"GREEN-build","scenario":"backend and frontend compilation","result":"PASS","runtime":"reviewed ops/quality/compose.yaml build-check image"},
+    {"id":"GREEN-focused","scenario":"release/execution/confirmation/fences/MCP/Setka","result":"PASS","tests":32,"failed":0,"skipped":0},
+    {"id":"GREEN-postgres","scenario":"canonical fact rollback/concurrent confirmation/UNKNOWN/expired lease plus existing shared scenarios","result":"PASS","tests":7,"failed":0,"skipped":0,"database":"isolated synthetic PostgreSQL; tmpfs; planner-setka-synthetic stack removed without volume deletion"},
+    {"id":"QUALITY-infrastructure-error","scenario":"quality gate","result":"ERROR","reason":"secret-free transferred snapshot lacked Git metadata; not counted as behavior RED or GREEN"},
+    {"id":"GREEN-quality","scenario":"quality gate and runtime policy","result":"PASS","utc":"2026-10-17T13:11:56.565Z","score":77,"baselineFindings":7096,"newDebt":0,"scannedFiles":1019,"operationalFiles":569,"reason":"Git metadata repaired only in isolated synthetic source snapshot a52a4b8"},
+    {"id":"FINAL-rebuild-focused-quality","scenario":"final tool description and documentation followup","result":"PASS","focusedTests":32,"failed":0,"skipped":0,"backend":true,"frontend":true,"qualityUtc":"2026-10-17T13:17:43.655Z","newDebt":0,"note":"Container source copied from reviewed branch; snapshot Git revision remains a52a4b8, not a claim of PR SHA checkout. Exact PR CI checked separately."},
+    {"id":"READONLY-body-resource","scenario":"first consumer exact text and durable resource bytes","result":"PASS","bodySha256":"a11b9860bf5fe3a54363a6d3f9f88180da67f42b0bf7c4e1293f935d4d2a37ef","resourceSha256":"996769efe3670d89ce4eed4c0632fccd3edc3c6d1a3e496159727810641abed0","httpStatus":200,"mimeType":"image/jpeg","bytes":219988,"note":"Bounded tower containers; no media file saved, no provider/browser interaction or production writes. Initial orchestration URL validation used an unavailable isolate URL global; corrected before any fetch and rerun successfully."}
+  ],
+  "independentReview": {
+    "actor": "/root/dzen_boundary_slice_review",
+    "base": "0f457ea97ebbdc20391beeaeea3523831208a5e3",
+    "blobs": {"contract":"07672af5a96415f06871e90b35ad23cb6d1227bf","confirmation":"b8e9212d48e0a914237dbe78c914fa36cec5ff36","setkaUnit":"b5a359415b1af51911e9a0f1c44ce0693d8ddb08","postgres":"cdbf493b157d02df761b8ae63c23b8b638e9367d"},
+    "actionableP1P2": 0,
+    "followup": "Updated existing inspect tool description/operator docs to mention Setka, scoped unknown compatibility and observation assurance limits.",
+    "limits": "Independent source actor with same-model/context correlation; test evidence supplied by parent, not independent runtime or provider UAT."
+  },
+  "limits": [
+    "No production sends or mutations; task1136/attempt44 and paused X work untouched.",
+    "No new task-specific production module/tool/route/dispatch/schema allowlist.",
+    "Registry binding does not establish live provider ownership; provider UAT/owner acceptance not claimed.",
+    "Existing static-scanner followups remain; no debt baseline widening or check disabling.",
+    "Final PR CI, automated review, exact deploy and refreshed Publisher tool discovery must be checked separately."
+  ]
+}

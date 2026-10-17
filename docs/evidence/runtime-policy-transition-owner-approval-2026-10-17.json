@@ -1,0 +1,15 @@
+{
+  "recordType": "direct_human_decision_readback",
+  "packet": "RUNTIME-POLICY-REVIEWED-TRANSITION-001",
+  "approvedPacketSha256": "674f01d945629902fa8defb4d4a255ef6d8ea3bff7b73448b668aefe75728722",
+  "sourceThread": "01a0df21-ea6c-71f2-9c1b-40393de0e105",
+  "sourceTurn": "01a14acc-cf2a-76a2-83e3-3edd4d7c7248",
+  "sourceUserMessage": "01a14acc-d0e3-7a52-b2a1-bc2df847df4e",
+  "sourceKind": "send_user_message_question_reply",
+  "questionItemId": "[\"request_user_input_async\",\"call_fc57576895bf451ea895f7c9ba417d25\",0]",
+  "verdict": "Утверждаю пакет",
+  "approvedScope": "Exact LOCK/QAR/ARCH/RISK implementation and tests of the reviewed source-bound developer-gate transition mechanism",
+  "excluded": ["publication", "deployment", "merge", "automatic PR172 admission", "provider-policy clearance", "blanket baseline widening"],
+  "verification": "Read the original user message with read_thread; no inferred message identifier or synthetic approver record",
+  "authorityLimit": "Historical approval evidence only; not a transition artifact or runtime permission input"
+}

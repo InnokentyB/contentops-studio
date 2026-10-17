@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { BrowserDependencies,browserDefaults,hash,object,requireBrowserOwner,browserPrior } from './browser_publication_contract';
 import { browserClaimSchema,browserBoundarySchema,browserObservedSchema,checkedBrowserRelease,
     assertBrowserLease,checkedBrowserAttempt,assertBrowserObserved,browserObservationHash } from './browser_publication_guard';
+import { assertBrowserNativeAdmission,requireBrowserNativeGate,type NativeGate } from './browser_publication_native';
 const serial={isolationLevel:Prisma.TransactionIsolationLevel.Serializable};
 
 /** Claim only a released item. Before an attempt, an expired lease may be reclaimed; after start it cannot. */
@@ -33,8 +34,9 @@ export async function claimBrowserPublication(input:unknown,deps:BrowserDependen
     },serial);
 }
 /** Durable attempt before provider interaction. Starting does not itself permit clicking Submit. */
-export async function startBrowserSubmission(input:unknown,deps:BrowserDependencies=browserDefaults) {
+export async function startBrowserSubmission(input:unknown,deps:BrowserDependencies=browserDefaults,nativeGate?:NativeGate) {
     const args=browserBoundarySchema.parse(input),command='ba_start_browser_submission';
+    assertBrowserNativeAdmission(args,nativeGate);
     return deps.db.$transaction(async tx=>{
         await requireBrowserOwner(tx,args);
         const prior=await browserPrior(tx,args,command);
@@ -42,6 +44,7 @@ export async function startBrowserSubmission(input:unknown,deps:BrowserDependenc
         const {task,work}=await checkedBrowserRelease(tx,args,deps);assertBrowserLease(work,args);
         if(task.status!=='browser_required'||await tx.deliveryAttempt.count({where:{project_id:args.projectId,content_item_id:args.taskId}}))
             throw new Error('[BROWSER_RECONCILIATION_REQUIRED]');
+        await requireBrowserNativeGate(tx,'start',args,nativeGate);
         const attempt=await tx.deliveryAttempt.create({data:{project_id:args.projectId,content_item_id:args.taskId,
             channel_id:args.snapshot.channelId,mode:'assisted',status:'pending',attempt_number:1,
             idempotency_key:args.idempotencyKey,scheduled_at:task.schedule_at,requires_manual_confirmation:true}});
@@ -56,8 +59,9 @@ export async function startBrowserSubmission(input:unknown,deps:BrowserDependenc
     },serial);
 }
 /** One permission from actual pre-submit observations. Lost/replayed response never grants another click. */
-export async function preSubmitBrowserSubmission(input:unknown,deps:BrowserDependencies=browserDefaults) {
+export async function preSubmitBrowserSubmission(input:unknown,deps:BrowserDependencies=browserDefaults,nativeGate?:NativeGate) {
     const args=browserObservedSchema.parse(input),command='ba_pre_submit_browser_submission';
+    assertBrowserNativeAdmission(args,nativeGate);
     return deps.db.$transaction(async tx=>{
         const {task,work}=await checkedBrowserRelease(tx,args,deps);assertBrowserLease(work,args);
         if(task.status!=='publishing')throw new Error('[BROWSER_NOT_STARTED]');
@@ -65,9 +69,10 @@ export async function preSubmitBrowserSubmission(input:unknown,deps:BrowserDepen
         if(attempt.error_message)throw new Error('[BROWSER_RECONCILIATION_REQUIRED]');
         assertBrowserObserved(task.draft_text!,args);
         const prior=await browserPrior(tx,args,command);if(prior)return{...prior,submission_permitted:false,retry_allowed:false};
+        await requireBrowserNativeGate(tx,'permit',args,nativeGate);
         const proof={attempt_id:attempt.id,work_item_id:work.id,lease_sha256:hash(args.leaseToken),
             observation_sha256:browserObservationHash(args),evidence_sha256:args.evidenceSha256,
-            permit_expires_at:new Date(Math.min(work.lease_expires_at!.getTime(),Date.now()+30000)).toISOString(),
+            permit_expires_at:new Date(Math.min(work.lease_expires_at!.getTime(),Date.now()+(args.snapshot.identity.platform==='x'?15000:30000))).toISOString(),
             submission_permitted:true,retry_allowed:false,assurance:'executor_observation_not_independent_provider_proof'};
         await tx.workflowEvent.create({data:{project_id:args.projectId,content_item_id:args.taskId,work_item_id:work.id,
             actor_id:args.actorId,command,idempotency_key:args.idempotencyKey,
@@ -78,14 +83,16 @@ export async function preSubmitBrowserSubmission(input:unknown,deps:BrowserDepen
 export const browserUncertainSchema=browserBoundarySchema.safeExtend({attemptId:z.number().int().positive(),
     reasonCode:z.enum(['PROVIDER_RESULT_UNCERTAIN','PRE_SUBMIT_REJECTED','BROWSER_UNAVAILABLE'])});
 /** Freeze after lost result, including expired leases; no resend or synthetic fact. */
-export async function markBrowserSubmissionUncertain(input:unknown,deps:BrowserDependencies=browserDefaults) {
+export async function markBrowserSubmissionUncertain(input:unknown,deps:BrowserDependencies=browserDefaults,nativeGate?:NativeGate) {
     const args=browserUncertainSchema.parse(input),command='ba_mark_browser_submission_uncertain';
+    assertBrowserNativeAdmission(args,nativeGate);
     return deps.db.$transaction(async tx=>{
         await requireBrowserOwner(tx,args);const {task,work}=await checkedBrowserRelease(tx,args,deps);
         if(task.status!=='publishing'||work.lease_actor_id!==args.actorId||hash(work.lease_token||'')!==hash(args.leaseToken))
             throw new Error('[BROWSER_ATTEMPT_SCOPE_MISMATCH]');
         const prior=await browserPrior(tx,args,command);if(prior)return prior;
         await checkedBrowserAttempt(tx,args);
+        await requireBrowserNativeGate(tx,'unknown',args,nativeGate);
         const changed=await tx.deliveryAttempt.updateMany({where:{id:args.attemptId,project_id:args.projectId,
             content_item_id:args.taskId,status:'pending',idempotency_key:args.idempotencyKey},
             data:{requires_manual_confirmation:true,error_message:args.reasonCode}});

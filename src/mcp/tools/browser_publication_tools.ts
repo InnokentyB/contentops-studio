@@ -10,11 +10,11 @@ import { asToolResult,INTERNAL_MUTATION_ANNOTATIONS } from './common';
 /** Shared owner-bound controls; no tool drives a browser or makes a provider call. */
 export function registerBrowserPublicationTools(server:McpServer):void {
     server.registerTool('ba_inspect_browser_publication',{
-        description:'Read-only owner preview of a dynamic accepted LinkedIn image post or DEV.to article-cover package. No release, send or independent provider verification.',
+        description:'Read-only owner preview of a dynamic accepted LinkedIn/Setka image post or DEV.to article-cover package. No release, send or independent provider verification.',
         annotations:{readOnlyHint:true},inputSchema:browserRequestSchema.shape
     },async args=>asToolResult(await inspectBrowserPublication(args)));
     server.registerTool('ba_repair_browser_publication_metadata',{
-        description:'Owner-only audited task metadata preview/apply: language and owner-adopted Registry identity, preserving accepted copy/revision/dates/channel/art/assets. Never releases or publishes.',
+        description:'Owner-only audited metadata preview/apply: language, Registry identity and canonical materialization of an entirely absent legacy handoff bundle after exact durable checks and no delivery history. Partial/divergent bundles reject. Preserves accepted copy/revision/dates/channel/art/assets; never releases or publishes.',
         annotations:INTERNAL_MUTATION_ANNOTATIONS,inputSchema:browserRequestSchema.shape
     },async args=>asToolResult(await repairBrowserPublicationMetadata(args)));
     server.registerTool('ba_release_browser_publication',{
@@ -46,7 +46,7 @@ export function registerBrowserPublicationTools(server:McpServer):void {
         annotations:INTERNAL_MUTATION_ANNOTATIONS,inputSchema:browserUncertainSchema.shape
     },async args=>asToolResult(await markBrowserSubmissionUncertain(args)));
     server.registerTool('ba_diagnose_browser_publication',{
-        description:'Scoped persisted lifecycle readback, including attempts/WI/fact and hashes. Never returns credentials or raw lease tokens; no provider access.',
+        description:'Scoped persisted lifecycle readback, including attempts/WI/fact and stored handoff presence/hashes. Optional expectedSnapshot returns exact field mismatches with bounded hash-only evidence. Never returns credentials, copy or raw lease tokens; no provider access.',
         annotations:{readOnlyHint:true},inputSchema:browserDiagnoseSchema.shape
     },async args=>asToolResult(await diagnoseBrowserPublication(args)));
 }

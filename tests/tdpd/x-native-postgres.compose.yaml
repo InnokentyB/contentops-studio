@@ -1,0 +1,7 @@
+# Overlay on ops/publication-tests/compose.yaml; always use a unique reviewed build image.
+services:
+  tests:
+    image: ${X_NATIVE_TEST_IMAGE:?Set a unique X native build image tag}
+    tmpfs:
+      - /opt/planner/logs:rw,nosuid,nodev,size=16m,mode=1777
+    command: [node, --test, --test-concurrency=1, /workspace/tests/tdpd/x-native-postgres.test.cjs]

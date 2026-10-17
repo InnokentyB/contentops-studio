@@ -1,8 +1,9 @@
 import { z } from 'zod';
 import publicationFactService,{ RecordPublicationFactArgs } from './publication_fact.service';
-import { BrowserDependencies,browserDefaults,object,hash,browserPrior,requireBrowserOwner } from './browser_publication_contract';
+import { BrowserDependencies,browserDefaults,object,hash,browserPrior,requireBrowserOwner,browserProviderUuid } from './browser_publication_contract';
 import { browserObservedSchema,checkedBrowserRelease,checkedBrowserAttempt,assertBrowserLease,
     assertBrowserObserved,browserObservationHash } from './browser_publication_guard';
+import { assertBrowserNativeAdmission,requireBrowserNativeGate,type NativeGate } from './browser_publication_native';
 
 export const browserConfirmSchema=browserObservedSchema.safeExtend({publicUrl:z.string().url().max(2000),
     providerObjectId:z.string().min(1).max(200),publishedAt:z.string().datetime({offset:true})});
@@ -22,6 +23,19 @@ export function assertBrowserPublicationTime(attempt:{created_at:Date},published
 export function browserProviderIdentity(args:Reconciliation) {
     const url=new URL(args.publicUrl),identity=args.snapshot.identity;
     if(url.protocol!=='https:'||url.port||url.username||url.password||url.hash)throw new Error('[PROVIDER_IDENTITY_INVALID]');
+    if(identity.platform==='setka'){
+        if(url.hostname!=='setka.ru'||url.search||!browserProviderUuid.safeParse(args.providerObjectId).success
+            ||url.pathname.replace(/\/$/,'')!==`/posts/${args.providerObjectId}`)
+            throw new Error('[PROVIDER_IDENTITY_INVALID]');
+        return `https://setka.ru/posts/${args.providerObjectId}`;
+    }
+    if(identity.platform==='x'){
+        const handle=identity.providerAccountId;
+        if(!/^[A-Za-z0-9_]{1,15}$/.test(handle)||!/^\d+$/.test(args.providerObjectId)||url.hostname!=='x.com'
+            ||url.search||url.pathname!==`/${handle}/status/${args.providerObjectId}`)
+            throw new Error('[PROVIDER_IDENTITY_INVALID]');
+        return `https://x.com/${handle}/status/${args.providerObjectId}`;
+    }
     if(identity.platform==='linkedin'){
         const match=/^\/feed\/update\/(urn:li:(?:activity|share):[1-9]\d*)\/?$/.exec(url.pathname);
         if(url.hostname!=='www.linkedin.com'||!match||match[1]!==args.providerObjectId
@@ -35,8 +49,9 @@ export function browserProviderIdentity(args:Reconciliation) {
         throw new Error('[PROVIDER_IDENTITY_INVALID]');
     return `https://dev.to${url.pathname.replace(/\/$/,'')}`;
 }
-async function completeBrowser(input:unknown,reconcile:boolean,deps:BrowserDependencies,writeFact:FactWriter) {
+async function completeBrowser(input:unknown,reconcile:boolean,deps:BrowserDependencies,writeFact:FactWriter,nativeGate?:NativeGate) {
     const args=reconcile?browserReconcileSchema.parse(input):browserConfirmSchema.parse(input);
+    assertBrowserNativeAdmission(args,nativeGate);
     const command=reconcile?'ba_reconcile_browser_submission':'ba_confirm_browser_submission';
     const publicUrl=browserProviderIdentity(args);
     // Committed replay is read-only. Never call the fact writer again or manufacture send permission.
@@ -75,6 +90,7 @@ async function completeBrowser(input:unknown,reconcile:boolean,deps:BrowserDepen
                 if(!Number.isFinite(deadline)||Date.parse(args.publishedAt)>deadline)
                     throw new Error('[BROWSER_SUBMISSION_OUTSIDE_PERMIT]');
             }
+            await requireBrowserNativeGate(tx,reconcile?'reconcile':'result',args,nativeGate);
             const changed=await tx.deliveryAttempt.updateMany({where:{id:args.attemptId,project_id:args.projectId,
                 content_item_id:args.taskId,channel_id:args.snapshot.channelId,status:'pending',idempotency_key:args.idempotencyKey},
                 data:{status:'delivered',actual_published_at:new Date(args.publishedAt),requires_manual_confirmation:false,error_message:null}});
@@ -87,11 +103,11 @@ async function completeBrowser(input:unknown,reconcile:boolean,deps:BrowserDepen
 }
 /** All checks, attempt completion and audit run inside the canonical fact transaction. */
 export function confirmBrowserSubmission(input:unknown,deps:BrowserDependencies=browserDefaults,
-    writeFact:FactWriter=args=>publicationFactService.record(args)) {
-    return completeBrowser(input,false,deps,writeFact);
+    writeFact:FactWriter=args=>publicationFactService.record(args),nativeGate?:NativeGate) {
+    return completeBrowser(input,false,deps,writeFact,nativeGate);
 }
 /** Owner readback of an existing object after UNKNOWN/expired lease, never release/retry. */
 export function reconcileBrowserSubmission(input:unknown,deps:BrowserDependencies=browserDefaults,
-    writeFact:FactWriter=args=>publicationFactService.record(args)) {
-    return completeBrowser(input,true,deps,writeFact);
+    writeFact:FactWriter=args=>publicationFactService.record(args),nativeGate?:NativeGate) {
+    return completeBrowser(input,true,deps,writeFact,nativeGate);
 }

@@ -1,7 +1,8 @@
 # Shared browser publication controls
 
-First consumers: company LinkedIn image posts and DEV.to articles with approved
-covers. Telegram video/review repair remains a separate pending 004 milestone.
+Consumers: LinkedIn image posts, personal Setka image posts and DEV.to articles
+with approved covers. Telegram video/review repair remains a separate pending
+004 milestone. See [Setka handoff](./shared-setka-browser-publication.md).
 These commands control Planner state only. They do not open a browser, import a
 session, click Submit, or independently verify a provider. Existing site/tool
 denials remain. Use the single owning Publisher in its already-authorized
