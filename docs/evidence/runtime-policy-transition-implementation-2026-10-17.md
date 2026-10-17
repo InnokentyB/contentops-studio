@@ -103,3 +103,36 @@ CI results. Those final integration results are recorded separately below or in
 the linked PR checks. Owner UAT and any merge/deploy authority remain explicit.
 The shared Dzen adapter/container migration and unresolved provider-policy
 applicability are separate; this developer gate does not supply either.
+
+## Integrated revision and real-candidate synthetic proof
+
+Implementation commit `df1f555` was integrated with existing canonical main
+`d233b2b51abade97a5f273b24788108838167ae9` in the isolated branch, producing
+`ffa3ac6d449c861b4d775e5221a819a749f18c66`. No PR was merged into main. The three
+reviewed script hashes above remained identical. At this integrated revision:
+
+- All90 policy tests passed again, zero failures/skips.
+- Quality gate passed both locally and with GitHub PR context plus the full
+  event-derived main SHA;7096 baseline/findings and no applied transitions.
+- Backend and frontend build passed again using the reviewed Docker target.
+
+Final integration logs: `/tmp/runtime-policy-integrated-tests.log`,
+`/tmp/runtime-policy-integrated-ci-context-quality.log`,
+`/tmp/runtime-policy-integrated-build.log`.
+
+The exact candidate was additionally tested in a temporary synthetic Git clone
+inside the network-disabled quality container. Its two old/new source hashes and
+six remaps were used without altering the actual project record or baseline.
+The clone's test-author commit represents simulated trust ordering only, not a
+human decision or project admission. The clone was removed in finally.
+
+`browser-sandbox-isolated-transition-proof-2026-10-17.json` records three expected
+outcomes: no trusted record -> BASELINE_WIDENED; simulated prior trusted record
+-> PASS with exactly six applied mappings; additional unreviewed source comment
+-> TRANSITION_SOURCE_MISMATCH and FAIL. The proof explicitly records
+`actualProjectArtifactInstalled=false` and candidate status NOT_ADMITTED.
+
+This closes implementation evidence and prepares the concrete next two-stage
+review. It does not authorize staging/merging a real record, PR172 admission,
+deployment, publication or provider-policy clearance. Current-head GitHub checks
+remain linked from PR174; owner UAT is still separate.
