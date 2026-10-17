@@ -1,0 +1,21 @@
+{
+  "recordType": "independent_exact_candidate_review",
+  "reviewedCommit": "9fb5f6892731588bd17057f351abf11c328da8c7",
+  "reviewer": "/root/dzen_runtime_review_retry",
+  "verdict": "PASS",
+  "openP1P2": [],
+  "payloadSha256": "2794dbc59290fe18a80f7da82472bda8fb34afa64afbf7439817f07baa847440",
+  "proofSha256": "f6c2102e824810fa75e1674b56d964b333e207ac2a9ca0e448cf977956e32f3d",
+  "fixtureSha256": "8ba656c34a168a554714308a3e245f732e1f68e80a38913037ab8831fab03657",
+  "checks": [
+    "Payload exactly equals original independently reviewed candidateArtifact",
+    "All six proof rows preserve baseline owner, reason, remediation and count",
+    "Saved proof has one positive PASS with six transitions and ten expected FAIL results",
+    "Separate-file bindings remain forbidden while six legitimate remaps apply",
+    "Fixture uses synthetic staging and finally cleanup",
+    "Actual fixed-path authority artifact is absent and documents claim no human authorization"
+  ],
+  "reviewMethod": "Independent source and saved-result inspection; reviewer did not rerun the proof",
+  "status": "NOT_ADMITTED",
+  "authorityLimit": "No permission to install authority artifact, admit PR172, merge, deploy or execute live actions"
+}
