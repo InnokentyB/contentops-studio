@@ -11,7 +11,10 @@ channel/config, revision, both dates, metadata and historical review/result.
 Any fact/attempt, changed snapshot, accepted content, active lease or competing
 review blocks it. Normal Editor and Art work remain required afterward.
 
-Recovery reports actual canonical handoff mode/connector configuration, not a
+Recovery requires a canonical placement and implemented non-generic materialization;
+unsupported placement and the generic asset fallback reject with
+`REVIEW_PLACEMENT_UNSUPPORTED`, including a configuration-only override without
+an implemented contract. Recovery reports actual handoff mode/configuration, not a
 fabricated manual-only route. A configured transport projection is not release
 authority: content remains drafted, draft, unaccepted, visual STALE, no selected
 asset and publication_mode approval_required. Existing approval/result payloads,
@@ -37,3 +40,9 @@ operator data, not executable literals. On 2026-10-17 fresh readback still showe
 draft/unaccepted/STALE/no selected asset/no publication fact. Its MP4 rebind and
 MIME-aware MTProto transport are separate pending 004 milestones. This file is
 not evidence that production recovery, Editor/Art acceptance or UAT happened.
+The original new Telegram test incorrectly used unsupported video_cover and
+expected automated metadata; late external review identified the invalid
+assumption. It was corrected to canonical feed, with a separate RED negative
+for video_cover and configuration-only overrides. Task1103 remains blocked
+until its video placement and transport are implemented; do not disguise it
+as feed to use this repair.
