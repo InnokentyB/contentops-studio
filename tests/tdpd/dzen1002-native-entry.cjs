@@ -18,7 +18,7 @@ function offlineServer(t,{failConfig=false}={}){
   if(parent?.filename.endsWith('/puppeteer/dzen1002_publisher.ts')){
    if(request==='../../db')return {__esModule:true,default:{socialChannel:{findFirst:async()=>({type:'dzen',config:{}})}}};
    if(request==='../../utils/channel.utils')return {__esModule:true,resolveEffectiveChannelConfig:()=>{if(failConfig)throw Error('synthetic-secret-must-not-leak');return {channel_id:'6a8029aba055ec36033bf81c',cookies:'synthetic=offline-only'};}};
-   if(request==='puppeteer')return {__esModule:true,default:{launch:async()=>{state.launched++;return {newPage:async()=>{throw Error('synthetic-native-failure');},close:async()=>{state.closed++;}};}}};
+   if(request==='puppeteer')return {__esModule:true,default:{launch:async options=>{state.launched++;state.options=options;return {newPage:async()=>{throw Error('synthetic-native-failure');},close:async()=>{state.closed++;}};}}};
   }
   return original.call(this,request,parent,...rest);
  });
@@ -28,3 +28,22 @@ function offlineServer(t,{failConfig=false}={}){
 }
 test('R06 server browser closes when new Page fails; errors are sanitized',async t=>{const state=offlineServer(t);await assert.rejects(publishDzen1002Native(fixture().claim,{beforeMutation:async()=>{},beforeSubmit:async()=>{}}),error=>error.message.includes('DZEN1002_NATIVE_UNCERTAIN')&&!error.message.includes('synthetic-native-failure'));assert.equal(state.launched,1);assert.equal(state.closed,1);});
 test('R03 decrypted config errors cannot expose secret or launch browser',async t=>{const state=offlineServer(t,{failConfig:true});await assert.rejects(publishDzen1002Native(fixture().claim,{beforeMutation:async()=>{},beforeSubmit:async()=>{}}),error=>error.message.includes('DZEN1002_NATIVE_UNCERTAIN')&&!error.message.includes('synthetic-secret'));assert.equal(state.launched,0);});
+function assertSandboxEnabled(options){
+ assert.equal(options.headless,true);
+ assert.equal((options.args||[]).some(arg=>/^--(?:no-sandbox|disable-setuid-sandbox)(?:=|$)/.test(arg)),false);
+}
+test('native publisher preserves Chromium sandbox defaults',async t=>{
+ const state=offlineServer(t);
+ await assert.rejects(publishDzen1002Native(fixture().claim,{beforeMutation:async()=>{},beforeSubmit:async()=>{}}),/DZEN1002_NATIVE_UNCERTAIN/);
+ assertSandboxEnabled(state.options);
+ assert.equal(state.closed,1);
+});
+test('native inventory preserves Chromium sandbox defaults and closes failed page',async t=>{
+ const puppeteer=require('puppeteer').default;
+ let options;let closed=0;
+ t.mock.method(puppeteer,'launch',async value=>{options=value;return {newPage:async()=>{throw Error('synthetic-page-failed');},close:async()=>{closed++;}};});
+ const {readDzen1002Inventory}=require('../../src/services/dzen1002_inventory_browser.ts');
+ await assert.rejects(readDzen1002Inventory({cookies:'synthetic=offline-only',channel_id:fixture().claim.package.accountId}),/synthetic-page-failed/);
+ assertSandboxEnabled(options);
+ assert.equal(closed,1);
+});

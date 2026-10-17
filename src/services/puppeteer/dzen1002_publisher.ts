@@ -94,7 +94,7 @@ async function publishDzen1002Server(claim: Dzen1002Claim, hooks: Dzen1002Hooks)
     const directory = await mkdtemp(join(tmpdir(), 'dzen1002-')); const file = join(directory, 'cover');
     try {
         await writeFile(file, asset, { mode: 0o600 });
-        const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] });
+        const browser = await puppeteer.launch({ headless: true });
         try {
             const page = await browser.newPage(); page.setDefaultTimeout(15_000); page.setDefaultNavigationTimeout(30_000);
             await page.setCookie(...cookies); await page.setRequestInterception(true);
