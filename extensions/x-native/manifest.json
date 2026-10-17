@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "ContentOps X — local compatibility check",
+  "version": "0.0.1",
+  "description": "No-send installation-key persistence check. Not enrolled and cannot publish.",
+  "options_page": "check.html",
+  "content_security_policy": {
+    "extension_pages": "default-src 'self'; script-src 'self'; object-src 'none'; connect-src 'none'; base-uri 'none'"
+  }
+}
