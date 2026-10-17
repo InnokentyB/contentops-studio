@@ -1,0 +1,38 @@
+name: planner-x-native-synthetic
+services:
+  browser-fixture:
+    image: planner-x-native-sandbox-fixture:20261017-v1
+    platform: linux/amd64
+    build:
+      context: ../..
+      dockerfile: ops/x-native-extension/Dockerfile
+      network: none
+      args:
+        BROWSER_BASE: tower-browser-checks:20261016
+    user: "1000:1000"
+    init: true
+    restart: "no"
+    read_only: true
+    network_mode: none
+    cap_drop: [ALL]
+    cap_add: [SYS_CHROOT]
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=./seccomp_profile.json
+    pids_limit: 256
+    mem_limit: 2g
+    cpus: 2.0
+    shm_size: 512m
+    ulimits:
+      core: 0
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=768m,mode=1777
+    volumes:
+      - ../..:/workspace:ro
+      - ../../.impeccable/review:/evidence:rw
+    environment:
+      X_BROWSER_EVIDENCE_DIR: /evidence
+      TZ: Europe/Lisbon
+    logging:
+      driver: json-file
+      options: {max-size: "5m", max-file: "2"}

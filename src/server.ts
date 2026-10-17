@@ -14,6 +14,7 @@ import linkedinRoutes from './routes/linkedin.routes';
 import vkRoutes from './routes/vk.routes';
 import threadsComplianceRoutes from './routes/threads_compliance.routes';
 import organizationRoutes from './routes/organization.routes';
+import xNativeRoutes from './routes/x_native.routes';
 import path from 'path';
 import healthService from './services/health.service';
 import authService from './services/auth.service';
@@ -150,6 +151,7 @@ server.register(linkedinRoutes);
 server.register(vkRoutes);
 server.register(threadsComplianceRoutes);
 server.register(organizationRoutes);
+server.register(xNativeRoutes);
 
 
 // SPA fallback for non-API routes

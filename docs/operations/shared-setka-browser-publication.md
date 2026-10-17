@@ -78,6 +78,43 @@ owned personal profile. It is routing evidence, not a provider login check.
 
 ## Release and rollback
 
+### Missing persisted legacy bundle
+
+Production read-only diagnosis after PR171 found that the task API derives its
+handoff on read, while the stored `quality_report.handoff_bundle` key is absent.
+The exact strict mismatch is `quality_report.handoff_bundle.publication.body`:
+expected body SHA `a11b9860bf5fe3a54363a6d3f9f88180da67f42b0bf7c4e1293f935d4d2a37ef`,
+current absent/null, not a different accepted body or asset. Task API projection
+must not be used as evidence that a stored bundle exists.
+
+`ba_diagnose_browser_publication` requires only scoped project/task/actor, as
+before. Its optional `expectedSnapshot` takes the exact snapshot above and adds
+`snapshot_check.valid/mismatches`. `persisted_handoff` always reports stored
+bundle/body presence and body SHA, never the copy. Mismatch errors also identify
+fields: free-form strings are hashed, enums are allowlisted, unknown values are
+redacted. No credentials, raw profile/config/copy or lease are echoed.
+
+The existing metadata command now has one bounded legacy path:
+
+1. The raw quality report must be an object with no `handoff_bundle` key at all.
+   Null/scalar/array metadata and present null/empty/partial/divergent bundles
+   are rejected, not silently overwritten.
+2. Every other owner/tenant/manifest/revision/body/date/channel/profile/decision/
+   asset/readiness condition must match. No fact/link, delivery attempt, browser
+   WI in ANY state, or connector job in ANY state may exist.
+3. Preview remains no-write and returns `handoff_materialization.eligible`, exact
+   missing-field evidence and hashes. It is not release or Submit permission.
+4. Apply builds the canonical generated handoff from those verified durable
+   records, binds its target to the exact adopted identity, validates JSON and
+   re-runs the same strict snapshot fence against that candidate. Bundle,
+   identity/language and audit commit atomically. No accepted content, date,
+   channel, decision, visual, WI, attempt or fact changes. Audit records missing
+   bundle provenance and expected hashes; identical replay is read-only.
+5. Read diagnosis again: the same expected snapshot must now be valid. Only then
+   continue the existing separate release/claim/pre-submit sequence under the
+   owning Publisher's existing authority. Engineering does not apply this to
+   production or publish merely by deploying the repair.
+
 Use `ba_diagnose_browser_publication` and `ba_inspect_browser_publication` first.
 Metadata repair and release default to preview; apply only under existing owner
 authority with stable separate idempotency keys. No new GO for future packages

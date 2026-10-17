@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ContentOps · X</title>
+    <link rel="stylesheet" href="pilot.css">
+    <script type="module" src="pilot-ui.mjs"></script>
+</head>
+<body>
+    <!-- THESIS: exact-package native X execution with visibly separate no-send and publication events.
+    OWN-WORLD: retain ContentOps restrained indigo, flat sections and native form controls.
+    STORY: inspect installation, verify package without sending, then explicit released publication or same-attempt reconciliation.
+    FIRST VIEWPORT: no-send instructions and exact package are primary; sending is disabled until checked.
+    FORM: scoped completion of the existing pilot CSS, not a replacement brand world.
+    FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md -->
+    <main>
+        <h1>Публикация в X</h1>
+        <p>Работает с уже открытой вкладкой X. Проверка не отправляет пост. Публикация требует отдельного разрешения Planner и вашего действия ниже.</p>
+        <details>
+            <summary>Данные установки для подключения</summary>
+            <p>Только публичный ключ и ID. Они не дают разрешения на публикацию.</p>
+            <button id="identity" type="button">Показать данные установки</button>
+            <pre id="installation" hidden></pre>
+        </details>
+        <section aria-labelledby="package-heading">
+            <h2 id="package-heading">Пакет из Planner</h2>
+            <label for="package">Параметры публикации (JSON)</label>
+            <textarea id="package" rows="5" spellcheck="false" aria-describedby="package-help"></textarea>
+            <p id="package-help">Проект, задача, канал, ревизия, хеш текста, аккаунт, профиль и дата. Не вставляйте сюда токены или cookies.</p>
+            <label for="nonce">Код проверки или выпуска из Planner</label>
+            <input id="nonce" type="text" maxlength="64" autocomplete="off" spellcheck="false" aria-describedby="nonce-help">
+            <p id="nonce-help">64 символа. Для локальной проверки без подключения можно оставить пустым и указать точный принятый текст ниже.</p>
+            <details>
+                <summary>Локальная проверка без кода Planner</summary>
+                <label for="text">Точный принятый текст, до 280 символов</label>
+                <textarea id="text" rows="3" maxlength="280" spellcheck="false"></textarea>
+                <p>Уже открытый черновик должен совпадать. Расширение не заменяет чужой или неизвестный черновик.</p>
+            </details>
+            <button id="uat" type="button">Проверить без отправки</button>
+        </section>
+        <section aria-labelledby="send-heading">
+            <h2 id="send-heading">Отправка и результат</h2>
+            <p>Сначала проверьте разрешение Planner. Готовность действует здесь не более 30 секунд и не означает, что пост отправлен.</p>
+            <button id="readiness" type="button">Проверить готовность Planner</button>
+            <label class="consent" for="consent"><input id="consent" type="checkbox">Опубликовать именно этот пакет в указанном аккаунте</label>
+            <button id="run" type="button" disabled>Опубликовать один раз</button>
+            <button id="reconcile" type="button">Проверить результат начатой попытки</button>
+            <p>Если ответ потерян, проверяйте ту же попытку. Не очищайте журнал и не создавайте повторную отправку. Закрытие окна не отменяет начатую операцию.</p>
+        </section>
+        <p id="result" role="status" aria-live="polite">Проверка ещё не выполнялась.</p>
+        <a id="publication" target="_blank" rel="noopener noreferrer" hidden>Открыть подтверждённый пост</a>
+    </main>
+</body>
+</html>
