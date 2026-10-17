@@ -41,6 +41,18 @@ test('ordinary generic source, numeric protocol constants, comments and isolated
     assert.equal(f.run().status, 0);
 });
 
+test('trusted baseline read supports an individually documented baseline larger than the default process buffer', t => {
+    const f = fixture(t, {'src/provider.ts': 'export function publishTask2048() {}'});
+    const entries = f.admit(f.run('--inspect').report.findings);
+    entries[0].reason = 'Reviewed existing debt '.repeat(60000);
+    f.baseline(entries);
+    execFileSync('git', ['add', '.'], {cwd: f.root});
+    execFileSync('git', ['-c', 'user.name=Synthetic', '-c', 'user.email=test@example.invalid',
+        '-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgsign=false', 'commit', '--quiet', '-m', 'large trusted baseline'], {cwd: f.root});
+    const result = f.run('--base-ref', 'HEAD');
+    assert.equal(result.status, 0, JSON.stringify(result.report));
+});
+
 for (const [name, source] of Object.entries({
     symbol: 'export function publishTask2048() {}',
     command: "server.registerTool('ba_publish_task2048', {}, ()=>{});",

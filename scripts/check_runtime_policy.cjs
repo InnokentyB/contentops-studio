@@ -41,7 +41,9 @@ function run() {
     if (baseRef) {
         if (!/^[a-f0-9]{7,40}$|^HEAD$/.test(baseRef)) throw new Error('INVALID_BASE_REF');
         let old;
-        try { old = parseBaseline(cp.execFileSync('git', ['show', baseRef + ':' + baselinePath], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe']})); }
+        try { old = parseBaseline(cp.execFileSync('git', ['show', baseRef + ':' + baselinePath], {
+            encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 8 * 1024 * 1024, timeout: 5000
+        })); }
         catch {
             const absent = cp.spawnSync('git', ['cat-file', '-e', baseRef + ':' + baselinePath], {stdio: 'ignore'}).status !== 0;
             const commitExists = cp.spawnSync('git', ['cat-file', '-e', baseRef + '^{commit}'], {stdio: 'ignore'}).status === 0;
