@@ -189,3 +189,26 @@ test('proposed R26: workflow_dispatch cannot consume a transition using a suppli
     const f = fixture(t); f.apply();
     assert.equal(f.runWithEnv({RUNTIME_POLICY_BASE_REF:f.base,GITHUB_ACTIONS:'true',GITHUB_EVENT_NAME:'workflow_dispatch'}).status, 1);
 });
+
+for(const event of ['pull_request','push','workflow_dispatch']) test(`CI ${event} cannot bypass base comparison by deleting the current artifact`,t=>{
+    const f=fixture(t);f.apply();fs.unlinkSync(path.join(f.root,policyFile));
+    const result=f.runWithEnv({GITHUB_ACTIONS:'true',GITHUB_EVENT_NAME:event});
+    assert.equal(result.status,1,JSON.stringify(result.report));
+});
+
+test('local missing-base comparison cannot be hidden by deleting the artifact',t=>{
+    const f=fixture(t);f.apply();fs.unlinkSync(path.join(f.root,policyFile));
+    assert.equal(f.run().status,1);
+});
+
+test('unchanged committed local debt needs no transition or implicit grant',t=>{
+    const f=fixture(t);fs.unlinkSync(path.join(f.root,policyFile));
+    const result=f.run();assert.equal(result.status,0,JSON.stringify(result.report));
+    assert.deepEqual(result.report.appliedTransitions,[]);
+});
+
+for(const file of ['.env','src/.env.ts','ops/release.yaml']) test(`transition schema cannot select protected or non-JavaScript source ${file}`,t=>{
+    const f=fixture(t,{editTransition:transition=>{transition.entries[0].file=file;}});f.apply();
+    const result=f.checked();assert.equal(result.status,1);
+    assert.ok(result.report.errors.some(error=>error.code==='TRANSITION_INVALID_ARTIFACT'));
+});

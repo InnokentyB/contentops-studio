@@ -42,7 +42,11 @@ test('proposed R29: aggregate source bytes over 8 MiB are rejected despite indiv
     f.apply();
     for (const file of files) f.write(file, newText);
     f.baseline([...f.next.map(row=>({...f.entries[0],...row})),...files.map(file=>({...f.entries[0],...f.next[0],file}))]);
-    rejected(f.run('--base-ref',base), 'TRANSITION_SOURCE_TOO_LARGE');
+    const marker=path.join(f.root,'contexts-called.txt'),preload=path.join(f.root,'context-probe.cjs');
+    const contextModule=path.resolve(__dirname,'../../scripts/runtime_policy_transition_context.cjs');
+    f.write('context-probe.cjs',`require(${JSON.stringify(contextModule)}).contexts=()=>{require('node:fs').writeFileSync(${JSON.stringify(marker)},'called');throw Error('AST_BEFORE_SIZE_CHECK');};`);
+    rejected(f.runWithEnv({NODE_OPTIONS:`--require=${preload}`},'--base-ref',base), 'TRANSITION_SOURCE_TOO_LARGE');
+    assert.equal(fs.existsSync(marker),false,'aggregate size must be rejected before any context parsing');
 });
 
 test('proposed R30: trusted source Git mode is checked independently of valid source bytes', t => {
@@ -85,7 +89,17 @@ process.exit(result.status===null?1:result.status);
 `;
     f.write('fixture-bin/git',script); fs.chmodSync(wrapper,0o700);
     const started = process.hrtime.bigint();
-    const result = f.runWithEnv({PATH:path.dirname(wrapper)+path.delimiter+process.env.PATH},'--base-ref',f.base);
+    // /tmp is deliberately noexec in the reviewed container. Invoke the fixture
+    // through Node, retaining the real child timeout rather than weakening mounts.
+    const preload=path.join(f.root,'git-timeout-preload.cjs');
+    f.write('git-timeout-preload.cjs',`
+const cp=require('node:child_process'),original=cp.execFileSync;
+cp.execFileSync=function(file,args,options){
+ if(file==='git'&&['show','ls-tree','cat-file'].includes(args[0])&&args.some(arg=>${JSON.stringify([policyFile,sourceFile])}.some(p=>arg===p||arg.endsWith(':'+p))))
+  return original(process.execPath,[${JSON.stringify(wrapper)},...args],options);
+ return original(file,args,options);
+};`);
+    const result = f.runWithEnv({NODE_OPTIONS:`--require=${preload}`},'--base-ref',f.base);
     const elapsedMs = Number(process.hrtime.bigint()-started)/1e6;
     rejected(result,'TRANSITION_READ_TIMEOUT');
     assert.ok(fs.existsSync(trace),'transition I/O must actually reach the delayed provider-independent Git boundary');
