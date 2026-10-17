@@ -5,11 +5,21 @@ import { nativeRegistrationSchema, nativeScopeSchema, registerNativeInstallation
 import { nativePairingIssueSchema, issueNativePairing } from '../../services/x_native_pairing';
 import { issueNativeChallenge } from '../../services/x_native_control';
 import { nativeBundleSchema } from '../../services/x_native_receipt';
+import { getXNativeState } from '../../services/x_native_diagnostics';
+import { nativeStateRequestSchema, nativeStateReadError } from '../../services/x_native_diagnostics_contract';
 import { asToolResult, INTERNAL_MUTATION_ANNOTATIONS } from './common';
 
 /** Only scoped owner/Publisher controls belong here. Signed executor mutations are HTTP-only. */
 export function registerXNativeTools(server: McpServer, enabled = process.env.X_NATIVE_PILOT_ENABLED === 'true'): void {
     if (!enabled) return;
+    server.registerTool('ba_get_x_native_state', {
+        description: 'Owner/Publisher scoped read-only X installation/audit inventory and exact-task delivery predicates. Capped unknown-safe snapshot; no secrets, registration authority, mutation, provider call or send.',
+        annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+        inputSchema: nativeStateRequestSchema
+    }, async args => {
+        try { return asToolResult(await getXNativeState(args)); }
+        catch (error: unknown) { return { ...asToolResult(nativeStateReadError(error)), isError: true }; }
+    });
     const safe = async (run: () => Promise<Record<string, unknown>>) => {
         try { return asToolResult(await run()); }
         catch (error: unknown) {

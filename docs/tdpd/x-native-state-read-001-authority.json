@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "packet": "X-NATIVE-STATE-READ-001",
+  "version": "1.1",
+  "packetSha256": "e053f448604f5bce1c420954a2b6110c5b09c1161c2a56cf50603634e030f6dc",
+  "source": {
+    "thread": "01a0df21-ea6c-71f2-9c1b-40393de0e105",
+    "turn": "01a14b09-9980-7381-97f0-85e4d976ee2c",
+    "message": "01a14b09-a9c9-7f62-9f60-d0b4001327ca",
+    "questionItemId": "[\"request_user_input_async\",\"call_301fc33a40724b2781b90c682be0ac60\",0]",
+    "independentlyRead": true
+  },
+  "verdict": "Утверждаю пакет",
+  "authority": [
+    "LOCK/QAR/ARCH/RISK",
+    "implementation and tests",
+    "ordinary independent review and release after successful gates",
+    "authenticated scoped read-only readback"
+  ],
+  "excluded": [
+    "registration/enrollment",
+    "provider or browser actions",
+    "UAT assertion",
+    "release/claim/send",
+    "extension/profile/journal changes"
+  ]
+}

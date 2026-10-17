@@ -1,0 +1,8 @@
+# Test-only small subnet: Docker's default address pools on tower are exhausted.
+# Inspect network inventory/routes before use; never prune other projects' networks.
+networks:
+  synthetic:
+    internal: true
+    ipam:
+      config:
+        - subnet: 10.231.71.0/28

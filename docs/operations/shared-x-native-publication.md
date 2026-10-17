@@ -43,6 +43,39 @@ must agree exactly before admission, avoiding an unconfirmable case mismatch.
 
 ## Build and verify
 
+### Read-only installation/task diagnostics
+
+`ba_get_x_native_state` is a single MCP-only observation for enabled
+Owner/Publisher profiles whose authenticated user is a project owner. Required
+arguments are `projectId`, `channelId`, `taskId`, `candidateInstallationId` and
+the transport-bound `actorId`. IDs are positive signed32-bit integers; the
+candidate is a64-character lowercase hex public installation fingerprint.
+No `apply`, cursor, limit or arbitrary filters are accepted. No new HTTP route
+or credentials are introduced.
+
+The strict response exposes administrative binding consistency, capped public
+installation/audit diagnostics and exact-task delivery-history booleans. It
+contains no keys, cookies, accepted copy, leases or provider payload. Incomplete
+or malformed evidence means unknown/null, never a proven empty inventory. A
+sticky revocation wins even beyond the audit cap. Reads run in a bounded
+read-only RepeatableRead transaction; a third simultaneous read returns BUSY.
+Reads do not enroll, verify provider ownership, renew leases, approve execution
+or establish exclusivity. Observe before a trust change, but do not treat the
+snapshot as an atomic registration permit. Started/uncertain attempts still
+require same-attempt reconciliation only.
+
+Verification includes `x-native-state-read.test.cjs`,
+`x-native-state-read-postgres.test.cjs` and the100-request/1RPS
+`x-native-state-read-load.test.cjs` in `tests/tdpd`. Use the existing isolated
+PostgreSQL Compose stack and X image overlay. On tower only, after inspecting
+routes and networks, `x-native-state-read.tower.compose.yaml` selects a small
+test-only subnet when the Docker default pools are exhausted. It must not be
+used to alter or prune another project's network. Rollback removes only the
+read command/capability after reads drain; it requires no data migration and
+must not reset an installation, profile, journal, lease or publication history.
+
+### Container checks
+
 All build/test/browser workloads run in tower Docker. Build the reviewed
 `ops/quality/Dockerfile` `buildcheck` target with a unique tag, then run Node
 tests with source mounted read-only and `NODE_PATH=/opt/planner/node_modules`.

@@ -4,7 +4,7 @@ const { readFileSync } = require('node:fs');
 const base = process.env.SHARED_BROWSER_DIST || '/opt/planner/dist';
 const { isToolAllowedForProfile } = require(base + '/mcp/capabilities.js');
 const { scopeRemoteMcpRequest } = require(base + '/mcp/remote-auth.js');
-const names = ['ba_issue_x_native_pairing', 'ba_register_x_native_installation',
+const names = ['ba_get_x_native_state', 'ba_issue_x_native_pairing', 'ba_register_x_native_installation',
     'ba_revoke_x_native_installation', 'ba_issue_x_native_challenge'];
 
 test('X CI runs source-backed checks from the mounted repository rather than the compiled image cwd', () => {
