@@ -144,3 +144,26 @@ test('owner can obtain safe server-computed snapshot through the operator bounda
     assert.equal(JSON.stringify(r).includes('Historical review note'), false);
     assert.deepEqual(f.state, before);
 });
+test('configured Telegram review recovery preserves all publication gates and immutable history', async () => {
+    const f=fixture();
+    f.state.task.channel.type='telegram';f.state.task.channel.name='synthetic_tg';
+    f.state.task.channel.config={execution_modes:['automated']};f.state.task.visual_placement='video_cover';
+    const before=structuredClone(f.state);
+    const snapshot=await getReviewRepairSnapshot({projectId:7,taskId:1136,workItemId:1948,actorId:'user:2'},f.db);
+    assert.deepEqual(f.state,before);
+    const request={...args,...snapshot.expected_snapshot};
+    const preview=await repairReviewHandoff(request,f.db);
+    assert.equal(preview.handoff_mode,'automated');assert.equal(preview.connector_authority,'configured');
+    assert.equal(preview.publication_authorized,false);assert.deepEqual(f.state,before);
+    const applied=await repairReviewHandoff({...request,apply:true},f.db);
+    assert.equal(applied.publication_authorized,false);assert.equal(f.state.task.accepted_revision,null);
+    assert.equal(f.state.task.publication_mode,'approval_required');assert.equal(f.state.task.status,'drafted');
+    assert.equal(f.state.task.visual_state,'STALE');assert.equal(f.state.task.selected_asset_id,null);
+    assert.equal(f.state.task.draft_text,before.task.draft_text);
+    assert.deepEqual(f.state.task.schedule_at,before.task.schedule_at);assert.deepEqual(f.state.task.publish_at,before.task.publish_at);
+    assert.deepEqual(f.state.task.channel,before.task.channel);assert.deepEqual(f.state.approval,before.approval);
+    assert.deepEqual(f.state.review.result_payload,before.review.result_payload);
+    assert.equal(f.state.replacements[0].result_version,0);assert.equal(f.state.replacements[0].input_context_version,2);
+    assert.equal(f.state.task.quality_report.handoff_bundle.transport.connector_authority,'configured');
+    assert.equal(f.state.attempts,0);assert.equal(f.state.task.publication_fact,null);
+});
