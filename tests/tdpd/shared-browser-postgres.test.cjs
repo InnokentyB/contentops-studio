@@ -66,7 +66,9 @@ async function started(t,platform='linkedin'){
 }
 const fulfilled=results=>results.filter(r=>r.status==='fulfilled');
 test('legacy Setka PostgreSQL bundle materialization rolls back audit failure, then repairs/releases once',async t=>{
-    const{args}=await setup(t,'setka',true),repair={...args,idempotencyKey:'legacy-repair'};
+    const{args,user}=await setup(t,'setka',true),repair={...args,idempotencyKey:'legacy-repair'};
+    await db.socialChannel.update({where:{id:args.snapshot.channelId},data:{name:'Synthetic display label'}});
+    args.snapshot.manifestChecksum=(await manifest(args.projectId,user.id)).checksum;
     const before=await db.contentItem.findUnique({where:{id:args.taskId}});
     assert.equal((await release.repairBrowserPublicationMetadata({...repair,apply:false},deps)).handoff_materialization.eligible,true);
     assert.deepEqual(await db.contentItem.findUnique({where:{id:args.taskId}}),before);
@@ -78,6 +80,8 @@ test('legacy Setka PostgreSQL bundle materialization rolls back audit failure, t
     await release.repairBrowserPublicationMetadata(repair,deps);
     const repaired=await db.contentItem.findUnique({where:{id:args.taskId}});
     assert.equal(repaired.quality_report.handoff_bundle.publication.body,body);
+    assert.ok(repaired.quality_report.handoff_bundle.checklist.includes('Post from account: '+args.snapshot.identity.accountRef));
+    assert.equal((await db.socialChannel.findUnique({where:{id:args.snapshot.channelId}})).name,'Synthetic display label');
     assert.equal(repaired.accepted_revision,before.accepted_revision);assert.equal(repaired.selected_asset_id,before.selected_asset_id);
     assert.equal(repaired.schedule_at.toISOString(),before.schedule_at.toISOString());
     assert.equal((await release.repairBrowserPublicationMetadata(repair,deps)).replayed,true);

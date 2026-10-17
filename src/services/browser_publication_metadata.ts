@@ -21,8 +21,11 @@ export async function browserMetadataRepairContext(tx:BrowserDb,args:BrowserRequ
     const [attempt,work,job]=await Promise.all([tx.deliveryAttempt.findFirst({where}),
         tx.workItem.findFirst({where:{...where,kind:'browser_publish'}}),tx.connectorDispatchJob.findFirst({where})]);
     if(task.publication_fact||task.published_link||attempt||work||job)throw new Error('[BROWSER_RECONCILIATION_REQUIRED]');
-    const generated=buildGeneratedContentItemHandoff({...task},{requireAcceptedContent:true});
     const identity=args.snapshot.identity;
+    // The existing builder uses channel.name for checklist/account instructions.
+    // Bind its entire projection to the verified reference, never the display label.
+    const generated=buildGeneratedContentItemHandoff({...task,channel:{...task.channel,name:identity.accountRef}},
+        {requireAcceptedContent:true});
     const handoff={...generated,mode:'manual',content_language:args.snapshot.contentLanguage,
         task:{...generated.task,account_ref:identity.accountRef},
         account:{ref:identity.accountRef,platform:identity.platform,account_type:identity.accountType,

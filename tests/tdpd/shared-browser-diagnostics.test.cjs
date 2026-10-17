@@ -47,6 +47,8 @@ test('missing legacy bundle previews then repairs atomically before normal exact
     const bundle=f.state.task.quality_report.handoff_bundle;
     assert.equal(bundle.publication.body,body);assert.equal(bundle.publication.image_url,f.state.task.selected_asset.file_url);
     assert.equal(bundle.task.account_ref,args.snapshot.identity.accountRef);assert.equal(bundle.content_language,args.snapshot.contentLanguage);
+    assert.ok(bundle.checklist.includes('Post from account: '+args.snapshot.identity.accountRef));
+    assert.equal(bundle.checklist.some(step=>step.includes(f.state.task.channel.name)),false);
     const after=structuredClone(f.state);
     assert.equal((await release.repairBrowserPublicationMetadata({...args,apply:true},f)).replayed,true);
     assert.deepEqual(f.state,after);
