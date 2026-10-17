@@ -46,6 +46,48 @@ Raw run outputs on the operator Mac: `/tmp/dzen-baseline-pass.log`,
 `/tmp/dzen-sandbox-red.log`, `/tmp/dzen-sandbox-green-final.log`,
 `/tmp/dzen-sandbox-quality.log`, `/tmp/dzen-sandbox-build.log`.
 
+CI run `39036219323`, Dzen job `117406404144`, at commit
+`389a92627caa402db289d627aedfd095fa4bbc99` independently completed backend build,
+56 offline/native fixtures, 95 compiled regressions and 15 real PostgreSQL tests:
+all tests passed, zero skips. That job failed only at its final quality gate with
+the same six new and six stale fingerprints. The separate quality job failed for
+the same reason. Shared-browser, LinkedIn1128 and Threads1114 jobs passed. Source:
+https://github.com/InnokentyB/contentops-studio/actions/runs/39036219323/job/117406404144
+The CI PostgreSQL result is reported separately from the network-disabled Tower
+run; no Tower database or provider access is inferred from it.
+
+## Independent implementation review
+
+Reviewer: `/root/dzen_runtime_review_retry`, exact commit
+`389a92627caa402db289d627aedfd095fa4bbc99`, 17 October 2026.
+Verdict: no new actionable P1/P2 findings. No findings were waived or closed by
+changing the baseline. The reviewer independently reconstructed all six mapping
+pairs in isolated Tower containers and confirmed unchanged symbols, anchors and
+each occurrence count of one. A full scanner comparison found exactly six old
+and six new identities, no other finding changes, 7096 findings before and after,
+and zero scanner errors. Six focused entry/cleanup tests passed with zero skips.
+The reviewer independently reproduced the runtime-policy FAIL: six
+`NEW_RUNTIME_POLICY_DEBT` plus six `STALE_BASELINE_ENTRY` errors.
+
+The source review confirmed that the production diff only removes launch
+arguments at two existing sites, with no new authority bindings or weaker guard,
+tenant, receipt or idempotency controls. This independent review is evidence for
+the security correction and proposed exact mapping, not admission by the gate,
+human policy review, native integration or owner UAT. The reviewer made no source
+changes, comments, commits or provider calls.
+
+Review receipt recorded at `2026-10-17 13:37:19 UTC` (receipt time, not individual
+run timestamps). Commands included `node --test --test-concurrency=1
+tests/tdpd/dzen1002-native-entry.cjs` and `node
+scripts/check_runtime_policy.cjs --base-ref
+0f457ea97ebbdc20391beeaeea3523831208a5e3`; separate stdin AST/scanner comparisons
+used trusted Git base source and the read-only checkout. Existing quality/build
+images ran with UID1000, network none, read-only source/root, dropped capabilities,
+no-new-privileges, 2 GiB/2 CPU/256 PID limits and temporary storage. Reviewer raw
+outputs/scripts remain in the tool transcript, not separate saved files. Processes
+exited and containers used `--rm`; no separate reviewer post-run container
+inventory was taken, so independent container-cleanup inventory is not claimed.
+
 ## Outstanding
 
 The exact fingerprint replacement needs review under the runtime-policy contract
