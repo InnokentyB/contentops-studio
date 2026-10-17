@@ -13,8 +13,17 @@ const factService=require(path.join(base,'services/publication_fact.service.js')
 const deps={db,manifest};
 test.after(async()=>{await db.$disconnect();await pool.end();});
 
-async function setup(t){
+async function setup(t,platform='linkedin'){
     const source=fixture().state.task,nonce=randomUUID();
+    const profileId='019c0000-0000-7000-8000-000000000001';
+    const identity=platform==='setka'?{...template.identity,platform:'setka',accountType:'personal',
+        accountRef:'synthetic_setka',profileUrl:'https://setka.ru/users/'+profileId,providerAccountId:profileId}:template.identity;
+    if(platform==='setka'){
+        source.channel.type=platform;source.channel.name=identity.accountRef;
+        source.channel.config={account_ref:identity.accountRef,account_type:'unknown',execution_modes:['manual'],
+            profile_url:identity.profileUrl,capability_flags:{manual_handoff:true}};
+        source.quality_report.handoff_bundle.task.account_ref=identity.accountRef;
+    }
     const user=await db.user.create({data:{email:`synthetic-${nonce}@example.invalid`,name:'Synthetic',password_hash:'not-a-login'}});
     const project=await db.project.create({data:{name:'Synthetic browser lifecycle',slug:`synthetic-${nonce}`}});
     t.after(async()=>{await db.project.delete({where:{id:project.id}});await db.user.delete({where:{id:user.id}});});
@@ -28,7 +37,7 @@ async function setup(t){
         quality_report:source.quality_report}});
     const actorId=`user:${user.id}`;
     const decision=await db.artDirectionDecision.create({data:{project_id:project.id,content_item_id:task.id,
-        decision_version:4,source_content_revision:5,channel:'linkedin',placement:'feed',decision:'GENERATE',
+        decision_version:4,source_content_revision:5,channel:platform,placement:'feed',decision:'GENERATE',
         status:'active',actor_id:actorId,reason:'Synthetic approved visual'}});
     const asset=await db.imageAsset.create({data:{project_id:project.id,content_item_id:task.id,decision_id:decision.id,
         content_revision:5,placement:'feed',prompt:'Synthetic',status:'approved',file_url:source.selected_asset.file_url,
@@ -36,25 +45,52 @@ async function setup(t){
     await db.contentItem.update({where:{id:task.id},data:{selected_asset_id:asset.id}});
     const current=await manifest(project.id,user.id);
     const snapshot={...template,projectId:project.id,taskId:task.id,channelId:channel.id,selectedAssetId:asset.id,
-        decisionId:decision.id,manifestChecksum:current.checksum};
+        decisionId:decision.id,manifestChecksum:current.checksum,identity};
     const args={projectId:project.id,taskId:task.id,actorId,snapshot,approvalReference:'Synthetic exact owner approval',idempotencyKey:'release',apply:true};
     await release.repairBrowserPublicationMetadata({...args,idempotencyKey:'repair'},deps);
     return{args,task,project,user};
 }
-async function started(t){
-    const state=await setup(t),r=await release.releaseBrowserPublication(state.args,deps);
+async function started(t,platform='linkedin'){
+    const state=await setup(t,platform),r=await release.releaseBrowserPublication(state.args,deps);
     const workItemId=r.browser_work_item_id;
     const claim=await exec.claimBrowserPublication({...state.args,workItemId,idempotencyKey:'claim'},deps);
     const send={...state.args,apply:false,workItemId,leaseToken:claim.lease_token,idempotencyKey:'send'};
     const start=await exec.startBrowserSubmission(send,deps);
-    const observation={...send,attemptId:start.attempt_id,observedProfileUrl:template.identity.profileUrl,
-        observedProviderAccountId:template.identity.providerAccountId,observedAccountType:'company_page',
+    const observation={...send,attemptId:start.attempt_id,observedProfileUrl:state.args.snapshot.identity.profileUrl,
+        observedProviderAccountId:state.args.snapshot.identity.providerAccountId,observedAccountType:state.args.snapshot.identity.accountType,
         observedBodySha256:sha(body),observedAssetSha256:template.assetSha256,
         paragraphBlockSha256:body.split(/\n\s*\n/).map(p=>sha(p.trim())),attachedImageCount:1,
         duplicateAbsent:true,evidenceSha256:'d'.repeat(64)};
     return{...state,send,observation};
 }
 const fulfilled=results=>results.filter(r=>r.status==='fulfilled');
+test('Setka PostgreSQL confirmation is atomic, canonical and same-attempt replay only',async t=>{
+    const{args,observation}=await started(t,'setka');await exec.preSubmitBrowserSubmission(observation,deps);
+    const id='019d0000-0000-7000-8000-000000000002';
+    const a={...observation,publicUrl:'https://setka.ru/posts/'+id,providerObjectId:id,publishedAt:new Date().toISOString()};
+    const fail=record=>factService.record({...record,beforeWrite:async tx=>{
+        await record.beforeWrite(tx);throw Error('synthetic Setka rollback');}});
+    await assert.rejects(confirm.confirmBrowserSubmission(a,deps,fail),/synthetic Setka rollback/);
+    assert.equal(await db.publicationFact.count({where:{content_item_id:args.taskId}}),0);
+    assert.equal((await db.deliveryAttempt.findUnique({where:{id:observation.attemptId}})).status,'pending');
+    const results=await Promise.allSettled([confirm.confirmBrowserSubmission(a,deps),confirm.confirmBrowserSubmission(a,deps)]);
+    assert.ok(fulfilled(results).length>=1);
+    const fact=await db.publicationFact.findUnique({where:{content_item_id:args.taskId}});
+    assert.equal(fact.public_url,a.publicUrl);assert.equal(fact.provider_object_id,id);
+    assert.equal(fact.published_at.toISOString(),a.publishedAt);assert.equal(fact.evidence_ref,'sha256:'+a.evidenceSha256);
+    assert.equal(await db.deliveryAttempt.count({where:{content_item_id:args.taskId}}),1);
+    assert.equal((await confirm.confirmBrowserSubmission(a,deps)).replayed,true);
+});
+test('Setka PostgreSQL UNKNOWN freezes sending and reconciles the original attempt',async t=>{
+    const{args,send,observation}=await started(t,'setka');await exec.preSubmitBrowserSubmission(observation,deps);
+    await exec.markBrowserSubmissionUncertain({...send,attemptId:observation.attemptId,reasonCode:'PROVIDER_RESULT_UNCERTAIN'},deps);
+    await assert.rejects(exec.preSubmitBrowserSubmission(observation,deps),/BROWSER_RECONCILIATION_REQUIRED/);
+    await db.workItem.update({where:{id:send.workItemId},data:{lease_expires_at:new Date(0)}});
+    const{leaseToken,...readback}=observation,id='019d0000-0000-7000-8000-000000000003';
+    const a={...readback,publicUrl:'https://setka.ru/posts/'+id,providerObjectId:id,publishedAt:new Date().toISOString()};
+    assert.equal((await confirm.reconcileBrowserSubmission(a,deps)).submission_permitted,false);
+    assert.equal(await db.deliveryAttempt.count({where:{content_item_id:args.taskId}}),1);
+});
 test('S1/S2 PostgreSQL concurrent releases create exactly one WI and preserve accepted bytes',async t=>{
     const {args}=await setup(t);
     const results=await Promise.allSettled([release.releaseBrowserPublication(args,deps),
