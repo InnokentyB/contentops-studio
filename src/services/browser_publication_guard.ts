@@ -9,7 +9,7 @@ export const browserClaimSchema=browserRequestSchema.safeExtend({workItemId:z.nu
 export const browserBoundarySchema=browserClaimSchema.safeExtend({leaseToken:z.string().min(16).max(200)});
 export const browserObservedSchema=browserBoundarySchema.safeExtend({attemptId:z.number().int().positive(),
     observedProfileUrl:z.string().url(),observedProviderAccountId:z.string().min(1).max(100),
-    observedAccountType:z.enum(['company_page','personal']),observedBodySha256:checksum,observedAssetSha256:checksum,
+    observedAccountType:z.enum(['company_page','personal']),observedBodySha256:checksum,observedAssetSha256:checksum.nullable(),
     paragraphBlockSha256:z.array(checksum).min(1).max(1000),attachedImageCount:z.number().int().min(0).max(10),
     duplicateAbsent:z.boolean(),evidenceSha256:checksum});
 export type BrowserBoundary=z.infer<typeof browserBoundarySchema>;
@@ -52,7 +52,7 @@ export function assertBrowserObserved(body:string,args:Omit<BrowserObserved,'lea
     if(args.observedProfileUrl.replace(/\/$/,'')!==i.profileUrl.replace(/\/$/,'')
         ||args.observedProviderAccountId!==i.providerAccountId||args.observedAccountType!==i.accountType
         ||args.observedBodySha256!==s.bodySha256||args.observedAssetSha256!==s.assetSha256
-        ||args.attachedImageCount!==1||!args.duplicateAbsent
+        ||args.attachedImageCount!==(i.platform==='x'?0:1)||!args.duplicateAbsent
         ||!isDeepStrictEqual(args.paragraphBlockSha256,paragraphHashes(body)))throw new Error('[BROWSER_OBSERVATION_MISMATCH]');
 }
 export function browserObservationHash(args:Omit<BrowserObserved,'leaseToken'>):string {

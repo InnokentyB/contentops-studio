@@ -1,4 +1,5 @@
 import { BROWSER_PUBLICATION_TOOLS } from './browser_publication_capabilities';
+import { X_NATIVE_CONTROL_TOOLS } from './x_native_capabilities';
 export type McpCapabilityProfile = 'owner' | 'strategist' | 'planner' | 'writer' | 'editor' | 'art_director' | 'publisher' | 'growth_analyst' | 'organization_researcher';
 
 const ORGANIZATION_RESEARCHER_TOOLS = new Set([
@@ -404,7 +405,7 @@ export function isToolAllowedForProfile(profile: McpCapabilityProfile, toolName:
     if (profile === 'writer') return WRITER_TOOLS.has(toolName);
     if (profile === 'editor') return EDITOR_TOOLS.has(toolName);
     if (profile === 'art_director') return ART_DIRECTOR_TOOLS.has(toolName);
-    if (profile === 'publisher') return PUBLISHER_TOOLS.has(toolName) || BROWSER_PUBLICATION_TOOLS.has(toolName);
+    if (profile === 'publisher') return PUBLISHER_TOOLS.has(toolName) || BROWSER_PUBLICATION_TOOLS.has(toolName) || X_NATIVE_CONTROL_TOOLS.has(toolName);
     if (profile === 'growth_analyst') return GROWTH_ANALYST_TOOLS.has(toolName);
     if (profile === 'strategist') return STRATEGIST_TOOLS.has(toolName);
     if (profile === 'organization_researcher') return ORGANIZATION_RESEARCHER_TOOLS.has(toolName);

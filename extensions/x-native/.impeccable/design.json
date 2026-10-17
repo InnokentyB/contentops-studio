@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-17T14:54:30Z",
+  "title": "Design System: ContentOps X native pilot",
+  "extensions": {
+    "colorMeta": {
+      "primary": { "role": "primary", "displayName": "ContentOps indigo" },
+      "primary-hover": { "role": "primary", "displayName": "Deep indigo" },
+      "text": { "role": "neutral", "displayName": "Dark ink" },
+      "text-secondary": { "role": "neutral", "displayName": "Supporting ink" },
+      "canvas": { "role": "neutral", "displayName": "Cool canvas" },
+      "control": { "role": "neutral", "displayName": "Control white" },
+      "divider": { "role": "neutral", "displayName": "Section rule" },
+      "control-border": { "role": "neutral", "displayName": "Field stroke" },
+      "control-hover": { "role": "neutral", "displayName": "Action wash" },
+      "status": { "role": "neutral", "displayName": "Status wash" },
+      "selection": { "role": "neutral", "displayName": "Selection wash" },
+      "selection-text": { "role": "neutral", "displayName": "Selection ink" }
+    },
+    "typographyMeta": {
+      "headline": { "displayName": "Main heading", "purpose": "The single pilot title." },
+      "title": { "displayName": "Section heading", "purpose": "Package and sending sections." },
+      "paragraph": { "displayName": "Supporting text", "purpose": "Instructions and status text." },
+      "label": { "displayName": "Field label", "purpose": "Visible semibold form labels." },
+      "button": { "displayName": "Action text", "purpose": "Native action labels with inherited font size." }
+    },
+    "shadows": [],
+    "motion": [],
+    "breakpoints": [{ "name": "compact", "value": "420px" }]
+  },
+  "components": [
+    {
+      "name": "One-time publication button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Source-derived primary action; shown disabled by default, without executable behavior.",
+      "html": "<button class=\"ds-primary\" type=\"button\" disabled>Опубликовать один раз</button>",
+      "css": ".ds-primary { min-height:44px; padding:11px 16px; border:1px solid #333697; border-radius:8px; color:#fff; background:#333697; font-family:Arial,sans-serif; font-size:inherit; line-height:1.4; cursor:pointer; margin-top:16px; text-align:left; } .ds-primary:hover { background:#252874; } .ds-primary:disabled { opacity:.6; cursor:not-allowed; } .ds-primary:focus-visible { outline:3px solid #333697; outline-offset:3px; } @media(max-width:420px) { .ds-primary { width:100%; } }"
+    },
+    {
+      "name": "No-send secondary button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Shared secondary treatment for identity, no-send check, readiness and reconciliation.",
+      "html": "<button class=\"ds-secondary\" type=\"button\">Проверить без отправки</button>",
+      "css": ".ds-secondary { min-height:44px; padding:11px 16px; border:1px solid #333697; border-radius:8px; color:#333697; background:#fff; font-family:Arial,sans-serif; font-size:inherit; line-height:1.4; cursor:pointer; margin-top:16px; text-align:left; } .ds-secondary:hover { background:#ededfa; } .ds-secondary:disabled { opacity:.6; cursor:not-allowed; } .ds-secondary:focus-visible { outline:3px solid #333697; outline-offset:3px; } @media(max-width:420px) { .ds-secondary { width:100%; } }"
+    },
+    {
+      "name": "Public package field",
+      "kind": "input",
+      "refersTo": "text-field",
+      "description": "Visible label, resizable textarea and linked public-data warning.",
+      "html": "<label class=\"ds-label\" for=\"ds-package\">Параметры публикации (JSON)</label><textarea class=\"ds-field\" id=\"ds-package\" rows=\"5\" spellcheck=\"false\" aria-describedby=\"ds-help\"></textarea><p class=\"ds-help\" id=\"ds-help\">Не вставляйте сюда токены или cookies.</p>",
+      "css": ".ds-label { display:block; font-family:Arial,sans-serif; font-size:.9rem; font-weight:600; margin-bottom:8px; color:#252536; } .ds-field { display:block; width:100%; padding:12px; border:1px solid #9292ab; border-radius:8px; background:#fff; color:#252536; font-family:Arial,sans-serif; font-size:inherit; caret-color:#333697; resize:vertical; } .ds-field:focus-visible { outline:3px solid #333697; outline-offset:3px; } .ds-help { color:#4b4b60; font-family:Arial,sans-serif; font-size:.9rem; line-height:1.55; margin:12px 0 0; max-width:70ch; }"
+    },
+    {
+      "name": "Exact-package consent",
+      "kind": "input",
+      "description": "Native checkbox with deliberate consent; unavailable in the initial state.",
+      "html": "<label class=\"ds-consent\"><input class=\"ds-checkbox\" type=\"checkbox\" disabled>Опубликовать именно этот пакет в указанном аккаунте</label>",
+      "css": ".ds-consent { display:flex; align-items:flex-start; gap:12px; font-family:Arial,sans-serif; font-size:.9rem; font-weight:400; color:#252536; line-height:1.5; padding:8px 0; margin-top:20px; margin-bottom:8px; } .ds-checkbox { width:20px; height:20px; flex:0 0 20px; margin:0; accent-color:#333697; } .ds-checkbox:focus-visible { outline:3px solid #333697; outline-offset:3px; }"
+    },
+    {
+      "name": "Persistent status",
+      "kind": "custom",
+      "refersTo": "status",
+      "description": "Polite live text; neutral presentation does not claim publication success.",
+      "html": "<p class=\"ds-status\" role=\"status\" aria-live=\"polite\">Проверка ещё не выполнялась.</p>",
+      "css": ".ds-status { color:#4b4b60; font-family:Arial,sans-serif; font-size:.9rem; line-height:1.55; max-width:70ch; white-space:pre-wrap; overflow-wrap:anywhere; padding:16px; margin:28px 0 0; background:#ededf6; }"
+    },
+    {
+      "name": "Public installation disclosure",
+      "kind": "custom",
+      "description": "Native collapsed disclosure; public identity is separate from enrollment and permission.",
+      "html": "<details class=\"ds-details\"><summary class=\"ds-summary\">Данные установки для подключения</summary><p class=\"ds-disclosure-help\">Только публичный ключ и ID. Они не дают разрешения на публикацию.</p></details>",
+      "css": ".ds-details { margin-top:16px; font-family:Arial,sans-serif; color:#252536; } .ds-summary { cursor:pointer; padding:12px 0; } .ds-summary:focus-visible { outline:3px solid #333697; outline-offset:3px; } .ds-disclosure-help { color:#4b4b60; font-size:.9rem; line-height:1.55; margin:12px 0 0; max-width:70ch; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "ContentOps restrained Operate",
+    "overview": "This document captures the existing X native pilot, not a new brand direction. The first body comment in `pilot.html` is the visual authority: retain ContentOps restrained indigo, flat sections and native form controls. Arial, a light canvas and sparse indigo actions support a precise operator workflow.\n\nThe package and no-send check precede an explicitly separate publication area. Installation identity, signed backend pairing/enrollment, backend owner UAT, no-send checking and released publication are separate events. The popup does not grant those authorities. Future publications reuse the installation enrollment through the shared lifecycle; the popup no-send action is not a requirement to repeat backend enrollment or owner UAT for each post.\n\nVerification: the initial **No usable sandbox** result is superseded by a successful bounded fixture run in the existing reviewed container sandbox, using its exact seccomp profile and `SYS_CHROOT`, not `SYS_ADMIN`. `chrome://sandbox` reported namespace and seccomp protections **YES**. Desktop (`720px`) and mobile (`360px`) screenshots are recorded at the repository-relative paths `.impeccable/review/desktop.png` and `.impeccable/review/mobile.png`. The `x_finish_review` inspection returned **PASS — bounded visual/source review**. Both scoped P2 source fixes are resolved; the P1 claim that each popup check must repeat backend owner UAT is withdrawn. Real-account owner UAT remains unperformed; fixture evidence does not establish live publication readiness or owner acceptance.",
+    "keyCharacteristics": [
+      "Restrained inherited indigo; no replacement palette or visual world.",
+      "Flat, rule-separated sections with native controls and visible labels.",
+      "Textual status, explicit consent and a disabled-by-default send action.",
+      "Public installation information only; no secret-bearing presentation."
+    ],
+    "rules": [
+      { "name": "The Textual State Rule", "body": "Do not invent success/error colors: the current implementation distinguishes outcomes in the status text, not by a semantic color ramp.", "section": "colors" },
+      { "name": "The Authority Separation Rule", "body": "Preserve the visual and textual separation between installation identity, no-send checking, readiness, deliberate publication and reconciliation. Local intent never replaces server authorization.", "section": "components" }
+    ],
+    "dos": [
+      "Do preserve the inherited indigo, Arial and flat section rhythm.",
+      "Do keep no-send checking and publication visibly separate.",
+      "Do retain labels, keyboard focus outlines, native disclosures and textual status.",
+      "Do preserve expired, busy, disabled and uncertain states as distinct operator outcomes.",
+      "Do keep enrollment/backend owner UAT separate from popup no-send checks and reuse enrollment for future publications."
+    ],
+    "donts": [
+      "Don't invent a new palette, tonal ramp, card system, navigation or decorative imagery.",
+      "Don't imply installation data, pairing, readiness or a receipt proves publication success.",
+      "Don't bypass consent, exact-package authorization or same-attempt reconciliation with a visual shortcut.",
+      "Don't present fixture screenshots, source inspection or this document as real-account owner acceptance."
+    ]
+  }
+}

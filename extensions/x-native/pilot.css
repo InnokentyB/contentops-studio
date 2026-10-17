@@ -1,0 +1,30 @@
+* { box-sizing: border-box; }
+:root { color-scheme: light; font-family: Arial, sans-serif; color: #252536; background: #f7f8fc; }
+body { min-width: 320px; max-width: 720px; margin: 0 auto; padding: 24px; }
+h1 { font-size: 1.5rem; margin: 0 0 12px; line-height: 1.3; }
+h2 { font-size: 1.05rem; margin: 0 0 16px; }
+p { color: #4b4b60; font-size: .9rem; line-height: 1.55; margin: 12px 0 0; max-width: 70ch; }
+section { margin-top: 28px; padding-top: 24px; border-top: 1px solid #d6d6e4; }
+label { display: block; font-size: .9rem; font-weight: 600; margin-bottom: 8px; }
+input, textarea { display: block; width: 100%; padding: 12px; border: 1px solid #9292ab; border-radius: 8px;
+    background: #fff; color: #252536; font: inherit; caret-color: #333697; }
+textarea { resize: vertical; }
+button { min-height: 44px; padding: 11px 16px; border: 1px solid #333697; border-radius: 8px;
+    color: #333697; background: #fff; font: inherit; line-height: 1.4; cursor: pointer; margin-top: 16px; text-align: left; }
+button:hover { background: #ededfa; }
+button:disabled { opacity: .6; cursor: not-allowed; }
+button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid #333697; outline-offset: 3px; }
+#run { background: #333697; color: #fff; }
+#run:hover { background: #252874; }
+#result { white-space: pre-wrap; overflow-wrap: anywhere; padding: 16px; margin-top: 28px;
+    background: #ededf6; font-size: .9rem; }
+label:not(:first-child) { margin-top: 20px; }
+.consent { display: flex; align-items: flex-start; gap: 12px; font-weight: 400; line-height: 1.5; padding: 8px 0; }
+.consent input { width: 20px; height: 20px; flex: 0 0 20px; margin: 0; accent-color: #333697; }
+pre { overflow-wrap: anywhere; white-space: pre-wrap; font-size: .8rem; line-height: 1.5; }
+a { color: #333697; text-underline-offset: 3px; }
+a:focus-visible, summary:focus-visible { outline: 3px solid #333697; outline-offset: 3px; }
+details { margin-top: 16px; }
+summary { cursor: pointer; padding: 12px 0; }
+::selection { background: #dce0ff; color: #20205c; }
+@media (max-width: 420px) { body { padding: 16px; } button { width: 100%; } }
