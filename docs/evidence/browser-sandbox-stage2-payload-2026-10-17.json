@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "file": "src/services/dzen1002_inventory_browser.ts",
+      "oldSourceSha256": "0f848e6c86a6fe025a07e21bfb32696cada7d88cf377368c7ae5730b9ce9453a",
+      "newSourceSha256": "7335d9b56fc2bd80d61a8c2218c4b9160b432ea19422f42fa6d53fb9724fb636",
+      "remaps": [
+        {
+          "rule": "task_identifier",
+          "oldIdentity": "7179b9689f7901821987730df29c2cae33606f67fccc793488c62befa8d17839",
+          "newIdentity": "3e179c1c2bc7c31b7829e872dc1f4b06ebeb4659327340adcfd8da396f417227",
+          "count": 1,
+          "symbol": "readDzen1002Inventory"
+        },
+        {
+          "rule": "task_identifier",
+          "oldIdentity": "c32bf840d56a02cf9ecee94342a6a6326b318edf3b5248b387d907e35f37c5de",
+          "newIdentity": "95c001d60956be4774006beb18f7f834b1774c4e8ab344b753e897ce347e807c",
+          "count": 1,
+          "symbol": "Dzen1002Readback"
+        }
+      ],
+      "review": {
+        "reference": "PR172 commit389a926 independent source review; exact staging approval still required",
+        "owner": "Planner maintainer",
+        "reason": "Remove sandbox-disabling launch options without new publication authority",
+        "removalPlan": "Remove these mappings when the existing task-specific adapter is retired in favor of the shared lifecycle"
+      }
+    },
+    {
+      "file": "src/services/puppeteer/dzen1002_publisher.ts",
+      "oldSourceSha256": "0b2906186830dba0c98dd277ff293eee57581d9a3363ca495c7cce168691bd6e",
+      "newSourceSha256": "373fafa050ba1120ae5ab3a3f1b96adf7fae93a6dcc943059b339c455f1e93f2",
+      "remaps": [
+        {
+          "rule": "task_identifier",
+          "oldIdentity": "db46d63436c282ad7fe8e8f301a201744982d5a99f1946f346e8131441d3dbc2",
+          "newIdentity": "a655b7f8eb4a4bacc686000a591bbe22dc6dc498209579440b9e0cbf4bd9a315",
+          "count": 1,
+          "symbol": "publishDzen1002Server"
+        },
+        {
+          "rule": "task_identifier",
+          "oldIdentity": "900e8b8ef7bc3e23bd64225fa17593f1ef54959ff8ff41404998b2a11e20eb42",
+          "newIdentity": "0b393cb46dcbe7288dbafbe6fbc18742b00f4863bbab517c381d47609509d2d6",
+          "count": 1,
+          "symbol": "Dzen1002Claim"
+        },
+        {
+          "rule": "task_identifier",
+          "oldIdentity": "910dcc4eee9d488b080fbc525d62ed33ec789340c146c900c0220f5eca6d572a",
+          "newIdentity": "bfaab591cb1ed3a2f5d6fad48bf0730c6cf7e6b2ac62094b88daef7837186c7a",
+          "count": 1,
+          "symbol": "Dzen1002Hooks"
+        },
+        {
+          "rule": "task_identifier",
+          "oldIdentity": "7c87e507622fe710e9524751f35c06b288e38a443c652755e6d732ff9f02edd3",
+          "newIdentity": "0e472d3ae77773a2b30f890342767e6ea67bb546c1d057227cc3981a655139e3",
+          "count": 1,
+          "symbol": "Dzen1002Receipt"
+        }
+      ],
+      "review": {
+        "reference": "PR172 commit389a926 independent source review; exact staging approval still required",
+        "owner": "Planner maintainer",
+        "reason": "Remove sandbox-disabling launch options without new publication authority",
+        "removalPlan": "Remove these mappings when the existing task-specific adapter is retired in favor of the shared lifecycle"
+      }
+    }
+  ]
+}

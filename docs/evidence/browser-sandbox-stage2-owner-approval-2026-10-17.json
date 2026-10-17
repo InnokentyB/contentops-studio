@@ -1,0 +1,19 @@
+{
+  "recordType": "direct_owner_exact_stage_approval",
+  "source": "Direct human user message in the current Ba_post_planner chat on 2026-10-17",
+  "exactQuote": "Тогда одобряю слияние PR174 и отдельный допуск PR172 по проверенному пакету stage2. Продолжай.",
+  "approvedPayloadSha256": "2794dbc59290fe18a80f7da82472bda8fb34afa64afbf7439817f07baa847440",
+  "independentlyReviewedEvidenceCommit": "9fb5f6892731588bd17057f351abf11c328da8c7",
+  "reviewReceiptCommit": "a0a282e",
+  "scope": [
+    "Merge reviewed PR174",
+    "Stage the separately reviewed exact six-mapping PR172 transition record in main with old source and baseline unchanged",
+    "Prepare and verify later PR172 consumption against the trusted staged record"
+  ],
+  "excluded": [
+    "Deployment or live provider actions",
+    "Publication permission or clearance of an existing action refusal",
+    "New business bindings or changed source, count or metadata beyond the reviewed package"
+  ],
+  "interpretation": "PR172 consumption is prepared for review; merging PR172 itself is not inferred from the explicit PR174 merge approval"
+}
