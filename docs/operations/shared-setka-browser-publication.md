@@ -65,9 +65,13 @@ Expected package data, to compare against a fresh owning-Publisher readback:
 }
 ```
 
-The body hash above is the owning Operations expectation; resource metadata is
-JPEG1200×900 RGB/219988bytes. Actual body/resource bytes and selected active
-decision must be checked fresh, not inferred from this document. The scheduled
+The body hash above was recomputed from the fetched accepted text in a bounded
+network-disabled tower container and matched the owning Operations expectation.
+A separate bounded read-only HTTPS resource fetch returned HTTP200,
+`image/jpeg`, 219988bytes and the exact asset SHA above. Dimensions/color remain
+stored metadata (1200×900 RGB), not a new decoder check. The selected active
+decision and actual native attachment must still be checked fresh, not inferred
+from this document. The scheduled
 time is 15:00 Europe/Lisbon; do not move/backdate it. Registry v36 was read-only
 verified in the local canonical CRM snapshot (2026-10-14), entity `profile_126`,
 owned personal profile. It is routing evidence, not a provider login check.
