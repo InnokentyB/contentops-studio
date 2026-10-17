@@ -35,7 +35,8 @@
     "test": "npm run build >/dev/null && node --test dist/tests/**/*.test.js",
     "pilot:provision": "ts-node scripts/provision_pilot_user.ts",
     "audit:quality": "node scripts/audit_code_quality.mjs",
-    "quality:gate": "node scripts/check_quality_gate.mjs"
+    "quality:gate": "node scripts/check_quality_gate.mjs",
+    "quality:runtime-policy": "node scripts/check_runtime_policy.cjs"
   },
   "keywords": [
     "content-operations",
