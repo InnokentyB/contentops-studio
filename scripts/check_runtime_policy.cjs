@@ -2,6 +2,7 @@
 const cp = require('node:child_process');
 const {readSource} = require('./runtime_policy_source.cjs');
 const {scanRepository} = require('./runtime_policy_scanner.cjs');
+const {reviewedTransitions} = require('./runtime_policy_transitions.cjs');
 const key = row => [row.file, row.rule, row.identity].join('\0');
 // Only the reviewed introduction may have no baseline in its trusted parent.
 const bootstrapBase = '12025f29ddf51d30e90825caf2d90e09e1045a1b';
@@ -18,6 +19,20 @@ function parseBaseline(text) {
         seen.add(key(row));
     }
     return data.entries;
+}
+
+// HEAD can only demand an explicit comparison; it never authorizes a transition.
+function localComparisonNeeded(baselinePath,baseline){
+    const result=cp.spawnSync('git',['show','HEAD:'+baselinePath],{encoding:'utf8',timeout:5000,maxBuffer:8*1024*1024});
+    if(result.error)return true;
+    if(result.status===0){
+        let committed;
+        try{committed=parseBaseline(result.stdout);}catch{return true;}
+        const old=new Map(committed.map(row=>[key(row),row.count]));
+        return baseline.some(row=>row.count>(old.get(key(row))||0));
+    }
+    const head=cp.spawnSync('git',['rev-parse','--verify','HEAD'],{stdio:'ignore',timeout:5000});
+    return Boolean(head.error)||(head.status===0&&baseline.length>0);
 }
 
 function run() {
@@ -37,7 +52,13 @@ function run() {
     for (const row of baseline) {
         if ((current.get(key(row)) || 0) < row.count) result.errors.push({code: 'STALE_BASELINE_ENTRY', file: row.file, rule: row.rule, identity: row.identity});
     }
-    const baseRef = value('--base-ref') || process.env.RUNTIME_POLICY_BASE_REF;
+    const cliBase=value('--base-ref'),eventBase=process.env.RUNTIME_POLICY_BASE_REF;
+    const baseRef = eventBase || cliBase;
+    const transitions=[];
+    if(cliBase&&eventBase&&cliBase!==eventBase)result.errors.push({code:'TRANSITION_BASE_CONFLICT'});
+    if(process.env.GITHUB_ACTIONS==='true'&&(!/^(?!0{40}$)[a-f0-9]{40}$/.test(eventBase||'')
+        ||!['pull_request','push'].includes(process.env.GITHUB_EVENT_NAME)))result.errors.push({code:'TRANSITION_BASE_REQUIRED'});
+    if(!baseRef&&localComparisonNeeded(baselinePath,baseline))result.errors.push({code:'TRANSITION_BASE_REQUIRED'});
     if (baseRef) {
         if (!/^[a-f0-9]{7,40}$|^HEAD$/.test(baseRef)) throw new Error('INVALID_BASE_REF');
         let old;
@@ -52,11 +73,17 @@ function run() {
             old = bootstrap ? baseline : [];
         }
         const oldMap = new Map(old.map(row => [key(row), row.count]));
-        if (baseline.some(row => row.count > (oldMap.get(key(row)) || 0))) result.errors.push({code: 'BASELINE_WIDENED'});
+        const growth=baseline.filter(row=>row.count>(oldMap.get(key(row))||0));
+        if(growth.length){
+            try {transitions.push(...reviewedTransitions({base:baseRef,cli:cliBase,oldRows:old,currentRows:baseline}));}
+            catch(error){result.errors.push({code:/^TRANSITION_[A-Z_]+$/.test(error.code)?error.code:'TRANSITION_VALIDATION_FAILED'});}
+            const reviewed=new Set(transitions.map(row=>key({file:row.file,rule:row.rule,identity:row.newIdentity})));
+            if(growth.some(row=>!reviewed.has(key(row))))result.errors.push({code:'BASELINE_WIDENED'});
+        }
     }
     return {verdict: result.errors.length ? 'FAIL' : 'PASS', errors: result.errors, scannedFiles: result.scannedFiles,
         operationalFiles: result.operationalFiles, findingsCount: result.findings.length, baselineCount: baseline.length,
-        elapsedMs: Date.now() - started};
+        appliedTransitions:transitions,elapsedMs: Date.now() - started};
 }
 
 try {
