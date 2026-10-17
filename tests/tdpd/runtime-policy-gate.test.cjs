@@ -19,7 +19,8 @@ function fixture(t, sources) {
     execFileSync('git', ['add', '.'], {cwd: root});
     const run = (...args) => {
         const result = spawnSync(process.execPath, [gate, '--baseline', 'baseline.json', ...args], {
-            cwd: root, encoding: 'utf8', timeout: 15000
+            cwd: root, encoding: 'utf8', timeout: 15000,
+            env: {...process.env,RUNTIME_POLICY_BASE_REF:'',GITHUB_ACTIONS:'',GITHUB_EVENT_NAME:''}
         });
         assert.equal(result.error, undefined);
         return {status: result.status, report: JSON.parse(result.stdout)};
@@ -106,7 +107,8 @@ test('parent quality command used by CI propagates an actual policy violation', 
     const parent = path.resolve(__dirname, '../../scripts/check_quality_gate.mjs');
     f.write('scripts/check_quality_gate.mjs', fs.readFileSync(parent, 'utf8'));
     const check = () => {
-        const result = spawnSync(process.execPath, ['scripts/check_quality_gate.mjs'], {cwd: f.root, encoding: 'utf8', timeout: 15000});
+        const result = spawnSync(process.execPath, ['scripts/check_quality_gate.mjs'], {cwd: f.root, encoding: 'utf8', timeout: 15000,
+            env:{...process.env,RUNTIME_POLICY_BASE_REF:'',GITHUB_ACTIONS:'',GITHUB_EVENT_NAME:''}});
         assert.equal(result.error, undefined);
         return {status: result.status, report: JSON.parse(result.stdout)};
     };
