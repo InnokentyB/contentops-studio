@@ -70,6 +70,13 @@ requires original attemptId/key for preview or apply, forbids approvalReference,
 and uses immutable stored claim rather than requiring mutable current package
 bindings; reject supplied conflicting expected fields. Non-Dzen callers may not
 select new governed operations unless supported by their own provider contract.
+Idempotency is operation-scoped: release key identifies original release/job
+creation and never changes; publish key identifies the sole original committed
+claim/DeliveryAttempt/event, linked to that existing release/job; reconcile must
+present that original publish key, not the release key. Different operation keys
+must not overwrite one another, create another job or refresh a consumed attempt.
+Background dispatch without a trusted scoped executor context is blocked; it
+cannot choose the first owner or synthesize an actor from membership.
 The package fingerprint covers immutable material/account/revision/manifest and
 approval binding, excluding generated attempt/lease IDs; release/claim identities
 are bound separately, avoiding a self-referential digest.
@@ -117,6 +124,14 @@ facts before a new claim. Unique job identity alone cannot authorize another
 attempt after key/revision/account change on the same item. All old/new producers
 must use the ownership fence before mutation. Bounded DB-only serialization
 retries are allowed before provider start; after start no retry dispatches again.
+
+Include canonical writers/projections in that preservation boundary: publication
+plan importer/materialization, week-package repair, task prepare/content update,
+batch dispatch, exact wrappers, manual/imported fact and status projections.
+Their changes must preserve ownership/history references; status or quality-report
+replacement cannot erase the fence or make a prior attempt eligible. Assert this
+alongside canonical lifecycle RED/release tests rather than shipping an interval
+where ingestion can reinterpret/reset the aggregate.
 
 State chain: released → inventory_verified → claimed → started → submit_consumed
 → receipt_retained → fact_confirmed. Lost/uncertain outcome after claim becomes
