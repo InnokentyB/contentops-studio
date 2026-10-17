@@ -1,6 +1,7 @@
+import { VK_CONNECTOR_SCOPE, VK_CONNECTOR_HOST } from './vk_connector_fixture';
 import { VkConnectorDispatchService } from '../../services/vk_connector_dispatch.service';
-import { connectorPackageHash, VK_CONNECTOR_SCOPE, VK_CONNECTOR_HOST, type ConnectorStore, type ConnectorJob, type ConnectorHost, type ConnectorSnapshot, type ConnectorAuditData } from '../../services/vk_connector_contract';
-export function harness(enabled = true) {
+import { connectorPackageHash, type ConnectorStore, type ConnectorJob, type ConnectorHost, type ConnectorSnapshot, type ConnectorAuditData } from '../../services/vk_connector_contract';
+export function harness(enabled = true, registeredMode: ConnectorHost['mode'] = 'infrastructure_only') {
     let snapshotError: string | null = null;
     let clock = new Date('2026-10-12T19:00:00Z');
     const jobs = new Map<string, ConnectorJob>(), hosts = new Map<string, ConnectorHost>();
@@ -34,6 +35,8 @@ export function harness(enabled = true) {
     const service = new VkConnectorDispatchService(repository, enabled, () => new Date(clock));
     const identity = { projectId: 10, actorId: 'user:2' };
     const consumer = { ...identity, hostId: VK_CONNECTOR_HOST, instanceId: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa', buildVersion: 'test-016' };
+    hosts.set(consumer.hostId, { projectId: identity.projectId, hostId: consumer.hostId, instanceId: consumer.instanceId,
+        buildVersion: 'synthetic-registered', heartbeatAt: new Date(clock.getTime() - 60_000), mode: registeredMode, blocker: null });
     const request = { ...identity, taskId: 1048, expectedPackageSha256: connectorPackageHash(snapshot.package), idempotencyKey: 'pilot1048-dispatch-v1' };
     return { service, repository, store, snapshot, jobs, hosts, events, identity, consumer, request,
         invalidate: () => { snapshotError = '[VK_CONNECTOR_PACKAGE_NOT_READY]'; },

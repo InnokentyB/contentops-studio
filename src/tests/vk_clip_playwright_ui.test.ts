@@ -1,3 +1,4 @@
+import { sandboxedChromiumLaunchOptions } from '../services/browser_launch';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
@@ -18,7 +19,7 @@ const proof: VkClipProviderEvidence = { public_url: url, provider_object_id: 'cl
     media_present: true, clip_media_sha256: sha, media_acknowledgement_reference: 'fixture-only:provider-upload-ack' };
 
 test('Clip driver processes only local DOM fixtures and rejects premature or unverifiable confirmation', async () => {
-    const browser = await chromium.launch({ headless: true });
+    const browser = await chromium.launch(sandboxedChromiumLaunchOptions({ headless: true, executablePath: process.env.APP_BROWSER_EXECUTABLE_PATH ?? chromium.executablePath() }));
     const folder = mkdtempSync(join(tmpdir(), 'vk-clip-offline-'));
     try {
         const page = await browser.newPage();
@@ -76,7 +77,7 @@ test('Clip driver processes only local DOM fixtures and rejects premature or unv
 });
 
 test('missing verification and independent provider collector fail before any navigation', async () => {
-    const browser = await chromium.launch({ headless: true });
+    const browser = await chromium.launch(sandboxedChromiumLaunchOptions({ headless: true, executablePath: process.env.APP_BROWSER_EXECUTABLE_PATH ?? chromium.executablePath() }));
     try {
         const page = await browser.newPage(); await page.route('**/*', route => route.abort());
         const port = createPlaywrightVkClipPagePort(page);
@@ -87,7 +88,7 @@ test('missing verification and independent provider collector fail before any na
 });
 
 test('provider relative date, missing media binding and wrong community cannot confirm a fixture Clip', async () => {
-    const browser = await chromium.launch({ headless: true });
+    const browser = await chromium.launch(sandboxedChromiumLaunchOptions({ headless: true, executablePath: process.env.APP_BROWSER_EXECUTABLE_PATH ?? chromium.executablePath() }));
     const folder = mkdtempSync(join(tmpdir(), 'vk-clip-invalid-proof-'));
     try {
         const page = await browser.newPage(); await page.route('**/*', route => route.abort());

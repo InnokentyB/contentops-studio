@@ -1,0 +1,43 @@
+name: planner-vk-synthetic
+services:
+  check:
+    image: planner-vk-synthetic:local
+    build:
+      network: none
+      context: ../..
+      dockerfile: ops/vk-container/Dockerfile
+    platform: linux/amd64
+    user: "1000:1000"
+    init: true
+    restart: "no"
+    network_mode: none
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=768m,mode=1777
+    shm_size: 512m
+    mem_limit: 2g
+    cpus: 2
+    pids_limit: 256
+    ulimits:
+      core: 0
+    cap_drop: [ALL]
+    cap_add: [SYS_CHROOT]
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=/home/innokenty/migration-evidence/tower-infra-20261016/container-browser/seccomp_profile.json
+    environment:
+      HOME: /tmp/home
+      APP_BROWSER_EXECUTABLE_PATH: /opt/playwright/chromium-1243/chrome-linux64/chrome
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "2"}
+  verify:
+    extends: check
+    # Compilation writes only into this disposable container, never host source.
+    read_only: false
+    mem_limit: 4g
+    environment:
+      NODE_OPTIONS: --max-old-space-size=3072
+      DATABASE_URL: postgresql://synthetic:synthetic@127.0.0.1:1/synthetic
+      # Constructor fixture only; no bot launch and no network available.
+      TELEGRAM_BOT_TOKEN: synthetic-offline-fixture-not-a-credential

@@ -4,16 +4,16 @@ import { z } from 'zod';
 import { harness } from './helpers/vk_connector_harness';
 import { VkConnectorAppAuthority } from '../services/vk_connector_app_authority';
 import { connectorHash, connectorPackageHash } from '../services/vk_connector_contract';
-import { createVk1048ApplicationBroker } from '../services/vk1048_application_broker';
-import { createVk1048SubmissionControl, runVk1048ProviderJob } from '../services/vk1048_provider_execution';
-import type { Vk1048ProviderRuntime } from '../services/vk1048_playwright_runtime';
+import { createVkConnectorApplicationBroker } from '../services/vk_connector_application_broker';
+import { createVkConnectorSubmissionControl, runVkConnectorProviderJob } from '../services/vk_connector_provider_execution';
+import type { VkConnectorProviderRuntime } from '../services/vk_connector_playwright_runtime';
 import type { VkConnectorControl } from '../services/vk_connector_consumer_runtime';
 const now = new Date('2026-10-12T19:00:00Z');
 async function setup() {
-    const h = harness(); h.store.authorize = async (project, actor) => { assert.equal(project, 10); assert.equal(actor, 'user:0'); };
+    const h = harness(true, 'vk_feed_provider'); h.store.authorize = async (project, actor) => { assert.equal(project, 10); assert.equal(actor, 'user:2'); };
     const bytes = Buffer.from('fixture image'); h.snapshot.package.bodySha256 = connectorHash('fixture body'); h.snapshot.package.assetSha256 = connectorHash(bytes.toString());
-    await h.service.dispatch({ ...h.request, actorId: 'user:0', expectedPackageSha256: connectorPackageHash(h.snapshot.package) });
-    const consumer = { ...h.consumer, projectId: 10 as const, hostId: 'vk-connector-local-1048' as const, actorId: 'user:0' as const, mode: 'vk_feed_provider' as const };
+    await h.service.dispatch({ ...h.request, actorId: 'user:2', expectedPackageSha256: connectorPackageHash(h.snapshot.package) });
+    const consumer = { ...h.consumer, projectId: 10 as const, hostId: 'vk-connector-local-1048' as const, actorId: 'user:2' as const, mode: 'vk_feed_provider' as const };
     const [job] = (await h.service.poll(consumer)).jobs; const receipt = await h.service.ack({ ...consumer, ...job });
     const identity = { ...consumer, jobId: receipt.jobId, generation: receipt.generation, packageSha256: receipt.packageSha256 };
     h.store.executionPackage = async () => ({ binding: h.snapshot.package, packageSha256: receipt.packageSha256, body: 'fixture body',
@@ -36,8 +36,8 @@ test('BROKER-SERVICE-001 real authority receives wall envelope and challenge pre
         }
         throw new Error(`Unexpected test route ${name}`);
     } };
-    const broker = createVk1048ApplicationBroker(control, identity, () => now);
-    const runtime: Vk1048ProviderRuntime = { route: 'planner_registered_independent_adapter', broker, executionContext: 'production_admitted', evidenceDir: '/unused', now: () => now,
+    const broker = createVkConnectorApplicationBroker(control, identity, () => now);
+    const runtime: VkConnectorProviderRuntime = { route: 'planner_registered_independent_adapter', broker, executionContext: 'production_admitted', evidenceDir: '/unused', now: () => now,
         admission: { assess: async () => ({ status: 'ACTION_ADMITTED', executionContext: 'production_admitted' }) },
         loadApprovedImage: async () => ({ buffer: bytes, filename: 'fixture.png' }), withSession: async run => run({
             ui: { navigate: async () => undefined, loginRequired: async () => false, openWallComposer: async () => undefined,
@@ -47,7 +47,7 @@ test('BROKER-SERVICE-001 real authority receives wall envelope and challenge pre
                 coverage: 'complete_window', exhausted: true, rows: [{ objectId: '-240051152_7', publicUrl: 'https://vk.com/wall-240051152_7', publishedAt: now.toISOString(), text: 'fixture body',
                     media: { assetSha256: h.snapshot.package.assetSha256, providerMediaId: 'photo-240051152_8', acknowledged: true,
                         source: { originalUrl: 'https://sun9.userapi.com/original.png', capturedAt: now.toISOString(), postObjectId: '-240051152_7', providerMediaId: 'photo-240051152_8' } } }] }) }) };
-    const result = await runVk1048ProviderJob({ identity: consumerIdentity(identity), jobId: identity.jobId, generation: identity.generation,
+    const result = await runVkConnectorProviderJob({ identity: consumerIdentity(identity), jobId: identity.jobId, generation: identity.generation,
         packageSha256: identity.packageSha256, binding: h.snapshot.package }, control, runtime);
     assert.equal(result.status, 'provider_confirmed'); assert.equal(verified, true);
 });
@@ -75,8 +75,8 @@ test('BROKER-SERVICE-002 confirmation projection passes actual strict authority 
         }
         throw new Error('Unexpected test route');
     } };
-    const broker = createVk1048ApplicationBroker(control, identity, () => now); await broker.authorize('post_confirm');
-    const shim = createVk1048SubmissionControl({ identity, jobId: identity.jobId, generation: identity.generation, packageSha256: identity.packageSha256 }, h.snapshot.package, control,
+    const broker = createVkConnectorApplicationBroker(control, identity, () => now); await broker.authorize('post_confirm');
+    const shim = createVkConnectorSubmissionControl({ identity, jobId: identity.jobId, generation: identity.generation, packageSha256: identity.packageSha256 }, h.snapshot.package, control,
         { ui: { navigate: async () => undefined, loginRequired: async () => false, openWallComposer: async () => undefined, setPostText: async () => undefined, attachImage: async () => undefined, captureScreenshot: async () => undefined },
             reconcile: async () => { throw new Error('unused'); }, cancelPendingOperations: async () => undefined, mediaAcknowledgement: async () => ack }, undefined, () => now, 30_000, broker);
     await shim.confirm({ project_id: 10, task_id: 1048, channel_id: 117, work_item_id: 1699, lease_token: 'fixture-lease', approval_reference: execution.approvalReference,

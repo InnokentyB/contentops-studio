@@ -1,3 +1,4 @@
+import { sandboxedChromiumLaunchOptions } from '../services/browser_launch';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { chromium } from 'playwright';
@@ -9,7 +10,7 @@ const job = { schema_version: 1, action: 'browser_search', job_id: 'offline-dom-
     topic_concepts: [['бизнес'], ['анализ']], max_scroll_rounds: 2 };
 
 test('SEARCH-DOM-001 offline HTML expands text, preserves author/date and canonicalizes wall overlay identity', async () => {
-    const browser = await chromium.launch({ headless: true, channel: 'chrome' });
+    const browser = await chromium.launch(sandboxedChromiumLaunchOptions({ headless: true, executablePath: process.env.APP_BROWSER_EXECUTABLE_PATH ?? chromium.executablePath() }));
     try {
         const context = await browser.newContext();
         await context.route('**/*', (route) => route.abort());

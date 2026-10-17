@@ -1,3 +1,4 @@
+import { sandboxedChromiumLaunchOptions } from '../services/browser_launch';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -440,7 +441,7 @@ test('current VK composer submits through the page-level posting submit control'
         response.setHeader('Content-Type', 'text/html; charset=utf-8'); response.end(html);
     });
     await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
-    const browser = await chromium.launch({ channel: 'chrome', headless: true });
+    const browser = await chromium.launch(sandboxedChromiumLaunchOptions({ headless: true, executablePath: process.env.APP_BROWSER_EXECUTABLE_PATH ?? chromium.executablePath() }));
     try {
         const address = server.address();
         if (!address || typeof address === 'string') throw new Error('Local fixture unavailable');

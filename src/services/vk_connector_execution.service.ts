@@ -27,11 +27,13 @@ export class VkConnectorExecutionService {
             const host = await store.host(args.projectId, args.hostId);
             if (host?.mode !== 'vk_feed_provider') fail('PROVIDER_MODE_REQUIRED');
         });
-        if (execution.packageSha256 !== args.packageSha256) fail('PACKAGE_CHANGED');
+        if (execution.binding.projectId !== args.projectId || execution.packageSha256 !== args.packageSha256
+            || connectorPackageHash(execution.binding) !== args.packageSha256) fail('PACKAGE_CHANGED');
         return execution;
     }
     private async evidence(args: ConnectorExecutionIdentity, supplied: unknown) {
         const execution = await this.context(args);
+        if (execution.binding.placement !== 'feed') fail('FORMAT_UNSUPPORTED');
         const verified = await this.ports.verifyEvidence(args, execution, supplied);
         if (!verified) fail('RECONCILIATION_SOURCE_UNVERIFIED');
         return { execution, result: evaluateVkConnectorReconciliation(execution.binding, execution.body,
@@ -40,7 +42,7 @@ export class VkConnectorExecutionService {
     private async job(store: ConnectorStore, args: ConnectorExecutionIdentity): Promise<ConnectorJob> {
         await store.authorize(args.projectId, args.actorId, true);
         const job = await store.job(args.projectId, args.jobId), host = await store.host(args.projectId, args.hostId);
-        if (!job || !host || host.mode !== 'vk_feed_provider' || job.generation !== args.generation || job.packageSha256 !== args.packageSha256
+        if (!job || job.projectId !== args.projectId || !host || host.projectId !== args.projectId || host.mode !== 'vk_feed_provider' || job.generation !== args.generation || job.packageSha256 !== args.packageSha256
             || job.hostId !== args.hostId || job.instanceId !== args.instanceId || host.instanceId !== args.instanceId
             || this.now().getTime() - host.heartbeatAt.getTime() > 30_000) fail('FENCED');
         return job;
@@ -49,15 +51,15 @@ export class VkConnectorExecutionService {
         return this.repository.transaction(async store => {
             await store.authorize(args.projectId, args.actorId, true);
             const job = await store.job(args.projectId, args.jobId);
-            if (!job || args.projectId !== 10 || job.taskId !== 1048 || job.generation !== args.generation
+            if (!job || job.projectId !== args.projectId || job.generation !== args.generation
                 || job.packageSha256 !== args.packageSha256 || job.hostId !== args.hostId || job.instanceId !== args.instanceId) fail('FENCED');
-            const current = await store.snapshot(10, 1048);
+            const current = await store.snapshot(args.projectId, job.taskId);
             if (connectorPackageHash(current.package) !== job.packageSha256) fail('PACKAGE_CHANGED');
             if (!current.factId || !current.publicUrl) return null;
             if (job.state !== 'confirmed') {
                 if (!await store.updateJob(job.jobId, job.generation, job.state, { state: 'confirmed', factId: current.factId,
                     attemptId: current.attemptId, blocker: null, updatedAt: this.now() })) fail('CAS_CONFLICT');
-                await store.event(10, 1048, args.actorId, 'vk_connector_fact_projection', { jobId: job.jobId,
+                await store.event(args.projectId, job.taskId, args.actorId, 'vk_connector_fact_projection', { jobId: job.jobId,
                     state: 'confirmed', generation: job.generation });
             }
             return { factId: current.factId, publicUrl: current.publicUrl };
@@ -67,36 +69,39 @@ export class VkConnectorExecutionService {
     async claim(args: ConnectorExecutionIdentity & { evidence: unknown }): Promise<ConnectorExecutionLease> {
         const proof = await this.evidence(args, args.evidence);
         if (proof.result.kind !== 'proven_absence') fail('VERIFICATION_REQUIRED');
-        const generation = await this.repository.transaction(async store => {
+        const reservation = await this.repository.transaction(async store => {
             const job = await this.job(store, args), snapshot = await store.snapshot(args.projectId, job.taskId);
             if (snapshot.attemptId || snapshot.factId || !snapshot.eligible || !['accepted', 'ready'].includes(job.state)) fail('VERIFICATION_REQUIRED');
+            if (job.workItemId !== proof.execution.workItemId) fail('PACKAGE_CHANGED');
             const next = job.generation + 1;
             if (!await store.updateJob(job.jobId, job.generation, job.state, { state: 'reconciling', generation: next,
                 canonicalLeaseSha256: null, canonicalLeaseExpiresAt: null, updatedAt: this.now() })) fail('CAS_CONFLICT');
             await store.event(job.projectId, job.taskId, args.actorId, 'vk_connector_lease_reservation', { jobId: job.jobId, generation: next, state: 'reconciling' });
-            return next;
+            return { generation: next, workItemId: job.workItemId };
         });
+        const { generation, workItemId } = reservation;
+        if (workItemId !== proof.execution.workItemId) fail('PACKAGE_CHANGED');
         try {
-        const lease = await this.ports.claimLease({ projectId: 10, actorId: args.actorId, workItemId: 1699,
+        const lease = await this.ports.claimLease({ projectId: args.projectId, actorId: args.actorId, workItemId,
             idempotencyKey: `vk-connector-claim:${args.jobId}:g${generation}` });
         if (!lease.leaseToken || Date.parse(lease.leaseExpiresAt) <= this.now().getTime()) fail('LEASE_UNAVAILABLE');
         await this.repository.transaction(async store => {
             const job = await this.job(store, { ...args, generation }), snapshot = await store.snapshot(args.projectId, job.taskId);
             if (snapshot.attemptId || snapshot.factId || !snapshot.eligible) fail('VERIFICATION_REQUIRED');
             if (!store.bindLease) fail('LEASE_UNAVAILABLE');
-            await store.bindLease(args.projectId, args.actorId, lease.leaseToken, lease.leaseExpiresAt);
+            await store.bindLease(args.projectId, args.actorId, lease.leaseToken, lease.leaseExpiresAt, { taskId: job.taskId, workItemId: job.workItemId });
             if (!await store.updateJob(job.jobId, generation, 'reconciling', { state: 'ready',
                 canonicalLeaseSha256: connectorHash(lease.leaseToken), canonicalLeaseExpiresAt: new Date(lease.leaseExpiresAt), updatedAt: this.now() })) fail('CAS_CONFLICT');
             await store.event(job.projectId, job.taskId, args.actorId, 'vk_connector_canonical_lease_bound', { jobId: job.jobId, generation, state: 'ready' });
         });
-        return { workItemId: 1699, ...lease, generation };
+        return { workItemId, ...lease, generation };
         } catch (error: unknown) {
             await this.repository.transaction(async store => {
                 const job = await store.job(args.projectId, args.jobId);
                 if (job?.generation === generation && job.state === 'reconciling') {
                     await store.updateJob(job.jobId, generation, 'reconciling', { state: 'verification_required',
                         blocker: 'CANONICAL_LEASE_UNAVAILABLE', updatedAt: this.now() });
-                    await store.event(args.projectId, 1048, args.actorId, 'vk_connector_claim_interrupted', {
+                    await store.event(args.projectId, job.taskId, args.actorId, 'vk_connector_claim_interrupted', {
                         jobId: job.jobId, generation, state: 'verification_required', blocker: 'CANONICAL_LEASE_UNAVAILABLE' });
                 }
             });
@@ -113,7 +118,17 @@ export class VkConnectorExecutionService {
         await this.ports.checkLease(args);
         return { status: 'validated', generation: args.generation };
     }
+    private async canonicalBinding(args: ConnectorStartArgs): Promise<void> {
+        const execution = await this.context(args, 'submission');
+        const binding = execution.binding;
+        if (args.taskId !== binding.taskId || args.channelId !== binding.channelId || args.workItemId !== execution.workItemId
+            || args.contentRevision !== binding.revision || args.selectedAssetId !== binding.selectedAssetId
+            || args.textSha256 !== binding.bodySha256 || args.imageSha256 !== binding.assetSha256
+            || (args.placement || 'feed') !== binding.placement || args.approvalReference !== execution.approvalReference) fail('PACKAGE_CHANGED');
+        if (binding.placement !== 'feed') fail('FORMAT_UNSUPPORTED');
+    }
     async start(args: ConnectorStartArgs) {
+        await this.canonicalBinding(args);
         await this.check(args);
         const result = await this.ports.start(args);
         await this.repository.transaction(async store => {
@@ -127,10 +142,11 @@ export class VkConnectorExecutionService {
         const recorded = await this.recorded(args);
         if (recorded) return { publication_fact_id: recorded.factId, replayed: true };
         const execution = await this.context(args, 'post_confirm');
+        await this.canonicalBinding(args);
         validateVkPostConfirmation(args, String(execution.binding.communityId), this.now());
         const ack = args.mediaAcknowledgement;
         if (ack?.acknowledged !== true || ack.assetSha256 !== execution.binding.assetSha256
-            || ack.providerObjectId !== args.providerObjectId || !/^photo-240051152_[1-9]\d*$/.test(ack.providerMediaId)) fail('MEDIA_UNCONFIRMED');
+            || ack.providerObjectId !== args.providerObjectId || !new RegExp(`^photo${execution.binding.communityId}_[1-9]\\d*$`).test(ack.providerMediaId)) fail('MEDIA_UNCONFIRMED');
         if (!await this.ports.verifyMediaAcknowledgement(args, execution)) fail('MEDIA_SOURCE_UNVERIFIED');
         await this.check(args);
         const result = await this.ports.confirm(args);
@@ -141,7 +157,7 @@ export class VkConnectorExecutionService {
         await this.repository.transaction(async store => {
             await store.authorize(args.projectId, args.actorId, true);
             const job = await store.job(args.projectId, args.jobId);
-            if (!job || args.projectId !== 10 || job.generation !== args.generation || job.packageSha256 !== args.packageSha256
+            if (!job || job.projectId !== args.projectId || job.taskId !== args.taskId || job.workItemId !== args.workItemId || job.generation !== args.generation || job.packageSha256 !== args.packageSha256
                 || job.hostId !== args.hostId || job.instanceId !== args.instanceId
                 || job.attemptId !== args.attemptId || !['executing', 'verification_required'].includes(job.state)) fail('FENCED');
         });

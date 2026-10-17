@@ -11,7 +11,7 @@ function directory(value?: string): ResourceState {
             && (!process.getuid || stat.uid === process.getuid()) ? 'PASS' : 'INVALID';
     } catch { return 'UNAVAILABLE'; } // A missing/unreadable resource remains an explicit blocker.
 }
-export function inspectVk1048PreflightResources(config: VkConnectorConfig): PreflightResources {
+export function inspectVkPreflightResources(config: VkConnectorConfig): PreflightResources {
     let dependency: ResourceState;
     try { require.resolve('playwright'); dependency = 'PASS'; }
     catch { dependency = 'UNAVAILABLE'; } // Resolving the library never launches its browser.

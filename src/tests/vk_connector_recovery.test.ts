@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { harness } from './helpers/vk_connector_harness';
 
 async function accepted() {
-    const h = harness(); await h.service.dispatch(h.request);
+    const h = harness(true, 'vk_feed_provider'); await h.service.dispatch(h.request);
     const [queued] = (await h.service.poll(h.consumer)).jobs;
     const receipt = await h.service.ack({ ...h.consumer, ...queued });
     const row = h.jobs.get(receipt.jobId); assert.ok(row);

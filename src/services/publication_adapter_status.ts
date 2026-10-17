@@ -2,7 +2,7 @@ import prisma from '../db';
 import { requireProjectActorAccess } from './project_access.service';
 import { VkConnectorDispatchService } from './vk_connector_dispatch.service';
 import { vkConnectorRepository } from './vk_connector_repository';
-import { VK_CONNECTOR_HOST, VK_CONNECTOR_SCOPE } from './vk_connector_contract';
+import type { VkReadinessDiagnostics } from './vk_operator_preflight';
 import type { AdapterStatusReader } from '../routes/api/publication_adapter_status';
 
 const service = new VkConnectorDispatchService(vkConnectorRepository, process.env.VK_CONNECTOR_DISPATCH_ENABLED === '1');
@@ -12,21 +12,23 @@ export const readPublicationAdapterStatus: AdapterStatusReader = async identity 
         select: { channel_id: true, channel: { select: { type: true } } } });
     if (!task) return null;
     const observedAt = new Date().toISOString();
-    const base = { canExecute: false as const, observedAt, heartbeatAt: null, publicUrl: null };
-    if (identity.projectId !== VK_CONNECTOR_SCOPE.projectId || identity.taskId !== VK_CONNECTOR_SCOPE.taskId
-        || task.channel_id !== VK_CONNECTOR_SCOPE.channelId || task.channel?.type.trim().toLowerCase() !== 'vk')
-        return { ...base, supported: false, manualRecordAllowed: true, state: 'unsupported',
-            blocker: 'ADAPTER_NOT_CONFIGURED', connection: 'unavailable' };
+    const diagnostics: VkReadinessDiagnostics = { controlPlane: 'NOT_CHECKED', applicationAuthorization: 'NOT_ASSESSED',
+        providerReadiness: 'NOT_CHECKED', recordedRestriction: null };
+    const base = { canExecute: false as const, productionReady: false as const, observedAt, heartbeatAt: null, publicUrl: null, diagnostics };
+    if (task.channel?.type.trim().toLowerCase() !== 'vk') return { ...base, supported: false, manualRecordAllowed: true,
+        state: 'unsupported', blocker: 'ADAPTER_NOT_CONFIGURED', connection: 'unavailable' };
+    if (task.channel_id === null) return { ...base, supported: true, manualRecordAllowed: false,
+        state: 'blocked', blocker: 'ADAPTER_CHANNEL_NOT_BOUND', connection: 'unavailable' };
     const row = await prisma.connectorDispatchJob.findFirst({
         where: { project_id: identity.projectId, content_item_id: identity.taskId, channel_id: task.channel_id },
-        orderBy: { created_at: 'desc' }, select: { id: true } });
+        orderBy: { created_at: 'desc' }, select: { id: true, host_id: true } });
     if (!row) return { ...base, supported: true, manualRecordAllowed: true, state: 'not_queued',
         blocker: 'ADAPTER_JOB_NOT_FOUND', connection: 'unavailable' };
-    const [job, health] = await Promise.all([
-        service.status({ ...identity, jobId: row.id }), service.health({ ...identity, hostId: VK_CONNECTOR_HOST })
-    ]);
-    return { ...base, supported: true, admissionReason: 'ACTION_TIME_ADMISSION_UNAVAILABLE',
+    const job = await service.status({ ...identity, jobId: row.id });
+    const health = row.host_id ? await service.health({ ...identity, hostId: row.host_id }) : null;
+    diagnostics.controlPlane = 'CONNECTED';
+    return { ...base, supported: true,
         manualRecordAllowed: job.state === 'confirmed' || (job.state === 'cancelled' && job.attemptId === null),
-        state: job.state, blocker: job.blocker, connection: health.status,
-        heartbeatAt: health.heartbeatAt, publicUrl: job.publicUrl };
+        state: job.state, blocker: job.blocker, connection: health?.status ?? 'unavailable',
+        heartbeatAt: health?.heartbeatAt ?? null, publicUrl: job.publicUrl };
 };

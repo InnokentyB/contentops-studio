@@ -4,18 +4,17 @@ import prisma from '../db';
 import { buildVkConnectorSnapshot } from './vk_connector_package';
 import { requireProjectAccess, requireProjectOwner } from './work_queue/auth';
 import { type ConnectorJob, type ConnectorHost,
-    type ConnectorRepository, type ConnectorStore, type ConnectorState, connectorHash, connectorPackageHash, connectorSecretEqual } from './vk_connector_contract';
+    type ConnectorRepository, type ConnectorStore, type ConnectorState, ConnectorBindingSchema, connectorHash, connectorPackageHash, connectorSecretEqual } from './vk_connector_contract';
 
-const hex = z.string().regex(/^[a-f0-9]{64}$/);
-export const ConnectorBindingSchema = z.object({ projectId: z.literal(10), taskId: z.literal(1048),
-    channelId: z.literal(117), communityId: z.literal(-240051152), revision: z.literal(1),
-    selectedAssetId: z.literal(130), placement: z.literal('feed'), bodySha256: hex,
-    assetSha256: hex, releaseSha256: hex }).strict();
+export { ConnectorBindingSchema } from './vk_connector_contract';
 const states = z.enum(['queued', 'accepted', 'blocked', 'verification_required', 'confirmed', 'reconciling', 'ready', 'executing', 'cancelled']);
 function invalid(): never { throw new Error('[VK_CONNECTOR_PACKAGE_NOT_READY]'); }
 function toJob(row: ConnectorDispatchJob): ConnectorJob {
     const binding = ConnectorBindingSchema.safeParse(row.binding), state = states.safeParse(row.state);
-    if (!binding.success || !state.success) invalid();
+    if (!binding.success || !state.success || binding.data.projectId !== row.project_id
+        || binding.data.taskId !== row.content_item_id || binding.data.channelId !== row.channel_id
+        || binding.data.revision !== row.content_revision || binding.data.selectedAssetId !== row.selected_asset_id
+        || connectorPackageHash(binding.data) !== row.package_sha256) invalid();
     return { jobId: row.id, projectId: row.project_id, taskId: row.content_item_id,
         channelId: row.channel_id, workItemId: row.work_item_id, package: binding.data,
         packageSha256: row.package_sha256, idempotencyKey: row.idempotency_key, state: state.data,
@@ -36,13 +35,13 @@ function storeFor(tx: Prisma.TransactionClient): ConnectorStore {
             if (mutation) await requireProjectOwner(tx, p, actor);
             else await requireProjectAccess(tx, p, actor, 'work_queue:read');
         },
-        bindLease: async (p, actor, token, expires) => {
-            const row = await tx.workItem.findFirst({ where: { id: 1699, project_id: p, content_item_id: 1048 },
+        bindLease: async (p, actor, token, expires, binding) => {
+            const row = await tx.workItem.findFirst({ where: { id: binding.workItemId, project_id: p, content_item_id: binding.taskId },
                 select: { state: true, lease_token: true, lease_actor_id: true, lease_expires_at: true, updated_at: true } });
             if (!row || row.state !== 'claimed' || row.lease_actor_id !== actor || !row.lease_token || !connectorSecretEqual(row.lease_token, token)
                 || !row.lease_expires_at || row.lease_expires_at.getTime() <= Date.now()
                 || row.lease_expires_at.toISOString() !== expires) throw new Error('[VK_CONNECTOR_FENCED]');
-            if ((await tx.workItem.updateMany({ where: { id: 1699, project_id: p, updated_at: row.updated_at,
+            if ((await tx.workItem.updateMany({ where: { id: binding.workItemId, project_id: p, content_item_id: binding.taskId, updated_at: row.updated_at,
                 lease_actor_id: actor, lease_token: token }, data: { updated_at: row.updated_at } })).count !== 1) throw new Error('[VK_CONNECTOR_CAS_CONFLICT]');
         },
         commandResult: async (p, actor, command, key) => (await tx.workflowEvent.findFirst({ where: {
@@ -57,16 +56,19 @@ function storeFor(tx: Prisma.TransactionClient): ConnectorStore {
             const url = z.url().parse(task.selected_asset?.file_url);
             if (new URL(url).protocol !== 'https:' || new URL(url).username || new URL(url).password) invalid();
             return { binding: snapshot.package, packageSha256: connectorPackageHash(snapshot.package),
-                body: task.draft_text?.trim() || '', asset: { id: 130, url, sha256: snapshot.package.assetSha256 },
-                approvalReference: release.approval_reference, releasedAt: release.released_at, workItemId: 1699,
+                body: task.draft_text?.trim() || '', asset: { id: snapshot.package.selectedAssetId, url, sha256: snapshot.package.assetSha256 },
+                approvalReference: release.approval_reference, releasedAt: release.released_at, workItemId: snapshot.workItemId,
                 permissionStatus: 'NOT_CHECKED', providerExecution: 'blocked' };
         },
         snapshot: async (p, id) => {
-            if (p !== 10 || id !== 1048) invalid();
             const task = await tx.contentItem.findFirst({ where: { project_id: p, id },
                 include: { channel: true, selected_asset: true, publication_fact: true } });
-            const item = await tx.workItem.findFirst({ where: { project_id: p, content_item_id: id,
-                id: 1699, kind: 'browser_publish', assignee_role: 'browser_publisher' } });
+            if (!task) invalid();
+            const items = await tx.workItem.findMany({ where: { project_id: p, content_item_id: id,
+                input_context_version: task.content_revision, kind: 'browser_publish', assignee_role: 'browser_publisher' },
+                orderBy: { id: 'desc' }, take: 2 });
+            if (items.length !== 1) invalid();
+            const item = items[0];
             const attempt = await tx.deliveryAttempt.findFirst({ where: { project_id: p, content_item_id: id }, orderBy: { id: 'desc' } });
             return buildVkConnectorSnapshot(task, item, attempt);
         },

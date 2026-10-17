@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { runVk1048OperatorReconcile } from '../services/vk1048_operator_reconcile';
+import { runVkConnectorOperatorReconcile } from '../services/vk_connector_operator_reconcile';
 import { vkConnectorPackageSha256, type VkConnectorConfig, type VkConnectorControl, type VkConnectorIdentity } from '../services/vk_connector_consumer_runtime';
 test('OPERATOR-RECONCILE-001 only exact frozen pilot job is rebound and never claims or submits', async () => {
     const jobId = '3f9f1d08-1d1f-49a9-8f2c-cc17d00ac2de'; const binding = { projectId: 10, taskId: 1048, channelId: 117,
@@ -17,7 +17,7 @@ test('OPERATOR-RECONCILE-001 only exact frozen pilot job is rebound and never cl
         if (name === 'ba_get_vk_connector_execution_package') { assert.equal(args.generation, 5); return { binding, packageSha256: digest }; }
         throw new Error('Unexpected operator recovery mutation');
     } };
-    const result = await runVk1048OperatorReconcile(config, identity, control, undefined, async input => {
+    const result = await runVkConnectorOperatorReconcile(config, identity, control, jobId, undefined, async input => {
         assert.equal(input.generation, 5); return { status: 'verification_required', executionContext: 'production_admitted', reason: 'RECONCILIATION_ONLY' };
     });
     assert.equal(result.reason, 'RECONCILIATION_ONLY'); assert.equal(calls.some(name => /claim|submit|resume|dispatch/.test(name)), false);

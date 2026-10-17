@@ -2,7 +2,7 @@ import type { ConnectorExecutionPackage, ConsumerJobIdentity } from './vk_connec
 import type { VkConnectorWallEvidence, VkConnectorWallPost } from './vk_connector_reconciliation';
 import type { startVkBrowserSubmission, confirmVkBrowserSubmission, markVkBrowserSubmissionUncertain } from './vk_browser_submission_control.service';
 export type ConnectorExecutionIdentity = ConsumerJobIdentity & { packageSha256: string };
-export type ConnectorExecutionLease = { workItemId: 1699; leaseToken: string; leaseExpiresAt: string; generation: number };
+export type ConnectorExecutionLease = { workItemId: number; leaseToken: string; leaseExpiresAt: string; generation: number };
 export type ConnectorStartArgs = ConnectorExecutionIdentity & Parameters<typeof startVkBrowserSubmission>[1];
 export type ConnectorConfirmArgs = ConnectorExecutionIdentity & Parameters<typeof confirmVkBrowserSubmission>[1] & {
     providerAttestation?: unknown; mediaAcknowledgement: { assetSha256: string; providerMediaId: string; acknowledged: true; providerObjectId: string } };
@@ -16,7 +16,7 @@ export interface VkConnectorExecutionPorts {
     verifyEvidence(identity: ConnectorExecutionIdentity, execution: ConnectorExecutionPackage,
         supplied: unknown): Promise<VkConnectorWallEvidence | null>;
     verifyMediaAcknowledgement(args: ConnectorConfirmArgs, execution: ConnectorExecutionPackage): Promise<boolean>;
-    claimLease(args: { projectId: 10; actorId: string; workItemId: 1699; idempotencyKey: string }): Promise<{ leaseToken: string; leaseExpiresAt: string }>;
+    claimLease(args: { projectId: number; actorId: string; workItemId: number; idempotencyKey: string }): Promise<{ leaseToken: string; leaseExpiresAt: string }>;
     checkLease(args: ConnectorExecutionIdentity & { leaseToken: string }): Promise<void>;
     start(args: ConnectorStartArgs): Promise<ConnectorStartResult>;
     confirm(args: ConnectorConfirmArgs): Promise<{ publication_fact_id: number }>;

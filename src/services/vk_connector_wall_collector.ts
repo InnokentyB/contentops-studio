@@ -1,17 +1,17 @@
 import type { Page } from 'playwright';
 import { vkPostProviderDate } from './vk_browser_post_proof';
 import type { VkConnectorWallEvidence, VkConnectorWallPost } from './vk_connector_reconciliation';
-export interface Vk1048MediaSource { originalUrl: string; capturedAt: string; postObjectId: string; providerMediaId: string; }
-export interface Vk1048WallCard { objectId: string; publicUrl: string; text: string; dates: string[]; photoIds: string[]; expanded: boolean; }
-export interface Vk1048WallSnapshot { rows: Vk1048WallCard[]; terminal: boolean; }
-export interface Vk1048WallInventoryPort { snapshot(): Promise<Vk1048WallSnapshot>; advance(): Promise<boolean>; }
+export interface VkConnectorMediaSource { originalUrl: string; capturedAt: string; postObjectId: string; providerMediaId: string; }
+export interface VkConnectorWallCard { objectId: string; publicUrl: string; text: string; dates: string[]; photoIds: string[]; expanded: boolean; }
+export interface VkConnectorWallSnapshot { rows: VkConnectorWallCard[]; terminal: boolean; }
+export interface VkConnectorWallInventoryPort { snapshot(): Promise<VkConnectorWallSnapshot>; advance(): Promise<boolean>; }
 /** This trusted port must verify downloaded provider-photo bytes or direct upload identity, not DOM presence. */
-export interface Vk1048WallMediaVerifier {
-    verify(card: Vk1048WallCard, signal?: AbortSignal): Promise<(NonNullable<VkConnectorWallPost['media']> & { source?: Vk1048MediaSource }) | null>;
+export interface VkConnectorWallMediaVerifier {
+    verify(card: VkConnectorWallCard, signal?: AbortSignal): Promise<(NonNullable<VkConnectorWallPost['media']> & { source?: VkConnectorMediaSource }) | null>;
 }
 /** A terminal provider pagination boundary is required; reaching an old post alone proves nothing about pinned/hidden rows. */
-export async function collectVk1048Wall(port: Vk1048WallInventoryPort, ownerId: string, releasedAt: string,
-    media: Vk1048WallMediaVerifier, now: () => Date = () => new Date(), signal?: AbortSignal): Promise<VkConnectorWallEvidence> {
+export async function collectVkConnectorWall(port: VkConnectorWallInventoryPort, ownerId: string, releasedAt: string,
+    media: VkConnectorWallMediaVerifier, now: () => Date = () => new Date(), signal?: AbortSignal): Promise<VkConnectorWallEvidence> {
     const started = now(); const rows = new Map<string, VkConnectorWallPost>();
     let complete = false; let valid = /^-[1-9]\d*$/.test(ownerId) && Number.isFinite(Date.parse(releasedAt));
     for (let turn = 0; turn < 20 && valid; turn++) {
@@ -42,7 +42,7 @@ export async function collectVk1048Wall(port: Vk1048WallInventoryPort, ownerId: 
         coverage: complete && valid ? 'complete_window' : 'partial', exhausted: complete && valid, rows: [...rows.values()] };
 }
 /** Tentative VK semantic selectors. Production requires trusted action and surface admission; local fixtures only verify extraction. */
-export function createVk1048WallInventory(page: Page): Vk1048WallInventoryPort {
+export function createVkConnectorWallInventory(page: Page): VkConnectorWallInventoryPort {
     return { snapshot: async () => {
         const cards = page.locator('[data-testid="post"][data-post-id]');
         for (let index = 0; index < Math.min(await cards.count(), 101); index++) {

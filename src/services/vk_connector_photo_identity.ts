@@ -1,13 +1,13 @@
-import { readVk1048BoundedImage } from './vk1048_bounded_image';
+import { readVkConnectorBoundedImage } from './vk_connector_bounded_image';
 import { createHash } from 'node:crypto';
 import type { Page } from 'playwright';
-import type { Vk1048WallMediaVerifier } from './vk1048_wall_collector';
+import type { VkConnectorWallMediaVerifier } from './vk_connector_wall_collector';
 /** Source must bind the original download to the exact provider photo page, not a thumbnail or screenshot. */
-export interface Vk1048OriginalPhotoSource {
+export interface VkConnectorOriginalPhotoSource {
     loadOriginal(providerMediaId: string, signal?: AbortSignal): Promise<{ providerMediaId: string; bytes: Buffer; originalUrl?: string; capturedAt?: string } | null>;
 }
-export function createVk1048PhotoDigestVerifier(approvedSha256: string, source: Vk1048OriginalPhotoSource): Vk1048WallMediaVerifier {
-    if (!/^[a-f0-9]{64}$/.test(approvedSha256)) throw new Error('[VK1048_ASSET_HASH_INVALID]');
+export function createVkConnectorPhotoDigestVerifier(approvedSha256: string, source: VkConnectorOriginalPhotoSource): VkConnectorWallMediaVerifier {
+    if (!/^[a-f0-9]{64}$/.test(approvedSha256)) throw new Error('[VK_CONNECTOR_ASSET_HASH_INVALID]');
     return { verify: async (card, signal) => {
         if (card.photoIds.length !== 1 || signal?.aborted) return null;
         const identity = card.photoIds[0];
@@ -21,7 +21,7 @@ export function createVk1048PhotoDigestVerifier(approvedSha256: string, source: 
     } };
 }
 /** Invoked only inside an admitted, owned context. Original-download surface still requires live verification. */
-export function createVk1048PlaywrightPhotoSource(wallPage: Page): Vk1048OriginalPhotoSource {
+export function createVkConnectorPlaywrightPhotoSource(wallPage: Page): VkConnectorOriginalPhotoSource {
     return { loadOriginal: async (identity, signal) => {
         if (!/^photo-[1-9]\d*_[1-9]\d*$/.test(identity) || signal?.aborted) return null;
         const photoPage = await wallPage.context().newPage();
@@ -38,7 +38,7 @@ export function createVk1048PlaywrightPhotoSource(wallPage: Page): Vk1048Origina
                 || !/(^|\.)(userapi\.com|vk\.com|vk\.ru)$/.test(resource.hostname)) return null;
             const abort = signal ? AbortSignal.any([signal, AbortSignal.timeout(10_000)]) : AbortSignal.timeout(10_000);
             const response = await fetch(resource.href, { signal: abort, redirect: 'error' });
-            const bytes = await readVk1048BoundedImage(response, abort);
+            const bytes = await readVkConnectorBoundedImage(response, abort);
             return bytes ? { providerMediaId: identity, bytes, originalUrl: resource.href, capturedAt: new Date().toISOString() } : null;
         } finally { await photoPage.close(); }
     } };

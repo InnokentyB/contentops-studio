@@ -1,5 +1,5 @@
 /** Stream limit is enforced before accumulation even when Content-Length is absent or dishonest. */
-export async function readVk1048BoundedImage(response: Response, signal?: AbortSignal): Promise<Buffer | null> {
+export async function readVkConnectorBoundedImage(response: Response, signal?: AbortSignal): Promise<Buffer | null> {
     if (!response.ok || !/^image\//.test(response.headers.get('content-type') || '')
         || Number(response.headers.get('content-length') || 0) > 20_000_000 || !response.body) return null;
     const reader = response.body.getReader(); const chunks: Buffer[] = []; let size = 0;
