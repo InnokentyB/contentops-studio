@@ -26,3 +26,12 @@ preserves exact pilot refusal, forbidden writes, tenant assertions and no-op
 preparation assertions. Fresh Tower focused21/21 and preparation1/1 pass; quality
 PASS. Raw first CI failure retained. Final GitHub checks are reported on the PR;
 this evidence does not assert a CI pass before those checks finish.
+
+Second CI39127285830 passed Dzen1002, Threads and quality. It exposed that a fresh
+checkout lacked the source logs directory required to mount tmpfs below the
+read-only source bind. Commitb2f3e9b adds only empty logs/.gitkeep. A clean Git
+archive on Tower then passed11/11 actual registered boundary/HTTP cases. The full
+backend suite also found one additional old VK audited-hold preparation fixture
+missing the same two null history/job readers; its refusal assertion is retained,
+and focused hold cases5/5 pass. Raw CI job logs and Tower evidence are retained in
+clean-checkout-repair-index.json. These are isolated test setup repairs only.
