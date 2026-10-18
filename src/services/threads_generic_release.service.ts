@@ -5,6 +5,7 @@ import threadsService from './threads.service';
 import publicationFactService from './publication_fact.service';
 import { loadAgentWorkspaceManifest } from './agent_workspace_manifest.service';
 import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
+import { assertThreadsOwnerRelease } from './threads_release_diagnostics';
 
 const RELEASE_COMMAND = 'ba_release_approved_threads_task';
 const SEND_COMMAND = 'ba_publish_threads_task';
@@ -176,13 +177,9 @@ export class GenericThreadsReleaseService {
         const release = await this.deps.db.workflowEvent.findFirst({ where: { project_id: a.projectId,
             content_item_id: a.taskId, actor_id: a.actorId, command: RELEASE_COMMAND,
             idempotency_key: a.releaseIdempotencyKey }, orderBy: { id: 'desc' } });
-        const proof = object(release?.after_state);
-        if (!release || proof.publication_authorized !== true || proof.body_sha256 !== checked.bodySha256
-            || proof.channel_id !== checked.task.channel_id || proof.accepted_revision !== checked.task.accepted_revision
-            || proof.manifest_checksum !== a.expectedManifestChecksum || proof.actor_id !== a.actorId
-            || object(release.before_state).approval_reference !== a.approvalReference) {
-            throw new Error('[THREADS_GENERIC_OWNER_RELEASE_REQUIRED]');
-        }
+        const proof = assertThreadsOwnerRelease(release, { body_sha256: checked.bodySha256,
+            channel_id: checked.task.channel_id, accepted_revision: checked.task.accepted_revision,
+            manifest_checksum: a.expectedManifestChecksum, actor_id: a.actorId, approval_reference: a.approvalReference });
         if (a.dryRun) return { mode: 'dry_run', task_id: a.taskId, channel_id: checked.task.channel_id,
             live_publish_supported: true, route_executable: true, accepted_revision: checked.task.accepted_revision,
             selected_asset_id: null, delivery_method: 'threads_api', published: false };

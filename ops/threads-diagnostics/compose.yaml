@@ -1,0 +1,13 @@
+name: planner-threads-diagnostics
+services:
+  checks:
+    extends:
+      file: ../quality/compose.yaml
+      service: build-check
+    image: planner-threads-diagnostics:20261018
+    profiles: []
+    working_dir: /opt/planner
+    environment:
+      DATABASE_URL: postgresql://synthetic:synthetic@127.0.0.1:1/synthetic
+      TELEGRAM_BOT_TOKEN: 123:synthetic-test-only
+    command: [node, --test, dist/tests/threads_generic_release.test.js, dist/tests/task_publication_routing.test.js]
