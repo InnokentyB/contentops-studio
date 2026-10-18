@@ -7,12 +7,12 @@ import dzenTaskPublicationService from '../../services/dzen_task_publication.ser
 import threadsTaskPublicationService from '../../services/threads_task_publication.service';
 import genericThreadsReleaseService from '../../services/threads_generic_release.service';
 import { threadsDiagnosticResult } from './threads_diagnostic_result';
+import { publicationAdapterDiagnosticResult } from './publication_adapter_diagnostic_result';
 import telegramTaskPublicationService from '../../services/telegram_task_publication.service';
 import {
     INTERNAL_MUTATION_ANNOTATIONS,
     EXTERNAL_PUBLICATION_ANNOTATIONS,
-    asToolResult,
-    asTelegramRouteToolError
+    asToolResult
 } from './common';
 
 const TASK_NATIVE_DZEN_PUBLICATION_IDS = new Set([958, 962, 992, 999, 1031, 1036, 1045]);
@@ -256,8 +256,7 @@ export function registerTaskPublicationTools(server: McpServer): void {
             dryRun: z.boolean().optional().describe('When true, validate channel resolution and preview the payload without publishing.')
         }
     }, async ({ projectId, channelId, channelType, title, text, subreddit, imageUrl, dryRun }) => {
-        try {
-            const result = await mcpPublicationService.publishDirect({
+        return publicationAdapterDiagnosticResult(() => mcpPublicationService.publishDirect({
                 projectId,
                 channelId,
                 channelType,
@@ -266,13 +265,7 @@ export function registerTaskPublicationTools(server: McpServer): void {
                 subreddit,
                 imageUrl,
                 dryRun
-            });
-            return asToolResult(result);
-        } catch (error: unknown) {
-            const toolError = asTelegramRouteToolError(error);
-            if (!toolError) throw error;
-            return toolError;
-        }
+            }));
     });
 
     server.registerTool('ba_publish_publication_task', {
@@ -284,7 +277,7 @@ export function registerTaskPublicationTools(server: McpServer): void {
             dryRun: z.boolean().optional().describe('Validate and return the exact normalized provider payload without sending.'),
             idempotencyKey: z.string().min(1).max(500).optional().describe('Required for live publication and reused to safely replay a confirmed result.')
         }
-    }, async (args) => asToolResult(await executePublicationTaskByChannel(args)));
+    }, async (args) => publicationAdapterDiagnosticResult(() => executePublicationTaskByChannel(args)));
 
     server.registerTool('ba_publish_threads_task', {
         description: 'Dry-run any canonical Threads task. Live publication of a generic text-only feed task requires an exact audited generic release, creates a durable attempt before dispatch, verifies provider readback, and freezes uncertain outcomes.',

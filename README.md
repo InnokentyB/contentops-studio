@@ -143,6 +143,8 @@ npm run test:ui-contract --prefix frontend
 
 The Threads pilot establishes [actionable publication diagnostics](docs/operations/actionable-publication-diagnostics.md): safe structured reason codes, operator correction steps and reconciliation guidance. The shared `PublicationDiagnosticError` is serialized at the Threads MCP boundary; other services migrate in reviewed slices under the agent contract.
 
+The [adapter rollout](docs/operations/actionable-adapter-diagnostics-rollout.md) extends this boundary to direct/task publication, browser controls, X native and VK connector tools, HTTP/UI feedback and safe publisher logs. Its coverage table distinguishes shared paths from remaining historical handlers.
+
 ## Related service
 
 Research collection and scheduled source processing live in the separate [reddit-parser](https://github.com/InnokentyB/reddit-parser) service. ContentOps Studio consumes its project-scoped API rather than embedding scraper runtimes in the web application.

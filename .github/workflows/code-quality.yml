@@ -22,6 +22,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build reviewed non-root compiler/test image (no application startup)
         run: docker compose -f ops/quality/compose.yaml --profile build build build-check
+      - name: Actionable adapter diagnostics through real MCP and HTTP boundaries (no provider)
+        run: |
+          docker compose -f ops/quality/compose.yaml --profile build run --rm --no-deps -e TELEGRAM_BOT_TOKEN=123:synthetic-test-only -e DATABASE_URL=postgresql://synthetic:synthetic@127.0.0.1:1/synthetic build-check sh -c 'node --test --test-concurrency=1 /opt/planner/dist/tests/*actionable_diagnostics.test.js /opt/planner/dist/tests/publication_adapter_mcp_diagnostics.test.js /opt/planner/dist/tests/publication_http_diagnostics.test.js /opt/planner/dist/tests/publication_diagnostic_result.test.js /opt/planner/dist/tests/publisher_safe_logging.test.js && node --test /workspace/tests/tdpd/publication-outcome-message.test.cjs'
       - name: Dynamic package, permission, lease, one-attempt, fact and bypass contracts
         run: |
           docker compose -f ops/quality/compose.yaml --profile build run --rm build-check node --test --test-concurrency=1 /workspace/tests/tdpd/shared-browser-release.test.cjs /workspace/tests/tdpd/shared-browser-execution.test.cjs /workspace/tests/tdpd/shared-browser-confirmation.test.cjs /workspace/tests/tdpd/shared-browser-fences.test.cjs /workspace/tests/tdpd/shared-browser-mcp.test.cjs /workspace/tests/tdpd/shared-setka-browser.test.cjs /workspace/tests/tdpd/shared-browser-diagnostics.test.cjs /workspace/tests/tdpd/shared-browser-linkedin-text-only.test.cjs

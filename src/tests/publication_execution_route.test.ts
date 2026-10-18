@@ -37,12 +37,19 @@ test('published content cannot be routed for execution again', () => {
 });
 
 test('connector failure disables API retries and selects browser fallback', () => {
-    assert.deepEqual(browserFallbackReason(new Error('token expired')), {
-        code: 'CONNECTOR_PUBLISH_FAILED',
-        message: 'token expired',
-        retry_via_api: false,
-        next_route: 'browser_required'
-    });
+    const result = browserFallbackReason(new Error('token expired'));
+    assert.equal(result.code, 'CONNECTOR_PUBLISH_FAILED');
+    assert.equal(result.retry_via_api, false);
+    assert.equal(result.next_route, 'browser_required');
+    assert.match(result.message, /[Rr]econcile/);
+    assert.ok(!result.message.includes('token expired'));
+});
+
+test('persisted connector handoff reason contains corrective guidance but no raw provider secret', () => {
+    const result = browserFallbackReason(new Error('PRIVATE-PROVIDER-TOKEN'));
+    assert.ok(!JSON.stringify(result).includes('PRIVATE-PROVIDER-TOKEN'));
+    assert.match(result.message, /[Rr]econcile/);
+    assert.equal(result.retry_via_api, false);
 });
 
 test('an explicit browser route cannot fall back to the connector', () => {

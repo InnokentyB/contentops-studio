@@ -1,4 +1,5 @@
 import { vkPublicationAdapterRequired, isVkPublicationPlatform, isDzenPublicationPlatform, dzenPublicationAdapterRequired } from './vk_publication_route_contract';
+import { diagnoseDirectPublicationError } from './direct_publication_error_diagnostics';
 export type PublicationExecutionRoute = 'waiting' | 'connector_auto' | 'browser_required' | 'vk_adapter_required' | 'published';
 
 export interface PublicationExecutionRouteInput {
@@ -28,10 +29,10 @@ export function resolvePublicationExecutionRoute(input: PublicationExecutionRout
 export function browserFallbackReason(error: unknown, platform?: string | null) {
     if (isVkPublicationPlatform(platform)) return vkPublicationAdapterRequired();
     if (isDzenPublicationPlatform(platform)) return dzenPublicationAdapterRequired();
-    const message = error instanceof Error ? error.message : String(error || 'Unknown connector error');
+    const diagnostic = diagnoseDirectPublicationError(error);
     return {
         code: 'CONNECTOR_PUBLISH_FAILED',
-        message,
+        message: `${diagnostic.message} ${diagnostic.reasons.map(reason => reason.action).join(' ')}`,
         retry_via_api: false,
         next_route: 'browser_required' as const
     };

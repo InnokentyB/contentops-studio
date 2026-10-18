@@ -6,7 +6,9 @@ import { createVkConnectorExecutionPorts } from '../../services/vk_connector_exe
 import { VkConnectorDispatchService } from '../../services/vk_connector_dispatch.service';
 import { vkConnectorRepository } from '../../services/vk_connector_repository';
 import { loadAgentWorkspaceManifest } from '../../services/agent_workspace_manifest.service';
-import { asToolResult, INTERNAL_MUTATION_ANNOTATIONS } from './common';
+import { INTERNAL_MUTATION_ANNOTATIONS } from './common';
+import { publicationDiagnosticResult } from './publication_diagnostic_result';
+import { vkConnectorDiagnosticPayload, vkConnectorErrorDiagnostic, vkConnectorOutcomeDiagnostic } from '../../services/vk_connector_error_diagnostics';
 
 const identity = { projectId: z.literal(10), actorId: z.string() };
 const host = { ...identity, hostId: z.literal('vk-connector-local-1048') };
@@ -22,11 +24,11 @@ const execution = new VkConnectorExecutionService(service, vkConnectorRepository
     verifyMediaAcknowledgement: (args, content) => appAuthority.verifyMediaAcknowledgement(args, content)
 }));
 async function safe(run: () => Promise<Record<string, unknown>>) {
-    try { return asToolResult(await run()); }
-    catch (error) {
-        const candidate = error instanceof Error ? error.message.match(/^\[VK_CONNECTOR_[A-Z_]+\]/)?.[0] : null;
-        return { ...asToolResult({ error: candidate || '[VK_CONNECTOR_REQUEST_FAILED]' }), isError: true };
-    }
+    return publicationDiagnosticResult('vk', run, vkConnectorErrorDiagnostic, result => {
+        const diagnostic = vkConnectorOutcomeDiagnostic(result);
+        return { payload: diagnostic ? { ...vkConnectorDiagnosticPayload(result), diagnostics: diagnostic } : result,
+            diagnostic, isError: false };
+    });
 }
 async function manifest(projectId: number, actorId: string) {
     const match = /^user:([1-9]\d*)$/.exec(actorId);

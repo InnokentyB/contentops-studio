@@ -1,4 +1,7 @@
 import { rejectVkDirectPublication } from './vk_publication_route_contract';
+import { PublicationDiagnosticError } from './publication_diagnostics';
+import { diagnoseDirectPublicationError, projectDirectPublicationResult } from './direct_publication_error_diagnostics';
+import { logPublicationDiagnostic } from './publication_diagnostic_log';
 import prisma, { pool } from '../db';
 import {
     TelegramRouteTrace,
@@ -276,7 +279,19 @@ export class PublisherService {
     }
 
     async processPublicationTaskNow(taskId: number, requestHost?: string) {
-        return publicationDispatcher.processPublicationTaskNow(taskId, requestHost, this);
+        try {
+            const result = await publicationDispatcher.processPublicationTaskNow(taskId, requestHost, this);
+            const projected = projectDirectPublicationResult(result);
+            if (projected.diagnostic) {
+                logPublicationDiagnostic('publication', projected.diagnostic, projected.isError ?? true);
+                return { ...projected.payload, ...projected.diagnostic };
+            }
+            return result;
+        }
+        catch (error: unknown) {
+            if (error instanceof PublicationDiagnosticError) throw error;
+            throw new PublicationDiagnosticError(diagnoseDirectPublicationError(error));
+        }
     }
 
     async executeAutomatedPublicationTask(task: any, bundle: any, channelConfig: any, plan: any, requestHost?: string) {

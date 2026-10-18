@@ -1,0 +1,283 @@
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+✔ snapshot reports all safe fields without values or injected fields (1.202227ms)
+✔ missing prerequisite and unknown failures do not invent downstream causes (0.212711ms)
+✔ uncertainty and replay require reconciliation; success unchanged (0.161201ms)
+✔ registered MCP boundary serializes validation failures without input secrets or mutations (110.140734ms)
+✔ schema rejection explains request correction without raw validation values (0.201151ms)
+✔ read-only persisted snapshot mismatch returns concrete safe reasons (0.230641ms)
+✔ X native MCP controls serialize actionable redacted errors and preserve disabled registration (19.492418ms)
+✔ asset ownership revision and decision mismatches all remain visible without values (0.207561ms)
+✔ direct guard APPROVED_VISUAL_REQUIRED has static correction (2.491653ms)
+✔ direct guard APPROVED_VISUAL_NOT_SERVER_RESOLVABLE has static correction (0.272232ms)
+✔ direct guard ACCEPTED_REVISION_REQUIRED has static correction (0.13304ms)
+✔ direct guard SUPPORTED_PUBLICATION_TASK_REQUIRED has static correction (0.10627ms)
+✔ direct guard IDEMPOTENCY_KEY_REQUIRED has static correction (0.093631ms)
+✔ direct guard IDEMPOTENCY_KEY_CONFLICT has static correction (0.07515ms)
+✔ direct guard PUBLICATION_TASK_NOT_FOUND has static correction (0.07577ms)
+✔ direct guard OWNER_RELEASE_REQUIRED has static correction (0.078551ms)
+✔ direct guard OWNER_RELEASE_PROOF_MISMATCH has static correction (0.11103ms)
+✔ direct guard TELEGRAM_PERSONAL_STORY_SESSION_BINDING_MISMATCH has static correction (0.145051ms)
+✔ direct guard PROJECT_OWNER_REQUIRED has static correction (0.092401ms)
+✔ direct guard PUBLICATION_ROUTE_NOT_EXECUTABLE has static correction (0.06947ms)
+✔ direct guard PUBLICATION_NOT_DUE has static correction (0.054761ms)
+✔ direct guard PUBLICATION_STATE_CHANGED has static correction (0.05077ms)
+✔ direct guard VK_NATIVE_VIDEO_ADAPTER_UNSUPPORTED has static correction (0.0479ms)
+✔ direct guard VK_PERSONAL_STORY_CONNECTOR_NOT_READY has static correction (0.05627ms)
+✔ direct guard VK_CONNECTOR_NOT_READY has static correction (0.04812ms)
+✔ direct guard VK_MEDIA_CONNECTOR_NOT_READY has static correction (0.04627ms)
+✔ direct guard VK_TEXT_REQUIRED has static correction (0.04576ms)
+✔ direct guard VK_STORY_MEDIA_REQUIRED has static correction (0.04623ms)
+✔ direct guard TELEGRAM_STORY_MEDIA_REQUIRED has static correction (0.04956ms)
+✔ direct guard TELEGRAM_STORY_SEQUENCE_ADAPTER_UNAVAILABLE has static correction (0.047671ms)
+✔ direct guard TELEGRAM_TARGET_REQUIRED has static correction (0.08587ms)
+✔ direct guard MTPROTO_UNAVAILABLE has static correction (0.064851ms)
+✔ direct guard LINKEDIN_NATIVE_FORMAT_INVALID has static correction (0.04901ms)
+✔ direct guard VK_INDEPENDENT_ADAPTER_REQUIRED has static correction (0.04622ms)
+✔ direct guard DZEN_INDEPENDENT_ADAPTER_REQUIRED has static correction (0.057821ms)
+✔ TELEGRAM_PUBLICATION_UNCERTAIN requires reconciliation (0.13467ms)
+✔ VK_PUBLICATION_UNCERTAIN requires reconciliation (0.079891ms)
+✔ PUBLICATION_ATTEMPT_UNCERTAIN requires reconciliation (0.05801ms)
+✔ PUBLICATION_ALREADY_CLAIMED requires reconciliation (0.054601ms)
+✔ PUBLICATION_IDENTITY_MISSING requires reconciliation (0.08572ms)
+✔ LINKEDIN_PROVIDER_ID_MISSING requires reconciliation (0.070491ms)
+✔ unknown errors never echo input or pretend a cause (0.12994ms)
+✔ safe legacy Reddit guards recognized without matching provider payloads (0.11377ms)
+✔ VK blocked result diagnosed and successful outcome preserved (0.664714ms)
+✔ Telegram projection preserves reviewed semantics and removes raw data (0.185891ms)
+✔ extended direct guard DZEN_TASK_SCOPE_MISMATCH (0.131601ms)
+✔ extended direct guard DZEN_TASK_MISMATCH (0.06465ms)
+✔ extended direct guard DZEN_OWNER_RELEASE_PROOF_MISMATCH (0.072901ms)
+✔ extended direct guard DZEN_CONNECTOR_NOT_READY (0.05353ms)
+✔ extended direct guard DZEN_CONNECTOR_PREFLIGHT_GUARD_FAILED (0.0561ms)
+✔ extended direct guard DZEN_PROVIDER_IDENTITY_MISMATCH (0.053121ms)
+✔ extended direct guard DZEN_PUBLICATION_STATE_CHANGED (0.06551ms)
+✔ extended direct guard DZEN_RETRY_NOT_AUTHORIZED (0.057581ms)
+✔ extended direct guard DZEN_PUBLICATION_ALREADY_CLAIMED (0.0551ms)
+✔ extended direct guard DZEN_PUBLICATION_UNCERTAIN (0.06075ms)
+✔ extended direct guard DZEN_FACT_PENDING (0.052511ms)
+✔ extended direct guard OWNER_REQUIRED (0.05137ms)
+✔ extended direct guard MCP_PROJECT_SCOPE_MISMATCH (0.05315ms)
+✔ extended direct guard STALE_MANIFEST (0.05096ms)
+✔ extended direct guard TELEGRAM_TEXT_REQUIRED (0.05301ms)
+✔ unknown returned failure does not claim provider was blocked (0.076681ms)
+✔ legacy static prerequisites are classified safely (0.0875ms)
+✔ successful legacy response remains compatible and error traces require a recognized shape (0.087171ms)
+✔ successful Telegram trace preserves typed context and redacts provider errors (0.206261ms)
+✔ known full-string connector template THREADS_CONNECTOR_NOT_READY (0.157531ms)
+✔ known full-string connector template LINKEDIN_CONNECTOR_NOT_READY (0.10854ms)
+✔ known full-string connector template OK_CONNECTOR_NOT_READY (0.088211ms)
+✔ known full-string connector template VK_CONNECTOR_NOT_READY (0.08513ms)
+✔ known full-string connector template VK_MEDIA_CONNECTOR_NOT_READY (0.092531ms)
+✔ known full-string connector template PUBLICATION_CHANNEL_UNAVAILABLE (0.08786ms)
+✔ known full-string connector template PUBLICATION_CHANNEL_UNAVAILABLE (0.12462ms)
+✔ known full-string connector template PUBLICATION_CHANNEL_UNSUPPORTED (0.153591ms)
+✔ dispatcher exact prerequisite THREADS_CONNECTOR_NOT_READY (0.550393ms)
+✔ dispatcher exact prerequisite LINKEDIN_CONNECTOR_NOT_READY (0.061981ms)
+✔ dispatcher exact prerequisite TELEGRAM_TARGET_REQUIRED (0.05513ms)
+✔ dispatcher exact prerequisite OK_CONNECTOR_NOT_READY (0.06592ms)
+✔ dispatcher exact prerequisite VK_CONNECTOR_NOT_READY (0.065441ms)
+✔ adapter-required blocked payload retains scoped typed context without channel names (0.142071ms)
+✔ dispatcher guard [VISUAL_GATE_BLOCKED] (0.1165ms)
+✔ dispatcher guard Task (0.069381ms)
+✔ dispatcher guard Task (0.0419ms)
+✔ dispatcher guard Task (0.0378ms)
+✔ dispatcher guard Task (0.044531ms)
+✔ dispatcher guard This (0.03703ms)
+✔ dispatcher guard This (0.04846ms)
+✔ dispatcher guard Publication (0.03884ms)
+✔ returned dispatcher outcome PUBLICATION_BROWSER_HANDOFF_REQUIRED (0.08579ms)
+✔ returned dispatcher outcome PUBLICATION_OWNED_ROUTE_REQUIRED (0.07152ms)
+✔ returned dispatcher outcome PUBLICATION_ALREADY_CLAIMED (0.0389ms)
+✔ returned dispatcher outcome PUBLICATION_WAITING (0.03529ms)
+✔ returned dispatcher outcome PUBLICATION_PREREQUISITE_NOT_READY (0.05818ms)
+✔ invalid required command and raw skip reason are not reflected (0.0943ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+✔ canonical task MCP explains ACCEPTED_REVISION_REQUIRED with no raw provider error (17.649929ms)
+✔ canonical task MCP explains PUBLICATION_ATTEMPT_UNCERTAIN with no raw provider error (4.941145ms)
+✔ direct MCP explains adapter requirement, removes raw failed-result extras and never retries (4.696414ms)
+✔ direct MCP unexpected error has safe investigation path and does not echo raw trace (9.575278ms)
+✔ shared diagnostic boundary preserves successful payload and does not log (1.250276ms)
+✔ shared boundary serializes only reviewed diagnostic and logs once without raw error data (0.411682ms)
+✔ failed result projection replaces unsafe error data while preserving safe state (0.207382ms)
+✔ diagnostic status read remains a successful read instead of a failed command (3.599628ms)
+✔ ready API-capable publication is routed to connector scheduler (1.173236ms)
+✔ missing API or manual execution is routed to browser publication (0.122401ms)
+✔ content and visual gates block both execution routes (0.12018ms)
+✔ published content cannot be routed for execution again (0.09647ms)
+✔ connector failure disables API retries and selects browser fallback (0.653364ms)
+✔ persisted connector handoff reason contains corrective guidance but no raw provider secret (0.312922ms)
+✔ an explicit browser route cannot fall back to the connector (0.11055ms)
+✔ approval-required task with an automated bundle remains waiting (0.098871ms)
+✔ VK ready publications use only the registered independent adapter regardless of direct API or browser mode (0.167831ms)
+✔ VK adapter route preserves publication and readiness gates (0.194911ms)
+✔ VK errors never grant browser or direct API fallback and exclude raw provider diagnostics (0.1432ms)
+✔ public VK platform names are normalized before route and fallback decisions (0.131721ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+✔ actual publish-now HTTP response explains an accepted-package failure without raw provider data (56.212072ms)
+[EgressDiag] publication_tasks.publish_now projectId=20 taskId=5000 responseBytes=818
+✔ HTTP browser handoff keeps successful control state and removes raw fallback reason (4.958155ms)
+✔ publisher console and actual async file share safe envelope without raw data (51.572659ms)
+✔ successful started/published/waiting events remain distinct and unknown events are honest (50.533904ms)
+✔ async file failure does not expose filesystem errors or paths (10.000371ms)
+✔ WARN sink preserves severity and safe known guard actions without serializing error payload (31.306708ms)
+✔ unknown circular provider data cannot escape or crash safe logging (31.032256ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+✔ remote MCP replaces caller-controlled actor and user identities (1.458037ms)
+✔ organization researcher scope cannot be overridden by tool arguments (0.14501ms)
+✔ remote MCP rejects an explicit project that differs from the token scope (0.11248ms)
+✔ remote MCP scopes user identity when the requested project matches the token (0.101491ms)
+✔ remote MCP injects the token-bound identity into bootstrap calls (0.125231ms)
+✔ remote MCP denies cross-tenant administrative tools (0.10309ms)
+✔ local MCP without a configured principal preserves tool arguments (0.101461ms)
+✔ writer MCP is restricted to its project and cannot invoke planner tools (0.139211ms)
+✔ writer MCP discovery exposes content tools but not slot mutation tools (79.869162ms)
+✔ planner MCP discovery exposes slot controls but not content mutation (105.220039ms)
+✔ only the owner MCP profile discovers audited content review recovery (57.858431ms)
+✔ editor, publisher and growth profiles expose only their governed lifecycle tools (189.140611ms)
+✔ role-scoped internal mutations do not request destructive host approval (594.045635ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+✔ Dzen 1036 is exact task-native scope, not a generic project bypass (1.059726ms)
+✔ generic Threads task is resolved by channel and never falls through to Telegram (0.632893ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+{"timestamp":"2026-10-18T19:17:46.557Z","event":"publisher_log","level":"WARN","code":"PUBLISHER_EVENT_UNCLASSIFIED","message":"The publisher emitted an event whose exact meaning is not safely classified.","action":"Ask engineering to classify this event using protected diagnostics. Inspect the existing attempt and publication fact with the responsible operator. Reconcile an uncertain provider outcome before any further execution; do not resend or replace the operation key.","retry_allowed":false}
+{"timestamp":"2026-10-18T19:17:46.561Z","event":"publisher_log","level":"WARN","code":"PUBLISHER_EVENT_UNCLASSIFIED","message":"The publisher emitted an event whose exact meaning is not safely classified.","action":"Ask engineering to classify this event using protected diagnostics. Inspect the existing attempt and publication fact with the responsible operator. Reconcile an uncertain provider outcome before any further execution; do not resend or replace the operation key.","retry_allowed":false}
+{"timestamp":"2026-10-18T19:17:46.562Z","event":"publisher_log","level":"WARN","code":"PUBLISHER_EVENT_UNCLASSIFIED","message":"The publisher emitted an event whose exact meaning is not safely classified.","action":"Ask engineering to classify this event using protected diagnostics. Inspect the existing attempt and publication fact with the responsible operator. Reconcile an uncertain provider outcome before any further execution; do not resend or replace the operation key.","retry_allowed":false}
+{"timestamp":"2026-10-18T19:17:46.562Z","event":"publisher_log","level":"WARN","code":"PUBLISHER_EVENT_UNCLASSIFIED","message":"The publisher emitted an event whose exact meaning is not safely classified.","action":"Ask engineering to classify this event using protected diagnostics. Inspect the existing attempt and publication fact with the responsible operator. Reconcile an uncertain provider outcome before any further execution; do not resend or replace the operation key.","retry_allowed":false}
+{"timestamp":"2026-10-18T19:17:46.715Z","event":"publisher_log","level":"WARN","code":"PUBLISHER_EVENT_UNCLASSIFIED","message":"The publisher emitted an event whose exact meaning is not safely classified.","action":"Ask engineering to classify this event using protected diagnostics. Inspect the existing attempt and publication fact with the responsible operator. Reconcile an uncertain provider outcome before any further execution; do not resend or replace the operation key.","retry_allowed":false}
+✔ text-only direct publication sends a non-empty normalized provider payload (413.506068ms)
+✔ task-779 class payload reaches the provider with accepted text and approved image (0.804494ms)
+✔ missing Telegram text is rejected before any provider call (0.531123ms)
+✔ provider response without message identity is not accepted as publication (0.478662ms)
+✔ failed Bot API fallback preserves the MTProto decision trace (0.600973ms)
+✔ dry-run trace exposes a project-scoped missing session and non-server asset without dispatch (0.345122ms)
+✔ MTProto client never reuses a connected session across projects (0.189491ms)
+✔ MCP serializes a failed live Telegram route as structured error content (149.839583ms)
+✔ dry-run preview and live adapter boundary use the same normalized payload (1.87264ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+✔ Planner capability exposes task-native Telegram publication but not raw direct publication (1.299926ms)
+✔ dry-run resolves accepted text and the approved durable asset without a provider call (1.374896ms)
+✔ approval-required task cannot preview executable route, claim or send to provider (0.433172ms)
+✔ owner-released Telegram task requires exact audit proof before preview or live send (1.069605ms)
+✔ atomic claim rejects a concurrent change to approval-required before provider dispatch (0.252791ms)
+✔ dry-run validates a browser-only channel without dispatch (0.183181ms)
+✔ browser_required personal Telegram story dry-run and live claim use the personal profile route (0.469542ms)
+✔ owner-released personal Telegram story is executable through MTProto personal profile (0.239641ms)
+✔ task1100 dry-run and live send preserve all three ordered frames and the native link area (0.861515ms)
+✔ task1100 refuses a partial or reordered approved story sequence before claim (0.288931ms)
+✔ browser-only feed and a real concurrent publication claim return different errors (0.311101ms)
+✔ text-only task uses the same normalized payload for dry-run and live publication (0.235902ms)
+✔ live task publication sends the same payload through MTProto and corrects a blocked fact (0.295071ms)
+✔ task publisher passes the normalized payload to the MTProto client with forced media upload (0.376492ms)
+✔ MTProto media loader downloads an approved HTTPS image into an uploadable buffer (4.352362ms)
+✔ MTProto media loader rejects local hosts and non-image responses (1.061725ms)
+✔ MTProto media loader accepts an approved MP4 without image downgrade (0.405112ms)
+✔ MTProto personal story uses self peer, deterministic identity and provider readback (1.454207ms)
+✔ file and data assets are rejected before MTProto is called (0.173421ms)
+✔ missing accepted text and stale approved assets are rejected (0.179081ms)
+✔ idempotency replay returns the confirmed result without another provider call (0.12376ms)
+✔ an uncertain provider failure creates no fact and cannot be treated as published (0.282212ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+✔ generic release accepts an arbitrary canonical task without sending and records an exact immutable proof (2.812714ms)
+✔ generic live send creates the attempt before provider dispatch and confirms provider readback once (1.626559ms)
+✔ generic uncertain provider result freezes the attempt and blocks a second dispatch (0.963025ms)
+✔ release diagnostics identify publication_authorized without disclosing values (1.138606ms)
+✔ release diagnostics identify body_sha256 without disclosing values (0.344291ms)
+✔ release diagnostics identify channel_id without disclosing values (0.296831ms)
+✔ release diagnostics identify accepted_revision without disclosing values (0.421513ms)
+✔ release diagnostics identify manifest_checksum without disclosing values (0.296351ms)
+✔ release diagnostics identify actor_id without disclosing values (0.390692ms)
+✔ release diagnostics identify approval_reference without disclosing values (0.446992ms)
+✔ missing release produces one reason, without cascading missing-proof mismatches (0.300392ms)
+✔ release diagnostics collect all mismatches in stable order (0.383532ms)
+✔ malformed release states fail closed with safe reasons for all available checks (0.274471ms)
+✔ valid dry run preserves release and does not dispatch or claim (0.219911ms)
+✔ MCP serializes actionable release diagnostics and logs only safe diagnostic data (17.344477ms)
+✔ Threads boundary safely explains THREADS_PROVIDER_IDENTITY_UNVERIFIED without exposing raw errors (0.233781ms)
+✔ Threads boundary safely explains THREADS_PUBLICATION_UNCERTAIN without exposing raw errors (0.15297ms)
+✔ Threads boundary safely explains THREADS_REQUEST_FAILED without exposing raw errors (0.105091ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+✔ VK real MCP boundary serializes each guard safely and preserves returned state (25.331537ms)
+✔ VK016-01: Planner command is queued until a standalone consumer acknowledges, then blocked without publication (4.118641ms)
+✔ VK016-11: realistic repository invalidation blocks transport without losing heartbeat or status visibility (0.508572ms)
+✔ VK016-12: acknowledged job remains resumable by the same healthy consumer after report response loss (3.931439ms)
+✔ VK016-02: repeated and concurrent commands retain one durable job and never pretend it was accepted (0.697923ms)
+✔ VK016-03: inactive consumer reports offline; heartbeat proves only infrastructure (0.342522ms)
+✔ VK016-04: disabled dispatch, wrong actor/project/task or stale package perform no queue writes (0.622043ms)
+✔ VK016-05: revision or owner release changed after queueing blocks acknowledgement (0.337662ms)
+✔ VK016-06: second process cannot replace a healthy host or acknowledge the same job (0.552843ms)
+✔ VK016-07: pre-provider restart changes generation and rejects stale completion without changing task lease (0.676484ms)
+✔ VK016-08: started or uncertain provider attempt prevents dispatch and restart never requeues it (0.583223ms)
+✔ VK016-09: reconciliation with unavailable provider reports UNKNOWN and cannot create fact/checkpoints or permit retry (0.336692ms)
+✔ VK016-10: canonical confirmed fact is returned on replay, without creating a new attempt or fact (0.270571ms)
+✔ VK016/017-MCP: transport and provider controls require Publisher role and authenticated exact project/actor (0.770124ms)
+✔ VK017-RECONCILE: unique exact owner/text/approved media/provider date yields exact match (1.220356ms)
+✔ VK017-RECONCILE: absence requires complete release-through-now bounded wall coverage (0.284592ms)
+✔ VK017-RECONCILE: text match with missing/unacknowledged/different media cannot permit resend (0.315521ms)
+✔ VK017-RECONCILE: ambiguous objects, relative date, foreign link and object overflow remain unknown (0.351931ms)
+✔ VK017-RECONCILE: changed accepted caption cannot establish absence (0.11875ms)
+✔ VK017-RECONCILE: one exact candidate in partial inventory or outside release window stays unknown (0.705974ms)
+✔ VK017-RECONCILE: complete inventory ending at a fresh capture does not invent future coverage (0.135161ms)
+✔ VK017-RECONCILE: coverage beyond its observed capture is unconfirmed (0.102711ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+✔ VK generic direct entry returns independent-adapter handoff without provider or state writes (411.414948ms)
+✔ Dzen unavailable adapter never creates generic browser fallback or exposes provider secrets (1.459298ms)
+✔ VK browser fallback central entry cannot write a browser handoff or infer retry permission (0.629213ms)
+ℹ tests 208
+ℹ suites 0
+ℹ pass 208
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6766.32568
+✔ operator sees blocker code and corrective step rather than publication started (1.216246ms)
+✔ browser handoff and unknown results never claim a completed or started publication (0.182711ms)
+✔ unknown raw reason is not presented and publication receipt is not independent success proof (0.128351ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 206.865929
