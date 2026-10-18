@@ -42,3 +42,10 @@ Prisma proxy fixture pattern. Full Tower Docker backend/frontend/connector build
 then PASS, quality PASS, and the actually compiled hold+prepare tests6/6 PASS.
 The failed CI and fresh results are bound by fixture-final-index.json. This
 corrects test typing only; no production or safety assertion changed.
+
+Full compiled backend CI now passed, but the following mocked LinkedIn step
+found three legacy tests passing an empty DB object to the manual-fact guard.
+They now supply only null history/job/task readers; exact pilot-refusal assertions
+are unchanged. All direct callers were searched; none still pass an empty DB.
+Combined legacy contracts64/64 PASS on Tower against the fully compiled artifact;
+quality PASS. See linkedin-fixtures-index.json and the linked failing CI job.

@@ -86,7 +86,7 @@ test('prepare preserves repaired manual English projection only for exact1086 bo
 });
 test('generic manual fact cannot claim1086 publication',async()=>{
     const {guardManualPublicationFact}=require('../../dist/services/publication_manual_fact_guard');
-    await assert.rejects(guardManualPublicationFact({}, {projectId:7,taskId:1086,internalConfirmation:false}),/LINKEDIN1086_EXACT_CONFIRMATION_REQUIRED/);
+    await assert.rejects(guardManualPublicationFact({ workflowEvent: { findFirst: async () => null }, connectorDispatchJob: { findFirst: async () => null }, contentItem: { findFirst: async () => null } }, {projectId:7,taskId:1086,internalConfirmation:false}),/LINKEDIN1086_EXACT_CONFIRMATION_REQUIRED/);
 });
 test('same41 recovery and approval replay reject evidence different from the recorded approval packet without writes',async t=>{
     const recovery=require('../../dist/services/linkedin1086_recovery');

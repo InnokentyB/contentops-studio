@@ -132,7 +132,7 @@ test('expired-lease recovery requires owner and exact public readback; reconcili
     await assert.rejects(svc.reconcileLinkedIn1135(input,f.db,writer(f)),/OWNER_REQUIRED/);f.state.owner=true;
     await svc.reconcileLinkedIn1135(input,f.db,writer(f));assert.equal(f.state.attempts.length,1);assert.equal(f.state.fact.id,900);
 });
-test('generic manual fact cannot bypass exact lifecycle',async()=>{await assert.rejects(guardManualPublicationFact({},
+test('generic manual fact cannot bypass exact lifecycle',async()=>{await assert.rejects(guardManualPublicationFact({ workflowEvent: { findFirst: async () => null }, connectorDispatchJob: { findFirst: async () => null }, contentItem: { findFirst: async () => null } },
     {projectId:10,taskId:1135,internalConfirmation:false}),/EXACT_CONFIRMATION_REQUIRED/);});
 module.exports={fixture,releaseArgs,boundary,observed,confirmation};
 test('native share identity reconciles the existing attempt without converting it to an activity or sending again',async()=>{

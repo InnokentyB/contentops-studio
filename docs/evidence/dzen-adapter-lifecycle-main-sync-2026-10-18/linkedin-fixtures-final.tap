@@ -1,0 +1,79 @@
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+✔ metadata preview has zero writes and apply preserves all accepted bytes and both dates (5.140376ms)
+✔ release requires audited repair then creates one WI, replays and cannot broaden a key (1.556488ms)
+✔ foreign owner, changed body/date/profile/visual/review and existing attempt fail without writes (3.244837ms)
+✔ expired same fence admits reconciliation but never start/Submit; changed actor/fence rejected (5.593409ms)
+✔ prepare preserves repaired manual English projection only for exact1086 body (0.228101ms)
+✔ generic manual fact cannot claim1086 publication (0.822084ms)
+✔ same41 recovery and approval replay reject evidence different from the recorded approval packet without writes (8.073851ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+✔ 1086 start never creates another WI and CAS failure creates no attempt (2.029971ms)
+✔ 1086 prior attempt is reconcile-only even with a different key (0.390542ms)
+✔ 1086 atomic confirmation rechecks lease inside canonical fact before mutating attempt (1.188615ms)
+✔ 1086 pre-submit rejects changed author evidence under an existing phase key (0.970585ms)
+✔ 1086 uncertainty forbids another pre-submit permission (0.463402ms)
+✔ 1086 replay of an issued pre-submit check never grants a second Submit (0.558242ms)
+✔ 1086 valid confirmation updates attempt and audit inside the canonical fact hook (0.859764ms)
+✔ 1086 cannot attach an older publication to a newly started attempt (0.590343ms)
+✔ r3 cannot confirm an unrelated native body or fabricated author/time (0.259801ms)
+✔ LI1086-R00 synthetic fixture/runner work, owner observation is not provider proof (1.068796ms)
+✔ LI1086-R10 scope pins the SHA-256 of the retained attempt41 publication key (166.708597ms)
+✔ LI1086-R01 owner absence and Dovodi do not replace exact duplicate-risk acceptance (12.921925ms)
+✔ LI1086-R02 optionA returns only review plan, preserving unknown inflight and exact attempt/WI/key (8.313632ms)
+✔ LI1086-R03 exact identity/package/date/fence/key mismatches fail closed (5.94797ms)
+✔ LI1086-R04 foreign owner or acceptance actor/scope cannot recover (5.382537ms)
+✔ LI1086-R05 known active publisher/composer or contradictory provider evidence overrides risk acceptance (5.356467ms)
+✔ LI1086-R06 fact/permit/recovery/unknown/multiple attempts prevent any second generation or permit (5.262807ms)
+✔ LI1086-R07 prepare-normalized browser_required is not permission; same publishing state remains assessable (5.9268ms)
+✔ LI1086-R08 no certificate/no-send claims are fabricated; incomplete observation input blocks (4.685874ms)
+✔ LI1086-R09 no mutation, raw secret, lease, provider ID or submit token leaves pure assessment (4.775984ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+✔ r3 fact completes only its new WI and preserves superseded WI1924 verbatim (2.506782ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+✔ r3 claim preview and identical replay never extend twice (4.242381ms)
+✔ r3 renewal preview and identical replay never extend twice (0.947925ms)
+✔ r3 existing attempt forbids renewal even after expiry (0.623463ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+✔ 1128 start never creates another WI and CAS failure creates no attempt (2.00097ms)
+✔ 1128 prior attempt is reconcile-only even with a different key (0.395422ms)
+✔ 1128 atomic confirmation rechecks lease inside canonical fact before mutating attempt (1.159766ms)
+✔ 1128 pre-submit rejects changed author evidence under an existing phase key (0.685033ms)
+✔ 1128 uncertainty forbids another pre-submit permission (0.417122ms)
+✔ 1128 replay of an issued pre-submit check never grants a second Submit (0.469423ms)
+✔ 1128 valid confirmation updates attempt and audit inside the canonical fact hook (0.761854ms)
+✔ 1128 cannot attach an older publication to a newly started attempt (0.591323ms)
+✔ r3 cannot confirm an unrelated native body or fabricated author/time (0.253232ms)
+✔ r3 historical fence allows reconciliation after expiry but never another Submit (3.496538ms)
+✔ r3 normal confirmation and reconciliation use different lease policies (3.056775ms)
+✔ r3 uncertain state cannot be confirmed through the normal tool even with an active lease (0.790844ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+✔ English supersede preview performs no writes (5.127007ms)
+✔ English replacement preserves records, creates one new WI and replays its audit (1.720349ms)
+✔ replacement CAS failure never creates new WI or successful audit (0.845464ms)
+✔ rev3 exact controls are discoverable only by owner and Publisher (1.548838ms)
+✔ 1128 generic manual fact cannot bypass the replacement attempt (1.057995ms)
+✔ 1128 English replacement allows only the exact pending pre-submit-free old attempt (38.547776ms)
+✔ 1128 any Submit permission, ambiguity, delivery or extra attempt forbids pre-provider abort (1.056325ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+✔ exact1135 owner copy fixture and ordered blocks remain immutable (0.717433ms)
+✔ owner release creates one revision-bound WI, no attempt or provider call, exact replay keeps one item (2.630483ms)
+✔ committed release replay remains available during manifest outage, but revoked owner is denied (0.806234ms)
+✔ claim returns its lease only to owning executor; durable audit contains only its hash (1.480087ms)
+✔ wrong owner/company/image/revision, any prior attempt, fact or active WI blocks release (2.826805ms)
+✔ release audit failure atomically rolls back task and newly created WI (0.337641ms)
+✔ start creates one durable attempt; UNKNOWN and different keys never create another (3.234936ms)
+✔ pre-submit rejects collapsed paragraphs, wrong author, wrong image or missing attachment (3.279537ms)
+✔ source URL or channel configuration drift after release cannot reach pre-submit (1.637659ms)
+✔ confirmation requires pre-submit; failure rolls back attempt/audit with no fact (3.760189ms)
+✔ expired-lease recovery requires owner and exact public readback; reconciliation never creates a new attempt (1.692389ms)
+✔ generic manual fact cannot bypass exact lifecycle (0.268071ms)
+✔ native share identity reconciles the existing attempt without converting it to an activity or sending again (0.810954ms)
+✔ share confirmation rejects mismatched object kind/id, foreign company, credentials and unrelated host/path (3.097616ms)
+ℹ tests 64
+ℹ suites 0
+ℹ pass 64
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1485.965753

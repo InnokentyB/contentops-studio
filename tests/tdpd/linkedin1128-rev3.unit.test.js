@@ -13,7 +13,7 @@ test('rev3 exact controls are discoverable only by owner and Publisher', () => {
 });
 test('1128 generic manual fact cannot bypass the replacement attempt', async () => {
     const { guardManualPublicationFact } = require('../../dist/services/publication_manual_fact_guard');
-    await assert.rejects(guardManualPublicationFact({}, { projectId: 7, taskId: 1128, internalConfirmation: false }), /LINKEDIN1128_EXACT_CONFIRMATION_REQUIRED/);
+    await assert.rejects(guardManualPublicationFact({ workflowEvent: { findFirst: async () => null }, connectorDispatchJob: { findFirst: async () => null }, contentItem: { findFirst: async () => null } }, { projectId: 7, taskId: 1128, internalConfirmation: false }), /LINKEDIN1128_EXACT_CONFIRMATION_REQUIRED/);
 });
 function feature() {
     let value;
