@@ -2,7 +2,8 @@ import { timingSafeEqual } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { z } from 'zod';
 import { BrowserDb, BrowserDependencies, BrowserRequest, browserRequestSchema,
-    checkedBrowserContext, browserFingerprint, snapshotHash, object, checksum, paragraphHashes, hash } from './browser_publication_contract';
+    checkedBrowserContext, browserFingerprint, snapshotHash, object, checksum, paragraphHashes, hash,
+    isBrowserTextOnlySnapshot } from './browser_publication_contract';
 
 export const browserClaimSchema=browserRequestSchema.safeExtend({workItemId:z.number().int().positive(),
     leaseSeconds:z.number().int().min(30).max(1800).optional()});
@@ -52,7 +53,7 @@ export function assertBrowserObserved(body:string,args:Omit<BrowserObserved,'lea
     if(args.observedProfileUrl.replace(/\/$/,'')!==i.profileUrl.replace(/\/$/,'')
         ||args.observedProviderAccountId!==i.providerAccountId||args.observedAccountType!==i.accountType
         ||args.observedBodySha256!==s.bodySha256||args.observedAssetSha256!==s.assetSha256
-        ||args.attachedImageCount!==(i.platform==='x'?0:1)||!args.duplicateAbsent
+        ||args.attachedImageCount!==(isBrowserTextOnlySnapshot(s)?0:1)||!args.duplicateAbsent
         ||!isDeepStrictEqual(args.paragraphBlockSha256,paragraphHashes(body)))throw new Error('[BROWSER_OBSERVATION_MISMATCH]');
 }
 export function browserObservationHash(args:Omit<BrowserObserved,'leaseToken'>):string {

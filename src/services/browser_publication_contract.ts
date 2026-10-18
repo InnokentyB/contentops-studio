@@ -19,9 +19,10 @@ export const browserSnapshotSchema = z.object({projectId:id, taskId:id, channelI
     manifestChecksum:z.string().regex(/^sha256:[a-f0-9]{64}$/),
     contentLanguage:z.string().regex(/^[a-z]{2}(?:-[A-Z]{2})?$/), identity:browserIdentitySchema
 }).strict().superRefine((value,ctx)=>{
-    const textOnly=value.identity.platform==='x';
-    if(textOnly?(value.selectedAssetId!==null||value.assetSha256!==null)
-        :(value.selectedAssetId===null||value.assetSha256===null))
+    const absent=value.selectedAssetId===null&&value.assetSha256===null;
+    const image=value.selectedAssetId!==null&&value.assetSha256!==null;
+    const valid=value.identity.platform==='x'?absent:value.identity.platform==='linkedin'?absent||image:image;
+    if(!valid)
         ctx.addIssue({code:'custom',message:'BROWSER_ASSET_POLICY_MISMATCH',path:['selectedAssetId']});
 });
 export const browserRequestSchema = z.object({projectId:id, taskId:id, actorId:z.string().regex(/^user:[1-9]\d*$/),
@@ -30,6 +31,10 @@ export const browserRequestSchema = z.object({projectId:id, taskId:id, actorId:z
 }).strict().refine(v=>v.projectId===v.snapshot.projectId&&v.taskId===v.snapshot.taskId,{message:'SCOPE_MISMATCH'});
 export type BrowserRequest = z.infer<typeof browserRequestSchema>;
 export type BrowserSnapshot = z.infer<typeof browserSnapshotSchema>;
+/** Shape only; admission still requires the exact active canonical NO_VISUAL_NEEDED decision. */
+export function isBrowserTextOnlySnapshot(snapshot:{identity:{platform:string};selectedAssetId:number|null;assetSha256:string|null}):boolean {
+    return ['x','linkedin'].includes(snapshot.identity.platform)&&snapshot.selectedAssetId===null&&snapshot.assetSha256===null;
+}
 export type BrowserDb = Prisma.TransactionClient;
 export type BrowserDependencies = {db:typeof prisma; manifest:typeof loadAgentWorkspaceManifest};
 export const browserDefaults:BrowserDependencies = {db:prisma,manifest:loadAgentWorkspaceManifest};
@@ -80,7 +85,7 @@ export function browserSnapshotMismatches(task:Awaited<ReturnType<typeof loadBro
     const asset=task?.selected_asset, storage=object(object(asset?.provenance).planner_storage);
     const profile=canonicalBrowserProfile(s.identity);
     const configuredProfile=config.profile_url||config.channel_url||object(config.raw_account).url||config.account_ref;
-    const textOnly=s.identity.platform==='x';
+    const textOnly=isBrowserTextOnlySnapshot(s);
     const expectedPlacement=s.identity.platform==='devto'?'article_cover':'feed';
     // Legacy Setka imports used unknown rather than a provider account type.
     // The adopted personal UUID profile still requires exact owner/audit/native
@@ -99,7 +104,7 @@ export function browserSnapshotMismatches(task:Awaited<ReturnType<typeof loadBro
     equal('channel.id',s.channelId,task.channel?.id);equal('channel.project_id',s.projectId,task.channel?.project_id);
     check('channel.is_active',Boolean(task.channel?.is_active),true,Boolean(task.channel?.is_active));
     fixed('channel.type',s.identity.platform,task.channel?.type,['linkedin','devto','setka','x']);
-    const legacyXType=textOnly&&(config.account_type===undefined||config.account_type==='unknown');
+    const legacyXType=s.identity.platform==='x'&&(config.account_type===undefined||config.account_type==='unknown');
     check('channel.config.account_type',legacySetkaType||legacyXType||config.account_type===s.identity.accountType,
         s.identity.accountType,enumValue(config.account_type,['personal','company_page','unknown']));
     text('channel.config.account_ref',s.identity.accountRef,config.account_ref);
@@ -123,8 +128,9 @@ export function browserSnapshotMismatches(task:Awaited<ReturnType<typeof loadBro
         check('snapshot.selected_asset_id',s.selectedAssetId===null,null,s.selectedAssetId);
         check('snapshot.asset_sha256',s.assetSha256===null,null,s.assetSha256);
         check('visual_mode.not_required',task.visual_mode!=='required',true,task.visual_mode!=='required');
-        check('draft_text.native_length',Boolean(task.draft_text?.trim())&&(task.draft_text?.length??0)<=280,true,
-            Boolean(task.draft_text?.trim())&&(task.draft_text?.length??0)<=280);
+        const nativeLimit=s.identity.platform==='x'?280:3000;
+        check('draft_text.native_length',Boolean(task.draft_text?.trim())&&(task.draft_text?.length??0)<=nativeLimit,true,
+            Boolean(task.draft_text?.trim())&&(task.draft_text?.length??0)<=nativeLimit);
     }else{
     equal('selected_asset.id',s.selectedAssetId,asset?.id);
     equal('selected_asset.project_id',s.projectId,asset?.project_id);equal('selected_asset.content_item_id',s.taskId,asset?.content_item_id);
