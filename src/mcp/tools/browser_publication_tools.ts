@@ -10,7 +10,7 @@ import { asToolResult,INTERNAL_MUTATION_ANNOTATIONS } from './common';
 /** Shared owner-bound controls; no tool drives a browser or makes a provider call. */
 export function registerBrowserPublicationTools(server:McpServer):void {
     server.registerTool('ba_inspect_browser_publication',{
-        description:'Read-only owner preview of a dynamic accepted LinkedIn/Setka image post or DEV.to article-cover package. No release, send or independent provider verification.',
+        description:'Read-only owner preview of an exact accepted LinkedIn image or canonical NO_VISUAL_NEEDED text-only post, Setka image post or DEV.to article-cover package. No release, send or independent provider verification.',
         annotations:{readOnlyHint:true},inputSchema:browserRequestSchema.shape
     },async args=>asToolResult(await inspectBrowserPublication(args)));
     server.registerTool('ba_repair_browser_publication_metadata',{

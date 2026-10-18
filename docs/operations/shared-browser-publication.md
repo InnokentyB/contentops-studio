@@ -1,7 +1,7 @@
 # Shared browser publication controls
 
-Consumers: LinkedIn image posts, personal Setka image posts and DEV.to articles
-with approved covers. Telegram video/review repair remains a separate pending
+Consumers: LinkedIn image or canonical text-only posts, personal Setka image posts
+and DEV.to articles with approved covers. Telegram video/review repair remains a separate pending
 004 milestone. See [Setka handoff](./shared-setka-browser-publication.md).
 These commands control Planner state only. They do not open a browser, import a
 session, click Submit, or independently verify a provider. Existing site/tool
@@ -59,6 +59,21 @@ standing release for another revision or future publication.
 The MCP principal replaces actor identity and enforces its outer project;
 server-side snapshot validation also rejects a hidden different project/task.
 
+### LinkedIn without a visual
+
+Personal and company-page LinkedIn packages may use `selectedAssetId:null` and
+`assetSha256:null` together. This is not a missing-asset fallback: current task
+state and the exact active, same-tenant/task/channel/feed/revision/version art
+decision must both say `NO_VISUAL_NEEDED`, with no selected asset and no required
+visual mode. The full identity, manifest, accepted body and date bindings remain
+mandatory. LinkedIn text must be nonempty and at most 3,000 characters; X keeps
+its separate 280-character limit and signed-native execution boundary.
+
+For this package the native observation must contain zero attached images and
+`observedAssetSha256:null`; an unexpected image rejects pre-submit/confirmation.
+Image-bearing LinkedIn, DEV.to and Setka requirements do not change. No fake
+asset, new approval, account, credential or alternate publication route is needed.
+
 ## Operator sequence
 
 1. `ba_diagnose_browser_publication`: inspect persisted attempts/WI/fact without
@@ -78,7 +93,8 @@ server-side snapshot validation also rejects a hidden different project/task.
    Start returns `submission_permitted:false`; never treat its receipt as send.
 6. Owning Publisher performs the required actual no-send/action-time check:
    exact author/company ID, accepted body and ordered paragraph hashes, one
-   approved image with matching SHA, no duplicate. Submit these observations
+   approved image with matching SHA (or zero images for canonical text-only
+   LinkedIn), no duplicate. Submit these observations
    through `ba_pre_submit_browser_submission`, including attemptId and evidence
    hash. Only the first successful response permits one Submit, within returned
    30-second/lease expiry. A replay/lost response does not renew permission.

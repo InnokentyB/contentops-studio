@@ -28,10 +28,14 @@ test('X no-visual package is data-driven; existing image routes cannot omit thei
         assert.equal((await release.inspectBrowserPublication(args,f)).publication_authorized,false);
         assert.deepEqual(f.state,before);
     }
-    for(const platform of ['linkedin','devto']){
+    for(const platform of ['devto','setka']){
         const s=structuredClone(request.snapshot);s.identity.platform=platform;s.selectedAssetId=null;s.assetSha256=null;
         assert.equal(browserSnapshotSchema.safeParse(s).success,false);
     }
+    const s=structuredClone(request.snapshot);s.selectedAssetId=null;s.assetSha256=null;
+    assert.equal(browserSnapshotSchema.safeParse(s).success,true);
+    const imageRequired=fixture();imageRequired.state.task.selected_asset_id=null;imageRequired.state.task.selected_asset=null;
+    await assert.rejects(release.inspectBrowserPublication({...request,snapshot:s},imageRequired),/BROWSER_SNAPSHOT_MISMATCH/);
 });
 test('X acceptance requires exact active no-visual decision and no selected asset',async()=>{
     for(const mutate of [f=>f.state.task.visual_state='APPROVED',f=>f.state.task.selected_asset_id=166,
