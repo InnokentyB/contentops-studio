@@ -563,3 +563,46 @@ ef894d316351fd74c59270512dd46ad804400f3325972fe98ca5704d43e42f60  src/services/v
 1c058c1ec64eec1d547fc563c68b37687af2558fc0a8b06a241ba476fc479b2e  src/services/week_package_repair.service.ts
 70cba63f7165c820e5a87b94a5d42dc9badd0ba1fa42776df9f2ca3d3f89311f  src/services/work_queue/infrastructure.ts
 ```
+
+
+## Exact committed implementation verification — 2026-10-18T11:59:24.044809+00:00
+
+Checked implementation commit
+`82382aa134a7029c987479f47bf3c0c7e4d1e575`. **No open P0/P1/new P2** remains
+in the cumulative reviewed scope. All48 frozen-source rows byte-match both
+that commit and the local source; canonical manifest remains
+`8cea0b35b8bc7d3b79a4c18493adcf6f627f9734ec8bf31f2b8440bc7fb07321`.
+All48 rows in the separate retained source-manifest JSON also match the commit.
+The only later working-tree changes at verification are evidence-index/log-name
+corrections; final docs-only parity is still required after the receipt commit.
+
+All26 currently indexed raw artifacts exist and match recorded SHA256/byte size.
+The retained final TAP summaries independently read here are parent26, actual
+synthetic PostgreSQL41, native28, publication203, Dzen/VK172 and sharedX74, each
+with zero failures/skips. Quality JSON reports PASS,7093 matching findings and
+baseline rows, no hard stops/applied transitions. Retained final build output
+shows the completed backend/frontend/connector image build. These checks inspect
+retained evidence: reviewer did not execute the suites or rebuild/reopen the
+Docker image.
+
+Native source remains
+`e97abe42a11568307e207423177e00750fb582518d109f8bf3ec0de56ef50719`;
+the retained source/build record binds image
+`507161d2b1e013b7b2640364390a6fdb7bade74635bbee0f63702fb7b0bc3556`,
+compiled page
+`3e7e7676af130be5adc5ba1ec4db720c974fb71cf0c09224fc5a37205c4f83d1`
+and native final TAP
+`e5b02ec102daa55975a5cb1c9ab185d57f9a79302a8015047429936df2b90c84`.
+The actual native TAP hash was checked; image/compiled hashes were checked for
+consistency of retained metadata, not independently extracted from Docker.
+
+Correction to the earlier shorthand baseline statement: exactly THREE rows were
+pruned—two fact-service business comparisons and one image-service business
+binding replaced by a named protocol constant. Zero rows were added and metadata
+of every retained identity is unchanged; no legacy identity remapping occurred.
+
+Verdict: constrained offline engineering source/evidence review closed for this
+implementation commit. Final docs-only exact-head parity remains pending. Owner
+UAT, production runtime/deployment, native action-scope applicability and
+sole-sender cutover remain separate explicit gates. This receipt supplies no
+merge/deploy/provider-action or UAT approval.

@@ -17,12 +17,12 @@
       "bytes": 5661
     },
     {
-      "artifact": "build-candidate.log",
+      "artifact": "build-candidate.txt",
       "sha256": "29ac6132bb4e2e3b1aad1ba812d206e73e0ea9863c7e3cbdf60688a9acab54a1",
       "bytes": 7579
     },
     {
-      "artifact": "build-final.log",
+      "artifact": "build-final.txt",
       "sha256": "cc0c754b75ddc1b91fcc88ca4f02b85ad940352581b37a799cf9648e2aa39b56",
       "bytes": 7638
     },
@@ -107,7 +107,7 @@
       "bytes": 23108
     },
     {
-      "artifact": "quality-candidate.log",
+      "artifact": "quality-candidate.txt",
       "sha256": "0eb070acd2d9a1cd138a659c4e152f4a7ee9c74baa82a55519d8fa4f17cdc0fe",
       "bytes": 1551
     },
