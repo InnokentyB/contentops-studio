@@ -1,0 +1,44 @@
+✔ DA21 automatic re-accept cannot reset a started exact package after marker replacement (0.999595ms)
+✔ DA21 project art-direction backfill skips owned history before revision or state changes (0.331761ms)
+✔ DA21 generic positive work-item approval cannot reset an owned provider task projection (0.739084ms)
+✖ DA21 leased positive art decision cannot supersede the immutable accepted decision (1.806939ms)
+✖ DA21 attaching a new requested source cannot replace an owned accepted cover (0.756904ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 3
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 672.099696
+
+✖ failing tests:
+
+test at ../../workspace/tests/tdpd/owned-publication-art.test.cjs:16:1
+✖ DA21 leased positive art decision cannot supersede the immutable accepted decision (1.806939ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (/workspace/tests/tdpd/owned-publication-art.test.cjs:16:135)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /OWNED_LIFECYCLE_IMMUTABLE/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at ../../workspace/tests/tdpd/owned-publication-art.test.cjs:18:1
+✖ DA21 attaching a new requested source cannot replace an owned accepted cover (0.756904ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (/workspace/tests/tdpd/owned-publication-art.test.cjs:18:104)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /OWNED_LIFECYCLE_IMMUTABLE/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+

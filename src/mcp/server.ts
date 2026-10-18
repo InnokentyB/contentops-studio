@@ -1,3 +1,4 @@
+import { configuredPublicationPrincipal, withPublicationPrincipal } from './publication-principal';
 import '../bootstrap-env';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { createPlannerMcpServer, shutdownMcpResources } from './shared';
@@ -18,6 +19,9 @@ async function shutdown(code = 0) {
 async function main() {
     const transport = new StdioServerTransport();
     await server.connect(transport);
+    const receive = transport.onmessage;
+    transport.onmessage = (message) => withPublicationPrincipal(configuredPublicationPrincipal(process.env),
+        () => receive?.(message));
 }
 
 process.on('SIGINT', () => {

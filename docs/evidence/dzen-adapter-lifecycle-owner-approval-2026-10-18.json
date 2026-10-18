@@ -1,0 +1,22 @@
+{
+  "kind": "direct_human_approval_evidence",
+  "observed_at": "2026-10-18 10:20:54 UTC",
+  "package": "DZEN-ADAPTER-LIFECYCLE-001",
+  "questionItemId": "[\"request_user_input_async\",\"call_bbefdc69adce4330a7981d9eca597448\",0]",
+  "answer": "Утверждаю DZEN-ADAPTER-LIFECYCLE-001",
+  "approved_scope": [
+    "Engineering implementation of reviewed plan",
+    "All local offline scenario/tests and independent review stages without intermediate stage approvals"
+  ],
+  "plan_commit": "6b06b1c",
+  "plan_sha256": "d00e091cacdf9ffed1801fc0c2c961e9086c63c86dc3e0074db1330cb9bec37e",
+  "owning_engineering_thread": "01a145fc-e669-7431-a0ff-bd21782ac476",
+  "excluded": [
+    "deployment",
+    "live provider actions",
+    "publication",
+    "provider/tool denial clearance"
+  ],
+  "runtime": "Tower project workloads in Docker; no Mac Docker",
+  "planner_approvals_or_facts_modified": false
+}

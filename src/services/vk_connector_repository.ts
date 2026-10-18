@@ -1,3 +1,4 @@
+import { legacyProviderJobWhere } from './publication_provider_queue';
 import { Prisma, type ConnectorDispatchJob, type ConnectorHostStatus } from '@prisma/client';
 import { z } from 'zod';
 import prisma from '../db';
@@ -70,23 +71,29 @@ function storeFor(tx: Prisma.TransactionClient): ConnectorStore {
             const attempt = await tx.deliveryAttempt.findFirst({ where: { project_id: p, content_item_id: id }, orderBy: { id: 'desc' } });
             return buildVkConnectorSnapshot(task, item, attempt);
         },
-        job: async (p, id) => { const r = await tx.connectorDispatchJob.findFirst({ where: { project_id: p, id } }); return r ? toJob(r) : null; },
-        jobByKey: async (p, key) => { const r = await tx.connectorDispatchJob.findUnique({ where: { project_id_idempotency_key: { project_id: p, idempotency_key: key } } }); return r ? toJob(r) : null; },
-        jobByPackage: async (p, hash) => { const r = await tx.connectorDispatchJob.findFirst({ where: { project_id: p, package_sha256: hash } }); return r ? toJob(r) : null; },
+        job: async (p, id) => { const r = await tx.connectorDispatchJob.findFirst({ where: { project_id: p, id, ...legacyProviderJobWhere('vk') } }); return r ? toJob(r) : null; },
+        jobByKey: async (p, key) => {
+            const r = await tx.connectorDispatchJob.findFirst({ where: { project_id: p, idempotency_key: key, ...legacyProviderJobWhere('vk') } });
+            if (r) return toJob(r);
+            const collision = await tx.connectorDispatchJob.findUnique({ where: { project_id_idempotency_key: { project_id: p, idempotency_key: key } }, select: { id: true } });
+            if (collision) throw new Error('[PROVIDER_IDEMPOTENCY_CONFLICT]');
+            return null;
+        },
+        jobByPackage: async (p, hash) => { const r = await tx.connectorDispatchJob.findFirst({ where: { project_id: p, package_sha256: hash, ...legacyProviderJobWhere('vk') } }); return r ? toJob(r) : null; },
         insertJob: async j => { await tx.connectorDispatchJob.create({ data: {
             id: j.jobId, project_id: j.projectId, content_item_id: j.taskId, channel_id: j.channelId,
             work_item_id: j.workItemId, content_revision: j.package.revision, selected_asset_id: j.package.selectedAssetId,
             package_sha256: j.packageSha256, binding: { ...j.package }, idempotency_key: j.idempotencyKey,
             state: j.state, generation: j.generation, updated_at: j.updatedAt } }); },
         updateJob: async (id, generation, state: ConnectorState, patch) => {
-            const result = await tx.connectorDispatchJob.updateMany({ where: { id, generation, state }, data: {
+            const result = await tx.connectorDispatchJob.updateMany({ where: { id, generation, state, ...legacyProviderJobWhere('vk') }, data: {
                 state: patch.state, host_id: patch.hostId, consumer_instance_id: patch.instanceId,
                 generation: patch.generation, canonical_lease_sha256: patch.canonicalLeaseSha256,
                 canonical_lease_expires_at: patch.canonicalLeaseExpiresAt, receipt_at: patch.receiptAt, blocker_code: patch.blocker,
                 attempt_id: patch.attemptId, publication_fact_id: patch.factId, updated_at: patch.updatedAt } });
             return result.count === 1;
         },
-        candidates: async p => (await tx.connectorDispatchJob.findMany({ where: { project_id: p,
+        candidates: async p => (await tx.connectorDispatchJob.findMany({ where: { project_id: p, ...legacyProviderJobWhere('vk'),
             state: { in: ['queued', 'accepted', 'reconciling', 'ready', 'executing'] } }, orderBy: { created_at: 'asc' }, take: 10 })).map(toJob),
         host: async (p, id) => { const r = await tx.connectorHostStatus.findUnique({ where: { project_id_host_id: { project_id: p, host_id: id } } }); return r ? toHost(r) : null; },
         saveHost: async h => {

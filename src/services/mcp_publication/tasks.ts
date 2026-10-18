@@ -1,3 +1,4 @@
+import { assertOwnedPublicationMutable, ownedPublicationMutableWhere, lockOwnedPublicationTask } from '../publication_owned_guard';
 import prisma from '../../db';
 import { Prisma } from '@prisma/client';
 import artDirectionService from '../art_direction.service';
@@ -257,6 +258,7 @@ export async function updatePublicationContent(input: {
         throw new Error('[CONTENT_REVISION_CONFLICT] Publication content changed since it was read. Reload the task and retry.');
     }
 
+    await assertOwnedPublicationMutable(prisma, { projectId: input.projectId, taskId: input.taskId });
     assertPublicationTaskMutableForMcp(item, 'update_publication_content');
     const qualityReport = { ...((item.quality_report as Record<string, unknown> | null) || {}) };
     const handoffBundle = qualityReport.handoff_bundle as Record<string, unknown> | undefined;
@@ -306,12 +308,15 @@ export async function updatePublicationContent(input: {
     }
 
     const updated = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+        await lockOwnedPublicationTask(tx, { projectId: input.projectId, taskId: item.id });
+        await assertOwnedPublicationMutable(tx, { projectId: input.projectId, taskId: item.id });
         await artDirectionService.markRevisionStale(tx, item.id);
         const result = await tx.contentItem.updateMany({
             where: {
                 id: item.id,
                 project_id: input.projectId,
-                content_revision: input.expectedRevision
+                content_revision: input.expectedRevision,
+                ...ownedPublicationMutableWhere()
             },
             data: {
                 draft_text: input.body,
@@ -494,6 +499,7 @@ export async function preparePublicationTask(projectId: number, taskId: number) 
         throw new Error(`Publication task ${taskId} not found for project ${projectId}`);
     }
 
+    await assertOwnedPublicationMutable(prisma, { projectId, taskId });
     assertPublicationTaskMutableForMcp(item, 'prepare_publication_task');
     const hold = (item.quality_report as Record<string, unknown> | null)?.publication_hold;
     if (hold) throw new Error('[PUBLICATION_HOLD_ACTIVE] Audited owner recovery is required before preparation');
@@ -528,8 +534,11 @@ export async function preparePublicationTask(projectId: number, taskId: number) 
         };
     }
 
-    const updated = await prisma.contentItem.update({
-        where: { id: item.id },
+    const updated = await prisma.$transaction(async tx => {
+        await lockOwnedPublicationTask(tx, { projectId, taskId });
+        await assertOwnedPublicationMutable(tx, { projectId, taskId });
+        return tx.contentItem.update({
+        where: { ...ownedPublicationMutableWhere(), id: item.id },
         data: {
             status: preparation === 'browser_required' ? 'browser_required' : 'ready_for_execution',
             publication_mode: preparation,
@@ -541,6 +550,7 @@ export async function preparePublicationTask(projectId: number, taskId: number) 
                 prepared_at: new Date().toISOString()
             } as Prisma.InputJsonValue
         }
+        });
     });
 
     return {

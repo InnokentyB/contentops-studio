@@ -25,6 +25,9 @@ jobs:
       - name: Dynamic package, permission, lease, one-attempt, fact and bypass contracts
         run: |
           docker compose -f ops/quality/compose.yaml --profile build run --rm build-check node --test --test-concurrency=1 /workspace/tests/tdpd/shared-browser-release.test.cjs /workspace/tests/tdpd/shared-browser-execution.test.cjs /workspace/tests/tdpd/shared-browser-confirmation.test.cjs /workspace/tests/tdpd/shared-browser-fences.test.cjs /workspace/tests/tdpd/shared-browser-mcp.test.cjs /workspace/tests/tdpd/shared-setka-browser.test.cjs /workspace/tests/tdpd/shared-browser-diagnostics.test.cjs
+      - name: Owned publication principal, queue, fact and mutator boundaries (no provider)
+        run: |
+          docker compose -f ops/quality/compose.yaml --profile build run --rm -e TELEGRAM_BOT_TOKEN=000000:synthetic-test-token-never-used-for-provider-calls build-check node --test --test-concurrency=1 /workspace/tests/tdpd/owned-publication-boundary.test.cjs /workspace/tests/tdpd/owned-publication-writers.test.cjs /workspace/tests/tdpd/owned-publication-queue.test.cjs /workspace/tests/tdpd/owned-publication-fact-hook.test.cjs /workspace/tests/tdpd/owned-publication-http.test.cjs /workspace/tests/tdpd/owned-publication-default-route.test.cjs /workspace/tests/tdpd/owned-publication-art.test.cjs
       - name: Signed X bridge, native fences and deterministic extension package (no provider)
         run: |
           docker compose -f ops/quality/compose.yaml --profile build run --rm -w /workspace build-check sh -c 'node --test --test-concurrency=1 /opt/planner/dist/tests/x_native*.test.js /workspace/tests/tdpd/shared-x-native.test.cjs /workspace/tests/tdpd/x-native-bridge.test.cjs /workspace/tests/tdpd/x-native-wiring.test.cjs /workspace/tests/tdpd/x-native-extension-package.test.mjs /workspace/tests/tdpd/x-native-local-boundary.test.mjs /workspace/tests/tdpd/x-native-popup.test.mjs /workspace/tests/tdpd/x-native-package-build.test.mjs /workspace/tests/tdpd/x-native-bundle-binding.test.mjs /workspace/tests/tdpd/x-native-sandbox-boundary.test.cjs /workspace/tests/tdpd/x-native-state-read.test.cjs'
@@ -35,9 +38,14 @@ jobs:
           docker compose -f ops/publication-tests/compose.yaml run --rm tests
           X_NATIVE_TEST_IMAGE=planner-policy-build-check:node24 docker compose -f ops/publication-tests/compose.yaml -f tests/tdpd/x-native-postgres.compose.yaml run --rm tests
           X_NATIVE_TEST_IMAGE=planner-policy-build-check:node24 docker compose -f ops/publication-tests/compose.yaml -f tests/tdpd/x-native-postgres.compose.yaml run --rm tests node --test --test-concurrency=1 /workspace/tests/tdpd/x-native-state-read-postgres.test.cjs /workspace/tests/tdpd/x-native-state-read-load.test.cjs
+      - name: Owned publication PostgreSQL lifecycle, receipt and rollback scenarios
+        run: |
+          OWNED_PUBLICATION_TEST_IMAGE=planner-policy-build-check:node24 docker compose -p planner-owned-lifecycle-ci -f ops/publication-tests/compose.yaml -f tests/fixtures/owned-publication-store.compose.yaml run --rm tests
       - name: Remove only the synthetic in-memory database stack
         if: always()
-        run: docker compose -f ops/publication-tests/compose.yaml down
+        run: |
+          docker compose -f ops/publication-tests/compose.yaml down
+          docker compose -p planner-owned-lifecycle-ci -f ops/publication-tests/compose.yaml -f tests/fixtures/owned-publication-store.compose.yaml down
   dzen1002-runtime-contract:
     name: Dzen1002 durable attempt and receipt contracts
     runs-on: ubuntu-latest

@@ -1,3 +1,4 @@
+import { hasOwnedPublicationHistory } from './publication_owned_guard';
 import prisma from '../db';
 import { requireProjectActorAccess } from './project_access.service';
 import { VkConnectorDispatchService } from './vk_connector_dispatch.service';
@@ -9,10 +10,17 @@ const service = new VkConnectorDispatchService(vkConnectorRepository, process.en
 export const readPublicationAdapterStatus: AdapterStatusReader = async identity => {
     await requireProjectActorAccess(identity.projectId, identity.actorId);
     const task = await prisma.contentItem.findFirst({ where: { id: identity.taskId, project_id: identity.projectId },
-        select: { channel_id: true, channel: { select: { type: true } } } });
+        select: { channel_id: true, publication_fact: { select: { outcome: true, public_url: true } }, channel: { select: { type: true } } } });
     if (!task) return null;
     const observedAt = new Date().toISOString();
     const base = { canExecute: false as const, observedAt, heartbeatAt: null, publicUrl: null };
+    if (await hasOwnedPublicationHistory(prisma, identity)) {
+        const confirmed = task.publication_fact?.outcome === 'published' && Boolean(task.publication_fact.public_url);
+        return { ...base, supported: true, manualRecordAllowed: false,
+            state: confirmed ? 'confirmed' : 'verification_required',
+            blocker: confirmed ? null : 'OWNED_ADAPTER_READINESS_UNVERIFIED', connection: 'unavailable',
+            publicUrl: confirmed ? task.publication_fact!.public_url : null };
+    }
     if (identity.projectId !== VK_CONNECTOR_SCOPE.projectId || identity.taskId !== VK_CONNECTOR_SCOPE.taskId
         || task.channel_id !== VK_CONNECTOR_SCOPE.channelId || task.channel?.type.trim().toLowerCase() !== 'vk')
         return { ...base, supported: false, manualRecordAllowed: true, state: 'unsupported',

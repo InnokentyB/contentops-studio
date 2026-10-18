@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import prisma from '../db';
+import { hasOwnedPublicationHistory, lockOwnedPublicationTask } from './publication_owned_guard';
 
 const SETTING_KEY = 'visual_storage_ingest_state';
 
@@ -26,7 +27,8 @@ export async function blockVisualStorageIngest(projectId: number, contentItemId:
         recorded_at: new Date().toISOString()
     };
     await prisma.$transaction(async (tx) => {
-        await tx.contentItem.updateMany({
+        await lockOwnedPublicationTask(tx, { projectId, taskId: contentItemId });
+        if (!await hasOwnedPublicationHistory(tx, { projectId, taskId: contentItemId })) await tx.contentItem.updateMany({
             where: { id: contentItemId, project_id: projectId },
             data: { handoff_state: 'blocked' }
         });

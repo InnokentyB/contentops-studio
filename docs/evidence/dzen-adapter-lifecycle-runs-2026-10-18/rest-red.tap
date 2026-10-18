@@ -1,0 +1,83 @@
+ Container owned-lifecycle-store-synthetic-db-1  Running
+Loaded Prisma config from ../../workspace/tests/fixtures/owned-publication-prisma.config.ts.
+
+Prisma schema loaded from ../../workspace/prisma/schema.prisma.
+Datasource "db": PostgreSQL database "shared_browser_synthetic", schemas "planner" at "synthetic-db:5432"
+
+The database is already in sync with the Prisma schema.
+
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[EgressDiag] publication_tasks.save_content projectId=5 taskId=5 requestBodyBytes=9 responseBytes=252
+✖ L34 registered REST material writers reject owned history before fixer/upload/native work (1596.619568ms)
+[EgressDiag] publication_tasks.save_content projectId=6 taskId=6 requestBodyBytes=20 responseBytes=274
+[EgressDiag] publication_tasks.prepare_handoff projectId=6 taskId=6 hasPlan=false bundleResourceFiles=0 publicationBodyBytes=46 responseBytes=1418
+[EgressDiag] publication_tasks.fix_with_critic projectId=6 taskId=6 inputTextBytes=20 outputTextBytes=20 responseBytes=164
+✔ L35 ordinary nonowned REST content/prepare/fixer/upload behavior remains available (47.949641ms)
+✖ L36 REST upload rechecks under lock when owner release commits during storage work (55.101495ms)
+✖ L37 actual top-level retirement uncertainty marker blocks release/send and REST edits (32.812111ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 1
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2317.040229
+
+✖ failing tests:
+
+test at ../../workspace/tests/tdpd/owned-publication-lifecycle.test.cjs:211:1
+✖ L34 registered REST material writers reject owned history before fixer/upload/native work (1596.619568ms)
+  AssertionError [ERR_ASSERTION]: content {"id":5,"draft_text":"forbidden","content_revision":5,"content_state":"ready","quality_report":{"content_edit_history":[{"edited_at":"2026-10-18T11:03:04.504Z","next_body":"forbidden","previous_body":"Synthetic 4e8762a6-b141-48de-b0e8-06c5a0999362"}]}}
+  
+  200 !== 409
+  
+      at TestContext.<anonymous> (/workspace/tests/tdpd/owned-publication-lifecycle.test.cjs:213:291)
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 409,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../workspace/tests/tdpd/owned-publication-lifecycle.test.cjs:223:1
+✖ L36 REST upload rechecks under lock when owner release commits during storage work (55.101495ms)
+  AssertionError [ERR_ASSERTION]: {"success":true,"imageUrl":"https://example.invalid/replacement.png","assetId":7,"storageProvider":"supabase"}
+  
+  200 !== 409
+  
+      at TestContext.<anonymous> (/workspace/tests/tdpd/owned-publication-lifecycle.test.cjs:225:128)
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 409,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../workspace/tests/tdpd/owned-publication-lifecycle.test.cjs:227:1
+✖ L37 actual top-level retirement uncertainty marker blocks release/send and REST edits (32.812111ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/workspace/tests/tdpd/owned-publication-lifecycle.test.cjs:228:155)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /HISTORICAL_OUTCOME/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+

@@ -1,3 +1,4 @@
+import { ownedTransaction, ownedCheck } from './owned_publication_invocation';
 import prisma from '../db';
 import { guardManualPublicationFact } from './publication_manual_fact_guard';
 import { Prisma } from '@prisma/client';
@@ -12,6 +13,8 @@ export interface RecordPublicationFactArgs {
     browserWorkItemId?: number;
     /** Internal atomic transport guard; never exposed by generic fact MCP arguments. */
     beforeWrite?: (tx: Prisma.TransactionClient) => Promise<void>;
+    /** Internal canonical identity link, committed in the same guarded transaction. */
+    afterWrite?: (tx: Prisma.TransactionClient, factId: number) => Promise<void>;
     /** Internal exact browser proof, rechecked atomically before writing a clip fact. */
     clipConfirmation?: VkClipFactGuard;
     projectId: number;
@@ -114,9 +117,9 @@ function serializeFact(fact: any) {
 
 export class PublicationFactService {
     async record(args: RecordPublicationFactArgs) {
+        if (args.afterWrite && !args.beforeWrite) throw new Error('SCOPED_COMPLETION_REQUIRES_GUARD');
         if (args.browserWorkItemId !== undefined && (!Number.isSafeInteger(args.browserWorkItemId)
             || args.browserWorkItemId < 1 || typeof args.beforeWrite !== 'function')) throw new Error('SCOPED_BROWSER_COMPLETION_REQUIRES_GUARD');
-        await requireProjectActorAccess(args.projectId, args.actorId);
         const publishedAt = validDate(args.publishedAt);
         if (args.outcome === 'published' && !publishedAt) throw new Error('PUBLISHED_AT_REQUIRED');
         if (args.outcome === 'published' && PERMALINK_KINDS.has(args.artifactKind) && !args.publicUrl) {
@@ -130,7 +133,9 @@ export class PublicationFactService {
             throw new Error('EMAIL_PROVIDER_ID_REQUIRED');
         }
 
-        return prisma.$transaction(async (tx) => {
+        return ownedTransaction(prisma, async (tx) => {
+            await requireProjectActorAccess(args.projectId, args.actorId, tx);
+            ownedCheck();
             await guardManualPublicationFact(tx, { projectId: args.projectId, taskId: args.taskId,
                 internalConfirmation: typeof args.beforeWrite === 'function' });
             if (args.beforeWrite) await args.beforeWrite(tx);
@@ -162,6 +167,7 @@ export class PublicationFactService {
             };
 
             if (item.publication_fact && factsEqual(item.publication_fact, nextData)) {
+                if (args.afterWrite) await args.afterWrite(tx, item.publication_fact.id);
                 return { publication_fact: serializeFact(item.publication_fact), created_checkpoints: 0, replayed: true };
             }
             if (item.publication_fact && !args.correctionReason?.trim()) {
@@ -289,13 +295,14 @@ export class PublicationFactService {
                 }
             });
 
+            if (args.afterWrite) await args.afterWrite(tx, fact.id);
             return {
                 publication_fact: serializeFact(fact),
                 created_checkpoints: createdCheckpoints,
                 created_metric_work_items: createdMetricWorkItems,
                 replayed: false
             };
-        }, (args.clipConfirmation || args.beforeWrite || (args.projectId === 10 && args.taskId === 1048)) ? { isolationLevel: Prisma.TransactionIsolationLevel.Serializable } : undefined);
+        }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     }
 
     async get(projectId: number, taskId: number, actorId: string) {

@@ -1,3 +1,4 @@
+import { hasLegacyPublicationUncertainty } from '../publication_owned_guard';
 import { createHash } from 'crypto';
 import { PublicationPlan, RUNTIME_LOCKED_TASK_STATUSES } from './types';
 
@@ -236,7 +237,7 @@ export function shouldPreserveRuntimeTask(item: Record<string, unknown>): boolea
  */
 export function shouldFreezeImportedTaskContent(item: Record<string, unknown>): boolean {
     const status = String(item?.status || '');
-    return status === 'published' || Boolean(item?.published_link);
+    return status === 'published' || hasLegacyPublicationUncertainty(item);
 }
 
 /**

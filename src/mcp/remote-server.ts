@@ -1,3 +1,4 @@
+import { withPublicationPrincipal } from './publication-principal';
 import '../bootstrap-env';
 import { randomUUID, timingSafeEqual } from 'crypto';
 const express = require('express');
@@ -310,7 +311,7 @@ async function main() {
                 return;
             }
 
-            await entry.transport.handleRequest(req, res, req.body);
+            await withPublicationPrincipal(principal, () => entry.transport.handleRequest(req, res, req.body));
         } catch (error) {
             console.error('[MCP Remote] Failed to handle POST request:', error);
             if (!res.headersSent) {
@@ -422,7 +423,7 @@ async function main() {
                     credentialId
                 );
                 if (!entry) return;
-                await entry.transport.handleRequest(req, res, req.body);
+                await withPublicationPrincipal(principal, () => entry.transport.handleRequest(req, res, req.body));
             } catch (error) {
                 console.error(`[MCP Remote] Failed to handle ${endpoint} POST request:`, error);
                 if (!res.headersSent) {
