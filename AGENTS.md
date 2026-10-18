@@ -35,6 +35,16 @@ All code changes follow `/Users/innokentyb/Documents/Product/PM/PORTFOLIO_CODE_Q
   exact, reviewable scope, reason, owner and removal plan. No blanket file,
   provider or security-check exemption is acceptable.
 
+## Actionable errors and safe logging
+
+- New or changed service boundaries must return a stable machine code, a plain-language explanation, concrete remediation steps and explicit retry/reconciliation guidance. A generic code alone is insufficient.
+- Report every independently observable failed guard in a stable order. A missing prerequisite produces its own reason, not invented downstream mismatches. Never claim an exact cause when it was not established.
+- Carry safe structured diagnostics through the actual API/MCP/UI serialization boundary, not only server logs. Preserve existing top-level codes where compatibility requires them.
+- Log structured, allowlisted diagnostic data at the handling boundary. Never log raw exceptions/provider payloads, request arguments, approval references, tokens, cookies, authorization headers, bodies or unnecessary identifiers. Do not duplicate logs across layers.
+- Remediation must preserve authorization, tenant scope, accepted-package bindings, audit, idempotency and publication gates. UNKNOWN/started/uncertain outcomes require reconciliation, never blind resend or a fresh key to bypass an attempt.
+- Test each guard, multiple failures, missing/malformed prerequisites, the positive path, absence of provider calls/mutations on denial, actual operator serialization, and secret-free responses/logs. Unknown failures must have a safe explanation and an investigation path without pretending their cause is known.
+- Reference implementation and staged rollout: `docs/operations/actionable-publication-diagnostics.md`. Extend service by service after the Threads pilot; never claim unconverted services comply.
+
 ## TDPD 0.13
 
 Read `.tdpd/core/FRAMEWORK.md` and `.tdpd/core/QUICKSTART.md` before product work.

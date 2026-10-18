@@ -14,5 +14,7 @@ do not invent its contents.
   seeds, historical migrations and immutable audit records with executable
   production special cases. No broad numeric ban or blanket debt exemption.
 
+- **Errors and logs:** Follow `../AGENTS.md` section "Actionable errors and safe logging" for every new or changed boundary. Expose the specific safe reason and supported correction to the API/MCP/UI caller, preserve guards, test redaction and reconciliation guidance, and use the Threads pilot in `../docs/operations/actionable-publication-diagnostics.md` as the initial pattern.
+
 - **Execution Context:** The strategic planner tool runs inside a Docker container with the root directory `/app` and does not have access to the local host's project files.
 - **Content Files & Paths:** Because of this container isolation, referencing local file paths in `content_files` will hang/timeout. Always pass inline content/bodies in `assets` OR specify HTTP/HTTPS URLs (e.g. Supabase, S3, GitHub raw links) in `url` / `target_url`, which are automatically pre-fetched by the planner.

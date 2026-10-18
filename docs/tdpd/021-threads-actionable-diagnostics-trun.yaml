@@ -1,0 +1,116 @@
+id: TRUN-threads-actionable-diagnostics-20261018
+date: '2026-10-18'
+branch: codex/threads-actionable-diagnostics
+base_revision: 985776f1b1c0a4e7c8cca55b97dc52985661d493
+contract: docs/operations/actionable-publication-diagnostics.md
+scope: Threads publication MCP and generic owner-release proof validation
+authority: Owner explicitly authorized diagnostic implementation and agent instruction changes; no deploy or publication.
+runtime:
+  host: tower
+  execution: Linux amd64 Docker only
+  network: none
+  database: Injected synthetic fixtures; no database contacted
+  real_provider_calls: 0
+attempts:
+  - id: setup-01
+    result: INVALID_EVIDENCE
+    detail: Initial relative test path executed three old image tests; excluded from current-source readiness evidence.
+  - id: setup-02
+    result: ENVIRONMENT_ERROR
+    detail: Current-source MCP imports require TELEGRAM_BOT_TOKEN; supplied synthetic import-only value with network disabled.
+  - id: setup-03
+    result: ENVIRONMENT_ERROR
+    detail: Two attempts failed because existing publisher logger creates source-relative logs on read-only source. Corrected by copying source to container tmpfs for RED runs; no host source permissions changed.
+  - id: red-01
+    result: EXPECTED_FAILURE
+    passed: 4
+    failed: 10
+    failures:
+      - Seven isolated proof mismatches have no structured diagnostics.
+      - Missing release has no structured diagnostics.
+      - Simultaneous proof mismatches have no structured diagnostics.
+      - MCP returns bare error text instead of structured actionable JSON.
+  - id: green-01
+    result: PASS
+    passed: 14
+    failed: 0
+  - id: red-02
+    result: EXPECTED_FAILURE
+    passed: 14
+    failed: 3
+    failures:
+      - Known provider identity error bypasses safe serializer.
+      - Uncertain outcome bypasses safe serializer.
+      - Unknown raw error bypasses safe serializer.
+  - id: build-01
+    result: COMPILE_ERROR
+    repetitions: 2
+    failures:
+      - TS2322 optional properties lose narrowing inside new callback.
+      - TS2551 positive dry-run test accesses published before narrowing result union.
+    correction: Capture validated arguments before callback and narrow result before assertion; no unchecked casts added.
+  - id: build-02
+    result: PASS
+    checks: [Prisma generation, backend TypeScript, frontend TypeScript, Vite build]
+  - id: green-02
+    result: PASS
+    passed: 20
+    failed: 0
+    scope: Eighteen generic Threads diagnostics tests and two publication routing tests
+  - id: quality-01
+    result: FAIL
+    failures:
+      - Five diagnostic field-name tuples falsely match business_binding scanner rule.
+      - Release creation registration changes fingerprint of existing fixed-project schema finding.
+    correction: Use named diagnostic objects and retain release-creation registration unchanged. No scanner or baseline modifications.
+  - id: quality-02
+    result: PASS
+    timestamp_utc: '2026-10-18T18:33:41.878Z'
+    score: 77
+    required_baseline_score: 77
+    runtime_policy_findings: 7096
+    baseline_findings: 7096
+    new_debt: 0
+    hard_stops: []
+  - id: build-03
+    result: PASS
+    image: planner-threads-diagnostics:20261018
+    image_manifest: sha256:7d78f621cb61ca8b26498b5fea3ba018ca5951760713f0671f1c12664eb753e8
+    checks: [Prisma generation, backend TypeScript, frontend TypeScript, Vite build]
+    existing_warning: markdown-to-jsx dependency uses eval; frontend build succeeds.
+  - id: regression-final
+    result: PASS
+    command: docker compose -f ops/threads-diagnostics/compose.yaml run --rm --no-deps checks sh -c 'node --test dist/tests/threads*.test.js dist/tests/remote_mcp_auth.test.js dist/tests/task_publication_routing.test.js'
+    passed: 122
+    failed: 0
+    skipped: 0
+    cancelled: 0
+    generic_scenarios:
+      release_exact_immutable_proof_without_send: PASS
+      successful_claim_before_dispatch: PASS
+      uncertain_outcome_blocks_second_dispatch: PASS
+      publication_authorized_mismatch: PASS
+      body_sha256_mismatch: PASS
+      channel_id_mismatch: PASS
+      accepted_revision_mismatch: PASS
+      manifest_checksum_mismatch: PASS
+      actor_id_mismatch: PASS
+      approval_reference_mismatch: PASS
+      missing_release_single_reason: PASS
+      all_mismatches_stable_order: PASS
+      malformed_proof_fails_closed: PASS
+      valid_dry_run_without_mutation: PASS
+      real_MCP_structured_and_text_response_with_safe_log: PASS
+      provider_identity_safe_remediation: PASS
+      uncertain_outcome_reconciliation_guidance: PASS
+      unknown_failure_safe_investigation_path: PASS
+    denial_invariants: Every proof rejection asserts no new preflight, no provider dispatch and no attempt creation.
+    other_regressions: Existing Threads service, credentials, callbacks, release, publication, verified send, MCP scope/roles and publication routing tests all pass.
+status: ENGINEERING_COMPLETE_AWAITING_UAT
+uat: NOT_PERFORMED
+deployment: NOT_AUTHORIZED_NOT_PERFORMED
+production_mutations: NONE
+remaining_scope:
+  - Release-creation tools, canonical publication routing through other tools, API/UI and other providers are not converted.
+  - Compound package-readiness guard still needs its own predicate-level diagnostic slice.
+  - Reconcile this isolated migrated branch with current integration baseline before production deployment.

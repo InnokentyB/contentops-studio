@@ -6,6 +6,7 @@ import weekPackageRepairService from '../../services/week_package_repair.service
 import dzenTaskPublicationService from '../../services/dzen_task_publication.service';
 import threadsTaskPublicationService from '../../services/threads_task_publication.service';
 import genericThreadsReleaseService from '../../services/threads_generic_release.service';
+import { threadsDiagnosticResult } from './threads_diagnostic_result';
 import telegramTaskPublicationService from '../../services/telegram_task_publication.service';
 import {
     INTERNAL_MUTATION_ANNOTATIONS,
@@ -301,13 +302,14 @@ export function registerTaskPublicationTools(server: McpServer): void {
     }, async (args) => {
         if (args.actorId && args.approvalReference && args.expectedManifestChecksum
             && args.releaseIdempotencyKey && args.idempotencyKey) {
-            return asToolResult(await genericThreadsReleaseService.publish({
+            const publishArgs = {
                 projectId: args.projectId, taskId: args.taskId, actorId: args.actorId,
                 approvalReference: args.approvalReference, expectedManifestChecksum: args.expectedManifestChecksum,
                 releaseIdempotencyKey: args.releaseIdempotencyKey, idempotencyKey: args.idempotencyKey,
                 dryRun: args.dryRun
-            }));
+            };
+            return threadsDiagnosticResult(() => genericThreadsReleaseService.publish(publishArgs));
         }
-        return asToolResult(await threadsTaskPublicationService.execute(args));
+        return threadsDiagnosticResult(() => threadsTaskPublicationService.execute(args));
     });
 }
