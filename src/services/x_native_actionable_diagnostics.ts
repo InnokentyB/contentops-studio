@@ -1,0 +1,25 @@
+import type { PublicationDiagnostic } from './publication_diagnostics';
+import { browserErrorDiagnostic } from './browser_actionable_diagnostics';
+type Entry=readonly [string,string,string];
+const catalog:Record<string,Entry>={};
+const add=(codes:string[],entry:Entry):void=>{for(const code of codes)catalog[code]=entry;};
+add(['X_NATIVE_STATE_INVALID_INPUT'],['request','The X state request does not satisfy its scoped input contract.','Read the tool schema and correct missing or invalid fields using the current tenant-owned task and installation.']);
+add(['X_NATIVE_PILOT_DISABLED'],['adapter','The X native adapter is disabled.','Ask the administrator to review adapter readiness and the approved enablement process. Do not use another session or execution route.']);
+add(['X_NATIVE_STATE_SCOPE_DENIED'],['scope','The requested X task/channel scope is not authorized.','Inspect the current workspace and tenant-owned channel/task binding. Use an authorized owner or Publisher identity without broadening permissions.']);
+add(['X_NATIVE_STATE_BUSY','X_NATIVE_STATE_TIMEOUT','X_NATIVE_STATE_RESPONSE_LIMIT'],['inventory','The bounded read-only X state inventory could not complete.','Ask engineering to investigate adapter inventory availability or response bounds. Establish current attempt state before any execution; do not infer that missing readback means no publication.']);
+add(['X_NATIVE_PAIRING_REQUIRED','X_NATIVE_PAIRING_AUDIT_REQUIRED','X_NATIVE_PAIRING_INVALID','X_NATIVE_PAIRING_EXPIRED','X_NATIVE_PAIRING_ALREADY_CONSUMED','X_NATIVE_PAIRING_ALREADY_VERIFIED','X_NATIVE_PAIRING_LIMIT'],['pairing','The required available, valid and audited one-shot pairing was not established.','Read pairing audit and installation state. Ask the owner to resolve the specific pairing rejection through the documented enrollment workflow; do not reuse a consumed challenge or bypass enrollment.']);
+add(['X_NATIVE_INSTALLATION_REQUIRED','X_NATIVE_INSTALLATION_INVALID','X_NATIVE_INSTALLATION_AUDIT_REQUIRED','X_NATIVE_INSTALLATION_REBIND_FORBIDDEN'],['installation','The required current audited installation binding was not established.','Inspect installation status, revocation and channel binding. Ask the owner to repair enrollment through the supported workflow; never rebind a revoked installation or bypass its audit.']);
+add(['X_NATIVE_CHALLENGE_REQUIRED','X_NATIVE_CHALLENGE_EXPIRED','X_NATIVE_CHALLENGE_MISMATCH','X_NATIVE_CHALLENGE_AUDIT_REQUIRED','X_NATIVE_CHALLENGE_SUPERSEDED','X_NATIVE_NONCE_ALREADY_CONSUMED'],['challenge','The required current unused audited challenge was not established.','Read the existing challenge, receipt and attempt history. Reconcile consumed, expired or uncertain execution; do not replay a nonce or obtain another challenge to bypass a started attempt.']);
+add(['X_NATIVE_RECONCILE_ONLY','X_NATIVE_RECONCILIATION_LIMIT','X_NATIVE_ATTEMPT_MISMATCH','X_NATIVE_CONFIRMED_FACT_MISMATCH'],['delivery_attempt','The existing X delivery state does not permit a new submission.','Inspect and reconcile the existing attempt and confirmed provider object through the registered adapter. Do not resend or replace the idempotency key.']);
+add(['X_NATIVE_SNAPSHOT_UNSUPPORTED','X_NATIVE_BUNDLE_MISMATCH','X_NATIVE_TEXT_MISMATCH','X_NATIVE_IDENTITY_INVALID','X_NATIVE_OBSERVATION_STALE','X_NATIVE_HISTORY_INCOMPLETE','X_NATIVE_RESULT_MISMATCH'],['observation','The accepted package or required provider observation could not be verified.','Inspect the approved snapshot and the registered adapter readback for the reported guard. Refresh only supported read-only observations; reconcile any existing attempt before further execution.']);
+add(['X_NATIVE_PHASE_MISMATCH','X_NATIVE_INVALID_MESSAGE','X_NATIVE_SIGNATURE_INVALID','X_NATIVE_ORIGIN_DENIED'],['receipt','The native protocol message failed its phase, authenticity or origin guard.','Ask the adapter administrator to inspect the signed protocol and approved extension installation. Do not inject a session, forge a receipt or bypass signature/origin checks.']);
+add(['X_NATIVE_NOT_DUE'],['schedule','The approved X publication time has not arrived.','Wait for the accepted schedule; use normal review and release if that schedule needs changing.']);
+add(['X_NATIVE_REQUEST_REJECTED'],['operation','The X operation failed; the exact cause is not classified.','Ask engineering to investigate safe adapter diagnostics. Read existing attempt and fact history and reconcile uncertain outcomes before another operation.']);
+export function xNativeErrorDiagnostic(error:unknown):PublicationDiagnostic {
+ if(error instanceof Error&&error.name==='ZodError')return browserErrorDiagnostic(error);
+ const candidate=error instanceof Error?/^\[([A-Z0-9_]+)\]/.exec(error.message)?.[1]:undefined;
+ if(candidate&&!candidate.startsWith('X_NATIVE_'))return browserErrorDiagnostic(error);
+ const code=candidate&&Object.prototype.hasOwnProperty.call(catalog,candidate)?candidate:'X_NATIVE_REQUEST_REJECTED';
+ const [field,message,action]=catalog[code]!;
+ return {code,message,reasons:[{code,field,message,action}],retry_allowed:false};
+}

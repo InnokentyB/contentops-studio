@@ -10,6 +10,7 @@ import ContentMarkupRenderer from '../components/ContentMarkupRenderer'
 import ResourcePreviewCard from '../components/ResourcePreviewCard'
 import { useLocale } from '../i18n/locale'
 import { useCurrentTime } from '../hooks/useCurrentTime'
+import { publicationOutcomeMessage } from '../utils/publicationOutcomeMessage'
 
 type JsonRecord = Record<string, ApiJson>
 
@@ -1093,11 +1094,7 @@ export default function PublicationTasks() {
         },
         onSuccess: (result: ApiJson) => {
             const outcome = result?.result
-            if (outcome?.manualFallback) {
-                setTaskMessage(tr(`Автопубликация потребовала ручного шага${outcome?.reason ? `. ${outcome.reason}` : '.'}`, `Automatic publication requires a manual step${outcome?.reason ? `. ${outcome.reason}` : '.'}`))
-            } else {
-                setTaskMessage(tr(`Публикация запущена через адаптер${outcome?.adapter ? `: ${outcome.adapter}` : ''}.`, `Publication started through adapter${outcome?.adapter ? `: ${outcome.adapter}` : ''}.`))
-            }
+            setTaskMessage(publicationOutcomeMessage(outcome, tr))
             refreshTasks()
             queryClient.invalidateQueries({ queryKey: ['vk_metrics_history', currentProject?.id, activeTaskId] })
         }

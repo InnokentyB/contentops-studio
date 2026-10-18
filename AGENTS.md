@@ -44,6 +44,7 @@ All code changes follow `/Users/innokentyb/Documents/Product/PM/PORTFOLIO_CODE_Q
 - Remediation must preserve authorization, tenant scope, accepted-package bindings, audit, idempotency and publication gates. UNKNOWN/started/uncertain outcomes require reconciliation, never blind resend or a fresh key to bypass an attempt.
 - Test each guard, multiple failures, missing/malformed prerequisites, the positive path, absence of provider calls/mutations on denial, actual operator serialization, and secret-free responses/logs. Unknown failures must have a safe explanation and an investigation path without pretending their cause is known.
 - Reference implementation and staged rollout: `docs/operations/actionable-publication-diagnostics.md`. Extend service by service after the Threads pilot; never claim unconverted services comply.
+- Current adapter coverage, safe publisher logging and remaining historical paths are recorded in `docs/operations/actionable-adapter-diagnostics-rollout.md`. Preserve successful status-read semantics; a handoff or receipt must never be displayed as confirmed publication.
 
 ## TDPD 0.13
 

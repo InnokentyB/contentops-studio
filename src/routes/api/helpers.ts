@@ -1,6 +1,8 @@
 import prisma from '../../db';
 import authService, { AuthUser } from '../../services/auth.service';
 import { Post, Week } from '@prisma/client';
+import { PublicationDiagnosticError } from '../../services/publication_diagnostics';
+import { logPublicationDiagnostic } from '../../services/publication_diagnostic_log';
 
 export interface AuthenticatedUser extends AuthUser {
     role?: string;
@@ -46,6 +48,11 @@ export function csvCell(value: unknown): string {
 }
 
 export function extractRequestErrorMessage(error: unknown, fallback: string): string {
+    if (error instanceof PublicationDiagnosticError) {
+        const diagnostic = error.diagnostics;
+        logPublicationDiagnostic('publication', diagnostic, true);
+        return `[${diagnostic.code}] ${diagnostic.message} ${diagnostic.reasons.map(reason => reason.action).join(' ')}`;
+    }
     const err = error as { message?: string; response?: { description?: string }; description?: string } | null;
     const directMessage = typeof err?.message === 'string' ? err.message.trim() : '';
     const providerDescription = typeof err?.response?.description === 'string'

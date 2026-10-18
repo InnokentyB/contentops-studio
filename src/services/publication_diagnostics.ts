@@ -6,6 +6,8 @@ export type PublicationDiagnostic = {
     retry_allowed: false;
 };
 
+export type PublicationDiagnosticService = 'publication' | 'telegram' | 'threads' | 'browser' | 'vk';
+
 /** Keeps the legacy code in Error.message while carrying safe structured diagnostics to adapters. */
 export class PublicationDiagnosticError extends Error {
     constructor(public readonly diagnostics: PublicationDiagnostic) {

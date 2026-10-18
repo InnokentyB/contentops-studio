@@ -1,0 +1,75 @@
+id: TRUN-adapter-diagnostics-20261018
+date: '2026-10-18'
+base_revision: fb0c1cae730786d44ea3cb4f31db2f07ef422882
+branch: codex/publication-diagnostics-rollout
+contract: docs/operations/actionable-adapter-diagnostics-rollout.md
+owner_input: Successful Threads publication reported; extend diagnostics to other adapters in parallel.
+execution:
+  host: tower
+  runtime: Docker linux amd64 only
+  network: none
+  provider_and_database: synthetic injected fixtures
+  live_publications: 0
+  production_state_mutations_during_tests: 0
+parallel_slices:
+  browser_x:
+    red: Missing diagnostics module, validation serialization and missing safe asset/decision mismatch fields.
+    green: Eight tests including ten real MCP browser callbacks and five X native callbacks.
+  vk:
+    red: Missing actual MCP diagnostics, malformed blocker leakage, missed verification_required status.
+    green: Seventeen targeted tests including dispatch/scope/reconciliation regressions; current integrated tests rerun final code.
+  direct:
+    red: Catalog assertions, success-trace redaction, exact known config templates, dispatcher variants and returned handoffs failed before implementation.
+    green: Eighty-four tests covering static guards, safe templates, returned denials/handoffs and Telegram projections.
+  shared_http_ui_logging:
+    red:
+      - Four actual MCP adapter tests failed because operator payload had no structured reason/action.
+      - HTTP accepted-revision test exposed raw provider text without corrective action.
+      - HTTP browser-handoff test lacked reasons and retained raw fallback data.
+      - UI formatter absent; legacy presentation could claim publication started for a blocker.
+      - Publisher logger emitted raw message/data to console and file.
+      - Persisted connector fallback reason retained raw provider message.
+    green: Actual SDK MCP, Fastify HTTP, UI pure presentation, console/file parity and route guard assertions pass.
+environment_failures:
+  - Preliminary agent full TypeScript checks exhausted default approximately 1 GiB heap; no host fallback. Reviewed Docker compiler command now caps heap at 1536 MiB.
+  - Initial standalone gate lacked worktree Git common metadata mount; corrected with read-only metadata projection, no baseline changes.
+  - UI test first loader hit ERR_REQUIRE_ESM; harness now transpiles the actual pure frontend module in Docker and executes it in a VM.
+builds:
+  - id: initial-integration
+    result: PASS
+    backend_prisma: PASS
+    frontend: PASS
+    tests_passed: 160
+    detail: Before central logger, persisted handoff and final UI/result refinements.
+  - id: final-integration
+    result: PASS
+    backend_prisma: PASS
+    frontend: PASS
+    image: planner-publication-diagnostics:20261018
+    tests_passed: 208
+    ui_tests_passed: 3
+    tests_failed: 0
+    tests_skipped: 0
+    scenario_log: docs/tdpd/022-adapter-diagnostics-test-output.txt
+    command: docker compose -f ops/publication-diagnostics/compose.yaml run --rm --no-deps checks
+quality:
+  result: PASS
+  timestamp_utc: '2026-10-18T19:17:33.096Z'
+  score: 77
+  baseline_minimum_score: 77
+  runtime_findings: 7096
+  baseline_findings: 7096
+  baseline_changes: NONE
+  hard_stops: []
+review_fixes:
+  - Preserve legitimate blocked readback as transport success.
+  - Do not let nested healthy host mask an outer job blocker.
+  - Explicitly classify status verification_required and package admission NOT_CHECKED/POLICY_DENIED.
+  - Include all observed safe asset and decision mismatch fields.
+  - Recognize exact dispatcher message variants without provider-payload guessing.
+  - Keep scoped routing metadata outside the diagnostic/log envelope.
+  - Preserve authorized protected VK execution-package fields through an explicit allowlist.
+status: ENGINEERING_COMPLETE_AWAITING_UAT
+uat: Not yet performed for this rollout; Threads prior case accepted by owner report.
+live_permission: No publication or provider-session activation authorized by diagnostics rollout.
+limits: See the explicit remaining-debt section of the rollout contract; no claim that every historical adapter-specific handler is converted.

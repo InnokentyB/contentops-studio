@@ -1,0 +1,10 @@
+name: planner-publication-diagnostics
+services:
+  checks:
+    extends:
+      file: ../threads-diagnostics/compose.yaml
+      service: checks
+    image: planner-publication-diagnostics:20261018
+    environment:
+      JWT_SECRET: synthetic-diagnostics-only-not-a-production-key
+    command: [sh, -c, 'node --test --test-concurrency=1 dist/tests/*actionable_diagnostics.test.js dist/tests/publication_adapter_mcp_diagnostics.test.js dist/tests/publication_http_diagnostics.test.js dist/tests/publication_diagnostic_result.test.js dist/tests/publisher_safe_logging.test.js dist/tests/publication_execution_route.test.js dist/tests/threads_generic_release.test.js dist/tests/telegram_task_publication.test.js dist/tests/telegram_direct_payload.test.js dist/tests/vk_connector_dispatch.test.js dist/tests/vk_connector_mcp_scope.test.js dist/tests/vk_connector_reconciliation.test.js dist/tests/vk_generic_publication_route.test.js dist/tests/remote_mcp_auth.test.js dist/tests/task_publication_routing.test.js && node --test /workspace/tests/tdpd/publication-outcome-message.test.cjs']

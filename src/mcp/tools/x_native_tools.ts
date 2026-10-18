@@ -6,8 +6,10 @@ import { nativePairingIssueSchema, issueNativePairing } from '../../services/x_n
 import { issueNativeChallenge } from '../../services/x_native_control';
 import { nativeBundleSchema } from '../../services/x_native_receipt';
 import { getXNativeState } from '../../services/x_native_diagnostics';
-import { nativeStateRequestSchema, nativeStateReadError } from '../../services/x_native_diagnostics_contract';
-import { asToolResult, INTERNAL_MUTATION_ANNOTATIONS } from './common';
+import { nativeStateRequestSchema } from '../../services/x_native_diagnostics_contract';
+import { INTERNAL_MUTATION_ANNOTATIONS } from './common';
+import { publicationDiagnosticResult } from './publication_diagnostic_result';
+import { xNativeErrorDiagnostic } from '../../services/x_native_actionable_diagnostics';
 
 /** Only scoped owner/Publisher controls belong here. Signed executor mutations are HTTP-only. */
 export function registerXNativeTools(server: McpServer, enabled = process.env.X_NATIVE_PILOT_ENABLED === 'true'): void {
@@ -16,19 +18,11 @@ export function registerXNativeTools(server: McpServer, enabled = process.env.X_
         description: 'Owner/Publisher scoped read-only X installation/audit inventory and exact-task delivery predicates. Capped unknown-safe snapshot; no secrets, registration authority, mutation, provider call or send.',
         annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
         inputSchema: nativeStateRequestSchema
-    }, async args => {
-        try { return asToolResult(await getXNativeState(args)); }
-        catch (error: unknown) { return { ...asToolResult(nativeStateReadError(error)), isError: true }; }
-    });
-    const safe = async (run: () => Promise<Record<string, unknown>>) => {
-        try { return asToolResult(await run()); }
-        catch (error: unknown) {
-            const raw = error instanceof Error ? /^\[([A-Z0-9_]+)\]/.exec(error.message)?.[1] : undefined;
-            const code = raw && /^(X_NATIVE_[A-Z0-9_]+|BROWSER_[A-Z0-9_]+|OWNER_REQUIRED|STALE_MANIFEST|IDEMPOTENCY_CONFLICT)$/.test(raw)
-                ? raw : 'X_NATIVE_REQUEST_REJECTED';
-            return { isError: true, content: [{ type: 'text' as const, text: JSON.stringify({ code, retry_allowed: false }) }] };
-        }
-    };
+    }, async args => publicationDiagnosticResult('browser', () => getXNativeState(args), error => ({
+        ...xNativeErrorDiagnostic(error), mutatesState: false, providerCalled: false
+    })));
+    const safe = (run: () => Promise<Record<string, unknown>>) =>
+        publicationDiagnosticResult('browser', run, xNativeErrorDiagnostic);
     server.registerTool('ba_issue_x_native_pairing', {
         description: 'Owner-only issue of a short-lived one-shot pairing challenge for a canonical tenant-owned X package and public extension key. No claim, provider action or publication authority.',
         annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: nativePairingIssueSchema.shape
