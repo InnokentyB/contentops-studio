@@ -606,3 +606,68 @@ implementation commit. Final docs-only exact-head parity remains pending. Owner
 UAT, production runtime/deployment, native action-scope applicability and
 sole-sender cutover remain separate explicit gates. This receipt supplies no
 merge/deploy/provider-action or UAT approval.
+
+
+## Main-sync integration addendum — 2026-10-18T12:25:16.858623+00:00
+
+Checked exact merged-source commit
+`2a2b94567bbcdb7a66f0c82ca51942259b123955`, parents
+`8f0950e5fe0f8ac7b750d76b59a53210b999d694` and
+`17e0aefb1f4195c520f5fa9cb9610d686a1de0d0` (incoming LinkedIn text-only).
+**No new P0/P1/P2 integration finding.** The previous cumulative Dzen source
+verdict remains valid:47 of the historical48 files remain byte-identical; only
+workflow differs. Its resolution preserves owned parent and PostgreSQL checks
+and appends the incoming LinkedIn test to the shared suite. All8 other merge
+paths exactly match incoming main. No Dzen production/test source changed.
+
+The nine source-delta hashes in
+`docs/evidence/dzen-adapter-lifecycle-main-sync-2026-10-18/index.json` all match
+committed Git blobs. All5 indexed raw artifacts match SHA256/size. Index SHA256
+is `2843b1a0116aab1a9396727e46f0931ce572bfa48824524522548811e582eee9`. Retained focused TAP reports77pass/0fail/0skip; quality
+reports PASS,7093 findings/baseline, no hard stops or applied transitions. The
+full backend/frontend/connector build output completes and records image
+identifier `04f49d5df6bdcc7030599f62bb527bf391acb5aed447926212c484b263f3b868`.
+Reviewer checked retained records, not a reopened image or rerun tests.
+
+Missing trusted baseline object and accidental PostgreSQL selection without a
+synthetic database are retained and correctly classified as setup failures, not
+acceptance RED. Historical native28/PG41 evidence remains bound to unchanged
+Dzen bytes; it does not claim the old image contained incoming LinkedIn changes.
+The original48-file manifest is intentionally unchanged. This addendum and the
+merge index extend it without rewriting historical evidence.
+
+Final docs-only head parity after committing this addendum remains pending.
+No test/provider/native/database action was performed by this reviewer. Existing
+action denial, deployment/runtime readiness and explicit owner UAT remain
+separate; this addendum grants no merge/deploy/live-publication/UAT authority.
+
+
+## CI setup repair review — 2026-10-18T12:26:04.448030+00:00
+
+Reviewed the four-file repair on source HEAD
+`2a2b94567bbcdb7a66f0c82ca51942259b123955`. **No new P0/P1/P2 finding.**
+The quality test runner gains only a16MiB nosuid/nodev ephemeral logs tmpfs at
+/workspace/logs, matching its read-only mounted source working directory. No
+production source, secret, capability or provider permission changes.
+
+The1002 runtime fixture explicitly validates tenant/task/protocol predicates for
+new scoped history reads, then still requires the exact1002 refusal. The actual
+MCP/REST fact fixture permits transaction-scoped user2/project10 authorization and
+read-only history delegates while preserving the forbidden delegate proxy:
+publicationFact access and mutations remain unavailable, all lifecycle cases
+still require the exact refusal and all12 transactions remain asserted. The
+approval-required preparation fixture merely supplies absent history/job reads;
+its zero-write sentinel and complete unchanged-task assertions remain intact.
+These are fixture/setup compatibility repairs, not relaxation of fact authority.
+
+Reviewer ran no tests. Fresh focused Tower results and subsequent exact
+committed-head/evidence verification remain pending; earlier CI setup failures
+must remain identified as failures rather than silently replaced with GREEN.
+Repair manifest SHA256 `5003aa139616a853e845cbd6f2761c86477eb269fae0c4b55658afe9c2fbcd3c`:
+
+```text
+19f38af7849d5249d48b820f9548b3ca793178b5279c4e58792f68ef80122423  ops/quality/compose.yaml
+9753dd229107365ad313ad31817011dd7335861854b3ce56f1a2820cb1fd0dc5  src/tests/prepare_approval_guard.test.ts
+3d3add27a5e7d50b1ebfa286b986394ea435f1b867c0cdf878c041b8e7a9d424  tests/tdpd/dzen1002-fact-boundary.test.cjs
+153172634cf0f89c73d5199aa87c607c8d89c38fe3e60974060cda7fd872fd6f  tests/tdpd/dzen1002-runtime.test.cjs
+```

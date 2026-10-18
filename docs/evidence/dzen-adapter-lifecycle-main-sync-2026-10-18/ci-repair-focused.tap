@@ -1,0 +1,50 @@
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+✔ R10 actual MCP and REST canonical fact/confirmation handlers refuse1002 at all lifecycle stages (2030.159584ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+✔ R01 command lifecycle commits start before native and receipt before fact (181.32217ms)
+✔ R03 unresolved action scope is local precise cause, before replayed success/session access (3.606228ms)
+✔ R02 invalid and caller-extended commands cannot reach any port (1.162506ms)
+✔ R06 failure after native freezes original attempt; next key sees same history, no resend (0.358462ms)
+✔ R07 reconciliation performs DB-only completion, with no native dispatch or policy probe (0.576933ms)
+✔ R08 transport cannot return a receipt without both committing hooks (0.204771ms)
+✔ R09 dry-run is metadata-only and cannot export accepted body or asset URL (0.174161ms)
+✔ R10 generic canonical fact guard refuses1002 after scoped history reads without writes (13.364138ms)
+✔ R01/R10 registered bounded Publisher commands exercise the new lifecycle (653.490508ms)
+✔ DA02 actual scoped publication request keeps token identity without caller actor field (62.568737ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+✔ DA02 concurrent async requests cannot inherit another tenant or caller actor (4.405332ms)
+✔ DA02 local stdio principal is configured identity, not first owner or request data (0.675043ms)
+✔ DA05 existing publication task command routes arbitrary Dzen data before legacy IDs and Telegram (1514.297937ms)
+✔ DA23 registered existing MCP command rejects transport, session and forged actor input (83.588075ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+(node:38) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+✔ DA02 actual registered default command preserves legacy non-Dzen stdio without new principal (1.657808ms)
+✔ DA02 default command preserves Threads selection without inferring an owned principal (0.194111ms)
+✔ DA02 missing owned principal cannot fall through to any legacy executor (0.393312ms)
+✔ DA02 token-bound foreign project rejects before provider metadata lookup (0.261972ms)
+✔ DA02 owned-only release fields cannot fall through to legacy providers (0.198161ms)
+✔ DA02 actual HTTP owner and scoped publisher transport retain token principal through registered command (2065.027942ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9404.760888

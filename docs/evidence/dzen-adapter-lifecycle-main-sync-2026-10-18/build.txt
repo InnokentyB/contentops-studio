@@ -1,0 +1,143 @@
+time="2026-10-18T13:02:36+01:00" level=warning msg="Docker Compose is configured to build using Bake, but buildx isn't installed"
+#0 building with "default" instance using docker driver
+
+#1 [build-check internal] load build definition from Dockerfile
+#1 transferring dockerfile: 1.62kB done
+#1 DONE 0.0s
+
+#2 [build-check internal] load metadata for docker.io/library/node:24.22.0-bookworm-slim@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5
+#2 DONE 0.0s
+
+#3 [build-check internal] load .dockerignore
+#3 transferring context: 2B done
+#3 DONE 0.0s
+
+#4 [build-check checks 1/6] FROM docker.io/library/node:24.22.0-bookworm-slim@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5
+#4 resolve docker.io/library/node:24.22.0-bookworm-slim@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5 0.0s done
+#4 DONE 0.0s
+
+#5 [build-check internal] load build context
+#5 transferring context: 101.41kB 0.0s done
+#5 DONE 0.0s
+
+#6 [build-check buildcheck  2/10] COPY frontend/package.json frontend/package-lock.json ./frontend/
+#6 CACHED
+
+#7 [build-check checks 4/6] COPY package.json package-lock.json ./
+#7 CACHED
+
+#8 [build-check checks 5/6] RUN npm ci --ignore-scripts --no-audit --no-fund
+#8 CACHED
+
+#9 [build-check buildcheck  1/10] WORKDIR /opt/planner
+#9 CACHED
+
+#10 [build-check checks 3/6] WORKDIR /opt/planner
+#10 CACHED
+
+#11 [build-check checks 6/6] WORKDIR /workspace
+#11 CACHED
+
+#12 [build-check checks 2/6] RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates openssl     && rm -rf /var/lib/apt/lists/*
+#12 CACHED
+
+#13 [build-check buildcheck  3/10] RUN npm ci --prefix frontend --ignore-scripts --no-audit --no-fund
+#13 CACHED
+
+#14 [build-check buildcheck  4/10] COPY --chown=1000:1000 src ./src
+#14 DONE 0.2s
+
+#15 [build-check buildcheck  5/10] COPY --chown=1000:1000 prisma ./prisma
+#15 DONE 0.1s
+
+#16 [build-check buildcheck  6/10] COPY --chown=1000:1000 frontend ./frontend
+#16 DONE 0.1s
+
+#17 [build-check buildcheck  7/10] COPY --chown=1000:1000 tsconfig.json prisma.config.ts ./
+#17 DONE 0.1s
+
+#18 [build-check buildcheck  8/10] COPY --chown=1000:1000 scripts/build_vk_connector_consumer.cjs ./scripts/build_vk_connector_consumer.cjs
+#18 DONE 0.0s
+
+#19 [build-check buildcheck  9/10] RUN mkdir -p node_modules/.prisma dist frontend/node_modules/.vite-temp     && chown 1000:1000 /opt/planner node_modules node_modules/.prisma node_modules/@prisma/engines node_modules/@prisma/client dist frontend frontend/node_modules frontend/node_modules/.vite-temp
+#19 DONE 0.2s
+
+#20 [build-check buildcheck 10/10] RUN NODE_OPTIONS=--max-old-space-size=1536 DATABASE_URL=postgresql://synthetic:synthetic@127.0.0.1:1/synthetic npm run build:backend     && npm run build --prefix frontend     && npm run build:vk:connector
+#20 0.385 
+#20 0.385 > contentops-studio@1.0.0 build:backend
+#20 0.385 > npx prisma generate && tsc
+#20 0.385 
+#20 1.309 Loaded Prisma config from prisma.config.ts.
+#20 1.309 
+#20 1.649 Prisma schema loaded from prisma/schema.prisma.
+#20 3.429 
+#20 3.429 ✔ Generated Prisma Client (v7.10.0) to ./node_modules/@prisma/client in 440ms
+#20 3.429 
+#20 3.429 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+#20 3.429 
+#20 3.429 
+#20 16.83 npm notice
+#20 16.83 npm notice New major version of npm available! 11.19.1 -> 12.2.0
+#20 16.83 npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+#20 16.83 npm notice To update run: npm install -g npm@12.2.0
+#20 16.83 npm notice
+#20 16.92 
+#20 16.92 > frontend@0.0.0 build
+#20 16.92 > tsc -b && vite build
+#20 16.92 
+#20 21.01 vite v7.3.6 building client environment for production...
+#20 21.25 transforming...
+#20 22.81 ✓ 425 modules transformed.
+#20 22.90 node_modules/markdown-to-jsx/dist/index.js (8:2531): Use of eval in "node_modules/markdown-to-jsx/dist/index.js" is strongly discouraged as it poses security risks and may cause issues with minification.
+#20 22.97 rendering chunks...
+#20 23.06 computing gzip size...
+#20 23.07 dist/index.html                                     2.15 kB │ gzip:  0.79 kB
+#20 23.07 dist/assets/index-DX5f4Pdr.css                     66.59 kB │ gzip: 11.82 kB
+#20 23.07 dist/assets/useCurrentTime-DjMpaaRH.js              0.23 kB │ gzip:  0.19 kB
+#20 23.07 dist/assets/CommentSection-BiqtqDdI.js              1.71 kB │ gzip:  0.94 kB
+#20 23.07 dist/assets/useMutation-CP_iwBK3.js                 2.20 kB │ gzip:  0.90 kB
+#20 23.07 dist/assets/ResourcePreviewCard-DRfd7aiG.js         3.56 kB │ gzip:  1.37 kB
+#20 23.07 dist/assets/Login-D3AvJu4b.js                       5.00 kB │ gzip:  1.69 kB
+#20 23.07 dist/assets/Register-zwzxI04l.js                    5.01 kB │ gzip:  1.66 kB
+#20 23.07 dist/assets/Guide-C19zhhG3.js                       6.57 kB │ gzip:  2.65 kB
+#20 23.07 dist/assets/api-Bowu-58x.js                         8.05 kB │ gzip:  2.38 kB
+#20 23.07 dist/assets/useQuery-9-zi06Fc.js                    8.79 kB │ gzip:  3.19 kB
+#20 23.07 dist/assets/SavedRecipesLibrary-BRfNhDrj.js         9.15 kB │ gzip:  3.27 kB
+#20 23.07 dist/assets/PostPublicationAnalytics-D5limYin.js   10.16 kB │ gzip:  2.97 kB
+#20 23.07 dist/assets/V2WeekDetail-DqFjbmFj.js               13.42 kB │ gzip:  3.44 kB
+#20 23.07 dist/assets/WeekDetail-CZpZm8xb.js                 14.33 kB │ gzip:  3.82 kB
+#20 23.07 dist/assets/OperationalCalendar-BU2EqdN7.js        14.50 kB │ gzip:  4.79 kB
+#20 23.07 dist/assets/PostEditor-sn8tr5xW.js                 17.85 kB │ gzip:  4.97 kB
+#20 23.07 dist/assets/OrganizationIntelligence-W3xLDMc7.js   17.97 kB │ gzip:  5.71 kB
+#20 23.07 dist/assets/format-Wv9PpnOF.js                     19.47 kB │ gzip:  5.59 kB
+#20 23.07 dist/assets/ProjectWorkspace-D9Dcm7BT.js           19.88 kB │ gzip:  5.48 kB
+#20 23.07 dist/assets/V2Dashboard-Cm1hw0is.js                26.41 kB │ gzip:  6.10 kB
+#20 23.07 dist/assets/Parsers-B4r4VvIm.js                    35.39 kB │ gzip:  9.18 kB
+#20 23.07 dist/assets/ChannelWorkspace-DiEIpFPD.js           42.41 kB │ gzip: 10.92 kB
+#20 23.07 dist/assets/ContentMarkupRenderer-C8Gi4uFC.js      98.31 kB │ gzip: 35.65 kB
+#20 23.07 dist/assets/PublicationTasks-Dzkosgmz.js          118.07 kB │ gzip: 29.49 kB
+#20 23.07 dist/assets/Settings-BfA8LgB2.js                  122.11 kB │ gzip: 31.41 kB
+#20 23.07 dist/assets/index-X6lHnmPF.js                     283.18 kB │ gzip: 89.88 kB
+#20 23.07 ✓ built in 2.04s
+#20 23.19 
+#20 23.19 > contentops-studio@1.0.0 build:vk:connector
+#20 23.19 > node scripts/build_vk_connector_consumer.cjs
+#20 23.19 
+#20 23.31 Standalone consumer built; provider admission remains blocked. No credential or profile included.
+#20 DONE 23.4s
+
+#21 [build-check] exporting to image
+#21 exporting layers
+#21 exporting layers 2.1s done
+#21 exporting manifest sha256:60d16e5900a18b7152942ca8c5ec7c88d70a2d8de48255db246e5534716626fe 0.0s done
+#21 exporting config sha256:a6c6cf28759495a723f8ad95bc0ed0279bab331b98240a65ab7419b5072c40cd 0.0s done
+#21 exporting attestation manifest sha256:4c8c6cf3a7a5de53e7b3c58649b045468d7ad801bf4f0f3ea04bd305e2fbc677 0.0s done
+#21 exporting manifest list sha256:04f49d5df6bdcc7030599f62bb527bf391acb5aed447926212c484b263f3b868 0.0s done
+#21 naming to docker.io/library/planner-owned-lifecycle-build:20261018 done
+#21 unpacking to docker.io/library/planner-owned-lifecycle-build:20261018
+#21 unpacking to docker.io/library/planner-owned-lifecycle-build:20261018 0.7s done
+#21 DONE 3.0s
+
+#22 [build-check] resolving provenance for metadata file
+#22 DONE 0.0s
+ build-check  Built
