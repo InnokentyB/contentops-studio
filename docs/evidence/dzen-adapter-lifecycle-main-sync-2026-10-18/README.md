@@ -35,3 +35,10 @@ backend suite also found one additional old VK audited-hold preparation fixture
 missing the same two null history/job readers; its refusal assertion is retained,
 and focused hold cases5/5 pass. Raw CI job logs and Tower evidence are retained in
 clean-checkout-repair-index.json. These are isolated test setup repairs only.
+
+CI39127510301 caught TypeScript incompatibility in the two new direct Prisma
+async-null test stubs. They now use checked Reflect.set, matching the existing
+Prisma proxy fixture pattern. Full Tower Docker backend/frontend/connector build
+then PASS, quality PASS, and the actually compiled hold+prepare tests6/6 PASS.
+The failed CI and fresh results are bound by fixture-final-index.json. This
+corrects test typing only; no production or safety assertion changed.

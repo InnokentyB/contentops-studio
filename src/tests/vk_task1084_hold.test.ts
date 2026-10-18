@@ -61,8 +61,8 @@ test('prepare cannot silently remove an audited hold', async () => {
     const originalHistory = db.workflowEvent.findFirst;
     const originalJob = db.connectorDispatchJob.findFirst;
     try {
-        db.workflowEvent.findFirst = async () => null;
-        db.connectorDispatchJob.findFirst = async () => null;
+        assert.equal(Reflect.set(db.workflowEvent, 'findFirst', async () => null), true);
+        assert.equal(Reflect.set(db.connectorDispatchJob, 'findFirst', async () => null), true);
         db.contentItem.findFirst = (async () => ({ id: 1084, status: 'blocked', quality_report: {
             publication_hold: { blockers: ['BROWSER_POLICY_DENIED'] }
         } })) as unknown as typeof original;
