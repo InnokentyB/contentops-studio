@@ -262,10 +262,6 @@ export class ImageAssetService {
             await lockVisualContent(tx,projectId,visualContentId);
             const current=await tx.imageAsset.findFirst({where:{id:assetId,project_id:projectId},include:{content_item:true,decision:true}});
             if(!current)throw visualReassessmentError('VISUAL_REASSESSMENT_ASSET_MISSING');
-            if(current.updated_at.getTime() !== observedAssetUpdatedAt
-                || current.content_item.updated_at.getTime() !== observedContentUpdatedAt) {
-                throw Object.assign(Error('[PUBLICATION_TASK_CHANGED]'), { statusCode: 409 });
-            }
             asset=current;
             const reassessment=await getVisualReassessment(tx,projectId,current.content_item_id);
             let reviewWorkId:number|null=null;
@@ -283,6 +279,10 @@ export class ImageAssetService {
             }
             const durable = isServerResolvableVisualUrl(asset.file_url);
             if(reassessment&&!durable)throw visualReassessmentError('VISUAL_REASSESSMENT_ASSET_NOT_DURABLE');
+            if(current.updated_at.getTime() !== observedAssetUpdatedAt
+                || current.content_item.updated_at.getTime() !== observedContentUpdatedAt) {
+                throw Object.assign(visualReassessmentError('VISUAL_REASSESSMENT_CAS_CONFLICT'), { statusCode: 409 });
+            }
             const reviewed = await tx.imageAsset.update({ where: { id: assetId }, data: {
                 status: decision, review_reason: reason || null, qa_report: (qaReport || {}) as Prisma.InputJsonObject,
                 reviewed_by: actorId, reviewed_at: new Date()

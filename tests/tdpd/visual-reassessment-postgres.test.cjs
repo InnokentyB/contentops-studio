@@ -154,3 +154,19 @@ test('REL05 restored no-visual projections cannot bypass the durable request at 
  await db.contentItem.update({where:{id:f.task.id},data:{status:'ready_for_execution',visual_mode:'auto_assess',visual_state:'NO_VISUAL_NEEDED',handoff_state:'ready'}});
  await assert.rejects(f.rpc('ba_release_browser_publication',release),/PUBLICATION_VISUAL_REVIEW_REQUIRED/);assert.equal(await db.workItem.count({where:{project_id:f.project.id,kind:'browser_publish'}}),0);assert.equal(await db.deliveryAttempt.count({where:{project_id:f.project.id}}),0);assert.equal(await db.workflowEvent.count({where:{project_id:f.project.id,command:'ba_request_publication_visual_reassessment'}}),1);
 });
+
+test('REL05 concurrent durable source replacement retains CAS denial and zero review writes',async t=>{
+ const f=await fixture(t),applied=await f.call({});assert.notEqual(applied.isError,true);const generation=applied.value.binding.generation,artWorkId=applied.value.art_direction_work_item_id;
+ await db.workItem.update({where:{id:artWorkId},data:{state:'claimed',lease_actor_id:f.args.actorId,lease_token:'synthetic-art-lease',lease_expires_at:new Date(Date.now()+60000)}});
+ const decision=await f.rpc('ba_submit_art_direction_decision',{projectId:f.project.id,workItemId:artWorkId,actorId:f.args.actorId,leaseToken:'synthetic-art-lease',idempotencyKey:'durable-race-decision',decision:{decision:'SOURCE_REQUIRED',source_content_revision:2,channel:'linkedin',placement:'feed',reason:'A meaningful source explains the mechanism',loss_without_visual:'The mechanism is hard to follow'}});
+ const attached=await f.rpc('ba_attach_visual_source',{projectId:f.project.id,actorId:f.args.actorId,contentItemId:f.task.id,fileUrl:'https://example.invalid/initial-durable.png',provenance:{source:'synthetic-test'},altText:'Synthetic visual',decisionId:decision.decision_id,reassessmentGeneration:generation});
+ const work=await db.workItem.findFirst({where:{project_id:f.project.id,content_item_id:f.task.id,kind:'visual_review'}});await db.workItem.update({where:{id:work.id},data:{state:'claimed',lease_actor_id:f.args.actorId,lease_token:'synthetic-review-lease',lease_expires_at:new Date(Date.now()+60000)}});
+ const review={projectId:f.project.id,actorId:f.args.actorId,assetId:attached.asset_id,decision:'approved',workItemId:work.id,leaseToken:'synthetic-review-lease',reassessmentGeneration:generation};
+ const taskBefore=await db.contentItem.findUnique({where:{id:f.task.id}}),workBefore=await db.workItem.findUnique({where:{id:work.id}}),eventsBefore=await db.workflowEvent.count({where:{project_id:f.project.id}});
+ const originalFind=db.imageAsset.findFirst.bind(db.imageAsset);let observed,unlock,locked;const observedRead=new Promise(r=>{observed=r}),unlockWriter=new Promise(r=>{unlock=r}),rowLocked=new Promise(r=>{locked=r});
+ db.imageAsset.findFirst=async args=>{const row=await originalFind(args);observed();return row;};
+ const concurrentWriter=db.$transaction(async tx=>{await tx.$queryRaw`SELECT id FROM planner.content_items WHERE id=${f.task.id} FOR UPDATE`;locked();await unlockWriter;return tx.imageAsset.update({where:{id:attached.asset_id},data:{file_url:'https://example.invalid/concurrent-durable.png'}});});
+ try{await rowLocked;const pending=f.rpc('ba_review_image_asset',review);await observedRead;unlock();const committedAsset=await concurrentWriter;await assert.rejects(pending,error=>/VISUAL_REASSESSMENT_CAS_CONFLICT/.test(error.message)&&!error.message.includes('STORAGE_OR_PLACEMENT'));
+ assert.deepEqual(await db.imageAsset.findUnique({where:{id:attached.asset_id}}),committedAsset);assert.equal(committedAsset.status,'candidate');assert.deepEqual(await db.contentItem.findUnique({where:{id:f.task.id}}),taskBefore);assert.deepEqual(await db.workItem.findUnique({where:{id:work.id}}),workBefore);assert.equal(await db.workflowEvent.count({where:{project_id:f.project.id}}),eventsBefore);
+ }finally{unlock();db.imageAsset.findFirst=originalFind;}
+});

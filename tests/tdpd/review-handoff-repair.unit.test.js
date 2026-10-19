@@ -311,8 +311,9 @@ test('article-only Dzen acceptance rejects feed before accepting content or crea
             content_revision:2,status:'drafted',text_state:'draft',accepted_revision:null,
             visual_placement:'feed',channel:{type:'zen_article',config}};
         const before=structuredClone(item);let writes=0;
-        const db={contentItem:{findUnique:async()=>item,findUniqueOrThrow:async()=>item,update:async({data})=>{writes++;Object.assign(item,data);return item;}},
+        const db={contentItem:{findUnique:async()=>item,findUniqueOrThrow:async()=>item,findFirst:async({where})=>{assert.deepEqual(where,{project_id:7,id:item.id});return item;},update:async({data})=>{writes++;Object.assign(item,data);return item;}},
             $queryRaw:async()=>[{id:item.id}],workflowEvent:{findFirst:async()=>null},
+            connectorDispatchJob:{findFirst:async()=>null},deliveryAttempt:{findFirst:async()=>null},
             projectSettings:{findUnique:async()=>null},workItem:{upsert:async()=>{writes++;return{};}}};
         await assert.rejects(new ArtDirectionService().acceptContentRevision(db,item.id,'user:2'),/PLACEMENT_(MISMATCH|CONTRACT_MISSING)/);
         assert.equal(writes,0);assert.deepEqual(item,before);
