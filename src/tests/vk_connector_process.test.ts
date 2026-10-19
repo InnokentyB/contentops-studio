@@ -6,9 +6,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { z } from 'zod';
 import { harness } from './helpers/vk_connector_harness';
+import { AUTHENTICATED_REMOTE_ACTOR } from '../services/vk_connector_consumer_runtime';
 
 const request = z.object({ id: z.number().int(), name: z.string(), args: z.object({ projectId: z.literal(10),
-    actorId: z.literal('user:0'), hostId: z.literal('vk-connector-local-1048'), instanceId: z.uuid(),
+    actorId: z.literal(AUTHENTICATED_REMOTE_ACTOR), hostId: z.literal('vk-connector-local-1048'), instanceId: z.uuid(),
     buildVersion: z.string(), jobId: z.uuid().optional(), generation: z.number().int().optional(),
     packageSha256: z.string().optional(), blocker: z.literal('PROVIDER_CONTROL_DENIED').optional() }) });
 test('VK016-PROCESS: real standalone process receives explicit Planner job and persists an honest provider-blocked receipt', async () => {

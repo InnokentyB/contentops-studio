@@ -18,9 +18,11 @@ COPY --chown=1000:1000 src ./src
 COPY --chown=1000:1000 prisma ./prisma
 COPY --chown=1000:1000 frontend ./frontend
 COPY --chown=1000:1000 tsconfig.json prisma.config.ts ./
+COPY --chown=1000:1000 scripts/build_vk_connector_consumer.cjs ./scripts/build_vk_connector_consumer.cjs
 RUN mkdir -p node_modules/.prisma dist frontend/node_modules/.vite-temp \
     && chown 1000:1000 /opt/planner node_modules node_modules/.prisma node_modules/@prisma/engines node_modules/@prisma/client dist frontend frontend/node_modules frontend/node_modules/.vite-temp
 USER 1000:1000
 RUN NODE_OPTIONS=--max-old-space-size=1536 DATABASE_URL=postgresql://synthetic:synthetic@127.0.0.1:1/synthetic npm run build:backend \
-    && npm run build --prefix frontend
+    && npm run build --prefix frontend \
+    && npm run build:vk:connector
 CMD ["node", "-e", "console.log('Backend/frontend build verified; no app started')"]

@@ -1,0 +1,34 @@
+✔ DA02 actual scoped publication request keeps token identity without caller actor field (147.107224ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+✔ DA02 concurrent async requests cannot inherit another tenant or caller actor (5.399971ms)
+✔ DA02 local stdio principal is configured identity, not first owner or request data (0.940034ms)
+✔ DA05 existing publication task command routes arbitrary Dzen data before legacy IDs and Telegram (3203.134621ms)
+✔ DA23 registered existing MCP command rejects transport, session and forged actor input (51.840816ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+✔ DA15 internal afterWrite binds actual fact identity in same transaction on create (2.034208ms)
+✔ DA15 internal afterWrite binds actual fact identity in same transaction on replay (0.259021ms)
+✔ DA15 unguarded internal afterWrite is rejected before access (0.372911ms)
+✔ INTEGRATION recovery final fencing runs after owned fact link on create (0.728313ms)
+✔ INTEGRATION recovery final fencing runs after owned fact link on replay (0.229701ms)
+✔ DA02 actual HTTP owner and scoped publisher transport retain token principal through registered command (4101.711832ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+✔ DA07 mixed queue selects legacy VK without decoding or starving on Dzen rows (642.31929ms)
+✔ DA07 VK lookup and CAS cannot interpret or change a Dzen job (10.948513ms)
+✔ DA07 cross-provider idempotency collision is explicit, not foreign decode or new job (73.460491ms)
+✔ DA21 actual content edit rejects durable ownership after marker/status replacement (1.020624ms)
+✔ DA21 actual task preparation cannot overwrite lifecycle despite removed quality marker (0.238011ms)
+✔ DA20 actual generic manual/automatic/imported fact guard rejects durable lifecycle ownership (0.199451ms)
+✔ DA20 status projection cannot offer manual confirmation after durable ownership marker removal (0.463122ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12104.055802

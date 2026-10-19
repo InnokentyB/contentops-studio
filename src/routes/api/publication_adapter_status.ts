@@ -1,9 +1,14 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+const RecordedRestriction = z.object({ platform: z.literal('vk'), ownerId: z.string().regex(/^-[1-9]\d*$/), operation: z.enum(['publication','search']),
+    observedAt: z.iso.datetime(), basis: z.string().min(1).max(1000) }).strict();
 
 export interface AdapterStatusIdentity { projectId: number; taskId: number; actorId: string }
 export const PublicationAdapterStatusSchema = z.object({
     admissionReason: z.literal('ACTION_TIME_ADMISSION_UNAVAILABLE').optional(),
+    productionReady: z.literal(false).optional(),
+    diagnostics: z.object({ controlPlane: z.enum(['NOT_CHECKED','CONNECTED','FAILED']), applicationAuthorization: z.literal('NOT_ASSESSED'),
+        providerReadiness: z.literal('NOT_CHECKED'), recordedRestriction: RecordedRestriction.nullable() }).strict().optional(),
     supported: z.boolean(), canExecute: z.literal(false), manualRecordAllowed: z.boolean(),
     state: z.string(), blocker: z.string().nullable(), connection: z.enum(['online', 'offline', 'disabled', 'unavailable']),
     heartbeatAt: z.string().nullable(), publicUrl: z.string().nullable(), observedAt: z.string()

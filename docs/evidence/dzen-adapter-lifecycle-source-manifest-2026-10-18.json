@@ -1,0 +1,333 @@
+{
+  "recorded_at": "2026-10-18T11:56:09.382620+00:00",
+  "source_base_commit": "6b06b1c3e057d7f20057f434762c5f132a41177e",
+  "main_base_commit": "8748b950d0f4b7c36a7520c69197d8ebae93abf3",
+  "scope": "Offline engineering only; no deployment, provider session, consumer activation or owner UAT",
+  "review_source_manifest_sha256": "8cea0b35b8bc7d3b79a4c18493adcf6f627f9734ec8bf31f2b8440bc7fb07321",
+  "build_image_config": "sha256:507161d2b1e013b7b2640364390a6fdb7bade74635bbee0f63702fb7b0bc3556",
+  "native_source_sha256": "e97abe42a11568307e207423177e00750fb582518d109f8bf3ec0de56ef50719",
+  "native_compiled_page_sha256": "3e7e7676af130be5adc5ba1ec4db720c974fb71cf0c09224fc5a37205c4f83d1",
+  "native_final_log_sha256": "e5b02ec102daa55975a5cb1c9ab185d57f9a79302a8015047429936df2b90c84",
+  "results": {
+    "parent_boundary": {
+      "passed": 26,
+      "failed": 0,
+      "skipped": 0
+    },
+    "postgres": {
+      "passed": 41,
+      "failed": 0,
+      "skipped": 0
+    },
+    "native_fullbuild": {
+      "passed": 28,
+      "failed": 0,
+      "skipped": 0
+    },
+    "publication_regression": {
+      "passed": 203,
+      "failed": 0,
+      "skipped": 0
+    },
+    "dzen_vk_regression": {
+      "passed": 172,
+      "failed": 0,
+      "skipped": 0
+    },
+    "shared_browser_x_regression": {
+      "passed": 74,
+      "failed": 0,
+      "skipped": 0
+    },
+    "backend_frontend_build": "PASS",
+    "quality_gate": "PASS"
+  },
+  "production_files": [
+    {
+      "path": ".github/workflows/code-quality.yml",
+      "sha256": "ad8b4291b89a8caf87f8755c2d7ca1a30574611cdf3b36ffa6bec9c9a83da27c"
+    },
+    {
+      "path": "docs/code-quality/runtime-policy-baseline.json",
+      "sha256": "f224cb34efbf538294beda3800aebd16dbd8b45f39af863b8a7df47bb138aa25"
+    },
+    {
+      "path": "docs/operations/owned-dzen-adapter-lifecycle.md",
+      "sha256": "726e64a11a9d48dde32e6b1f46ac1e3670c00e1cace3f7b4920a473ae564b6ee"
+    },
+    {
+      "path": "docs/operations/vk-owned-publication-route.md",
+      "sha256": "4a48f23b1d16d11d6f8c6e4b257f487eb8aced4f525ae4f1d1ffc225c6c4f6ca"
+    },
+    {
+      "path": "ops/owned-publication-tests/README.md",
+      "sha256": "929198efb05b533577ad466412ed3bcab6fd9f96dd94775e0852c1647c487e7f"
+    },
+    {
+      "path": "ops/owned-publication-tests/compose.yaml",
+      "sha256": "0330196343b751e394981cad9c60da6d10287d80d2ca14bfead4967f9a17147d"
+    },
+    {
+      "path": "ops/owned-publication-tests/seccomp_profile.json",
+      "sha256": "f922c7c9bfc1ece0b72b244e56dc85756ded002c837fb46054cfd8b275c74b6b"
+    },
+    {
+      "path": "ops/quality/Dockerfile",
+      "sha256": "f92a576f447c75b1fbc4356997004de1d453367e2426c0242389061305665a94"
+    },
+    {
+      "path": "ops/quality/compose.yaml",
+      "sha256": "c9dbea79a742766e4bfb6210582565317839eb15dbf7a7bb7a48fd91c76f70ac"
+    },
+    {
+      "path": "src/mcp/publication-principal.ts",
+      "sha256": "2cef73cae649fe888d058a0b57eb5b4cfee7de225ca5164255dc4fa630239598"
+    },
+    {
+      "path": "src/mcp/remote-server.ts",
+      "sha256": "bc671e59aa40f3210ffde05f09e70906fc409e88f838547edc38af522ba8cd52"
+    },
+    {
+      "path": "src/mcp/server.ts",
+      "sha256": "f83318887cabf6662d85daae0009a7ad2532d183b821d1edd6f7e266081f0e0a"
+    },
+    {
+      "path": "src/mcp/tools/task_publication_tools.ts",
+      "sha256": "ccfb6fd65840270fad03e489a9d45df8db8b0a371dedf27c2435f8ee35e35ad7"
+    },
+    {
+      "path": "src/routes/api/publication_tasks.routes.ts",
+      "sha256": "72b534c0e9d3912e25e0da38ced29cfc40519ace5e8a553e6e318b565675c031"
+    },
+    {
+      "path": "src/services/art_direction.service.ts",
+      "sha256": "2dc7b6fa0453169950fc4d51f4426aee6449389f393c1e695245f5446cb53b7d"
+    },
+    {
+      "path": "src/services/dzen_adapter_native.ts",
+      "sha256": "ad83f7dd4bcffaaced33e951de2dd19276c376518f1ff3065bc08efd92e7cdfa"
+    },
+    {
+      "path": "src/services/dzen_adapter_native_page.ts",
+      "sha256": "e97abe42a11568307e207423177e00750fb582518d109f8bf3ec0de56ef50719"
+    },
+    {
+      "path": "src/services/dzen_adapter_proof.ts",
+      "sha256": "8e7f232735650d5960b3f17b170b7d75eca65418336be33beb591ba0992135ef"
+    },
+    {
+      "path": "src/services/dzen_adapter_restriction.ts",
+      "sha256": "b82327612595656775f872bdc9ddc144977c1ace6348fb758a15612f7a5657b8"
+    },
+    {
+      "path": "src/services/image_asset.service.ts",
+      "sha256": "fe542e6aaed89a969f77e4671fb9a9696c7a8c720de1b1711bdb5b6d25a88698"
+    },
+    {
+      "path": "src/services/mcp_publication/tasks.ts",
+      "sha256": "762fc3bd2f2b4f8d4a86bd9d69681214fa517e2e9c6bc7b3bf1246bbf97d7060"
+    },
+    {
+      "path": "src/services/owned_publication_adapter_process.ts",
+      "sha256": "7dc7f52901c60a1ff0a1d4f482e342ea23d364daa25f37bb3f649e1d8bee0978"
+    },
+    {
+      "path": "src/services/owned_publication_adapter_resources.ts",
+      "sha256": "bffb45f5bd419f9155ac7ad6aaf428fd79c987a7aa45ede89744b5d10a33e1cc"
+    },
+    {
+      "path": "src/services/owned_publication_contract.ts",
+      "sha256": "46977abd75c99bf6c635f22f5bcfc05f88cb94def1745b15acc32f594f38680e"
+    },
+    {
+      "path": "src/services/owned_publication_guard.ts",
+      "sha256": "2af43ae452a50d9d3cbb067d26ee5af121f24c618af68ce24ce764ec609f976c"
+    },
+    {
+      "path": "src/services/owned_publication_invocation.ts",
+      "sha256": "e16b33fea05e0e0b99ef92d753268ce73be0b4604ffc874794fe928a07cbf7d2"
+    },
+    {
+      "path": "src/services/owned_publication_legacy.ts",
+      "sha256": "0d7f50faa4a4c0f5afa277be0f6488b66792b3cdad0a2bc9c0f4386df0a6fb5b"
+    },
+    {
+      "path": "src/services/owned_publication_native_child.ts",
+      "sha256": "d6656f4b49187756cf55f2bf709d34971b4e7c3865b80877470bd85b90633a25"
+    },
+    {
+      "path": "src/services/owned_publication_native_protocol.ts",
+      "sha256": "92011c0d3deaed20bad351e3141687ebacfe5e347c616045d8e715b781accd0f"
+    },
+    {
+      "path": "src/services/owned_publication_registry.ts",
+      "sha256": "9112585558b3a7c09d2f1b6d126444d76167080deeb42fe32758fa9e9bb9d270"
+    },
+    {
+      "path": "src/services/owned_publication_rest_guard.ts",
+      "sha256": "ae9674a5c982b7f81d9339d1f30d597f47b3ca4f9352d0c7d693ae0839edc865"
+    },
+    {
+      "path": "src/services/owned_publication_service.ts",
+      "sha256": "714798752b0cda8384d90635422c302b07c6e09b7cffcd332dd9deaab0c4239b"
+    },
+    {
+      "path": "src/services/owned_publication_store.ts",
+      "sha256": "6b65529639a3c45c132cd918f77712e0cfed697dd6bd8ed0343f0c812125caac"
+    },
+    {
+      "path": "src/services/owned_publication_store_state.ts",
+      "sha256": "2152741ae183087d452dc4cba61fb409cf45ce5ee9bbf3b66b90b54fa5045806"
+    },
+    {
+      "path": "src/services/project_access.service.ts",
+      "sha256": "0c2a4adf172f55cab4a808b9010412baf41e966a1c7455fe2933758aecd007ea"
+    },
+    {
+      "path": "src/services/publication_adapter_status.ts",
+      "sha256": "439e24439001300a579b625a93856ad0a982e167efea08a22bd56409ba51510e"
+    },
+    {
+      "path": "src/services/publication_fact.service.ts",
+      "sha256": "da7dd30319994adfd1209bc28ba0c6f99ab36dce73ca4d9306f1398aab7c1034"
+    },
+    {
+      "path": "src/services/publication_manual_fact_guard.ts",
+      "sha256": "1d4203e2174dda102a139bacab5222adc2335ec14caa4fd9c517be9230114c72"
+    },
+    {
+      "path": "src/services/publication_owned_guard.ts",
+      "sha256": "afc684e54ba6f1a369bec73887bb0c958007b66b530fb2b237e5024dae8e77b2"
+    },
+    {
+      "path": "src/services/publication_owned_route.ts",
+      "sha256": "3595d82a5a4e88881862521fc2844d13667ef33bac5173363c665bb4cdc834e0"
+    },
+    {
+      "path": "src/services/publication_plan/importer.ts",
+      "sha256": "398e85fd1fa016c40f517e5e1d1780cd7157e8cf120eb45524aae2b8cb396827"
+    },
+    {
+      "path": "src/services/publication_plan/utils.ts",
+      "sha256": "b24e6aef1b2f34221ae125bb708ef2c917cc3a9f735df109dc93ebace5e4477d"
+    },
+    {
+      "path": "src/services/publication_provider_queue.ts",
+      "sha256": "935662c3176506d10b398799fa22637d745bcbfdb30f692afc9d7638cf8cfa58"
+    },
+    {
+      "path": "src/services/publishers/publication_dispatcher.ts",
+      "sha256": "a111ce14e397a2ab16d3ccdb12e4761e89afd62cc5295f95c0e4f088e26bd7cb"
+    },
+    {
+      "path": "src/services/visual_storage_incident.service.ts",
+      "sha256": "ef894d316351fd74c59270512dd46ad804400f3325972fe98ca5704d43e42f60"
+    },
+    {
+      "path": "src/services/vk_connector_repository.ts",
+      "sha256": "7bb527fbce41de56d8eb5b1948606b442c640781269891ac17e6f25d3a88ef90"
+    },
+    {
+      "path": "src/services/week_package_repair.service.ts",
+      "sha256": "1c058c1ec64eec1d547fc563c68b37687af2558fc0a8b06a241ba476fc479b2e"
+    },
+    {
+      "path": "src/services/work_queue/infrastructure.ts",
+      "sha256": "70cba63f7165c820e5a87b94a5d42dc9badd0ba1fa42776df9f2ca3d3f89311f"
+    }
+  ],
+  "test_files": [
+    {
+      "path": "src/tests/publication_manual_fact_guard.test.ts",
+      "sha256": "b38aff477ec92e8b6110b3f09a6c27a62f7b94b9c6c87f334d38e6e41f69bbe2"
+    },
+    {
+      "path": "tests/fixtures/owned-publication-http-preload.cjs",
+      "sha256": "e07b7bd57d7c5ba647136e56bf3af4c1a5c956967478a081e3e2aded2164186f"
+    },
+    {
+      "path": "tests/fixtures/owned-publication-native/child.cjs",
+      "sha256": "75927a70d7ff2f39df1b844c1c476e95ef0f01505641aa1c545f9607ab827bf9"
+    },
+    {
+      "path": "tests/fixtures/owned-publication-native/hostile-child.cjs",
+      "sha256": "30d15003c545833c7cdfb043e58bc2bc986c98ba079cec970562c0e533160c04"
+    },
+    {
+      "path": "tests/fixtures/owned-publication-native/root.cjs",
+      "sha256": "7b933f0a08b713af39da16872895e299d928eea23d5812d97ddb2a32858f484a"
+    },
+    {
+      "path": "tests/fixtures/owned-publication-native/sandbox-probe.cjs",
+      "sha256": "e462c0f9fe1a6db394b6e94f573fa5cdc912426c239a213e13776d1277d9535a"
+    },
+    {
+      "path": "tests/fixtures/owned-publication-native/server.cjs",
+      "sha256": "ed3d600959c2f85e241a09ab217f4337053d56674374b6a6b2e8e2590a66db92"
+    },
+    {
+      "path": "tests/fixtures/owned-publication-native/transpile.cjs",
+      "sha256": "1e1ee99e0c8edd1d1e33b05e11068414bb462818e6cadaadfc4bbaf770a5f23d"
+    },
+    {
+      "path": "tests/fixtures/owned-publication-prisma.config.ts",
+      "sha256": "35201d2f664b670d4b989f11556d504c540d59433d6db185fe62b5e303bbca37"
+    },
+    {
+      "path": "tests/fixtures/owned-publication-race-child.cjs",
+      "sha256": "3ddbc4637b3c672b51c7d85d2bd9056bbf414f624eb7bdc66fa2fffb68a96a0f"
+    },
+    {
+      "path": "tests/fixtures/owned-publication-rest.cjs",
+      "sha256": "78f62668dfcc692a82467588167443c3f9a1a074c884842bbc511c6cfae861b4"
+    },
+    {
+      "path": "tests/fixtures/owned-publication-store.cjs",
+      "sha256": "8739db2f3f878083541fec263c726cec59cf91de6e107e94a24b10a5554bd5d1"
+    },
+    {
+      "path": "tests/fixtures/owned-publication-store.compose.yaml",
+      "sha256": "2e4545dc6ea02bbf7712f69107ce6552b2676b57e61cbc3663a71c648aaaa883"
+    },
+    {
+      "path": "tests/tdpd/owned-publication-adapter-native.cjs",
+      "sha256": "4133f26f5da70adbae5c95b05573ebbffe4dd32d2a82a35f75523bc0cc926d7a"
+    },
+    {
+      "path": "tests/tdpd/owned-publication-adapter-proof.cjs",
+      "sha256": "c7dc37e8853cd22ae7b46fff4b3cb94da2e4c04222199b306bc9705070ff578f"
+    },
+    {
+      "path": "tests/tdpd/owned-publication-art.test.cjs",
+      "sha256": "1ce82fddce46709a10f53bcb383c8ceb25914459ddff16b50495a9c52b7c8e2a"
+    },
+    {
+      "path": "tests/tdpd/owned-publication-boundary.test.cjs",
+      "sha256": "340b415b609d620c5e1596cddc1fe33fccbc925b6c48f428fe221a3b9d89021e"
+    },
+    {
+      "path": "tests/tdpd/owned-publication-default-route.test.cjs",
+      "sha256": "fa3500183e3ef32b63c0b961b3439887152e385175cebbc36254bfdb691a0e18"
+    },
+    {
+      "path": "tests/tdpd/owned-publication-fact-hook.test.cjs",
+      "sha256": "f14798cca48d9e260e1a4c6c0fde359e36bfd10dab9fc0d3ceb125d588d4b2d3"
+    },
+    {
+      "path": "tests/tdpd/owned-publication-http.test.cjs",
+      "sha256": "2d63e7639bd07adda72b099bc3f79d2d353894101fd0b2c32f4aa2985ffe9ef7"
+    },
+    {
+      "path": "tests/tdpd/owned-publication-lifecycle.test.cjs",
+      "sha256": "b88eef49fa9748ac59d13f93c688d12233c69e27ab4ff6a74386d0ce7dc067f8"
+    },
+    {
+      "path": "tests/tdpd/owned-publication-queue.test.cjs",
+      "sha256": "9933a63429189e374eaf689ed7eb5a91c8a383dcfddf1e0b05a75ce6306ac385"
+    },
+    {
+      "path": "tests/tdpd/owned-publication-writers.test.cjs",
+      "sha256": "64983af07dae46bad834d4e057f8a3932ff3e8f54dd7a17528b528a1172487cf"
+    }
+  ]
+}

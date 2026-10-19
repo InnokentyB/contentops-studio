@@ -1,0 +1,33 @@
+✔ DA02 actual scoped publication request keeps token identity without caller actor field (69.217401ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+✔ DA02 concurrent async requests cannot inherit another tenant or caller actor (4.595213ms)
+✔ DA02 local stdio principal is configured identity, not first owner or request data (0.872384ms)
+✔ DA05 existing publication task command routes arbitrary Dzen data before legacy IDs and Telegram (1550.702842ms)
+✔ DA23 registered existing MCP command rejects transport, session and forged actor input (53.874343ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+(node:22) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+✔ DA02 actual registered default command preserves legacy non-Dzen stdio without new principal (1.643449ms)
+✔ DA02 default command preserves Threads selection without inferring an owned principal (0.189201ms)
+✔ DA02 missing owned principal cannot fall through to any legacy executor (0.409122ms)
+✔ DA02 token-bound foreign project rejects before provider metadata lookup (0.280931ms)
+✔ DA02 owned-only release fields cannot fall through to legacy providers (0.205211ms)
+✔ DA02 actual HTTP owner and scoped publisher transport retain token principal through registered command (1990.159452ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5871.372703

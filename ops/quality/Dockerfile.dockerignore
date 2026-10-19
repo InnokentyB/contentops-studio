@@ -3,6 +3,8 @@
 !package-lock.json
 !tsconfig.json
 !prisma.config.ts
+!scripts/
+!scripts/build_vk_connector_consumer.cjs
 !src/
 !src/**
 !prisma/

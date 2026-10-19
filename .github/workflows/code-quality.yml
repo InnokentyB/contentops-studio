@@ -28,6 +28,9 @@ jobs:
       - name: Dynamic package, permission, lease, one-attempt, fact and bypass contracts
         run: |
           docker compose -f ops/quality/compose.yaml --profile build run --rm build-check node --test --test-concurrency=1 /workspace/tests/tdpd/shared-browser-release.test.cjs /workspace/tests/tdpd/shared-browser-execution.test.cjs /workspace/tests/tdpd/shared-browser-confirmation.test.cjs /workspace/tests/tdpd/shared-browser-fences.test.cjs /workspace/tests/tdpd/shared-browser-mcp.test.cjs /workspace/tests/tdpd/shared-setka-browser.test.cjs /workspace/tests/tdpd/shared-browser-diagnostics.test.cjs /workspace/tests/tdpd/shared-browser-linkedin-text-only.test.cjs
+      - name: Owned publication principal, queue, fact and mutator boundaries (no provider)
+        run: |
+          docker compose -f ops/quality/compose.yaml --profile build run --rm -e TELEGRAM_BOT_TOKEN=000000:synthetic-test-token-never-used-for-provider-calls build-check node --test --test-concurrency=1 /workspace/tests/tdpd/owned-publication-boundary.test.cjs /workspace/tests/tdpd/owned-publication-writers.test.cjs /workspace/tests/tdpd/owned-publication-queue.test.cjs /workspace/tests/tdpd/owned-publication-fact-hook.test.cjs /workspace/tests/tdpd/owned-publication-http.test.cjs /workspace/tests/tdpd/owned-publication-default-route.test.cjs /workspace/tests/tdpd/owned-publication-art.test.cjs /workspace/tests/tdpd/owned-publication-cleanup.test.cjs
       - name: Signed X bridge, native fences and deterministic extension package (no provider)
         run: |
           docker compose -f ops/quality/compose.yaml --profile build run --rm -w /workspace build-check sh -c 'node --test --test-concurrency=1 /opt/planner/dist/tests/x_native*.test.js /workspace/tests/tdpd/shared-x-native.test.cjs /workspace/tests/tdpd/x-native-bridge.test.cjs /workspace/tests/tdpd/x-native-wiring.test.cjs /workspace/tests/tdpd/x-native-extension-package.test.mjs /workspace/tests/tdpd/x-native-local-boundary.test.mjs /workspace/tests/tdpd/x-native-popup.test.mjs /workspace/tests/tdpd/x-native-package-build.test.mjs /workspace/tests/tdpd/x-native-bundle-binding.test.mjs /workspace/tests/tdpd/x-native-sandbox-boundary.test.cjs /workspace/tests/tdpd/x-native-state-read.test.cjs'
@@ -41,9 +44,14 @@ jobs:
       - name: Versioned recovery MCP, bounded coordinator and same-attempt resume (synthetic only)
         run: |
           docker compose -f ops/publication-tests/compose.yaml run --rm tests node --test --test-concurrency=1 /opt/planner/dist/tests/browser_recovery_coordinator.test.js /opt/planner/dist/tests/browser_recovery_resume.test.js /opt/planner/dist/tests/browser_recovery_resume_repository.test.js /workspace/tests/tdpd/browser-recovery-boundary.test.cjs /workspace/tests/tdpd/browser-recovery-postgres.test.cjs
+      - name: Owned publication PostgreSQL lifecycle, receipt and rollback scenarios
+        run: |
+          OWNED_PUBLICATION_TEST_IMAGE=planner-policy-build-check:node24 docker compose -p planner-owned-lifecycle-ci -f ops/publication-tests/compose.yaml -f tests/fixtures/owned-publication-store.compose.yaml run --rm tests
       - name: Remove only the synthetic in-memory database stack
         if: always()
-        run: docker compose -f ops/publication-tests/compose.yaml down
+        run: |
+          docker compose -f ops/publication-tests/compose.yaml down
+          docker compose -p planner-owned-lifecycle-ci -f ops/publication-tests/compose.yaml -f tests/fixtures/owned-publication-store.compose.yaml down
   dzen1002-runtime-contract:
     name: Dzen1002 durable attempt and receipt contracts
     runs-on: ubuntu-latest
@@ -91,6 +99,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
+      # Ubuntu's installed Chrome has an existing per-executable AppArmor userns profile.
+      # Keep Chromium sandbox enabled; do not relax global runner security settings.
+      APP_BROWSER_EXECUTABLE_PATH: '/opt/google/chrome/chrome'
       PUPPETEER_SKIP_DOWNLOAD: 'true'
       TELEGRAM_BOT_TOKEN: '000000:synthetic-test-token-never-used-for-provider-calls'
     steps:
@@ -109,6 +120,16 @@ jobs:
         run: npx puppeteer browsers install chrome
       - name: Install Chromium for local Playwright DOM fixtures
         run: npx playwright install chromium
+      - name: Verify installed Chrome sandbox on synthetic local HTML
+        run: |
+          test -x "$APP_BROWSER_EXECUTABLE_PATH"
+          browser_path="$(readlink -f "$APP_BROWSER_EXECUTABLE_PATH")"
+          # Hosted toolcache executables can be group-writable. Tighten the exact
+          # installed binary instead of weakening the shared runtime path checks.
+          sudo chmod go-w "$browser_path"
+          stat -c '%F %a %U %n' "$browser_path"
+          echo "APP_BROWSER_EXECUTABLE_PATH=$browser_path" >> "$GITHUB_ENV"
+          APP_BROWSER_EXECUTABLE_PATH="$browser_path" node --test tests/tdpd/vk-shared-browser.test.cjs
       - name: Full backend regression with synthetic auth and bundled consumer
         env:
           # Legacy recurring-trigger fixtures assert Lisbon wall-clock dates.

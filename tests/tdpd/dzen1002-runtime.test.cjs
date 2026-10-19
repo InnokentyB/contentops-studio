@@ -75,10 +75,12 @@ test('R09 dry-run is metadata-only and cannot export accepted body or asset URL'
  assert.equal(result.mode,'dry_run');assert.deepEqual(h.calls,['replay','inspect']);
  assert.ok(!JSON.stringify(result).includes('private fixture'));assert.ok(!JSON.stringify(result).includes('assets.example'));
 });
-test('R10 generic canonical fact guard refuses1002 before any DB call',async()=>{
+test('R10 generic canonical fact guard refuses1002 after scoped history reads without writes',async()=>{
  const {guardManualPublicationFact}=require(path.join(root,'src/services/publication_manual_fact_guard.ts'));
- const db=new Proxy({}, {get(){throw Error('FORBIDDEN_DB');}});
+ const reads=[];const scope={project_id:10,content_item_id:1002};
+ const db=new Proxy({workflowEvent:{findFirst:async args=>{assert.deepEqual(args.where,{...scope,command:{startsWith:'owned_publication.'}});reads.push('history');return null;}},connectorDispatchJob:{findFirst:async args=>{assert.deepEqual(args.where,{...scope,binding:{path:['protocol'],equals:'owned_provider_v1'}});reads.push('job');return null;}},contentItem:{findFirst:async args=>{assert.deepEqual(args.where,{project_id:10,id:1002});reads.push('task');return null;}}}, {get(target,key){if(key in target)return target[key];throw Error('FORBIDDEN_DB');}});
  await assert.rejects(guardManualPublicationFact(db,{projectId:10,taskId:1002,internalConfirmation:false}),/DZEN1002_EXACT_CONFIRMATION_REQUIRED/);
+ assert.deepEqual(reads,['history','job','task']);
 });
 test('R01/R10 registered bounded Publisher commands exercise the new lifecycle',async()=>{
  const {z}=require('zod');

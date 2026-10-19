@@ -2,15 +2,20 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import type { Vk1048ProviderRuntime } from './vk1048_playwright_runtime';
-import type { Vk1048ProviderResult } from './vk1048_provider_execution';
-import type { Vk1048OfflineHarness } from './vk1048_provider_execution';
-import { connectorPackageHash } from './vk_connector_contract';
+import type { VkConnectorProviderRuntime } from './vk_connector_playwright_runtime';
+import type { VkConnectorProviderResult } from './vk_connector_provider_execution';
+import type { VkConnectorOfflineHarness } from './vk_connector_provider_execution';
+import { getVkConnectorRecordedRestriction } from './vk_connector_recorded_restriction';
+import { ConnectorBindingSchema, ConnectorHostIdSchema, connectorPackageHash } from './vk_connector_contract';
 
+/** Remote auth replaces this protocol sentinel with its credential-bound actor before tool execution. */
+export const AUTHENTICATED_REMOTE_ACTOR = 'authenticated' as const;
+const Actor = z.union([z.string().regex(/^user:(?:0|[1-9]\d*)$/), z.literal(AUTHENTICATED_REMOTE_ACTOR)]);
 const Hash = z.string().regex(/^[a-f0-9]{64}$/);
 /** Private local configuration never contains a token value or browser/profile path. */
 const ConfigBaseSchema = z.object({
-    projectId: z.literal(10), hostId: z.literal('vk-connector-local-1048'),
+    projectId: z.number().int().positive().safe(), hostId: ConnectorHostIdSchema,
+    actorId: Actor.optional(),
     endpoint: z.literal('https://planner-mcp-production.up.railway.app/mcp/publisher'),
     runtimeDir: z.string().refine(path.isAbsolute),
     profileDirectory: z.string().refine(path.isAbsolute).optional(), evidenceDir: z.string().refine(path.isAbsolute).optional(),
@@ -18,23 +23,23 @@ const ConfigBaseSchema = z.object({
 }).strict();
 export const VkConnectorConfigSchema = z.union([
     ConfigBaseSchema.extend({ tokenFile: z.string().refine(path.isAbsolute) }),
-    ConfigBaseSchema.extend({ tokenEnvVar: z.literal('CONTENTOPS_ANALYSTCRAFT_PUBLISHER_TOKEN') })
+    ConfigBaseSchema.extend({ tokenEnvVar: z.string().regex(/^CONTENTOPS_[A-Z0-9_]{1,100}_PUBLISHER_TOKEN$/) })
 ]).refine(config => Boolean(config.profileDirectory) === Boolean(config.evidenceDir), { message: 'Operator resources must be provided together' });
 export type VkConnectorConfig = z.infer<typeof VkConnectorConfigSchema>;
-/** Immutable restricted pilot binding; it is a restriction, never publication authority. */
-export const VkConnectorPilotPackageSchema = z.object({ projectId: z.literal(10), taskId: z.literal(1048),
-    channelId: z.literal(117), communityId: z.literal(-240051152), revision: z.literal(1),
-    selectedAssetId: z.literal(130), placement: z.literal('feed'),
-    bodySha256: Hash, assetSha256: Hash, releaseSha256: Hash }).strict();
-export type VkConnectorPilotPackage = z.infer<typeof VkConnectorPilotPackageSchema>;
-const IdentitySchema = z.object({ projectId: z.literal(10), actorId: z.literal('user:0'), hostId: z.literal('vk-connector-local-1048'),
+/** Shared immutable package data. Validation is identical for every tenant and format. */
+export const VkConnectorPackageSchema = ConnectorBindingSchema;
+export type VkConnectorPackage = z.infer<typeof VkConnectorPackageSchema>;
+/** Legacy source compatibility only; validation/authority is the shared data contract. */
+export const VkConnectorPilotPackageSchema = VkConnectorPackageSchema;
+export type VkConnectorPilotPackage = VkConnectorPackage;
+const IdentitySchema = z.object({ projectId: z.number().int().positive().safe(), actorId: Actor, hostId: ConnectorHostIdSchema,
     instanceId: z.string().uuid(), buildVersion: z.string().min(1).max(100),
     mode: z.enum(['infrastructure_only', 'vk_feed_provider']).default('infrastructure_only') }).strict();
 export type VkConnectorIdentity = z.infer<typeof IdentitySchema>;
-const HealthSchema = z.object({ hostId: z.literal('vk-connector-local-1048'), mode: z.enum(['infrastructure_only', 'vk_feed_provider']),
+const HealthSchema = z.object({ hostId: ConnectorHostIdSchema, mode: z.enum(['infrastructure_only', 'vk_feed_provider']),
     providerExecution: z.literal('blocked'), status: z.enum(['online', 'offline', 'disabled']), heartbeatAt: z.string().datetime({ offset: true }).nullable() }).strict();
 const JobSchema = z.object({ jobId: z.string().uuid(), packageSha256: Hash, generation: z.number().int().nonnegative(),
-    package: VkConnectorPilotPackageSchema, state: z.enum(['queued', 'accepted']).default('queued') }).strict();
+    package: VkConnectorPackageSchema, recordedRestrictions: z.unknown().optional(), state: z.enum(['queued', 'accepted']).default('queued') }).strict();
 const PollSchema = z.object({ jobs: z.array(JobSchema).max(1), health: HealthSchema }).strict();
 const AckSchema = z.object({ jobId: z.string().uuid(), generation: z.number().int().nonnegative(),
     state: z.enum(['accepted', 'blocked']), blocker: z.string().max(100).nullable().optional() }).strip();
@@ -53,7 +58,7 @@ export interface VkConnectorCycleResult {
 }
 /** Stable package digest uses this fixed ordered projection in both producer and consumer. */
 export function vkConnectorPackageSha256(rawPackage: unknown): string {
-    const p = VkConnectorPilotPackageSchema.parse(rawPackage);
+    const p = VkConnectorPackageSchema.parse(rawPackage);
     return connectorPackageHash(p);
 }
 async function boundedCall(control: VkConnectorControl, name: string, args: Record<string, unknown>,
@@ -78,10 +83,10 @@ async function boundedCall(control: VkConnectorControl, name: string, args: Reco
         signal?.removeEventListener('abort', stop);
     }
 }
-export interface VkConnectorProviderInput { identity: VkConnectorIdentity; jobId: string; generation: number; packageSha256: string; binding: VkConnectorPilotPackage; }
-export type VkConnectorProviderDispatch = (input: VkConnectorProviderInput, control: VkConnectorControl, signal?: AbortSignal) => Promise<Vk1048ProviderResult>;
+export interface VkConnectorProviderInput { identity: VkConnectorIdentity; jobId: string; generation: number; packageSha256: string; binding: VkConnectorPackage; }
+export type VkConnectorProviderDispatch = (input: VkConnectorProviderInput, control: VkConnectorControl, signal?: AbortSignal) => Promise<VkConnectorProviderResult>;
 /** One serial poll/ack/report cycle. There is no provider-navigation or publication capability. */
-export async function consumeVkConnectorOnce(rawIdentity: unknown, control: VkConnectorControl, signal?: AbortSignal, timeoutMs = 15_000, offlineHarness?: Vk1048OfflineHarness | Vk1048ProviderRuntime, providerDispatch?: VkConnectorProviderDispatch): Promise<VkConnectorCycleResult> {
+export async function consumeVkConnectorOnce(rawIdentity: unknown, control: VkConnectorControl, signal?: AbortSignal, timeoutMs = 15_000, offlineHarness?: VkConnectorOfflineHarness | VkConnectorProviderRuntime, providerDispatch?: VkConnectorProviderDispatch): Promise<VkConnectorCycleResult> {
     const identity = IdentitySchema.parse(rawIdentity);
     if (!Number.isInteger(timeoutMs) || timeoutMs < 10 || timeoutMs > 15_000) throw new Error('[VK_CONNECTOR_TIMEOUT_INVALID]');
     const call = (name: string, args: Record<string, unknown>): Promise<unknown> => boundedCall(control, name, args, signal, timeoutMs);
@@ -91,11 +96,12 @@ export async function consumeVkConnectorOnce(rawIdentity: unknown, control: VkCo
         const poll = PollSchema.safeParse(await call('ba_poll_vk_connector_jobs', identity));
         if (!poll.success) { result.status = 'invalid_response'; return result; }
         result.heartbeatAt = poll.data.health.heartbeatAt;
-        if (poll.data.health.mode !== identity.mode) { result.status = 'invalid_response'; return result; }
+        if (poll.data.health.hostId !== identity.hostId || poll.data.health.mode !== identity.mode) { result.status = 'invalid_response'; return result; }
         if (poll.data.health.status !== 'online') { result.status = 'auth_or_control_unavailable'; return result; }
         for (const job of poll.data.jobs) {
             if (signal?.aborted) break;
-            if (vkConnectorPackageSha256(job.package) !== job.packageSha256) { result.status = 'invalid_response'; break; }
+            if (job.package.projectId !== identity.projectId || vkConnectorPackageSha256(job.package) !== job.packageSha256) { result.status = 'invalid_response'; break; }
+            const restriction = getVkConnectorRecordedRestriction(job.package, job.recordedRestrictions === undefined ? [] : job.recordedRestrictions, 'publication');
             let generation = job.generation;
             if (job.state === 'queued') {
                 const ack = AckSchema.safeParse(await call('ba_ack_vk_connector_job', { ...identity,
@@ -107,11 +113,12 @@ export async function consumeVkConnectorOnce(rawIdentity: unknown, control: VkCo
             // Accepted jobs are returned only for this authenticated instance by the server.
             // Resume the idempotent infrastructure blocker report, never re-ACK or dispatch.
             result.receipts.push({ jobId: job.jobId, generation, state: 'accepted' });
-            if (identity.mode === 'vk_feed_provider') {
-                const { runVk1048ProviderJob } = await import('./vk1048_provider_execution');
+            if (restriction) result.blocker = 'POLICY_DENIED';
+            if (identity.mode === 'vk_feed_provider' && !restriction) {
+                const { runVkConnectorProviderJob } = await import('./vk_connector_provider_execution');
                 const input = { identity, jobId: job.jobId, generation, packageSha256: job.packageSha256, binding: job.package };
                 const provider = providerDispatch ? await providerDispatch(input, control, signal)
-                    : await runVk1048ProviderJob(input, control, offlineHarness, signal);
+                    : await runVkConnectorProviderJob(input, control, offlineHarness, signal);
                 if (provider.status === 'provider_confirmed') {
                     result.status = 'provider_confirmed'; result.providerExecution = 'confirmed'; result.blocker = null;
                     result.receipts[result.receipts.length - 1] = { jobId: job.jobId, generation: provider.generation ?? generation, state: 'confirmed' }; break;

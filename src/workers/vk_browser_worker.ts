@@ -1,3 +1,4 @@
+import { sandboxedChromiumLaunchOptions } from '../services/browser_launch';
 import { vkBrowserErrorCode } from '../services/vk_browser_error';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -177,8 +178,8 @@ export async function runVkBrowserWorker(argv = process.argv.slice(2)) {
     let context: BrowserContext | undefined;
     try {
         context = await chromium.launchPersistentContext(options.profileDir, {
-            channel: options.channel,
-            headless: false,
+            ...sandboxedChromiumLaunchOptions({ headless: false, executablePath: process.env.APP_BROWSER_EXECUTABLE_PATH }),
+            ...(process.env.APP_BROWSER_EXECUTABLE_PATH ? {} : { channel: options.channel }),
             viewport: { width: 1440, height: 1000 }
         });
         const pages = context.pages();

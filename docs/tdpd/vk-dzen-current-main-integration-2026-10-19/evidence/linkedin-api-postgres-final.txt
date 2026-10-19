@@ -1,0 +1,37 @@
+ Container tower-vk-dzen-integration-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+✔ actual release/send/readback commits one canonical fact, attempt and typed API state (391.45354ms)
+✔ frozen browser attempt denies ordinary API release without provider requests (52.273607ms)
+✔ ambiguous public send persists dispatch fence and cannot send a second time (78.497551ms)
+✔ image upload failure preserves image identity and never creates text-only post (77.778587ms)
+✔ bad accepted bytes cause zero image initialization and zero public sends (36.165525ms)
+✔ owner revoked during initialization retains causal image receipt, blocks upload/send (48.91428ms)
+✔ fact failure preserves receipt and rolls back canonical completion; generic callback cannot bypass hold (70.35768ms)
+✔ foreign or revoked reconcile caller spends no read budget and makes zero GET (60.135667ms)
+✔ concurrent publishers create at most one attempt and one public POST (86.363711ms)
+✔ owner revoked during provider GET cannot commit late canonical fact (61.634274ms)
+✔ injected final audit failure rolls back fact, successful attempt and API completion together (76.590761ms)
+✔ abort after provider response prevents late fact and retains original receipt (53.849856ms)
+✔ recreated service cannot reset durable read deadline or exhausted budget (66.863121ms)
+✔ competing unknown transport API row prevents valid first-row finalizer capability (66.745531ms)
+✔ finalization holds current owner authority until canonical commit rather than re-reading stale snapshot (203.997052ms)
+✔ wrong returned body remains receipt-bound hold without canonical fact (59.337403ms)
+✔ malformed quality report and competing work each deny release before provider writes (27.527011ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+{"timestamp":"2026-10-19T19:53:04.990Z","event":"publisher_log","level":"INFO","code":"LINKEDIN_API_GOVERNED_ROUTE_REQUIRED","message":"Legacy LinkedIn publishing is held because it has no governed delivery authority.","action":"Use the governed LinkedIn API release/send/reconcile lifecycle. Preserve and reconcile any existing uncertain attempt; no browser fallback or resend.","retry_allowed":false}
+{"event":"publisher_log","level":"ERROR","code":"PUBLISHER_LOG_WRITE_FAILED","message":"The publisher diagnostic file could not be written.","action":"Ask the administrator to inspect log storage permissions and capacity. Console diagnostics remain available; reconcile existing attempts before further execution.","retry_allowed":false}
+✔ actual legacy scheduled, immediate and reset entries preserve held LinkedIn rows without network (1019.031587ms)
+✔ actual HTTP OAuth consent feeds sealed resolver and usable governed text API release (160.55397ms)
+✔ operator distinguishes readback wait interval from another active lease without extra GET (81.523776ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3605.498023

@@ -97,3 +97,11 @@ owning p10 Publisher can inspect current metadata/checksum and run the documente
 preflight once to retain collection counts and explicit provider paging evidence.
 Do not run it to bypass a denial. VK #1048 remains blocked pending permitted
 operator admission; its existing job, generation, release and facts are intact.
+
+## Generic Dzen source lifecycle
+
+The owner-approved independent adapter implementation is described in
+[owned-dzen-adapter-lifecycle.md](owned-dzen-adapter-lifecycle.md). It extends the
+existing task command with stored-only preview, exact release and original-attempt
+reconciliation. Source availability does not supersede this mandatory route or
+clear any denial. Deployment, real readiness and owner UAT remain separate gates.

@@ -1,0 +1,61 @@
+ Container tower-vk-dzen-integration-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+{"event":"publication_diagnostic","service":"publication","isError":true,"code":"OWNED_PACKAGE_CONFLICT","message":"The current accepted package differs from the expected release binding.","reasons":[{"code":"OWNED_PACKAGE_CONFLICT","field":"accepted_package","message":"The current accepted package differs from the expected release binding.","action":"Read the current accepted revision, asset, account and manifest with the owner. Preserve the existing release and attempts; reconcile uncertainty before considering any new approval."}],"retry_allowed":false}
+✖ SECURITY demo Owner is rejected at actual registered MCP release and before provider or writes (2373.251045ms)
+✖ SECURITY canonical fact commit holds user and membership authority against concurrent revocation (203.281007ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3609.200433
+
+✖ failing tests:
+
+test at ../../workspace/tests/tdpd/owned-publication-lifecycle.test.cjs:268:1
+✖ SECURITY demo Owner is rejected at actual registered MCP release and before provider or writes (2373.251045ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'OWNED_PACKAGE_CONFLICT'
+  - 'OWNED_DEMO_READ_ONLY'
+           ^
+  
+      at TestContext.<anonymous> (/workspace/tests/tdpd/owned-publication-lifecycle.test.cjs:273:113)
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'OWNED_PACKAGE_CONFLICT',
+    expected: 'OWNED_DEMO_READ_ONLY',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../workspace/tests/tdpd/owned-publication-lifecycle.test.cjs:277:1
+✖ SECURITY canonical fact commit holds user and membership authority against concurrent revocation (203.281007ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Object.afterWrite (/workspace/tests/tdpd/owned-publication-lifecycle.test.cjs:280:382)
+      at async isolationLevel (/workspace/src/services/publication_fact.service.ts:303:34)
+      at async client.$transaction.args.beforeCommit (/workspace/src/services/browser_recovery_fact_transaction.ts:10:16)
+      at async Proxy._transactionWithCallback (/opt/planner/node_modules/@prisma/client/src/runtime/getPrismaClient.ts:696:18)
+      at async OwnedPublicationStore.confirm (/workspace/src/services/owned_publication_store.ts:203:17)
+      at async TestContext.<anonymous> (/workspace/tests/tdpd/owned-publication-lifecycle.test.cjs:281:15)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+

@@ -1,0 +1,299 @@
+ Container tower-vk-dzen-integration-synthetic-db-1  Running
+✔ unsupported reader reports honest capability gap without database admission (2.648153ms)
+✔ temporary read failures retry within durable round budget without owner consent (1.188696ms)
+✔ FOUND uses registered verification and single atomic finalizer, never separate settlement (1.147096ms)
+✔ malformed mismatching or stale verified evidence cannot finalize (2.181941ms)
+✔ provider request budget stops at twenty even if reader requests a hundred pages (0.498803ms)
+✔ NOT_FOUND retries finitely and incomplete ambiguous strong non-delivery claims never permit resend (0.773364ms)
+✔ abort cancels active port, persists safe UNKNOWN and blocks later request permits (0.526063ms)
+✔ port timeout aborts a hung lookup and remaining attempts are bounded (0.538653ms)
+✔ concurrent lease holder prevents duplicate reads and stale settlement returns held conflict (0.406612ms)
+✔ finalization rejection preserves owner/package/permission blocker and no replacement fact writes (0.826954ms)
+✔ invalid scope and legacy state cause zero provider reads (0.313942ms)
+✔ hung repository reserve is bounded by operation deadline and abort (0.193531ms)
+✔ signed URL queries and control characters in known object identity are rejected (0.406252ms)
+✔ overall deadline cancels hanging request accounting without allowing late provider requests (0.291172ms)
+✔ settlement timeout returns conflict without starting another reader (0.273171ms)
+✔ abort while waiting between rounds does not perform another provider read (0.337482ms)
+✔ ambiguous observations cannot be upgraded by verification or sent to finalizer (0.218921ms)
+✔ abort during initial reservation returns promptly without provider reads (0.281861ms)
+✔ unknown outcome code cannot leak raw data or crash diagnostic factory (0.123981ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+✔ same attempt resumes with fenced generation, private new lease and safe idempotent replay (1.9038ms)
+✔ resume denied ownerAuthorized (0.247512ms)
+✔ resume denied permissionAllowed (0.134761ms)
+✔ resume denied approvalActive (0.12337ms)
+✔ resume denied currentApprovalSha256 (0.13462ms)
+✔ resume denied currentPackageSha256 (0.144771ms)
+✔ resume denied projectId (0.132301ms)
+✔ resume denied attemptStatus (0.136251ms)
+✔ resume denied stage (0.147121ms)
+✔ resume denied deliveryCertainty (0.228611ms)
+✔ unsupported executor never mutates (0.164831ms)
+✔ issued permit or incomplete proof never resumes (0.156681ms)
+✔ conflict and changed replay key cannot grant another lease (0.173701ms)
+✔ untrusted malformed request cannot supply technical evidence (0.251822ms)
+✔ untrusted/incomplete executor proof issuedPermitCount (0.14395ms)
+✔ untrusted/incomplete executor proof dispatchCount (0.10421ms)
+✔ untrusted/incomplete executor proof oldExecutorQuiescent (0.088751ms)
+✔ untrusted/incomplete executor proof challengeSupersessionSupported (0.11868ms)
+✔ untrusted/incomplete executor proof executorId (0.090531ms)
+✔ untrusted/incomplete executor proof evidenceRef (0.0804ms)
+✔ repository exceptions propagate for safe boundary serialization without a false resume (0.14284ms)
+✔ malformed immutable proof cannot satisfy equal missing values (0.145681ms)
+✔ committed replay after permit issuance cannot claim executor pickup (0.191971ms)
+✔ committed replay after generation advances is a held conflict (0.147781ms)
+✔ committed replay after pickup lease expiry cannot advertise a usable pickup (0.164741ms)
+✔ committed replay after state is held cannot advertise pickup (0.252531ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+✔ Prisma resume repository never registers an executor by default (0.580923ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+✔ owner CAS requires a visual and materializes one revision-bound art-direction input (1.90823ms)
+✔ generic visual CAS rejects publication evidence, assets, decisions, active inputs and guard drift (0.772464ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+✔ VK real MCP boundary serializes each guard safely and preserves returned state (23.44267ms)
+✔ VK017 app challenge accepts bounded host evidence once and retains no plaintext nonce in diagnostics (6.980855ms)
+✔ VK017 wrong generation, foreign process, fabricated permit and expired app challenge fail closed (4.918995ms)
+✔ VK017 proof predating challenge and submission grant on reconciliation-only state are rejected (1.872069ms)
+✔ VK017 wall capability grants no upload permission and explicit host denial revokes it (0.861474ms)
+✔ VK017 server verifies original bytes for the host-attested exact photo and post (3.162607ms)
+✔ VK017 confirmation attestation requires full matching post/photo proof and is single-use (2.02282ms)
+✔ VK017 challenge, renewal and rebind remain Publisher/project10 scoped with server-bound actor (0.323922ms)
+✔ CONNECTOR-BUNDLE-001 standalone artifact starts without checkout dependencies and rejects missing private config safely (374.360892ms)
+✔ CONNECTOR-BUNDLE-002 private config with unavailable credentials stops before connecting (114.122333ms)
+✔ CONNECTOR-BUNDLE-003 competing local lock stops before connecting and preserves operator evidence (115.501331ms)
+✔ CONSUMER-001 empty authenticated poll reports genuine infrastructure health without provider execution (2.602203ms)
+✔ CONSUMER-002 valid pilot receipt ends blocked rather than publication success (1.9073ms)
+✔ CONSUMER-003 changed immutable package/hash or foreign tenant has no consumer acknowledgement (2.143681ms)
+✔ CONSUMER-004 stale generation cannot report or publish (0.431562ms)
+✔ CONSUMER-005 provider/auth errors remain sanitized and no receipt is fabricated (0.794674ms)
+✔ CONSUMER-006 owner-only config rejects wrong permissions, host, project and symlinks (4.809505ms)
+✔ CONSUMER-007 missing/unsafe credential cannot create a network client (0.756884ms)
+✔ CONSUMER-008 double consumer excluded; graceful restart has a new instance fence (1.611518ms)
+✔ CONSUMER-009 graceful shutdown closes control, releases lock and writes honest private receipt (2.01134ms)
+✔ CONSUMER-010 executable imports no browser/provider worker and never asks for publication tools (0.238521ms)
+✔ CONSUMER-011 server status extras are stripped; disabled host is never online-ready (0.450942ms)
+✔ CONSUMER-012 stale/crash lock is preserved for operator review without automatic unlink (0.417222ms)
+✔ CONSUMER-013 abort/timeout bounds a hung control call and late acknowledgement cannot chain report (10.270303ms)
+✔ CONSUMER-014 report loss resumes owned accepted job without repeating ACK or creating publication (0.811624ms)
+✔ CONSUMER-015 lock initialization failure closes descriptor and preserves fail-closed stale lock (0.844855ms)
+✔ CONSUMER-016 existing pinned environment credential is read without writing value to config or health (0.908395ms)
+✔ CONSUMER-017 environment credential source is exclusive, pinned and unavailable when empty (0.897654ms)
+✔ CONSUMER-018 provider surface selection cannot grant admission or perform execution package fetch (5.207437ms)
+✔ CONSUMER-019 idle provider mode records unverified admission rather than a fresh control denial (0.167671ms)
+✔ CONSUMER-020 provider lock records requested surface while admission remains unverified (0.962095ms)
+✔ CONSUMER-023 optional private operator resource paths remain compatible and cannot grant launch permission (0.619023ms)
+✔ CONSUMER-024 provider terminal confirmation never reports an old-generation blocker (0.403372ms)
+✔ VK016-01: Planner command is queued until a standalone consumer acknowledges, then blocked without publication (4.730534ms)
+✔ VK016-11: realistic repository invalidation blocks transport without losing heartbeat or status visibility (0.582973ms)
+✔ VK016-12: acknowledged job remains resumable by the same healthy consumer after report response loss (0.914405ms)
+✔ VK016-02: repeated and concurrent commands retain one durable job and never pretend it was accepted (0.729414ms)
+✔ VK016-03: inactive consumer reports offline; heartbeat proves only infrastructure (0.346222ms)
+✔ VK016-04: disabled dispatch, wrong actor/project/task or stale package perform no queue writes (0.662803ms)
+✔ VK016-05: revision or owner release changed after queueing blocks acknowledgement (0.409662ms)
+✔ VK016-06: second process cannot replace a healthy host or acknowledge the same job (0.632753ms)
+✔ VK016-07: pre-provider restart changes generation and rejects stale completion without changing task lease (0.811745ms)
+✔ VK016-08: started or uncertain provider attempt prevents dispatch and restart never requeues it (0.708603ms)
+✔ VK016-09: reconciliation with unavailable provider reports UNKNOWN and cannot create fact/checkpoints or permit retry (0.374092ms)
+✔ VK016-10: canonical confirmed fact is returned on replay, without creating a new attempt or fact (0.334271ms)
+✔ DISPATCH-016-DB additive migration enforces package uniqueness and project-scoped immutable references (1827.170426ms)
+✔ DISPATCH-016-DB migration preserves history and contains no destructive rollback (1.115095ms)
+✔ VK016/017-MCP: transport and provider controls require Publisher role and authenticated exact project/actor (0.847054ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+✔ VK016-PACKAGE: repository validates exact independent task, asset, WI and current owner release (14.791946ms)
+✔ VK016-PACKAGE: held handoff or WI and any existing attempt are not ready to execute (5.000835ms)
+✔ VK017 server verifies pinned original photo bytes without cookies or redirects (17.238458ms)
+✔ VK017 photo proof rejects unpinned URLs, mismatched bytes and oversized/nonimage downloads (0.982945ms)
+✔ VK016-PROCESS: real standalone process receives explicit Planner job and persists an honest provider-blocked receipt (155.768196ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+{"event":"publication_diagnostic","service":"vk","isError":true,"code":"VK_CONNECTOR_PROVIDER_PERMISSION_UNVERIFIED","message":"Provider permission has not been verified.","reasons":[{"code":"PROVIDER_PERMISSION_UNVERIFIED","field":"permission","message":"Provider permission has not been verified.","action":"Have the registered adapter verify permitted action-time admission; application heartbeat or approval is not provider permission."}],"retry_allowed":false}
+{"event":"publication_diagnostic","service":"vk","isError":true,"code":"VK_CONNECTOR_PROVIDER_PERMISSION_UNVERIFIED","message":"Provider permission has not been verified.","reasons":[{"code":"PROVIDER_PERMISSION_UNVERIFIED","field":"permission","message":"Provider permission has not been verified.","action":"Have the registered adapter verify permitted action-time admission; application heartbeat or approval is not provider permission."}],"retry_allowed":false}
+{"event":"publication_diagnostic","service":"vk","isError":true,"code":"VK_CONNECTOR_PROVIDER_PERMISSION_UNVERIFIED","message":"Provider permission has not been verified.","reasons":[{"code":"PROVIDER_PERMISSION_UNVERIFIED","field":"permission","message":"Provider permission has not been verified.","action":"Have the registered adapter verify permitted action-time admission; application heartbeat or approval is not provider permission."}],"retry_allowed":false}
+✔ VK017-MCP: registered mutation commands reject unverified admission before provider/DB execution (151.605145ms)
+✔ VK017-DB: lease columns preserve existing blocked job and retain old hostmode until reader rollout (1828.909795ms)
+✔ VK017-DB: additive rollback keeps all jobs, canonical leases and publication history (1.091005ms)
+✔ VK017-DB: competing transport lease bindings cannot win the same generation twice (1222.211596ms)
+✔ VK017 owner resumes the same immutable job with CAS and retains its prior blocker audit (4.821074ms)
+✔ VK017 stale generation, changed release and existing attempt cannot resume for send (1.142836ms)
+✔ VK017 replay preserves one resume generation and safe prior blocker/receipt audit (0.966065ms)
+✔ VK017 lost claim response and executing restart freeze advanced states without lease reset or retry (2.132561ms)
+✔ VK017 invalid advanced package preserves heartbeat and freezes the same job without losing attempt evidence (1.046555ms)
+✔ VK017-RECONCILE: unique exact owner/text/approved media/provider date yields exact match (1.344637ms)
+✔ VK017-RECONCILE: absence requires complete release-through-now bounded wall coverage (0.272621ms)
+✔ VK017-RECONCILE: text match with missing/unacknowledged/different media cannot permit resend (0.299162ms)
+✔ VK017-RECONCILE: ambiguous objects, relative date, foreign link and object overflow remain unknown (0.350122ms)
+✔ VK017-RECONCILE: changed accepted caption cannot establish absence (0.124631ms)
+✔ VK017-RECONCILE: one exact candidate in partial inventory or outside release window stays unknown (0.158461ms)
+✔ VK017-RECONCILE: complete inventory ending at a fresh capture does not invent future coverage (0.11163ms)
+✔ VK017-RECONCILE: coverage beyond its observed capture is unconfirmed (0.10153ms)
+✔ VK017 active provider heartbeat renews the same instance without polling or changing execution state (4.531583ms)
+✔ VK017 replacement process rebinds the same uncertain job only for read-only reconciliation (1.251986ms)
+✔ VK017 reconciliation rebind rejects changed package or canonical attempt without granting a retry (0.800214ms)
+✔ VK022 unknown consumer cannot self-register by polling (1.900009ms)
+✔ VK022 polling cannot upgrade the registered tenant host capability (0.319822ms)
+✔ VK022 another registered healthy host cannot interrupt or take over a live provider job (3.672468ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+✔ VK022 shared snapshot resolves two tenant publications from records without business-ID authority (14.840006ms)
+✔ VK022 shared dispatch and receipt use authenticated tenant and validated host data (7.988981ms)
+✔ VK022 shared dispatch rejects mismatched resolved tenant and changed canonical work binding (0.613483ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+✔ VK017 canonical transaction fence rejects stale generation, hold and cancelled payload before canonical writes (10.913976ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+✔ VK generic direct entry returns independent-adapter handoff without provider or state writes (475.493669ms)
+✔ Dzen unavailable adapter never creates generic browser fallback or exposes provider secrets (1.276606ms)
+✔ VK browser fallback central entry cannot write a browser handoff or infer retry permission (0.601614ms)
+✔ VK022 recorded restrictions match actual owner and action data, never all tenants (2.948805ms)
+✔ VK022 malformed restriction data fails closed without returning raw payload (1.542428ms)
+✔ VK022 shared private config and consumer process two independent tenant/host/package datasets through the same code (6.875866ms)
+✔ VK022 foreign tenant or tampered immutable package cannot be acknowledged (0.578232ms)
+✔ VK022 explicit readiness request validates the requested existing job and exposes distinct unassessed states without live permission (5.95344ms)
+✔ VK022 normal consumer cannot activate an injected operator runtime while the recorded restriction remains (1.055536ms)
+✔ VK022 authenticated actor transport sentinel is normalized server-side and cannot select another tenant (1.155086ms)
+✔ VK022 supplied null restriction metadata fails closed before operator activation or fixture inspection (1.488338ms)
+✔ VK022 wrong requested job/hash stays blocked and control failures are not provider login failures (3.528428ms)
+✔ VK022 shared execution resolves immutable data for tenant 21 without task-specific authority (11.687229ms)
+✔ VK022 shared execution resolves immutable data for tenant 22 without task-specific authority (2.461512ms)
+✔ VK022 foreign principal and partial inventory cannot acquire a lease or send (1.690278ms)
+✔ VK022 wall-photo inventory cannot authorize a Clip submission (0.442452ms)
+✔ VK022 changed canonical binding and started attempts never gain a second send (2.490653ms)
+ℹ tests 145
+ℹ suites 0
+ℹ pass 145
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9295.564147
+✔ DA21 automatic re-accept cannot reset a started exact package after marker replacement (1.065216ms)
+✔ DA21 project art-direction backfill skips owned history before revision or state changes (0.368992ms)
+✔ DA21 generic positive work-item approval cannot reset an owned provider task projection (0.902944ms)
+✔ DA21 leased positive art decision cannot supersede the immutable accepted decision (0.669994ms)
+✔ DA21 attaching a new requested source cannot replace an owned accepted cover (0.424102ms)
+✔ DA02 actual scoped publication request keeps token identity without caller actor field (69.591156ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+✔ DA02 concurrent async requests cannot inherit another tenant or caller actor (5.210806ms)
+✔ DA02 local stdio principal is configured identity, not first owner or request data (0.661913ms)
+✔ DA05 existing publication task command routes arbitrary Dzen data before legacy IDs and Telegram (1611.947636ms)
+✔ DA23 registered existing MCP command rejects transport, session and forged actor input (50.281427ms)
+✔ INTEGRATION cleanup retains live group children after browser parent exits; late child=false (906.41705ms)
+✔ INTEGRATION cleanup retains live group children after browser parent exits; late child=true (810.749772ms)
+✔ INTEGRATION foreign group and reused PID identity receive no signal (768.902267ms)
+✔ INTEGRATION parent-group signal rejects reused leader and leaves foreign groups alive (153.313384ms)
+✔ INTEGRATION spawn failure without pid is handled before late ChildProcess error (59.479094ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+(node:348) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+{"event":"publication_diagnostic","service":"publication","isError":true,"code":"PUBLICATION_PRINCIPAL_REQUIRED","message":"This governed publication has no authenticated operator identity.","reasons":[{"code":"PUBLICATION_PRINCIPAL_REQUIRED","field":"principal","message":"This governed publication has no authenticated operator identity.","action":"Reconnect using the scoped Owner or Publisher profile and inspect the existing task. Actor arguments cannot supply authority."}],"retry_allowed":false}
+{"event":"publication_diagnostic","service":"publication","isError":true,"code":"PUBLICATION_PRINCIPAL_SCOPE_MISMATCH","message":"The selected project differs from the authenticated profile scope.","reasons":[{"code":"PUBLICATION_PRINCIPAL_SCOPE_MISMATCH","field":"project","message":"The selected project differs from the authenticated profile scope.","action":"Select the project bound to this profile or reconnect with the intended project profile. Do not alter actor arguments."}],"retry_allowed":false}
+{"event":"publication_diagnostic","service":"publication","isError":true,"code":"PROVIDER_OPERATION_UNSUPPORTED","message":"The selected provider does not support this governed operation.","reasons":[{"code":"PROVIDER_OPERATION_UNSUPPORTED","field":"operation","message":"The selected provider does not support this governed operation.","action":"Use the documented operation for this task provider; release and reconciliation fields cannot be sent to a different route."}],"retry_allowed":false}
+{"event":"publication_diagnostic","service":"publication","isError":true,"code":"OWNED_PACKAGE_CONFLICT","message":"The current accepted package differs from the expected release binding.","reasons":[{"code":"OWNED_PACKAGE_CONFLICT","field":"accepted_package","message":"The current accepted package differs from the expected release binding.","action":"Read the current accepted revision, asset, account and manifest with the owner. Preserve the existing release and attempts; reconcile uncertainty before considering any new approval."}],"retry_allowed":false}
+{"event":"publication_diagnostic","service":"publication","isError":true,"code":"OWNED_INVENTORY_INCOMPLETE","message":"Complete owned published and draft coverage could not be proved.","reasons":[{"code":"OWNED_INVENTORY_INCOMPLETE","field":"inventory","message":"Complete owned published and draft coverage could not be proved.","action":"Obtain permitted adapter evidence with explicit end-of-list for every required collection. Partial or empty pages never establish absence. Do not send."}],"retry_allowed":false}
+{"event":"publication_diagnostic","service":"publication","isError":true,"code":"OWNED_RECONCILIATION_REQUIRED","message":"The existing attempt or retained provider evidence requires reconciliation.","reasons":[{"code":"OWNED_RECONCILIATION_REQUIRED","field":"publication_attempt","message":"The existing attempt or retained provider evidence requires reconciliation.","action":"Reconcile the existing attempt and provider evidence with the project owner. Do not resend, change the idempotency key or bypass the existing attempt."}],"retry_allowed":false}
+{"event":"publication_diagnostic","service":"publication","isError":true,"code":"OWNED_DZEN_ACTION_SCOPE_UNRESOLVED","message":"The existing Dzen action restriction is unresolved; no provider action was admitted.","reasons":[{"code":"OWNED_DZEN_ACTION_SCOPE_UNRESOLVED","field":"action_permission","message":"The existing Dzen action restriction is unresolved; no provider action was admitted.","action":"Keep the task blocked until the owning permission boundary resolves applicability. Owner approval, another browser, process or API cannot clear the restriction."}],"retry_allowed":false}
+{"event":"publication_diagnostic","service":"publication","isError":true,"code":"OWNED_PROVIDER_OUTCOME_UNCERTAIN","message":"The existing attempt or retained provider evidence requires reconciliation.","reasons":[{"code":"OWNED_PROVIDER_OUTCOME_UNCERTAIN","field":"publication_attempt","message":"The existing attempt or retained provider evidence requires reconciliation.","action":"Reconcile the existing attempt and provider evidence with the project owner. Do not resend, change the idempotency key or bypass the existing attempt."}],"retry_allowed":false}
+✔ DA02 actual registered default command preserves legacy non-Dzen stdio without new principal (1.87409ms)
+✔ DA02 default command preserves Threads selection without inferring an owned principal (0.197531ms)
+✔ DA02 missing owned principal cannot fall through to any legacy executor (0.800425ms)
+✔ DA02 token-bound foreign project rejects before provider metadata lookup (0.475272ms)
+✔ DA02 owned-only release fields cannot fall through to legacy providers (0.279672ms)
+✔ INTEGRATION known owned failure retains static cause and remedy without secret text (0.502023ms)
+✔ INTEGRATION held owned result exposes cause and next step while dropping unsafe fields (0.265581ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+✔ DA15 internal afterWrite binds actual fact identity in same transaction on create (2.04096ms)
+✔ DA15 internal afterWrite binds actual fact identity in same transaction on replay (0.295682ms)
+✔ DA15 unguarded internal afterWrite is rejected before access (0.393612ms)
+✔ INTEGRATION recovery final fencing runs after owned fact link on create (0.739944ms)
+✔ INTEGRATION recovery final fencing runs after owned fact link on replay (0.261692ms)
+✔ DA02 actual HTTP owner and scoped publisher transport retain token principal through registered command (2234.314527ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+✔ DA07 mixed queue selects legacy VK without decoding or starving on Dzen rows (311.739142ms)
+✔ DA07 VK lookup and CAS cannot interpret or change a Dzen job (12.355523ms)
+✔ DA07 cross-provider idempotency collision is explicit, not foreign decode or new job (34.092754ms)
+✔ DA21 actual content edit rejects durable ownership after marker/status replacement (1.070535ms)
+✔ DA21 actual task preparation cannot overwrite lifecycle despite removed quality marker (0.258091ms)
+✔ DA20 actual generic manual/automatic/imported fact guard rejects durable lifecycle ownership (0.204911ms)
+✔ DA20 status projection cannot offer manual confirmation after durable ownership marker removal (0.476352ms)
+ℹ tests 35
+ℹ suites 0
+ℹ pass 35
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12254.609135
+✔ L01/L02 two unrelated owner packages release and publish through same service (732.293492ms)
+✔ L03 dryRun defaults true and foreign/role/stale bindings have zero effect (58.875711ms)
+✔ L04 parallel keys have one claim and one submit permit; all later calls reconcile (169.051614ms)
+✔ L05 started/unknown legacy attempt blocks new release, job and send (38.039335ms)
+✔ L06 retained receipt survives drift and fact failure; same attempt finalizes after repair (141.339512ms)
+✔ L07 legacy retained receipt is adopted into original attempt without new job/release/send (89.128385ms)
+✔ L08 original valid legacy release is consumed without renewed approval identity (121.866953ms)
+✔ L09 lost receipt recovery reads only committed native object and never submits again (147.721935ms)
+✔ L10 separate PostgreSQL processes serialize generic/generic and legacy CAS pattern races (3826.27951ms)
+✔ L11 real mixed-provider queue selection excludes generic binding before legacy VK decoder (47.185951ms)
+✔ L12 denied/incomplete inventory never creates attempt or mutates release job (70.371799ms)
+✔ L13 start and Submit are single-use and lease expiry never permits resend (102.174812ms)
+✔ L14 post-submit role/manifest/package drift retains receipt and blocks fact until repair (111.453559ms)
+✔ L15 claim and receipt audit failures roll back all related PostgreSQL transitions (90.278771ms)
+✔ L16 afterWrite fault rolls back fact, attempt, job-link and audit while receipt survives (143.990236ms)
+✔ L17 wrong native receipt fields/object/time/extra payload stay noncanonical (139.367062ms)
+✔ L18 release replay retains original identity after consumption; stale release/queue binding rejected (190.841775ms)
+✔ L19 legacy stale manifest and multiple attempts freeze rather than renew or adopt (50.091136ms)
+✔ L20 generic and legacy ambiguous aggregate history freezes fact/readback but retains original receipt (211.456831ms)
+✔ L21 current owner-release revocation and manifest drift block start/submit without refreshing claim (74.905783ms)
+✔ L22 historical-only outcome markers deny new release/inventory/claim/send with empty canonical history (177.820309ms)
+✔ L23 receipt serialization retry is DB-only, retains evidence and never re-enters native adapter (96.742404ms)
+✔ L24 concurrent uncertainty and receipt persistence retain evidence; stale Submit cannot resume (109.317918ms)
+✔ L25 exhausted receipt DB retries and failed uncertainty audit return honest held result without resend (83.742358ms)
+✔ L26 foreign-actor historical receipt cannot supply immutable server custody (40.423816ms)
+✔ L27 one invocation deadline spans inventory+publish; aborted adapter has no late Submit or fact (615.380704ms)
+✔ L28 invocation deadline cancels PostgreSQL query and rolls back instead of allowing late release writes (361.380347ms)
+✔ L29 actual PostgreSQL ownership helpers preserve release/job/legacy histories despite removed markers (79.238905ms)
+✔ L30 actual update/prepare/week repair apply+rollback reject held histories without losing ownership (342.837052ms)
+✔ L31 separate actual content-writer and release processes contend on the canonical row lock (2124.483255ms)
+✔ L32 actual fact authorization SELECT obeys invocation deadline and preserves receipt on rollback (366.702784ms)
+✔ L33 actual production facade rejects missing/foreign principal and scoped foreign task before native work (90.046491ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+✔ L34 registered REST material writers reject owned history before fixer/upload/native work (1114.693366ms)
+[EgressDiag] publication_tasks.save_content projectId=173 taskId=176 requestBodyBytes=20 responseBytes=276
+[EgressDiag] publication_tasks.prepare_handoff projectId=173 taskId=176 hasPlan=false bundleResourceFiles=0 publicationBodyBytes=46 responseBytes=1426
+[EgressDiag] publication_tasks.fix_with_critic projectId=173 taskId=176 inputTextBytes=20 outputTextBytes=20 responseBytes=164
+✔ L35 ordinary nonowned REST content/prepare/fixer/upload behavior remains available (45.217551ms)
+✔ L36 REST upload rechecks under lock when owner release commits during storage work (43.370231ms)
+✔ L37 actual top-level retirement uncertainty marker blocks release/send and REST edits (35.831563ms)
+✔ L38 exposed image generation and review refuse owned aggregates without asset/work mutations (39.07088ms)
+✔ L39 ordinary image generation and approval preserve visual workflow with atomic asset/work rollback (45.470452ms)
+✔ L40 storage failure incident after concurrent release preserves owned task and accepted asset (44.798468ms)
+✔ L41 automatic art acceptance/backfill and generic work approval preserve owned aggregate; ordinary approval works (124.158244ms)
+✔ L42 leased art replacement and source attachment preserve released cover; deliberate BLOCKED hold remains audited (69.362725ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+{"event":"publication_diagnostic","service":"publication","isError":true,"code":"OWNED_DEMO_READ_ONLY","message":"Demo identities cannot authorize or execute owned publications.","reasons":[{"code":"OWNED_DEMO_READ_ONLY","field":"identity","message":"Demo identities cannot authorize or execute owned publications.","action":"Use an authenticated non-demo project Owner or authorized Publisher profile. Do not change actor arguments or bypass the demo restriction."}],"retry_allowed":false}
+✔ SECURITY demo Owner is rejected at actual registered MCP release and before provider or writes (229.502883ms)
+✔ SECURITY canonical fact commit holds user and membership authority against concurrent revocation (326.083905ms)
+ℹ tests 43
+ℹ suites 0
+ℹ pass 43
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13904.276274

@@ -35,6 +35,8 @@ services:
     tmpfs:
       - /tmp:rw,nosuid,nodev,size=512m,mode=1777
       - /opt/planner/logs:rw,nosuid,nodev,size=16m,mode=1777
+      - /workspace/logs:rw,nosuid,nodev,size=16m,mode=1777
+      - /opt/planner/dist/connector:rw,nosuid,nodev,size=64m,mode=1777
     build:
       context: ../..
       dockerfile: ops/quality/Dockerfile

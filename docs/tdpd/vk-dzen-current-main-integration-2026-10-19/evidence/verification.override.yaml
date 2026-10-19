@@ -1,0 +1,16 @@
+services:
+  synthetic-db:
+    environment:
+      POSTGRES_DB: shared_browser_synthetic
+  checks:
+    image: planner-vk-dzen-integration:20261019
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=256m,mode=1777
+      - /opt/planner/logs:rw,nosuid,nodev,size=16m,mode=1777
+      - /opt/planner/dist/connector:rw,nosuid,nodev,size=64m,uid=1000,gid=1000,mode=0700
+    environment:
+      DATABASE_URL: postgresql://synthetic:synthetic@synthetic-db:5432/shared_browser_synthetic
+networks:
+  synthetic:
+    ipam:
+      config: !override [{subnet: 10.231.91.0/28}]

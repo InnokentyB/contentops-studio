@@ -1,3 +1,4 @@
+import { hasOwnedPublicationHistory, lockOwnedPublicationTask, assertOwnedPublicationMutable } from './publication_owned_guard';
 import { Prisma } from '@prisma/client';
 import { createHash } from 'node:crypto';
 import {getVisualReassessment,lockVisualContent,assertVisualAssessmentBinding,assertVisualDecisionBinding,assertVisualMutationBeforeRelease,visualReassessmentFulfilled,visualReassessmentError,VisualDecisionCode} from './visual_reassessment_binding';
@@ -14,6 +15,7 @@ import {
 } from './visual_storage_incident.service';
 import { placementForContentAcceptance, publicationPlacementAssetContract } from './publication_placement_contract';
 
+const BLOCKING_VISUAL_DECISION = 'BLOCKED';
 export const ART_DIRECTION_DECISIONS = [
     'NO_VISUAL_NEEDED',
     'GENERATE',
@@ -150,6 +152,12 @@ export class ArtDirectionService {
         if (!item) throw new Error(`ContentItem ${contentItemId} not found`);
         if (['published', 'removed', 'cancelled'].includes(item.status) || !item.draft_text?.trim()) return null;
         assertPublicationTextWithinLimit(item.channel?.type || item.type, item.draft_text, item.channel?.config);
+        const scope = { projectId: item.project_id, taskId: item.id };
+        await lockOwnedPublicationTask(client, scope);
+        if (await hasOwnedPublicationHistory(client, scope)) return null;
+        item = await client.contentItem.findUnique({ where: { id: contentItemId }, include: { channel: true } });
+        if (!item || ['published', 'removed', 'cancelled'].includes(item.status) || !item.draft_text?.trim()) return null;
+        assertPublicationTextWithinLimit(item.channel?.type || item.type, item.draft_text, item.channel?.config);
         await lockVisualContent(client,item.project_id,contentItemId);
         item=await client.contentItem.findUniqueOrThrow({where:{id:contentItemId},include:{channel:true}});
         if(['published','removed','cancelled'].includes(item.status)||!item.draft_text?.trim())return null;
@@ -280,6 +288,9 @@ export class ArtDirectionService {
                 throw new Error('[STALE_CONTENT_REVISION] Decision does not match the accepted content revision');
             }
             if(reassessment&&params.decision.decision===VisualDecisionCode.NotNeeded)throw visualReassessmentError('VISUAL_REASSESSMENT_OWNER_VISUAL_REQUIRED');
+            const scope = { projectId: params.projectId, taskId: item.id };
+            await lockOwnedPublicationTask(tx, scope);
+            if (params.decision.decision !== BLOCKING_VISUAL_DECISION) await assertOwnedPublicationMutable(tx, scope);
             const validated = validateArtDirectionDecision(params.decision, item.visual_mode);
             if(reassessment&&(validated.channel!==(await tx.socialChannel.findUnique({where:{id:reassessment.channel_id}}))?.type||validated.placement!==reassessment.placement))throw visualReassessmentError('VISUAL_REASSESSMENT_PACKAGE_CONFLICT');
             const version = item.visual_decision_version + 1;
@@ -396,6 +407,7 @@ export class ArtDirectionService {
 
     async attachVisualSource(params: { projectId: number; actorId: string; contentItemId: number; fileUrl?: string; fileDataBase64?: string; fileName?: string; mimeType?: string; provenance: Record<string, unknown>; altText?: string; decisionId?:number; reassessmentGeneration?:string }) {
         await requireProjectActorAccess(params.projectId, params.actorId);
+        await assertOwnedPublicationMutable(prisma, { projectId: params.projectId, taskId: params.contentItemId });
         if (!Object.keys(params.provenance || {}).length) throw new Error('[PROVENANCE_REQUIRED] Visual source provenance is required');
         const sourceTarget = await prisma.contentItem.findFirst({
             where: { id: params.contentItemId, project_id: params.projectId },
@@ -445,6 +457,9 @@ export class ArtDirectionService {
         }
         return prisma.$transaction(async (tx) => {
             await lockVisualContent(tx,params.projectId,params.contentItemId);
+            const scope = { projectId: params.projectId, taskId: params.contentItemId };
+            await lockOwnedPublicationTask(tx, scope);
+            await assertOwnedPublicationMutable(tx, scope);
             const item = await tx.contentItem.findFirst({ where: { id: params.contentItemId, project_id: params.projectId }, include: { art_direction_decisions: { where: { status: 'active' }, orderBy: { decision_version: 'desc' }, take: 1 } } });
             if (!item || !item.accepted_revision || item.accepted_revision !== item.content_revision) throw new Error('[TEXT_NOT_ACCEPTED] Attach sources only to the current accepted revision');
             const decision = item.art_direction_decisions[0];
@@ -493,6 +508,9 @@ export class ArtDirectionService {
         let queued = 0;
         for (const candidate of candidates) {
             await prisma.$transaction(async (tx) => {
+                const scope = { projectId, taskId: candidate.id };
+                await lockOwnedPublicationTask(tx, scope);
+                if (await hasOwnedPublicationHistory(tx, scope)) return;
                 if (candidate.content_revision < 1) {
                     await tx.contentItem.update({ where: { id: candidate.id }, data: { content_revision: 1 } });
                 }

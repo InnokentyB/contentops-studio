@@ -7,6 +7,7 @@ import { registerTaskPublicationTools } from '../mcp/tools/task_publication_tool
 import mcpPublicationService from '../services/mcp_publication.service';
 import telegramTaskPublicationService from '../services/telegram_task_publication.service';
 import threadsTaskPublicationService from '../services/threads_task_publication.service';
+import * as ownedPublicationRoute from '../services/publication_owned_route';
 
 async function withClient(run: (client: Client) => Promise<void>) {
     const server = new McpServer({ name: 'publication-diagnostic-acceptance', version: '1' });
@@ -22,6 +23,12 @@ for (const code of ['ACCEPTED_REVISION_REQUIRED', 'PUBLICATION_ATTEMPT_UNCERTAIN
         const logs: unknown[][] = [];
         t.mock.method(console, 'warn', (...args: unknown[]) => { logs.push(args); });
         t.mock.method(threadsTaskPublicationService, 'isThreadsTask', async () => false);
+        let classifications = 0;
+        t.mock.method(ownedPublicationRoute, 'tryOwnedPublicationTask', async (args: Parameters<typeof ownedPublicationRoute.tryOwnedPublicationTask>[0]) => {
+            assert.deepEqual(args, { projectId: 20, taskId: 5000, dryRun: true });
+            classifications += 1;
+            return null;
+        });
         let calls = 0;
         t.mock.method(telegramTaskPublicationService, 'execute', async () => {
             calls += 1; throw new Error(`[${code}] private-provider-payload`);
@@ -37,6 +44,7 @@ for (const code of ['ACCEPTED_REVISION_REQUIRED', 'PUBLICATION_ATTEMPT_UNCERTAIN
             if (code === 'PUBLICATION_ATTEMPT_UNCERTAIN') assert.match(JSON.stringify(payload.reasons), /[Rr]econcile/);
             assert.ok(!JSON.stringify({ result, logs }).includes('private-provider-payload'));
             assert.equal(logs.length, 1); assert.equal(calls, 1);
+            assert.equal(classifications, 1);
         });
     });
 }

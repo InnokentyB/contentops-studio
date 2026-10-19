@@ -5,6 +5,21 @@ type Entry = readonly [field: string, message: string, action: string];
 const reconcile = 'Reconcile the existing attempt and provider evidence with the project owner. Do not resend, change the idempotency key or bypass the existing attempt.';
 const adapter = 'Use the documented Planner command and registered independent adapter. Keep the task blocked if unavailable and request engineering repair; browser, API and manual fallback are forbidden.';
 const catalog: Record<string, Entry> = {
+    PUBLICATION_PRINCIPAL_REQUIRED: ['principal', 'This governed publication has no authenticated operator identity.', 'Reconnect using the scoped Owner or Publisher profile and inspect the existing task. Actor arguments cannot supply authority.'],
+    PUBLICATION_PRINCIPAL_INVALID: ['principal', 'The authenticated publication identity is inconsistent.', 'Reconnect using a valid scoped project credential and ask engineering to inspect the identity binding.'],
+    PUBLICATION_PRINCIPAL_SCOPE_MISMATCH: ['project', 'The selected project differs from the authenticated profile scope.', 'Select the project bound to this profile or reconnect with the intended project profile. Do not alter actor arguments.'],
+    PROVIDER_OPERATION_UNSUPPORTED: ['operation', 'The selected provider does not support this governed operation.', 'Use the documented operation for this task provider; release and reconciliation fields cannot be sent to a different route.'],
+    OWNED_DZEN_ACTION_SCOPE_UNRESOLVED: ['action_permission', 'The existing Dzen action restriction is unresolved; no provider action was admitted.', 'Keep the task blocked until the owning permission boundary resolves applicability. Owner approval, another browser, process or API cannot clear the restriction.'],
+    OWNED_INVENTORY_INCOMPLETE: ['inventory', 'Complete owned published and draft coverage could not be proved.', 'Obtain permitted adapter evidence with explicit end-of-list for every required collection. Partial or empty pages never establish absence. Do not send.'],
+    OWNED_NATIVE_SESSION_UNAVAILABLE: ['connection', 'The configured adapter session does not match the intended account or is unavailable.', 'Ask the authorized operator to inspect the existing adapter connection through its documented route. Do not copy cookies or start a replacement consumer.'],
+    OWNED_PACKAGE_CONFLICT: ['accepted_package', 'The current accepted package differs from the expected release binding.', 'Read the current accepted revision, asset, account and manifest with the owner. Preserve the existing release and attempts; reconcile uncertainty before considering any new approval.'],
+    OWNED_PACKAGE_NOT_ELIGIBLE: ['accepted_package', 'The current package is not eligible for this owned publication operation.', 'Inspect accepted text, visual approval, schedule, release and holds. Resolve the stated prerequisite without changing existing attempt identity.'],
+    OWNED_EXACT_BINDING_REQUIRED: ['release_binding', 'The operation lacks exact accepted package, revision, manifest or approval bindings.', 'Preview the current task and supply its reviewed bindings through the documented operation. Do not invent a release or replace an existing attempt.'],
+    OWNED_RELEASE_REQUIRED: ['owner_release', 'This package has no matching owner release.', 'Ask the authenticated project Owner to review the exact accepted package and issue the documented release before requesting a send.'],
+    OWNED_DEMO_READ_ONLY: ['identity', 'Demo identities cannot authorize or execute owned publications.', 'Use an authenticated non-demo project Owner or authorized Publisher profile. Do not change actor arguments or bypass the demo restriction.'],
+    OWNED_OWNER_REQUIRED: ['owner', 'This owned operation requires the current authenticated project Owner.', 'Use the scoped Owner profile and current project membership; caller actor fields cannot grant authority.'],
+    OWNED_PRINCIPAL_REQUIRED: ['principal', 'The owned operation has no matching authenticated tenant principal.', 'Reconnect through the scoped project profile and use its documented command. Do not supply an alternative actor or project.'],
+    OWNED_LIFECYCLE_IMMUTABLE: ['publication_history', 'An existing publication lifecycle owns this accepted package.', 'Preserve its release, material and attempt history. Inspect and reconcile that lifecycle rather than replacing the content, visual or publication task.'],
     APPROVED_VISUAL_REQUIRED: ['selected_asset', 'An approved visual bound to the accepted revision is required.', 'Select a visual, complete its review for the accepted revision and obtain the required owner release.'],
     APPROVED_VISUAL_NOT_SERVER_RESOLVABLE: ['selected_asset', 'The approved visual does not have a permitted durable HTTPS location.', 'Store the approved visual at a durable server-accessible HTTPS location, then review and release the updated package.'],
     ACCEPTED_REVISION_REQUIRED: ['accepted_revision', 'The current text revision is not accepted.', 'Complete review of the current text revision before requesting owner release.'],
@@ -67,6 +82,15 @@ for (const code of ['TELEGRAM_PUBLICATION_UNCERTAIN', 'VK_PUBLICATION_UNCERTAIN'
         ? 'Another operation has already claimed this publication.'
         : 'The publication result or stable provider identity is unresolved.', reconcile];
 }
+for (const code of ['OWNED_RECONCILIATION_REQUIRED', 'OWNED_HISTORICAL_OUTCOME_REQUIRES_RECONCILIATION', 'OWNED_ATTEMPT_FROZEN', 'OWNED_HISTORY_AMBIGUOUS', 'OWNED_HISTORY_CONFLICT', 'OWNED_LEGACY_HISTORY_UNSUPPORTED', 'OWNED_ORIGINAL_ATTEMPT_REQUIRED', 'OWNED_PROVIDER_OUTCOME_UNCERTAIN', 'OWNED_COMPLETION_REQUIRES_RECONCILIATION', 'OWNED_NATIVE_UNCERTAIN', 'OWNED_RECEIPT_CONFLICT', 'OWNED_RECEIPT_MISMATCH', 'OWNED_LEGACY_RECEIPT_CONFLICT']) {
+    catalog[code] = ['publication_attempt', 'The existing attempt or retained provider evidence requires reconciliation.', reconcile];
+}
+for (const code of ['OWNED_RELEASE_CONFLICT', 'OWNED_RELEASE_BINDING_REQUIRED', 'OWNED_LEGACY_RELEASE_CONFLICT', 'OWNED_ATTEMPT_CONFLICT', 'OWNED_LEGACY_CLAIM_CONFLICT', 'OWNED_JOB_CONFLICT', 'OWNED_QUEUE_KEY_CONFLICT', 'OWNED_CAS_CONFLICT', 'OWNED_OBJECT_CONFLICT']) {
+    catalog[code] = ['publication_binding', 'Stored publication authority differs from the requested operation.', 'Read the current immutable release, job, generation and original attempt. Resolve the conflict with the owner; do not reset, rebind or create replacement send authority.'];
+}
+for (const code of ['OWNED_INVOCATION_TIMED_OUT', 'OWNED_NATIVE_TIMEOUT', 'OWNED_NATIVE_CANCELLED', 'OWNED_NATIVE_CLEANUP_FAILED', 'OWNED_EVIDENCE_STORAGE_UNAVAILABLE']) {
+    catalog[code] = ['adapter_runtime', 'The bounded adapter operation could not finish or retain its evidence safely.', 'Ask engineering to inspect the adapter and evidence storage. Read the original attempt first; interruption never authorizes another send.'];
+}
 function diagnostic(code: string): PublicationDiagnostic {
     const [field, message, action] = catalog[code]!;
     return { code, message, reasons: [{ code, field, message, action }], retry_allowed: false };
@@ -75,6 +99,8 @@ function diagnostic(code: string): PublicationDiagnostic {
 export function diagnoseDirectPublicationError(error: unknown): PublicationDiagnostic {
     const message = error instanceof Error ? error.message : '';
     const code = /^\[([A-Z][A-Z0-9_]+)\](?:\s|$)/.exec(message)?.[1];
+    if (Object.prototype.hasOwnProperty.call(catalog, message)) return diagnostic(message);
+    if (message.startsWith('OWNED_DZEN_ACTION_SCOPE_UNRESOLVED: ')) return diagnostic('OWNED_DZEN_ACTION_SCOPE_UNRESOLVED');
     const exactConfigurationErrors: Record<string, string> = {
         'Threads channel config is missing threads_user_id or access_token': 'THREADS_CONNECTOR_NOT_READY',
         'LinkedIn channel config is missing linkedin_urn or access_token': 'LINKEDIN_CONNECTOR_NOT_READY',
@@ -138,6 +164,16 @@ export function sanitizeTelegramRouteTrace(value: unknown): SafeTelegramRouteTra
 /** Adds safe diagnostics to returned denials. Successful legacy payloads remain unchanged. */
 export function projectDirectPublicationResult(value: unknown): { payload: Record<string, unknown>; diagnostic?: PublicationDiagnostic; isError?: boolean } {
     const result = record(value);
+    if (typeof result.blocker === 'string' && result.blocker.startsWith('OWNED_')
+        && Object.prototype.hasOwnProperty.call(catalog, result.blocker)
+        && ['blocked', 'verification_required'].includes(String(result.state))) {
+        const identifiers = Object.fromEntries(['project_id', 'task_id', 'attempt_id'].flatMap(key => {
+            const id = safeIntegerOrNull(result[key]);
+            return id !== null && id > 0 ? [[key, id]] : [];
+        }));
+        return { payload: { state: result.state, ...identifiers, blocker: result.blocker, retry_allowed: false },
+            diagnostic: diagnostic(result.blocker), isError: true };
+    }
     const status = enumValue(result.status, ['draft', 'ready', 'scheduled', 'review', 'pending', 'accepted', 'approved', 'publishing', 'published', 'failed', 'blocked', 'deferred', 'skipped', 'cancelled', 'rejected', 'needs_review', 'browser_required']);
     if (result.browserRequired === true || result.mode === 'browser') {
         const nested = record(result.reason);

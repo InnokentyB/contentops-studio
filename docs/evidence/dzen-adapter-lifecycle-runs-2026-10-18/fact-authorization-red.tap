@@ -1,0 +1,41 @@
+ Network owned-lifecycle-store_synthetic  Creating
+ Network owned-lifecycle-store_synthetic  Created
+ Container owned-lifecycle-store-synthetic-db-1  Creating
+ Container owned-lifecycle-store-synthetic-db-1  Created
+ Container owned-lifecycle-store-synthetic-db-1  Starting
+ Container owned-lifecycle-store-synthetic-db-1  Started
+Loaded Prisma config from ../../workspace/tests/fixtures/owned-publication-prisma.config.ts.
+
+Prisma schema loaded from ../../workspace/prisma/schema.prisma.
+Datasource "db": PostgreSQL database "shared_browser_synthetic", schemas "planner" at "synthetic-db:5432"
+
+🚀  Your database is now in sync with your Prisma schema. Done in 378ms
+
+✖ L32 actual fact authorization SELECT obeys invocation deadline and preserves receipt on rollback (1672.919025ms)
+✔ L33 actual production facade rejects missing/foreign principal and scoped foreign task before native work (113.800125ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 1
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2371.970333
+
+✖ failing tests:
+
+test at ../../workspace/tests/tdpd/owned-publication-lifecycle.test.cjs:192:1
+✖ L32 actual fact authorization SELECT obeys invocation deadline and preserves receipt on rollback (1672.919025ms)
+  AssertionError [ERR_ASSERTION]: authorization SELECT must be cancelled before the fixture safety unlock
+      at TestContext.<anonymous> (/workspace/tests/tdpd/owned-publication-lifecycle.test.cjs:198:186)
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+

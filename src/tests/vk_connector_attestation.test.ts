@@ -8,7 +8,7 @@ import type { VkConnectorOriginalPhotoProof, VkConnectorPhotoVerification } from
 import type { ConnectorConfirmArgs, ConnectorExecutionIdentity } from '../services/vk_connector_execution_contract';
 
 async function setup(verifyPhoto?: (source: VkConnectorOriginalPhotoProof, hash: string) => Promise<VkConnectorPhotoVerification>) {
-    const h = harness(); h.snapshot.package.bodySha256 = connectorHash('fixture body');
+    const h = harness(true, 'vk_feed_provider'); h.snapshot.package.bodySha256 = connectorHash('fixture body');
     await h.service.dispatch({ ...h.request, expectedPackageSha256: connectorPackageHash(h.snapshot.package) });
     const consumer = { ...h.consumer, mode: 'vk_feed_provider' as const };
     const [queued] = (await h.service.poll(consumer)).jobs;

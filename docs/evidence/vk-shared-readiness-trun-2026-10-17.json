@@ -1,0 +1,56 @@
+{
+  "contract": "VK-SHARED-DELIVERY-022",
+  "date": "2026-10-17",
+  "scope": "Shared data-driven VK delivery boundary, consumer/preflight diagnostics and sandboxed synthetic browser checks",
+  "execution": "Builds and tests in disposable network-disabled Docker containers on tower-linux; local source quality gate",
+  "resultsReportedByRoot": {
+    "backendBuild": "PASS",
+    "sharedFocusedTests": {
+      "passed": 24,
+      "total": 24
+    },
+    "finalRegression": {
+      "passed": 372,
+      "total": 372,
+      "skipped": 0
+    },
+    "preflightTests": {
+      "passed": 12,
+      "total": 12
+    },
+    "frontendBuild": "PASS",
+    "consumerBundle": "PASS",
+    "publicationMethodDesktopMobile": {
+      "passed": 7,
+      "total": 7
+    },
+    "qualityGate": "PASS; no hard stops; runtime policy 6829 existing findings / 6829 baseline; audit score 77 existing baseline"
+  },
+  "nullRestrictionRegression": {
+    "scenario": "Supplied null restriction metadata cannot activate operator runtime, acknowledge a job or inspect a preflight fixture",
+    "causalRed": "FAIL: corrected strict poll fixture with only the two undefined-only fallbacks reverted inside an ephemeral container invoked operator once; expected zero",
+    "redLog": "/home/innokenty/migration-evidence/tower-infra-20261016/vk-null-corrected-red.log",
+    "green": "PASS in root-reported shared focused 24/24 run",
+    "excludedEvidence": "Earlier null test failure used status-only fields in a strict poll fixture and failed before the intended guard; it is not causal RED evidence"
+  },
+  "fixtureContractCorrection": "Poll jobs now contain only their strict wire fields. Historical denial scenario supplies explicit scoped restriction metadata rather than importing a production business-ID default.",
+  "limits": [
+    "Authoritative owning-system historical restriction projection is unavailable; metadata absence is not authorization",
+    "Application authorization remains NOT_ASSESSED and provider readiness remains NOT_CHECKED",
+    "productionReady remains false; no live provider, login, profile, publication, configuration or job mutation was performed",
+    "Shared connector Clip execution explicitly FORMAT_UNSUPPORTED; lower-level fixture tests do not establish end-to-end Clip delivery",
+    "No real PostgreSQL integration, live VK search, provider session or post/Clip publication verified in this packet",
+    "Owner UAT and production deployment remain pending"
+  ],
+  "finalLog": "/home/innokenty/migration-evidence/tower-infra-20261016/vk-shared-regression-final.log",
+  "infraAndRepairHistory": [
+    "Initial baseline lacked Chrome channel; shared executable integration repaired",
+    "Initial 2GiB compile exceeded heap; disposable verify service bounded at 4GiB/3GiB heap",
+    "Type narrowing errors repaired without weakening types",
+    "Removed stale files from disposable source copy before rebuild",
+    "Strict poll fixtures and authenticated actor expectation corrected; null guard causal RED separately reproduced",
+    "Synthetic token supplied only for existing Telegram constructor import; no network or bot activation",
+    "Initial GitHub regression failed on Ubuntu AppArmor denying downloaded Chromium user namespaces. CI now selects the existing installed Chrome executable and its distro AppArmor profile, with mandatory real sandbox smoke; no sandbox flags or system-wide security settings relaxed. Final CI rerun pending."
+  ],
+  "review": "Independent cross-review completed; host registration, cross-host lease protection, authenticated principal sentinel and malformed restriction handling repaired and covered by regressions"
+}

@@ -1,7 +1,8 @@
+import { VK_CONNECTOR_SCOPE } from './helpers/vk_connector_fixture';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { evaluateVkConnectorReconciliation, type VkConnectorWallEvidence } from '../services/vk_connector_reconciliation';
-import { connectorHash, VK_CONNECTOR_SCOPE } from '../services/vk_connector_contract';
+import { connectorHash } from '../services/vk_connector_contract';
 const binding = { ...VK_CONNECTOR_SCOPE, bodySha256: connectorHash('Exact accepted text'), assetSha256: 'b'.repeat(64), releaseSha256: 'c'.repeat(64) };
 const now = new Date('2026-10-13T10:00:00Z');
 const releasedAt = '2026-10-10T11:38:03Z';

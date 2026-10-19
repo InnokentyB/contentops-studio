@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { harness } from './helpers/vk_connector_harness';
-import { VK_CONNECTOR_HOST } from '../services/vk_connector_contract';
+import { VK_CONNECTOR_HOST } from './helpers/vk_connector_fixture';
 
 test('VK016-01: Planner command is queued until a standalone consumer acknowledges, then blocked without publication', async () => {
     const h = harness(); const initial = await h.service.dispatch(h.request);

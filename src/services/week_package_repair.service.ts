@@ -1,3 +1,4 @@
+import { assertOwnedPublicationMutable, ownedPublicationMutableWhere, lockOwnedPublicationTask } from './publication_owned_guard';
 import prisma from '../db';
 
 type RepairMove = { contentItemId: number; weekStart: string; weekEnd: string };
@@ -63,6 +64,8 @@ export class WeekPackageRepairService {
 
             const applied = [];
             for (const move of params.moves) {
+                await lockOwnedPublicationTask(tx, { projectId: params.projectId, taskId: move.contentItemId });
+                await assertOwnedPublicationMutable(tx, { projectId: params.projectId, taskId: move.contentItemId });
                 const weekStart = normalizedDate(move.weekStart);
                 const weekEnd = normalizedDate(move.weekEnd);
                 let target = await tx.weekPackage.findUnique({
@@ -88,7 +91,7 @@ export class WeekPackageRepairService {
                 const item = await tx.contentItem.findFirstOrThrow({
                     where: { id: move.contentItemId, project_id: params.projectId }
                 });
-                await tx.contentItem.update({ where: { id: item.id }, data: { week_package_id: target.id } });
+                await tx.contentItem.update({ where: { ...ownedPublicationMutableWhere(), id: item.id }, data: { week_package_id: target.id } });
                 applied.push({ content_item_id: item.id, from_week_package_id: item.week_package_id, to_week_package_id: target.id });
             }
             const result = { project_id: params.projectId, applied, reason: params.reason, replayed: false };
@@ -119,8 +122,10 @@ export class WeekPackageRepairService {
             if (!event) throw new Error('REPAIR_EVENT_NOT_FOUND');
             const previous = (event.after_state as any)?.applied || [];
             for (const move of previous) {
+                await lockOwnedPublicationTask(tx, { projectId: params.projectId, taskId: Number(move.content_item_id) });
+                await assertOwnedPublicationMutable(tx, { projectId: params.projectId, taskId: Number(move.content_item_id) });
                 await tx.contentItem.updateMany({
-                    where: { id: move.content_item_id, project_id: params.projectId, week_package_id: move.to_week_package_id },
+                    where: { id: move.content_item_id, project_id: params.projectId, week_package_id: move.to_week_package_id, ...ownedPublicationMutableWhere() },
                     data: { week_package_id: move.from_week_package_id }
                 });
             }

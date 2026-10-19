@@ -1,164 +1,55 @@
-# Standalone VK infrastructure consumer
+# Registered VK consumer and shared readiness checks
 
-Bundle 016 authorizes infrastructure only. Infrastructure mode accesses no VK profile and creates no publication attempt or
-fact. Delta017 adds a prepared provider surface; its production admission remains
-`PERMISSION_UNVERIFIED` before loading browser/UI code or accessing a profile. A valid receipt ends `blocked / PROVIDER_CONTROL_DENIED`. Railway deployment
-does not install or start this local process.
+The governed route remains Planner command → existing registered independent consumer → adapter-owned session. Read `vk-owned-publication-route.md` first. No Codex browser, personal tab, CDP, API, alternate worker or other-chat fallback is allowed for a denied outcome. A Planner application challenge does not clear an external tool restriction.
 
-Use existing authorized project 10 Publisher MCP credentials. This guide does not
-provision a new credential. Prefer the already-existing process/LaunchAgent memory
-environment `CONTENTOPS_ANALYSTCRAFT_PUBLISHER_TOKEN`. The config stores only its
-name, never its value. Alternatively reference an existing owner-only regular token
-file with mode `0600`; config and token symlinks are rejected. Never put a token in command
-arguments, config JSON, job packages, service-manager environment or logs.
+## Identity and data boundary
 
-Private configuration (absolute paths, file mode `0600`):
+A publication is an authenticated tenant-owned task, accepted revision, channel/community, approved asset, release, immutable package and existing work item. These values are resolved and cross-checked as data. They are not a task/account allowlist in production code. Existing package hash ordering remains compatible; old job, attempt, lease, fact and audit history must not be rewritten during upgrade.
 
-```json
-{
-  "projectId": 10,
-  "hostId": "vk-connector-local-1048",
-  "endpoint": "https://planner-mcp-production.up.railway.app/mcp/publisher",
-  "tokenEnvVar": "CONTENTOPS_ANALYSTCRAFT_PUBLISHER_TOKEN",
-  "runtimeDir": "/absolute/private/vk-connector-runtime",
-  "mode": "infrastructure_only",
-  "buildVersion": "reviewed-build-revision"
-}
-```
+MCP normalizes actor/project to the authenticated Publisher principal. The optional private configuration `actorId` is not authority; the client transport sentinel `authenticated` asks the remote boundary to use its authenticated actor. It is never an authenticated identity by itself. The consumer reuses the existing scoped Publisher credential and logical host/instance fencing. These are not independent hardware/process attestation.
 
-Set exactly one source: the pinned `tokenEnvVar` above, or `tokenFile` with an
-absolute existing private file path. Both together, any other environment name,
-and an empty/missing environment value are rejected. No token is copied into a file.
+Private configuration retains its existing schema: positive project ID, registered host ID, pinned Planner publisher endpoint, owner-only runtime directory, build version and mode. Credential references are exclusive: private token file OR a `CONTENTOPS_*_PUBLISHER_TOKEN` environment reference. Do not copy credential values into source, images, logs or chat. Endpoint binding is still pinned to `https://planner-mcp-production.up.railway.app/mcp/publisher`; generic task data does not permit redirecting this credential to another host.
 
-The endpoint, project and host are pinned. No browser/profile or policy-admission option exists. Mode `vk_feed_provider`
-selects only the prepared execution surface and never grants permission. Its idle
-and blocked health uses `PROVIDER_PERMISSION_UNVERIFIED`; `infrastructure_only`
-retains the previous infrastructure blocker. The runtime directory must belong to the process owner with mode `0700`.
-After the backend build, the reviewed command is:
+`profileDirectory` and `evidenceDir` reference already-existing owner-owned0700 directories without symlinks. They locate resources and grant no execution permission. Do not provision replacement profiles, import/export cookies, or rotate credentials to diagnose missing application composition.
+
+## Registration and managed mode
+
+Poll requires an existing tenant-owned host record and preserves its registered mode. Unknown hosts and requested mode upgrades are rejected. Initial generic host onboarding is not implemented by this slice: obtain a separately reviewed owner-managed registration mechanism rather than treating a poll or a syntactically valid host ID as registration authority. Existing registered hosts remain compatible.
+
+The ordinary command remains:
 
 ```sh
-node /absolute/checkout/dist/workers/vk_connector_consumer.js /absolute/private/config.json
+node dist/workers/vk_connector_consumer.js /absolute/private/config.json
 ```
 
-For macOS LaunchAgent setup, use this command as `ProgramArguments`, no shell and
-no `EnvironmentVariables` secret. The service inherits the already-existing
-launchctl memory environment; this guide does not set or persist it. Keep the service disabled until backend migration,
-restricted MCP tooling and infrastructure smoke are verified. The agent must run
-as the configuration/token owner. SIGTERM/SIGINT stop polling and close MCP before
-releasing the local lock. Polls are serial every 5 seconds; request/connect timeouts
-are 15 seconds; failed-control backoff caps at 60 seconds.
+It serially polls/acknowledges and reports state. Normal launch does not inject a provider runtime factory. `vk_feed_provider` mode or heartbeat online does not prove that provider execution is wired. Never start another instance against a live queue just to test this command. On Tower all commands execute only in a reviewed Docker workload; no Mac Docker or native-host workaround.
 
-`consumer.lock` is exclusive `0600` and contains only process ID/UUID/mode. A competing
-consumer fails closed. A clean restart obtains a new instance UUID and server
-fencing generation. Crash/stale lock recovery is deliberately manual: stop the
-managed service, inspect its PID and process identity, confirm no consumer remains,
-review canonical job/attempt state, and only then remove the stale lock. Never
-remove a lock from a running consumer or reset an uncertain publication to retry.
+A local private lock prevents concurrent consumers. Crash/stale-lock recovery requires inspecting the actual process and canonical job/attempt state; do not remove another process's lock or reset uncertain publication state. Another registered host must not interrupt or take over a healthy host's active job.
 
-Local `health-<instance UUID>.json` files are `0600` and contain safe infrastructure
-receipts only. A local timestamp or process presence does not prove a server
-heartbeat, provider login, permission or publication. Query
-`ba_get_vk_connector_health` and `ba_get_vk_connector_job` through the authorized
-MCP identity for canonical status. OFFLINE after heartbeat freshness expires,
-auth unavailable, disabled dispatch and provider-blocked are distinct from success.
+## Readiness-only operator boundary
 
-Pilot restrictions are project 10/task 1048/channel 117/community-240051152,
-revision 1 / asset 130 / feed and valid immutable body/asset/release hashes. Only explicit
-queued dispatch jobs are consumed; the process never harvests all publication tasks.
+After building, the explicit request selects an EXISTING job and its immutable package:
 
-For a stable installation outside a managed checkout, run `npm run build:vk:connector`
-after installing the frontend build dependencies. This reuses the locked frontend
-esbuild and produces `dist/connector/vk_connector_consumer.cjs`, a standalone file
-with no checkout/node_modules dependency and no embedded credential. Copy that
-reviewed file into a private versioned release directory; use the installed Node
-executable, copied artifact and private config as LaunchAgent ProgramArguments.
-The preferred credential source is the existing pinned launch environment; the
-LaunchAgent contains no raw token EnvironmentVariables.
-
-## Explicit human operator handoff
-
-The managed command above never injects the provider runtime. Resource fields
-`profileDirectory` and `evidenceDir` are optional absolute paths in the existing
-private config; they do not grant permission or activate the managed consumer.
-The existing profile resource is
-`/Users/innokentyb/Library/Application Support/ContentOps/vk-browser/profile`.
-The operator launch validates that it already exists; it never provisions a new profile.
-
-A human operator can use the reviewed checkout and its pinned dependencies with:
-
-```sh
-node dist/workers/vk_connector_consumer.js --operator-run /absolute/private/config.json
+```text
+node dist/workers/vk_connector_consumer.js --operator-preflight /absolute/private/config.json TASK_ID JOB_UUID EXPECTED_PACKAGE_SHA256
 ```
 
-This entry requires installed Playwright and its matching browser assets. The
-standalone artifact remains dependency-free for managed infrastructure mode;
-operator mode additionally requires resolvable pinned Playwright dependencies.
-Stop the managed consumer first and retain its exclusive-lock safeguards. The
-operator entry uses the same existing Publisher credential, immutable package,
-application-host challenges, scoped heartbeat, generation/lease fences and durable
-attempt. Wall and confirmation evidence include original-photo identity and byte
-hashes; missing absolute dates, incomplete pagination or changed/re-encoded image
-bytes leaves verification required and cannot publish again automatically.
+Supply IDs/hash obtained through authorized Planner reads, not a new hardcoded production route. Missing request data fails before control use. This mode calls only preview/get-job/get-health, checks the job again for drift, and inspects directory/dependency metadata. It does not poll, register a host, obtain a lease, issue a challenge, reconcile, upload, send, mutate a fact, or read profile contents. Deadline120s; cleanup30s. Unknown control/cleanup results remain blocked or unknown with sanitized codes; no retry is implied.
 
-On 2026-10-13 the agent's attempt to open the owned community was explicitly denied
-by site-safety, including indirect execution through another browser or adapter.
-The agent must not invoke this entry or install it in the managed LaunchAgent to
-obtain that prohibited outcome. Application challenges authorize product actions;
-they do not clear that tool restriction. This is a handoff to the human operator,
-not a live validation result. Live VK selectors and original-download availability
-remain unverified; local tests use fresh network-blocked contexts only.
+Diagnostics separate control availability, application authorization NOT_ASSESSED, provider readiness NOT_CHECKED and supplied recorded restriction provenance. A missing owning restriction projection is not proof of permission or absence of restrictions. Supplied null/malformed records fail closed. Scoped owning-system records can prohibit a matching operation; no match never grants execution. Current live provenance loading/verification is not established by synthetic fixtures.
 
-For the SAME frozen verification-required job, the explicit human recovery entry is:
+Resources PASS means configured directories and the library are present. It does not prove installed browser assets, login, community rights, selectors, complete inventory or actual media acknowledgement. Production readiness remains false. An offline fixture is explicitly labelled and never becomes live evidence.
 
-```sh
-node dist/workers/vk_connector_consumer.js --operator-reconcile /absolute/private/config.json
-```
+## Execution and reconciliation are distinct
 
-It registers the current host, reads pinned job
-`3f9f1d08-1d1f-49a9-8f2c-cc17d00ac2de`, rebinds with exact generation/hash CAS,
-and performs read-only reconciliation. Proven absence cannot acquire a send lease;
-this entry never resumes or resets the uncertain attempt. All resource directories
-must already exist, be owned by the current user, mode `0700` and non-symlinks.
-Context cleanup has a 30-second deadline. Unconfirmed cleanup stops provider work,
-quarantines further sessions and preserves the lock for explicit operator review.
+The existing explicit `--operator-run` entry can inject the application provider runtime. It is execution-capable, not a harmless login diagnostic. The explicit `--operator-reconcile CONFIG JOB_UUID` can change reconciliation binding/generation. Neither is authorized by a readiness check or infrastructure migration. Do not install either into the managed service to bypass a denial.
 
-## Single mandatory operating source
+Application-host challenges are scoped, short-lived and generation/package/instance/purpose bound. Upload requires canonical lease and a durable attempt first; fresh provider readback/media verification is required for a canonical fact. Started or uncertain results allow reconciliation only, never resend. A queued job, receipt, click, heartbeat or local timestamp is not success.
 
-Follow `docs/operations/vk-owned-publication-route.md`. Documented Planner command
--> registered independent adapter is the only governed Dzen/VK route. Codex never
-opens Dzen or VK with CUA/ComputerUse or private tabs/CDP/session injection, including
-preflight and UAT. Not-ready/failed adapter -> BLOCKED + repair, no browser/API/
-worker/chat/manual fallback. Existing action/site denial and uncertain no-retry rules
-remain unchanged. This bootstrap does not activate provider execution.
+Shared connector image-feed execution is implemented. The existing lower-level Clip helpers remain available for synthetic tests, but shared connector Clip inventory/media acknowledgement is not verified and returns FORMAT_UNSUPPORTED before claim/send. Never use wall-photo absence/proof as Clip absence/proof. Browser search's fixture mode likewise does not establish live DOM/authentication readiness. Search API credentials are separate and do not grant publication rights.
 
-## Readiness-only operator check (#143)
+## Container checks and rollback
 
-Use the reviewed checkout with its installed dependencies, the existing private
-configuration and its existing credential source. Do not paste a token into chat
-or shell history. The pinned launch environment is an existing credential source;
-this command does not automatically import it into a different shell.
+Use `ops/vk-container/README.md` and the reviewed Tower runtime. Shared Chromium launch always enables sandbox and validates an optional immutable executable path. The test image has no session, credential, host socket, public port or network access. No new publisher/scheduler/consumer is activated by its tests.
 
-```sh
-node dist/workers/vk_connector_consumer.js --operator-preflight \
-  "/Users/innokentyb/Library/Application Support/ContentOps/vk-connector-1048/config.json"
-```
-
-This command is now implemented, but is not a live VK login check. It may run
-alongside the managed consumer because it never acquires its lock or polls jobs.
-It reads Planner status and private directory metadata only, then returns sanitized
-JSON. BLOCKED/ACTION_TIME_ADMISSION_UNAVAILABLE is an internal restriction, not a
-VK rejection. UNCONFIGURED profile/evidence means the corresponding existing
-resources have not been set in the private config. PASS dependency means library
-resolution only; browser assets/session/rights/provider media remain NOT_CHECKED.
-The card separately displays the admission reason after refreshing status.
-
-Do not stop the consumer, delete a lock, modify config/credentials, resume a job,
-record a manual fact or run operator-run/reconcile merely to obtain this readiness
-report. ProductionReady staysfalse. Config/environment flags cannot change it.
-
-Actual live admission is still unavailable in the restricted agent context. A
-human handoff does not override denial. Once a genuinely permitted diagnostic
-context is established separately, its own registered-adapter window may require
-personal login/OTP and community-right verification; no such window is opened by
-this command. No current button or approval can be claimed to clear that boundary.
-Report only sanitized status/scope/time, never cookies/headers/profile exports.
+Rollback code by reverting the shared release; preserve immutable job/history and private resource bindings. This change requires no database migration or secret rotation. The owner-approved historical two-field binding/backup remains a separate record. Runtime activation, session migration, provider acceptance and owner UAT remain separate from compilation and offline GREEN.

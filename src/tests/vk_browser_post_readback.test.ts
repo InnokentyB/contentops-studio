@@ -1,3 +1,4 @@
+import { sandboxedChromiumLaunchOptions } from '../services/browser_launch';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
@@ -10,7 +11,7 @@ test('POST-015-01 stale matching wall post cannot confirm a new submission', asy
     const html = '<textarea data-testid="posting_base_screen_input_message"></textarea><div data-testid="post" data-post-id="-240051152_30"><div data-testid="post_text">Exact caption</div><a href="https://vk.com/wall-240051152_30"><time datetime="2026-10-06T12:00:00Z">6 October</time></a></div>';
     const server = createServer((_request, response) => { response.setHeader('Content-Type', 'text/html'); response.end(html); });
     await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
-    const browser = await chromium.launch({ channel: 'chrome', headless: true });
+    const browser = await chromium.launch(sandboxedChromiumLaunchOptions({ headless: true, executablePath: process.env.APP_BROWSER_EXECUTABLE_PATH ?? chromium.executablePath() }));
     try {
         const page = await browser.newPage();
         const ui = new PlaywrightVkBrowserUi(page);
@@ -24,7 +25,7 @@ test('POST-015-01 stale matching wall post cannot confirm a new submission', asy
 });
 
 test('POST-015 proof rejects stale, foreign, ambiguous and undated DOM candidates', async t => {
-    const browser = await chromium.launch({ channel: 'chrome', headless: true });
+    const browser = await chromium.launch(sandboxedChromiumLaunchOptions({ headless: true, executablePath: process.env.APP_BROWSER_EXECUTABLE_PATH ?? chromium.executablePath() }));
     try {
         const page = await browser.newPage();
         await page.route('**/*', route => route.abort());

@@ -1,0 +1,39 @@
+{
+  "prior_commit": "85b731f86050391e223df5ae9dfa76459ee181b5",
+  "failed_ci_job": "https://github.com/InnokentyB/contentops-studio/actions/runs/39127707193/job/117676221601",
+  "scope": "three existing manual-fact guard fixtures, absent lifecycle history, exact refusal retained",
+  "results": {
+    "combined_mocked_legacy_contracts": {
+      "pass": 64,
+      "fail": 0,
+      "skip": 0
+    },
+    "quality": "PASS"
+  },
+  "source": [
+    {
+      "path": "tests/tdpd/linkedin1086-control.unit.test.js",
+      "sha256": "04e9088a985855e0b2020911ab99a57e7cc9c74a376f9a47ed9b7b1b7a97aa48"
+    },
+    {
+      "path": "tests/tdpd/linkedin1128-rev3.unit.test.js",
+      "sha256": "a8ce42fd54aecad11eb5d93504a675efe1f66da1b5092cfbdaa39209a2de57f0"
+    },
+    {
+      "path": "tests/tdpd/linkedin1135.unit.test.js",
+      "sha256": "98148a83d11b184acdf8b9b60a345146dfda29c325c63c265eede3f0a562b363"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "linkedin-fixtures-final.tap",
+      "sha256": "dbdaffb7e91c93a6378d37251a8759a199bd54906f193a5dc104af57f71445ec",
+      "bytes": 7005
+    },
+    {
+      "path": "linkedin-fixtures-quality.txt",
+      "sha256": "f774d1520423ce8a1cc64530a506187a4329525da96e9e677f266b70aa512421",
+      "bytes": 1551
+    }
+  ]
+}

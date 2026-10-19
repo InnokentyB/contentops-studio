@@ -1,0 +1,62 @@
+ Container tower-vk-dzen-integration-synthetic-db-1  Running
+✔ L01/L02 two unrelated owner packages release and publish through same service (787.340057ms)
+✔ L03 dryRun defaults true and foreign/role/stale bindings have zero effect (58.210561ms)
+✔ L04 parallel keys have one claim and one submit permit; all later calls reconcile (182.335215ms)
+✔ L05 started/unknown legacy attempt blocks new release, job and send (42.426358ms)
+✔ L06 retained receipt survives drift and fact failure; same attempt finalizes after repair (144.154873ms)
+✔ L07 legacy retained receipt is adopted into original attempt without new job/release/send (93.01336ms)
+✔ L08 original valid legacy release is consumed without renewed approval identity (118.845742ms)
+✔ L09 lost receipt recovery reads only committed native object and never submits again (180.774188ms)
+✔ L10 separate PostgreSQL processes serialize generic/generic and legacy CAS pattern races (4063.94647ms)
+✔ L11 real mixed-provider queue selection excludes generic binding before legacy VK decoder (62.596169ms)
+✔ L12 denied/incomplete inventory never creates attempt or mutates release job (71.153483ms)
+✔ L13 start and Submit are single-use and lease expiry never permits resend (112.940889ms)
+✔ L14 post-submit role/manifest/package drift retains receipt and blocks fact until repair (147.635426ms)
+✔ L15 claim and receipt audit failures roll back all related PostgreSQL transitions (106.159832ms)
+✔ L16 afterWrite fault rolls back fact, attempt, job-link and audit while receipt survives (175.874948ms)
+✔ L17 wrong native receipt fields/object/time/extra payload stay noncanonical (137.434226ms)
+✔ L18 release replay retains original identity after consumption; stale release/queue binding rejected (232.435013ms)
+✔ L19 legacy stale manifest and multiple attempts freeze rather than renew or adopt (65.953282ms)
+✔ L20 generic and legacy ambiguous aggregate history freezes fact/readback but retains original receipt (257.988835ms)
+✔ L21 current owner-release revocation and manifest drift block start/submit without refreshing claim (97.609388ms)
+✔ L22 historical-only outcome markers deny new release/inventory/claim/send with empty canonical history (257.754274ms)
+✔ L23 receipt serialization retry is DB-only, retains evidence and never re-enters native adapter (130.373617ms)
+✔ L24 concurrent uncertainty and receipt persistence retain evidence; stale Submit cannot resume (183.683359ms)
+✔ L25 exhausted receipt DB retries and failed uncertainty audit return honest held result without resend (108.646482ms)
+✔ L26 foreign-actor historical receipt cannot supply immutable server custody (40.470131ms)
+✔ L27 one invocation deadline spans inventory+publish; aborted adapter has no late Submit or fact (597.821224ms)
+✔ L28 invocation deadline cancels PostgreSQL query and rolls back instead of allowing late release writes (364.488637ms)
+✔ L29 actual PostgreSQL ownership helpers preserve release/job/legacy histories despite removed markers (73.444252ms)
+✔ L30 actual update/prepare/week repair apply+rollback reject held histories without losing ownership (424.344395ms)
+✔ L31 separate actual content-writer and release processes contend on the canonical row lock (2213.997673ms)
+✔ L32 actual fact authorization SELECT obeys invocation deadline and preserves receipt on rollback (344.301577ms)
+✔ L33 actual production facade rejects missing/foreign principal and scoped foreign task before native work (88.13961ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+✔ L34 registered REST material writers reject owned history before fixer/upload/native work (1265.806717ms)
+[EgressDiag] publication_tasks.save_content projectId=112 taskId=114 requestBodyBytes=20 responseBytes=276
+[EgressDiag] publication_tasks.prepare_handoff projectId=112 taskId=114 hasPlan=false bundleResourceFiles=0 publicationBodyBytes=46 responseBytes=1426
+[EgressDiag] publication_tasks.fix_with_critic projectId=112 taskId=114 inputTextBytes=20 outputTextBytes=20 responseBytes=164
+✔ L35 ordinary nonowned REST content/prepare/fixer/upload behavior remains available (85.862001ms)
+✔ L36 REST upload rechecks under lock when owner release commits during storage work (47.244558ms)
+✔ L37 actual top-level retirement uncertainty marker blocks release/send and REST edits (33.575963ms)
+✔ L38 exposed image generation and review refuse owned aggregates without asset/work mutations (49.635198ms)
+✔ L39 ordinary image generation and approval preserve visual workflow with atomic asset/work rollback (52.026376ms)
+✔ L40 storage failure incident after concurrent release preserves owned task and accepted asset (53.898214ms)
+✔ L41 automatic art acceptance/backfill and generic work approval preserve owned aggregate; ordinary approval works (168.928161ms)
+✔ L42 leased art replacement and source attachment preserve released cover; deliberate BLOCKED hold remains audited (69.468536ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+{"event":"publication_diagnostic","service":"publication","isError":true,"code":"OWNED_DEMO_READ_ONLY","message":"Demo identities cannot authorize or execute owned publications.","reasons":[{"code":"OWNED_DEMO_READ_ONLY","field":"identity","message":"Demo identities cannot authorize or execute owned publications.","action":"Use an authenticated non-demo project Owner or authorized Publisher profile. Do not change actor arguments or bypass the demo restriction."}],"retry_allowed":false}
+✔ SECURITY demo Owner is rejected at actual registered MCP release and before provider or writes (261.159837ms)
+✔ SECURITY canonical fact commit holds user and membership authority against concurrent revocation (328.938367ms)
+ℹ tests 43
+ℹ suites 0
+ℹ pass 43
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 15227.494204

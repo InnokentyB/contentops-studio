@@ -1,0 +1,57 @@
+{
+  "repair_commit": "87ddd1667f81eca0834190efce81cf25c911c1cf",
+  "scope": "compose tmpfs and three test fixtures only; production source unchanged",
+  "results": {
+    "focused": {
+      "pass": 21,
+      "fail": 0,
+      "skip": 0
+    },
+    "prepare": {
+      "pass": 1,
+      "fail": 0,
+      "skip": 0
+    },
+    "quality": "PASS"
+  },
+  "source": [
+    {
+      "path": "ops/quality/compose.yaml",
+      "sha256": "19f38af7849d5249d48b820f9548b3ca793178b5279c4e58792f68ef80122423"
+    },
+    {
+      "path": "src/tests/prepare_approval_guard.test.ts",
+      "sha256": "9753dd229107365ad313ad31817011dd7335861854b3ce56f1a2820cb1fd0dc5"
+    },
+    {
+      "path": "tests/tdpd/dzen1002-fact-boundary.test.cjs",
+      "sha256": "3d3add27a5e7d50b1ebfa286b986394ea435f1b867c0cdf878c041b8e7a9d424"
+    },
+    {
+      "path": "tests/tdpd/dzen1002-runtime.test.cjs",
+      "sha256": "153172634cf0f89c73d5199aa87c607c8d89c38fe3e60974060cda7fd872fd6f"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "ci-first-failed.txt",
+      "sha256": "74903b52406b10299ee8a2f969bd8067b3bbceb431f53f3dcdfb9e48c120343d",
+      "bytes": 720963
+    },
+    {
+      "path": "ci-prepare.tap",
+      "sha256": "210bcfc140980bd949ff9308e9818f6f20385c122f09605bb520a98b9c379a21",
+      "bytes": 894
+    },
+    {
+      "path": "ci-quality.txt",
+      "sha256": "3ec00f7cb32dc4cbc2930abaa21d6e1753606a8a4140e0f1fba941cc85f37f84",
+      "bytes": 1551
+    },
+    {
+      "path": "ci-repair-focused.tap",
+      "sha256": "3920e9bd42dc70dba13a142b6795c93389261f5e1a6a0d1e4620157d5be07c6d",
+      "bytes": 4482
+    }
+  ]
+}

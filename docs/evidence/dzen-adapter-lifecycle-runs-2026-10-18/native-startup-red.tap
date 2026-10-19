@@ -1,0 +1,29 @@
+✖ OAR06 SIGKILL before browser resource ACK closes paused startup browser within ten seconds and zero native requests (252.043752ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 308.395033
+
+✖ failing tests:
+
+test at tests/tdpd/owned-publication-adapter-native.cjs:24:1
+✖ OAR06 SIGKILL before browser resource ACK closes paused startup browser within ten seconds and zero native requests (252.043752ms)
+  AssertionError [ERR_ASSERTION]: native browser process survived cleanup
+      at assertBrowsersClosed (/workspace/tests/fixtures/owned-publication-native/root.cjs:2:357)
+      at Object.runStartupCrashScenarios (/workspace/tests/fixtures/owned-publication-native/root.cjs:24:394)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/workspace/tests/tdpd/owned-publication-adapter-native.cjs:24:151)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
