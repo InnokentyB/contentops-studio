@@ -1,0 +1,23 @@
+ Container tower-contentops-linkedin-api-verification-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+✔ 025 actual MCP exposes truthful API operation annotations and projects no credentials (16.587623ms)
+✔ 025 trusted principal denies forged actor and foreign project before service (2.01196ms)
+✔ 025 MCP safe failure names recovery action without upstream error payload (2.01423ms)
+✔ 025 new API commands stay in Owner and Publisher capability boundary (8.128751ms)
+✔ 025 MCP rejects unsafe strings smuggled through otherwise allowed output keys (2.16662ms)
+✔ 025 actual factory carries session principal and enforces Owner/Publisher tool profiles (2562.571172ms)
+✔ 025 actual factory missing principal and mismatched scope never enters service (196.826189ms)
+✔ 025 MCP preserves held preparation reason and distinguishes image permission from probe (2.17735ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3686.532902

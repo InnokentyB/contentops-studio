@@ -1,0 +1,2 @@
+ Container tower-contentops-linkedin-api-verification-synthetic-db-1  Running
+Renamed only OAuth synthetic index: provider_oauth_connection_attempts_project_id_channel_id_create

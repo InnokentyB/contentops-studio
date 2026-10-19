@@ -1,0 +1,44 @@
+name: LinkedIn connection and API contracts
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  synthetic-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      RELIABILITY_TEST_IMAGE: planner-policy-build-check:node24
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - name: Build reviewed compiler image without application startup
+        run: docker compose -f ops/quality/compose.yaml --profile build build build-check
+      - name: Create isolated synthetic databases and current schema
+        run: |
+          docker compose -f tests/tdpd/linkedin-api-connection.compose.yaml up -d synthetic-db
+          docker compose -f tests/tdpd/linkedin-api-connection.compose.yaml run --rm checks npm run migrate:deploy
+          docker compose -f tests/tdpd/linkedin-api-connection.compose.yaml exec -T synthetic-db createdb -U synthetic linkedin_api_synthetic
+          docker compose -f tests/tdpd/linkedin-api-connection.compose.yaml exec -T synthetic-db createdb -U synthetic linkedin_channels_synthetic
+          docker compose -f tests/tdpd/linkedin-api-connection.compose.yaml run --rm -e DATABASE_URL=postgresql://synthetic:synthetic@synthetic-db:5432/linkedin_api_synthetic checks npm run migrate:deploy
+          docker compose -f tests/tdpd/linkedin-api-connection.compose.yaml run --rm -e DATABASE_URL=postgresql://synthetic:synthetic@synthetic-db:5432/linkedin_channels_synthetic checks npm run migrate:deploy
+      - name: Typed provider contracts and real MCP principal boundaries
+        run: |
+          docker compose -f tests/tdpd/linkedin-api-connection.compose.yaml run --rm -e LINKEDIN_API_DELIVERY_ENABLED=false checks sh -c 'node --test --test-concurrency=1 dist/tests/linkedin_api*.test.js && node --test --test-concurrency=1 /source/tests/tdpd/linkedin-api-mcp.test.cjs /source/tests/tdpd/linkedin-api-media.test.cjs'
+      - name: One-use Owner OAuth, typed channel protection and canonical API lifecycle
+        run: |
+          docker compose -f tests/tdpd/linkedin-api-connection.compose.yaml run --rm checks node --test --test-concurrency=1 /source/tests/tdpd/linkedin-oauth-postgres.test.cjs
+          docker compose -f tests/tdpd/linkedin-api-connection.compose.yaml run --rm -e DATABASE_URL=postgresql://synthetic:synthetic@synthetic-db:5432/linkedin_channels_synthetic checks node --test /source/tests/tdpd/linkedin-channel-guards-postgres.test.cjs
+          docker compose -f tests/tdpd/linkedin-api-connection.compose.yaml run --rm -e DATABASE_URL=postgresql://synthetic:synthetic@synthetic-db:5432/linkedin_api_synthetic checks node --test --test-concurrency=1 /source/tests/tdpd/linkedin-api-publication-postgres.test.cjs
+      - name: Quality gate with trusted CI baseline and scoped Git ownership
+        env:
+          RUNTIME_POLICY_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+          GIT_CONFIG_COUNT: '1'
+          GIT_CONFIG_KEY_0: safe.directory
+          GIT_CONFIG_VALUE_0: /source
+        run: docker compose -f tests/tdpd/linkedin-api-connection.compose.yaml run --rm -e RUNTIME_POLICY_BASE_REF -e GITHUB_ACTIONS -e GITHUB_EVENT_NAME -e GIT_CONFIG_COUNT -e GIT_CONFIG_KEY_0 -e GIT_CONFIG_VALUE_0 checks sh -c 'cd /source && npm run quality:gate'
+      - name: Stop only this temporary synthetic stack
+        if: always()
+        run: docker compose -f tests/tdpd/linkedin-api-connection.compose.yaml down

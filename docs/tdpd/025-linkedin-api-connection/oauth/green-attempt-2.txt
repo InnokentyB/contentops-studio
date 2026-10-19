@@ -1,0 +1,32 @@
+ Container tower-contentops-linkedin-api-verification-synthetic-db-1  Running
+Loaded Prisma config from prisma.config.ts.
+
+Script executed successfully.
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+✔ 025 actual HTTP initiation binds selected channel and browser with secure opaque state (192.883649ms)
+✔ 025 explicit channel required; cannot infer or create a channel (10.255442ms)
+✔ 025 invalid browser never exchanges (23.216776ms)
+✔ 025 concurrent actual callbacks consume once and encrypted commit preserves channel (51.409078ms)
+✔ 025 stale config prevents exchange (15.89903ms)
+✔ 025 wrong member does not overwrite or leak (19.191236ms)
+✔ 025 audit failure rolls back final token and callback remains consumed (47.87998ms)
+✔ 025 expiry and denied-consent validate state before any exchange (23.98923ms)
+✔ 025 Owner revocation before callback prevents exchange (11.373017ms)
+✔ 025 Owner revocation during exchange prevents final commit (14.699374ms)
+✔ 025 provider rejection never leaks body and consumed request cannot replay (11.539669ms)
+✔ 025 valid denial consumes once without exchange (11.232266ms)
+✔ 025 foreign project/channel and demo credentials reject initiation (10.058511ms)
+✔ 025 swapped state/browser cannot exchange or create organization replacement (16.101771ms)
+✔ 025 encrypted credentials cannot attest forged metadata or another tenant/channel (37.73202ms)
+✔ 025 organization callback preserves exact author and requires verified ORGANIC_SHARE_CREATE (15.176927ms)
+✔ 025 unbound channel requires expected identity, explicit first-binding stays data-driven (19.664159ms)
+✔ 025 canonical personal profile slug must match actual Profile API vanityName (12.353822ms)
+✔ 025 status never returns token or activates publication, unknown metadata stays unknown (17.269727ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1116.259791

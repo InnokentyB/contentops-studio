@@ -1399,3 +1399,30 @@ model BrowserPreparationExecution {
   @@map("browser_preparation_execution")
   @@schema("planner")
 }
+
+// Durable one-use OAuth custody; contains hashes and safe bindings, never authorization codes or credentials.
+model ProviderOAuthConnectionAttempt {
+  id                   String @id @default(uuid())
+  provider             String
+  purpose              String
+  state_hash           String @unique
+  browser_hash         String
+  client_id            String
+  user_id              Int
+  project_id           Int
+  channel_id           Int
+  account_kind         String
+  expected_author_urn  String?
+  expected_profile_slug String?
+  channel_config_hash  String
+  redirect_uri         String
+  status               String @default("pending")
+  created_at           DateTime @default(now()) @db.Timestamptz(6)
+  expires_at           DateTime @db.Timestamptz(6)
+  consumed_at          DateTime? @db.Timestamptz(6)
+  completed_at         DateTime? @db.Timestamptz(6)
+  failure_code         String?
+  @@index([project_id, channel_id, created_at], map: "provider_oauth_channel_created_idx")
+  @@map("provider_oauth_connection_attempts")
+  @@schema("planner")
+}

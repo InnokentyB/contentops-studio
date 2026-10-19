@@ -1,0 +1,495 @@
+{
+  "lock": "LOCK-025A",
+  "status": "ENGINEERING_FOCUSED_PASS_AWAITING_FINAL_BUILD_QUALITY_AND_OWNER_UAT",
+  "observedAtUtc": "2026-10-19T18:38:12Z",
+  "execution": "Tower Docker only; synthetic isolated PostgreSQL; real Fastify HTTP boundary; provider fetch fixtures only",
+  "image": "sha256:ad906d3836862b1810a2fce96aed37883342e94c940bc7aa15ce1da278ea82b9",
+  "source": "Current read-only /source TypeScript mount, generated Prisma from build03; final compile/build04 owned by root",
+  "schemaSha256": "b9200f3b9ce6f3a1d669368c607d3a1207871b8cdb4362fbd290c51ca69445a6",
+  "database": "linkedin_oauth_synthetic on dedicated internal synthetic-db; no production credentials/ports",
+  "scenarios": [
+    {
+      "scenario": "025 actual HTTP initiation binds selected channel and browser with secure opaque state",
+      "result": "PASS",
+      "durationMs": 160.093784
+    },
+    {
+      "scenario": "025 explicit channel required; cannot infer or create a channel",
+      "result": "PASS",
+      "durationMs": 7.500528
+    },
+    {
+      "scenario": "025 invalid browser never exchanges",
+      "result": "PASS",
+      "durationMs": 18.153032
+    },
+    {
+      "scenario": "025 concurrent actual callbacks consume once and encrypted commit preserves channel",
+      "result": "PASS",
+      "durationMs": 49.981941
+    },
+    {
+      "scenario": "025 stale config prevents exchange",
+      "result": "PASS",
+      "durationMs": 15.408748
+    },
+    {
+      "scenario": "025 wrong member does not overwrite or leak",
+      "result": "PASS",
+      "durationMs": 20.299201
+    },
+    {
+      "scenario": "025 audit failure rolls back final token and callback remains consumed",
+      "result": "PASS",
+      "durationMs": 47.059066
+    },
+    {
+      "scenario": "025 expiry and denied-consent validate state before any exchange",
+      "result": "PASS",
+      "durationMs": 14.401452
+    },
+    {
+      "scenario": "025 Owner revocation before callback prevents exchange",
+      "result": "PASS",
+      "durationMs": 18.676794
+    },
+    {
+      "scenario": "025 Owner revocation during exchange prevents final commit",
+      "result": "PASS",
+      "durationMs": 16.323642
+    },
+    {
+      "scenario": "025 provider rejection never leaks body and consumed request cannot replay",
+      "result": "PASS",
+      "durationMs": 11.763559
+    },
+    {
+      "scenario": "025 valid denial consumes once without exchange",
+      "result": "PASS",
+      "durationMs": 10.964755
+    },
+    {
+      "scenario": "025 foreign project/channel and demo credentials reject initiation",
+      "result": "PASS",
+      "durationMs": 9.707519
+    },
+    {
+      "scenario": "025 swapped state/browser cannot exchange or create organization replacement",
+      "result": "PASS",
+      "durationMs": 16.004401
+    },
+    {
+      "scenario": "025 encrypted credentials cannot attest forged metadata or another tenant/channel",
+      "result": "PASS",
+      "durationMs": 38.161092
+    },
+    {
+      "scenario": "025 organization callback preserves exact author and requires verified ORGANIC_SHARE_CREATE",
+      "result": "PASS",
+      "durationMs": 15.454657
+    },
+    {
+      "scenario": "025 unbound channel requires expected identity, explicit first-binding stays data-driven",
+      "result": "PASS",
+      "durationMs": 20.103881
+    },
+    {
+      "scenario": "025 canonical personal profile slug must match actual Profile API vanityName",
+      "result": "PASS",
+      "durationMs": 12.562973
+    },
+    {
+      "scenario": "025 status never returns token or activates publication, unknown metadata stays unknown",
+      "result": "PASS",
+      "durationMs": 17.323778
+    },
+    {
+      "scenario": "025 same-origin HTTPS and encryption configuration fail before exchange",
+      "result": "PASS",
+      "durationMs": 3.930989
+    },
+    {
+      "scenario": "025 duplicate callback parameters are rejected without consuming or exchanging",
+      "result": "PASS",
+      "durationMs": 6.455632
+    },
+    {
+      "scenario": "025 lost exchange response is consumed with safe recovery guidance, no retry",
+      "result": "PASS",
+      "durationMs": 10.722404
+    },
+    {
+      "scenario": "025 unverified actual grants/client/expiry never overwrite credentials",
+      "result": "PASS",
+      "durationMs": 33.424018
+    },
+    {
+      "scenario": "025 channel change during exchange blocks final credential commit",
+      "result": "PASS",
+      "durationMs": 20.644173
+    },
+    {
+      "scenario": "025 bounded provider response cannot leak an oversized secret body",
+      "result": "PASS",
+      "durationMs": 10.441032
+    },
+    {
+      "scenario": "025 expiry during gated exchange preserves credentials and consumed history",
+      "result": "PASS",
+      "durationMs": 12.625084
+    },
+    {
+      "scenario": "025 exact canonical personal profile slug can establish first member binding",
+      "result": "PASS",
+      "durationMs": 15.582958
+    },
+    {
+      "scenario": "025 organization authority response for another organization cannot bind token",
+      "result": "PASS",
+      "durationMs": 10.990266
+    },
+    {
+      "scenario": "025 actual post-read grant plus bounded finder can produce usable sealed API credentials",
+      "result": "PASS",
+      "durationMs": 350.701263
+    },
+    {
+      "scenario": "025 restricted personal read scope request is opt-in and never grants authority by itself",
+      "result": "PASS",
+      "durationMs": 10.122381
+    },
+    {
+      "scenario": "025 actual read grant without a successful supported reader probe stays blocked",
+      "result": "PASS",
+      "durationMs": 15.325697
+    }
+  ],
+  "regressions": {
+    "passed": 51,
+    "failed": 0,
+    "skipped": 0,
+    "results": [
+      {
+        "scenario": "signed demo session preserves the server-side read-only claim",
+        "result": "PASS",
+        "durationMs": 2.803204
+      },
+      {
+        "scenario": "LinkedIn callback rejects reusable JWT state instead of treating it as durable authority",
+        "result": "PASS",
+        "durationMs": 1.208056
+      },
+      {
+        "scenario": "demo account can read project APIs",
+        "result": "PASS",
+        "durationMs": 0.112981
+      },
+      {
+        "scenario": "demo account cannot change data or trigger publication",
+        "result": "PASS",
+        "durationMs": 0.09597
+      },
+      {
+        "scenario": "demo restriction does not affect regular users or non-API navigation",
+        "result": "PASS",
+        "durationMs": 0.101871
+      },
+      {
+        "scenario": "LinkedIn contract accepts plain text with deliberate block spacing and supported bullets",
+        "result": "PASS",
+        "durationMs": 2.100471
+      },
+      {
+        "scenario": "LinkedIn contract rejects dense prose and Markdown formatting before publication",
+        "result": "PASS",
+        "durationMs": 0.339212
+      },
+      {
+        "scenario": "LinkedIn readback compares semantic blocks instead of bytes",
+        "result": "PASS",
+        "durationMs": 0.232171
+      },
+      {
+        "scenario": "LinkedIn readback detects a merged semantic block",
+        "result": "PASS",
+        "durationMs": 0.15861
+      },
+      {
+        "scenario": "shared publication adapter exposes the LinkedIn contract and operator checklist",
+        "result": "PASS",
+        "durationMs": 0.355051
+      },
+      {
+        "scenario": "Legacy LinkedIn dispatcher rejects direct publication before any provider call",
+        "result": "PASS",
+        "durationMs": 0.987705
+      },
+      {
+        "scenario": "LI-01 trusted attempt receipt independently verifies exact provider object",
+        "result": "PASS",
+        "durationMs": 19.233316
+      },
+      {
+        "scenario": "LI-02 unique history match cannot prove attempted dispatch",
+        "result": "PASS",
+        "durationMs": 1.088555
+      },
+      {
+        "scenario": "LI-03 mismatched provider object never confirms {\"author\":\"urn:li:person:other\"}",
+        "result": "PASS",
+        "durationMs": 0.379941
+      },
+      {
+        "scenario": "LI-03 mismatched provider object never confirms {\"commentary\":\"different\"}",
+        "result": "PASS",
+        "durationMs": 0.341692
+      },
+      {
+        "scenario": "LI-03 mismatched provider object never confirms {\"publishedAt\":50}",
+        "result": "PASS",
+        "durationMs": 0.294992
+      },
+      {
+        "scenario": "LI-03 mismatched provider object never confirms {\"id\":\"urn:li:share:999\"}",
+        "result": "PASS",
+        "durationMs": 0.262932
+      },
+      {
+        "scenario": "LI-03 mismatched provider object never confirms {\"lifecycleState\":\"DRAFT\"}",
+        "result": "PASS",
+        "durationMs": 0.578733
+      },
+      {
+        "scenario": "LI-03 mismatched provider object never confirms {\"content\":{\"media\":{\"id\":\"urn:li:image:unknown\"}}}",
+        "result": "PASS",
+        "durationMs": 0.516262
+      },
+      {
+        "scenario": "LI-04 denied permission and unadmitted route do not call provider",
+        "result": "PASS",
+        "durationMs": 0.540432
+      },
+      {
+        "scenario": "LI-07 cancellation and durable budget prevent HTTP calls",
+        "result": "PASS",
+        "durationMs": 0.257031
+      },
+      {
+        "scenario": "LI-08 arbitrary evidence cannot verify even with matching expected hashes",
+        "result": "PASS",
+        "durationMs": 0.134531
+      },
+      {
+        "scenario": "LI-05 HTTP failures never disclose provider bodies or credentials",
+        "result": "PASS",
+        "durationMs": 0.828354
+      },
+      {
+        "scenario": "LI-05 malformed and oversized payloads are safely incomplete",
+        "result": "PASS",
+        "durationMs": 13.419268
+      },
+      {
+        "scenario": "LI-06 bounded inventory constructs only approved LinkedIn URLs",
+        "result": "PASS",
+        "durationMs": 1.536188
+      },
+      {
+        "scenario": "LI-01 verified image uses trusted upload receipt rather than expected hash alone",
+        "result": "PASS",
+        "durationMs": 0.791094
+      },
+      {
+        "scenario": "LI-08 forged scope and changed receipt cannot verify",
+        "result": "PASS",
+        "durationMs": 0.376832
+      },
+      {
+        "scenario": "LI-07 local request ceiling also bounds a malformed permissive accounting dependency",
+        "result": "PASS",
+        "durationMs": 0.163
+      },
+      {
+        "scenario": "LI-03 reshares and sponsored objects cannot masquerade as ordinary text post",
+        "result": "PASS",
+        "durationMs": 0.379152
+      },
+      {
+        "scenario": "publication task readback removes encrypted and plaintext channel credentials recursively",
+        "result": "PASS",
+        "durationMs": 0.871174
+      },
+      {
+        "scenario": "publication task readback rematerializes task-bound content language into its handoff bundle",
+        "result": "PASS",
+        "durationMs": 0.640033
+      },
+      {
+        "scenario": "sanitizeChannelConfig masks sensitive fields",
+        "result": "PASS",
+        "durationMs": 0.853284
+      },
+      {
+        "scenario": "mergeChannelConfig preserves existing secrets when incoming is masked",
+        "result": "PASS",
+        "durationMs": 0.198471
+      },
+      {
+        "scenario": "mergeChannelConfig updates secrets when incoming has actual new values",
+        "result": "PASS",
+        "durationMs": 0.126951
+      },
+      {
+        "scenario": "Threads access token is encrypted at rest, masked in responses, and resolved for execution",
+        "result": "PASS",
+        "durationMs": 0.963835
+      },
+      {
+        "scenario": "Threads encrypted token in raw_account remains compatible and a masked edit preserves it",
+        "result": "PASS",
+        "durationMs": 0.308682
+      },
+      {
+        "scenario": "Threads legacy plaintext token remains readable until an explicit migration rewrites it",
+        "result": "PASS",
+        "durationMs": 0.126411
+      },
+      {
+        "scenario": "Dzen session cookies are encrypted at rest and masked in API responses",
+        "result": "PASS",
+        "durationMs": 0.259591
+      },
+      {
+        "scenario": "Dzen credentials nested in raw_account are also encrypted and redacted",
+        "result": "PASS",
+        "durationMs": 0.228442
+      },
+      {
+        "scenario": "Dzen credentials nested in raw_account are resolved for connection checks",
+        "result": "PASS",
+        "durationMs": 0.275201
+      },
+      {
+        "scenario": "effective Dzen config keeps legacy raw_account fields but prefers rotated top-level session",
+        "result": "PASS",
+        "durationMs": 0.339362
+      },
+      {
+        "scenario": "GET /api/projects/:id masks secrets",
+        "result": "PASS",
+        "durationMs": 60.376764
+      },
+      {
+        "scenario": "PUT /api/projects/:id/channels/:channelId merges configs",
+        "result": "PASS",
+        "durationMs": 9.003335
+      },
+      {
+        "scenario": "PUT /api/projects/:id/channels/:channelId requires project owner",
+        "result": "PASS",
+        "durationMs": 5.617528
+      },
+      {
+        "scenario": "mergeChannelConfig keeps channel workflow mode",
+        "result": "PASS",
+        "durationMs": 0.135281
+      },
+      {
+        "scenario": "GET /api/projects/:id/mcp/status reports the configured MCP health",
+        "result": "PASS",
+        "durationMs": 8.536983
+      },
+      {
+        "scenario": "POST /api/projects/:id/mcp/workspace-access issues the seven-role bundle only for an owner",
+        "result": "PASS",
+        "durationMs": 6.375032
+      },
+      {
+        "scenario": "workspace access API reports an active bundle and revokes a complete bundle",
+        "result": "PASS",
+        "durationMs": 5.016185
+      },
+      {
+        "scenario": "cleanAndFormatHashtags removes duplicate and double hashtags",
+        "result": "PASS",
+        "durationMs": 0.344262
+      },
+      {
+        "scenario": "cleanAndFormatHashtags handles category fallback tag",
+        "result": "PASS",
+        "durationMs": 0.0987
+      },
+      {
+        "scenario": "generateSlots uses explicit channelId when provided",
+        "result": "PASS",
+        "durationMs": 0.433122
+      }
+    ],
+    "evidence": "regression-output.txt"
+  },
+  "redHistory": [
+    {
+      "evidence": "red-output.txt",
+      "result": "Intended RED 7/7 actual HTTP/PostgreSQL failures against preimplementation routes"
+    },
+    {
+      "evidence": "green-attempt-1.txt",
+      "result": "Infrastructure error: Prisma7 db execute does not accept --schema; corrected invocation before GREEN"
+    },
+    {
+      "evidence": "green-attempt-2.txt",
+      "result": "19/19 initial actual route acceptance PASS"
+    },
+    {
+      "evidence": "expiry-final-commit-red.txt",
+      "result": "27/28 PASS; changed persisted expiry during gated exchange still permitted commit. Fixed fresh custody/deadline read and final expiry CAS."
+    },
+    {
+      "evidence": "oauth-api-link-red.txt",
+      "result": "Intended RED: actual OAuth always set post-read false, blocking otherwise supported API readiness. Fixed actual grant plus bounded author finder GET and documented separate image permission evidence."
+    },
+    {
+      "evidence": "regression-before-closure-fixture-fixes.txt",
+      "result": "49/51 PASS: VK update transaction changed unrelated path; corrected to LinkedIn-only transaction. Stronger LinkedIn governed route denial replaced old native-format integration expectation while preserving zero HTTP/native formatter unit coverage."
+    }
+  ],
+  "migration": {
+    "additiveOnly": true,
+    "productionApplied": false,
+    "index": "provider_oauth_channel_created_idx",
+    "indexEvidence": "index-compatibility-output.txt",
+    "note": "Only isolated OAuth synthetic table SQL applied; explicit short index mapping replaces PostgreSQL-truncated initial name. Production migration/restore readiness is separate."
+  },
+  "checks": {
+    "actualHttpPostgres": "31/31 PASS",
+    "relevantRegression": "51/51 PASS",
+    "backendFrontend": "Root build03 PASS; exact final build04 pending root verification",
+    "qualityGate": "Pending root exact integrated quality check; no exemptions or baseline edits by OAuth package",
+    "uat": "PENDING_EXPLICIT_OWNER_ACCEPTANCE"
+  },
+  "limits": [
+    "No real LinkedIn request, production credential, callback provisioning, migration/deploy, public code export or provider send performed by this package.",
+    "Initial cookie flow requires matching HTTPS API/frontend origin; no global CORS expansion.",
+    "Personal restricted post-read request is default off until actual app approval; actual introspection plus reader probe still required.",
+    "Image-read permission eligibility is not an image object probe. Same-attempt owned AVAILABLE image GET remains mandatory before public send.",
+    "Consent/read probe establishes connection evidence only, never release/send authority.",
+    "Unknown exchange is consumed; no automatic code replay. Persisted attempts/audit/credentials must survive compatible rollback."
+  ],
+  "sourceSha256": {
+    "src/routes/linkedin.routes.ts": "48ec05c1a6d564ae9dd87f9ed74552bba5a0018827e4f631638b8ccce413896e",
+    "src/services/linkedin_oauth.service.ts": "ce3dc86e0211f0c6cda9d07b0ffdcb2e8c4615543096c3fae3a0c224794cba11",
+    "src/services/linkedin_oauth_contract.ts": "31b6eafeff6af2ac8a8fa005a55101a7dc933bf68b88cade982795b5dc3fe9df",
+    "src/services/linkedin_oauth_provider.ts": "e67799010fccf6b3dd946c1a916a7a259e206d6c0868f6433c3a22eb98ad86e7",
+    "src/services/linkedin_oauth_repository.ts": "9c36078ac116e45e7fdea23205936504952dcab57a8fd5709037ccfac334ab03",
+    "src/services/linkedin_connection_credentials.ts": "41e2f8604818c7d3fb32df09e3bf7c743e94839196140b28939a8b3a943928bb",
+    "src/services/auth.service.ts": "5f7dc083edb92e61413d48c9dcb8ea77d0d0e9eabdb988228993daf4a19d3fdb",
+    "src/utils/channel.utils.ts": "c8b0663cfb207e56e6446ae47dd7fbcd053fbfe07e1bc2d0fa0533ea958a6fdc",
+    "src/services/publishers/operational_task_actions.ts": "9cadc98f6239989b03be81216e21fe7dfeb0822ac02a5df7513ee7740f7cec00",
+    "src/server.ts": "f735ec48f3a1e42a95d0f00e5939bc3842aec26be9ca14d76a3cb118263a3c3c",
+    "frontend/src/components/LinkedInConnectionControl.tsx": "59b44e5d6a31473ea7f866c8ff89bdc9d5a0110b9f2f9f6c7fedd5bc9be09537",
+    "frontend/src/pages/Settings.tsx": "aeac9425f0c5a70055646abc2c0738c48a6844e535a6d035b714d268eb118981",
+    "prisma/schema.prisma": "b9200f3b9ce6f3a1d669368c607d3a1207871b8cdb4362fbd290c51ca69445a6",
+    "prisma/migrations/20261019190000_provider_oauth_connection_attempts/migration.sql": "95d6aada026cd65409100d67695de6a858cf48a306426e6846247b13369aa90d",
+    ".env.example": "e8dcc6feb290327a87f887711d9bd0eb9da978133f7cf3400892e8b5a4e56276"
+  }
+}

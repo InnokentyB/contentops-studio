@@ -401,6 +401,8 @@ const STRATEGIST_TOOLS = new Set(
 );
 
 export function isToolAllowedForProfile(profile: McpCapabilityProfile, toolName: string) {
+    if(toolName==='ba_release_linkedin_api_publication')return profile==='owner';
+    if(['ba_get_linkedin_api_readiness','ba_publish_linkedin_api_publication','ba_reconcile_linkedin_api_publication'].includes(toolName))return profile==='owner'||profile==='publisher';
     if(toolName==='ba_reconcile_threads_publication')return profile==='owner'||profile==='publisher';
     if (profile === 'owner') return true;
     if (profile === 'writer') return WRITER_TOOLS.has(toolName);

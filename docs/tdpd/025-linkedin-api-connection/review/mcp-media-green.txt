@@ -1,0 +1,28 @@
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+✔ 025 actual MCP exposes truthful API operation annotations and projects no credentials (45.605449ms)
+✔ 025 trusted principal denies forged actor and foreign project before service (2.113541ms)
+✔ 025 MCP safe failure names recovery action without upstream error payload (2.825764ms)
+✔ 025 new API commands stay in Owner and Publisher capability boundary (9.132805ms)
+✔ 025 MCP rejects unsafe strings smuggled through otherwise allowed output keys (2.565234ms)
+✔ 025 actual factory carries session principal and enforces Owner/Publisher tool profiles (2992.210202ms)
+✔ 025 actual factory missing principal and mismatched scope never enters service (239.316303ms)
+✔ 025 media resolves only canonical managed bytes and verifies accepted SHA (21.625389ms)
+✔ 025 media wrong tenant, asset, provenance and URL are denied before fetch (0.970215ms)
+✔ 025 media truncated, changed, oversized and redirected responses never yield publish bytes (1.204176ms)
+✔ 025 media network error never reveals secret-bearing upstream diagnostics (0.401592ms)
+✔ 025 aborted media request makes zero storage calls (0.465212ms)
+✔ 025 streamed oversized body without content length is bounded and cancelled (6.366102ms)
+✔ 025 actual response MIME and accepted binary dimensions must match (1.753888ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4558.855447

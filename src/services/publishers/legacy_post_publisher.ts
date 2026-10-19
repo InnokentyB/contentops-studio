@@ -59,7 +59,8 @@ export class LegacyPostPublisher {
         });
 
         const duePosts = await selectLegacyNonVkPosts(prisma, candidates);
-        if (duePosts.length !== candidates.length) logToFile('INFO', vkPublicationAdapterRequired().code);
+        if (candidates.some(post => post.channel?.type === 'linkedin')) logToFile('INFO', 'LINKEDIN_API_GOVERNED_ROUTE_REQUIRED');
+        if (candidates.some(post => isVkPublicationPlatform(post.channel?.type))) logToFile('INFO', vkPublicationAdapterRequired().code);
         if (duePosts.length === 0) {
             return 0;
         }
@@ -77,7 +78,7 @@ export class LegacyPostPublisher {
 
             try {
                 const channel = await resolveLegacyPublicationChannel(prisma, post);
-                if (!channel || isVkPublicationPlatform(channel.type)) {
+                if (!channel || channel.type === 'linkedin' || isVkPublicationPlatform(channel.type)) {
                     logToFile('INFO', 'LEGACY_PUBLICATION_BINDING_HELD');
                     continue; // A claim may already exist; unknown/VK binding never becomes a blind retry.
                 }
@@ -338,6 +339,7 @@ export class LegacyPostPublisher {
         }
 
         const effectiveChannel = await resolveLegacyPublicationChannel(prisma, post);
+        if (effectiveChannel?.type === 'linkedin') throw new Error('[LINKEDIN_API_GOVERNED_ROUTE_REQUIRED] Use the governed LinkedIn API lifecycle; preserve existing uncertain attempts.');
         if (effectiveChannel && isVkPublicationPlatform(effectiveChannel.type)) rejectVkDirectPublication();
         if (!effectiveChannel) throw new Error(`Channel config not found for post ${postId}`);
         try {

@@ -9,6 +9,7 @@ import storageService from '../../services/storage.service';
 import generatorService from '../../services/generator.service';
 import workQueueService from '../../services/work_queue.service';
 import { CreateChannelSchema } from '../../schemas/routes.schema';
+import {protectLinkedInConnectionConfig,LinkedInConnectionFieldsProtected} from '../../services/linkedin_connection_config_guard';
 import {
     sanitizeChannelConfig,
     mergeChannelConfig,
@@ -67,8 +68,9 @@ export default async function projectChannelsRoutes(fastify: FastifyInstance) {
 
         let storedConfig: Record<string, unknown>;
         try {
-            storedConfig = prepareChannelConfigForStorage(type, config);
+            storedConfig = prepareChannelConfigForStorage(type, type==='linkedin'?protectLinkedInConnectionConfig(config):config);
         } catch (error: unknown) {
+            if(error instanceof LinkedInConnectionFieldsProtected)return reply.code(400).send({code:error.code,error:error.message,action:error.action});
             return reply.code(400).send({ error: (error as Error).message });
         }
 
@@ -101,36 +103,32 @@ export default async function projectChannelsRoutes(fastify: FastifyInstance) {
             return;
         }
 
-        const existingChannel = await prisma.socialChannel.findUnique({
-            where: { id: parsedChannelId, project_id: projectId }
-        });
-
-        if (!existingChannel) {
-            return reply.code(404).send({ error: 'Channel not found' });
-        }
-
-        let mergedConfig: Record<string, unknown>;
         try {
-            mergedConfig = prepareChannelConfigForStorage(
-                existingChannel.type,
-                mergeChannelConfig(config, (existingChannel.config as Record<string, unknown>) || {})
-            );
-        } catch (error: unknown) {
-            return reply.code(400).send({ error: (error as Error).message });
-        }
-
-        const channel = await prisma.socialChannel.update({
-            where: { id: parsedChannelId, project_id: projectId },
-            data: {
-                name,
-                config: mergedConfig as any
+            const initialChannel=await prisma.socialChannel.findUnique({where:{id:parsedChannelId,project_id:projectId}});
+            if(!initialChannel)return reply.code(404).send({error:'Channel not found'});
+            if(initialChannel.type!=='linkedin'){
+                const mergedConfig=prepareChannelConfigForStorage(initialChannel.type,mergeChannelConfig(config,initialChannel.config));
+                const channel=await prisma.socialChannel.update({where:{id:parsedChannelId,project_id:projectId},data:{name,config:mergedConfig}});
+                return {...channel,config:sanitizeChannelConfig(channel.type,channel.config)};
             }
-        });
-
-        return {
-            ...channel,
-            config: sanitizeChannelConfig(channel.type, channel.config)
-        };
+            const channel=await prisma.$transaction(async tx=>{
+                await tx.$queryRaw`SELECT id FROM planner.social_channels WHERE project_id=${projectId} AND id=${parsedChannelId} FOR UPDATE`;
+                const existingChannel = await tx.socialChannel.findUnique({where: { id: parsedChannelId, project_id: projectId }});
+                if (!existingChannel) return null;
+                if(existingChannel.type!=='linkedin')throw new LinkedInConnectionFieldsProtected();
+                const mergedConfig = prepareChannelConfigForStorage(existingChannel.type,
+                    protectLinkedInConnectionConfig(config,existingChannel.config));
+                return tx.socialChannel.update({
+                    where: { id: parsedChannelId, project_id: projectId },
+                    data: {name, config: mergedConfig as any}
+                });
+            });
+            if(!channel)return reply.code(404).send({error:'Channel not found'});
+            return {...channel, config: sanitizeChannelConfig(channel.type, channel.config)};
+        }catch(error:unknown){
+            if(error instanceof LinkedInConnectionFieldsProtected)return reply.code(400).send({code:error.code,error:error.message,action:error.action});
+            return reply.code(400).send({error:'Channel settings could not be saved.',code:'CHANNEL_SETTINGS_SAVE_FAILED',action:'Refresh the channel settings and retry. If the problem persists, ask the administrator to inspect database and encryption configuration.'});
+        }
     });
 
     // Test connection

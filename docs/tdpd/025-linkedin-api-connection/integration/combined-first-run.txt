@@ -1,0 +1,121 @@
+ Container tower-contentops-linkedin-api-verification-synthetic-db-1  Running
+✔ public send uses REST Posts and retains trusted response object ID (14.488653ms)
+✔ accepted image upload failure cannot downgrade into public text send (1.692438ms)
+✔ malicious upload destination never receives accepted bytes (0.406252ms)
+✔ missing identity after accepted public send is UNKNOWN without retry (0.540003ms)
+✔ image readiness requires correct owner and AVAILABLE (2.893694ms)
+✔ ordinary accepted punctuation is escaped as literal LittleText and decoded on GET (1.361597ms)
+✔ unapproved rich LittleText mention cannot be verified as plain accepted body (0.361412ms)
+✔ documented text-only GET may return empty content object (0.450672ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+✔ legacy low-level LinkedIn sender rejects valid content before fetch (1.646428ms)
+✔ legacy task dispatcher refuses governed LinkedIn work before route rewrite (0.432192ms)
+✔ browser fallback cannot revive LinkedIn delivery via direct call (0.196971ms)
+✔ legacy LinkedIn hold diagnostic names its actual route and repair (0.332292ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+✔ default disabled governed API refuses public send before any database or provider operation (2.07252ms)
+✔ malformed scope cannot reach governed release or reconcile (1.632798ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 810.696926
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+✔ 025 actual MCP exposes truthful API operation annotations and projects no credentials (15.587618ms)
+✔ 025 trusted principal denies forged actor and foreign project before service (1.98038ms)
+✔ 025 MCP safe failure names recovery action without upstream error payload (1.803159ms)
+✔ 025 new API commands stay in Owner and Publisher capability boundary (6.162751ms)
+✔ 025 MCP rejects unsafe strings smuggled through otherwise allowed output keys (1.759949ms)
+✔ 025 actual factory carries session principal and enforces Owner/Publisher tool profiles (2596.788773ms)
+✔ 025 actual factory missing principal and mismatched scope never enters service (182.477626ms)
+✔ 025 MCP preserves held preparation reason and distinguishes image permission from probe (1.787079ms)
+✔ 025 media resolves only canonical managed bytes and verifies accepted SHA (20.034831ms)
+✔ 025 media wrong tenant, asset, provenance and URL are denied before fetch (0.919415ms)
+✔ 025 media truncated, changed, oversized and redirected responses never yield publish bytes (1.162076ms)
+✔ 025 media network error never reveals secret-bearing upstream diagnostics (0.432933ms)
+✔ 025 aborted media request makes zero storage calls (0.412342ms)
+✔ 025 streamed oversized body without content length is bounded and cancelled (5.457927ms)
+✔ 025 actual response MIME and accepted binary dimensions must match (1.278386ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4026.645761
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+✔ 025 actual HTTP initiation binds selected channel and browser with secure opaque state (161.05043ms)
+✔ 025 explicit channel required; cannot infer or create a channel (11.770889ms)
+✔ 025 invalid browser never exchanges (14.186042ms)
+✔ 025 concurrent actual callbacks consume once and encrypted commit preserves channel (47.67874ms)
+✔ 025 stale config prevents exchange (14.707274ms)
+✔ 025 wrong member does not overwrite or leak (18.964045ms)
+✔ 025 audit failure rolls back final token and callback remains consumed (46.740536ms)
+✔ 025 expiry and denied-consent validate state before any exchange (14.529173ms)
+✔ 025 Owner revocation before callback prevents exchange (10.798054ms)
+✔ 025 Owner revocation during exchange prevents final commit (15.762629ms)
+✔ 025 provider rejection never leaks body and consumed request cannot replay (11.735859ms)
+✔ 025 valid denial consumes once without exchange (11.326177ms)
+✔ 025 foreign project/channel and demo credentials reject initiation (9.968241ms)
+✔ 025 swapped state/browser cannot exchange or create organization replacement (16.272762ms)
+✔ 025 encrypted credentials cannot attest forged metadata or another tenant/channel (40.235332ms)
+✔ 025 organization callback preserves exact author and requires verified ORGANIC_SHARE_CREATE (16.237322ms)
+✔ 025 unbound channel requires expected identity, explicit first-binding stays data-driven (20.479933ms)
+✔ 025 canonical personal profile slug must match actual Profile API vanityName (12.515233ms)
+✔ 025 status never returns token or activates publication, unknown metadata stays unknown (16.667404ms)
+✔ 025 same-origin HTTPS and encryption configuration fail before exchange (3.89698ms)
+✔ 025 duplicate callback parameters are rejected without consuming or exchanging (6.401302ms)
+✔ 025 lost exchange response is consumed with safe recovery guidance, no retry (10.520443ms)
+✔ 025 unverified actual grants/client/expiry never overwrite credentials (32.899525ms)
+✔ 025 channel change during exchange blocks final credential commit (19.89603ms)
+✔ 025 bounded provider response cannot leak an oversized secret body (10.525133ms)
+✔ 025 expiry during gated exchange preserves credentials and consumed history (13.367148ms)
+✔ 025 exact canonical personal profile slug can establish first member binding (14.297632ms)
+✔ 025 organization authority response for another organization cannot bind token (10.570243ms)
+✖ 025 actual post-read grant plus bounded finder can produce usable sealed API credentials (347.292726ms)
+✔ 025 restricted personal read scope request is opt-in and never grants authority by itself (10.782214ms)
+✔ 025 actual read grant without a successful supported reader probe stays blocked (13.970481ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 30
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1562.695145
+
+✖ failing tests:
+
+test at ../../source/tests/tdpd/linkedin-oauth-postgres.test.cjs:39:1
+✖ 025 actual post-read grant plus bounded finder can produce usable sealed API credentials (347.292726ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - false
+
+      at TestContext.<anonymous> (/source/tests/tdpd/linkedin-oauth-postgres.test.cjs:39:1654)
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

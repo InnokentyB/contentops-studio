@@ -6,6 +6,7 @@ import { registerLinkedIn1135Tools } from './tools/linkedin1135_tools';
 import { registerBrowserPublicationTools } from './tools/browser_publication_tools';
 import { registerXNativeTools } from './tools/x_native_tools';
 import { registerPublicationPreviewTools } from './tools/publication_preview_tools';
+import { registerLinkedInApiTools } from './tools/linkedin_api_tools';
 import type { RemotePrincipal } from './remote-auth';
 import prisma, { pool } from '../db';
 import workQueueService from '../services/work_queue.service';
@@ -71,6 +72,7 @@ export function createPlannerMcpServer(options: { profile?: McpCapabilityProfile
 
     registerPlannerTools(server);
     registerPublicationPreviewTools(server, options.principal);
+    registerLinkedInApiTools(server, options.principal);
     return filterMcpServerTools(server, profile);
 }
 

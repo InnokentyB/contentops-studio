@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { isDemoMutationBlocked } from '../utils/demo_access';
+import { oauthCallbackSchema } from '../services/linkedin_oauth_contract';
 import authService from '../services/auth.service';
 
 const demoUser = { id: 101, email: 'demo@example.test', name: 'Product Demo', is_demo: true };
@@ -11,13 +12,9 @@ test('signed demo session preserves the server-side read-only claim', () => {
     assert.equal(authService.verifyToken(token).is_demo, true);
 });
 
-test('LinkedIn OAuth state is signed, scoped, and rejects tampering', () => {
-    const state = authService.createLinkedInOAuthState(101, 202);
-    const binding = authService.verifyLinkedInOAuthState(state);
-    assert.equal(binding.purpose, 'linkedin_oauth');
-    assert.equal(binding.user_id, 101);
-    assert.equal(binding.project_id, 202);
-    assert.throws(() => authService.verifyLinkedInOAuthState(`${state}x`));
+test('LinkedIn callback rejects reusable JWT state instead of treating it as durable authority', () => {
+    const oldState = Buffer.from(JSON.stringify({ purpose: 'linkedin_oauth', user_id: 101, project_id: 202 })).toString('base64url');
+    assert.equal(oauthCallbackSchema.safeParse({ state: oldState, code: 'synthetic' }).success, false);
 });
 
 test('demo account can read project APIs', () => {

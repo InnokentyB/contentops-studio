@@ -1,3 +1,4 @@
+import { LinkedInConnectionControl } from '../components/LinkedInConnectionControl'
 import { VkSearchTokenField } from '../components/VkSearchTokenField'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { ApiJson } from '../types/api-json'
@@ -575,7 +576,6 @@ export default function Settings() {
     const [newThreadsConnectionFeedback, setNewThreadsConnectionFeedback] = useState<string | null>(null)
     const [newChannelWorkflowMode, setNewChannelWorkflowMode] = useState<'prepare_only' | 'manual_handoff' | 'approval_required' | 'auto_publish'>('approval_required')
     const [newChannelContentLanguage, setNewChannelContentLanguage] = useState<'ru' | 'en'>('ru')
-    const [linkedinConnecting, setLinkedinConnecting] = useState(false)
     const [newVkStatsToken, setNewVkStatsToken] = useState('')
     const [newVkUserToken, setNewVkUserToken] = useState('')
     const [newVkSearchToken, setNewVkSearchToken] = useState('')
@@ -1107,26 +1107,7 @@ export default function Settings() {
     }
 
 
-    const handleLinkedInConnect = async () => {
-        if (!currentProject?.id || !token) return showToast('Authentication required', 'error')
-        setLinkedinConnecting(true)
-        try {
-            const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3003'
-            const response = await fetch(`${apiBase}/api/auth/linkedin/connect?projectId=${currentProject.id}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            })
-            const result = await response.json()
-            if (!response.ok || !result.url) throw new Error(result.error || 'LinkedIn connection failed')
-            window.location.assign(result.url)
-        } catch (error) {
-            showToast(
-                locale === 'ru' ? 'Не удалось начать подключение LinkedIn' : 'Could not start LinkedIn connection',
-                'error',
-                error instanceof Error ? error.message : undefined
-            )
-            setLinkedinConnecting(false)
-        }
-    }
+
 
     const handleAddChannel = () => {
         if (!newChannelName) return showToast('Channel Name is required', 'warning');
@@ -2035,23 +2016,11 @@ export default function Settings() {
                                 </div>
                             ) : (
                                 <div style={{ gridColumn: '1 / -1' }}>
-                                    <label>Connect to LinkedIn</label>
-                                    <p className="text-muted" style={{ fontSize: '0.8rem', marginBottom: '1rem' }}>
-                                        Connect LinkedIn via OAuth for publishing. After Community Management approval, reconnect once to issue a token with `r_member_postAnalytics`.
-                                    </p>
-                                    {linkedinError && (
-                                        <div className="mb-2 p-2" style={{ background: 'rgba(255,0,0,0.08)', color: '#b42318', borderRadius: '8px', fontSize: '0.8rem' }}>
-                                            LinkedIn OAuth returned: {linkedinError}
-                                        </div>
-                                    )}
-                                    <button
-                                        className="btn-secondary"
-                                        onClick={handleLinkedInConnect}
-                                        disabled={linkedinConnecting || currentProject?.role !== 'owner' || user?.is_demo}
-                                        style={{ width: '100%' }}
-                                    >
-                                        {linkedinConnecting ? 'Connecting…' : 'Connect / Reconnect LinkedIn'}
-                                    </button>
+                                    {currentProject && <LinkedInConnectionControl
+                                        projectId={currentProject.id} token={token || ''}
+                                        channels={(projectData?.channels || []) as SocialChannel[]}
+                                        disabled={currentProject?.role !== 'owner' || Boolean(user?.is_demo)} error={linkedinError}
+                                    />}
                                 </div>
                             )}
                             {newChannelType !== 'linkedin' && (

@@ -45,6 +45,8 @@ export class PublicationDispatcher {
     }
 
     async routeToBrowserPublication(task: any, bundle: any, reason: Record<string, unknown>) {
+        if (task.channel?.type === 'linkedin') throw new Error('[LINKEDIN_API_GOVERNED_ROUTE_REQUIRED] Use the governed LinkedIn API lifecycle; no browser fallback or direct retry is permitted.');
+        if (task.channel?.type === 'linkedin') throw new Error('[LINKEDIN_API_GOVERNED_ROUTE_REQUIRED] Use the governed LinkedIn API lifecycle; direct send is disabled.');
         const exact = exactOwnedRouteBlock(task); if (exact) return exact;
         if (isVkPublicationPlatform(task.channel?.type)) return vkAdapterPublicationHandoff(task.status);
         if (isDzenPublicationPlatform(task.channel?.type)) return dzenAdapterPublicationHandoff(task.status);
@@ -212,6 +214,7 @@ export class PublicationDispatcher {
         requestHost?: string,
         publisherFacade?: any
     ): Promise<AutomatedPublicationResult | any> {
+        if (task.channel?.type === 'linkedin') throw new Error('[LINKEDIN_API_GOVERNED_ROUTE_REQUIRED] Use the governed LinkedIn API lifecycle; direct send is disabled.');
         const exact = exactOwnedRouteBlock(task); if (exact) return exact;
         const channelType = task.channel?.type;
         if (isVkPublicationPlatform(channelType)) return vkAdapterPublicationHandoff(task.status);
@@ -340,21 +343,6 @@ export class PublicationDispatcher {
                     ...result.metrics,
                     vk_guid: guid
                 }
-            };
-        }
-
-        if (channelType === 'linkedin') {
-            const linkedinConfig = channelConfig.raw_account || channelConfig;
-            const urn = linkedinConfig.linkedin_urn;
-            const token = linkedinConfig.access_token;
-            if (!urn || !token) {
-                throw new Error('LinkedIn channel config is missing linkedin_urn or access_token');
-            }
-
-            const publishedLink = await linkedinService.publishPost(urn, token, text, imageUrl || undefined);
-            return {
-                adapter: 'linkedin',
-                publishedLink
             };
         }
 
@@ -634,6 +622,8 @@ export class PublicationDispatcher {
     }
 
     async processPublicationTaskItem(task: any, options: { manualTrigger?: boolean; requestHost?: string; publisherFacade?: any } = {}) {
+        if (task.channel?.type === 'linkedin') throw new Error('[LINKEDIN_API_GOVERNED_ROUTE_REQUIRED] Use the governed LinkedIn API lifecycle; no browser fallback or direct retry is permitted.');
+        if (task.channel?.type === 'linkedin') throw new Error('[LINKEDIN_API_GOVERNED_ROUTE_REQUIRED] Use the governed LinkedIn API lifecycle; direct send is disabled.');
         const exact = exactOwnedRouteBlock(task); if (exact) return exact;
         const visualReadiness = await artDirectionService.getReadiness(task.project_id, task.id);
         if (!visualReadiness.ready) {

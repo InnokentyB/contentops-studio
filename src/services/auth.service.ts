@@ -16,11 +16,6 @@ export interface AuthUser {
     is_demo?: boolean;
 }
 
-export interface OAuthState {
-    purpose: 'linkedin_oauth';
-    user_id: number;
-    project_id: number;
-}
 
 class AuthService {
     async register(email: string, password: string, name?: string) {
@@ -107,26 +102,6 @@ class AuthService {
         } catch (e) {
             throw new Error('Invalid token');
         }
-    }
-
-    createLinkedInOAuthState(userId: number, projectId: number): string {
-        return jwt.sign(
-            { purpose: 'linkedin_oauth', user_id: userId, project_id: projectId },
-            JWT_SECRET,
-            { expiresIn: '10m' }
-        );
-    }
-
-    verifyLinkedInOAuthState(token: string): OAuthState {
-        const payload = jwt.verify(token, JWT_SECRET) as Partial<OAuthState>;
-        if (
-            payload.purpose !== 'linkedin_oauth'
-            || !Number.isInteger(payload.user_id)
-            || !Number.isInteger(payload.project_id)
-        ) {
-            throw new Error('Invalid LinkedIn OAuth state');
-        }
-        return payload as OAuthState;
     }
 
     private sanitizeUser(user: any) {

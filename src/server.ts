@@ -60,7 +60,7 @@ const server = Fastify({
 
 server.addHook('onRequest', (request, reply, done) => {
     if (process.env.REQUEST_LOGGING_ENABLED === 'true') {
-        console.log(`[Server] Incoming request: ${request.method} ${request.url}`);
+        console.log(`[Server] Incoming request: ${request.method} ${request.url.split('?')[0]}`);
     }
     done();
 });

@@ -1,0 +1,84 @@
+DEPRECATED: The legacy builder is deprecated and will be removed in a future release.
+            Install the buildx component to build images with BuildKit:
+            https://docs.docker.com/go/buildx/
+
+Sending build context to Docker daemon  23.47MB
+
+Step 1/9 : FROM planner-memory-001:20261018
+ ---> 0694577bde03
+Step 2/9 : USER root
+ ---> Using cache
+ ---> ef5b88c792ea
+Step 3/9 : WORKDIR /opt/planner
+ ---> Using cache
+ ---> d3d1a77363b0
+Step 4/9 : RUN rm -rf /opt/planner/src /opt/planner/dist /opt/planner/prisma /opt/planner/frontend/src /opt/planner/frontend/public /opt/planner/frontend/dist
+ ---> Using cache
+ ---> d986bfe71aa3
+Step 5/9 : COPY --chown=1000:1000 src ./src
+ ---> 96383a7e044e
+Step 6/9 : COPY --chown=1000:1000 prisma ./prisma
+ ---> 3957f35e64d8
+Step 7/9 : COPY --chown=1000:1000 frontend ./frontend
+ ---> 33f5e3b1e3a1
+Step 8/9 : USER 1000:1000
+ ---> Running in cbb365d161a3
+ ---> Removed intermediate container cbb365d161a3
+ ---> 46e8c808313f
+Step 9/9 : RUN PRISMA_SCHEMA_ENGINE_BINARY=/opt/planner/node_modules/@prisma/engines/schema-engine-debian-openssl-3.0.x NODE_OPTIONS=--max-old-space-size=1536 DATABASE_URL=postgresql://synthetic:synthetic@127.0.0.1:1/synthetic npm run build:backend && npm run build --prefix frontend
+ ---> Running in efa4a790cacf
+
+> contentops-studio@1.0.0 build:backend
+> npx prisma generate && tsc
+
+[91mLoaded Prisma config from prisma.config.ts.
+
+[0m[91mPrisma schema loaded from prisma/schema.prisma.
+[0m
+✔ Generated Prisma Client (v7.10.0) to ./node_modules/@prisma/client in 511ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+
+
+> frontend@0.0.0 build
+> tsc -b && vite build
+
+vite v7.3.6 building client environment for production...
+transforming...
+✓ 427 modules transformed.
+[91mnode_modules/markdown-to-jsx/dist/index.js (8:2531): Use of eval in "node_modules/markdown-to-jsx/dist/index.js" is strongly discouraged as it poses security risks and may cause issues with minification.
+[0mrendering chunks...
+computing gzip size...
+dist/index.html                                     2.15 kB │ gzip:  0.79 kB
+dist/assets/index-DX5f4Pdr.css                     66.59 kB │ gzip: 11.82 kB
+dist/assets/useCurrentTime-COdf1Y0f.js              0.23 kB │ gzip:  0.19 kB
+dist/assets/CommentSection-eYzEOTSI.js              1.71 kB │ gzip:  0.94 kB
+dist/assets/useMutation-Bp61qAPC.js                 2.20 kB │ gzip:  0.90 kB
+dist/assets/ResourcePreviewCard-CyLEhbdA.js         3.56 kB │ gzip:  1.37 kB
+dist/assets/Login-DHonreSX.js                       5.00 kB │ gzip:  1.69 kB
+dist/assets/Register-Bz_HDhp8.js                    5.01 kB │ gzip:  1.66 kB
+dist/assets/Guide-Dbe1X_N3.js                       6.57 kB │ gzip:  2.65 kB
+dist/assets/api-Bowu-58x.js                         8.05 kB │ gzip:  2.38 kB
+dist/assets/useQuery-Cw25cKFT.js                    8.79 kB │ gzip:  3.19 kB
+dist/assets/SavedRecipesLibrary-BpcwMA5b.js         9.15 kB │ gzip:  3.27 kB
+dist/assets/PostPublicationAnalytics-9kAfHdfl.js   10.16 kB │ gzip:  2.97 kB
+dist/assets/V2WeekDetail-DLSA-9Di.js               13.42 kB │ gzip:  3.45 kB
+dist/assets/WeekDetail-BU8UsekL.js                 14.33 kB │ gzip:  3.82 kB
+dist/assets/OperationalCalendar-CcHgNXJP.js        14.50 kB │ gzip:  4.79 kB
+dist/assets/PostEditor-B5VoAVGB.js                 17.85 kB │ gzip:  4.98 kB
+dist/assets/OrganizationIntelligence-uMcdoo5-.js   17.97 kB │ gzip:  5.71 kB
+dist/assets/format-Wv9PpnOF.js                     19.47 kB │ gzip:  5.59 kB
+dist/assets/ProjectWorkspace-cT27LKRq.js           19.88 kB │ gzip:  5.48 kB
+dist/assets/V2Dashboard-BNSCW3b4.js                26.41 kB │ gzip:  6.10 kB
+dist/assets/Parsers-DdxMZUZq.js                    35.39 kB │ gzip:  9.18 kB
+dist/assets/ChannelWorkspace-fIok4ltG.js           42.41 kB │ gzip: 10.92 kB
+dist/assets/ContentMarkupRenderer-C-0gxEBn.js      98.31 kB │ gzip: 35.65 kB
+dist/assets/PublicationTasks-DFXAv5-T.js          119.17 kB │ gzip: 29.87 kB
+dist/assets/Settings-3oDkogwg.js                  125.62 kB │ gzip: 32.71 kB
+dist/assets/index-Bd2Mg9dM.js                     283.18 kB │ gzip: 89.89 kB
+✓ built in 2.40s
+ ---> Removed intermediate container efa4a790cacf
+ ---> 80d405eebe48
+Successfully built 80d405eebe48
+Successfully tagged planner-linkedin-api:20261019

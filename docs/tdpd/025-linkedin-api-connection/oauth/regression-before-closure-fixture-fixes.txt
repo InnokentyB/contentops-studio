@@ -1,0 +1,120 @@
+ Container tower-contentops-linkedin-api-verification-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+✔ signed demo session preserves the server-side read-only claim (3.731449ms)
+✔ LinkedIn callback rejects reusable JWT state instead of treating it as durable authority (1.685418ms)
+✔ demo account can read project APIs (0.174591ms)
+✔ demo account cannot change data or trigger publication (0.158181ms)
+✔ demo restriction does not affect regular users or non-API navigation (0.147871ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+✔ LinkedIn contract accepts plain text with deliberate block spacing and supported bullets (6.915945ms)
+✔ LinkedIn contract rejects dense prose and Markdown formatting before publication (0.445422ms)
+✔ LinkedIn readback compares semantic blocks instead of bytes (0.245582ms)
+✔ LinkedIn readback detects a merged semantic block (0.176041ms)
+✔ shared publication adapter exposes the LinkedIn contract and operator checklist (0.353322ms)
+✖ LinkedIn connector rejects a non-native body before any provider call (3.764669ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+✔ LI-01 trusted attempt receipt independently verifies exact provider object (21.685498ms)
+✔ LI-02 unique history match cannot prove attempted dispatch (1.187706ms)
+✔ LI-03 mismatched provider object never confirms {"author":"urn:li:person:other"} (0.411212ms)
+✔ LI-03 mismatched provider object never confirms {"commentary":"different"} (0.460483ms)
+✔ LI-03 mismatched provider object never confirms {"publishedAt":50} (0.442012ms)
+✔ LI-03 mismatched provider object never confirms {"id":"urn:li:share:999"} (0.393602ms)
+✔ LI-03 mismatched provider object never confirms {"lifecycleState":"DRAFT"} (0.740934ms)
+✔ LI-03 mismatched provider object never confirms {"content":{"media":{"id":"urn:li:image:unknown"}}} (0.655003ms)
+✔ LI-04 denied permission and unadmitted route do not call provider (0.771744ms)
+✔ LI-07 cancellation and durable budget prevent HTTP calls (0.364041ms)
+✔ LI-08 arbitrary evidence cannot verify even with matching expected hashes (0.163481ms)
+✔ LI-05 HTTP failures never disclose provider bodies or credentials (0.907275ms)
+✔ LI-05 malformed and oversized payloads are safely incomplete (1.204745ms)
+✔ LI-06 bounded inventory constructs only approved LinkedIn URLs (1.472057ms)
+✔ LI-01 verified image uses trusted upload receipt rather than expected hash alone (0.773464ms)
+✔ LI-08 forged scope and changed receipt cannot verify (0.358532ms)
+✔ LI-07 local request ceiling also bounds a malformed permissive accounting dependency (0.164401ms)
+✔ LI-03 reshares and sponsored objects cannot masquerade as ordinary text post (0.351742ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+✔ publication task readback removes encrypted and plaintext channel credentials recursively (0.788944ms)
+✔ publication task readback rematerializes task-bound content language into its handoff bundle (0.614733ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+✔ sanitizeChannelConfig masks sensitive fields (0.930295ms)
+✔ mergeChannelConfig preserves existing secrets when incoming is masked (0.209921ms)
+✔ mergeChannelConfig updates secrets when incoming has actual new values (0.118741ms)
+✔ Threads access token is encrypted at rest, masked in responses, and resolved for execution (0.987985ms)
+✔ Threads encrypted token in raw_account remains compatible and a masked edit preserves it (0.316902ms)
+✔ Threads legacy plaintext token remains readable until an explicit migration rewrites it (0.116401ms)
+✔ Dzen session cookies are encrypted at rest and masked in API responses (0.262131ms)
+✔ Dzen credentials nested in raw_account are also encrypted and redacted (0.18941ms)
+✔ Dzen credentials nested in raw_account are resolved for connection checks (0.254711ms)
+✔ effective Dzen config keeps legacy raw_account fields but prefers rotated top-level session (0.363602ms)
+✔ GET /api/projects/:id masks secrets (57.64609ms)
+✖ PUT /api/projects/:id/channels/:channelId merges configs (119.675652ms)
+✔ PUT /api/projects/:id/channels/:channelId requires project owner (7.173616ms)
+✔ mergeChannelConfig keeps channel workflow mode (0.173461ms)
+✔ GET /api/projects/:id/mcp/status reports the configured MCP health (8.518073ms)
+✔ POST /api/projects/:id/mcp/workspace-access issues the seven-role bundle only for an owner (7.162446ms)
+✔ workspace access API reports an active bundle and revokes a complete bundle (5.479698ms)
+✔ cleanAndFormatHashtags removes duplicate and double hashtags (0.384322ms)
+✔ cleanAndFormatHashtags handles category fallback tag (0.1114ms)
+✔ generateSlots uses explicit channelId when provided (0.462212ms)
+ℹ tests 51
+ℹ suites 0
+ℹ pass 49
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 35686.912723
+
+✖ failing tests:
+
+test at ../../source/src/tests/linkedin_content_contract.test.ts:60:25
+✖ LinkedIn connector rejects a non-native body before any provider call (3.764669ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /\[LINKEDIN_NATIVE_FORMAT_INVALID\] markdown_styling/. Input:
+
+  'Error: [LINKEDIN_API_GOVERNED_ROUTE_REQUIRED] Use the governed LinkedIn API lifecycle; direct send is disabled.'
+
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/src/tests/linkedin_content_contract.test.ts:84:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: [LINKEDIN_API_GOVERNED_ROUTE_REQUIRED] Use the governed LinkedIn API lifecycle; direct send is disabled.
+        at PublicationDispatcher.executeAutomatedPublicationTask (/source/src/services/publishers/publication_dispatcher.ts:217:54)
+        at TestContext.<anonymous> (/source/src/tests/linkedin_content_contract.test.ts:85:20)
+        at Test.runInAsyncScope (node:async_hooks:227:14)
+        at Test.run (node:internal/test_runner/test:1402:25)
+        at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+        at Test.postRun (node:internal/test_runner/test:1542:19)
+        at Test.run (node:internal/test_runner/test:1467:12)
+        at processTicksAndRejections (node:internal/process/task_queues:104:5)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:974:7),
+    expected: /\[LINKEDIN_NATIVE_FORMAT_INVALID\] markdown_styling/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at ../../source/src/tests/tdpd_channel_validation.test.ts:322:25
+✖ PUT /api/projects/:id/channels/:channelId merges configs (119.675652ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  404 !== 200
+
+      at TestContext.<anonymous> (/source/src/tests/tdpd_channel_validation.test.ts:368:16)
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 404,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,47 @@
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+{"event":"publication_diagnostic","service":"threads","isError":true,"code":"THREADS_RECOVERY_IDENTITY_UNAVAILABLE","message":"No trustworthy original published post identity was saved.","reasons":[{"code":"THREADS_RECOVERY_IDENTITY_UNAVAILABLE","field":"provider_identity","message":"No trustworthy original published post identity was saved.","action":"Keep this attempt frozen. Ask engineering to establish supported original-attempt correlation; a matching history post alone is insufficient."}],"retry_allowed":false}
+{"event":"publication_diagnostic","service":"threads","isError":true,"code":"THREADS_ATTEMPT_PERSISTENCE_UNAVAILABLE","message":"Planner could not save the uncertain attempt outcome.","reasons":[{"code":"THREADS_ATTEMPT_PERSISTENCE_UNAVAILABLE","field":"database","message":"Planner could not save the uncertain attempt outcome.","action":"Restore database access, then inspect the original attempt through supported reconciliation. The post ID may not have been saved; never resend."}],"retry_allowed":false}
+✔ T01/T04 arbitrary tenant generic release sends once and canonical recovery replays (9.370797ms)
+✔ T03/T08 lost readback consumes bounded retries but never reissues POST (2.844734ms)
+✔ T04 post-send fact outage preserves provider ID and later same-attempt recovery (1.99486ms)
+✔ T07 denied owner makes zero provider calls (0.300101ms)
+✔ T03 lost publish response freezes saved container without a second publication (1.026405ms)
+✔ T06 foreign profile prevents object read and exposes precise safe reason (0.862634ms)
+✔ T08 caller cancellation stops readback and preserves durable consumed reservation (1.296807ms)
+✔ T07 lease expiry during provider response cannot finalize (0.938005ms)
+✔ T10 actual MCP serialization preserves recovery explanation and no secret (1435.291605ms)
+✔ T10 remote identity and capability cannot be overridden for API recovery (8.07759ms)
+✔ T07 changed released schedule blocks the publication POST (1.087755ms)
+✔ T07 changed released decision blocks the publication POST (0.698364ms)
+✔ T07 changed released schedule blocks recovery before GET (1.060955ms)
+✔ T07 changed released decision blocks recovery before GET (0.905325ms)
+✔ T10 total DB outage after publication returns actionable persistence error through actual MCP (6.983785ms)
+✔ T07 package change after dispatch retains original post ID but blocks confirmation (0.787714ms)
+✔ T04 known-object full identity verifies (2.07956ms)
+✔ T06 mismatched id cannot confirm (0.362882ms)
+✔ T06 mismatched text cannot confirm (0.156481ms)
+✔ T06 mismatched username cannot confirm (0.11159ms)
+✔ T06 mismatched media_type cannot confirm (0.459262ms)
+✔ T06 mismatched is_reply cannot confirm (0.175841ms)
+✔ T06 mismatched timestamp cannot confirm (0.118821ms)
+✔ T06 mismatched permalink cannot confirm (0.126381ms)
+✔ T06 original account is mandatory (0.185101ms)
+✔ T05 missing original ID never schedules provider read (1.606348ms)
+✔ T08 durable budget, backoff and active lease survive reinvocation (0.980055ms)
+✔ T07 wrong tenant reads nothing (0.202981ms)
+✔ T07 stale or foreign finalizer lease cannot confirm (0.404812ms)
+✔ T03 phase replay and generation change prevent next side effect (0.800354ms)
+✔ T09 existing different task/provider object cannot be claimed (0.192571ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 31
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2782.636648

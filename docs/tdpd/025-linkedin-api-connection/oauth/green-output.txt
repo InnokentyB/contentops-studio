@@ -1,0 +1,41 @@
+ Container tower-contentops-linkedin-api-verification-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+✔ 025 actual HTTP initiation binds selected channel and browser with secure opaque state (160.093784ms)
+✔ 025 explicit channel required; cannot infer or create a channel (7.500528ms)
+✔ 025 invalid browser never exchanges (18.153032ms)
+✔ 025 concurrent actual callbacks consume once and encrypted commit preserves channel (49.981941ms)
+✔ 025 stale config prevents exchange (15.408748ms)
+✔ 025 wrong member does not overwrite or leak (20.299201ms)
+✔ 025 audit failure rolls back final token and callback remains consumed (47.059066ms)
+✔ 025 expiry and denied-consent validate state before any exchange (14.401452ms)
+✔ 025 Owner revocation before callback prevents exchange (18.676794ms)
+✔ 025 Owner revocation during exchange prevents final commit (16.323642ms)
+✔ 025 provider rejection never leaks body and consumed request cannot replay (11.763559ms)
+✔ 025 valid denial consumes once without exchange (10.964755ms)
+✔ 025 foreign project/channel and demo credentials reject initiation (9.707519ms)
+✔ 025 swapped state/browser cannot exchange or create organization replacement (16.004401ms)
+✔ 025 encrypted credentials cannot attest forged metadata or another tenant/channel (38.161092ms)
+✔ 025 organization callback preserves exact author and requires verified ORGANIC_SHARE_CREATE (15.454657ms)
+✔ 025 unbound channel requires expected identity, explicit first-binding stays data-driven (20.103881ms)
+✔ 025 canonical personal profile slug must match actual Profile API vanityName (12.562973ms)
+✔ 025 status never returns token or activates publication, unknown metadata stays unknown (17.323778ms)
+✔ 025 same-origin HTTPS and encryption configuration fail before exchange (3.930989ms)
+✔ 025 duplicate callback parameters are rejected without consuming or exchanging (6.455632ms)
+✔ 025 lost exchange response is consumed with safe recovery guidance, no retry (10.722404ms)
+✔ 025 unverified actual grants/client/expiry never overwrite credentials (33.424018ms)
+✔ 025 channel change during exchange blocks final credential commit (20.644173ms)
+✔ 025 bounded provider response cannot leak an oversized secret body (10.441032ms)
+✔ 025 expiry during gated exchange preserves credentials and consumed history (12.625084ms)
+✔ 025 exact canonical personal profile slug can establish first member binding (15.582958ms)
+✔ 025 organization authority response for another organization cannot bind token (10.990266ms)
+✔ 025 actual post-read grant plus bounded finder can produce usable sealed API credentials (350.701263ms)
+✔ 025 restricted personal read scope request is opt-in and never grants authority by itself (10.122381ms)
+✔ 025 actual read grant without a successful supported reader probe stays blocked (15.325697ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 31
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1581.029378

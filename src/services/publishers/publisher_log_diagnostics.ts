@@ -3,6 +3,7 @@ export type PublisherLogDiagnostic={code:string;message:string;action:string;ret
 type Template=readonly [RegExp,string,string,string];
 const reconcile='Inspect the existing attempt and publication fact with the responsible operator. Reconcile an uncertain provider outcome before any further execution; do not resend or replace the operation key.';
 const templates:readonly Template[]=[
+ [/^LINKEDIN_API_GOVERNED_ROUTE_REQUIRED$/,'LINKEDIN_API_GOVERNED_ROUTE_REQUIRED','Legacy LinkedIn publishing is held because it has no governed delivery authority.','Use the governed LinkedIn API release/send/reconcile lifecycle. Preserve and reconcile any existing uncertain attempt; no browser fallback or resend.'],
  [/^\[Publisher\] Publishing to (?:Threads|VK|LinkedIn) for post \d+$/, 'PUBLISHER_SUBMISSION_STARTED','The publisher started processing a provider submission.',reconcile],
  [/^\[Publisher\] publishPostNow: calling MTProto for post \d+$/, 'PUBLISHER_SUBMISSION_STARTED','The publisher started processing a provider submission.',reconcile],
  [/^\[Publisher\] Successfully published post \d+ to (?:Threads|VK|LinkedIn|Telegram): /,'PUBLISHER_PUBLISHED','The adapter reported successful publication.','Verify the canonical publication fact and readback; this log does not independently establish provider success.'],
