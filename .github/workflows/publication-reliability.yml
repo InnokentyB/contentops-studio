@@ -36,7 +36,10 @@ jobs:
       - name: Mandatory quality gate
         env:
           RUNTIME_POLICY_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
-        run: docker compose -f tests/tdpd/publication-reliability.compose.yaml run --rm -e RUNTIME_POLICY_BASE_REF checks sh -c 'cd /source && npm run quality:gate'
+          GIT_CONFIG_COUNT: '1'
+          GIT_CONFIG_KEY_0: safe.directory
+          GIT_CONFIG_VALUE_0: /source
+        run: docker compose -f tests/tdpd/publication-reliability.compose.yaml run --rm -e RUNTIME_POLICY_BASE_REF -e GITHUB_ACTIONS -e GITHUB_EVENT_NAME -e GIT_CONFIG_COUNT -e GIT_CONFIG_KEY_0 -e GIT_CONFIG_VALUE_0 checks sh -c 'cd /source && npm run quality:gate'
       - name: Stop only the temporary synthetic stack
         if: always()
         run: docker compose -f tests/tdpd/publication-reliability.compose.yaml down
