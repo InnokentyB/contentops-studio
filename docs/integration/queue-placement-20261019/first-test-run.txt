@@ -1,0 +1,62 @@
+ Container tower-contentops-queue-placement-checks-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+✔ preview has no writes or approval (4.661478ms)
+✔ repair preserves immutable review/approval and body, replaces review at result0 and manual handoff atomically (0.914283ms)
+✔ same key replays one replacement; changed key payload is rejected (0.875613ms)
+✔ owner/tenant/body/revision/config/fact/attempt/lease drift fail before mutation (7.211499ms)
+✔ audit failure rolls back review supersession, replacement, projection (0.606822ms)
+✔ safe snapshot rejects a non-owner and foreign task without writes (0.753983ms)
+✔ apply snapshot reads occur only inside the replay transaction (0.457092ms)
+✔ blocked competing review is not a second review path (0.304761ms)
+✔ placement, title, item identity, account name/type and review scheduling are snapshot-bound (1.397756ms)
+✔ repair cannot discard a review prerequisite when creating available work (0.487192ms)
+✔ owner can obtain safe server-computed snapshot through the operator boundary (1.413686ms)
+✔ configured Telegram review recovery preserves all publication gates and immutable history (1.808367ms)
+✔ unsupported placement never becomes configured execution metadata during review recovery (2.155299ms)
+✔ missing stored placement cannot silently materialize as feed (6.672557ms)
+✔ canonical Dzen article-cover aliases preserve existing manual recovery behavior (1.671117ms)
+✔ article-specific Dzen alias never admits feed, including configuration override (0.993104ms)
+✔ existing Habr, VC and OK aliases retain canonical contract and review identity (1.315215ms)
+✔ arbitrary configuration-only feed contract cannot become configured execution metadata (0.505652ms)
+✔ adapter-supported providers honor explicit data-declared feed contracts without gaining release authority (0.904294ms)
+✔ unregistered provider cannot spoof support through capability flags (0.430832ms)
+✔ adapter fallback cannot override established article-only provider placement (1.162234ms)
+✔ derived manual-only provider compatibility never invents automated authority (1.438176ms)
+✔ established feed contracts remain recoverable without enabling unimplemented formats (4.184257ms)
+✖ article-only Dzen acceptance rejects feed before accepting content or creating work (42.422268ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 23
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 238.375157
+
+✖ failing tests:
+
+test at tests/tdpd/review-handoff-repair.unit.test.js:305:1
+✖ article-only Dzen acceptance rejects feed before accepting content or creating work (42.422268ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /PLACEMENT_(MISMATCH|CONTRACT_MISSING)/. Input:
+
+  'TypeError: tx.$queryRaw is not a function'
+
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/opt/planner/tests/tdpd/review-handoff-repair.unit.test.js:316:9)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: TypeError: tx.$queryRaw is not a function
+        at lockVisualContent (/opt/planner/dist/services/visual_reassessment_binding.js:57:24)
+        at ArtDirectionService.acceptContentRevision (/opt/planner/dist/services/art_direction.service.js:125:67)
+        at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (/opt/planner/tests/tdpd/review-handoff-repair.unit.test.js:316:9)
+        at async Test.run (node:internal/test_runner/test:1409:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:974:7),
+    expected: /PLACEMENT_(MISMATCH|CONTRACT_MISSING)/,
+    operator: 'rejects',
+    diff: 'simple'
+  }

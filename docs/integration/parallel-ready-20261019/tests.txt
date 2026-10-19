@@ -1,0 +1,151 @@
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+{"event":"publication_diagnostic","service":"threads","isError":true,"code":"THREADS_RECOVERY_IDENTITY_UNAVAILABLE","message":"No trustworthy original published post identity was saved.","reasons":[{"code":"THREADS_RECOVERY_IDENTITY_UNAVAILABLE","field":"provider_identity","message":"No trustworthy original published post identity was saved.","action":"Keep this attempt frozen. Ask engineering to establish supported original-attempt correlation; a matching history post alone is insufficient."}],"retry_allowed":false}
+{"event":"publication_diagnostic","service":"threads","isError":true,"code":"THREADS_ATTEMPT_PERSISTENCE_UNAVAILABLE","message":"Planner could not save the uncertain attempt outcome.","reasons":[{"code":"THREADS_ATTEMPT_PERSISTENCE_UNAVAILABLE","field":"database","message":"Planner could not save the uncertain attempt outcome.","action":"Restore database access, then inspect the original attempt through supported reconciliation. The post ID may not have been saved; never resend."}],"retry_allowed":false}
+✔ T01/T04 arbitrary tenant generic release sends once and canonical recovery replays (9.033345ms)
+✔ T03/T08 lost readback consumes bounded retries but never reissues POST (2.483019ms)
+✔ T04 post-send fact outage preserves provider ID and later same-attempt recovery (1.562016ms)
+✔ T07 denied owner makes zero provider calls (0.295561ms)
+✔ T03 lost publish response freezes saved container without a second publication (0.986744ms)
+✔ T06 foreign profile prevents object read and exposes precise safe reason (0.866614ms)
+✔ T08 caller cancellation stops readback and preserves durable consumed reservation (1.263375ms)
+✔ T07 lease expiry during provider response cannot finalize (0.888004ms)
+✔ T10 actual MCP serialization preserves recovery explanation and no secret (1528.166779ms)
+✔ T10 remote identity and capability cannot be overridden for API recovery (9.94752ms)
+✔ T07 changed released schedule blocks the publication POST (1.255085ms)
+✔ T07 changed released decision blocks the publication POST (0.754933ms)
+✔ T07 changed released schedule blocks recovery before GET (1.135375ms)
+✔ T07 changed released decision blocks recovery before GET (0.929523ms)
+✔ T10 total DB outage after publication returns actionable persistence error through actual MCP (6.211105ms)
+✔ T07 package change after dispatch retains original post ID but blocks confirmation (0.786724ms)
+✔ T02 durable phase fences and provider IDs precede subsequent calls (16.206025ms)
+✔ T03 container persistence failure prevents publication POST (0.666123ms)
+✔ T03 post persistence failure prevents readback GET (0.546362ms)
+✔ T06 recovery reader rejects a valid JSON body above 1MiB before parsing (6.291325ms)
+✔ T06 recovery reader refuses redirects and never discloses response bodies (0.770723ms)
+✔ T04 known-object full identity verifies (2.011978ms)
+✔ T06 mismatched id cannot confirm (0.347581ms)
+✔ T06 mismatched text cannot confirm (0.148381ms)
+✔ T06 mismatched username cannot confirm (0.10811ms)
+✔ T06 mismatched media_type cannot confirm (0.442922ms)
+✔ T06 mismatched is_reply cannot confirm (0.167841ms)
+✔ T06 mismatched timestamp cannot confirm (0.137331ms)
+✔ T06 mismatched permalink cannot confirm (0.12396ms)
+✔ T06 original account is mandatory (0.139531ms)
+✔ T05 missing original ID never schedules provider read (1.320086ms)
+✔ T08 durable budget, backoff and active lease survive reinvocation (0.866163ms)
+✔ T07 wrong tenant reads nothing (0.211711ms)
+✔ T07 stale or foreign finalizer lease cannot confirm (0.297301ms)
+✔ T03 phase replay and generation change prevent next side effect (0.652023ms)
+✔ T09 existing different task/provider object cannot be claimed (0.163221ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+✔ preclaim unauthorized exposes safe cause and preserves zero sends/attempts (22.56019ms)
+✔ preclaim forbidden exposes safe cause and preserves zero sends/attempts (5.504702ms)
+✔ preclaim rate limited exposes safe cause and preserves zero sends/attempts (5.0909ms)
+✔ preclaim unavailable exposes safe cause and preserves zero sends/attempts (4.879819ms)
+✔ preclaim invalid JSON exposes safe cause and preserves zero sends/attempts (5.204641ms)
+✔ preclaim network exposes safe cause and preserves zero sends/attempts (9.648688ms)
+✔ preclaim timeout exposes safe cause and preserves zero sends/attempts (4.501047ms)
+✔ preclaim cancelled read exposes safe cause and preserves zero sends/attempts (4.606378ms)
+✔ untrusted provider operation remains masked rather than serialized (0.395442ms)
+✔ untrusted provider status remains masked rather than serialized (0.234221ms)
+✔ untrusted provider code remains masked rather than serialized (0.201461ms)
+✔ dry run remains local and never claims provider verification (0.437152ms)
+ℹ tests 48
+ℹ suites 0
+ℹ pass 48
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5579.92861
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+✔ preview has no writes or approval (4.151397ms)
+✔ repair preserves immutable review/approval and body, replaces review at result0 and manual handoff atomically (0.838033ms)
+✔ same key replays one replacement; changed key payload is rejected (0.832733ms)
+✔ owner/tenant/body/revision/config/fact/attempt/lease drift fail before mutation (3.732705ms)
+✔ audit failure rolls back review supersession, replacement, projection (0.629583ms)
+✔ safe snapshot rejects a non-owner and foreign task without writes (1.026254ms)
+✔ apply snapshot reads occur only inside the replay transaction (0.626363ms)
+✔ blocked competing review is not a second review path (0.424222ms)
+✔ placement, title, item identity, account name/type and review scheduling are snapshot-bound (1.905287ms)
+✔ repair cannot discard a review prerequisite when creating available work (0.456132ms)
+✔ owner can obtain safe server-computed snapshot through the operator boundary (1.006974ms)
+✔ configured Telegram review recovery preserves all publication gates and immutable history (1.052724ms)
+✔ unsupported placement never becomes configured execution metadata during review recovery (1.060595ms)
+✔ missing stored placement cannot silently materialize as feed (1.875827ms)
+✔ canonical Dzen article-cover aliases preserve existing manual recovery behavior (1.677947ms)
+✔ article-specific Dzen alias never admits feed, including configuration override (0.979504ms)
+✔ existing Habr, VC and OK aliases retain canonical contract and review identity (1.309545ms)
+✔ arbitrary configuration-only feed contract cannot become configured execution metadata (0.510882ms)
+✔ adapter-supported providers honor explicit data-declared feed contracts without gaining release authority (0.947804ms)
+✔ unregistered provider cannot spoof support through capability flags (0.529782ms)
+✔ adapter fallback cannot override established article-only provider placement (1.283985ms)
+✔ derived manual-only provider compatibility never invents automated authority (1.490186ms)
+✔ established feed contracts remain recoverable without enabling unimplemented formats (4.752198ms)
+✔ article-only Dzen acceptance rejects feed before accepting content or creating work (46.993027ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 24
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 245.977207
+✔ public send uses REST Posts and retains trusted response object ID (14.715449ms)
+✔ accepted image upload failure cannot downgrade into public text send (1.834057ms)
+✔ malicious upload destination never receives accepted bytes (0.429811ms)
+✔ missing identity after accepted public send is UNKNOWN without retry (0.566053ms)
+✔ image readiness requires correct owner and AVAILABLE (3.022312ms)
+✔ ordinary accepted punctuation is escaped as literal LittleText and decoded on GET (1.282835ms)
+✔ unapproved rich LittleText mention cannot be verified as plain accepted body (0.373872ms)
+✔ documented text-only GET may return empty content object (0.457272ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+✔ legacy low-level LinkedIn sender rejects valid content before fetch (1.746567ms)
+✔ legacy task dispatcher refuses governed LinkedIn work before route rewrite (0.430622ms)
+✔ browser fallback cannot revive LinkedIn delivery via direct call (0.206871ms)
+✔ legacy LinkedIn hold diagnostic names its actual route and repair (0.339852ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+✔ default disabled governed API refuses public send before any database or provider operation (2.017728ms)
+✔ malformed scope cannot reach governed release or reconcile (1.982438ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+✔ manual-only channel overrides stale API flags without changing approval policy or copy (1.563866ms)
+✔ API-capable and unspecified channels retain configured transport; manual-only never widens transport (0.146001ms)
+✔ repair is owner/Editor scoped; remote principal prevents caller impersonation and foreign project (0.267511ms)
+✔ article channels share the canonical article-cover placement (2.945592ms)
+✔ Dzen distinguishes short feed posts from longread covers without inventing post geometry (0.513482ms)
+✔ VC and Habr covers expose explicit article contracts (0.266431ms)
+✔ accepting site content normalizes a legacy feed default to the canonical blog cover (0.1651ms)
+✔ Telegram and VK stories use channel-specific poll capabilities (0.337082ms)
+✔ VK longread uses a distinct manual article-cover contract (0.208411ms)
+✔ VK exposes approved MP4 video as a canonical browser-capable placement (0.210431ms)
+✔ Setka feed exposes the established 4:3 asset contract (0.240551ms)
+✔ VK feed exposes the accepted square asset contract used by the connector (0.208351ms)
+✔ Dzen longread uses the configured article transport contract (0.213161ms)
+✔ Telegram and Threads feed briefs have explicit editorial geometry (0.168491ms)
+✔ configured channel placement overrides the type fallback (0.163271ms)
+✔ unknown channels cannot be repaired without an explicit contract (0.132341ms)
+✔ Dzen feed is now canonical, while unrelated article channels stay strict (0.11845ms)
+✔ DEV.to article cover uses the manual wide-image contract (0.113631ms)
+ℹ tests 32
+ℹ suites 0
+ℹ pass 32
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1044.94061

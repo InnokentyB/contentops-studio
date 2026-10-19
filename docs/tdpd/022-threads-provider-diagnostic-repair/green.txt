@@ -1,0 +1,129 @@
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+{"event":"publication_diagnostic","service":"threads","isError":true,"code":"THREADS_RECOVERY_IDENTITY_UNAVAILABLE","message":"No trustworthy original published post identity was saved.","reasons":[{"code":"THREADS_RECOVERY_IDENTITY_UNAVAILABLE","field":"provider_identity","message":"No trustworthy original published post identity was saved.","action":"Keep this attempt frozen. Ask engineering to establish supported original-attempt correlation; a matching history post alone is insufficient."}],"retry_allowed":false}
+{"event":"publication_diagnostic","service":"threads","isError":true,"code":"THREADS_ATTEMPT_PERSISTENCE_UNAVAILABLE","message":"Planner could not save the uncertain attempt outcome.","reasons":[{"code":"THREADS_ATTEMPT_PERSISTENCE_UNAVAILABLE","field":"database","message":"Planner could not save the uncertain attempt outcome.","action":"Restore database access, then inspect the original attempt through supported reconciliation. The post ID may not have been saved; never resend."}],"retry_allowed":false}
+✔ T01/T04 arbitrary tenant generic release sends once and canonical recovery replays (8.838465ms)
+✔ T03/T08 lost readback consumes bounded retries but never reissues POST (2.783951ms)
+✔ T04 post-send fact outage preserves provider ID and later same-attempt recovery (1.617216ms)
+✔ T07 denied owner makes zero provider calls (0.300812ms)
+✔ T03 lost publish response freezes saved container without a second publication (0.979794ms)
+✔ T06 foreign profile prevents object read and exposes precise safe reason (0.817013ms)
+✔ T08 caller cancellation stops readback and preserves durable consumed reservation (1.244565ms)
+✔ T07 lease expiry during provider response cannot finalize (0.893224ms)
+✔ T10 actual MCP serialization preserves recovery explanation and no secret (2620.889177ms)
+✔ T10 remote identity and capability cannot be overridden for API recovery (8.620394ms)
+✔ T07 changed released schedule blocks the publication POST (0.963884ms)
+✔ T07 changed released decision blocks the publication POST (0.643553ms)
+✔ T07 changed released schedule blocks recovery before GET (38.005151ms)
+✔ T07 changed released decision blocks recovery before GET (0.951644ms)
+✔ T10 total DB outage after publication returns actionable persistence error through actual MCP (5.748573ms)
+✔ T07 package change after dispatch retains original post ID but blocks confirmation (0.916333ms)
+✔ T02 durable phase fences and provider IDs precede subsequent calls (16.407926ms)
+✔ T03 container persistence failure prevents publication POST (0.687503ms)
+✔ T03 post persistence failure prevents readback GET (0.543802ms)
+✔ T06 recovery reader rejects a valid JSON body above 1MiB before parsing (6.187875ms)
+✔ T06 recovery reader refuses redirects and never discloses response bodies (0.845163ms)
+✔ T04 known-object full identity verifies (2.007968ms)
+✔ T06 mismatched id cannot confirm (0.425361ms)
+✔ T06 mismatched text cannot confirm (0.18835ms)
+✔ T06 mismatched username cannot confirm (0.13856ms)
+✔ T06 mismatched media_type cannot confirm (0.522322ms)
+✔ T06 mismatched is_reply cannot confirm (0.172061ms)
+✔ T06 mismatched timestamp cannot confirm (0.115211ms)
+✔ T06 mismatched permalink cannot confirm (0.1225ms)
+✔ T06 original account is mandatory (0.19732ms)
+✔ T05 missing original ID never schedules provider read (1.377015ms)
+✔ T08 durable budget, backoff and active lease survive reinvocation (0.871214ms)
+✔ T07 wrong tenant reads nothing (0.145711ms)
+✔ T07 stale or foreign finalizer lease cannot confirm (0.335181ms)
+✔ T03 phase replay and generation change prevent next side effect (0.677233ms)
+✔ T09 existing different task/provider object cannot be claimed (0.184401ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+✔ preclaim unauthorized exposes safe cause and preserves zero sends/attempts (21.162495ms)
+✔ preclaim forbidden exposes safe cause and preserves zero sends/attempts (5.408701ms)
+✔ preclaim rate limited exposes safe cause and preserves zero sends/attempts (4.828199ms)
+✔ preclaim unavailable exposes safe cause and preserves zero sends/attempts (4.576568ms)
+✔ preclaim invalid JSON exposes safe cause and preserves zero sends/attempts (4.92704ms)
+✔ preclaim network exposes safe cause and preserves zero sends/attempts (9.263387ms)
+✔ preclaim timeout exposes safe cause and preserves zero sends/attempts (4.447218ms)
+✔ preclaim cancelled read exposes safe cause and preserves zero sends/attempts (4.454498ms)
+✔ untrusted provider operation remains masked rather than serialized (0.327591ms)
+✔ untrusted provider status remains masked rather than serialized (31.967157ms)
+✔ untrusted provider code remains masked rather than serialized (0.275461ms)
+✔ dry run remains local and never claims provider verification (0.443042ms)
+ℹ tests 48
+ℹ suites 0
+ℹ pass 48
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8790.186372
+✔ shared diagnostic boundary preserves successful payload and does not log (1.243095ms)
+✔ shared boundary serializes only reviewed diagnostic and logs once without raw error data (0.405792ms)
+✔ failed result projection replaces unsafe error data while preserving safe state (0.207541ms)
+✔ diagnostic status read remains a successful read instead of a failed command (3.608684ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+✔ actual publish-now HTTP response explains an accepted-package failure without raw provider data (46.446734ms)
+[EgressDiag] publication_tasks.publish_now projectId=20 taskId=5000 responseBytes=818
+✔ HTTP browser handoff keeps successful control state and removes raw fallback reason (5.10168ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+✔ generic release accepts an arbitrary canonical task without sending and records an exact immutable proof (2.905981ms)
+✔ generic live send creates the attempt before provider dispatch and confirms provider readback once (1.608837ms)
+✔ generic uncertain provider result freezes the attempt and blocks a second dispatch (1.048184ms)
+✔ release diagnostics identify publication_authorized without disclosing values (1.008914ms)
+✔ release diagnostics identify body_sha256 without disclosing values (0.310001ms)
+✔ release diagnostics identify channel_id without disclosing values (0.415071ms)
+✔ release diagnostics identify accepted_revision without disclosing values (0.295982ms)
+✔ release diagnostics identify manifest_checksum without disclosing values (0.302961ms)
+✔ release diagnostics identify actor_id without disclosing values (0.350052ms)
+✔ release diagnostics identify approval_reference without disclosing values (0.375011ms)
+✔ missing release produces one reason, without cascading missing-proof mismatches (0.352492ms)
+✔ release diagnostics collect all mismatches in stable order (0.342201ms)
+✔ malformed release states fail closed with safe reasons for all available checks (0.392802ms)
+✔ valid dry run preserves release and does not dispatch or claim (0.229211ms)
+✔ MCP serializes actionable release diagnostics and logs only safe diagnostic data (16.043844ms)
+✔ Threads boundary safely explains THREADS_PROVIDER_IDENTITY_UNVERIFIED without exposing raw errors (0.272681ms)
+✔ Threads boundary safely explains THREADS_PUBLICATION_UNCERTAIN without exposing raw errors (0.149731ms)
+✔ Threads boundary safely explains THREADS_REQUEST_FAILED without exposing raw errors (0.10151ms)
+✔ ThreadsService.publishPost publishes text post successfully (4.702388ms)
+✔ ThreadsService accepts the current provider threads.com permalink (0.236531ms)
+✔ ThreadsService.publishPost waits for an image container and returns the provider permalink (0.481732ms)
+✔ ThreadsService.publishThread creates a root and ordered replies (0.758083ms)
+✔ ThreadsService never puts the access token in request URLs (0.485702ms)
+✔ ThreadsService.testConnection rejects missing access token (0.176141ms)
+✔ ThreadsService.testConnection succeeds with valid token and matching user id (0.306781ms)
+✔ ThreadsService.testConnection flags user id mismatch (0.208651ms)
+✔ ThreadsService redacts provider response bodies in typed errors (0.280701ms)
+✔ ThreadsService rejects a missing or untrusted provider permalink (0.558772ms)
+✔ ThreadsService bounds image container polling (0.239021ms)
+✔ ThreadsService searches public posts with bounded encoded parameters and Bearer auth (0.340632ms)
+✔ ThreadsService reads direct replies and full conversation through distinct endpoints (0.924974ms)
+✔ ThreadsService publishes a reply as a reply container and returns provider identity (0.647992ms)
+ℹ tests 38
+ℹ suites 0
+ℹ pass 38
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1904.832155
