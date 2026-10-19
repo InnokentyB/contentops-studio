@@ -1,0 +1,14 @@
+ Container tower-vk-dzen-integration-synthetic-db-1  Running
+✔ INTEGRATION cleanup retains live group children after browser parent exits; late child=false (901.705318ms)
+✔ INTEGRATION cleanup retains live group children after browser parent exits; late child=true (809.118464ms)
+✔ INTEGRATION foreign group and reused PID identity receive no signal (769.664669ms)
+✔ INTEGRATION parent-group signal rejects reused leader and leaves foreign groups alive (153.179544ms)
+✔ INTEGRATION spawn failure without pid is handled before late ChildProcess error (61.672446ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2929.911589

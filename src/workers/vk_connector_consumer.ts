@@ -1,7 +1,8 @@
+import { VkPreflightRequestSchema, type VkPreflightRequest } from '../services/vk_operator_preflight';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { z } from 'zod';
-import { acquireVkConnectorLock, consumeVkConnectorOnce, loadVkConnectorConfig, readVkConnectorToken, writeVkConnectorHealth,
+import { AUTHENTICATED_REMOTE_ACTOR, acquireVkConnectorLock, consumeVkConnectorOnce, loadVkConnectorConfig, readVkConnectorToken, writeVkConnectorHealth,
     type VkConnectorConfig, type VkConnectorControl, type VkConnectorCycleResult, type VkConnectorProviderDispatch } from '../services/vk_connector_consumer_runtime';
 
 const ToolResponseSchema = z.object({ isError: z.boolean().optional(), structuredContent: z.unknown().optional(),
@@ -49,13 +50,14 @@ export async function runVkConnectorConsumer(configFile: string, signal: AbortSi
     const lock = acquireVkConnectorLock(config);
     let control: VkConnectorControl | undefined;
     let backoff = 5000; let preserveLock = false;
-    const dispatch = operatorRuntimeFactory?.(config);
+    const dispatch: VkConnectorProviderDispatch | undefined = operatorRuntimeFactory
+        ? (input, activeControl, activeSignal) => operatorRuntimeFactory(config)(input, activeControl, activeSignal) : undefined;
     try {
         while (!signal.aborted) {
             let latest: VkConnectorCycleResult | undefined;
             try {
                 control ??= await connector(config, token, signal);
-                const result = await consumeVkConnectorOnce({ projectId: 10, actorId: 'user:0', hostId: config.hostId,
+                const result = await consumeVkConnectorOnce({ projectId: config.projectId, actorId: config.actorId ?? AUTHENTICATED_REMOTE_ACTOR, hostId: config.hostId,
                     instanceId: lock.instanceId, buildVersion: config.buildVersion, mode: config.mode }, control, signal, 15_000, undefined, dispatch);
                 latest = result;
                 writeVkConnectorHealth(config, lock.instanceId, result);
@@ -92,27 +94,28 @@ async function connectPreflight(config: VkConnectorConfig, token: string, signal
     }, close: () => client.close() };
 }
 /** Readiness only: no polling, lock acquisition, provider dispatch or canonical mutation. */
-export async function runVkConnectorOperatorPreflight(configFile: string, signal: AbortSignal,
+export async function runVkConnectorOperatorPreflight(configFile: string, request: VkPreflightRequest, signal: AbortSignal,
     connector: (config: VkConnectorConfig, token: string, signal: AbortSignal) => Promise<VkConnectorControl> = connectPreflight): Promise<void> {
     const config = loadVkConnectorConfig(configFile);
+    const selected = VkPreflightRequestSchema.parse(request);
     const token = readVkConnectorToken(config);
     const deadline = new AbortController();
     const timer = setTimeout(() => deadline.abort(), 120000);
     const active = AbortSignal.any([signal, deadline.signal]);
     let control: VkConnectorControl | undefined;
-    let result: import('../services/vk1048_operator_preflight').Vk1048PreflightResult | undefined;
+    let result: import('../services/vk_operator_preflight').VkPreflightResult | undefined;
     let closeFailed = false;
     try {
         control = await connector(config, token, active);
-        const { runVk1048OperatorPreflight } = await import('../services/vk1048_operator_preflight');
-        result = await runVk1048OperatorPreflight(config, control, { signal: active });
+        const { runVkOperatorPreflight } = await import('../services/vk_operator_preflight');
+        result = await runVkOperatorPreflight(config, control, { request: selected, signal: active });
     } finally {
         deadline.abort();
         if (control) {
             let cleanupTimer: ReturnType<typeof setTimeout> | undefined;
             try {
                 await Promise.race([Promise.resolve().then(() => control!.close()), new Promise<never>((_resolve, reject) => {
-                    cleanupTimer = setTimeout(() => reject(new Error('[VK1048_CONTROL_CLEANUP_UNCONFIRMED]')), 30000);
+                    cleanupTimer = setTimeout(() => reject(new Error('[VK_CONTROL_CLEANUP_UNCONFIRMED]')), 30000);
                 })]);
             } catch { closeFailed = true; } // Report the unknown cleanup outcome below, never retry or release another process lock.
             finally { if (cleanupTimer) clearTimeout(cleanupTimer); }
@@ -125,14 +128,14 @@ export async function runVkConnectorOperatorPreflight(configFile: string, signal
     }
 }
 /** Explicit one-shot human recovery; never used by the managed polling entry. */
-export async function runVkConnectorOperatorReconcile(configFile: string, signal: AbortSignal): Promise<void> {
+export async function runVkConnectorOperatorReconcile(configFile: string, jobId: string, signal: AbortSignal): Promise<void> {
     const config = loadVkConnectorConfig(configFile); const token = readVkConnectorToken(config); const lock = acquireVkConnectorLock(config);
     let control: VkConnectorControl | undefined; let preserveLock = false;
     try {
         control = await connect(config, token, signal);
-        const { runVk1048OperatorReconcile } = await import('../services/vk1048_operator_reconcile');
-        const result = await runVk1048OperatorReconcile(config, { projectId: 10, actorId: 'user:0', hostId: config.hostId,
-            instanceId: lock.instanceId, buildVersion: config.buildVersion, mode: 'vk_feed_provider' }, control, signal);
+        const { runVkConnectorOperatorReconcile: reconcileJob } = await import('../services/vk_connector_operator_reconcile');
+        const result = await reconcileJob(config, { projectId: config.projectId, actorId: config.actorId ?? AUTHENTICATED_REMOTE_ACTOR, hostId: config.hostId,
+            instanceId: lock.instanceId, buildVersion: config.buildVersion, mode: 'vk_feed_provider' }, control, z.uuid().parse(jobId), signal);
         preserveLock = result.reason === 'SESSION_CLEANUP_UNCONFIRMED';
         process.stdout.write(`${result.status}: ${result.reason}\n`);
     } finally { try { await control?.close(); } finally { if (!preserveLock) lock.release(); } }
@@ -146,11 +149,12 @@ if (require.main === module) {
     const reconcile = process.argv[2] === '--operator-reconcile';
     const file = process.argv[operator || reconcile || preflight ? 3 : 2] ?? '';
     const run = async () => {
-        if (preflight) return runVkConnectorOperatorPreflight(file, abort.signal);
-        if (reconcile) return runVkConnectorOperatorReconcile(file, abort.signal);
+        if (preflight) return runVkConnectorOperatorPreflight(file, VkPreflightRequestSchema.parse({
+            taskId: Number(process.argv[4]), jobId: process.argv[5], expectedPackageSha256: process.argv[6] }), abort.signal);
+        if (reconcile) return runVkConnectorOperatorReconcile(file, z.uuid().parse(process.argv[4]), abort.signal);
         if (!operator) return runVkConnectorConsumer(file, abort.signal);
-        const { createVk1048OperatorDispatch } = await import('../services/vk1048_operator_dispatch');
-        return runVkConnectorConsumer(file, abort.signal, connect, createVk1048OperatorDispatch);
+        const { createVkConnectorOperatorDispatch } = await import('../services/vk_connector_operator_dispatch');
+        return runVkConnectorConsumer(file, abort.signal, connect, createVkConnectorOperatorDispatch);
     };
     run().catch((error: unknown) => {
         const allowed = new Set(['[VK_CONNECTOR_AUTH_UNAVAILABLE]', '[VK_CONNECTOR_ALREADY_RUNNING_OR_STALE_LOCK]',

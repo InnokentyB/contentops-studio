@@ -1,0 +1,86 @@
+{
+  "packet": "VK-SHARED-DELIVERY-022",
+  "status": "IMPLEMENTED_CONTAINER_VERIFIED_OWNER_UAT_PENDING",
+  "preparedAt": "2026-10-17T17:14:49.590297+00:00",
+  "owningIssue": "https://github.com/InnokentyB/contentops-studio/issues/143",
+  "supersedes": "020/021 diagnostic-only proposals; old task-specific constraints are retained as historical records, not copied into new runtime authority",
+  "baseline": {
+    "main": "d233b2b51abade97a5f273b24788108838167ae9",
+    "towerSource": "0f457ea97ebbdc20391beeaeea3523831208a5e3",
+    "vkFilesEqualBetweenTheseRevisions": true
+  },
+  "LOCK": {
+    "goal": "Reusable VK search and publication through Planner commands, registered independent adapter and canonical lifecycle; ordinary publications are data, not new code/deploys",
+    "surface": [
+      "Existing publication card and documented shared Planner adapter command/status",
+      "Shared registered consumer; existing job/attempt/lease/fact truth"
+    ],
+    "stagedDelivery": [
+      "Generic container browser launch and fixture test environment: immutable reviewed executable, chromiumSandbox true, no host execution, no production credentials or session",
+      "Data-driven tenant-owned job/package/host resolution, replacing exact business-ID literals with validated records and capabilities; keep historical active jobs immutable and readable",
+      "Shared search/image-post/Clip capabilities and canonical result verification, with explicit unsupported/unknown states per format; do not claim native-video readiness from Clip tests",
+      "Production discoverability and live UAT only after actually permitted provider checks; no execution activation by this engineering packet"
+    ],
+    "excluded": [
+      "Any bypass of recorded BrowserUse denial",
+      "Live provider navigation/login/session transfer/upload/send",
+      "New queue consumer or production credential activation",
+      "Automatic resume/reset/rebind/retry or manual fact creation",
+      "Dzen/personal LinkedIn changes"
+    ]
+  },
+  "QAR": {
+    "deadlineSeconds": {
+      "readiness": 120,
+      "cleanup": 30
+    },
+    "boundedSearch": {
+      "queries": 3,
+      "posts": 100,
+      "scrollRounds": 10
+    },
+    "maxClipBytes": 209715200,
+    "security": [
+      "Non-root Linux amd64 Docker with namespace/seccomp sandbox verified; no no-sandbox/privileged/host-network/docker-socket",
+      "No raw tokens/cookies/profile exports/provider payload secrets in source/logs/evidence",
+      "No new task/account/channel/revision/package literals or specialized production exports/commands",
+      "Two distinct synthetic tenant/job/account datasets execute identical shared code; wrong tenant/revision/hash/manifest fails closed",
+      "Every invalid/uncertain case proves no send; receipt/heartbeat/fixture never counts as publication"
+    ],
+    "acceptance": "Focused tests + quality gate + relevant builds + independent review; owner UAT required for full readiness"
+  },
+  "ARCH": {
+    "reuse": [
+      "Existing ConnectorDispatchJob/HostStatus and canonical task/release/work-item/attempt/publication fact",
+      "Existing scoped Publisher MCP authorization, server principal normalization, provider UI helpers and reconciliation rules",
+      "Existing reviewed Docker recipes/shared browser runtime; synthetic DB only"
+    ],
+    "runtimeChange": "Extract provider-neutral browser-launch configuration/helper with validated executable and explicit sandbox; existing adapter calls helper rather than adding another worker",
+    "dataBoundary": "Resolve requested job with authenticated tenant ownership; derive channel/community/revision/asset/work-item/release hashes and host capability from current owning records, compare immutable snapshot and CAS generation at each side-effect boundary",
+    "permissionBoundary": "Existing actual application authorization remains distinct from recorded external tool restrictions. Neither factory wiring, independent process, config flag nor appnonce clears a real denial. No invented admission/clearance service or permitted=true flag",
+    "compatibility": "No schema migration expected for JSON bindings; if a migration or identity privilege change is found necessary, return exact amendment before applying. Keep existing audit/job/history and legacy reads; no silent old-package rebinding",
+    "plannedAreas": [
+      "Shared VK connector contracts/repository/dispatch/execution ports and existing MCP surface",
+      "Shared browser runtime and existing search/Clip/post adapter helpers",
+      "Existing publication card/status response",
+      "Reviewed project container test recipe and acceptance tests"
+    ]
+  },
+  "RISK": {
+    "publicMutation": "Excluded until genuine permitted context and exact publication authority exist",
+    "duplicateControl": "Existing or started attempt, unknown result or expired lease only reconcile; never resend or infer absence from partial inventory",
+    "tenantControl": "Principal normalized server-side, capability+owner checks, resolve records under tenant before provider calls; no default account fallback",
+    "proofLimits": "Backend original-photo byte checks do not independently attest host DOM; collection provenance and partial coverage stay explicit",
+    "rollback": "Revert additive shared runtime/code to prior release without deleting jobs/facts/leases/profiles/backups; no cutover or config migration in this approval",
+    "dependencies": [
+      "Current browser tests need exact common executable integration and sandbox option",
+      "Current task-specific debt requires shared lifecycle refactor, not a task-specific exception"
+    ]
+  },
+  "approvalQuestion": "Утверждаешь LOCK/QAR/ARCH/RISK этого инженерного пакета: общий VK-адаптер и контейнерные проверки без живой публикации, обхода отказа и изменения текущего задания?",
+  "humanApproval": {
+    "date": "2026-10-17",
+    "response": "да",
+    "scope": "LOCK/QAR/ARCH/RISK engineering packet only; live execution and current-job mutation excluded"
+  }
+}

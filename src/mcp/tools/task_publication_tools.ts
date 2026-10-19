@@ -1,3 +1,4 @@
+import type { OwnedPublicationRequest } from '../../services/owned_publication_contract';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import mcpPublicationService from '../../services/mcp_publication.service';
@@ -22,17 +23,13 @@ export function isTaskNativeDzenPublication(projectId: number, taskId: number): 
     return projectId === 10 && TASK_NATIVE_DZEN_PUBLICATION_IDS.has(taskId);
 }
 
-type PublicationTaskArgs = {
-    projectId: number;
-    taskId: number;
-    dryRun?: boolean;
-    idempotencyKey?: string;
-};
+type PublicationTaskArgs = OwnedPublicationRequest;
 
 type TaskExecutor = { execute(args: PublicationTaskArgs): Promise<Record<string, unknown>> };
 type ThreadsTaskExecutor = TaskExecutor & { isThreadsTask(args: Pick<PublicationTaskArgs, 'projectId' | 'taskId'>): Promise<boolean> };
 
 type PublicationTaskRoutingDependencies = {
+    owned?: (args: PublicationTaskArgs) => Promise<Record<string, unknown> | null>;
     isDzenTask(projectId: number, taskId: number): boolean;
     dzen: TaskExecutor;
     threads: ThreadsTaskExecutor;
@@ -42,12 +39,15 @@ type PublicationTaskRoutingDependencies = {
 export async function executePublicationTaskByChannel(
     args: PublicationTaskArgs,
     dependencies: PublicationTaskRoutingDependencies = {
-        isDzenTask: isTaskNativeDzenPublication,
+        isDzenTask: () => false,
+        owned: async args => (await import('../../services/publication_owned_route')).tryOwnedPublicationTask(args),
         dzen: dzenTaskPublicationService,
         threads: threadsTaskPublicationService,
         telegram: telegramTaskPublicationService
     }
 ): Promise<Record<string, unknown>> {
+    const owned = await dependencies.owned?.(args);
+    if (owned) return owned;
     if (dependencies.isDzenTask(args.projectId, args.taskId)) return dependencies.dzen.execute(args);
     if (await dependencies.threads.isThreadsTask(args)) return dependencies.threads.execute(args);
     return dependencies.telegram.execute(args);
@@ -274,14 +274,20 @@ export function registerTaskPublicationTools(server: McpServer): void {
     });
 
     server.registerTool('ba_publish_publication_task', {
-        description: 'Dry-run any canonical publication task using accepted text and approved durable visual. Live Telegram feed tasks target their configured channel. Telegram and VK story tasks target the authorized personal profile; VK photo stories can include a revision-bound native poll configured through ba_configure_vk_story_poll. No browser fallback or silent visual downgrade is used.',
+        description: 'Governed Dzen uses the existing command with operation release/publish/reconcile and default stored-only dryRun; native actions remain held by policy. Dry-run any canonical publication task using accepted text and approved durable visual. Live Telegram feed tasks target their configured channel. Telegram and VK story tasks target the authorized personal profile; VK photo stories can include a revision-bound native poll configured through ba_configure_vk_story_poll. No browser fallback or silent visual downgrade is used.',
         annotations: EXTERNAL_PUBLICATION_ANNOTATIONS,
-        inputSchema: {
+        inputSchema: z.object({
             projectId: z.number().int().positive(),
             taskId: z.number().int().positive(),
             dryRun: z.boolean().optional().describe('Validate and return the exact normalized provider payload without sending.'),
-            idempotencyKey: z.string().min(1).max(500).optional().describe('Required for live publication and reused to safely replay a confirmed result.')
-        }
+            idempotencyKey: z.string().min(1).max(500).optional().describe('Required for live publication and reused to safely replay a confirmed result.'),
+            operation: z.enum(['release', 'publish', 'reconcile']).optional(),
+            expectedAcceptedRevision: z.number().int().positive().optional(),
+            expectedPackageSha256: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+            expectedManifestChecksum: z.string().min(1).max(200).optional(),
+            approvalReference: z.string().min(1).max(1000).optional(),
+            attemptId: z.number().int().positive().optional()
+        }).strict()
     }, async (args) => publicationAdapterDiagnosticResult(() => executePublicationTaskByChannel(args)));
 
     server.registerTool('ba_publish_threads_task', {

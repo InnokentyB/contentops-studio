@@ -1,0 +1,37 @@
+{
+  "prior_commit": "400c340fbd8bd412fee0cf1d00ddd4cf1d9dd21b",
+  "source_file": "src/tests/vk_task1084_hold.test.ts",
+  "source_sha256": "0783466e0a30e313ab211fc2a96e59ab2f09c04e86fa549e7ca8808809fe59f2",
+  "image_config": "sha256:32bb35f74f6ce163b1c4e65a4caf72f200989c8cd735a28863034d47a6100223",
+  "results": {
+    "full_build": "PASS",
+    "quality": "PASS",
+    "compiled_hold_and_prepare": {
+      "pass": 6,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  "artifacts": [
+    {
+      "path": "fixture-type-red.txt",
+      "sha256": "09eee1d5941dbf21408a435952263e0542042e41689134014434d1900e09756d",
+      "bytes": 94569
+    },
+    {
+      "path": "fixture-final-build.txt",
+      "sha256": "1770cc14da9ab2fe78b91f397d8d39e0826e70525b42e386227d3d5779362a6c",
+      "bytes": 7579
+    },
+    {
+      "path": "fixture-final-quality.txt",
+      "sha256": "09e86f505c3e5411862e353872de6bf2317fd0ba91456206b74ae8db2f56c986",
+      "bytes": 1551
+    },
+    {
+      "path": "fixture-final-compiled.tap",
+      "sha256": "312325dc179d57a1892288eab77153f5a8551e2d83366c5dc7d60e000848c885",
+      "bytes": 1351
+    }
+  ]
+}

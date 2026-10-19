@@ -1,11 +1,14 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
+import { z } from 'zod';
 
-export const VK_CONNECTOR_HOST = 'vk-connector-local-1048';
-export const VK_CONNECTOR_SCOPE = { projectId: 10, taskId: 1048, channelId: 117,
-    revision: 1, selectedAssetId: 130, communityId: -240051152, placement: 'feed' } as const;
-export type ConnectorBinding = typeof VK_CONNECTOR_SCOPE & {
-    bodySha256: string; assetSha256: string; releaseSha256: string;
-};
+const positiveId = z.number().int().positive();
+const sha256 = z.string().regex(/^[a-f0-9]{64}$/);
+export const ConnectorHostIdSchema = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,99}$/);
+/** Tenant-owned snapshot data, not a publication-specific execution allowlist. */
+export const ConnectorBindingSchema = z.object({ projectId: positiveId, taskId: positiveId, channelId: positiveId,
+    communityId: z.number().int().negative(), revision: positiveId, selectedAssetId: positiveId,
+    placement: z.enum(['feed', 'clip']), bodySha256: sha256, assetSha256: sha256, releaseSha256: sha256 }).strict();
+export type ConnectorBinding = z.infer<typeof ConnectorBindingSchema>;
 export type ConnectorSnapshot = { package: ConnectorBinding; workItemId: number;
     factId: number | null; publicUrl: string | null; attemptId: number | null;
     attemptStatus: string | null; eligible: boolean };
@@ -21,7 +24,8 @@ export type JobPatch = Partial<Pick<ConnectorJob, 'state' | 'hostId' | 'instance
     | 'receiptAt' | 'blocker' | 'attemptId' | 'factId' | 'canonicalLeaseSha256' | 'canonicalLeaseExpiresAt'>> & { updatedAt: Date };
 export interface ConnectorStore {
     authorize(projectId: number, actorId: string, mutation: boolean): Promise<void>;
-    bindLease?(projectId: number, actorId: string, leaseToken: string, leaseExpiresAt: string): Promise<void>;
+    bindLease?(projectId: number, actorId: string, leaseToken: string, leaseExpiresAt: string,
+        binding: { taskId: number; workItemId: number }): Promise<void>;
     commandResult?(projectId: number, actorId: string, command: string, key: string): Promise<unknown>;
     executionPackage?(projectId: number, taskId: number): Promise<ConnectorExecutionPackage>;
     snapshot(projectId: number, taskId: number): Promise<ConnectorSnapshot>;
@@ -64,8 +68,8 @@ export type ConnectorAuditData = { jobId?: string; state?: string; generation?: 
     previousReceiptAt?: string | null; packageSha256?: string; requestSha256?: string; idempotencyKey?: string };
 /** Protected ephemeral execution content, never persisted in dispatch or audit rows. */
 export type ConnectorExecutionPackage = { binding: ConnectorBinding; packageSha256: string; body: string;
-    asset: { id: 130; url: string; sha256: string }; approvalReference: string; releasedAt: string;
-    workItemId: 1699; permissionStatus: 'NOT_CHECKED' | 'POLICY_DENIED' | 'PERMITTED'; providerExecution: 'blocked' | 'permitted' };
+    asset: { id: number; url: string; sha256: string }; approvalReference: string; releasedAt: string;
+    workItemId: number; permissionStatus: 'NOT_CHECKED' | 'POLICY_DENIED' | 'PERMITTED'; providerExecution: 'blocked' | 'permitted' };
 
 /** Constant-size comparison for lease secrets and their private fingerprints. */
 export function connectorSecretEqual(left: string, right: string): boolean {

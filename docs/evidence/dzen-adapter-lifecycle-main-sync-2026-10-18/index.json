@@ -1,0 +1,82 @@
+{
+  "source_commit": "2a2b94567bbcdb7a66f0c82ca51942259b123955",
+  "parents": [
+    "8f0950e5fe0f8ac7b750d76b59a53210b999d694",
+    "17e0aefb1f4195c520f5fa9cb9610d686a1de0d0"
+  ],
+  "image_config": "sha256:04f49d5df6bdcc7030599f62bb527bf391acb5aed447926212c484b263f3b868",
+  "results": {
+    "build": "PASS",
+    "quality": "PASS",
+    "boundaries": {
+      "pass": 77,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  "source_delta": [
+    {
+      "path": ".github/workflows/code-quality.yml",
+      "sha256": "028b7dd4a649aee961f2432058b2be2a4eca49f9740a88390c3f7bf0f9625909"
+    },
+    {
+      "path": "docs/evidence/linkedin-text-only-browser-trun-2026-10-18.md",
+      "sha256": "2a223af504cd64438cbf83b46b37ebb21fb01f90bb1bb457b04210e307bcd3b2"
+    },
+    {
+      "path": "docs/operations/shared-browser-publication.md",
+      "sha256": "e35254f31d2e4aa8246485c828b220d18de06b033be058ebc62260f1c578811b"
+    },
+    {
+      "path": "src/mcp/tools/browser_publication_tools.ts",
+      "sha256": "dd9afdd93a7348de898afe94ef16aa78eb353fdbf6ab723d64960ed78237881f"
+    },
+    {
+      "path": "src/services/browser_publication_contract.ts",
+      "sha256": "9cb80ad7e2c0a6e49ce1d00d8c06e9a124d7c4bed06925f0ce1fd365f37cc069"
+    },
+    {
+      "path": "src/services/browser_publication_guard.ts",
+      "sha256": "0220c9cdb08cccaca78baf19e4d9de98d798d335347efe7204b5a86a19562c41"
+    },
+    {
+      "path": "tests/tdpd/shared-browser-linkedin-text-only.test.cjs",
+      "sha256": "369e19992d95a2fa529f62120154d503405ffcfbf21ac684ba5ac80fce64f47e"
+    },
+    {
+      "path": "tests/tdpd/shared-linkedin-text-only.fixture.cjs",
+      "sha256": "6996acf79622a4b1828917151b9574d2daae415363f9f7b4b27dc89c3cd8ab03"
+    },
+    {
+      "path": "tests/tdpd/shared-x-native.test.cjs",
+      "sha256": "a633fc1a845258a6aba3b2ebadd5006b9928a01d6beabfd8b0b749b22d1338b4"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "boundaries.tap",
+      "sha256": "92113f9c23edc2d85ac35573229c8488ffbe63127db3fa7e4f051c9f6a53a9ec",
+      "bytes": 10592
+    },
+    {
+      "path": "build.txt",
+      "sha256": "bda06271d06c9041dca055ad23459942652d54abd417e698f250b246e639a2e5",
+      "bytes": 7580
+    },
+    {
+      "path": "quality.txt",
+      "sha256": "cb3821a864a3d93f00c1b8958f422e21458aa68c65dd4ae688a51898c9cb5d62",
+      "bytes": 1551
+    },
+    {
+      "path": "setup-broad-selector.txt",
+      "sha256": "eafd4aeff694f7b2142532ea739693855b42cfb156bafa2a2310fafdedc0172f",
+      "bytes": 11576
+    },
+    {
+      "path": "setup-quality-missing-base.txt",
+      "sha256": "b30e9525cae18bdec1e785e3c08438c414223509657c35f7c9f10c7446d1af90",
+      "bytes": 2265
+    }
+  ]
+}

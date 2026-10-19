@@ -53,7 +53,7 @@ test('CONSUMER-002 valid pilot receipt ends blocked rather than publication succ
     assert.equal(f.calls[2].args.blocker, 'PROVIDER_CONTROL_DENIED');
     assert.equal('publicationFactId' in output, false);
 });
-test('CONSUMER-003 changed pilot/hash/revision/tenant has no consumer acknowledgement', async () => {
+test('CONSUMER-003 changed immutable package/hash or foreign tenant has no consumer acknowledgement', async () => {
     for (const mutation of [{ taskId: 1084 }, { channelId: 120 }, { communityId: -1 }, { revision: 2 }, { selectedAssetId: 131 }, { placement: 'clip' }, { bodySha256: 'invalid' }]) {
         const f = fixtureControl([{ ...job, package: { ...pilot, ...mutation } }]);
         assert.equal((await consumeVkConnectorOnce(identity, f.control)).status, 'invalid_response');
@@ -62,7 +62,9 @@ test('CONSUMER-003 changed pilot/hash/revision/tenant has no consumer acknowledg
     const f = fixtureControl([{ ...job, packageSha256: 'd'.repeat(64) }]);
     assert.equal((await consumeVkConnectorOnce(identity, f.control)).status, 'invalid_response');
     assert.equal(f.calls.length, 1);
-    await assert.rejects(consumeVkConnectorOnce({ ...identity, projectId: 7 }, fixtureControl().control));
+    const foreign = fixtureControl();
+    assert.equal((await consumeVkConnectorOnce({ ...identity, projectId: 7 }, foreign.control)).status, 'invalid_response');
+    assert.equal(foreign.calls.length, 1);
 });
 test('CONSUMER-004 stale generation cannot report or publish', async () => {
     const f = fixtureControl();
@@ -86,7 +88,7 @@ test('CONSUMER-006 owner-only config rejects wrong permissions, host, project an
     const f = localConfig(t);
     assert.equal(loadVkConnectorConfig(f.file).projectId, 10);
     fs.chmodSync(f.file, 0o644); assert.throws(() => loadVkConnectorConfig(f.file)); fs.chmodSync(f.file, 0o600);
-    for (const mutation of [{ projectId: 7 }, { hostId: 'different' }, { mode: 'live' }, { endpoint: 'https://evil.example/mcp' }, { profileDir: '/private/profile' }]) {
+    for (const mutation of [{ projectId: 0 }, { hostId: '../unsafe' }, { mode: 'live' }, { endpoint: 'https://evil.example/mcp' }, { profileDir: '/private/profile' }]) {
         fs.writeFileSync(f.file, JSON.stringify({ ...f.config, ...mutation })); assert.throws(() => loadVkConnectorConfig(f.file));
     }
     const link = path.join(f.root, 'linked.json'); fs.symlinkSync(f.file, link); assert.throws(() => loadVkConnectorConfig(link));
@@ -252,11 +254,11 @@ test('CONSUMER-018 provider surface selection cannot grant admission or perform 
             f.calls.push({ name, args }); return { jobs: [job], health: { ...health, mode: 'vk_feed_provider' } };
         }
         const output = await original(name, args);
-        return name === 'ba_report_vk_connector_job' ? { ...(typeof output === 'object' && output !== null ? output : {}), blocker: 'PROVIDER_PERMISSION_UNVERIFIED' } : output;
+        return name === 'ba_report_vk_connector_job' ? { ...(typeof output === 'object' && output !== null ? output : {}), blocker: 'NOT_CONNECTED' } : output;
     };
     const result = await consumeVkConnectorOnce({ ...identity, mode: 'vk_feed_provider' }, f.control);
     assert.equal(result.mode, 'vk_feed_provider');
-    assert.equal(result.blocker, 'PROVIDER_PERMISSION_UNVERIFIED');
+    assert.equal(result.blocker, 'NOT_CONNECTED');
     assert.equal(f.calls.some((call) => /execution_package|claim|submission/.test(call.name)), false);
 });
 test('CONSUMER-019 idle provider mode records unverified admission rather than a fresh control denial', async () => {

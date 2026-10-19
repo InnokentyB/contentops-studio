@@ -9,12 +9,12 @@ import type { ConnectorExecutionPackage } from './vk_connector_contract';
 
 export type VkConnectorChallengePurpose = 'wall_read' | 'submission' | 'post_confirm';
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
-const objectId = z.string().regex(/^-240051152_[1-9]\d*$/);
+const objectId = z.string().regex(/^-[1-9]\d*_[1-9]\d*$/);
 const photoSource = z.object({ originalUrl: z.url().max(8192), capturedAt: z.iso.datetime(),
-    postObjectId: objectId, providerMediaId: z.string().regex(/^photo-240051152_[1-9]\d*$/) }).strict();
-const media = z.object({ assetSha256: hash, providerMediaId: z.string().regex(/^photo-240051152_[1-9]\d*$/),
+    postObjectId: objectId, providerMediaId: z.string().regex(/^photo-[1-9]\d*_[1-9]\d*$/) }).strict();
+const media = z.object({ assetSha256: hash, providerMediaId: z.string().regex(/^photo-[1-9]\d*_[1-9]\d*$/),
     acknowledged: z.boolean(), source: photoSource.optional() }).strict();
-const wall = z.object({ ownerId: z.literal('-240051152'), startedAt: z.iso.datetime(), capturedAt: z.iso.datetime(),
+const wall = z.object({ ownerId: z.string().regex(/^-[1-9]\d*$/), startedAt: z.iso.datetime(), capturedAt: z.iso.datetime(),
     windowStart: z.iso.datetime(), windowEnd: z.iso.datetime(), coverage: z.enum(['complete_window','partial']),
     exhausted: z.boolean(), rows: z.array(z.object({ objectId, publicUrl: z.url(), publishedAt: z.iso.datetime(),
         text: z.string().max(100_000), media: media.nullable() }).strict()).max(100) }).strict();
@@ -50,7 +50,7 @@ export class VkConnectorAppAuthority {
         await this.repository.transaction(async store => {
             await store.authorize(args.projectId, args.actorId, true);
             const job = await store.job(args.projectId, args.jobId), host = await store.host(args.projectId, args.hostId);
-            if (!job || !host || host.mode !== 'vk_feed_provider' || host.instanceId !== args.instanceId
+            if (!job || job.projectId !== args.projectId || !host || host.projectId !== args.projectId || host.mode !== 'vk_feed_provider' || host.instanceId !== args.instanceId
                 || job.generation !== args.generation || job.packageSha256 !== args.packageSha256
                 || job.instanceId !== args.instanceId || job.hostId !== args.hostId
                 || this.now().getTime() - host.heartbeatAt.getTime() > 30_000) fail('FENCED');
@@ -112,7 +112,10 @@ export class VkConnectorAppAuthority {
             postBaselineCapturedAt: args.postBaselineCapturedAt, postBaselineObjectIds: args.postBaselineObjectIds,
             postSubmissionStartedAt: args.postSubmissionStartedAt, readbackObservedAt: args.readbackObservedAt,
             mediaAcknowledgement: args.mediaAcknowledgement });
-        if (!proof.success || !actual.success) return false;
+        if (!proof.success || !actual.success || execution.binding.placement !== 'feed') return false;
+        const owner = String(execution.binding.communityId);
+        if (!proof.data.providerObjectId.startsWith(`${owner}_`)
+            || !proof.data.mediaAcknowledgement.providerMediaId.startsWith(`photo${owner}_`)) return false;
         const { mediaSource, ...providerProof } = proof.data;
         if (mediaSource.postObjectId !== proof.data.providerObjectId || mediaSource.providerMediaId !== proof.data.mediaAcknowledgement.providerMediaId
             || Date.parse(mediaSource.capturedAt) < consumed.challenge.issuedAt || Date.parse(mediaSource.capturedAt) > this.now().getTime()

@@ -1,0 +1,144 @@
+✔ DA21 automatic re-accept cannot reset a started exact package after marker replacement (0.939007ms)
+✔ DA21 project art-direction backfill skips owned history before revision or state changes (0.321402ms)
+✔ DA21 generic positive work-item approval cannot reset an owned provider task projection (0.832516ms)
+✔ DA21 leased positive art decision cannot supersede the immutable accepted decision (0.414543ms)
+✔ DA21 attaching a new requested source cannot replace an owned accepted cover (0.360393ms)
+✔ DA02 actual scoped publication request keeps token identity without caller actor field (67.532286ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+✔ DA02 concurrent async requests cannot inherit another tenant or caller actor (4.970746ms)
+✔ DA02 local stdio principal is configured identity, not first owner or request data (0.738715ms)
+✔ DA05 existing publication task command routes arbitrary Dzen data before legacy IDs and Telegram (1499.809766ms)
+✔ DA23 registered existing MCP command rejects transport, session and forged actor input (53.360675ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+(node:31) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+✔ DA02 actual registered default command preserves legacy non-Dzen stdio without new principal (2.210226ms)
+✔ DA02 default command preserves Threads selection without inferring an owned principal (0.236402ms)
+✔ DA02 missing owned principal cannot fall through to any legacy executor (0.504794ms)
+✔ DA02 token-bound foreign project rejects before provider metadata lookup (0.349093ms)
+✔ DA02 owned-only release fields cannot fall through to legacy providers (0.238592ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+✔ DA15 internal afterWrite binds actual fact identity in same transaction on create (1.987394ms)
+✔ DA15 internal afterWrite binds actual fact identity in same transaction on replay (0.258232ms)
+✔ DA15 unguarded internal afterWrite is rejected before access (0.391082ms)
+✔ DA02 actual HTTP owner and scoped publisher transport retain token principal through registered command (2047.495368ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+✔ DA07 mixed queue selects legacy VK without decoding or starving on Dzen rows (208.116478ms)
+✔ DA07 VK lookup and CAS cannot interpret or change a Dzen job (14.048792ms)
+✔ DA07 cross-provider idempotency collision is explicit, not foreign decode or new job (22.452072ms)
+✔ DA21 actual content edit rejects durable ownership after marker/status replacement (1.018157ms)
+✔ DA21 actual task preparation cannot overwrite lifecycle despite removed quality marker (0.239642ms)
+✔ DA20 actual generic manual/automatic/imported fact guard rejects durable lifecycle ownership (0.192211ms)
+✔ DA20 status projection cannot offer manual confirmation after durable ownership marker removal (0.505863ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+✔ S5 shared atomic confirmation and reconciliation controls exist (0.700045ms)
+✔ S5 fact+attempt+audit commit together; exact replay is read-only (12.368239ms)
+✔ S5 failed fact write rolls back completion audit and attempt state (5.309468ms)
+✔ S5 forged identity, wrong company, image, attempt or body never writes a fact (4.085599ms)
+✔ S5 UNKNOWN + expired lease reconcile only existing provider object, never reopen send (3.657816ms)
+✔ S5 reconciliation cannot bypass pre-submit during a healthy active lease (1.844124ms)
+✔ S5 normal confirmation rejects native action beyond recorded permit deadline atomically (1.822913ms)
+✔ S5 missing or invalid permit deadline never confirms (3.076982ms)
+✔ S5 explicit UNKNOWN can reconcile existing object while lease remains active (6.84357ms)
+✔ S5 expired lease alone permits reconciliation, missing lease expiry does not (3.102903ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+✔ Setka r2 diagnosis reads actual missing persisted bundle without mutation or snapshot requirement (3.000551ms)
+✔ Setka-shaped expected package reports exact missing body field with hash-only evidence (3.933468ms)
+✔ missing legacy bundle previews then repairs atomically before normal exact release (5.794891ms)
+✔ legacy repair rejects partial/divergent bundles, changed binding and every browser delivery history (10.167533ms)
+✔ diagnostic mismatches redact unexpected strings and reject owner/tenant changes without writes (0.978567ms)
+✔ legacy materialization never replaces a malformed metadata container or its history (1.36796ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+✔ S3 shared claim/start/pre-submit/uncertain controls exist (0.636205ms)
+✔ S3 claim replay returns only same current lease; durable audit never contains raw lease (8.084628ms)
+✔ S3 an expired claim key cannot retrieve a newer lease generation from the same actor (2.460218ms)
+✔ S3 start creates exactly one attempt; replay and UNKNOWN never issue another send permit (3.370885ms)
+✔ S4 pre-submit rejects actual company/text/image/block mismatch and only first valid call permits submit (8.926904ms)
+✔ S6 every generic dispatch entry rejects a shared governed package without task-numbered admission (0.803546ms)
+✔ S6 generic manual fact refuses to impersonate a browser attempt confirmation (0.614395ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+✔ LI-TEXT-01: no-visual personal and company snapshots reach owner preview/repair/release without fake assets (9.360728ms)
+✔ LI-TEXT-02: null requires current exact NO_VISUAL_NEEDED decision, no required image and exact trusted context (5.262058ms)
+✔ LI-TEXT-05: real MCP repair/release accepts the null pair and retains current canonical guards (64.244632ms)
+✔ LI-TEXT-06: missing legacy handoff materializes no image and no content/revision/date change (2.71501ms)
+✔ LI-TEXT-03: zero-image native observation permits once and confirms exact identity/body; image injection fails (12.394299ms)
+✔ LI-TEXT-04: UNKNOWN remains same-attempt reconciliation, never another start or permit (6.547207ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+✔ S6 shared controls are publisher-only; project and actor remain token-principal bound (0.730295ms)
+✔ S6 registered MCP surface matches capabilities and mutations never claim read-only (156.364676ms)
+node:assert:152
+  throw new AssertionError(obj);
+  ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ 'http:'
+- 'postgresql:'
+
+    at Object.<anonymous> (/workspace/tests/tdpd/shared-browser-postgres.test.cjs:4:8)
+    at Module._compile (node:internal/modules/cjs/loader:1929:14)
+    at Object..js (node:internal/modules/cjs/loader:2060:10)
+    at Module.load (node:internal/modules/cjs/loader:1651:32)
+    at Module._load (node:internal/modules/cjs/loader:1443:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:261:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 'http:',
+  expected: 'postgresql:',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.22.0
+✖ /workspace/tests/tdpd/shared-browser-postgres.test.cjs (28.205334ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+✔ S1 generic preview/repair/release exists at the operator boundary (0.663985ms)
+✔ S1 preview never writes; metadata repair preserves accepted body/date/art/channel and creates no release (5.59219ms)
+✔ S1 release creates one revision-bound WI and records exact replay; changed request conflicts (1.809943ms)
+✔ S2 wrong owner/tenant/binding/manifest/content/date/asset/decision, hold or prior attempt reject without mutation (7.341323ms)
+✔ S2 failed release audit atomically rolls back task and WI, even after valid metadata repair (0.646685ms)
+✔ S1 ordinary next task is parameters, not another deployed module (0.537034ms)
+✔ S2 numeric company profile and adopted Registry provider ID must agree (0.249172ms)
+✔ S2 token-bound outer project/task cannot hide a different tenant in the snapshot (3.461065ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+✔ Setka preview is no-write and ordinary next task uses validated package data (8.204269ms)
+✔ Setka personal UUID identity and approved image stay mandatory (3.569166ms)
+✔ Setka native profile/body/image mismatch cannot produce another permit (8.997265ms)
+✔ Setka UUID permalink, native object/time and evidence commit atomically; replay is read-only (5.5679ms)
+✔ Setka UNKNOWN/expired lease reconciles same attempt and never grants resend (3.513095ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+✔ X no-visual package is data-driven; existing image routes cannot omit their approved image (7.092071ms)
+✔ X acceptance requires exact active no-visual decision and no selected asset (2.234326ms)
+✔ X mixed-case identity disagreement is rejected before release or provider action (0.439213ms)
+✔ raw generic X start cannot create an attempt; internal gate failure rolls back its own writes (6.765798ms)
+✔ X internal signed gate precedes one attempt; only first native permit grants <=15 seconds (4.877485ms)
+✔ X confirm/reconcile reject raw caller observations; signed result keeps native object namespace (4.319531ms)
+✔ X UNKNOWN remains same-attempt reconciliation after lease expiry, with no fresh permit (2.890961ms)
+ℹ tests 78
+ℹ suites 0
+ℹ pass 77
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10037.092226
+
+✖ failing tests:
+
+test at tests/tdpd/shared-browser-postgres.test.cjs:1:1
+✖ /workspace/tests/tdpd/shared-browser-postgres.test.cjs (28.205334ms)
+  'test failed'
+

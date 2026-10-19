@@ -27,6 +27,7 @@ function normalized(text: string): string {
 /** Evaluates evidence from a trusted provider port; caller data alone is never permission to mutate. */
 export function evaluateVkConnectorReconciliation(binding: ConnectorBinding, text: string, releasedAt: string,
     evidence: VkConnectorWallEvidence, now: Date): VkConnectorReconciliation {
+    if (binding.placement !== 'feed') return unknown('FORMAT_UNSUPPORTED');
     if (connectorHash(text.trim()) !== binding.bodySha256) return unknown('PACKAGE_CHANGED');
     const captured = absoluteDate(evidence.capturedAt), started = absoluteDate(evidence.startedAt);
     const release = absoluteDate(releasedAt), from = absoluteDate(evidence.windowStart), to = absoluteDate(evidence.windowEnd);

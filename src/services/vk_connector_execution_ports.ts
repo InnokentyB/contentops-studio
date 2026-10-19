@@ -13,23 +13,33 @@ function fail(code: string): never { throw new Error(`[VK_CONNECTOR_${code}]`); 
 
 /** Locks transport/current payload rows in the same transaction as the canonical mutation. */
 export async function assertVkConnectorTransactionFence(tx: Prisma.TransactionClient,
-    args: ConnectorExecutionIdentity & { leaseToken?: string; attemptId?: number }, requireLease: boolean): Promise<void> {
+    args: ConnectorExecutionIdentity & { leaseToken?: string; attemptId?: number } & Partial<Pick<ConnectorStartArgs,
+        'taskId' | 'channelId' | 'workItemId' | 'contentRevision' | 'selectedAssetId' | 'textSha256' | 'imageSha256' | 'placement'>>, requireLease: boolean): Promise<void> {
     await requireProjectOwner(tx, args.projectId, args.actorId);
-    if (args.projectId !== 10) fail('SCOPE_MISMATCH');
-    const job = await tx.connectorDispatchJob.findFirst({ where: { project_id: 10, id: args.jobId } });
-    const host = await tx.connectorHostStatus.findUnique({ where: { project_id_host_id: { project_id: 10, host_id: args.hostId } } });
-    if (!job || job.content_item_id !== 1048 || job.channel_id !== 117 || job.work_item_id !== 1699
+    const job = await tx.connectorDispatchJob.findFirst({ where: { project_id: args.projectId, id: args.jobId } });
+    const host = await tx.connectorHostStatus.findUnique({ where: { project_id_host_id: { project_id: args.projectId, host_id: args.hostId } } });
+    if (!job || job.project_id !== args.projectId
         || (args.attemptId !== undefined && job.attempt_id !== args.attemptId)
         || job.generation !== args.generation || job.package_sha256 !== args.packageSha256
         || job.host_id !== args.hostId || job.consumer_instance_id !== args.instanceId
         || !host || host.mode !== 'vk_feed_provider' || host.instance_id !== args.instanceId || Date.now() - host.heartbeat_at.getTime() > 30_000
         || !(requireLease ? ['ready','executing'] : ['accepted','reconciling','ready','executing','verification_required']).includes(job.state)) fail('FENCED');
-    const task = await tx.contentItem.findFirst({ where: { project_id: 10, id: 1048 },
+    const task = await tx.contentItem.findFirst({ where: { project_id: args.projectId, id: job.content_item_id },
         include: { channel: true, selected_asset: true, publication_fact: true } });
-    const work = await tx.workItem.findFirst({ where: { project_id: 10, id: 1699, content_item_id: 1048 } });
-    const attempt = await tx.deliveryAttempt.findFirst({ where: { project_id: 10, content_item_id: 1048 }, orderBy: { id: 'desc' } });
+    const work = await tx.workItem.findFirst({ where: { project_id: args.projectId, id: job.work_item_id, content_item_id: job.content_item_id } });
+    const attempt = await tx.deliveryAttempt.findFirst({ where: { project_id: args.projectId, content_item_id: job.content_item_id }, orderBy: { id: 'desc' } });
     const snapshot = buildVkConnectorSnapshot(task, work, attempt);
     if (!task || !work || !task.selected_asset || !task.channel
+        || snapshot.package.projectId !== args.projectId || snapshot.package.taskId !== job.content_item_id
+        || snapshot.package.channelId !== job.channel_id || snapshot.workItemId !== job.work_item_id
+        || (args.taskId !== undefined && args.taskId !== snapshot.package.taskId)
+        || (args.channelId !== undefined && args.channelId !== snapshot.package.channelId)
+        || (args.workItemId !== undefined && args.workItemId !== snapshot.workItemId)
+        || (args.contentRevision !== undefined && args.contentRevision !== snapshot.package.revision)
+        || (args.selectedAssetId !== undefined && args.selectedAssetId !== snapshot.package.selectedAssetId)
+        || (args.textSha256 !== undefined && args.textSha256 !== snapshot.package.bodySha256)
+        || (args.imageSha256 !== undefined && args.imageSha256 !== snapshot.package.assetSha256)
+        || (args.placement !== undefined && args.placement !== snapshot.package.placement)
         || connectorPackageHash(snapshot.package) !== args.packageSha256
         || !['browser_required','publishing'].includes(task.status) || task.handoff_state !== 'ready'
         || task.publication_mode !== 'browser_required' || !task.channel.is_active
@@ -41,13 +51,13 @@ export async function assertVkConnectorTransactionFence(tx: Prisma.TransactionCl
         || !job.canonical_lease_sha256 || !connectorSecretEqual(job.canonical_lease_sha256, connectorHash(args.leaseToken))
         || !job.canonical_lease_expires_at || job.canonical_lease_expires_at.getTime() <= Date.now())) fail('FENCED');
     const rows = [
-        await tx.connectorDispatchJob.updateMany({ where: { id: job.id, project_id: 10, generation: args.generation,
+        await tx.connectorDispatchJob.updateMany({ where: { id: job.id, project_id: args.projectId, generation: args.generation,
             state: job.state, package_sha256: args.packageSha256, updated_at: job.updated_at }, data: { updated_at: job.updated_at } }),
-        await tx.contentItem.updateMany({ where: { id: 1048, project_id: 10, updated_at: task.updated_at,
-            content_revision: 1, accepted_revision: 1, selected_asset_id: 130, status: task.status }, data: { updated_at: task.updated_at } }),
-        await tx.workItem.updateMany({ where: { id: 1699, project_id: 10, updated_at: work.updated_at }, data: { updated_at: work.updated_at } }),
-        await tx.imageAsset.updateMany({ where: { id: 130, project_id: 10, status: 'approved', updated_at: task.selected_asset.updated_at }, data: { updated_at: task.selected_asset.updated_at } }),
-        await tx.socialChannel.updateMany({ where: { id: 117, project_id: 10, is_active: true, updated_at: task.channel.updated_at }, data: { updated_at: task.channel.updated_at } })
+        await tx.contentItem.updateMany({ where: { id: job.content_item_id, project_id: args.projectId, updated_at: task.updated_at,
+            content_revision: snapshot.package.revision, accepted_revision: snapshot.package.revision, selected_asset_id: snapshot.package.selectedAssetId, status: task.status }, data: { updated_at: task.updated_at } }),
+        await tx.workItem.updateMany({ where: { id: job.work_item_id, project_id: args.projectId, updated_at: work.updated_at }, data: { updated_at: work.updated_at } }),
+        await tx.imageAsset.updateMany({ where: { id: snapshot.package.selectedAssetId, project_id: args.projectId, status: 'approved', updated_at: task.selected_asset.updated_at }, data: { updated_at: task.selected_asset.updated_at } }),
+        await tx.socialChannel.updateMany({ where: { id: job.channel_id, project_id: args.projectId, is_active: true, updated_at: task.channel.updated_at }, data: { updated_at: task.channel.updated_at } })
     ];
     if (rows.some(row => row.count !== 1)) fail('CAS_CONFLICT');
 }
@@ -58,7 +68,7 @@ async function canonicalLease(args: ConnectorExecutionIdentity & { leaseToken: s
 async function start(args: ConnectorStartArgs) {
     return prisma.$transaction(async tx => {
         await assertVkConnectorTransactionFence(tx, args, true);
-        if (await tx.deliveryAttempt.findFirst({ where: { project_id: 10, content_item_id: 1048 }, select: { id: true } })) fail('VERIFICATION_REQUIRED');
+        if (await tx.deliveryAttempt.findFirst({ where: { project_id: args.projectId, content_item_id: args.taskId }, select: { id: true } })) fail('VERIFICATION_REQUIRED');
         return startVkBrowserSubmission({ transaction: async callback => callback(tx), now: () => new Date(),
             hashBody: (body: string) => connectorHash(body.trim()), recordFact: async () => fail('FACT_PATH_INVALID') }, args);
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
@@ -68,10 +78,10 @@ async function confirm(args: ConnectorConfirmArgs) {
     return confirmVkBrowserSubmission({ transaction: async callback => prisma.$transaction(async tx => {
         if (first) { await assertVkConnectorTransactionFence(tx, args, true); first = false; }
         else {
-            const row = await tx.connectorDispatchJob.findFirst({ where: { id: args.jobId, project_id: 10,
+            const row = await tx.connectorDispatchJob.findFirst({ where: { id: args.jobId, project_id: args.projectId,
                 generation: args.generation, package_sha256: args.packageSha256 } });
             if (!row || (await tx.connectorDispatchJob.updateMany({ where: { id: row.id, generation: args.generation,
-                project_id: 10, package_sha256: args.packageSha256, updated_at: row.updated_at },
+                project_id: args.projectId, package_sha256: args.packageSha256, updated_at: row.updated_at },
                 data: { updated_at: row.updated_at } })).count !== 1) fail('FENCED');
         }
         return callback(tx);
@@ -81,19 +91,19 @@ async function confirm(args: ConnectorConfirmArgs) {
 }
 async function uncertain(args: ConnectorUncertainArgs) {
     return prisma.$transaction(async tx => {
-        await requireProjectOwner(tx, 10, args.actorId);
-        const job = await tx.connectorDispatchJob.findFirst({ where: { id: args.jobId, project_id: 10,
+        await requireProjectOwner(tx, args.projectId, args.actorId);
+        const job = await tx.connectorDispatchJob.findFirst({ where: { id: args.jobId, project_id: args.projectId,
             generation: args.generation, package_sha256: args.packageSha256, attempt_id: args.attemptId,
             host_id: args.hostId, consumer_instance_id: args.instanceId } });
-        if (!job) fail('FENCED');
-        const changed = await tx.deliveryAttempt.updateMany({ where: { id: args.attemptId, project_id: 10,
-            content_item_id: 1048, channel_id: 117, idempotency_key: args.idempotencyKey, status: 'pending' },
+        if (!job || job.content_item_id !== args.taskId || job.work_item_id !== args.workItemId) fail('FENCED');
+        const changed = await tx.deliveryAttempt.updateMany({ where: { id: args.attemptId, project_id: args.projectId,
+            content_item_id: job.content_item_id, channel_id: job.channel_id, idempotency_key: args.idempotencyKey, status: 'pending' },
             data: { requires_manual_confirmation: true, error_message: '[VK_CONNECTOR_PROVIDER_VERIFICATION_REQUIRED]' } });
         if (changed.count !== 1) fail('VERIFICATION_REQUIRED');
-        if ((await tx.connectorDispatchJob.updateMany({ where: { id: args.jobId, project_id: 10, generation: args.generation,
+        if ((await tx.connectorDispatchJob.updateMany({ where: { id: args.jobId, project_id: args.projectId, generation: args.generation,
             package_sha256: args.packageSha256, state: job.state, host_id: args.hostId, consumer_instance_id: args.instanceId },
             data: { state: 'verification_required', blocker_code: 'PROVIDER_VERIFICATION_REQUIRED' } })).count !== 1) fail('FENCED');
-        await tx.workflowEvent.create({ data: { project_id: 10, content_item_id: 1048, actor_id: args.actorId,
+        await tx.workflowEvent.create({ data: { project_id: args.projectId, content_item_id: job.content_item_id, actor_id: args.actorId,
             command: 'vk_connector_submission_uncertain', after_state: { job_id: args.jobId, generation: args.generation, attempt_id: args.attemptId } } });
         return { status: 'verification_required', attempt_id: args.attemptId, retry_allowed: false };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
@@ -111,9 +121,9 @@ export function createVkConnectorExecutionPorts(authority?: Pick<VkConnectorExec
             return { leaseToken: parsed.data.lease_token, leaseExpiresAt: parsed.data.lease_expires_at };
         }, checkLease: canonicalLease, start, confirm, uncertain,
         recordMatchedFact: async (args, execution: ConnectorExecutionPackage, post) => {
-            if (!/^-240051152_[1-9]\d*$/.test(post.objectId)) fail('OBJECT_UNCONFIRMED');
+            if (execution.binding.placement !== 'feed' || !new RegExp(`^${execution.binding.communityId}_[1-9]\\d*$`).test(post.objectId)) fail('OBJECT_UNCONFIRMED');
             const publicUrl = `https://vk.com/wall${post.objectId}`;
-            const fact = await publicationFactService.record({ projectId: 10, taskId: 1048, actorId: args.actorId,
+            const fact = await publicationFactService.record({ projectId: args.projectId, taskId: execution.binding.taskId, actorId: args.actorId,
                 artifactKind: 'post', outcome: 'published', publishedAt: post.publishedAt,
                 publicUrl, providerObjectId: post.objectId, confirmationMode: 'reconciled',
                 evidence: { type: 'provider_id', ref: post.objectId }, utmStatus: 'not_applicable',

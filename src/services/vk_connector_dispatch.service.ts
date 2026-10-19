@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { connectorPackageHash, connectorHash, VK_CONNECTOR_HOST, VK_CONNECTOR_SCOPE,
+import { connectorPackageHash, connectorHash, ConnectorBindingSchema, ConnectorHostIdSchema,
     type ConnectorRepository, type ConnectorIdentity, type ConsumerIdentity, type ConsumerJobIdentity,
     type ConnectorBinding, type ConnectorHealth, type ConnectorJob, type ConnectorJobStatus,
     type ConnectorPoll, type ConnectorStore } from './vk_connector_contract';
@@ -19,17 +19,21 @@ function view(job: ConnectorJob, publicUrl: string | null = null): ConnectorJobS
 export class VkConnectorDispatchService {
     constructor(private readonly repository: ConnectorRepository,
         private readonly enabled = false, private readonly now = () => new Date()) {}
-    private scope(args: ConnectorIdentity, taskId: number = VK_CONNECTOR_SCOPE.taskId) {
-        if (args.projectId !== 10 || taskId !== 1048) fail('SCOPE_MISMATCH');
+    private scope(args: ConnectorIdentity, taskId?: number) {
+        if (!Number.isSafeInteger(args.projectId) || args.projectId <= 0 || !/^user:[1-9]\d*$/.test(args.actorId)
+            || (taskId !== undefined && (!Number.isSafeInteger(taskId) || taskId <= 0))) fail('SCOPE_MISMATCH');
     }
     private liveInfrastructure() { if (!this.enabled) fail('DISABLED'); }
     private consumer(args: ConsumerIdentity) {
         this.scope(args);
-        if (args.hostId !== VK_CONNECTOR_HOST || !/^[a-f0-9-]{36}$/i.test(args.instanceId)) fail('HOST_IDENTITY_INVALID');
+        if (!ConnectorHostIdSchema.safeParse(args.hostId).success || !/^[a-f0-9-]{36}$/i.test(args.instanceId)) fail('HOST_IDENTITY_INVALID');
     }
     private async exact(store: ConnectorStore, args: ConnectorIdentity, job: ConnectorJob) {
         const current = await store.snapshot(args.projectId, job.taskId);
-        if (connectorPackageHash(current.package) !== job.packageSha256) fail('PACKAGE_CHANGED');
+        if (!ConnectorBindingSchema.safeParse(current.package).success || job.projectId !== args.projectId
+            || current.package.projectId !== args.projectId || current.package.taskId !== job.taskId
+            || current.package.channelId !== job.channelId || current.workItemId !== job.workItemId
+            || connectorPackageHash(current.package) !== job.packageSha256) fail('PACKAGE_CHANGED');
         return current;
     }
     private async owned(store: ConnectorStore, args: ConsumerJobIdentity) {
@@ -66,6 +70,8 @@ export class VkConnectorDispatchService {
         return this.repository.transaction(async store => {
             await store.authorize(args.projectId, args.actorId, false);
             const snapshot = await store.snapshot(args.projectId, args.taskId);
+            if (!ConnectorBindingSchema.safeParse(snapshot.package).success || snapshot.package.projectId !== args.projectId
+                || snapshot.package.taskId !== args.taskId) fail('PACKAGE_CHANGED');
             return { package: snapshot.package, packageSha256: connectorPackageHash(snapshot.package) };
         });
     }
@@ -75,6 +81,8 @@ export class VkConnectorDispatchService {
         return this.repository.transaction(async store => {
             await store.authorize(args.projectId, args.actorId, true);
             const current = await store.snapshot(args.projectId, args.taskId);
+            if (!ConnectorBindingSchema.safeParse(current.package).success || current.package.projectId !== args.projectId
+                || current.package.taskId !== args.taskId) fail('PACKAGE_CHANGED');
             const hash = connectorPackageHash(current.package);
             if (hash !== args.expectedPackageSha256) fail('PACKAGE_CHANGED');
             const old = await store.jobByKey(args.projectId, args.idempotencyKey)
@@ -141,7 +149,7 @@ export class VkConnectorDispatchService {
         });
     }
     async health(args: ConnectorIdentity & { hostId: string }): Promise<ConnectorHealth> {
-        this.scope(args); if (args.hostId !== VK_CONNECTOR_HOST) fail('HOST_IDENTITY_INVALID');
+        this.scope(args); if (!ConnectorHostIdSchema.safeParse(args.hostId).success) fail('HOST_IDENTITY_INVALID');
         return this.repository.transaction(async store => {
             await store.authorize(args.projectId, args.actorId, false);
             const host = await store.host(args.projectId, args.hostId);
@@ -186,12 +194,17 @@ export class VkConnectorDispatchService {
         return this.repository.transaction(async store => {
             await store.authorize(args.projectId, args.actorId, true);
             const now = this.now(), old = await store.host(args.projectId, args.hostId);
+            if (!old || old.projectId !== args.projectId || old.hostId !== args.hostId) fail('HOST_NOT_REGISTERED');
+            if (args.mode !== undefined && args.mode !== old.mode) fail('HOST_MODE_INVALID');
             if (old && old.instanceId !== args.instanceId && now.getTime() - old.heartbeatAt.getTime() <= FRESH_MS) fail('HOST_BUSY');
             await store.saveHost({ projectId: args.projectId, hostId: args.hostId, instanceId: args.instanceId,
-                buildVersion: args.buildVersion, heartbeatAt: now, mode: args.mode || 'infrastructure_only',
-                blocker: args.mode === 'vk_feed_provider' ? 'PROVIDER_PERMISSION_UNVERIFIED' : 'PROVIDER_CONTROL_DENIED' });
+                buildVersion: args.buildVersion, heartbeatAt: now, mode: old.mode,
+                blocker: old.mode === 'vk_feed_provider' ? 'PROVIDER_PERMISSION_UNVERIFIED' : 'PROVIDER_CONTROL_DENIED' });
             const jobs: ConnectorPoll['jobs'] = [];
             for (const job of await store.candidates(args.projectId)) {
+                const ownerHost = job.hostId === args.hostId ? old : job.hostId ? await store.host(args.projectId, job.hostId) : null;
+                const ownerFresh = ownerHost?.projectId === args.projectId && ownerHost.instanceId === job.instanceId
+                    && now.getTime() - ownerHost.heartbeatAt.getTime() <= FRESH_MS;
                 if (['reconciling','ready','executing'].includes(job.state)) {
                     let canonical;
                     try { canonical = await this.exact(store, args, job); }
@@ -203,8 +216,7 @@ export class VkConnectorDispatchService {
                         continue;
                     }
                     if (canonical.factId && canonical.publicUrl) { await this.existingOutcome(store, args, job); continue; }
-                    if (job.instanceId === args.instanceId && old?.instanceId === args.instanceId
-                        && now.getTime() - old.heartbeatAt.getTime() <= FRESH_MS) continue;
+                    if (ownerFresh) continue;
                     await this.patch(store, job, { state: 'verification_required', generation: job.generation + 1,
                         blocker: 'EXECUTION_INTERRUPTED', attemptId: canonical.attemptId, updatedAt: now }, args.actorId);
                     continue;
@@ -223,14 +235,14 @@ export class VkConnectorDispatchService {
                         jobs.push({ jobId: job.jobId, packageSha256: job.packageSha256, generation: job.generation,
                             state: 'accepted', package: job.package }); break;
                     }
-                    if (old && now.getTime() - old.heartbeatAt.getTime() <= FRESH_MS) continue;
+                    if (ownerFresh) continue;
                     await this.patch(store, job, { state: 'queued', generation: job.generation + 1, hostId: null,
                         instanceId: null, receiptAt: null, blocker: null, updatedAt: now }, args.actorId);
                 }
                 jobs.push({ jobId: job.jobId, packageSha256: job.packageSha256, generation: job.generation, state: 'queued', package: job.package });
                 break;
             }
-            return { jobs, health: { hostId: args.hostId, status: 'online', mode: args.mode || 'infrastructure_only',
+            return { jobs, health: { hostId: args.hostId, status: 'online', mode: old.mode,
                 providerExecution: 'blocked', heartbeatAt: now.toISOString() } };
         });
     }

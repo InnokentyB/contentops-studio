@@ -1,0 +1,7 @@
+Independent read-only review by peer linkedin_live_readiness, 2026-10-19.
+
+Authority integration finding: original ownedPrincipal lacked user.is_demo and current user/member shared locks. Implemented user -> membership -> content order at existing authority boundaries. Review verified releaseReplay/release/claim/loadClaim/assertRecovery/replay/ownedCurrent call order. Immutable freeze/retained receipt custody remains independent of caller revocation. Actual PostgreSQL43/43 includes demo actual MCP refusal and user/member concurrent revocation locking at fact commit.
+
+Cleanup review found original negative PGID timer signals unguarded after child exit while pending operations ran. All three group signals now check retained direct-parent/private-group/start identity. Dead root grants no signal authority; replacement root fails closed. Independent resource cleanup retains browser group children and rechecks late children under bounded process/file inventory. Zombie classification is not claimed as reaping.
+
+Follow-up review identified an early fork failure before error listener registration. Commit1fb173d installs listener immediately after fork, before identity capture, then delegates normal errors to existing stop/end cleanup. Synthetic late EAGAIN test passes without unhandled error. Final narrow review: original P2 closed; no open P0/P1/P2 identified in reviewed cleanup scope. Full final build and sandbox native results are separately retained and do not establish provider permission or UAT.

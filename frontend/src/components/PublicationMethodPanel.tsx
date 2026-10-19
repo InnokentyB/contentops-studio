@@ -10,6 +10,7 @@ interface AdapterStatus {
     connection: string
     observedAt: string
     admissionReason?: string
+    diagnostics?: { controlPlane: string; applicationAuthorization: 'NOT_ASSESSED'; providerReadiness: 'NOT_CHECKED'; recordedRestriction: { basis: string; observedAt: string } | null }
 }
 function parseStatus(value: unknown): AdapterStatus {
     if (!value || typeof value !== 'object') throw new Error('Invalid adapter status')
@@ -18,8 +19,26 @@ function parseStatus(value: unknown): AdapterStatus {
         || typeof row.connection !== 'string' || typeof row.observedAt !== 'string'
         || !(row.blocker === null || typeof row.blocker === 'string')
         || !Number.isFinite(Date.parse(row.observedAt))) throw new Error('Invalid adapter status')
+    let diagnostics: AdapterStatus['diagnostics']
+    if (row.diagnostics !== undefined) {
+        const data = row.diagnostics
+        if (!data || typeof data !== 'object' || !('controlPlane' in data) || typeof data.controlPlane !== 'string'
+            || !('applicationAuthorization' in data) || data.applicationAuthorization !== 'NOT_ASSESSED'
+            || !('providerReadiness' in data) || data.providerReadiness !== 'NOT_CHECKED'
+            || !('recordedRestriction' in data)) throw new Error('Invalid readiness diagnostics')
+        const restriction = data.recordedRestriction
+        let recordedRestriction: { basis: string; observedAt: string } | null = null
+        if (restriction !== null) {
+            if (!restriction || typeof restriction !== 'object' || !('basis' in restriction)
+                || typeof restriction.basis !== 'string' || !('observedAt' in restriction) || typeof restriction.observedAt !== 'string')
+                throw new Error('Invalid restriction diagnostics')
+            recordedRestriction = { basis: restriction.basis, observedAt: restriction.observedAt }
+        }
+        diagnostics = { controlPlane: data.controlPlane, applicationAuthorization: data.applicationAuthorization,
+            providerReadiness: data.providerReadiness, recordedRestriction }
+    }
     return { manualRecordAllowed: row.manualRecordAllowed, state: row.state,
-        connection: row.connection, observedAt: row.observedAt, blocker: row.blocker,
+        connection: row.connection, observedAt: row.observedAt, blocker: row.blocker, diagnostics,
         admissionReason: row.admissionReason === 'ACTION_TIME_ADMISSION_UNAVAILABLE' ? row.admissionReason : undefined }
 }
 interface Props {
@@ -70,11 +89,12 @@ export default function PublicationMethodPanel(props: Props) {
                                     <p>{ru ? 'Задание' : 'Job'}: {status.data?.state === 'blocked' ? (ru ? 'заблокировано' : 'blocked') : status.data?.state}</p>
                                     {status.data?.blocker === 'PROVIDER_PERMISSION_UNVERIFIED' && <p className="text-sm">{ru ? 'Допуск к публикации в ВК ещё не подтверждён.' : 'Permission to publish to VK has not been verified.'}</p>}
                                     {status.data?.blocker && <p className="break-words text-sm" role="status">{status.data.blocker}</p>}
-                                    {status.data?.admissionReason && <div className="space-y-1 text-sm" role="status">
-                                        <p>{ru ? 'Внутренняя проверка допуска недоступна. Вход в ВК и права сообщества ещё не проверены; это не отказ ВК.' : 'Internal action admission is unavailable. VK login and community rights have not been checked; this is not a VK rejection.'}</p>
-                                        <p className="break-words">{status.data.admissionReason}</p>
+                                    {status.data?.diagnostics && <div className="space-y-1 text-sm" role="status">
+                                        <p>{ru ? 'Разрешение приложения на выполнение ещё не оценено.' : 'Application authorization has not been assessed.'}</p>
+                                        <p>{ru ? 'Вход, права и готовность ВК ещё не проверены.' : 'VK login, rights and readiness have not been checked.'}</p>
+                                        {status.data.diagnostics.recordedRestriction && <p className="break-words">{ru ? 'Зафиксировано внешнее ограничение: ' : 'Recorded external restriction: '}{status.data.diagnostics.recordedRestriction.basis}</p>}
                                     </div>}
-                                    <p className="text-sm text-on-surface-variant">{ru ? 'Для отправки нужен подтверждённый допуск адаптера. Онлайн не означает готовность к публикации.' : 'Sending requires verified adapter permission. Online does not mean ready to publish.'}</p>
+                                    <p className="text-sm text-on-surface-variant">{ru ? 'Онлайн подтверждает только связь. Готовность к отправке проверяется отдельно зарегистрированным адаптером.' : 'Online confirms connectivity only. Sending readiness is checked separately by the registered adapter.'}</p>
                                 </>}
                         <button type="button" onClick={() => status.refetch()} disabled={status.isFetching}
                             className="rounded-xl border border-outline-variant px-4 py-2 text-sm font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50">

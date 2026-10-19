@@ -1,0 +1,15 @@
+services:
+  tests:
+    image: ${OWNED_PUBLICATION_TEST_IMAGE:-planner-sandbox-consumption-build:node24}
+    working_dir: /opt/planner
+    environment:
+      TS_NODE_PROJECT: /workspace/tsconfig.json
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=512m,mode=1777
+      - /opt/planner/logs:rw,nosuid,nodev,size=16m,mode=1777
+    command: [sh, -c, 'node /opt/planner/node_modules/prisma/build/index.js db push --config /workspace/tests/fixtures/owned-publication-prisma.config.ts && node --test --test-concurrency=1 /workspace/tests/tdpd/owned-publication-lifecycle.test.cjs']
+networks:
+  synthetic:
+    ipam:
+      config:
+        - subnet: 10.254.196.0/28

@@ -1,0 +1,51 @@
+✖ DA21 automatic re-accept cannot reset a started exact package after marker replacement (2.446131ms)
+✖ DA21 project art-direction backfill skips owned history before revision or state changes (0.435802ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 401.665903
+
+✖ failing tests:
+
+test at ../../workspace/tests/tdpd/owned-publication-art.test.cjs:10:1
+✖ DA21 automatic re-accept cannot reset a started exact package after marker replacement (2.446131ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + {
+  +   id: 902
+  + }
+  - null
+  
+      at TestContext.<anonymous> (/workspace/tests/tdpd/owned-publication-art.test.cjs:10:219)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { id: 902 },
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../workspace/tests/tdpd/owned-publication-art.test.cjs:11:1
+✖ DA21 project art-direction backfill skips owned history before revision or state changes (0.435802ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (/workspace/tests/tdpd/owned-publication-art.test.cjs:11:199)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+

@@ -1,0 +1,117 @@
+✖ DA02 actual scoped publication request keeps token identity without caller actor field (2.098129ms)
+✖ DA02 concurrent async requests cannot inherit another tenant or caller actor (0.416272ms)
+✖ DA02 local stdio principal is configured identity, not first owner or request data (0.279532ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+✖ DA07 mixed queue selects legacy VK without decoding or starving on Dzen rows (249.723279ms)
+✖ DA07 VK lookup and CAS cannot interpret or change a Dzen job (16.718714ms)
+✖ DA07 cross-provider idempotency collision is explicit, not foreign decode or new job (15.91161ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 0
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 747.714911
+
+✖ failing tests:
+
+test at ../../workspace/tests/tdpd/owned-publication-boundary.test.cjs:6:1
+✖ DA02 actual scoped publication request keeps token identity without caller actor field (2.098129ms)
+  AssertionError [ERR_ASSERTION]: DA02 trusted principal context behavior absent
+  
+  false !== true
+  
+      at context (/workspace/tests/tdpd/owned-publication-boundary.test.cjs:4:89)
+      at TestContext.<anonymous> (/workspace/tests/tdpd/owned-publication-boundary.test.cjs:7:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../workspace/tests/tdpd/owned-publication-boundary.test.cjs:16:1
+✖ DA02 concurrent async requests cannot inherit another tenant or caller actor (0.416272ms)
+  AssertionError [ERR_ASSERTION]: DA02 trusted principal context behavior absent
+  
+  false !== true
+  
+      at context (/workspace/tests/tdpd/owned-publication-boundary.test.cjs:4:89)
+      at TestContext.<anonymous> (/workspace/tests/tdpd/owned-publication-boundary.test.cjs:17:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../workspace/tests/tdpd/owned-publication-boundary.test.cjs:22:1
+✖ DA02 local stdio principal is configured identity, not first owner or request data (0.279532ms)
+  AssertionError [ERR_ASSERTION]: DA02 trusted principal context behavior absent
+  
+  false !== true
+  
+      at context (/workspace/tests/tdpd/owned-publication-boundary.test.cjs:4:89)
+      at TestContext.<anonymous> (/workspace/tests/tdpd/owned-publication-boundary.test.cjs:23:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../workspace/tests/tdpd/owned-publication-queue.test.cjs:16:1
+✖ DA07 mixed queue selects legacy VK without decoding or starving on Dzen rows (249.723279ms)
+  Error: [VK_CONNECTOR_PACKAGE_NOT_READY]
+      at invalid (/workspace/src/services/vk_connector_repository.ts:15:35)
+      at toJob (/workspace/src/services/vk_connector_repository.ts:18:45)
+      at Array.map (<anonymous>)
+      at Object.candidates (/workspace/src/services/vk_connector_repository.ts:90:136)
+
+test at ../../workspace/tests/tdpd/owned-publication-queue.test.cjs:17:1
+✖ DA07 VK lookup and CAS cannot interpret or change a Dzen job (16.718714ms)
+  Error: [VK_CONNECTOR_PACKAGE_NOT_READY]
+      at invalid (/workspace/src/services/vk_connector_repository.ts:15:35)
+      at toJob (/workspace/src/services/vk_connector_repository.ts:18:45)
+      at Object.job (/workspace/src/services/vk_connector_repository.ts:73:129)
+
+test at ../../workspace/tests/tdpd/owned-publication-queue.test.cjs:18:1
+✖ DA07 cross-provider idempotency collision is explicit, not foreign decode or new job (15.91161ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /PROVIDER_IDEMPOTENCY_CONFLICT/. Input:
+  
+  'Error: [VK_CONNECTOR_PACKAGE_NOT_READY]'
+  
+      at async TestContext.<anonymous> (/workspace/tests/tdpd/owned-publication-queue.test.cjs:18:133)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: [VK_CONNECTOR_PACKAGE_NOT_READY]
+        at invalid (/workspace/src/services/vk_connector_repository.ts:15:35)
+        at toJob (/workspace/src/services/vk_connector_repository.ts:18:45)
+        at Object.jobByKey (/workspace/src/services/vk_connector_repository.ts:74:186),
+    expected: /PROVIDER_IDEMPOTENCY_CONFLICT/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+

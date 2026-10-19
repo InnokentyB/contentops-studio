@@ -1,0 +1,59 @@
+✔ DA02 actual scoped publication request keeps token identity without caller actor field (139.652174ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+✔ DA02 concurrent async requests cannot inherit another tenant or caller actor (5.580432ms)
+✔ DA02 local stdio principal is configured identity, not first owner or request data (0.899924ms)
+✔ DA05 existing publication task command routes arbitrary Dzen data before legacy IDs and Telegram (3714.993424ms)
+✔ DA23 registered existing MCP command rejects transport, session and forged actor input (94.066114ms)
+✖ DA02 actual HTTP owner and scoped publisher transport retain token principal through registered command (4384.904345ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+✖ DA07 mixed queue selects legacy VK without decoding or starving on Dzen rows (765.49957ms)
+✔ DA07 VK lookup and CAS cannot interpret or change a Dzen job (11.156634ms)
+✔ DA07 cross-provider idempotency collision is explicit, not foreign decode or new job (9.551078ms)
+✔ DA21 actual content edit rejects durable ownership after marker/status replacement (1.145005ms)
+✔ DA21 actual task preparation cannot overwrite lifecycle despite removed quality marker (0.262921ms)
+✔ DA20 actual generic manual/automatic/imported fact guard rejects durable lifecycle ownership (0.19775ms)
+✔ DA20 status projection cannot offer manual confirmation after durable ownership marker removal (0.492372ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 11
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11741.849442
+
+✖ failing tests:
+
+test at tests/tdpd/owned-publication-http.test.cjs:14:1
+✖ DA02 actual HTTP owner and scoped publisher transport retain token principal through registered command (4384.904345ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + false
+  - undefined
+  
+      at payload (/workspace/tests/tdpd/owned-publication-http.test.cjs:13:33)
+      at TestContext.<anonymous> (/workspace/tests/tdpd/owned-publication-http.test.cjs:18:15)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/tdpd/owned-publication-queue.test.cjs:16:1
+✖ DA07 mixed queue selects legacy VK without decoding or starving on Dzen rows (765.49957ms)
+  Error: [VK_CONNECTOR_PACKAGE_NOT_READY]
+      at invalid (/workspace/src/services/vk_connector_repository.ts:12:35)
+      at toJob (/workspace/src/services/vk_connector_repository.ts:18:71)
+      at Array.map (<anonymous>)
+      at Object.candidates (/workspace/src/services/vk_connector_repository.ts:99:136)

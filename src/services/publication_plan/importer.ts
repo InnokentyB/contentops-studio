@@ -1,3 +1,4 @@
+import { hasOwnedPublicationHistory, ownedPublicationMutableWhere, lockOwnedPublicationTask } from '../publication_owned_guard';
 import * as fs from 'fs';
 import { Prisma } from '@prisma/client';
 import prisma from '../../db';
@@ -617,13 +618,15 @@ export async function importPlan(params: {
                 throw new Error(`[CROSS_CYCLE_TASK_ID] Task ${taskId} already belongs to week package ${existingItem.week_package_id}`);
             }
 
+            if (existingItem) await lockOwnedPublicationTask(tx, { projectId: project.id, taskId: existingItem.id });
             let createdItem: { id: number };
-            if (existingItem && shouldFreezeImportedTaskContent(existingItem as unknown as Record<string, unknown>)) {
+            if (existingItem && (shouldFreezeImportedTaskContent(existingItem as unknown as Record<string, unknown>)
+                || await hasOwnedPublicationHistory(tx, { projectId: project.id, taskId: existingItem.id }))) {
                 createdItem = existingItem;
                 runtimeLockedTasksSkipped += 1;
             } else if (existingItem) {
                 createdItem = await tx.contentItem.update({
-                    where: { id: existingItem.id },
+                    where: { ...ownedPublicationMutableWhere(), id: existingItem.id },
                     data: mergeImportedItemData(
                         existingItem as unknown as Record<string, unknown>,
                         itemData,
@@ -687,8 +690,10 @@ export async function importPlan(params: {
                 const existingFollowup = existingImportedItemsByTaskId.get(followupTaskId);
 
                 if (existingFollowup) {
+                    await lockOwnedPublicationTask(tx, { projectId: project.id, taskId: existingFollowup.id });
+                    if (await hasOwnedPublicationHistory(tx, { projectId: project.id, taskId: existingFollowup.id })) continue;
                     await tx.contentItem.update({
-                        where: { id: existingFollowup.id },
+                        where: { ...ownedPublicationMutableWhere(), id: existingFollowup.id },
                         data: mergeImportedItemData(
                             existingFollowup as unknown as Record<string, unknown>,
                             followupData,
@@ -716,10 +721,17 @@ export async function importPlan(params: {
                 })
                 .map((item) => item.id);
 
+            const mutableStaleIds: number[] = [];
+            for (const id of staleImportedIds) {
+                await tx.$queryRaw`SELECT id FROM planner.content_items WHERE project_id=${project.id} AND id=${id} FOR UPDATE`;
+                if (!await hasOwnedPublicationHistory(tx, { projectId: project.id, taskId: id })) mutableStaleIds.push(id);
+            }
+            staleImportedIds = mutableStaleIds;
             if (staleImportedIds.length > 0) {
                 await tx.contentItem.deleteMany({
                     where: {
-                        id: { in: staleImportedIds }
+                        id: { in: staleImportedIds },
+                        ...ownedPublicationMutableWhere()
                     }
                 });
             }

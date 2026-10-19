@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import test, { type TestContext } from 'node:test';
-import { runVk1048ProviderJob, type Vk1048OfflineHarness, type Vk1048ProviderSession } from '../services/vk1048_provider_execution';
+import { runVkConnectorProviderJob, type VkConnectorOfflineHarness, type VkConnectorProviderSession } from '../services/vk_connector_provider_execution';
 import { vkConnectorPackageSha256, type VkConnectorControl } from '../services/vk_connector_consumer_runtime';
 import type { VkConnectorWallEvidence } from '../services/vk_connector_reconciliation';
 const now = new Date('2026-10-13T12:00:00Z');
@@ -21,7 +21,7 @@ function fixture(t: TestContext) {
     const evidence: VkConnectorWallEvidence = { ownerId: '-240051152', capturedAt: now.toISOString(), startedAt: now.toISOString(),
         windowStart: '2026-10-10T12:00:00Z', windowEnd: now.toISOString(), coverage: 'partial', exhausted: false, rows: [] };
     const acknowledgement = { assetSha256: binding.assetSha256, providerMediaId: 'photo-240051152_123', providerObjectId: '-240051152_99', acknowledged: true as const };
-    const session: Vk1048ProviderSession = { cancelPendingOperations: async () => { calls.push('cancel_session'); }, reconcile: async () => evidence, mediaAcknowledgement: async () => acknowledgement,
+    const session: VkConnectorProviderSession = { cancelPendingOperations: async () => { calls.push('cancel_session'); }, reconcile: async () => evidence, mediaAcknowledgement: async () => acknowledgement,
         ui: { navigate: async () => { calls.push('navigate'); }, loginRequired: async () => false,
             openWallComposer: async () => { calls.push('composer'); }, setPostText: async (body) => { assert.equal(body, text); },
             attachImage: async () => { calls.push('upload'); }, captureScreenshot: async (file) => fs.writeFileSync(file, 'fixture-evidence'),
@@ -29,13 +29,13 @@ function fixture(t: TestContext) {
                 provider_object_id: '-240051152_99', owner_id: '-240051152', published_at: now.toISOString(), text, image_present: true,
                 provider_timestamp_source: 'provider', post_baseline_captured_at: now.toISOString(), post_baseline_object_ids: [],
                 post_submission_started_at: now.toISOString(), readback_observed_at: now.toISOString() }) } };
-    const harness: Vk1048OfflineHarness = { executionContext: 'offline_fixture', evidenceDir: root,
+    const harness: VkConnectorOfflineHarness = { executionContext: 'offline_fixture', evidenceDir: root,
         admission: { assess: async () => ({ status: 'OFFLINE_FIXTURE_ADMITTED', executionContext: 'offline_fixture' }) },
         now: () => now, withSession: async (run) => run(session), loadApprovedImage: async () => ({ buffer: bytes, filename: 'approved.png', contentType: 'image/png' }) };
     const control: VkConnectorControl = { close: async () => {}, call: async (name, args) => {
         calls.push(name);
         if (name === 'ba_get_vk_connector_execution_package') return { binding, packageSha256: input.packageSha256, body: text,
-            asset: { id: 130, url: 'https://cdn.example/approved.png', sha256: binding.assetSha256 }, approvalReference: 'owner-exact-release',
+            asset: { id: 130, url: 'https://cdn.example/approved.png', sha256: binding.assetSha256 }, approvalReference: 'owner-exact-release', workItemId: 1699,
             releasedAt: evidence.windowStart, lease: null, permissionStatus: 'PERMITTED', providerExecution: 'permitted' };
         if (name === 'ba_claim_vk_connector_execution') return { workItemId: 1699, leaseToken: 'synthetic-test-lease', leaseExpiresAt: '2026-10-13T13:00:00Z', generation: 2 };
         if (name === 'ba_check_vk_connector_execution') return { status: 'validated', generation: 2 };
@@ -53,25 +53,26 @@ function fixture(t: TestContext) {
 }
 test('PROVIDER-001 production permission is unverified and no browser/control action occurs', async () => {
     let calls = 0;
-    const result = await runVk1048ProviderJob({}, { close: async () => {}, call: async () => { calls += 1; } });
+    const result = await runVkConnectorProviderJob({}, { close: async () => {}, call: async () => { calls += 1; } });
     assert.equal(result.status, 'PERMISSION_UNVERIFIED'); assert.equal(calls, 0);
-    assert.equal(result.restriction?.observedAt, '2026-10-13');
+    assert.equal(result.reason, 'NOT_CONNECTED');
+    assert.equal(result.restriction, undefined);
 });
 test('PROVIDER-002 UNKNOWN reconciliation permits no claim/upload/submit', async (t) => {
-    const f = fixture(t); const result = await runVk1048ProviderJob(input, f.control, f.harness);
+    const f = fixture(t); const result = await runVkConnectorProviderJob(input, f.control, f.harness);
     assert.equal(result.status, 'verification_required');
     assert.equal(f.calls.some((name) => /claim|upload|submit/.test(name)), false);
 });
 test('PROVIDER-003 exact existing object reconciles without a lease or new provider submit', async (t) => {
     const f = fixture(t); f.evidence.coverage = 'complete_window'; f.evidence.exhausted = true; f.evidence.rows = [{ objectId: '-240051152_99', publicUrl: 'https://vk.com/wall-240051152_99',
         publishedAt: '2026-10-12T12:00:00Z', text, media: { assetSha256: binding.assetSha256, providerMediaId: 'photo-240051152_123', acknowledged: true } }];
-    const result = await runVk1048ProviderJob(input, f.control, f.harness);
+    const result = await runVkConnectorProviderJob(input, f.control, f.harness);
     assert.equal(result.status, 'offline_fixture_confirmed'); assert.equal(result.reason, 'EXACT_EXISTING_OBJECT');
     assert.equal(f.calls.some((name) => /claim|upload|submit/.test(name)), false);
 });
 test('PROVIDER-004 proven absence reuses worker and durable start precedes one upload/submit', async (t) => {
     const f = fixture(t); f.evidence.coverage = 'complete_window'; f.evidence.exhausted = true;
-    const result = await runVk1048ProviderJob(input, f.control, f.harness);
+    const result = await runVkConnectorProviderJob(input, f.control, f.harness);
     assert.equal(result.status, 'offline_fixture_confirmed');
     assert.ok(f.calls.indexOf('ba_start_vk_connector_submission') < f.calls.indexOf('upload'));
     assert.equal(f.calls.filter((name) => name === 'submit').length, 1);
@@ -80,14 +81,14 @@ test('PROVIDER-004 proven absence reuses worker and durable start precedes one u
 test('PROVIDER-005 missing media acknowledgement never confirms visible-image-only result', async (t) => {
     const f = fixture(t); f.evidence.coverage = 'complete_window'; f.evidence.exhausted = true;
     f.session.mediaAcknowledgement = async () => null;
-    const result = await runVk1048ProviderJob(input, f.control, f.harness);
+    const result = await runVkConnectorProviderJob(input, f.control, f.harness);
     assert.equal(result.status, 'verification_required');
     assert.equal(f.calls.includes('ba_confirm_vk_connector_submission'), false);
     assert.equal(f.calls.includes('ba_mark_vk_connector_submission_uncertain'), true);
 });
 test('PROVIDER-006 wrong downloaded asset hash prevents provider lifecycle and lease', async (t) => {
     const f = fixture(t); f.harness.loadApprovedImage = async () => ({ buffer: Buffer.from('wrong-asset'), filename: 'approved.png' });
-    const result = await runVk1048ProviderJob(input, f.control, f.harness);
+    const result = await runVkConnectorProviderJob(input, f.control, f.harness);
     assert.equal(result.status, 'verification_required');
     assert.equal(f.calls.includes('navigate'), false); assert.equal(f.calls.includes('ba_claim_vk_connector_execution'), false);
 });
@@ -96,7 +97,7 @@ test('PROVIDER-007 uncertain existing durable attempt forbids upload and submit 
     const original = f.control.call;
     f.control.call = async (name, args) => name === 'ba_start_vk_connector_submission'
         ? { status: 'verification_required', attempt_id: 1, retry_allowed: false } : original(name, args);
-    const result = await runVk1048ProviderJob(input, f.control, f.harness);
+    const result = await runVkConnectorProviderJob(input, f.control, f.harness);
     assert.equal(result.status, 'verification_required'); assert.equal(f.calls.includes('upload'), false); assert.equal(f.calls.includes('submit'), false);
 });
 test('PROVIDER-008 lost generation fence immediately before upload performs zero upload and submit', async (t) => {
@@ -106,7 +107,7 @@ test('PROVIDER-008 lost generation fence immediately before upload performs zero
         if (name === 'ba_check_vk_connector_execution') throw new Error('generation changed');
         return original(name, args);
     };
-    const result = await runVk1048ProviderJob(input, f.control, f.harness);
+    const result = await runVkConnectorProviderJob(input, f.control, f.harness);
     assert.equal(result.status, 'verification_required');
     assert.equal(f.calls.includes('upload'), false); assert.equal(f.calls.includes('submit'), false);
 });
@@ -117,7 +118,7 @@ test('PROVIDER-009 lease fence lost after upload prevents submit and freezes the
         if (name === 'ba_check_vk_connector_execution' && ++checks === 2) throw new Error('lease retired');
         return original(name, args);
     };
-    const result = await runVk1048ProviderJob(input, f.control, f.harness);
+    const result = await runVkConnectorProviderJob(input, f.control, f.harness);
     assert.equal(result.status, 'verification_required');
     assert.equal(f.calls.filter((name) => name === 'upload').length, 1);
     assert.equal(f.calls.includes('submit'), false);
@@ -131,21 +132,21 @@ test('PROVIDER-010 NOT_CHECKED protected package cannot call provider even with 
             ? { ...(typeof output === 'object' && output !== null ? output : {}), permissionStatus: 'NOT_CHECKED', providerExecution: 'blocked' } : output;
     };
     let sessions = 0; f.harness.withSession = async (run) => { sessions += 1; return run(f.session); };
-    assert.equal((await runVk1048ProviderJob(input, f.control, f.harness)).status, 'verification_required');
+    assert.equal((await runVkConnectorProviderJob(input, f.control, f.harness)).status, 'verification_required');
     assert.equal(sessions, 0);
 });
 test('PROVIDER-011 missing absolute provider date/source proof cannot confirm a visible matching image', async (t) => {
     const f = fixture(t); f.evidence.coverage = 'complete_window'; f.evidence.exhausted = true;
     f.session.ui.readbackPost = async () => ({ public_url: 'https://vk.com/wall-240051152_99', provider_object_id: '-240051152_99',
         owner_id: '-240051152', published_at: now.toISOString(), text, image_present: true });
-    assert.equal((await runVk1048ProviderJob(input, f.control, f.harness)).status, 'verification_required');
+    assert.equal((await runVkConnectorProviderJob(input, f.control, f.harness)).status, 'verification_required');
     assert.equal(f.calls.includes('ba_confirm_vk_connector_submission'), false);
 });
 test('PROVIDER-012 reconciliation timeout cancels owned session and late evidence permits no claim', async (t) => {
     const f = fixture(t); let finish: ((value: VkConnectorWallEvidence) => void) | undefined;
     f.harness.operationTimeoutMs = 10;
     f.session.reconcile = async () => new Promise((resolve) => { finish = resolve; });
-    const result = await runVk1048ProviderJob(input, f.control, f.harness);
+    const result = await runVkConnectorProviderJob(input, f.control, f.harness);
     assert.equal(result.status, 'verification_required');
     finish?.({ ...f.evidence, coverage: 'complete_window', exhausted: true });
     await Promise.resolve();
@@ -165,6 +166,35 @@ test('PROVIDER-013 server heartbeat fencing after a 31-second scan prevents leas
         if (name === 'ba_claim_vk_connector_execution') throw new Error('authoritative host heartbeat expired');
         return original(name, args);
     };
-    assert.equal((await runVk1048ProviderJob(input, f.control, f.harness)).status, 'verification_required');
+    assert.equal((await runVkConnectorProviderJob(input, f.control, f.harness)).status, 'verification_required');
     assert.equal(f.calls.includes('upload'), false); assert.equal(f.calls.includes('submit'), false);
+});
+
+test('VK022 client principal placeholder is normalized remotely and does not fail local preimage parsing', async t => {
+    const f = fixture(t);
+    const result = await runVkConnectorProviderJob({ ...input, identity: { ...input.identity, actorId: 'authenticated' } }, f.control, f.harness);
+    assert.equal(result.status, 'verification_required');
+    assert.ok(f.calls.includes('ba_get_vk_connector_execution_package'));
+    assert.equal(f.calls.includes('upload'), false);
+});
+
+test('VK022 matching supplied denial blocks before application challenge, asset download and browser lifecycle', async t => {
+    const f = fixture(t); let authority = 0; let downloads = 0; let sessions = 0;
+    f.harness.admission = { assess: async () => { authority++; return { status: 'OFFLINE_FIXTURE_ADMITTED', executionContext: 'offline_fixture' }; } };
+    f.harness.loadApprovedImage = async () => { downloads++; throw new Error('Must not download'); };
+    f.harness.withSession = async () => { sessions++; throw new Error('Must not open'); };
+    const harness = { ...f.harness, recordedRestrictions: async () => [{ platform: 'vk', ownerId: String(binding.communityId),
+        operation: 'publication', observedAt: now.toISOString(), basis: 'Synthetic scoped site/action denial' }] };
+    const result = await runVkConnectorProviderJob(input, f.control, harness);
+    assert.equal(result.reason, 'POLICY_DENIED'); assert.equal(authority, 0); assert.equal(downloads, 0); assert.equal(sessions, 0);
+    assert.deepEqual(f.calls, []);
+});
+
+test('VK022 unrelated scoped denial is not promoted to a blanket provider prohibition', async t => {
+    const f = fixture(t);
+    const harness = { ...f.harness, recordedRestrictions: async () => [{ platform: 'vk', ownerId: '-999999',
+        operation: 'publication', observedAt: now.toISOString(), basis: 'Synthetic other-community denial' }] };
+    const result = await runVkConnectorProviderJob(input, f.control, harness);
+    assert.notEqual(result.reason, 'POLICY_DENIED');
+    assert.ok(f.calls.includes('ba_get_vk_connector_execution_package')); assert.equal(f.calls.includes('upload'), false);
 });

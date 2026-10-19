@@ -4,7 +4,8 @@ const root=path.resolve(__dirname,'../..');const {z}=require('zod');
 test('R10 actual MCP and REST canonical fact/confirmation handlers refuse1002 at all lifecycle stages',async()=>{
  const dbModule=require(path.join(root,'src/db.ts'));const original=dbModule.default;const originalNamed=dbModule.prisma;
  let state='ready_for_execution';let transactions=0;
- const forbidden=new Proxy({}, {get(){throw Error('FACT_WRITE_OR_READ_FORBIDDEN');}});
+ const readOnly={projectMember:{findUnique:async args=>{assert.deepEqual(args.where,{project_id_user_id:{project_id:10,user_id:2}});return {id:1};}},workflowEvent:{findFirst:async()=>null},connectorDispatchJob:{findFirst:async()=>null},contentItem:{findFirst:async()=>null}};
+ const forbidden=new Proxy(readOnly, {get(target,key){if(key in target)return target[key];throw Error('FACT_WRITE_OR_READ_FORBIDDEN');}});
  dbModule.default={
   projectMember:{findUnique:async()=>({id:1}),findFirst:async()=>({user_id:2})},
   contentItem:{findFirst:async()=>({id:1002,project_id:10,type:'article',status:state,published_link:null})},

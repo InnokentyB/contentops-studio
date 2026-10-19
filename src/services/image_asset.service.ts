@@ -1,7 +1,10 @@
+const GENERATED_VISUAL_DECISION = 'GENERATE';
 import prisma from '../db';
 import { Prisma } from '@prisma/client';
 import {createHash} from 'node:crypto';
 import {getVisualReassessment,lockVisualContent,assertVisualAssessmentBinding,assertVisualDecisionBinding,assertVisualMutationBeforeRelease,visualReassessmentError,VISUAL_REASSESSMENT_COMPLETE,VisualReviewOutcome} from './visual_reassessment_binding';
+import { assertOwnedRestMutable, withOwnedRestMutation } from './owned_publication_rest_guard';
+import { lockOwnedPublicationTask } from './publication_owned_guard';
 import { requireProjectActorAccess } from './project_access.service';
 import { assertVisualGenerationGate } from './visual_generation_policy';
 import path from 'path';
@@ -48,7 +51,7 @@ export interface ListImageAssetsArgs {
     contentItemId: number;
 }
 
-export async function cancelSupersededVisualWork(tx: any, asset: {
+export async function cancelSupersededVisualWork(tx: { workItem: { updateMany(args: Prisma.WorkItemUpdateManyArgs): Promise<Prisma.BatchPayload> } }, asset: {
     id: number;
     project_id: number;
     content_item_id: number;
@@ -64,8 +67,8 @@ export async function cancelSupersededVisualWork(tx: any, asset: {
             kind: { in: ['visual_generate', 'visual_review'] },
             state: { notIn: ['completed', 'cancelled'] },
             OR: [
-                { result_payload: { path: ['placement'], equals: asset.placement } },
-                { result_payload: { path: ['decision_id'], equals: asset.decision_id } }
+                { result_payload: { path: ['placement'], equals: asset.placement ?? Prisma.JsonNull } },
+                { result_payload: { path: ['decision_id'], equals: asset.decision_id ?? Prisma.JsonNull } }
             ]
         },
         data: {
@@ -83,7 +86,8 @@ export class ImageAssetService {
     /**
      * Generate an image asset candidate recording prompt, seed, model, provider, altText, and version history.
      */
-    async generateImageAsset(args: GenerateImageAssetArgs) {
+    async generateImageAsset(args: GenerateImageAssetArgs, internalTx?: Prisma.TransactionClient) {
+        const db = internalTx || prisma;
         const {
             projectId,
             contentItemId,
@@ -96,15 +100,16 @@ export class ImageAssetService {
             aspectRatio, decisionId, contentRevision, placement,
         } = args;
 
-        await requireProjectActorAccess(projectId, args.actorId);
-        const item = await prisma.contentItem.findFirst({
+        await requireProjectActorAccess(projectId, args.actorId, db);
+        const item = await db.contentItem.findFirst({
             where: { id: contentItemId, project_id: projectId },
             include: { week_package: true, channel: true }
         });
         if (!item) throw new Error('[PUBLICATION_TASK_NOT_FOUND] Content item was not found in the project');
+        await assertOwnedRestMutable(db, { projectId, taskId: contentItemId });
 
-        const boundDecision = decisionId ? await prisma.artDirectionDecision.findFirst({
-            where: { id: decisionId, project_id: projectId, content_item_id: contentItemId, status: 'active', decision: 'GENERATE' }
+        const boundDecision = decisionId ? await db.artDirectionDecision.findFirst({
+            where: { id: decisionId, project_id: projectId, content_item_id: contentItemId, status: 'active', decision: GENERATED_VISUAL_DECISION }
         }) : null;
         assertVisualGenerationGate({
             weekPackageId: item.week_package_id,
@@ -156,7 +161,15 @@ export class ImageAssetService {
             throw new Error('[VISUAL_SOURCE_BYTES_REQUIRED] Local visual sources must be registered with fileDataBase64 for durable ingestion');
         }
 
-        const asset = await prisma.$transaction(async (tx) => {
+        const record = async (tx: Prisma.TransactionClient) => {
+        await lockOwnedPublicationTask(tx, { projectId, taskId: contentItemId });
+        await assertOwnedRestMutable(tx, { projectId, taskId: contentItemId });
+        const currentItem = await tx.contentItem.findFirst({ where: { id: contentItemId, project_id: projectId } });
+        const currentDecision = boundDecision && await tx.artDirectionDecision.findUnique({ where: { id: boundDecision.id } });
+        if (!currentItem || currentItem.updated_at.getTime() !== item.updated_at.getTime()
+            || !currentDecision || currentDecision.updated_at.getTime() !== boundDecision!.updated_at.getTime()) {
+            throw Object.assign(Error('[PUBLICATION_TASK_CHANGED]'), { statusCode: 409 });
+        }
         await lockVisualContent(tx,projectId,contentItemId);
         const reassessment=await getVisualReassessment(tx,projectId,contentItemId);
         if(reassessment){
@@ -170,7 +183,7 @@ export class ImageAssetService {
             orderBy: { asset_version: 'desc' },
         });
 
-        const nextVersion = latestAsset ? latestAsset.asset_version + 1 : 1;
+            const nextVersion = latestAsset ? latestAsset.asset_version + 1 : 1;
 
         const asset = await tx.imageAsset.create({
             data: {
@@ -188,7 +201,7 @@ export class ImageAssetService {
                 alt_text: altText || null,
                 aspect_ratio: aspectRatio || null,
                 file_url: fileUrl,
-                provenance: provenance as Prisma.InputJsonValue,
+                provenance: provenance as Prisma.InputJsonObject,
                 status: 'candidate',
             },
         });
@@ -202,7 +215,9 @@ export class ImageAssetService {
                 dedupe_key: dedupeKey, result_payload: { asset_id: asset.id, decision_id: boundDecision!.id,...(reassessment?{reassessment_generation:reassessment.generation}:{}) }
             } });
             return asset;
-        });
+        };
+        const asset = internalTx ? await record(internalTx)
+            : await withOwnedRestMutation(prisma, { projectId, taskId: contentItemId }, record);
 
         return {
             asset_id: asset.id,
@@ -236,14 +251,21 @@ export class ImageAssetService {
             throw new Error(`ImageAsset ${assetId} not found`);
         }
 
+        await assertOwnedRestMutable(prisma, { projectId, taskId: asset.content_item_id });
         if (decision === 'approved' && (!asset.decision || asset.content_revision !== asset.content_item.accepted_revision)) {
             throw new Error('[STALE_VISUAL_ASSET] Asset is not bound to the current accepted decision and revision');
         }
         const visualContentId=asset.content_item_id;
-        const updated = await prisma.$transaction(async (tx) => {
+        const observedAssetUpdatedAt=asset.updated_at.getTime();
+        const observedContentUpdatedAt=asset.content_item.updated_at.getTime();
+        const updated = await withOwnedRestMutation(prisma, { projectId, taskId: visualContentId }, async (tx) => {
             await lockVisualContent(tx,projectId,visualContentId);
             const current=await tx.imageAsset.findFirst({where:{id:assetId,project_id:projectId},include:{content_item:true,decision:true}});
             if(!current)throw visualReassessmentError('VISUAL_REASSESSMENT_ASSET_MISSING');
+            if(current.updated_at.getTime() !== observedAssetUpdatedAt
+                || current.content_item.updated_at.getTime() !== observedContentUpdatedAt) {
+                throw Object.assign(Error('[PUBLICATION_TASK_CHANGED]'), { statusCode: 409 });
+            }
             asset=current;
             const reassessment=await getVisualReassessment(tx,projectId,current.content_item_id);
             let reviewWorkId:number|null=null;
@@ -262,7 +284,7 @@ export class ImageAssetService {
             const durable = isServerResolvableVisualUrl(asset.file_url);
             if(reassessment&&!durable)throw visualReassessmentError('VISUAL_REASSESSMENT_ASSET_NOT_DURABLE');
             const reviewed = await tx.imageAsset.update({ where: { id: assetId }, data: {
-                status: decision, review_reason: reason || null, qa_report: (qaReport || {}) as any,
+                status: decision, review_reason: reason || null, qa_report: (qaReport || {}) as Prisma.InputJsonObject,
                 reviewed_by: actorId, reviewed_at: new Date()
             } });
             await tx.contentItem.update({ where: { id: asset.content_item_id }, data: decision === 'approved'

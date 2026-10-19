@@ -1,0 +1,135 @@
+{
+  "scope": "Synthetic Tower Docker only; source bindings and chronological disposition are in ../dzen-adapter-lifecycle-trun-2026-10-18.md",
+  "artifacts": [
+    {
+      "artifact": "art-backfill-red.tap",
+      "sha256": "be4020a500061ad4470fdb5edadd495fab75cfac0d85d30ab7f9ce9ae16824c7",
+      "bytes": 1702
+    },
+    {
+      "artifact": "art-positive-red.tap",
+      "sha256": "0f09b14773e530a598d0eae544608e5a1e63a2f75f095a49edd03c47a2df45e8",
+      "bytes": 1945
+    },
+    {
+      "artifact": "boundary-red.tap",
+      "sha256": "0d0393fab8e6de75406ef23a845455eec206192c6c124dbd53d82dbe819f0f1d",
+      "bytes": 5661
+    },
+    {
+      "artifact": "build-candidate.txt",
+      "sha256": "29ac6132bb4e2e3b1aad1ba812d206e73e0ea9863c7e3cbdf60688a9acab54a1",
+      "bytes": 7579
+    },
+    {
+      "artifact": "build-final.txt",
+      "sha256": "cc0c754b75ddc1b91fcc88ca4f02b85ad940352581b37a799cf9648e2aa39b56",
+      "bytes": 7638
+    },
+    {
+      "artifact": "default-route-red.tap",
+      "sha256": "d48fe4d6dbce6f70ce7d3c9daa0df5d65a4821a4eb3ffa2ec58119af53d993be",
+      "bytes": 2304
+    },
+    {
+      "artifact": "dzen-vk-regression.tap",
+      "sha256": "048c1d89878b0772e0ceea0438ecc77e35d056894eef6e66c12fb4199bb72313",
+      "bytes": 20355
+    },
+    {
+      "artifact": "fact-authorization-red.tap",
+      "sha256": "e6d7d5a4bd76c3d8dd8527af9432dbbcd2d20805a31cf6ca4679304e8c1697c9",
+      "bytes": 1819
+    },
+    {
+      "artifact": "native-budget-red.tap",
+      "sha256": "2167c86436e3ffeeb6cc956f3bacb953e5e5498b00baf417323d10856fcb5971",
+      "bytes": 1149
+    },
+    {
+      "artifact": "native-double-create-red.tap",
+      "sha256": "d62e5064545ffd076431365767534194a29fa2df0536ccda6f2de7f54666c2bc",
+      "bytes": 1116
+    },
+    {
+      "artifact": "native-double-submit-red.tap",
+      "sha256": "870fe09974c771c10c90ce9602a48cb0299edfbdccf6c895f2771cf9e1137375",
+      "bytes": 1098
+    },
+    {
+      "artifact": "native-final.tap",
+      "sha256": "e5b02ec102daa55975a5cb1c9ab185d57f9a79302a8015047429936df2b90c84",
+      "bytes": 2508
+    },
+    {
+      "artifact": "native-freshness-red.tap",
+      "sha256": "1c62ff1adf711e0e709faba0d2ed923c3e1a8be808ac9719107fcde584569876",
+      "bytes": 1119
+    },
+    {
+      "artifact": "native-pending-autosave-red.tap",
+      "sha256": "f4f5f38f75374f9b00f4561e87a9b6de9a28d10e02bae44981fd23c385f30680",
+      "bytes": 1122
+    },
+    {
+      "artifact": "native-startup-red.tap",
+      "sha256": "72a620def6631d2b1e6e2e174f3ac1a12330633685db1d874f1891b5c4d4725a",
+      "bytes": 1241
+    },
+    {
+      "artifact": "native-submit-fence-red.tap",
+      "sha256": "d16f1cfa32281d8ae12ead35f7fc217de1cb28ef187fd0b552557a974050ad1b",
+      "bytes": 1149
+    },
+    {
+      "artifact": "parent-final.tap",
+      "sha256": "fb30c28f14e0f4522e1ee254ab0bfc4e839e763e0f295f2353b26c7181e80880",
+      "bytes": 4392
+    },
+    {
+      "artifact": "positive-approval-red.tap",
+      "sha256": "90ce38edbbdb22d5e60424dcf9cfbaac1644f4beee98311767527b185260e2b2",
+      "bytes": 1109
+    },
+    {
+      "artifact": "postgres-budget-red.tap",
+      "sha256": "8ae303f5ed5436979b4b0f585c4b4c38cf05551e937fd299001f8bec6608436f",
+      "bytes": 5039
+    },
+    {
+      "artifact": "postgres-final.tap",
+      "sha256": "0d68ddb43b3532992e45e534718a1466b9bea8c484613b1c62e54d7c703703fb",
+      "bytes": 5858
+    },
+    {
+      "artifact": "publication-regression.tap",
+      "sha256": "742118e0448a971f2094f6e3e5aab4f9fca9b9aaa6f2eb11f97ab8447e6b4fd8",
+      "bytes": 23108
+    },
+    {
+      "artifact": "quality-candidate.txt",
+      "sha256": "0eb070acd2d9a1cd138a659c4e152f4a7ee9c74baa82a55519d8fa4f17cdc0fe",
+      "bytes": 1551
+    },
+    {
+      "artifact": "quality-final.json",
+      "sha256": "a47d537c8a63d13cb261862c2b15d583657bca133b3557b6bb3ce7c9b4981ef6",
+      "bytes": 1472
+    },
+    {
+      "artifact": "rest-red.tap",
+      "sha256": "ef1b00f8fef28f8152ffa675ad2f313dce2302f5145c5522e7806050afb44aeb",
+      "bytes": 4454
+    },
+    {
+      "artifact": "shared-x-regression.tap",
+      "sha256": "9037cecfbc4047919efd30b5013dbd5e4024e99b76e913df44b64f0b9d1595f2",
+      "bytes": 8846
+    },
+    {
+      "artifact": "strict-schema-red.tap",
+      "sha256": "6df14e324906c84455c8284199432afa43997939c27d63194bbac482e1e06d06",
+      "bytes": 2220
+    }
+  ]
+}

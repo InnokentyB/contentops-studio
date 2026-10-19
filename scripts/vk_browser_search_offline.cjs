@@ -3,6 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require('playwright');
+const { sandboxedChromiumLaunchOptions } = require('../dist/services/browser_launch');
 const { runVkBrowserSearch, VkBrowserSearchJobSchema } = require('../dist/services/vk_browser_search.service');
 const { PlaywrightVkBrowserSearchUi } = require('../dist/services/vk_browser_search_ui');
 
@@ -17,7 +18,7 @@ async function main() {
     }
     const job = VkBrowserSearchJobSchema.parse(JSON.parse(fs.readFileSync(jobFile, 'utf8')));
     const html = fs.readFileSync(htmlFile, 'utf8');
-    const browser = await chromium.launch({ headless: true, channel: 'chrome' });
+    const browser = await chromium.launch(sandboxedChromiumLaunchOptions({ headless: true, executablePath: process.env.APP_BROWSER_EXECUTABLE_PATH ?? chromium.executablePath() }));
     try {
         const context = await browser.newContext({ javaScriptEnabled: false });
         await context.route('**/*', (route) => route.abort());

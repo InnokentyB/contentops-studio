@@ -1,0 +1,93 @@
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+✔ pairing and registration require an exact build digest, rejecting legacy missing identities (4.531601ms)
+✔ stored enrollment and owner challenge issuance reject legacy missing digests (5.984368ms)
+✔ all execution challenges and signed reads carry build identity; old wire fails closed (1.789118ms)
+✔ native HTTP origin matches the enrolled extension exactly, never another extension or web page (0.853664ms)
+✔ signed generic receipts support distinct data-bound tasks without production identifiers (6.639621ms)
+✔ forgery, wrong task/account/text, revoked key and expired challenge fail closed (2.0321ms)
+✔ read signatures bind operation, tenant and channel rather than authorizing another action (1.480707ms)
+✔ even a valid signing key cannot substitute a different enrolled build digest (0.542563ms)
+✔ result requires exact author object URL; unknown cannot become an editor permit (1.654188ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+✔ disabled rollout and missing owner authorization have zero execution authority (98.2246ms)
+✔ the bridge enforces its bounded per-route request rate (14.104416ms)
+✔ owner actor is derived from authentication, including nested challenge context (8.003477ms)
+✔ delegate browser origins are bounded; errors disclose only safe code and never raw detail (6.833032ms)
+✔ preflight permits only the extension JSON transport; oversized bodies never reach handlers (5.403895ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+✔ S5 shared atomic confirmation and reconciliation controls exist (0.855994ms)
+✔ S5 fact+attempt+audit commit together; exact replay is read-only (13.326583ms)
+✔ S5 failed fact write rolls back completion audit and attempt state (7.932517ms)
+✔ S5 forged identity, wrong company, image, attempt or body never writes a fact (5.578996ms)
+✔ S5 UNKNOWN + expired lease reconcile only existing provider object, never reopen send (9.515994ms)
+✔ S5 reconciliation cannot bypass pre-submit during a healthy active lease (1.753879ms)
+✔ S5 normal confirmation rejects native action beyond recorded permit deadline atomically (1.689938ms)
+✔ S5 missing or invalid permit deadline never confirms (2.679083ms)
+✔ S5 explicit UNKNOWN can reconcile existing object while lease remains active (1.891339ms)
+✔ S5 expired lease alone permits reconciliation, missing lease expiry does not (2.606472ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+✔ Setka r2 diagnosis reads actual missing persisted bundle without mutation or snapshot requirement (3.042474ms)
+✔ Setka-shaped expected package reports exact missing body field with hash-only evidence (3.991208ms)
+✔ missing legacy bundle previews then repairs atomically before normal exact release (5.915247ms)
+✔ legacy repair rejects partial/divergent bundles, changed binding and every browser delivery history (11.458813ms)
+✔ diagnostic mismatches redact unexpected strings and reject owner/tenant changes without writes (1.224586ms)
+✔ legacy materialization never replaces a malformed metadata container or its history (1.487146ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+✔ S3 shared claim/start/pre-submit/uncertain controls exist (0.647683ms)
+✔ S3 claim replay returns only same current lease; durable audit never contains raw lease (8.293459ms)
+✔ S3 an expired claim key cannot retrieve a newer lease generation from the same actor (2.213581ms)
+✔ S3 start creates exactly one attempt; replay and UNKNOWN never issue another send permit (3.395815ms)
+✔ S4 pre-submit rejects actual company/text/image/block mismatch and only first valid call permits submit (9.966686ms)
+✔ S6 every generic dispatch entry rejects a shared governed package without task-numbered admission (0.936815ms)
+✔ S6 generic manual fact refuses to impersonate a browser attempt confirmation (0.705863ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+✔ S6 shared controls are publisher-only; project and actor remain token-principal bound (0.774104ms)
+✔ S6 registered MCP surface matches capabilities and mutations never claim read-only (173.387251ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+✔ S1 generic preview/repair/release exists at the operator boundary (0.691513ms)
+✔ S1 preview never writes; metadata repair preserves accepted body/date/art/channel and creates no release (5.947248ms)
+✔ S1 release creates one revision-bound WI and records exact replay; changed request conflicts (1.930039ms)
+✔ S2 wrong owner/tenant/binding/manifest/content/date/asset/decision, hold or prior attempt reject without mutation (9.151013ms)
+✔ S2 failed release audit atomically rolls back task and WI, even after valid metadata repair (0.995954ms)
+✔ S1 ordinary next task is parameters, not another deployed module (0.835484ms)
+✔ S2 numeric company profile and adopted Registry provider ID must agree (0.360672ms)
+✔ S2 token-bound outer project/task cannot hide a different tenant in the snapshot (0.891084ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+✔ Setka preview is no-write and ordinary next task uses validated package data (8.57076ms)
+✔ Setka personal UUID identity and approved image stay mandatory (3.988458ms)
+✔ Setka native profile/body/image mismatch cannot produce another permit (11.069532ms)
+✔ Setka UUID permalink, native object/time and evidence commit atomically; replay is read-only (5.973067ms)
+✔ Setka UNKNOWN/expired lease reconciles same attempt and never grants resend (4.140979ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+✔ X no-visual package is data-driven; existing image routes cannot omit their approved image (6.631211ms)
+✔ X acceptance requires exact active no-visual decision and no selected asset (2.305801ms)
+✔ X mixed-case identity disagreement is rejected before release or provider action (0.542003ms)
+✔ raw generic X start cannot create an attempt; internal gate failure rolls back its own writes (8.258479ms)
+✔ X internal signed gate precedes one attempt; only first native permit grants <=15 seconds (5.037694ms)
+✔ X confirm/reconcile reject raw caller observations; signed result keeps native object namespace (4.440951ms)
+✔ X UNKNOWN remains same-attempt reconciliation after lease expiry, with no fresh permit (2.942334ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+✔ enrollment preview is no-write and unsigned/foreign-origin pairing cannot enroll (11.864266ms)
+✔ a signed pairing for one reviewed bundle cannot enroll another bundle or rewrite its proof (4.26992ms)
+✔ all signed delegate operations and owner issue reject a different bundle before state changes (20.425316ms)
+✔ enrolled build digest is immutable and legacy missing-digest enrollment cannot execute (5.063384ms)
+✔ signed start consumes one nonce with one durable attempt; delegate wire never contains lease (12.440718ms)
+✔ future-dated signed package cannot start an attempt, consume a nonce or gain a permit (4.398131ms)
+✔ expired unused START refresh returns a complete canonical sanitized stage without renewing lease (4.548042ms)
+✔ wrong origin, settings replacement and revoked installation yield no attempt or permit (11.069081ms)
+✔ another current tenant owner can revoke an installation and revocation audit remains sticky (3.788917ms)
+✔ nonce consume rolls back when the canonical attempt audit fails; no partial authority persists (4.866403ms)
+✔ a lost nonce CAS grants no attempt and no consume audit (4.571091ms)
+✔ UNKNOWN after start remains one attempt and expired lease yields reconciliation, not a new permit (13.794395ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+✔ X CI runs source-backed checks from the mounted repository rather than the compiled image cwd (15.281782ms)
+✔ X controls are wired into real registries, gated default-off, with no executor RPC (126.281011ms)
+✔ only owner/Publisher can invoke control plane; remote principal rebinds flat actor/project (0.374462ms)
+ℹ tests 74
+ℹ suites 0
+ℹ pass 74
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3745.621531

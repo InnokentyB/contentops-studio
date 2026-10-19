@@ -8,7 +8,7 @@ import { harness } from './helpers/vk_connector_harness';
 import { connectorHash, connectorPackageHash } from '../services/vk_connector_contract';
 import { VkConnectorExecutionService } from '../services/vk_connector_execution.service';
 import type { VkConnectorExecutionPorts, ConnectorExecutionIdentity } from '../services/vk_connector_execution_contract';
-import { runVk1048ProviderJob, type Vk1048OfflineHarness } from '../services/vk1048_provider_execution';
+import { runVkConnectorProviderJob, type VkConnectorOfflineHarness } from '../services/vk_connector_provider_execution';
 import type { VkConnectorControl } from '../services/vk_connector_consumer_runtime';
 import type { VkConnectorWallEvidence } from '../services/vk_connector_reconciliation';
 import prisma from '../db';
@@ -23,7 +23,7 @@ const wireIdentity = z.object({ projectId: z.literal(10), actorId: z.literal('us
     jobId: z.string().uuid(), generation: z.number().int().positive(), packageSha256: z.string().regex(/^[a-f0-9]{64}$/) });
 
 async function integratedFixture(t: TestContext) {
-    const h = harness(); h.advance(86_400_000);
+    const h = harness(true, 'vk_feed_provider'); h.advance(86_400_000);
     h.snapshot.package.bodySha256 = connectorHash(body); h.snapshot.package.assetSha256 = sha;
     const packageSha256 = connectorPackageHash(h.snapshot.package);
     const job = await h.service.dispatch({ ...h.request, expectedPackageSha256: packageSha256 });
@@ -113,7 +113,7 @@ async function integratedFixture(t: TestContext) {
     };
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'vk017-integration-'));
     t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
-    const offline: Vk1048OfflineHarness = { executionContext: 'offline_fixture', evidenceDir: directory, now: () => now,
+    const offline: VkConnectorOfflineHarness = { executionContext: 'offline_fixture', evidenceDir: directory, now: () => now,
         admission: { assess: async () => ({ status: 'OFFLINE_FIXTURE_ADMITTED', executionContext: 'offline_fixture' }) },
         loadApprovedImage: async () => ({ buffer: bytes, filename: 'approved.png', contentType: 'image/png' }),
         withSession: async run => {
@@ -137,7 +137,7 @@ async function integratedFixture(t: TestContext) {
 
 test('VK017-INTEGRATION: service-backed MCP DTOs claim/start/confirm one exact synthetic package', async t => {
     const f = await integratedFixture(t);
-    const result = await runVk1048ProviderJob(f.input, f.control, f.offline);
+    const result = await runVkConnectorProviderJob(f.input, f.control, f.offline);
     assert.equal(result.status, 'offline_fixture_confirmed', JSON.stringify({ controlErrors: f.controlErrors, counters: f.counters })); assert.equal(result.factId, 801);
     assert.equal(f.counters.claim, 1); assert.equal(f.counters.attempt, 1); assert.equal(f.counters.upload, 1); assert.equal(f.counters.submit, 1);
     const replay = await f.h.service.dispatch({ ...f.h.request, expectedPackageSha256: f.input.packageSha256 });
@@ -147,18 +147,18 @@ test('VK017-INTEGRATION: exact existing post reconciles without synthetic attemp
     const f = await integratedFixture(t);
     f.evidence.rows = [{ objectId: '-240051152_61', publicUrl: 'https://vk.com/wall-240051152_61', publishedAt: release, text: body,
         media: { assetSha256: sha, providerMediaId: 'photo-240051152_55', acknowledged: true } }];
-    const result = await runVk1048ProviderJob(f.input, f.control, f.offline);
+    const result = await runVkConnectorProviderJob(f.input, f.control, f.offline);
     assert.equal(result.status, 'offline_fixture_confirmed'); assert.equal(result.reason, 'EXACT_EXISTING_OBJECT');
     assert.equal(f.counters.attempt, 0); assert.equal(f.counters.claim, 0); assert.equal(f.counters.submit, 0); assert.equal(f.counters.fact, 1);
 });
 test('VK017-INTEGRATION: trusted admission unavailable blocks even an injected offline UI', async t => {
     const f = await integratedFixture(t); f.deny();
-    const result = await runVk1048ProviderJob(f.input, f.control, f.offline);
+    const result = await runVkConnectorProviderJob(f.input, f.control, f.offline);
     assert.equal(result.status, 'verification_required'); assert.equal(f.counters.session, 0); assert.equal(f.counters.claim, 0);
 });
 test('VK017-INTEGRATION: transport fence loss after upload freezes durable attempt before submit/fact', async t => {
     const f = await integratedFixture(t); f.fenceOnUpload();
-    const result = await runVk1048ProviderJob(f.input, f.control, f.offline);
+    const result = await runVkConnectorProviderJob(f.input, f.control, f.offline);
     assert.equal(result.status, 'verification_required'); assert.equal(f.counters.attempt, 1); assert.equal(f.counters.upload, 1);
     assert.equal(f.counters.submit, 0); assert.equal(f.counters.fact, 0); assert.equal(f.h.snapshot.attemptStatus, 'pending');
 });

@@ -58,12 +58,18 @@ test('prepare cannot silently remove an audited hold', async () => {
     const { default: db } = await import('../db');
     const { preparePublicationTask } = await import('../services/mcp_publication/tasks');
     const original = db.contentItem.findFirst;
+    const originalHistory = db.workflowEvent.findFirst;
+    const originalJob = db.connectorDispatchJob.findFirst;
     try {
+        assert.equal(Reflect.set(db.workflowEvent, 'findFirst', async () => null), true);
+        assert.equal(Reflect.set(db.connectorDispatchJob, 'findFirst', async () => null), true);
         db.contentItem.findFirst = (async () => ({ id: 1084, status: 'blocked', quality_report: {
             publication_hold: { blockers: ['BROWSER_POLICY_DENIED'] }
         } })) as unknown as typeof original;
         await assert.rejects(preparePublicationTask(10, 1084), /PUBLICATION_HOLD_ACTIVE/);
     } finally {
         db.contentItem.findFirst = original;
+        db.workflowEvent.findFirst = originalHistory;
+        db.connectorDispatchJob.findFirst = originalJob;
     }
 });

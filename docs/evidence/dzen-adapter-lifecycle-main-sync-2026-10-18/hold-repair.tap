@@ -1,0 +1,14 @@
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+✔ an explicit hold takes precedence over the retained browser publication mode (0.660523ms)
+✔ hold preview is secret-free and performs no writes (0.900835ms)
+✔ exact hold preserves accepted records and owner release; never clears leases (0.795134ms)
+✔ active claim and non-owner are refused without writes (0.519743ms)
+✔ prepare cannot silently remove an audited hold (508.512071ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 813.916201

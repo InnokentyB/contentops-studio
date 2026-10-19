@@ -1,3 +1,4 @@
+import {assertOwnedRestMutable,withOwnedRestMutation} from '../../services/owned_publication_rest_guard';
 import { registerPublicationAdapterStatus } from './publication_adapter_status';
 import { readPublicationAdapterStatus } from '../../services/publication_adapter_status';
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
@@ -11,7 +12,6 @@ import artDirectionService from '../../services/art_direction.service';
 import publicationPlanService from '../../services/publication_plan.service';
 import publicationAdapterService from '../../services/publication_adapter.service';
 import publicationFactService from '../../services/publication_fact.service';
-import commentService from '../../services/comment.service';
 import storageService from '../../services/storage.service';
 import imageAssetService from '../../services/image_asset.service';
 import initiativeService from '../../services/initiative.service';
@@ -227,6 +227,7 @@ export default async function publicationTasksRoutes(fastify: FastifyInstance): 
         if (!item) {
             return reply.code(404).send({ error: 'Publication task not found' });
         }
+        await assertOwnedRestMutable(prisma, { projectId, taskId: item.id });
 
         const nextQualityReport = {
             ...((item.quality_report as any) || {})
@@ -263,14 +264,14 @@ export default async function publicationTasksRoutes(fastify: FastifyInstance): 
             };
         }
 
-        const updated = await prisma.contentItem.update({
+        const updated = await withOwnedRestMutation(prisma, { projectId, taskId: item.id }, tx => tx.contentItem.update({
             where: { id: item.id },
             data: {
                 draft_text: body,
                 content_revision: { increment: 1 },
                 quality_report: nextQualityReport
             }
-        });
+        }));
 
         const response = {
             id: updated.id,
@@ -302,6 +303,7 @@ export default async function publicationTasksRoutes(fastify: FastifyInstance): 
         if (!item) {
             return reply.code(404).send({ error: 'Publication task not found' });
         }
+        await assertOwnedRestMutable(prisma, { projectId, taskId: item.id });
 
         await artDirectionService.assertPublicationReady(projectId, item.id);
 
@@ -323,7 +325,7 @@ export default async function publicationTasksRoutes(fastify: FastifyInstance): 
         const browserRequired = !directExecutionSupported
             || (bundle.mode === 'manual' && !publicationAdapterService.prefersAutomaticExecution(effectiveAccount));
 
-        const updated = await prisma.contentItem.update({
+        const updated = await withOwnedRestMutation(prisma, { projectId, taskId: item.id }, tx => tx.contentItem.update({
             where: { id: item.id },
             data: {
                 status: browserRequired ? 'browser_required' : 'ready_for_execution',
@@ -336,7 +338,7 @@ export default async function publicationTasksRoutes(fastify: FastifyInstance): 
                     prepared_at: new Date().toISOString()
                 } as any
             }
-        });
+        }));
 
         const response = {
             item: {
@@ -519,6 +521,7 @@ export default async function publicationTasksRoutes(fastify: FastifyInstance): 
         if (!item) {
             return reply.code(404).send({ error: 'Publication task not found' });
         }
+        await assertOwnedRestMutable(prisma, { projectId, taskId: item.id });
 
         const composed = [
             author ? `Author: ${author}` : null,
@@ -526,16 +529,18 @@ export default async function publicationTasksRoutes(fastify: FastifyInstance): 
             commentUrl ? `URL: ${commentUrl}` : null
         ].filter(Boolean).join('\n');
 
-        const comment = await commentService.createComment(projectId, 'content_item', item.id, composed || 'External comment alert received', 'assistant');
-
-        await prisma.contentItem.update({
-            where: { id: item.id },
-            data: {
-                metrics: {
-                    ...((item.metrics as any) || {}),
-                    last_comment_alert_at: new Date().toISOString()
-                } as any
-            }
+        const comment = await withOwnedRestMutation(prisma, { projectId, taskId: item.id }, async tx => {
+            const created = await tx.comment.create({ data: { project_id: projectId, entity_type: 'content_item', entity_id: item.id, text: composed || 'External comment alert received', author_role: 'assistant' } });
+            await tx.contentItem.update({
+                where: { id: item.id },
+                data: {
+                    metrics: {
+                        ...((item.metrics as any) || {}),
+                        last_comment_alert_at: new Date().toISOString()
+                    } as any
+                }
+            });
+            return created;
         });
 
         logEgressDiagnostic('publication_tasks.external_comment_alert', {
@@ -568,6 +573,7 @@ export default async function publicationTasksRoutes(fastify: FastifyInstance): 
         if (!item) {
             return reply.code(404).send({ error: 'Publication task not found' });
         }
+        await assertOwnedRestMutable(prisma, { projectId, taskId: item.id });
 
         let criticReview: any;
         try {
@@ -576,7 +582,7 @@ export default async function publicationTasksRoutes(fastify: FastifyInstance): 
             return reply.code(400).send({ error: error?.message || 'No publication body is available for critic review.' });
         }
 
-        await prisma.contentItem.update({
+        await withOwnedRestMutation(prisma, { projectId, taskId: item.id }, tx => tx.contentItem.update({
             where: { id: item.id },
             data: {
                 quality_report: {
@@ -584,7 +590,7 @@ export default async function publicationTasksRoutes(fastify: FastifyInstance): 
                     critic_review: criticReview
                 } as any
             }
-        });
+        }));
 
         logEgressDiagnostic('publication_tasks.critic_check', {
             projectId,
@@ -614,6 +620,7 @@ export default async function publicationTasksRoutes(fastify: FastifyInstance): 
         if (!item) {
             return reply.code(404).send({ error: 'Publication task not found' });
         }
+        await assertOwnedRestMutable(prisma, { projectId, taskId: item.id });
 
         const initial = await runPublicationCriticReview(projectId, item, text);
         const currentText = initial.publicationBody;
@@ -670,13 +677,13 @@ export default async function publicationTasksRoutes(fastify: FastifyInstance): 
             raw: fixed
         };
 
-        const updated = await prisma.contentItem.update({
+        const updated = await withOwnedRestMutation(prisma, { projectId, taskId: item.id }, tx => tx.contentItem.update({
             where: { id: item.id },
             data: {
                 draft_text: fixed.updated_text || currentText,
                 quality_report: nextQualityReport
             }
-        });
+        }));
 
         const reloaded = await prisma.contentItem.findFirst({
             where: { id: updated.id, project_id: projectId },
@@ -688,7 +695,7 @@ export default async function publicationTasksRoutes(fastify: FastifyInstance): 
             : null;
 
         if (reloaded && finalCritic) {
-            await prisma.contentItem.update({
+            await withOwnedRestMutation(prisma, { projectId, taskId: item.id }, tx => tx.contentItem.update({
                 where: { id: reloaded.id },
                 data: {
                     quality_report: {
@@ -697,7 +704,7 @@ export default async function publicationTasksRoutes(fastify: FastifyInstance): 
                         last_fixer_run: nextQualityReport.last_fixer_run
                     } as any
                 }
-            });
+            }));
         }
 
         const response = {
@@ -739,6 +746,7 @@ export default async function publicationTasksRoutes(fastify: FastifyInstance): 
         if (!item) {
             return reply.code(404).send({ error: 'Publication task not found' });
         }
+        await assertOwnedRestMutable(prisma, { projectId, taskId: item.id });
 
         const visualDecision = item.art_direction_decisions[0] || null;
         try {
@@ -808,33 +816,36 @@ export default async function publicationTasksRoutes(fastify: FastifyInstance): 
             generated_at: new Date().toISOString()
         };
 
-        const imageAsset = await imageAssetService.generateImageAsset({
-            projectId,
-            actorId: `user:${userId}`,
-            contentItemId: item.id,
-            prompt,
-            provider: selectedProvider,
-            model: selectedProvider === 'preview' ? 'gemini-3.1-flash-lite-image' : 'gemini-3.1-flash-image',
-            altText: approvedAltText,
-            aspectRatio: (visualDecision.dimensions as any)?.aspect_ratio || undefined,
-            decisionId: visualDecision.id,
-            contentRevision: item.content_revision,
-            placement: visualDecision.placement,
-            fileUrl: imageUrl
-        });
+        const imageAsset = await withOwnedRestMutation(prisma, { projectId, taskId: item.id }, async tx => {
+            const recorded = await imageAssetService.generateImageAsset({
+                projectId,
+                actorId: `user:${userId}`,
+                contentItemId: item.id,
+                prompt,
+                provider: selectedProvider,
+                model: selectedProvider === 'preview' ? 'gemini-3.1-flash-lite-image' : 'gemini-3.1-flash-image',
+                altText: approvedAltText,
+                aspectRatio: (visualDecision.dimensions as any)?.aspect_ratio || undefined,
+                decisionId: visualDecision.id,
+                contentRevision: item.content_revision,
+                placement: visualDecision.placement,
+                fileUrl: imageUrl
+            }, tx);
 
-        await prisma.contentItem.update({
-            where: { id: item.id },
-            data: {
-                assets: {
-                    ...((item.assets as any) || {}),
-                    generated_visuals: [{ ...generatedImage, asset_id: imageAsset.asset_id }, ...previousVisuals].slice(0, 6)
-                } as any,
-                quality_report: {
-                    ...((item.quality_report as any) || {}),
-                    generated_image: generatedImage
-                } as any
-            }
+            await tx.contentItem.update({
+                where: { id: item.id },
+                data: {
+                    assets: {
+                        ...((item.assets as any) || {}),
+                        generated_visuals: [{ ...generatedImage, asset_id: recorded.asset_id }, ...previousVisuals].slice(0, 6)
+                    } as any,
+                    quality_report: {
+                        ...((item.quality_report as any) || {}),
+                        generated_image: generatedImage
+                    } as any
+                }
+            });
+            return recorded;
         });
 
         logEgressDiagnostic('publication_tasks.generate_image', {
@@ -856,12 +867,6 @@ export default async function publicationTasksRoutes(fastify: FastifyInstance): 
 
         const taskId = Number(request.params.id);
         if (!Number.isInteger(taskId)) return reply.code(400).send({ error: 'Invalid publication task ID' });
-        const data = await (request as any).file();
-        if (!data) return reply.code(400).send({ error: 'No image uploaded' });
-        if (!['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(data.mimetype)) {
-            return reply.code(415).send({ error: 'Only PNG, JPEG, WebP, and GIF images are supported' });
-        }
-
         const item = await prisma.contentItem.findFirst({
             where: { id: taskId, project_id: projectId },
             include: { selected_asset: true }
@@ -870,6 +875,13 @@ export default async function publicationTasksRoutes(fastify: FastifyInstance): 
         if (!item.selected_asset) {
             return reply.code(409).send({ error: 'Select and approve a visual asset before replacing its file' });
         }
+        await assertOwnedRestMutable(prisma, { projectId, taskId });
+        const data = await (request as any).file();
+        if (!data) return reply.code(400).send({ error: 'No image uploaded' });
+        if (!['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(data.mimetype)) {
+            return reply.code(415).send({ error: 'Only PNG, JPEG, WebP, and GIF images are supported' });
+        }
+
 
         const buffer = await data.toBuffer();
         if (buffer.length === 0 || buffer.length > 15 * 1024 * 1024) {
@@ -893,9 +905,11 @@ export default async function publicationTasksRoutes(fastify: FastifyInstance): 
                 ? { ...visual, url: imageUrl, image_url: imageUrl, uploaded_at: new Date().toISOString() }
                 : visual)
             : [];
-        await prisma.$transaction([
-            prisma.imageAsset.update({ where: { id: item.selected_asset.id }, data: { file_url: imageUrl } }),
-            prisma.contentItem.update({
+        await withOwnedRestMutation(prisma, { projectId, taskId }, async tx => {
+            const current = await tx.contentItem.findFirst({ where: { id: taskId, project_id: projectId }, select: { selected_asset_id: true, updated_at: true } });
+            if (current?.selected_asset_id !== item.selected_asset!.id || current.updated_at.getTime() !== item.updated_at.getTime()) throw Object.assign(Error('[PUBLICATION_TASK_CHANGED]'), { statusCode: 409 });
+            await tx.imageAsset.update({ where: { id: item.selected_asset!.id }, data: { file_url: imageUrl } });
+            await tx.contentItem.update({
                 where: { id: item.id },
                 data: {
                     ...(reopenApprovedConnectorTask ? {
@@ -913,8 +927,8 @@ export default async function publicationTasksRoutes(fastify: FastifyInstance): 
                         visual_storage: { provider: storageService.getProvider(), url: imageUrl, uploaded_at: new Date().toISOString() }
                     } as any
                 }
-            })
-        ]);
+            });
+        });
 
         return { success: true, imageUrl, assetId: item.selected_asset.id, storageProvider: storageService.getProvider() };
     });

@@ -106,3 +106,13 @@ harness failures were repaired without changing production sending behavior.
 The clean release build passes all 919 tests with zero skips, backend/frontend
 builds and the baseline quality gate. See the production-release test record.
 This verifies code readiness for the gated rollout, not real VK provider UAT.
+
+## Shared connector update
+
+The current data-driven connector and explicit existing-job preflight are described
+in `vk-connector-consumer-bootstrap.md`. Business IDs in old examples are fixture
+or historical data, not production authority. Shared browser launch uses the
+configured container executable with Chromium sandbox enabled. Offline fixture
+success still does not activate live search, image publication or Clip publication.
+The shared connector currently returns FORMAT_UNSUPPORTED for Clip execution
+until a distinct complete Clip inventory and media acknowledgement port is verified.

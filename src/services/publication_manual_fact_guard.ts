@@ -1,9 +1,11 @@
+import { assertOwnedPublicationMutable } from './publication_owned_guard';
 import type { Prisma } from '@prisma/client';
 import { hasGovernedBrowserLifecycle } from './browser_publication_fence';
 
 /** The pilot's active canonical job owns its result; a generic form cannot race it. */
 export async function guardManualPublicationFact(tx: Prisma.TransactionClient,
     args: { projectId: number; taskId: number; internalConfirmation: boolean }): Promise<void> {
+    if (!args.internalConfirmation) await assertOwnedPublicationMutable(tx, args);
     if (!args.internalConfirmation && args.projectId === 10 && args.taskId === 1002) throw new Error('DZEN1002_EXACT_CONFIRMATION_REQUIRED');
     if (!args.internalConfirmation && args.projectId === 7 && args.taskId === 1086) throw new Error('LINKEDIN1086_EXACT_CONFIRMATION_REQUIRED');
     if (!args.internalConfirmation && args.projectId === 7 && args.taskId === 1128) throw new Error('LINKEDIN1128_EXACT_CONFIRMATION_REQUIRED');

@@ -1,0 +1,55 @@
+✔ OAR01 production registry is registered independent process and policy-held before secrets (1.032164ms)
+✔ OAR02 two packages use actual local inventory/edit/upload/one Submit/strict receipt/readback in separate sandboxed child (8676.135888ms)
+✖ OAR03 phase denial, unsupported proof, cancelled child and child crash clean up without resend (4676.063601ms)
+✔ OAR04 all native phases share invocation deadline, expired budget avoids secrets and cancellation joins in-flight fences (5796.6997ms)
+✔ OAR05 a malicious native page cannot POST final Submit twice under one consumed permission (1348.729346ms)
+✔ OAR06 SIGKILL before browser resource ACK closes paused startup browser within ten seconds and zero native requests (9277.193528ms)
+✔ OAR07 one claim permits only first create POST before binding; a duplicate draft request is blocked (1027.467631ms)
+✔ OAR08 oversized chunked creation response and redirect fail closed after exactly one native HTTP request (2088.172062ms)
+✔ OAR09 oversized and redirected Submit responses remain uncertain; same-object readback reconciles without resend (65057.230156ms)
+✔ OAR10 receipt requires freshly reloaded native primary body after Submit; stale editor DOM is insufficient (1750.397261ms)
+✔ OAR11 awaited Submit fence changing persisted body triggers fresh read-only proof and zero outgoing publish requests (1436.022303ms)
+✔ OAR12 an admitted unfinished autosave must drain before fresh verification and can never race Submit (1585.514627ms)
+✔ generic receipt independently binds native body/account/object/original cover (2.330339ms)
+✔ generic proof rejects recommendation (0.653092ms)
+✔ generic proof rejects extraBody (0.233611ms)
+✔ generic proof rejects missingBody (0.259591ms)
+✔ generic proof rejects collapsed (0.203271ms)
+✔ generic proof rejects wrongAccount (0.226701ms)
+✔ generic proof rejects wrongObject (0.246821ms)
+✔ generic proof rejects wrongSubmit (0.173841ms)
+✔ generic proof rejects wrongUrl (0.221551ms)
+✔ generic proof rejects wrongTime (0.280111ms)
+✔ generic proof rejects missingCover (0.209961ms)
+✔ generic proof rejects transformed (0.182081ms)
+✔ generic proof rejects wrongCover (0.168571ms)
+✔ generic proof rejects unpublished (0.183421ms)
+✔ generic proof rejects extraPayloadSecret (0.14531ms)
+✔ body permits only CRLF and NBSP normalization (0.253021ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 27
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 102845.563173
+
+✖ failing tests:
+
+test at tests/tdpd/owned-publication-adapter-native.cjs:15:1
+✖ OAR03 phase denial, unsupported proof, cancelled child and child crash clean up without resend (4676.063601ms)
+  AssertionError [ERR_ASSERTION]: native browser process survived cleanup
+      at assertBrowsersClosed (/workspace/tests/fixtures/owned-publication-native/root.cjs:2:357)
+      at Object.runFailureScenarios (/workspace/tests/fixtures/owned-publication-native/root.cjs:45:104)
+      at async TestContext.<anonymous> (/workspace/tests/tdpd/owned-publication-adapter-native.cjs:17:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+

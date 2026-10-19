@@ -1,0 +1,36 @@
+✔ OAR01 production registry is registered independent process and policy-held before secrets (1.027365ms)
+✔ OAR02 two packages use actual local inventory/edit/upload/one Submit/strict receipt/readback in separate sandboxed child (8853.700329ms)
+✔ OAR03 phase denial, unsupported proof, cancelled child and child crash clean up without resend (8219.838922ms)
+✔ OAR04 all native phases share invocation deadline, expired budget avoids secrets and cancellation joins in-flight fences (5795.879476ms)
+✔ OAR05 a malicious native page cannot POST final Submit twice under one consumed permission (1358.460222ms)
+✔ OAR06 SIGKILL before browser resource ACK closes paused startup browser within ten seconds and zero native requests (9275.771629ms)
+✔ OAR07 one claim permits only first create POST before binding; a duplicate draft request is blocked (1033.35033ms)
+✔ OAR08 oversized chunked creation response and redirect fail closed after exactly one native HTTP request (2003.488038ms)
+✔ OAR09 oversized and redirected Submit responses remain uncertain; same-object readback reconciles without resend (64596.054196ms)
+✔ OAR10 receipt requires freshly reloaded native primary body after Submit; stale editor DOM is insufficient (1356.3064ms)
+✔ OAR11 awaited Submit fence changing persisted body triggers fresh read-only proof and zero outgoing publish requests (1237.636834ms)
+✔ OAR12 an admitted unfinished autosave must drain before fresh verification and can never race Submit (1433.323643ms)
+✔ generic receipt independently binds native body/account/object/original cover (2.319902ms)
+✔ generic proof rejects recommendation (0.642333ms)
+✔ generic proof rejects extraBody (0.243131ms)
+✔ generic proof rejects missingBody (0.251041ms)
+✔ generic proof rejects collapsed (0.197391ms)
+✔ generic proof rejects wrongAccount (0.165161ms)
+✔ generic proof rejects wrongObject (0.238262ms)
+✔ generic proof rejects wrongSubmit (0.168051ms)
+✔ generic proof rejects wrongUrl (0.225031ms)
+✔ generic proof rejects wrongTime (0.275162ms)
+✔ generic proof rejects missingCover (0.206941ms)
+✔ generic proof rejects transformed (0.182161ms)
+✔ generic proof rejects wrongCover (0.173841ms)
+✔ generic proof rejects unpublished (0.188441ms)
+✔ generic proof rejects extraPayloadSecret (0.156051ms)
+✔ body permits only CRLF and NBSP normalization (0.240822ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 28
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 105279.175608

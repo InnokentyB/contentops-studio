@@ -1,3 +1,4 @@
+import { tryOwnedPublicationTask } from '../publication_owned_route';
 import prisma from '../../db';
 import { exactOwnedRouteBlock } from '../exact_owned_route_guard';
 import publicationPlanService from '../publication_plan.service';
@@ -623,7 +624,9 @@ export class PublicationDispatcher {
 
     async processPublicationTaskItem(task: any, options: { manualTrigger?: boolean; requestHost?: string; publisherFacade?: any } = {}) {
         if (task.channel?.type === 'linkedin') throw new Error('[LINKEDIN_API_GOVERNED_ROUTE_REQUIRED] Use the governed LinkedIn API lifecycle; no browser fallback or direct retry is permitted.');
-        if (task.channel?.type === 'linkedin') throw new Error('[LINKEDIN_API_GOVERNED_ROUTE_REQUIRED] Use the governed LinkedIn API lifecycle; direct send is disabled.');
+        if (isDzenPublicationPlatform(task.channel?.type)) {
+            return await tryOwnedPublicationTask({ projectId: task.project_id, taskId: task.id, dryRun: true });
+        }
         const exact = exactOwnedRouteBlock(task); if (exact) return exact;
         const visualReadiness = await artDirectionService.getReadiness(task.project_id, task.id);
         if (!visualReadiness.ready) {

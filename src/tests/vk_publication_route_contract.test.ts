@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { z } from 'zod';
 import { buildAgentWorkspaceManifest } from '../services/agent_workspace_manifest.service';
-import { createVk1048PlaywrightRuntime } from '../services/vk1048_playwright_runtime';
-import { runVk1048ProviderJob } from '../services/vk1048_provider_execution';
+import { createVkConnectorPlaywrightRuntime } from '../services/vk_connector_playwright_runtime';
+import { runVkConnectorProviderJob } from '../services/vk_connector_provider_execution';
 const Contract = z.object({
     VK_PUBLICATION_ROUTE: z.literal('planner_registered_independent_adapter'),
     assertVkPublicationRoute: z.custom<(route: unknown) => void>(v => typeof v === 'function'),
@@ -49,18 +49,18 @@ test('VKROUTE-002 every role bootstrap with a VK channel receives the same no-Co
 });
 test('VKROUTE-003 wrong in-process production route fails before admission, control, profile or provider actions', async () => {
     let admission = 0, launches = 0, calls = 0;
-    const runtime = createVk1048PlaywrightRuntime({ actionAdmission: { assess: async () => { admission++; return { status: 'PERMISSION_UNVERIFIED' }; } },
+    const runtime = createVkConnectorPlaywrightRuntime({ actionAdmission: { assess: async () => { admission++; return { status: 'PERMISSION_UNVERIFIED' }; } },
         profileDirectory: '/never-open', evidenceDir: '/never-open', approvedAssetSha256: 'a'.repeat(64),
         loadApprovedImage: async () => { throw new Error('must not load'); },
         launch: { launch: async () => { launches++; throw new Error('must not launch'); } } });
     Object.defineProperty(runtime, 'route', { value: 'codex_cua' });
-    const result = await runVk1048ProviderJob({}, { call: async () => { calls++; throw new Error('must not call'); }, close: async () => undefined }, runtime);
+    const result = await runVkConnectorProviderJob({}, { call: async () => { calls++; throw new Error('must not call'); }, close: async () => undefined }, runtime);
     assert.equal(result.reason, 'VK_PUBLICATION_WRONG_ROUTE');
     assert.equal(admission + launches + calls, 0);
 });
 test('VKROUTE-004 direct runtime session entry also rejects a changed route before profile access', async () => {
     let admission = 0, launches = 0;
-    const runtime = createVk1048PlaywrightRuntime({ actionAdmission: { assess: async () => { admission++; return { status: 'PERMISSION_UNVERIFIED' }; } },
+    const runtime = createVkConnectorPlaywrightRuntime({ actionAdmission: { assess: async () => { admission++; return { status: 'PERMISSION_UNVERIFIED' }; } },
         profileDirectory: '/never-open', evidenceDir: '/never-open', approvedAssetSha256: 'a'.repeat(64),
         loadApprovedImage: async () => { throw new Error('must not load'); },
         launch: { launch: async () => { launches++; throw new Error('must not launch'); } } });

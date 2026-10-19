@@ -42,6 +42,9 @@ test('preparePublicationTask leaves an approval-required task and stale bundle u
         settingsReads++;
         return [];
     });
+    // Ordinary tasks have no durable owned lifecycle; these reads precede preparation.
+    stubDelegate(db.workflowEvent, 'findFirst', async () => null);
+    stubDelegate(db.connectorDispatchJob, 'findFirst', async () => null);
     stubDelegate(db.contentItem, 'findFirst', async () => task);
     const rejectWrite = async () => { writes++; throw new Error('unexpected preparation write'); };
     stubDelegate(db.contentItem, 'update', rejectWrite);

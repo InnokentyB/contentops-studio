@@ -1,0 +1,38 @@
+{
+  "prior_head": "b2f3e9b60aa29de9abbc142c9ea466b23ea719b3",
+  "scope": "empty tracked log mountpoint and one additional existing hold-test fixture; production unchanged",
+  "results": {
+    "clean_checkout_boundaries": {
+      "pass": 11,
+      "fail": 0,
+      "skip": 0
+    },
+    "audited_hold": {
+      "pass": 5,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  "artifacts": [
+    {
+      "path": "ci-second-shared.txt",
+      "sha256": "6b4c19c21ee1c7125144f6292ac3dde848e98b39760b5ef03406d82206313cec",
+      "bytes": 50342
+    },
+    {
+      "path": "ci-second-linkedin.txt",
+      "sha256": "0b29c24bbf555301563abb679d9ce6680c67f229c0fc8146282b78acd89df4e3",
+      "bytes": 613794
+    },
+    {
+      "path": "clean-checkout.tap",
+      "sha256": "16bfe76972af45ea46bd849f1f0918215ff49a17acdd7f1c31035def963957a3",
+      "bytes": 2763
+    },
+    {
+      "path": "hold-repair.tap",
+      "sha256": "73a8e148f98ee76cb83ba81fdaa57ad369ea3a66c4f3e15724c23f022e67369c",
+      "bytes": 631
+    }
+  ]
+}

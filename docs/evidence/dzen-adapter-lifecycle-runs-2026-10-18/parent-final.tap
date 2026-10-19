@@ -1,0 +1,50 @@
+✔ DA21 automatic re-accept cannot reset a started exact package after marker replacement (0.986695ms)
+✔ DA21 project art-direction backfill skips owned history before revision or state changes (0.341482ms)
+✔ DA21 generic positive work-item approval cannot reset an owned provider task projection (0.998825ms)
+✔ DA21 leased positive art decision cannot supersede the immutable accepted decision (0.483702ms)
+✔ DA21 attaching a new requested source cannot replace an owned accepted cover (0.406612ms)
+✔ DA02 actual scoped publication request keeps token identity without caller actor field (70.28939ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+✔ DA02 concurrent async requests cannot inherit another tenant or caller actor (5.246655ms)
+✔ DA02 local stdio principal is configured identity, not first owner or request data (1.051615ms)
+✔ DA05 existing publication task command routes arbitrary Dzen data before legacy IDs and Telegram (1697.462585ms)
+✔ DA23 registered existing MCP command rejects transport, session and forged actor input (102.113158ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+(node:30) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+✔ DA02 actual registered default command preserves legacy non-Dzen stdio without new principal (1.874889ms)
+✔ DA02 default command preserves Threads selection without inferring an owned principal (0.236031ms)
+✔ DA02 missing owned principal cannot fall through to any legacy executor (0.430372ms)
+✔ DA02 token-bound foreign project rejects before provider metadata lookup (0.294962ms)
+✔ DA02 owned-only release fields cannot fall through to legacy providers (0.229351ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+✔ DA15 internal afterWrite binds actual fact identity in same transaction on create (2.016879ms)
+✔ DA15 internal afterWrite binds actual fact identity in same transaction on replay (0.260761ms)
+✔ DA15 unguarded internal afterWrite is rejected before access (0.394641ms)
+✔ DA02 actual HTTP owner and scoped publisher transport retain token principal through registered command (2282.615703ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+✔ DA07 mixed queue selects legacy VK without decoding or starving on Dzen rows (274.367984ms)
+✔ DA07 VK lookup and CAS cannot interpret or change a Dzen job (16.098835ms)
+✔ DA07 cross-provider idempotency collision is explicit, not foreign decode or new job (26.329473ms)
+✔ DA21 actual content edit rejects durable ownership after marker/status replacement (1.024615ms)
+✔ DA21 actual task preparation cannot overwrite lifecycle despite removed quality marker (0.241751ms)
+✔ DA20 actual generic manual/automatic/imported fact guard rejects durable lifecycle ownership (0.193811ms)
+✔ DA20 status projection cannot offer manual confirmation after durable ownership marker removal (0.540083ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9515.672947
