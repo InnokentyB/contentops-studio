@@ -16,14 +16,19 @@ for (const binding of [{ id: 1114, project_id: 10, platform: 'threads' }, { id: 
         t.after(() => { prisma.$transaction = original; });
         t.mock.method(art, 'getReadiness', async () => { readiness += 1; throw new Error('Generic readiness must not precede exact guard'); });
         const task = { ...binding, status: 'publishing', channel: { type: binding.platform }, content_revision: 1 };
-        const results = [
-            await publicationDispatcher.executeAutomatedPublicationTask(task, {}, {}, {}),
-            await publicationDispatcher.processPublicationTaskItem(task, { manualTrigger: true }),
-            await publicationDispatcher.routeToBrowserPublication(task, {}, { code: 'STALE_CONNECTOR' })
+        const operations = [
+            () => publicationDispatcher.executeAutomatedPublicationTask(task, {}, {}, {}),
+            () => publicationDispatcher.processPublicationTaskItem(task, { manualTrigger: true }),
+            () => publicationDispatcher.routeToBrowserPublication(task, {}, { code: 'STALE_CONNECTOR' })
         ];
-        for (const result of results) {
-            assert.equal(result.blocked, true); assert.equal(result.reason, 'exact_owned_task_route_required');
-            assert.equal(result.retry_via_api, false);
+        for (const operation of operations) {
+            if (binding.platform === 'linkedin') {
+                await assert.rejects(operation, /LINKEDIN_API_GOVERNED_ROUTE_REQUIRED/);
+            } else {
+                const result = await operation();
+                assert.equal(result.blocked, true); assert.equal(result.reason, 'exact_owned_task_route_required');
+                assert.equal(result.retry_via_api, false);
+            }
         }
         assert.equal(external, 0); assert.equal(state, 0); assert.equal(readiness, 0);
     });
