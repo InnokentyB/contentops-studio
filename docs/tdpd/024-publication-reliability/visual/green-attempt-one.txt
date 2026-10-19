@@ -1,0 +1,43 @@
+ Container planner-visual-reassessment-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+✔ REL05 actual MCP exposes reusable reassessment with internal-only mutation annotations (29.613066ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+✔ REL05 MCP preview has zero writes; apply preserves accepted package/history and opens exactly one new input (403.069794ms)
+✔ REL05 stale guards and non-owner calls cause zero changes, no evidence leaks (75.303315ms)
+✔ REL05 any delivery attempt including uncertain blocks reassessment without changing history (55.328631ms)
+✖ REL05 concurrent identical requests create one generation and one immutable request event (75.877768ms)
+✔ REL05 disabled pipeline cannot bypass request; old asset callback cannot restore old readiness (78.071959ms)
+✔ REL05 new assessment requires visual and separate current review lease/generation before atomic fulfilment (117.441806ms)
+✔ REL05 direct claim wins before request: request cannot create authority during in-flight send (34.947263ms)
+✔ REL05 request wins before stale direct claim: status CAS fails and creates no dispatch (41.628019ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 8
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1912.867123
+
+✖ failing tests:
+
+test at ../../workspace/tests/tdpd/visual-reassessment-postgres.test.cjs:41:1
+✖ REL05 concurrent identical requests create one generation and one immutable request event (75.877768ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (/workspace/tests/tdpd/visual-reassessment-postgres.test.cjs:42:90)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+

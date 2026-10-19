@@ -1,0 +1,125 @@
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+✖ P01 actual Publisher MCP exposes pure preview, no external send authority (116.917863ms)
+✖ P02 forged actor cannot override trusted session and wrong project never reads task (55.568911ms)
+✖ P03/P04/P09 missing principal (57.692832ms)
+✖ P03/P04/P09 nonmember (121.89959ms)
+✖ P03/P04/P09 not found (101.993075ms)
+✖ P03/P04/P09 DB failure (54.909429ms)
+✖ P06 uncertain original attempt gives reconciliation guidance without retries (56.454856ms)
+✖ P07 vk never infers independent adapter readiness (52.507955ms)
+✖ P07 dzen never infers independent adapter readiness (109.872647ms)
+✖ P08 stale expected accepted revision blocks preview package (83.109046ms)
+✔ P10 other profiles cannot discover preview; existing live tool stays destructive (60.161515ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 1
+ℹ fail 10
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4466.431978
+
+✖ failing tests:
+
+test at tests/tdpd/publication-preview.test.cjs:50:1
+✖ P01 actual Publisher MCP exposes pure preview, no external send authority (116.917863ms)
+  AssertionError [ERR_ASSERTION]: Missing independent read-only publication preview
+      at /workspace/tests/tdpd/publication-preview.test.cjs:52:10
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async clientRun (/workspace/tests/tdpd/publication-preview.test.cjs:47:55)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/tdpd/publication-preview.test.cjs:59:1
+✖ P02 forged actor cannot override trusted session and wrong project never reads task (55.568911ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'code')
+      at /workspace/tests/tdpd/publication-preview.test.cjs:61:65
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async clientRun (/workspace/tests/tdpd/publication-preview.test.cjs:47:55)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at tests/tdpd/publication-preview.test.cjs:64:3
+✖ P03/P04/P09 missing principal (57.692832ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'code')
+      at /workspace/tests/tdpd/publication-preview.test.cjs:64:217
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async clientRun (/workspace/tests/tdpd/publication-preview.test.cjs:47:55)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at tests/tdpd/publication-preview.test.cjs:64:3
+✖ P03/P04/P09 nonmember (121.89959ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'code')
+      at /workspace/tests/tdpd/publication-preview.test.cjs:64:217
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async clientRun (/workspace/tests/tdpd/publication-preview.test.cjs:47:55)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at tests/tdpd/publication-preview.test.cjs:64:3
+✖ P03/P04/P09 not found (101.993075ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'code')
+      at /workspace/tests/tdpd/publication-preview.test.cjs:64:217
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async clientRun (/workspace/tests/tdpd/publication-preview.test.cjs:47:55)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at tests/tdpd/publication-preview.test.cjs:64:3
+✖ P03/P04/P09 DB failure (54.909429ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'code')
+      at /workspace/tests/tdpd/publication-preview.test.cjs:64:217
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async clientRun (/workspace/tests/tdpd/publication-preview.test.cjs:47:55)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at tests/tdpd/publication-preview.test.cjs:66:1
+✖ P06 uncertain original attempt gives reconciliation guidance without retries (56.454856ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'validation')
+      at /workspace/tests/tdpd/publication-preview.test.cjs:68:18
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async clientRun (/workspace/tests/tdpd/publication-preview.test.cjs:47:55)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at tests/tdpd/publication-preview.test.cjs:70:37
+✖ P07 vk never infers independent adapter readiness (52.507955ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'provider_readiness')
+      at /workspace/tests/tdpd/publication-preview.test.cjs:71:119
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async clientRun (/workspace/tests/tdpd/publication-preview.test.cjs:47:55)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at tests/tdpd/publication-preview.test.cjs:70:37
+✖ P07 dzen never infers independent adapter readiness (109.872647ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'provider_readiness')
+      at /workspace/tests/tdpd/publication-preview.test.cjs:71:119
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async clientRun (/workspace/tests/tdpd/publication-preview.test.cjs:47:55)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at tests/tdpd/publication-preview.test.cjs:73:1
+✖ P08 stale expected accepted revision blocks preview package (83.109046ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'blockers')
+      at /workspace/tests/tdpd/publication-preview.test.cjs:74:148
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async clientRun (/workspace/tests/tdpd/publication-preview.test.cjs:47:55)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+

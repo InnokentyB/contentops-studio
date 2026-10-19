@@ -1,0 +1,135 @@
+ Container tower-contentops-reliability-verification-synthetic-db-1  Running
+
+> contentops-studio@1.0.0 migrate:deploy
+> npx prisma migrate deploy
+
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+Datasource "db": PostgreSQL database "shared_browser_synthetic", schemas "planner" at "synthetic-db:5432"
+
+39 migrations found in prisma/migrations
+
+Applying migration `20260104201004_init`
+Applying migration `20260111201840_add_category_tags`
+Applying migration `20260113160440_add_image_url`
+Applying migration `20260113182657_add_prompt_settings`
+Applying migration `20260201112403_multi_project_architecture`
+Applying migration `20260208132824_add_provider_keys`
+Applying migration `20260210105941_sync_schema_after_reset`
+Applying migration `20260210183235_add_image_prompt`
+Applying migration `20260214072435_add_telegram_account`
+Applying migration `20260609092000_move_legacy_core_to_planner`
+Applying migration `20260609093000_add_project_archiving_and_kind`
+Applying migration `20260810090000_baseline_planner_content_tables`
+Applying migration `20260810100000_add_tdpd_work_queue_models`
+Applying migration `20260810200000_composite_idempotency_keys`
+Applying migration `20260811090000_add_initiative_models`
+Applying migration `20260811130000_add_vk_metric_snapshots`
+Applying migration `20260811140000_add_task_tracker_outbox`
+Applying migration `20260811150000_add_delivery_attempts`
+Applying migration `20260811160000_add_image_assets`
+Applying migration `20260811170000_add_metric_snapshots`
+Applying migration `20260811180000_add_service_identity_bindings`
+Applying migration `20260813170000_add_content_revision`
+Applying migration `20260817170000_add_publication_facts_and_week_isolation`
+Applying migration `20260823180000_add_agent_run_cost_telemetry`
+Applying migration `20260823193000_add_art_direction_pipeline`
+Applying migration `20260831120000_add_mcp_access_tokens`
+Applying migration `20260831190000_encrypt_telegram_account_secrets`
+Applying migration `20260901120000_add_demo_account_flag`
+Applying migration `20260902173000_allow_strategist_mcp_profile`
+Applying migration `20260903120000_add_agent_workspace_profiles`
+Applying migration `20260903170000_manage_mcp_workspace_bundles`
+Applying migration `20260911130000_add_organization_intelligence_foundation`
+Applying migration `20260925123000_allow_unbound_manual_publication_facts`
+Applying migration `20261012190000_add_vk_connector_dispatch`
+Applying migration `20261013100000_vk_connector_provider_fencing`
+Applying migration `20261013110000_vk_connector_provider_mode`
+Applying migration `20261019010000_browser_delivery_recovery`
+Applying migration `20261019120000_api_delivery_recovery`
+Applying migration `20261019150000_browser_preparation_execution`
+
+The following migration(s) have been applied:
+
+migrations/
+  └─ 20260104201004_init/
+    └─ migration.sql
+  └─ 20260111201840_add_category_tags/
+    └─ migration.sql
+  └─ 20260113160440_add_image_url/
+    └─ migration.sql
+  └─ 20260113182657_add_prompt_settings/
+    └─ migration.sql
+  └─ 20260201112403_multi_project_architecture/
+    └─ migration.sql
+  └─ 20260208132824_add_provider_keys/
+    └─ migration.sql
+  └─ 20260210105941_sync_schema_after_reset/
+    └─ migration.sql
+  └─ 20260210183235_add_image_prompt/
+    └─ migration.sql
+  └─ 20260214072435_add_telegram_account/
+    └─ migration.sql
+  └─ 20260609092000_move_legacy_core_to_planner/
+    └─ migration.sql
+  └─ 20260609093000_add_project_archiving_and_kind/
+    └─ migration.sql
+  └─ 20260810090000_baseline_planner_content_tables/
+    └─ migration.sql
+  └─ 20260810100000_add_tdpd_work_queue_models/
+    └─ migration.sql
+  └─ 20260810200000_composite_idempotency_keys/
+    └─ migration.sql
+  └─ 20260811090000_add_initiative_models/
+    └─ migration.sql
+  └─ 20260811130000_add_vk_metric_snapshots/
+    └─ migration.sql
+  └─ 20260811140000_add_task_tracker_outbox/
+    └─ migration.sql
+  └─ 20260811150000_add_delivery_attempts/
+    └─ migration.sql
+  └─ 20260811160000_add_image_assets/
+    └─ migration.sql
+  └─ 20260811170000_add_metric_snapshots/
+    └─ migration.sql
+  └─ 20260811180000_add_service_identity_bindings/
+    └─ migration.sql
+  └─ 20260813170000_add_content_revision/
+    └─ migration.sql
+  └─ 20260817170000_add_publication_facts_and_week_isolation/
+    └─ migration.sql
+  └─ 20260823180000_add_agent_run_cost_telemetry/
+    └─ migration.sql
+  └─ 20260823193000_add_art_direction_pipeline/
+    └─ migration.sql
+  └─ 20260831120000_add_mcp_access_tokens/
+    └─ migration.sql
+  └─ 20260831190000_encrypt_telegram_account_secrets/
+    └─ migration.sql
+  └─ 20260901120000_add_demo_account_flag/
+    └─ migration.sql
+  └─ 20260902173000_allow_strategist_mcp_profile/
+    └─ migration.sql
+  └─ 20260903120000_add_agent_workspace_profiles/
+    └─ migration.sql
+  └─ 20260903170000_manage_mcp_workspace_bundles/
+    └─ migration.sql
+  └─ 20260911130000_add_organization_intelligence_foundation/
+    └─ migration.sql
+  └─ 20260925123000_allow_unbound_manual_publication_facts/
+    └─ migration.sql
+  └─ 20261012190000_add_vk_connector_dispatch/
+    └─ migration.sql
+  └─ 20261013100000_vk_connector_provider_fencing/
+    └─ migration.sql
+  └─ 20261013110000_vk_connector_provider_mode/
+    └─ migration.sql
+  └─ 20261019010000_browser_delivery_recovery/
+    └─ migration.sql
+  └─ 20261019120000_api_delivery_recovery/
+    └─ migration.sql
+  └─ 20261019150000_browser_preparation_execution/
+    └─ migration.sql
+
+All migrations have been successfully applied.

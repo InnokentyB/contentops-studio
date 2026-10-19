@@ -1,3 +1,4 @@
+import type {PreparationLedger} from './browser_preparation_contract';
 import {projectBrowserRecovery} from './browser_recovery_assessment';
 import {recoveryOutcome} from './browser_recovery_coordinator';
 import type {RecoveryOutcome} from './browser_recovery_contract';
@@ -8,13 +9,14 @@ export type BrowserRecoveryResumeState = ResumeScope & {contractVersion:2;rowVer
     approvalActive:boolean;originalApprovalSha256:string;currentApprovalSha256:string;
     packageSha256:string;currentPackageSha256:string;workItemId:number;recoveryLeaseExpiresAt:Date|null;recoveryState:string};
 export type BrowserRecoveryResumeProof = {executorId:string;evidenceRef:string;issuedPermitCount:0;dispatchCount:0;
-    oldExecutorQuiescent:true;challengeSupersessionSupported:true};
+    oldExecutorQuiescent:true;challengeSupersessionSupported:true;resumeDeadlineMs?:number};
 export type ResumeCommit = {scope:ResumeScope;expectedRowVersion:number;expectedGeneration:number;nextGeneration:number;
     leaseToken:string;leaseSha256:string;leaseExpiresAt:Date;requestSha256:string;idempotencyKey:string;
     executorId:string;evidenceRef:string};
 /** The repository MUST atomically CAS generation/version, supersede challenges, rotate lease and append audit; never clear attempt errors. */
 export interface BrowserRecoveryResumeTransaction {
     load(scope:ResumeScope):Promise<BrowserRecoveryResumeState|null>;
+    preparationProof?(scope:ResumeScope,executorId:string):Promise<PreparationLedger|null>;
     findReplay(scope:ResumeScope,idempotencyKey:string):Promise<{requestSha256:string;generation:number}|null>;
     commitResume(commit:ResumeCommit):Promise<boolean>;
 }
@@ -80,9 +82,13 @@ export async function resumeBrowserRecovery(input:unknown,port:BrowserRecoveryRe
         const now=port.now?.()||new Date();
         if(!Number.isFinite(now.getTime()))return response('RECOVERY_CONFLICT');
         const leaseToken=`recovery-${randomUUID()}`,nextGeneration=state.executionGeneration+1;
+        const leaseDeadline=Math.min(now.getTime()+900000,proof.resumeDeadlineMs??Infinity);
+        if(!Number.isFinite(leaseDeadline)||leaseDeadline<=now.getTime())return response('RECONCILIATION_BUDGET_EXHAUSTED');
         const committed=await tx.commitResume({scope,expectedRowVersion:state.rowVersion,expectedGeneration:state.executionGeneration,
-            nextGeneration,leaseToken,leaseSha256:digest(leaseToken),leaseExpiresAt:new Date(now.getTime()+900000),
+            nextGeneration,leaseToken,leaseSha256:digest(leaseToken),leaseExpiresAt:new Date(leaseDeadline),
             requestSha256,idempotencyKey,executorId:proof.executorId,evidenceRef:proof.evidenceRef});
         return committed?response('RECOVERY_PREPARE_RESUMED',{generation:nextGeneration,replayed:false,resumed:true,state:'resumed_requires_executor_pickup'}):response('RECOVERY_CONFLICT');
     });
 }
+
+export {createPreparationRecovery} from './browser_preparation_recovery';

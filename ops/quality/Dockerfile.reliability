@@ -1,0 +1,10 @@
+FROM planner-memory-001:20261018
+USER root
+WORKDIR /opt/planner
+# Reuse dependencies only; never leave older source or compiled modules in the artifact.
+RUN rm -rf /opt/planner/src /opt/planner/dist /opt/planner/prisma /opt/planner/frontend/src /opt/planner/frontend/public /opt/planner/frontend/dist
+COPY --chown=1000:1000 src ./src
+COPY --chown=1000:1000 prisma ./prisma
+COPY --chown=1000:1000 frontend ./frontend
+USER 1000:1000
+RUN PRISMA_SCHEMA_ENGINE_BINARY=/opt/planner/node_modules/@prisma/engines/schema-engine-debian-openssl-3.0.x NODE_OPTIONS=--max-old-space-size=1536 DATABASE_URL=postgresql://synthetic:synthetic@127.0.0.1:1/synthetic npm run build:backend && npm run build --prefix frontend

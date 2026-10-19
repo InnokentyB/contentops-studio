@@ -1,0 +1,47 @@
+ Container planner-visual-reassessment-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+{"event":"publication_diagnostic","service":"browser","isError":true,"code":"BROWSER_REQUEST_FAILED","message":"The operation failed; the exact cause is not classified.","reasons":[{"code":"BROWSER_REQUEST_FAILED","field":"operation","message":"The operation failed; the exact cause is not classified.","action":"Ask engineering to investigate safe diagnostics. Inspect existing attempts and reconcile uncertain outcomes before further execution."}],"retry_allowed":false}
+✖ REL05 actual browser release races Owner reassessment: only one lifecycle can commit (340.394483ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 825.254706
+
+✖ failing tests:
+
+test at ../../workspace/tests/tdpd/visual-reassessment-postgres.test.cjs:115:1
+✖ REL05 actual browser release races Owner reassessment: only one lifecycle can commit (340.394483ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /BROWSER_STATE_CONFLICT/. Input:
+  
+  '{\n' +
+    '  "error": "[BROWSER_REQUEST_FAILED]",\n' +
+    '  "code": "BROWSER_REQUEST_FAILED",\n' +
+    '  "message": "The operation failed; the exact cause is not classified.",\n' +
+    '  "reasons": [\n' +
+    '    {\n' +
+    '      "code": "BROWSER_REQUEST_FAILED",\n' +
+    '      "field": "operation",\n' +
+    '      "message": "The operation failed; the exact cause is not classified.",\n' +
+    '      "action": "Ask engineering to investigate safe diagnostics. Inspect existing attempts and reconcile uncertain outcomes before further execution."\n' +
+    '    }\n' +
+    '  ],\n' +
+    '  "retry_allowed": false\n' +
+    '}'
+  
+      at TestContext.<anonymous> (/workspace/tests/tdpd/visual-reassessment-postgres.test.cjs:127:333)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '{\n  "error": "[BROWSER_REQUEST_FAILED]",\n  "code": "BROWSER_REQUEST_FAILED",\n  "message": "The operation failed; the exact cause is not classified.",\n  "reasons": [\n    {\n      "code": "BROWSER_REQUEST_FAILED",\n      "field": "operation",\n      "message": "The operation failed; the exact cause is not classified.",\n      "action": "Ask engineering to investigate safe diagnostics. Inspect existing attempts and reconcile uncertain outcomes before further execution."\n    }\n  ],\n  "retry_allowed": false\n}',
+    expected: /BROWSER_STATE_CONFLICT/,
+    operator: 'match',
+    diff: 'simple'
+  }
+

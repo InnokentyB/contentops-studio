@@ -1,11 +1,15 @@
 import { createHash } from 'crypto';
+import {setTimeout as pause} from 'node:timers/promises';
 import { Prisma } from '@prisma/client';
 import prisma from '../db';
+import {assertVisualReassessmentReady} from './visual_reassessment_binding';
 import threadsService from './threads.service';
 import publicationFactService from './publication_fact.service';
 import { loadAgentWorkspaceManifest } from './agent_workspace_manifest.service';
 import { resolveEffectiveChannelConfig } from '../utils/channel.utils';
 import { assertThreadsOwnerRelease } from './threads_release_diagnostics';
+import {digest, threadsReconcileSchema, verifyThreadsRecovery, assertThreadsRecoveryProfile, assertThreadsPackageProof, type ThreadsReconcileArgs} from './threads_api_contract';
+import {apiSerial, createThreadsApiState, loadThreadsApiState, threadsPhaseJournal, reserveThreadsRead, assertThreadsFinalizer} from './threads_api_store';
 
 const RELEASE_COMMAND = 'ba_release_approved_threads_task';
 const SEND_COMMAND = 'ba_publish_threads_task';
@@ -26,7 +30,8 @@ export type GenericThreadsPublishArgs = {
 
 type Database = typeof prisma;
 type Deps = { db: Database; threads: typeof threadsService; facts: typeof publicationFactService;
-    manifest: typeof loadAgentWorkspaceManifest; now(): number };
+    manifest: typeof loadAgentWorkspaceManifest; now(): number; recoveryEnabled?: boolean;
+    pause?: (ms:number,signal?:AbortSignal)=>Promise<void> };
 
 function hash(value: string) { return createHash('sha256').update(value).digest('hex'); }
 function object(value: unknown): Record<string, any> {
@@ -50,7 +55,7 @@ export class GenericThreadsReleaseService {
         const member = await tx.projectMember.findUnique({ where: { project_id_user_id: { project_id: projectId, user_id: userId } } });
         if (member?.role !== 'owner') throw new Error('[THREADS_OWNER_REQUIRED]');
         const manifest = await this.deps.manifest(projectId, userId, tx);
-        if (manifest.project.id !== 10 || manifest.project.slug !== 'analystcraft-2' || manifest.checksum !== expected) {
+        if (manifest.project.id !== projectId || manifest.checksum !== expected) {
             throw new Error('[MCP_PROJECT_SCOPE_MISMATCH]');
         }
         return manifest;
@@ -62,6 +67,7 @@ export class GenericThreadsReleaseService {
         const task = await tx.contentItem.findFirst({ where: { id: taskId, project_id: projectId },
             include: { channel: true, publication_fact: true, selected_asset: true } });
         if (!task || task.channel?.type !== 'threads') throw new Error('[THREADS_TASK_MISMATCH]');
+        await assertVisualReassessmentReady(tx,projectId,taskId);
         const [decision, review, art, firstAttempt, browserWork] = await Promise.all([
             tx.artDirectionDecision.findFirst({ where: { project_id: projectId, content_item_id: taskId,
                 source_content_revision: task.content_revision, placement: 'feed', status: 'active' }, orderBy: { id: 'desc' } }),
@@ -126,7 +132,7 @@ export class GenericThreadsReleaseService {
             a.expectedManifestChecksum, 'approval_required'), serial);
         const schedule = checked.task.schedule_at?.toISOString() || null;
         const username = String(checked.config.channel_username || checked.config.account_ref || '').replace(/^@/, '');
-        if (a.projectId !== 10 || checked.task.channel_id !== a.expectedChannelId
+        if (checked.task.channel_id !== a.expectedChannelId
             || checked.task.content_revision !== a.expectedContentRevision || checked.task.accepted_revision !== a.expectedAcceptedRevision
             || checked.bodySha256 !== a.expectedBodySha256 || schedule !== a.expectedScheduleAt
             || checked.task.publish_at?.toISOString() !== a.expectedScheduleAt
@@ -162,7 +168,8 @@ export class GenericThreadsReleaseService {
         }, serial);
     }
 
-    async publish(a: GenericThreadsPublishArgs) {
+    async publish(a: GenericThreadsPublishArgs,callerSignal?:AbortSignal) {
+        if(callerSignal?.aborted)throw new Error('[THREADS_RECOVERY_INTERRUPTED]');
         const prior = await this.deps.db.$transaction(async tx => {
             await this.manifest(tx, a.projectId, a.actorId, a.expectedManifestChecksum);
             return tx.workflowEvent.findFirst({ where: { project_id: a.projectId,
@@ -186,6 +193,7 @@ export class GenericThreadsReleaseService {
         const dueAt = checked.task.publish_at || checked.task.schedule_at;
         if (!dueAt || this.deps.now() < dueAt.getTime()) throw new Error('[THREADS_NOT_DUE]');
         await this.providerPreflight(checked.config, checked.bodySha256, String(proof.threads_user_id), String(proof.username));
+        if(callerSignal?.aborted)throw new Error('[THREADS_RECOVERY_INTERRUPTED]');
         const claim = await this.deps.db.$transaction(async tx => {
             const current = await this.inspect(tx, a.projectId, a.taskId, a.actorId, a.expectedManifestChecksum, 'owner_released');
             const changed = await tx.contentItem.updateMany({ where: { id: a.taskId, project_id: a.projectId,
@@ -195,6 +203,12 @@ export class GenericThreadsReleaseService {
             const attempt = await tx.deliveryAttempt.create({ data: { project_id: a.projectId, content_item_id: a.taskId,
                 channel_id: current.task.channel_id!, mode: 'automatic', status: 'pending', attempt_number: 1,
                 idempotency_key: a.idempotencyKey, scheduled_at: current.task.schedule_at, requires_manual_confirmation: true } });
+            if(this.deps.recoveryEnabled){
+                await createThreadsApiState(tx,{projectId:a.projectId,taskId:a.taskId,channelId:current.task.channel_id!,
+                    actorId:a.actorId,manifestChecksum:a.expectedManifestChecksum,revision:current.task.content_revision,
+                    bodySha256:current.bodySha256,releaseKey:a.releaseIdempotencyKey,releaseSha256:digest(JSON.stringify(proof)),
+                    userId:String(proof.threads_user_id),username:String(proof.username)},attempt.id);
+            }
             await tx.workflowEvent.create({ data: { project_id: a.projectId, content_item_id: a.taskId,
                 actor_id: a.actorId, command: `${SEND_COMMAND}:claim`, idempotency_key: a.idempotencyKey,
                 before_state: { request_hash: sendRequestHash(a), approval_reference: a.approvalReference },
@@ -209,9 +223,12 @@ export class GenericThreadsReleaseService {
             if (String(dispatch.config.access_token) !== claim.token
                 || String(dispatch.config.threads_user_id) !== claim.userId
                 || dispatch.body !== claim.body) throw new Error('[THREADS_DISPATCH_GUARD_FAILED]');
-            result = await this.deps.threads.publishVerifiedText(claim.userId, claim.token, claim.body, claim.username);
-        } catch {
-            await this.deps.db.$transaction(async tx => {
+            const journal=this.deps.recoveryEnabled?threadsPhaseJournal(
+                run=>this.deps.db.$transaction(run,serial),{projectId:a.projectId,taskId:a.taskId,attemptId:claim.attemptId},
+                async tx=>{await this.recoveryGuard(tx,{...a,attemptId:claim.attemptId});},this.deps.now):undefined;
+            result = await this.deps.threads.publishVerifiedText(claim.userId, claim.token, claim.body, claim.username,journal,callerSignal);
+        } catch (error:unknown) {
+            try{await this.deps.db.$transaction(async tx => {
                 await tx.deliveryAttempt.updateMany({ where: { id: claim.attemptId, project_id: a.projectId,
                     content_item_id: a.taskId, status: 'pending', idempotency_key: a.idempotencyKey },
                 data: { requires_manual_confirmation: true, error_message: 'THREADS_OUTCOME_UNCERTAIN_RECONCILE_ONLY' } });
@@ -219,17 +236,29 @@ export class GenericThreadsReleaseService {
                     actor_id: a.actorId, command: `${SEND_COMMAND}:uncertain`, idempotency_key: a.idempotencyKey,
                     before_state: { request_hash: sendRequestHash(a) },
                     after_state: { attempt_id: claim.attemptId, retry_allowed: false } } });
-            }, serial);
+            }, serial);}catch{throw new Error('[THREADS_ATTEMPT_PERSISTENCE_UNAVAILABLE]');}
+            if(this.deps.recoveryEnabled){
+                const {row}=await this.deps.db.$transaction(tx=>loadThreadsApiState(tx,a.projectId,a.taskId,claim.attemptId),serial);
+                if(!row.publish_started_at&&error instanceof Error&&/^\[(?:THREADS_|MCP_|PROJECT_)/.test(error.message))throw error;
+                return this.reconcile({...a,attemptId:claim.attemptId,projectId:a.projectId,taskId:a.taskId,
+                    actorId:a.actorId,expectedManifestChecksum:a.expectedManifestChecksum},callerSignal);
+            }
             throw new Error('[THREADS_PUBLICATION_UNCERTAIN] Reconcile before retry');
         }
+        if(this.deps.recoveryEnabled)return this.reconcile({...a,attemptId:claim.attemptId,
+            projectId:a.projectId,taskId:a.taskId,actorId:a.actorId,expectedManifestChecksum:a.expectedManifestChecksum},callerSignal);
         const response = { mode: 'published', task_id: a.taskId, provider_object_id: result.id,
             public_url: result.url, published_at: result.publishedAt, retry_allowed: false };
-        await this.deps.facts.record({ projectId: a.projectId, taskId: a.taskId, actorId: a.actorId,
+        try{await this.deps.facts.record({ projectId: a.projectId, taskId: a.taskId, actorId: a.actorId,
             artifactKind: 'post', outcome: 'published', confirmationMode: 'automatic', publishedAt: result.publishedAt,
             publicUrl: result.url, providerObjectId: result.id, evidence: { type: 'api', ref: result.id },
             beforeWrite: async tx => {
                 const current = await this.inspect(tx, a.projectId, a.taskId, a.actorId, a.expectedManifestChecksum, 'owner_released', claim.attemptId);
                 if (current.bodySha256 !== checked.bodySha256) throw new Error('[THREADS_GENERIC_PACKAGE_CHANGED]');
+                if(this.deps.recoveryEnabled){
+                    const row=await assertThreadsFinalizer(tx,{projectId:a.projectId,taskId:a.taskId,attemptId:claim.attemptId},result.id,null,this.deps.now());
+                    await tx.apiDeliveryRecovery.update({where:{id:row.id},data:{state:'confirmed',row_version:{increment:1}}});
+                }
                 const updated = await tx.deliveryAttempt.updateMany({ where: { id: claim.attemptId,
                     project_id: a.projectId, content_item_id: a.taskId, status: 'pending', idempotency_key: a.idempotencyKey },
                 data: { status: 'delivered', actual_published_at: new Date(result.publishedAt), requires_manual_confirmation: false } });
@@ -238,10 +267,126 @@ export class GenericThreadsReleaseService {
                     actor_id: a.actorId, command: SEND_COMMAND, idempotency_key: a.idempotencyKey,
                     before_state: { request_hash: sendRequestHash(a), approval_reference: a.approvalReference },
                     after_state: response } });
-            } });
+            } });}catch(error:unknown){
+                if(this.deps.recoveryEnabled)throw new Error('[THREADS_FACT_COMMIT_PENDING] Reconcile the existing attempt; never resend');
+                throw error;
+            }
+        return response;
+    }
+
+    private async recoveryGuard(tx:Prisma.TransactionClient,a:ThreadsReconcileArgs){
+        const checked=await this.inspect(tx,a.projectId,a.taskId,a.actorId,a.expectedManifestChecksum,'owner_released',a.attemptId);
+        const {snapshot,row}=await loadThreadsApiState(tx,a.projectId,a.taskId,a.attemptId);
+        if(snapshot.actorId!==a.actorId||snapshot.manifestChecksum!==a.expectedManifestChecksum
+            ||checked.bodySha256!==snapshot.bodySha256||checked.task.channel_id!==snapshot.channelId
+            ||checked.task.content_revision!==snapshot.revision||String(checked.config.threads_user_id)!==snapshot.userId)
+            throw new Error('[THREADS_RECOVERY_CONFLICT]');
+        const release=await tx.workflowEvent.findFirst({where:{project_id:a.projectId,content_item_id:a.taskId,
+            actor_id:a.actorId,command:RELEASE_COMMAND,idempotency_key:snapshot.releaseKey}});
+        if(!release||digest(JSON.stringify(release.after_state))!==snapshot.releaseSha256)
+            throw new Error('[THREADS_RECOVERY_CONFLICT]');
+        assertThreadsOwnerRelease(release,{body_sha256:snapshot.bodySha256,channel_id:snapshot.channelId,
+            accepted_revision:snapshot.revision,manifest_checksum:snapshot.manifestChecksum,actor_id:a.actorId,
+            approval_reference:String(object(release.before_state).approval_reference||'')});
+        const currentUsername=checked.config.channel_username||checked.config.account_ref;
+        if(typeof currentUsername!=='string')throw new Error('[THREADS_RECOVERY_PACKAGE_CHANGED]');
+        assertThreadsPackageProof(object(release.after_state),{task_id:a.taskId,channel_id:checked.task.channel_id,
+            content_revision:checked.task.content_revision,accepted_revision:checked.task.accepted_revision,
+            body_sha256:checked.bodySha256,schedule_at:checked.task.schedule_at?.toISOString()||null,
+            publish_at:checked.task.publish_at?.toISOString()||null,decision_id:checked.decision?.id,
+            visual_state:checked.task.visual_state,selected_asset_id:checked.task.selected_asset_id,placement:checked.task.visual_placement,
+            threads_user_id:String(checked.config.threads_user_id),
+            username:currentUsername.replace(/^@/,'')});
+        return {checked,snapshot,row};
+    }
+
+    /** Provider GET-only reconciliation; this operation never creates or publishes a container. */
+    async reconcile(input:ThreadsReconcileArgs,callerSignal?:AbortSignal):Promise<Record<string,unknown>>{
+        for(let round=0;round<3;round+=1){
+            if(callerSignal?.aborted)throw new Error('[THREADS_RECOVERY_INTERRUPTED]');
+            try{return await this.reconcileOnce(input,callerSignal);}catch(error:unknown){
+                if(callerSignal?.aborted)throw new Error('[THREADS_RECOVERY_INTERRUPTED]');
+                if(!(error instanceof Error)||!error.message.startsWith('[THREADS_RECOVERY_LOOKUP_INCOMPLETE]')||round===2)throw error;
+                const wait=await this.deps.db.$transaction(async tx=>{
+                    await this.manifest(tx,input.projectId,input.actorId,input.expectedManifestChecksum);
+                    const {row}=await loadThreadsApiState(tx,input.projectId,input.taskId,input.attemptId);
+                    if(!row.deadline_at||!row.next_read_at||row.rounds>=3||this.deps.now()>=row.deadline_at.getTime())
+                        throw new Error('[THREADS_RECOVERY_BUDGET_EXHAUSTED]');
+                    return Math.max(0,row.next_read_at.getTime()-this.deps.now());
+                },apiSerial);
+                try{await (this.deps.pause??(async(ms,signal)=>{await pause(ms,undefined,{signal});}))(wait,callerSignal);}
+                catch{throw new Error('[THREADS_RECOVERY_INTERRUPTED]');}
+            }
+        }
+        throw new Error('[THREADS_RECOVERY_BUDGET_EXHAUSTED]');
+    }
+
+    private async reconcileOnce(input:ThreadsReconcileArgs,callerSignal?:AbortSignal):Promise<Record<string,unknown>>{
+        const a=threadsReconcileSchema.parse({projectId:input.projectId,taskId:input.taskId,attemptId:input.attemptId,
+            actorId:input.actorId,expectedManifestChecksum:input.expectedManifestChecksum});
+        if(!this.deps.recoveryEnabled)throw new Error('[THREADS_RECOVERY_CAPABILITY_UNAVAILABLE]');
+        const reserved=await this.deps.db.$transaction(async tx=>{
+            await this.manifest(tx,a.projectId,a.actorId,a.expectedManifestChecksum);
+            const {row,snapshot}=await loadThreadsApiState(tx,a.projectId,a.taskId,a.attemptId);
+            if(snapshot.actorId!==a.actorId||snapshot.manifestChecksum!==a.expectedManifestChecksum)throw new Error('[THREADS_RECOVERY_CONFLICT]');
+            if(row.state==='confirmed'){
+                const fact=await tx.publicationFact.findFirst({where:{project_id:a.projectId,content_item_id:a.taskId,
+                    provider_object_id:row.post_id,outcome:'published'}});
+                if(!fact)throw new Error('[THREADS_RECOVERY_CONFLICT]');
+                return {complete:{mode:'published',provider_object_id:fact.provider_object_id,public_url:fact.public_url,retry_allowed:false}};
+            }
+            const {checked}=await this.recoveryGuard(tx,a);
+            return {read:await reserveThreadsRead(tx,a,this.deps.now()),token:String(checked.config.access_token)};
+        },apiSerial);
+        if(reserved.complete)return reserved.complete;
+        const {read,token}=reserved;
+        if(!read||!read.lease||!token)throw new Error('[THREADS_RECOVERY_CONFLICT]');
+        const timeout=AbortSignal.timeout(Math.max(1,Math.min(30_000,read.row.deadline_at!.getTime()-this.deps.now())));
+        const signal=callerSignal?AbortSignal.any([timeout,callerSignal]):timeout;
+        let result:{id:string;url:string;publishedAt:string};
+        try{
+            const profile=await this.deps.threads.readRecoveryProfile(token,signal);
+            assertThreadsRecoveryProfile(profile,read.snapshot);
+            if(signal.aborted)throw new Error('[THREADS_RECOVERY_INTERRUPTED]');
+            const post=await this.deps.threads.readRecoveryPost(token,read.row.post_id!,signal);
+            result=verifyThreadsRecovery(profile,post,read.snapshot,read.row.post_id!,read.row.publish_started_at!,read.row.observed_at!);
+        }catch(error:unknown){
+            await this.deps.db.$transaction(async tx=>{
+                await tx.apiDeliveryRecovery.updateMany({where:{id:read.row.id,project_id:a.projectId,lease_sha256:read.lease},
+                    data:{lease_sha256:null,lease_expires_at:null,cause_code:'THREADS_RECOVERY_LOOKUP_INCOMPLETE',row_version:{increment:1}}});
+            },apiSerial);
+            if(error instanceof Error&&/^\[THREADS_RECOVERY_(ACCOUNT|READBACK)/.test(error.message))throw error;
+            throw new Error('[THREADS_RECOVERY_LOOKUP_INCOMPLETE] Existing attempt remains frozen; never resend');
+        }
+        const response={mode:'published',task_id:a.taskId,provider_object_id:result.id,public_url:result.url,
+            published_at:result.publishedAt,retry_allowed:false};
+        try{await this.deps.facts.record({projectId:a.projectId,taskId:a.taskId,actorId:a.actorId,artifactKind:'post',outcome:'published',
+            confirmationMode:'reconciled',publishedAt:result.publishedAt,providerObjectId:result.id,publicUrl:result.url,
+            evidence:{type:'api',ref:result.id},beforeWrite:async tx=>{
+                await this.recoveryGuard(tx,a);
+                const row=await assertThreadsFinalizer(tx,a,result.id,read.lease,this.deps.now());
+                if(signal.aborted)throw new Error('[THREADS_RECOVERY_CONFLICT]');
+                const changed=await tx.deliveryAttempt.updateMany({where:{id:a.attemptId,project_id:a.projectId,
+                    content_item_id:a.taskId,status:'pending'},data:{status:'delivered',requires_manual_confirmation:false,
+                    error_message:null,actual_published_at:new Date(result.publishedAt)}});
+                if(changed.count!==1)throw new Error('[THREADS_RECOVERY_CONFLICT]');
+                await tx.apiDeliveryRecovery.update({where:{id:row.id},data:{state:'confirmed',row_version:{increment:1},
+                    lease_sha256:null,lease_expires_at:null,cause_code:null}});
+                await tx.workflowEvent.create({data:{project_id:a.projectId,content_item_id:a.taskId,actor_id:a.actorId,
+                    command:'ba_reconcile_threads_publication',idempotency_key:`threads-api:${a.attemptId}`,after_state:response}});
+            },beforeCommit:async tx=>{
+                const {row}=await loadThreadsApiState(tx,a.projectId,a.taskId,a.attemptId);
+                if(signal.aborted||row.state!=='confirmed'||row.post_id!==result.id||row.generation!==read.row.generation
+                    ||read.row.deadline_at!.getTime()<=this.deps.now()||read.row.lease_expires_at!.getTime()<=this.deps.now())
+                    throw new Error('[THREADS_RECOVERY_CONFLICT]');
+            }});}catch(error:unknown){
+                if(error instanceof Error&&error.message.startsWith('[THREADS_RECOVERY_'))throw error;
+                throw new Error('[THREADS_FACT_COMMIT_PENDING] Reconcile the existing attempt; never resend');
+            }
         return response;
     }
 }
 
 export default new GenericThreadsReleaseService({ db: prisma, threads: threadsService,
-    facts: publicationFactService, manifest: loadAgentWorkspaceManifest, now: () => Date.now() });
+    facts: publicationFactService, manifest: loadAgentWorkspaceManifest, now: () => Date.now(),
+    recoveryEnabled: process.env.THREADS_API_RECOVERY_ENABLED === 'true' });

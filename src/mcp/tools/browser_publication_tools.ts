@@ -1,3 +1,6 @@
+import {createPublicationRecoveryApplication} from '../../services/browser_recovery_application';
+import type {BrowserRecoveryOperation} from '../../services/browser_recovery_runtime';
+import {createPreparationRecovery} from '../../services/browser_preparation_recovery';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { browserRequestSchema } from '../../services/browser_publication_contract';
 import { browserClaimSchema,browserBoundarySchema,browserObservedSchema } from '../../services/browser_publication_guard';
@@ -9,8 +12,8 @@ import { diagnoseBrowserPublication,browserDiagnoseSchema } from '../../services
 import { INTERNAL_MUTATION_ANNOTATIONS } from './common';
 import { publicationDiagnosticResult } from './publication_diagnostic_result';
 import { browserErrorDiagnostic,browserResultProjection } from '../../services/browser_actionable_diagnostics';
-/** Shared owner-bound controls; no tool drives a browser or makes a provider call. */
-export function registerBrowserPublicationTools(server:McpServer):void {
+/** Shared owner-bound controls; admitted recovery may perform bounded provider reads and canonical finalization, never submission. */
+export function registerBrowserPublicationTools(server:McpServer,recovery:BrowserRecoveryOperation=createPublicationRecoveryApplication(),preparation=createPreparationRecovery()):void {
     server.registerTool('ba_inspect_browser_publication',{
         description:'Read-only owner preview of an exact accepted LinkedIn image or canonical NO_VISUAL_NEEDED text-only post, Setka image post or DEV.to article-cover package. No release, send or independent provider verification.',
         annotations:{readOnlyHint:true},inputSchema:browserRequestSchema.shape
@@ -30,7 +33,7 @@ export function registerBrowserPublicationTools(server:McpServer):void {
     server.registerTool('ba_start_browser_submission',{
         description:'Record one durable attempt before provider interaction. Does not permit Submit. A replay returns reconciliation-only, never a second attempt.',
         annotations:INTERNAL_MUTATION_ANNOTATIONS,inputSchema:browserBoundarySchema.shape
-    },async args=>publicationDiagnosticResult('browser',()=>startBrowserSubmission(args),browserErrorDiagnostic,browserResultProjection));
+    },async args=>publicationDiagnosticResult('browser',()=>preparation.start(args),browserErrorDiagnostic,browserResultProjection));
     server.registerTool('ba_pre_submit_browser_submission',{
         description:'One 30-second Submit permission after actual author/company, exact paragraph/image and duplicate checks. Caller observations are not independent provider proof. Lost/replayed response never renews permission.',
         annotations:INTERNAL_MUTATION_ANNOTATIONS,inputSchema:browserObservedSchema.shape
@@ -44,9 +47,9 @@ export function registerBrowserPublicationTools(server:McpServer):void {
         annotations:INTERNAL_MUTATION_ANNOTATIONS,inputSchema:browserReconcileSchema.shape
     },async args=>publicationDiagnosticResult('browser',()=>reconcileBrowserSubmission(args),browserErrorDiagnostic,browserResultProjection));
     server.registerTool('ba_mark_browser_submission_uncertain',{
-        description:'Freeze the existing scoped attempt after a lost/uncertain result, including expired lease. No reset, fact or resend authority.',
+        description:'Freeze the existing scoped attempt after a lost/uncertain result, including expired lease. An admitted reader may reconcile and finalize its verified existing object; no reset or resend. Default has no admitted reader.',
         annotations:INTERNAL_MUTATION_ANNOTATIONS,inputSchema:browserUncertainSchema.shape
-    },async args=>publicationDiagnosticResult('browser',()=>markBrowserSubmissionUncertain(args),browserErrorDiagnostic,browserResultProjection));
+    },async args=>publicationDiagnosticResult('browser',()=>markBrowserSubmissionUncertain(args,undefined,undefined,recovery,input=>preparation.operation(input,recovery)),browserErrorDiagnostic,browserResultProjection));
     server.registerTool('ba_diagnose_browser_publication',{
         description:'Scoped persisted lifecycle readback, including attempts/WI/fact and stored handoff presence/hashes. Optional expectedSnapshot returns exact field mismatches with bounded hash-only evidence. Never returns credentials, copy or raw lease tokens; no provider access.',
         annotations:{readOnlyHint:true},inputSchema:browserDiagnoseSchema.shape

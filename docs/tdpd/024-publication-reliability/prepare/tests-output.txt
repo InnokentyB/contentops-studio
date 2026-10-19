@@ -1,0 +1,71 @@
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+✔ snapshot reports all safe fields without values or injected fields (1.238518ms)
+✔ missing prerequisite and unknown failures do not invent downstream causes (0.215971ms)
+✔ uncertainty and replay require reconciliation; success unchanged (0.196952ms)
+✔ registered MCP boundary serializes validation failures without input secrets or mutations (1006.477549ms)
+✔ schema rejection explains request correction without raw validation values (0.155311ms)
+✔ read-only persisted snapshot mismatch returns concrete safe reasons (0.206142ms)
+✔ X native MCP controls serialize actionable redacted errors and preserve disabled registration (94.956589ms)
+✔ asset ownership revision and decision mismatches all remain visible without values (0.252902ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+{"event":"publication_diagnostic","service":"browser","isError":false,"code":"PRE_DISPATCH_PROOF_UNAVAILABLE","message":"The preparation failed, but this executor has not proved that submission was impossible.","retry_allowed":false,"reasons":[{"code":"PRE_DISPATCH_PROOF_UNAVAILABLE","field":"recovery","message":"The preparation failed, but this executor has not proved that submission was impossible.","action":"Ask engineering to establish controlled pre-permit evidence and executor fencing. Preserve this attempt; do not clear its error or resend."}]}
+✔ PREP-04 unsupported application executor stays held with actionable explanation and no store mutation (0.796605ms)
+✔ PREP-06 first-permit admission cannot bypass generic writers or canonical fact guards in the same transaction (0.788515ms)
+✔ PREP-10 actual registered uncertainty handler wires preparation ahead of generic recovery serialization (84.013625ms)
+✔ PREP-04 unclassified dependency failure has a safe investigation path without inventing a conflict (1.751012ms)
+✔ unsupported reader reports honest capability gap without database admission (2.690248ms)
+✔ temporary read failures retry within durable round budget without owner consent (1.171588ms)
+✔ FOUND uses registered verification and single atomic finalizer, never separate settlement (1.052147ms)
+✔ malformed mismatching or stale verified evidence cannot finalize (2.069064ms)
+✔ provider request budget stops at twenty even if reader requests a hundred pages (0.525153ms)
+✔ NOT_FOUND retries finitely and incomplete ambiguous strong non-delivery claims never permit resend (0.605874ms)
+✔ abort cancels active port, persists safe UNKNOWN and blocks later request permits (0.463963ms)
+✔ port timeout aborts a hung lookup and remaining attempts are bounded (0.446863ms)
+✔ concurrent lease holder prevents duplicate reads and stale settlement returns held conflict (0.358733ms)
+✔ finalization rejection preserves owner/package/permission blocker and no replacement fact writes (0.707225ms)
+✔ invalid scope and legacy state cause zero provider reads (0.285702ms)
+✔ hung repository reserve is bounded by operation deadline and abort (0.176632ms)
+✔ signed URL queries and control characters in known object identity are rejected (0.345852ms)
+✔ overall deadline cancels hanging request accounting without allowing late provider requests (0.255092ms)
+✔ settlement timeout returns conflict without starting another reader (0.234262ms)
+✔ abort while waiting between rounds does not perform another provider read (0.286342ms)
+✔ ambiguous observations cannot be upgraded by verification or sent to finalizer (0.196631ms)
+✔ abort during initial reservation returns promptly without provider reads (0.247392ms)
+✔ unknown outcome code cannot leak raw data or crash diagnostic factory (0.113071ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+✔ same attempt resumes with fenced generation, private new lease and safe idempotent replay (1.917173ms)
+✔ resume denied ownerAuthorized (66.359256ms)
+✔ resume denied permissionAllowed (0.179411ms)
+✔ resume denied approvalActive (0.135121ms)
+✔ resume denied currentApprovalSha256 (0.126711ms)
+✔ resume denied currentPackageSha256 (0.145461ms)
+✔ resume denied projectId (0.122251ms)
+✔ resume denied attemptStatus (0.127201ms)
+✔ resume denied stage (0.244832ms)
+✔ resume denied deliveryCertainty (0.297142ms)
+✔ unsupported executor never mutates (0.202762ms)
+✔ issued permit or incomplete proof never resumes (0.199721ms)
+✔ conflict and changed replay key cannot grant another lease (0.230312ms)
+✔ untrusted malformed request cannot supply technical evidence (0.330213ms)
+✔ untrusted/incomplete executor proof issuedPermitCount (0.173741ms)
+✔ untrusted/incomplete executor proof dispatchCount (0.114811ms)
+✔ untrusted/incomplete executor proof oldExecutorQuiescent (0.104311ms)
+✔ untrusted/incomplete executor proof challengeSupersessionSupported (0.130021ms)
+✔ untrusted/incomplete executor proof executorId (0.104371ms)
+✔ untrusted/incomplete executor proof evidenceRef (0.09271ms)
+✔ repository exceptions propagate for safe boundary serialization without a false resume (0.177241ms)
+✔ malformed immutable proof cannot satisfy equal missing values (0.146961ms)
+✔ committed replay after permit issuance cannot claim executor pickup (0.205351ms)
+✔ committed replay after generation advances is a held conflict (0.176981ms)
+✔ committed replay after pickup lease expiry cannot advertise a usable pickup (0.225861ms)
+✔ committed replay after state is held cannot advertise pickup (0.220281ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+✔ Prisma resume repository never registers an executor by default (0.602835ms)
+ℹ tests 58
+ℹ suites 0
+ℹ pass 58
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5746.156842

@@ -1,0 +1,60 @@
+{
+  "package": "REL05 visual reassessment",
+  "observedAtUtc": "2026-10-19T16:54:05Z",
+  "approvedSurface": "Owner internal MCP preview/apply, unchanged accepted copy, generation-bound art/source/review lifecycle; synthetic verification only",
+  "visualSourceRevision": "7a9887c",
+  "combinedProductionSourceRevision": "701efcf472de0414aec33f986989a9109e295909",
+  "combinedVerificationRevision": "2dde2d410de4d4650f847ccdab9d054b85c4ee97",
+  "image": "planner-reliability-integrated:20261019",
+  "imageId": "sha256:e528950becec9829fd3d5e1da596919e782362f2310490f9e2485acddb906c41",
+  "environment": {
+    "runtime": "Tower Docker, Linux amd64; synthetic PostgreSQL15 shared_browser_synthetic; internal subnet10.231.86.0/28; no published ports",
+    "compose": "tests/tdpd/publication-reliability.compose.yaml",
+    "testLimits": {"memoryMiB":1536,"cpus":2,"pids":256,"concurrency":1,"readOnlyRoot":true},
+    "credentials": "Synthetic fixture values only; example.invalid URLs recorded, not fetched"
+  },
+  "redAndInvestigation": [
+    {"scenario":"Actual installed SDK Owner discovery","result":"FAIL_EXPECTED","reason":"Generic reassessment command absent","evidence":"red-mcp.txt"},
+    {"scenario":"Initial PostgreSQL fixture","result":"FIXTURE_ERROR","reason":"Synthetic User required name; corrected before behavior RED"},
+    {"scenario":"Actual MCP/PostgreSQL request scenarios","result":"FAIL_EXPECTED","reason":"Generic command absent; no passing negative cases accepted from missing tool","evidence":"red-postgres.txt"},
+    {"scenario":"First implementation acceptance","result":"FAIL","tests":9,"passed":8,"failed":1,"reason":"Raw SELECT FOR UPDATE serialization P2010 was not classified for bounded retry","evidence":"green-attempt-one.txt"},
+    {"scenario":"Second implementation acceptance","result":"FAIL","tests":13,"passed":12,"failed":1,"reason":"Actual Prisma adapter SQLSTATE path is meta.driverAdapterError.cause.originalCode, not only meta.code","evidence":"green-attempt-two.txt"},
+    {"scenario":"Allowlisted actual SQLSTATE reproducer","result":"OBSERVED","code":"P2010","sqlstate":"40001","path":"error.meta.driverAdapterError.cause.originalCode","evidence":"serialization-observation.txt"},
+    {"scenario":"Actual generic completion","result":"FAIL_EXPECTED","reason":"Consumed art WI without typed assessment and stranded the current request","evidence":"red-generic-completion.txt"},
+    {"scenario":"New actual browser-race fixture","result":"FIXTURE_ERROR","reason":"Synthetic no-visual task omitted ready handoff state; corrected without weakening production guards"},
+    {"scenario":"Known concurrent browser release","result":"FAIL_EXPECTED","reason":"Known Serializable conflict returned generic BROWSER_REQUEST_FAILED; root integrated safe BROWSER_STATE_CONFLICT classification","evidence":"red-browser-state-conflict.txt"},
+    {"scenario":"Actual old content writer versus request","result":"FAIL_EXPECTED","reason":"Both committed; writer could overwrite frozen accepted copy after the request. Added compatible row lock and reload at revision invalidation","evidence":"red-content-writer-race.txt"},
+    {"scenario":"Restored legacy no-visual projection","result":"FAIL_EXPECTED","reason":"Mutable projections could re-admit release despite durable request. Root wired shared authoritative guard at browser and Threads boundaries","evidence":"red-restored-projection.txt"}
+  ],
+  "finalScenarios": [
+    {"id":"REL05-MCP-01","scenario":"Actual installed SDK discovery, mutation annotations and schema rejection","result":"PASS","errors":[]},
+    {"id":"REL05-PRINCIPAL-01","scenario":"Owner-only remote profile, actor injection and tenant mismatch rejection","result":"PASS","errors":[]},
+    {"id":"REL05-REQUEST-01","scenario":"Read-only preview; unchanged accepted package/history; one new input; exact and changed replay","result":"PASS","errors":[]},
+    {"id":"REL05-REQUEST-02","scenario":"Stale body/version/channel/date and non-owner cause zero mutations","result":"PASS","errors":[]},
+    {"id":"REL05-REQUEST-03","scenario":"Existing delivery attempt including uncertain outcome denies reassessment","result":"PASS","errors":[]},
+    {"id":"REL05-REQUEST-04","scenario":"Concurrent identical requests create exactly one generation/event and replay safely","result":"PASS","errors":[]},
+    {"id":"REL05-CALLBACK-01","scenario":"Pipeline-off cannot bypass requirement; old asset and art callbacks cannot revive old readiness","result":"PASS","errors":[]},
+    {"id":"REL05-COMPLETE-01","scenario":"Actual MCP art/source/review chain; explicit Owner visual reason; source generation; missing/wrong/expired review authority; deterministic stale URL race; completion rollback; normal reviewed fulfilment","result":"PASS","errors":[]},
+    {"id":"REL05-CLAIM-01","scenario":"Old claim wins before request: in-flight publication prevents new visual authority","result":"PASS","errors":[]},
+    {"id":"REL05-CLAIM-02","scenario":"Request commits before stale claim: status CAS cannot dispatch old package","result":"PASS","errors":[]},
+    {"id":"REL05-AUDIT-01","scenario":"Request audit failure rolls back content/WI/event and hides synthetic secret marker","result":"PASS","errors":[]},
+    {"id":"REL05-AUTHORITY-01","scenario":"Existing leased executor remains untouched and blocks reassessment","result":"PASS","errors":[]},
+    {"id":"REL05-DECISION-01","scenario":"Prior active decision must have exact channel/placement and unique active authority","result":"PASS","errors":[]},
+    {"id":"REL05-TYPED-01","scenario":"Generic completion cannot strand current art/review; real release/reclaim still permits typed assessment","result":"PASS","errors":[]},
+    {"id":"REL05-RELEASE-RACE-01","scenario":"Actual Owner/browser release race returns specific BROWSER_STATE_CONFLICT, never new attempt","result":"PASS","errors":[]},
+    {"id":"REL05-TEXT-RACE-01","scenario":"Actual old writer versus frozen request: exactly one commits with compatible content lock","result":"PASS","errors":[]},
+    {"id":"REL05-PROJECTION-01","scenario":"Restored no-visual fields cannot bypass durable request at actual browser release; PUBLICATION_VISUAL_REVIEW_REQUIRED","result":"PASS","errors":[]}
+  ],
+  "finalChecks": [
+    {"command":"docker compose -f tests/tdpd/publication-reliability.compose.yaml run --rm checks node --test --test-concurrency=1 /source/tests/tdpd/visual-reassessment-mcp.test.cjs /source/tests/tdpd/visual-reassessment-postgres.test.cjs","result":"PASS","tests":17,"passed":17,"failed":0,"skipped":0,"evidence":"../integration/visual-postgres-output.txt"},
+    {"command":"Affected compiled art/image/visual/placement/text suites in the same combined image","result":"PASS","tests":46,"passed":46,"failed":0,"skipped":0,"evidence":"../integration/visual-regression-output.txt"},
+    {"command":"Complete combined backend and frontend build","result":"PASS","evidence":"../integration/build-output.txt"},
+    {"command":"npm run quality:gate in Docker, combined revision2dde2d4","result":"PASS","score":77,"minimumScore":77,"runtimeFindings":7093,"runtimeBaseline":7093,"newFindings":0,"hardStops":0,"evidence":"../integration/quality-gate-output.txt"}
+  ],
+  "production": {"providerCalls":0,"imageGenerationCalls":0,"businessMutations":0,"publicationAttempts":0,"deployment":"NOT_RUN","publicPushOrPr":"NOT_RUN"},
+  "cleanup": "Per-run containers removed; standalone tmpfs visual PostgreSQL/network82 removed without volume deletion; root central synthetic stack retained for remaining verification, shared DB slot released",
+  "limitations": ["Fixture HTTPS source strings do not prove physical image provenance, provider availability or real publication acceptance.","Live admission and owner UAT remain explicit; pending requests must retain their guards through rollback.","No new send, replacement attempt or retry after uncertainty is authorized by visual reassessment."],
+  "ownerUat":"PENDING",
+  "tdpdGreen":"NOT_GRANTED; explicit owner UAT remains pending",
+  "engineeringVerdict":"ENGINEERING COMPLETE — AWAITING UAT"
+}

@@ -1,4 +1,5 @@
 import {projectBrowserRecovery} from './browser_recovery_assessment';
+import {isPublicationStorageConflict} from './publication_storage_conflict';
 import type { PublicationDiagnostic } from './publication_diagnostics';
 
 type Entry=readonly [string,string,string];
@@ -13,6 +14,7 @@ const catalog:Record<string,Entry>={
  BROWSER_REQUEST_FAILED:['operation','The operation failed; the exact cause is not classified.','Ask engineering to investigate safe diagnostics. Inspect existing attempts and reconcile uncertain outcomes before further execution.']
 };
 const add=(codes:string[],entry:Entry):void=>{for(const code of codes)catalog[code]=entry;};
+add(['PUBLICATION_VISUAL_REVIEW_REQUIRED'],['visual_review','The current Owner visual requirement has no matching approved independent review.','Read the current art-direction context, complete its source/generation and separate visual review, then obtain a release for that exact package. Restoring old no-visual fields does not satisfy the requirement.']);
 add(['BROWSER_IDENTITY_INVALID','PROVIDER_IDENTITY_INVALID','BROWSER_IDENTITY_BINDING_CONFLICT'],['identity','The supplied identity failed the approved identity checks.','Inspect the channel Registry binding and canonical provider identity. Correct it through the owner metadata workflow; do not substitute another account.']);
 add(['BROWSER_NOT_RELEASE_READY','BROWSER_NOT_CLAIMABLE','BROWSER_NOT_STARTED'],['lifecycle','The task is not in the state required for this operation.','Inspect task status and existing work/attempt history. Use the documented transition for the current state; reconcile any started attempt first.']);
 add(['BROWSER_METADATA_REPAIR_REQUIRED','BROWSER_HANDOFF_METADATA_INVALID'],['metadata','The publication metadata does not meet the release prerequisites.','Preview owner metadata repair against the exact accepted package. Resolve partial or divergent handoff metadata before applying a reviewed repair.']);
@@ -35,6 +37,11 @@ function diagnostic(code:string):PublicationDiagnostic {
 }
 /** Accept only known codes/field names. Never expose or log raw values from an exception. */
 export function browserErrorDiagnostic(error:unknown):PublicationDiagnostic {
+ if(isPublicationStorageConflict(error)){
+  const code='BROWSER_STATE_CONFLICT',message='The publication state changed concurrently; this operation was not committed.';
+  return {code,message,retry_allowed:false,reasons:[{code,field:'lifecycle',message,
+   action:'Refresh the current task, work item and audit state. Inspect and reconcile any existing or uncertain delivery before another operation; never resend based on this conflict.'}]};
+ }
  if(error instanceof Error&&error.name==='ZodError')return diagnostic('BROWSER_REQUEST_INVALID');
  const message=error instanceof Error?error.message:'';
  const candidate=/^\[([A-Z_]+)\]/.exec(message)?.[1];

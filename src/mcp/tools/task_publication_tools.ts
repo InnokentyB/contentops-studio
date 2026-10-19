@@ -6,6 +6,7 @@ import weekPackageRepairService from '../../services/week_package_repair.service
 import dzenTaskPublicationService from '../../services/dzen_task_publication.service';
 import threadsTaskPublicationService from '../../services/threads_task_publication.service';
 import genericThreadsReleaseService from '../../services/threads_generic_release.service';
+import {threadsReconcileSchema} from '../../services/threads_api_contract';
 import { threadsDiagnosticResult } from './threads_diagnostic_result';
 import { publicationAdapterDiagnosticResult } from './publication_adapter_diagnostic_result';
 import telegramTaskPublicationService from '../../services/telegram_task_publication.service';
@@ -58,6 +59,10 @@ export async function executePublicationTaskByChannel(
  * @param server - Target MCP server instance.
  */
 export function registerTaskPublicationTools(server: McpServer): void {
+    server.registerTool('ba_reconcile_threads_publication',{
+        description:'Reconcile an existing versioned Threads API attempt using provider GETs only and atomically record its verified fact. No create, publish, reset or resend is permitted.',
+        annotations:{...INTERNAL_MUTATION_ANNOTATIONS,openWorldHint:true},inputSchema:threadsReconcileSchema.shape
+    },async(args,extra)=>threadsDiagnosticResult(()=>genericThreadsReleaseService.reconcile(args,extra.signal)));
     server.registerTool('ba_list_publication_tasks', {
         description: 'List ContentItem-based publication tasks for a project.',
         annotations: {
@@ -292,7 +297,7 @@ export function registerTaskPublicationTools(server: McpServer): void {
             expectedManifestChecksum: z.string().regex(/^sha256:[a-f0-9]{64}$/).optional(),
             releaseIdempotencyKey: z.string().min(1).max(500).optional()
         }
-    }, async (args) => {
+    }, async (args,extra) => {
         if (args.actorId && args.approvalReference && args.expectedManifestChecksum
             && args.releaseIdempotencyKey && args.idempotencyKey) {
             const publishArgs = {
@@ -301,7 +306,7 @@ export function registerTaskPublicationTools(server: McpServer): void {
                 releaseIdempotencyKey: args.releaseIdempotencyKey, idempotencyKey: args.idempotencyKey,
                 dryRun: args.dryRun
             };
-            return threadsDiagnosticResult(() => genericThreadsReleaseService.publish(publishArgs));
+            return threadsDiagnosticResult(() => genericThreadsReleaseService.publish(publishArgs,extra.signal));
         }
         return threadsDiagnosticResult(() => threadsTaskPublicationService.execute(args));
     });

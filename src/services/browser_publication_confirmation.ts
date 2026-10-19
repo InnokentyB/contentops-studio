@@ -79,7 +79,7 @@ async function completeBrowser(input:unknown,reconcile:boolean,deps:BrowserDepen
             if(task.status!=='publishing')throw new Error('[BROWSER_NOT_STARTED]');
             const attempt=await checkedBrowserAttempt(tx,args);assertBrowserObserved(task.draft_text!,args);
             assertBrowserPublicationTime(attempt,args.publishedAt);
-            if(reconcile&&!attempt.error_message&&(!work.lease_expires_at||work.lease_expires_at>new Date()))
+            if(reconcile&&!recovery&&!attempt.error_message&&(!work.lease_expires_at||work.lease_expires_at>new Date()))
                 throw new Error('[BROWSER_RECONCILIATION_NOT_REQUIRED]');
             if(!reconcile){
                 const leased=browserConfirmSchema.parse(input);assertBrowserLease(work,leased);

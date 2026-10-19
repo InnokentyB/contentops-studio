@@ -1,0 +1,28 @@
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+✖ REL05 actual MCP exposes reusable reassessment with internal-only mutation annotations (25.198112ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 559.997077
+
+✖ failing tests:
+
+test at ../../workspace/tests/tdpd/visual-reassessment-mcp.test.cjs:7:1
+✖ REL05 actual MCP exposes reusable reassessment with internal-only mutation annotations (25.198112ms)
+  AssertionError [ERR_ASSERTION]: Owner can discover the supported generic reassessment operation
+      at TestContext.<anonymous> (/workspace/tests/tdpd/visual-reassessment-mcp.test.cjs:11:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

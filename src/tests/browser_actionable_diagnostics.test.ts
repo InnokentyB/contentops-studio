@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {Prisma} from '@prisma/client';
 import { browserErrorDiagnostic, browserResultDiagnostic } from '../services/browser_actionable_diagnostics';
 test('snapshot reports all safe fields without values or injected fields',()=>{
  const secret='cookie=secret-approval';
@@ -63,4 +64,15 @@ test('asset ownership revision and decision mismatches all remain visible withou
  const d=browserErrorDiagnostic(new Error('[BROWSER_SNAPSHOT_MISMATCH] '+JSON.stringify(fields.map(field=>({field,current:'private-value',expected:'private-value'})))));
  assert.deepEqual(d.reasons.map(reason=>reason.field),fields);
  assert.equal(JSON.stringify(d).includes('private-value'),false);
+});
+test('known database serialization conflicts explain refresh without exposing SQL or secrets',()=>{
+ for(const options of [{code:'P2034'}, {code:'P2010',meta:{code:'40001'}},
+  {code:'P2010',meta:{driverAdapterError:{cause:{originalCode:'40001',originalMessage:'secret-SQL'}}}}]){
+  const error=new Prisma.PrismaClientKnownRequestError('secret-token SQL payload',{...options,clientVersion:'synthetic'});
+  const result=browserErrorDiagnostic(error);assert.equal(result.code,'BROWSER_STATE_CONFLICT');
+  assert.equal(result.retry_allowed,false);assert.match(result.reasons[0]!.action,/reconcil/i);
+  assert.ok(!JSON.stringify(result).includes('secret'));
+ }
+ const unknown=new Prisma.PrismaClientKnownRequestError('secret',{code:'P2010',clientVersion:'synthetic',meta:{code:'99999'}});
+ assert.equal(browserErrorDiagnostic(unknown).code,'BROWSER_REQUEST_FAILED');
 });

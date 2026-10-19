@@ -1,3 +1,4 @@
+import {preparationLedger} from './browser_preparation_contract';
 import {isDeepStrictEqual} from 'node:util';
 import {Prisma} from '@prisma/client';
 import {browserSnapshotSchema,checkedBrowserContext,hash,object,snapshotHash,requireBrowserOwner,loadBrowserTask,browserFingerprint,
@@ -9,7 +10,7 @@ function knownGuard(error:unknown):string|null {
     if(!(error instanceof Error))return null;
     return /^\[(OWNER_REQUIRED|STALE_MANIFEST|BROWSER_SNAPSHOT_MISMATCH|BROWSER_IDENTITY_INVALID)\](?:\s|$)/.exec(error.message)?.[1]||null;
 }
-async function loadState(tx:BrowserDb,deps:BrowserDependencies,scope:ResumeScope):Promise<BrowserRecoveryResumeState|null> {
+export async function loadPreparationState(tx:BrowserDb,deps:BrowserDependencies,scope:ResumeScope):Promise<BrowserRecoveryResumeState|null> {
     const row=await tx.browserDeliveryRecovery.findUnique({where:{project_id_attempt_id:{project_id:scope.projectId,attempt_id:scope.attemptId}}});
     if(!row||row.contract_version!==2||row.content_item_id!==scope.taskId)return null;
     const attempt=await tx.deliveryAttempt.findFirst({where:{id:scope.attemptId,project_id:scope.projectId,content_item_id:scope.taskId}});
@@ -61,7 +62,7 @@ async function safeChallenges(tx:BrowserDb,scope:ResumeScope,workItemId:number):
     return true;
 }
 async function commit(tx:BrowserDb,deps:BrowserDependencies,value:ResumeCommit):Promise<boolean> {
-    const state=await loadState(tx,deps,value.scope);
+    const state=await loadPreparationState(tx,deps,value.scope);
     if(!state||!state.ownerAuthorized||!state.permissionAllowed||!state.approvalActive||state.packageSha256!==state.currentPackageSha256
         ||state.originalApprovalSha256!==state.currentApprovalSha256||state.attemptStatus!=='pending'
         ||state.rowVersion!==value.expectedRowVersion||state.executionGeneration!==value.expectedGeneration
@@ -85,9 +86,13 @@ async function commit(tx:BrowserDb,deps:BrowserDependencies,value:ResumeCommit):
     return true;
 }
 /** Prisma-backed transaction boundary. Unsupported executors remain unregistered and cannot resume. */
-export function createBrowserRecoveryResumePort(deps:BrowserDependencies,fence?:BrowserRecoveryResumePort['executorFence']):BrowserRecoveryResumePort {
+export function createBrowserRecoveryResumePort(deps:BrowserDependencies,fence?:BrowserRecoveryResumePort['executorFence'],onCommit?:(tx:BrowserDb,value:ResumeCommit)=>Promise<void>):BrowserRecoveryResumePort {
     return {executorFence:fence,transaction:run=>deps.db.$transaction(async tx=>{
-        const port:BrowserRecoveryResumeTransaction={load:scope=>loadState(tx,deps,scope),findReplay:async(scope,idempotencyKey)=>{
+        const port:BrowserRecoveryResumeTransaction={preparationProof:async(scope,executorId)=>{
+            const stored=await tx.browserPreparationExecution.findUnique({where:{project_id_attempt_id:{project_id:scope.projectId,attempt_id:scope.attemptId}}});
+            const parsed=preparationLedger.safeParse(stored?.ledger);if(!parsed.success)return null;const ledger=parsed.data;
+            return ledger.projectId===scope.projectId&&ledger.taskId===scope.taskId&&ledger.attemptId===scope.attemptId&&ledger.executorSha256===hash(executorId)?ledger:null;
+        },load:scope=>loadPreparationState(tx,deps,scope),findReplay:async(scope,idempotencyKey)=>{
             const event=await tx.workflowEvent.findFirst({where:{project_id:scope.projectId,content_item_id:scope.taskId,actor_id:scope.actorId,command,idempotency_key:idempotencyKey}});
             if(!event)return null;const before=object(event.before_state),after=object(event.after_state);
             if(after.attempt_id!==scope.attemptId||typeof before.request_hash!=='string'||typeof after.generation!=='number')throw new Error('[RECOVERY_CONFLICT]');
@@ -97,11 +102,11 @@ export function createBrowserRecoveryResumePort(deps:BrowserDependencies,fence?:
                 ||hash(value.leaseToken)!==value.leaseSha256||!/^sha256:[a-f0-9]{64}$/.test(value.evidenceRef)
                 ||!Number.isFinite(value.leaseExpiresAt.getTime())||value.leaseExpiresAt.getTime()<=Date.now()
                 ||value.leaseExpiresAt.getTime()>Date.now()+900000)return false;
-            const state=await loadState(tx,deps,value.scope);if(!state)return false;
+            const state=await loadPreparationState(tx,deps,value.scope);if(!state)return false;
             const proof=await fence.proveQuiescence(port,state);
             if(!proof||proof.executorId!==fence.executorId||proof.evidenceRef!==value.evidenceRef||proof.issuedPermitCount!==0
                 ||proof.dispatchCount!==0||proof.oldExecutorQuiescent!==true||proof.challengeSupersessionSupported!==true)return false;
-            return commit(tx,deps,value);
+            const committed=await commit(tx,deps,value);if(committed&&onCommit)await onCommit(tx,value);return committed;
         }};
         return run(port);
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable,maxWait:2000,timeout:10000})};

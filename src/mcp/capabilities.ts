@@ -401,11 +401,12 @@ const STRATEGIST_TOOLS = new Set(
 );
 
 export function isToolAllowedForProfile(profile: McpCapabilityProfile, toolName: string) {
+    if(toolName==='ba_reconcile_threads_publication')return profile==='owner'||profile==='publisher';
     if (profile === 'owner') return true;
     if (profile === 'writer') return WRITER_TOOLS.has(toolName);
     if (profile === 'editor') return EDITOR_TOOLS.has(toolName);
     if (profile === 'art_director') return ART_DIRECTOR_TOOLS.has(toolName);
-    if (profile === 'publisher') return PUBLISHER_TOOLS.has(toolName) || BROWSER_PUBLICATION_TOOLS.has(toolName) || X_NATIVE_CONTROL_TOOLS.has(toolName);
+    if (profile === 'publisher') return toolName === 'ba_preview_publication_task' || PUBLISHER_TOOLS.has(toolName) || BROWSER_PUBLICATION_TOOLS.has(toolName) || X_NATIVE_CONTROL_TOOLS.has(toolName);
     if (profile === 'growth_analyst') return GROWTH_ANALYST_TOOLS.has(toolName);
     if (profile === 'strategist') return STRATEGIST_TOOLS.has(toolName);
     if (profile === 'organization_researcher') return ORGANIZATION_RESEARCHER_TOOLS.has(toolName);

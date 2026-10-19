@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { Prisma } from '@prisma/client';
 import prisma from '../../db';
 import artDirectionService from '../art_direction.service';
+import {assertTypedVisualCompletion} from '../visual_reassessment_binding';
 import { requireProjectAccess } from './auth';
 import { checkIdempotency, recordWorkflowEvent } from './infrastructure';
 
@@ -152,6 +153,7 @@ export async function completeWorkItem(params: {
             throw new Error(`WorkItem ${params.workItemId} not found in project ${params.projectId}`);
         }
 
+        await assertTypedVisualCompletion(tx,params.projectId,currentItem);
         const newResultVersion = currentItem.result_version + 1;
 
         // Atomic conditional UPDATE preventing race conditions

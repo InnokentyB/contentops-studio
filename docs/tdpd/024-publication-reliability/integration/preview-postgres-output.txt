@@ -1,0 +1,21 @@
+ Container tower-contentops-reliability-verification-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+✔ PG01 actual MCP preview reads no secrets and creates no lifecycle mutations (328.59549ms)
+✔ PG02 real repository projection never materializes credential/report payload (18.371924ms)
+✔ PG03 database enforces READ ONLY transaction even if a dependency attempts DDL (23.616619ms)
+✔ PG04 forged trusted principal and foreign tenant fail before task disclosure (47.985113ms)
+✔ PG05 hold SQL safely projects truthiness and local lifecycle blockers (20.402477ms)
+✔ PG06 malformed report cannot remove a hold or leak raw content (26.86369ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3731.576671

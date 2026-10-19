@@ -1,0 +1,52 @@
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+{"event":"publication_diagnostic","service":"threads","isError":true,"code":"THREADS_RECOVERY_IDENTITY_UNAVAILABLE","message":"No trustworthy original published post identity was saved.","reasons":[{"code":"THREADS_RECOVERY_IDENTITY_UNAVAILABLE","field":"provider_identity","message":"No trustworthy original published post identity was saved.","action":"Keep this attempt frozen. Ask engineering to establish supported original-attempt correlation; a matching history post alone is insufficient."}],"retry_allowed":false}
+{"event":"publication_diagnostic","service":"threads","isError":true,"code":"THREADS_ATTEMPT_PERSISTENCE_UNAVAILABLE","message":"Planner could not save the uncertain attempt outcome.","reasons":[{"code":"THREADS_ATTEMPT_PERSISTENCE_UNAVAILABLE","field":"database","message":"Planner could not save the uncertain attempt outcome.","action":"Restore database access, then inspect the original attempt through supported reconciliation. The post ID may not have been saved; never resend."}],"retry_allowed":false}
+✔ T01/T04 arbitrary tenant generic release sends once and canonical recovery replays (10.533436ms)
+✔ T03/T08 lost readback consumes bounded retries but never reissues POST (3.051939ms)
+✔ T04 post-send fact outage preserves provider ID and later same-attempt recovery (3.23213ms)
+✔ T07 denied owner makes zero provider calls (0.377043ms)
+✔ T03 lost publish response freezes saved container without a second publication (1.164817ms)
+✔ T06 foreign profile prevents object read and exposes precise safe reason (0.991996ms)
+✔ T08 caller cancellation stops readback and preserves durable consumed reservation (1.284818ms)
+✔ T07 lease expiry during provider response cannot finalize (0.921646ms)
+✔ T10 actual MCP serialization preserves recovery explanation and no secret (2576.461796ms)
+✔ T10 remote identity and capability cannot be overridden for API recovery (8.570143ms)
+✔ T07 changed released schedule blocks the publication POST (1.072767ms)
+✔ T07 changed released decision blocks the publication POST (0.658934ms)
+✔ T07 changed released schedule blocks recovery before GET (1.041897ms)
+✔ T07 changed released decision blocks recovery before GET (0.892775ms)
+✔ T10 total DB outage after publication returns actionable persistence error through actual MCP (6.173559ms)
+✔ T07 package change after dispatch retains original post ID but blocks confirmation (0.730595ms)
+✔ T02 durable phase fences and provider IDs precede subsequent calls (15.827489ms)
+✔ T03 container persistence failure prevents publication POST (0.625594ms)
+✔ T03 post persistence failure prevents readback GET (0.518263ms)
+✔ T06 recovery reader rejects a valid JSON body above 1MiB before parsing (6.101169ms)
+✔ T06 recovery reader refuses redirects and never discloses response bodies (0.716444ms)
+✔ T04 known-object full identity verifies (2.066983ms)
+✔ T06 mismatched id cannot confirm (0.374762ms)
+✔ T06 mismatched text cannot confirm (0.157061ms)
+✔ T06 mismatched username cannot confirm (0.12084ms)
+✔ T06 mismatched media_type cannot confirm (0.505663ms)
+✔ T06 mismatched is_reply cannot confirm (0.177811ms)
+✔ T06 mismatched timestamp cannot confirm (0.134781ms)
+✔ T06 mismatched permalink cannot confirm (0.126311ms)
+✔ T06 original account is mandatory (0.148641ms)
+✔ T05 missing original ID never schedules provider read (1.290998ms)
+✔ T08 durable budget, backoff and active lease survive reinvocation (0.742455ms)
+✔ T07 wrong tenant reads nothing (0.130741ms)
+✔ T07 stale or foreign finalizer lease cannot confirm (0.311372ms)
+✔ T03 phase replay and generation change prevent next side effect (0.693224ms)
+✔ T09 existing different task/provider object cannot be claimed (0.163771ms)
+ℹ tests 36
+ℹ suites 0
+ℹ pass 36
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4986.952996

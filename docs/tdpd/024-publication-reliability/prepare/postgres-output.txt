@@ -1,0 +1,34 @@
+ Container tower-contentops-prepare-synthetic-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+✔ PREP-01 original admitted start creates protected PREPARE ownership and no submit permission (641.695247ms)
+✔ PREP-02/03 original attempt resumes into durable pickup after restart, old executor cannot permit/dispatch (196.026509ms)
+✔ PREP-05 first permit is one-shot, dispatch once, and canonical result completes the same attempt (220.271342ms)
+✔ PREP-06 concurrent recoverers produce at most one durable generation and pickup (90.548889ms)
+✔ PREP-04 bad supervisor proof leaves original attempt held and cannot issue a permit (62.37893ms)
+✔ PREP-07 revoked approval denies before supervisor or lease mutation (76.551595ms)
+✔ PREP-08 expiry survives application restart and cannot reset durable budget (89.026358ms)
+✔ PREP-09 generic settings cannot forge protected execution proof or counters (39.426195ms)
+✔ PREP-08 three resumptions use durable offsets and never reset counters with a new key (188.254646ms)
+✔ PREP-05 an already issued generic permit event prevents quiescence and resume (48.270824ms)
+✔ PREP-07 cross-tenant and non-owner cannot request supervisor quiescence (42.603847ms)
+✔ PREP-06 simultaneous private pickups deliver the same lease, without additional authority (87.863661ms)
+✔ PREP-04 missing real supervisor never admits an otherwise ordinary original start (67.745296ms)
+✔ PREP-06 first permit racing quiescence can never grant both a permit and resumed generation (80.540912ms)
+{"event":"publication_diagnostic","service":"browser","isError":false,"code":"RECOVERY_PREPARE_RESUMED","message":"The same pre-permit attempt is waiting for its registered fenced executor to continue preparation.","retry_allowed":false,"reasons":[{"code":"RECOVERY_PREPARE_RESUMED","field":"recovery","message":"The same pre-permit attempt is waiting for its registered fenced executor to continue preparation.","action":"The registered executor must pick up the current generation and lease, recheck the unchanged approved package and pass the normal pre-submit checks. No submission permission is granted by this status."}]}
+✔ PREP-10 actual MCP owning operation resumes with actionable status and never exposes private pickup lease (87.72531ms)
+✔ PREP-05 dispatch failure preserves uncertain one-shot authority and hides raw provider error (127.355687ms)
+✔ PREP-01 normal admitted original attempt can complete without manufacturing a preparation failure (96.979122ms)
+✔ PREP-04 supervisor timeout cannot commit a late acknowledgement or create pickup authority (10049.179994ms)
+✔ PREP-08 uncertainty replay preserves an active readback lease and original durable deadline (145.466708ms)
+✔ PREP-05 canonical result failure rolls back ledger completion, attempt, fact and recovery together (127.059274ms)
+✔ PREP-03 queued recovery replay reports proven pre-dispatch state without rerunning supervisor (91.652746ms)
+✔ PREP-05 owning uncertainty operation FOUND atomically completes protected ledger via shared finalizer (154.833291ms)
+✔ PREP-01 protected storage discovery preserves old recovery when additive table is absent (2.506987ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13046.541516

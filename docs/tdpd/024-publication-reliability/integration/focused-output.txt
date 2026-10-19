@@ -1,0 +1,207 @@
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+✔ snapshot reports all safe fields without values or injected fields (1.288058ms)
+✔ missing prerequisite and unknown failures do not invent downstream causes (0.220832ms)
+✔ uncertainty and replay require reconciliation; success unchanged (0.203511ms)
+✔ registered MCP boundary serializes validation failures without input secrets or mutations (76.812616ms)
+✔ schema rejection explains request correction without raw validation values (0.144901ms)
+✔ read-only persisted snapshot mismatch returns concrete safe reasons (0.166421ms)
+✔ X native MCP controls serialize actionable redacted errors and preserve disabled registration (7.265019ms)
+✔ asset ownership revision and decision mismatches all remain visible without values (0.211991ms)
+✔ known database serialization conflicts explain refresh without exposing SQL or secrets (0.927556ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+{"event":"publication_diagnostic","service":"browser","isError":false,"code":"PRE_DISPATCH_PROOF_UNAVAILABLE","message":"The preparation failed, but this executor has not proved that submission was impossible.","retry_allowed":false,"reasons":[{"code":"PRE_DISPATCH_PROOF_UNAVAILABLE","field":"recovery","message":"The preparation failed, but this executor has not proved that submission was impossible.","action":"Ask engineering to establish controlled pre-permit evidence and executor fencing. Preserve this attempt; do not clear its error or resend."}]}
+✔ PREP-04 unsupported application executor stays held with actionable explanation and no store mutation (0.729445ms)
+✔ PREP-06 first-permit admission cannot bypass generic writers or canonical fact guards in the same transaction (0.728565ms)
+✔ PREP-10 actual registered uncertainty handler wires preparation ahead of generic recovery serialization (4.854533ms)
+✔ PREP-04 unclassified dependency failure has a safe investigation path without inventing a conflict (1.788502ms)
+✔ unsupported reader reports honest capability gap without database admission (2.648708ms)
+✔ temporary read failures retry within durable round budget without owner consent (1.168448ms)
+✔ FOUND uses registered verification and single atomic finalizer, never separate settlement (1.116738ms)
+✔ malformed mismatching or stale verified evidence cannot finalize (4.191578ms)
+✔ provider request budget stops at twenty even if reader requests a hundred pages (0.717145ms)
+✔ NOT_FOUND retries finitely and incomplete ambiguous strong non-delivery claims never permit resend (0.766715ms)
+✔ abort cancels active port, persists safe UNKNOWN and blocks later request permits (0.506454ms)
+✔ port timeout aborts a hung lookup and remaining attempts are bounded (0.749915ms)
+✔ concurrent lease holder prevents duplicate reads and stale settlement returns held conflict (0.435353ms)
+✔ finalization rejection preserves owner/package/permission blocker and no replacement fact writes (0.833106ms)
+✔ invalid scope and legacy state cause zero provider reads (0.344582ms)
+✔ hung repository reserve is bounded by operation deadline and abort (0.200352ms)
+✔ signed URL queries and control characters in known object identity are rejected (0.399113ms)
+✔ overall deadline cancels hanging request accounting without allowing late provider requests (0.312562ms)
+✔ settlement timeout returns conflict without starting another reader (0.282092ms)
+✔ abort while waiting between rounds does not perform another provider read (0.345902ms)
+✔ ambiguous observations cannot be upgraded by verification or sent to finalizer (0.222971ms)
+✔ abort during initial reservation returns promptly without provider reads (0.301852ms)
+✔ unknown outcome code cannot leak raw data or crash diagnostic factory (0.123491ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+✔ same attempt resumes with fenced generation, private new lease and safe idempotent replay (1.863062ms)
+✔ resume denied ownerAuthorized (0.226012ms)
+✔ resume denied permissionAllowed (0.137711ms)
+✔ resume denied approvalActive (0.142131ms)
+✔ resume denied currentApprovalSha256 (0.132201ms)
+✔ resume denied currentPackageSha256 (0.140261ms)
+✔ resume denied projectId (0.128411ms)
+✔ resume denied attemptStatus (0.135441ms)
+✔ resume denied stage (0.156471ms)
+✔ resume denied deliveryCertainty (0.224482ms)
+✔ unsupported executor never mutates (0.194112ms)
+✔ issued permit or incomplete proof never resumes (0.153161ms)
+✔ conflict and changed replay key cannot grant another lease (0.170971ms)
+✔ untrusted malformed request cannot supply technical evidence (0.245182ms)
+✔ untrusted/incomplete executor proof issuedPermitCount (0.135761ms)
+✔ untrusted/incomplete executor proof dispatchCount (0.09457ms)
+✔ untrusted/incomplete executor proof oldExecutorQuiescent (0.09398ms)
+✔ untrusted/incomplete executor proof challengeSupersessionSupported (0.110701ms)
+✔ untrusted/incomplete executor proof executorId (0.085721ms)
+✔ untrusted/incomplete executor proof evidenceRef (0.101091ms)
+✔ repository exceptions propagate for safe boundary serialization without a false resume (0.153451ms)
+✔ malformed immutable proof cannot satisfy equal missing values (0.123691ms)
+✔ committed replay after permit issuance cannot claim executor pickup (0.171511ms)
+✔ committed replay after generation advances is a held conflict (0.154661ms)
+✔ committed replay after pickup lease expiry cannot advertise a usable pickup (0.165722ms)
+✔ committed replay after state is held cannot advertise pickup (0.174321ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+✔ Prisma resume repository never registers an executor by default (0.623994ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+{"event":"publication_diagnostic","service":"browser","isError":false,"code":"READBACK_CAPABILITY_UNAVAILABLE","message":"No admitted read-only provider recovery capability is registered.","retry_allowed":false,"reasons":[{"code":"READBACK_CAPABILITY_UNAVAILABLE","field":"recovery","message":"No admitted read-only provider recovery capability is registered.","action":"Ask engineering to implement and admit a bounded reader through the existing approved route. Preserve the current attempt; do not resend or use another transport."}]}
+✔ LI-09 actual registered uncertainty handler supplies safe application recovery to operation (1.45441ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+✔ LI-01 trusted attempt receipt independently verifies exact provider object (18.255483ms)
+✔ LI-02 unique history match cannot prove attempted dispatch (1.111157ms)
+✔ LI-03 mismatched provider object never confirms {"author":"urn:li:person:other"} (0.375033ms)
+✔ LI-03 mismatched provider object never confirms {"commentary":"different"} (0.343973ms)
+✔ LI-03 mismatched provider object never confirms {"publishedAt":50} (0.306982ms)
+✔ LI-03 mismatched provider object never confirms {"id":"urn:li:share:999"} (0.261542ms)
+✔ LI-03 mismatched provider object never confirms {"lifecycleState":"DRAFT"} (0.568464ms)
+✔ LI-03 mismatched provider object never confirms {"content":{"media":{"id":"urn:li:image:unknown"}}} (0.511823ms)
+✔ LI-04 denied permission and unadmitted route do not call provider (0.571864ms)
+✔ LI-07 cancellation and durable budget prevent HTTP calls (0.266702ms)
+✔ LI-08 arbitrary evidence cannot verify even with matching expected hashes (0.108551ms)
+✔ LI-05 HTTP failures never disclose provider bodies or credentials (0.848166ms)
+✔ LI-05 malformed and oversized payloads are safely incomplete (1.49038ms)
+✔ LI-06 bounded inventory constructs only approved LinkedIn URLs (1.347869ms)
+✔ LI-01 verified image uses trusted upload receipt rather than expected hash alone (0.754405ms)
+✔ LI-08 forged scope and changed receipt cannot verify (0.363502ms)
+✔ LI-07 local request ceiling also bounds a malformed permissive accounting dependency (0.144761ms)
+✔ LI-03 reshares and sponsored objects cannot masquerade as ordinary text post (0.339122ms)
+✔ idle expiry releases resources and recently active sessions remain (1.038126ms)
+✔ executing requests and open response streams are protected even past idle timeout (0.261192ms)
+✔ explicit close releases server resources exactly once after active work finishes (0.680845ms)
+✔ cleanup failures are visible without secret or raw error disclosure (0.291442ms)
+✔ policy defaults and invalid overrides are explicit; stopped sweeper performs no work (20.78166ms)
+✔ explicit shutdown closes idle SSE resources without cancelling executing work (0.496934ms)
+✔ shutdown drain waits disconnected executing work even after transport removed its session (0.332162ms)
+✔ response closed before tracking cannot create a permanently retained phantom stream (0.199041ms)
+✔ closing admission blocks a new executing operation while drain waits existing work (0.337673ms)
+✔ real SDK expires idle session, returns 404 and reconnects by initialize; credentials/endpoint remain bound (64.303422ms)
+{"event":"memory_001_synthetic_soak","sessions_before":0,"sessions_peak":60,"sessions_after":0,"rss_before_bytes":111194112,"rss_peak_bytes":138625024,"rss_after_bytes":138756096,"savings_claim":false}
+✔ real SDK synthetic session soak returns retained count to baseline and records measured RSS (235.627345ms)
+✔ real SDK disconnected tool execution remains protected until callback actually completes (39.315295ms)
+✔ real SDK shutdown rejects new initialization and can drain with a connected idle SSE (31.013529ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+✔ remote MCP replaces caller-controlled actor and user identities (1.323129ms)
+✔ organization researcher scope cannot be overridden by tool arguments (0.154731ms)
+✔ remote MCP rejects an explicit project that differs from the token scope (0.115961ms)
+✔ remote MCP scopes user identity when the requested project matches the token (0.103731ms)
+✔ remote MCP injects the token-bound identity into bootstrap calls (0.131561ms)
+✔ remote MCP denies cross-tenant administrative tools (0.099811ms)
+✔ local MCP without a configured principal preserves tool arguments (0.102631ms)
+✔ writer MCP is restricted to its project and cannot invoke planner tools (0.159701ms)
+✔ writer MCP discovery exposes content tools but not slot mutation tools (100.055712ms)
+✔ planner MCP discovery exposes slot controls but not content mutation (69.75624ms)
+✔ only the owner MCP profile discovers audited content review recovery (49.342612ms)
+✔ editor, publisher and growth profiles expose only their governed lifecycle tools (193.447802ms)
+✔ role-scoped internal mutations do not request destructive host approval (611.449493ms)
+ℹ tests 104
+ℹ suites 0
+ℹ pass 104
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3566.692433
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+✔ P01 actual Publisher MCP exposes pure preview, no external send authority (177.326093ms)
+✔ P02 forged actor cannot override trusted session and wrong project never reads task (55.161631ms)
+✔ P03/P04/P09 missing principal (47.7074ms)
+✔ P03/P04/P09 nonmember (43.915015ms)
+✔ P03/P04/P09 not found (58.271652ms)
+✔ P03/P04/P09 DB failure (54.94851ms)
+✔ P06 uncertain original attempt gives reconciliation guidance without retries (120.781583ms)
+✔ P07 vk never infers independent adapter readiness (41.058816ms)
+✔ P07 dzen never infers independent adapter readiness (47.436929ms)
+✔ P08 stale expected accepted revision blocks preview package (54.146554ms)
+✔ P10 other profiles cannot discover preview; existing live tool stays destructive (62.016977ms)
+✔ P02 same-project actor spoof uses authenticated membership (45.000482ms)
+✔ P05 claimed executor (82.658006ms)
+✔ P05 existing fact (46.761934ms)
+✔ P05 terminal state (45.831108ms)
+✔ P05 unsupported provider (47.847712ms)
+✔ P05 stale visual (68.770252ms)
+✔ P05 current approved visual is checked without asset URLs or provenance (83.837404ms)
+✔ P11 blocked handoff, hold or wrong-placement decision never passes local validation {"row":{"handoff_state":"blocked"}} (44.057447ms)
+✔ P11 blocked handoff, hold or wrong-placement decision never passes local validation {"row":{"status":"planned"}} (52.330672ms)
+✔ P11 blocked handoff, hold or wrong-placement decision never passes local validation {"hold":true} (44.973842ms)
+✔ P11 blocked handoff, hold or wrong-placement decision never passes local validation {"row":{"art_direction_decisions":[{"id":41,"project_id":21,"content_item_id":7001,"channel":"threads","placement":"feed","decision":"NO_VISUAL_NEEDED","decision_version":1,"source_content_revision":2,"status":"active"}]}} (66.388127ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+{"event":"publication_diagnostic","service":"threads","isError":true,"code":"THREADS_RECOVERY_IDENTITY_UNAVAILABLE","message":"No trustworthy original published post identity was saved.","reasons":[{"code":"THREADS_RECOVERY_IDENTITY_UNAVAILABLE","field":"provider_identity","message":"No trustworthy original published post identity was saved.","action":"Keep this attempt frozen. Ask engineering to establish supported original-attempt correlation; a matching history post alone is insufficient."}],"retry_allowed":false}
+{"event":"publication_diagnostic","service":"threads","isError":true,"code":"THREADS_ATTEMPT_PERSISTENCE_UNAVAILABLE","message":"Planner could not save the uncertain attempt outcome.","reasons":[{"code":"THREADS_ATTEMPT_PERSISTENCE_UNAVAILABLE","field":"database","message":"Planner could not save the uncertain attempt outcome.","action":"Restore database access, then inspect the original attempt through supported reconciliation. The post ID may not have been saved; never resend."}],"retry_allowed":false}
+✔ T01/T04 arbitrary tenant generic release sends once and canonical recovery replays (14.526317ms)
+✔ T03/T08 lost readback consumes bounded retries but never reissues POST (2.649248ms)
+✔ T04 post-send fact outage preserves provider ID and later same-attempt recovery (1.646391ms)
+✔ T07 denied owner makes zero provider calls (0.287412ms)
+✔ T03 lost publish response freezes saved container without a second publication (0.973617ms)
+✔ T06 foreign profile prevents object read and exposes precise safe reason (0.802735ms)
+✔ T08 caller cancellation stops readback and preserves durable consumed reservation (1.207799ms)
+✔ T07 lease expiry during provider response cannot finalize (0.853306ms)
+✔ T10 actual MCP serialization preserves recovery explanation and no secret (1185.289683ms)
+✔ T10 remote identity and capability cannot be overridden for API recovery (6.970186ms)
+✔ T07 changed released schedule blocks the publication POST (0.915666ms)
+✔ T07 changed released decision blocks the publication POST (0.631314ms)
+✔ T07 changed released schedule blocks recovery before GET (0.976037ms)
+✔ T07 changed released decision blocks recovery before GET (0.829336ms)
+✔ T10 total DB outage after publication returns actionable persistence error through actual MCP (4.918283ms)
+✔ T07 package change after dispatch retains original post ID but blocks confirmation (0.760665ms)
+✔ T02 durable phase fences and provider IDs precede subsequent calls (15.337623ms)
+✔ T03 container persistence failure prevents publication POST (0.645554ms)
+✔ T03 post persistence failure prevents readback GET (0.529194ms)
+✔ T06 recovery reader rejects a valid JSON body above 1MiB before parsing (5.98565ms)
+✔ T06 recovery reader refuses redirects and never discloses response bodies (0.699525ms)
+✔ T04 known-object full identity verifies (1.781232ms)
+✔ T06 mismatched id cannot confirm (0.319442ms)
+✔ T06 mismatched text cannot confirm (0.140711ms)
+✔ T06 mismatched username cannot confirm (0.100331ms)
+✔ T06 mismatched media_type cannot confirm (0.412333ms)
+✔ T06 mismatched is_reply cannot confirm (0.162472ms)
+✔ T06 mismatched timestamp cannot confirm (0.122191ms)
+✔ T06 mismatched permalink cannot confirm (0.118371ms)
+✔ T06 original account is mandatory (0.141871ms)
+✔ T05 missing original ID never schedules provider read (1.180958ms)
+✔ T08 durable budget, backoff and active lease survive reinvocation (0.730505ms)
+✔ T07 wrong tenant reads nothing (0.133441ms)
+✔ T07 stale or foreign finalizer lease cannot confirm (0.281772ms)
+✔ T03 phase replay and generation change prevent next side effect (0.614935ms)
+✔ T09 existing different task/provider object cannot be claimed (0.156151ms)
+ℹ tests 58
+ℹ suites 0
+ℹ pass 58
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7362.089604

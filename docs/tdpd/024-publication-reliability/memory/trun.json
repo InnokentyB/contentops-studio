@@ -1,0 +1,20 @@
+{
+  "package":"MEMORY-001 current deployed-main integration",
+  "date":"2026-10-19",
+  "baseline":"3fd625a",
+  "integratedRevision":"c711b63",
+  "originalApprovedRevision":"6ec2f9aaa95e08960b72f2ebdf911de81c5b1a45",
+  "redEvidence":"../../MEMORY-001/trun.json",
+  "attempts":[
+    {"name":"readonly dependency symlink harness","result":"ENVIRONMENT_ERROR","reason":"Prisma generator cannot replace readonly generated client"},
+    {"name":"standard Dockerfile offline build","result":"ENVIRONMENT_ERROR","reason":"schema-engine cache absent; network intentionally disabled"},
+    {"name":"quality initial harness","result":"ENVIRONMENT_ERROR","reason":"exact Git worktree path and NODE_PATH needed; corrected without code changes"},
+    {"name":"derived existing reviewed image full backend/frontend build","result":"PASS","image":"planner-reliability-memory:20261019","imageId":"2cdcb36bd442","network":"none","prismaEngine":"explicit cached binary"},
+    {"name":"source quality gate","result":"PASS","score":77,"runtimeFindings":7096,"runtimeBaseline":7096,"hardStops":0},
+    {"name":"compiled lifecycle + real SDK + remote auth","result":"PASS","tests":26,"passed":26,"failed":0,"skipped":0,"scenarioResults":"tests-output.txt"}
+  ],
+  "syntheticSoak":{"sessionsBefore":0,"sessionsPeak":60,"sessionsAfter":0,"rssBeforeBytes":110682112,"rssPeakBytes":136765440,"rssAfterBytes":143187968,"savingsClaim":false},
+  "deployment":{"run":false,"providerCalls":0,"businessMutations":0,"safeWindow":"NOT_ESTABLISHED; retained-session count is insufficient"},
+  "ownerUat":"PENDING",
+  "engineeringVerdict":"ENGINEERING COMPLETE — AWAITING UAT"
+}

@@ -1,0 +1,23 @@
+name: contentops-preview-reliability-synthetic
+services:
+  checks:
+    image: planner-reliability-threads:20261019
+    platform: linux/amd64
+    user: '1000:1000'
+    working_dir: /source
+    environment:
+      DATABASE_URL: postgresql://synthetic:synthetic@synthetic-db:5432/preview_reliability_synthetic
+      NODE_PATH: /opt/planner/node_modules
+      TS_NODE_PROJECT: /source/tsconfig.json
+      TELEGRAM_BOT_TOKEN: synthetic-not-a-token
+      PRISMA_SCHEMA_ENGINE_BINARY: /opt/planner/node_modules/@prisma/engines/schema-engine-debian-openssl-3.0.x
+    volumes: [../../../../:/source:ro]
+    networks: [synthetic]
+    mem_limit: 1536m
+    cpus: 1
+    pids_limit: 128
+    logging: {driver: json-file, options: {max-size: 10m, max-file: '2'}}
+networks:
+  synthetic:
+    external: true
+    name: contentops-threads-reliability-synthetic_synthetic

@@ -1,0 +1,71 @@
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+✔ remote MCP replaces caller-controlled actor and user identities (1.813521ms)
+✔ organization researcher scope cannot be overridden by tool arguments (0.144241ms)
+✔ remote MCP rejects an explicit project that differs from the token scope (1.804332ms)
+✔ remote MCP scopes user identity when the requested project matches the token (0.10946ms)
+✔ remote MCP injects the token-bound identity into bootstrap calls (0.128431ms)
+✔ remote MCP denies cross-tenant administrative tools (0.1058ms)
+✔ local MCP without a configured principal preserves tool arguments (0.09358ms)
+✔ writer MCP is restricted to its project and cannot invoke planner tools (0.169441ms)
+✔ writer MCP discovery exposes content tools but not slot mutation tools (239.856335ms)
+✔ planner MCP discovery exposes slot controls but not content mutation (104.692442ms)
+✔ only the owner MCP profile discovers audited content review recovery (99.447951ms)
+✔ editor, publisher and growth profiles expose only their governed lifecycle tools (394.876281ms)
+✔ role-scoped internal mutations do not request destructive host approval (1325.998481ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+✔ generic release accepts an arbitrary canonical task without sending and records an exact immutable proof (3.809784ms)
+✔ generic live send creates the attempt before provider dispatch and confirms provider readback once (1.615581ms)
+✔ generic uncertain provider result freezes the attempt and blocks a second dispatch (1.059476ms)
+✔ release diagnostics identify publication_authorized without disclosing values (1.201307ms)
+✔ release diagnostics identify body_sha256 without disclosing values (0.346503ms)
+✔ release diagnostics identify channel_id without disclosing values (0.409463ms)
+✔ release diagnostics identify accepted_revision without disclosing values (0.749625ms)
+✔ release diagnostics identify manifest_checksum without disclosing values (0.365552ms)
+✔ release diagnostics identify actor_id without disclosing values (0.485313ms)
+✔ release diagnostics identify approval_reference without disclosing values (0.506803ms)
+✔ missing release produces one reason, without cascading missing-proof mismatches (0.324172ms)
+✔ release diagnostics collect all mismatches in stable order (0.342202ms)
+✔ malformed release states fail closed with safe reasons for all available checks (0.327092ms)
+✔ valid dry run preserves release and does not dispatch or claim (0.248091ms)
+✔ MCP serializes actionable release diagnostics and logs only safe diagnostic data (19.24846ms)
+✔ Threads boundary safely explains THREADS_PROVIDER_IDENTITY_UNVERIFIED without exposing raw errors (0.260251ms)
+✔ Threads boundary safely explains THREADS_PUBLICATION_UNCERTAIN without exposing raw errors (0.156881ms)
+✔ Threads boundary safely explains THREADS_REQUEST_FAILED without exposing raw errors (0.106351ms)
+✔ ThreadsService.publishPost publishes text post successfully (1.216168ms)
+✔ ThreadsService accepts the current provider threads.com permalink (0.226492ms)
+✔ ThreadsService.publishPost waits for an image container and returns the provider permalink (0.427953ms)
+✔ ThreadsService.publishThread creates a root and ordered replies (0.722295ms)
+✔ ThreadsService never puts the access token in request URLs (0.484263ms)
+✔ ThreadsService.testConnection rejects missing access token (0.180821ms)
+✔ ThreadsService.testConnection succeeds with valid token and matching user id (0.304462ms)
+✔ ThreadsService.testConnection flags user id mismatch (0.206251ms)
+✔ ThreadsService redacts provider response bodies in typed errors (0.272001ms)
+✔ ThreadsService rejects a missing or untrusted provider permalink (0.563614ms)
+✔ ThreadsService bounds image container polling (0.266562ms)
+✔ ThreadsService searches public posts with bounded encoded parameters and Bearer auth (0.394443ms)
+✔ ThreadsService reads direct replies and full conversation through distinct endpoints (0.380442ms)
+✔ ThreadsService publishes a reply as a reply container and returns provider identity (0.742205ms)
+✔ verified Threads send retains numeric API identity and checks provider readback (72.1494ms)
+✔ verified Threads send rejects wrong author without another write or leaking token (1.083387ms)
+✔ verified Threads send does not retry HTTP 401 or expose provider payload (0.350382ms)
+✔ verified Threads send does not retry HTTP 403 or expose provider payload (0.290972ms)
+✔ verified Threads send does not retry HTTP 429 or expose provider payload (0.283762ms)
+✔ verified Threads send never retries a network error after possible provider acceptance (0.445553ms)
+ℹ tests 51
+ℹ suites 0
+ℹ pass 51
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12117.887384

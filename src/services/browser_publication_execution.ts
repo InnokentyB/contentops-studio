@@ -1,3 +1,5 @@
+import type {PreparationAdmission,PreparationPermit,PreparationUncertainty} from './browser_preparation_contract';
+import {isBrowserPreparationWriter,preparationWriterPurpose} from './browser_recovery_guard';
 import {assessLegacyBrowserRecovery} from './browser_recovery_assessment';
 import type {BrowserRecoveryOperation} from './browser_recovery_runtime';
 import { randomUUID } from 'node:crypto';
@@ -36,7 +38,7 @@ export async function claimBrowserPublication(input:unknown,deps:BrowserDependen
     },serial);
 }
 /** Durable attempt before provider interaction. Starting does not itself permit clicking Submit. */
-export async function startBrowserSubmission(input:unknown,deps:BrowserDependencies=browserDefaults,nativeGate?:NativeGate) {
+export async function startBrowserSubmission(input:unknown,deps:BrowserDependencies=browserDefaults,nativeGate?:NativeGate,preparation?:PreparationAdmission) {
     const args=browserBoundarySchema.parse(input),command='ba_start_browser_submission';
     assertBrowserNativeAdmission(args,nativeGate);
     return deps.db.$transaction(async tx=>{
@@ -53,6 +55,7 @@ export async function startBrowserSubmission(input:unknown,deps:BrowserDependenc
         const changed=await tx.contentItem.updateMany({where:{id:args.taskId,project_id:args.projectId,
             status:'browser_required',content_revision:args.snapshot.contentRevision,publication_mode:'browser_required'},data:{status:'publishing'}});
         if(changed.count!==1)throw new Error('[BROWSER_START_CAS_CONFLICT]');
+        if(preparation)await preparation(tx,args,attempt.id);
         const result={status:'started',attempt_id:attempt.id,submission_permitted:false,retry_allowed:false,replayed:false};
         await tx.workflowEvent.create({data:{project_id:args.projectId,content_item_id:args.taskId,work_item_id:work.id,
             actor_id:args.actorId,command,idempotency_key:args.idempotencyKey,
@@ -61,14 +64,15 @@ export async function startBrowserSubmission(input:unknown,deps:BrowserDependenc
     },serial);
 }
 /** One permission from actual pre-submit observations. Lost/replayed response never grants another click. */
-export async function preSubmitBrowserSubmission(input:unknown,deps:BrowserDependencies=browserDefaults,nativeGate?:NativeGate) {
+export async function preSubmitBrowserSubmission(input:unknown,deps:BrowserDependencies=browserDefaults,nativeGate?:NativeGate,preparation?:PreparationPermit) {
     const args=browserObservedSchema.parse(input),command='ba_pre_submit_browser_submission';
     assertBrowserNativeAdmission(args,nativeGate);
     return deps.db.$transaction(async tx=>{
-        const {task,work}=await checkedBrowserRelease(tx,args,deps);assertBrowserLease(work,args);
+      const run=async()=>{
+        const {task,work}=await checkedBrowserRelease(tx,args,deps,preparationWriterPurpose(tx,args));assertBrowserLease(work,args);
         if(task.status!=='publishing')throw new Error('[BROWSER_NOT_STARTED]');
         const attempt=await checkedBrowserAttempt(tx,args);
-        if(attempt.error_message)throw new Error('[BROWSER_RECONCILIATION_REQUIRED]');
+        if(attempt.error_message&&!isBrowserPreparationWriter(tx,args))throw new Error('[BROWSER_RECONCILIATION_REQUIRED]');
         assertBrowserObserved(task.draft_text!,args);
         const prior=await browserPrior(tx,args,command);if(prior)return{...prior,submission_permitted:false,retry_allowed:false};
         await requireBrowserNativeGate(tx,'permit',args,nativeGate);
@@ -80,14 +84,17 @@ export async function preSubmitBrowserSubmission(input:unknown,deps:BrowserDepen
             actor_id:args.actorId,command,idempotency_key:args.idempotencyKey,
             before_state:{request_hash:hash(JSON.stringify(args))},after_state:proof}});
         return{...proof,replayed:false};
+      };
+      return preparation?preparation(tx,args,run):run();
     },serial);
 }
 export const browserUncertainSchema=browserBoundarySchema.safeExtend({attemptId:z.number().int().positive(),
     reasonCode:z.enum(['PROVIDER_RESULT_UNCERTAIN','PRE_SUBMIT_REJECTED','BROWSER_UNAVAILABLE'])});
 /** Freeze after lost result, including expired leases; no resend or synthetic fact. */
-export async function markBrowserSubmissionUncertain(input:unknown,deps:BrowserDependencies=browserDefaults,nativeGate?:NativeGate,recoveryOperation?:BrowserRecoveryOperation) {
+export async function markBrowserSubmissionUncertain(input:unknown,deps:BrowserDependencies=browserDefaults,nativeGate?:NativeGate,recoveryOperation?:BrowserRecoveryOperation,preparation?:PreparationUncertainty) {
     const args=browserUncertainSchema.parse(input),command='ba_mark_browser_submission_uncertain';
     assertBrowserNativeAdmission(args,nativeGate);
+    if(preparation){const handled=await preparation(args);if(handled)return handled;}
     const result=await deps.db.$transaction(async tx=>{
         await requireBrowserOwner(tx,args);const {task,work}=await checkedBrowserRelease(tx,args,deps);
         if(task.status!=='publishing'||work.lease_actor_id!==args.actorId||hash(work.lease_token||'')!==hash(args.leaseToken))

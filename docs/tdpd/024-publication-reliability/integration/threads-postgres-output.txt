@@ -1,0 +1,27 @@
+ Container tower-contentops-reliability-verification-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+✔ T04/T09 actual generic lifecycle commits canonical fact, attempt and API state (351.405214ms)
+✔ T09 competing readers produce one canonical fact (127.765399ms)
+✔ T09 injected audit failure rolls back canonical fact, attempt and recovery completion (82.657586ms)
+✔ T07 lease expiration immediately before canonical commit rolls back every write (84.977532ms)
+✔ T07 generic fact writer cannot bypass a pending API hold even with a callback (72.118815ms)
+✔ T07 changed accepted text and revoked owner block readback without provider GET (70.186582ms)
+✔ T08 real serializable reservation persists budget across concurrent readers (129.572191ms)
+✔ additive migration preserves old attempt and enforces tenant FK, uniqueness and budget (45.023843ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+✔ Threads release respects immutable Owner visual request despite restored no-visual projections (221.246708ms)
+✔ Threads pending reconciliation respects immutable Owner visual request before provider GET (65.132169ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+✔ Actual MCP preview reports immutable pending visual requirement despite restored local projections (2623.104605ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5485.356498

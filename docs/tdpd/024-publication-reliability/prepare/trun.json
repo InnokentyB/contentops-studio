@@ -1,0 +1,184 @@
+{
+  "package": "024-prepare",
+  "date": "2026-10-19",
+  "baseline": "3fd625a3b5ecce44fd6956ec0d1355e5ed3ff3e4",
+  "owner_gate": "Утверждаю пять пакетов",
+  "runs": [
+    {
+      "id": "PREP-RED-APPLICATION",
+      "passed": 0,
+      "failed": 1,
+      "cause": "missing createPreparationRecovery application"
+    },
+    {
+      "id": "PREP-SOURCE-1",
+      "passed": 36,
+      "failed": 0
+    },
+    {
+      "id": "PREP-REVIEW-1",
+      "findings": [
+        "transaction-wide preparation writer bypass",
+        "generic settings could forge proposed ledger"
+      ],
+      "resolution": "explicit first_permit purpose+attempt+generation; dedicated protected BrowserPreparationExecution model instead of project settings"
+    },
+    {
+      "id": "PREP-BUILD-1",
+      "result": "PASS",
+      "image": "edb3e686018c",
+      "command": "offline npm run build:backend including Prisma generation"
+    },
+    {
+      "id": "PREP-MIGRATION",
+      "result": "PASS",
+      "target": "new dedicated PG15 tmpfs synthetic database",
+      "historical_admission": false
+    },
+    {
+      "id": "PREP-PG-1",
+      "passed": 8,
+      "failed": 0
+    },
+    {
+      "id": "PREP-SOURCE-2",
+      "passed": 38,
+      "failed": 0
+    },
+    {
+      "id": "PREP-PG-EXPANDED-RED",
+      "passed": 12,
+      "failed": 1,
+      "cause": "private pickup had no corresponding immutable audit event"
+    },
+    {
+      "id": "PREP-BUILD-2",
+      "result": "PASS",
+      "image": "cdade1a499ce"
+    },
+    {
+      "id": "PREP-PG-2",
+      "passed": 20,
+      "failed": 0
+    },
+    {
+      "id": "PREP-COMPILED-2",
+      "passed": 38,
+      "failed": 0
+    },
+    {
+      "id": "PREP-REVIEW-2",
+      "findings": [
+        "readyResult replay could reset readback clock/lease",
+        "operation readback finalization did not atomically complete preparation ledger"
+      ],
+      "resolution": "first-transition-only CAS; shared completion inside withBrowserRecoveryFinalization, covering ordinary and LinkedIn API fact paths"
+    },
+    {
+      "id": "PREP-QUEUED-RED",
+      "passed": 0,
+      "failed": 1,
+      "cause": "raw queued status UNKNOWN instead of NOT_DISPATCHED"
+    },
+    {
+      "id": "PREP-FINALIZATION-FIRST-RED",
+      "passed": 0,
+      "failed": 2,
+      "causes": [
+        "queued status defect",
+        "fake reader observation captured before reservation, so fixture incorrectly returned coverage incomplete"
+      ],
+      "classification": "second failure was test fixture timing, not production finalization evidence"
+    },
+    {
+      "id": "PREP-SHARED-FINALIZATION-RED",
+      "passed": 0,
+      "failed": 1,
+      "target": "previous image after fixture correction",
+      "cause": "canonical fact succeeded but protected ledger remained awaiting_result"
+    },
+    {
+      "id": "PREP-BUILD-3",
+      "result": "PASS",
+      "image": "62762d6804a3"
+    },
+    {
+      "id": "PREP-PG-REVIEWED",
+      "passed": 23,
+      "failed": 0,
+      "skipped": 0,
+      "artifact": "postgres-output.txt",
+      "includes": [
+        "actual owning MCP recovery",
+        "zombie old generation",
+        "concurrent recovery and pickup",
+        "first permit races quiescence",
+        "one send and same-attempt fact",
+        "10-second timeout rejects late ACK",
+        "budget offsets and restart",
+        "settings forgery ignored",
+        "readback replay retains active lease/deadline",
+        "atomic ledger/fact rollback",
+        "shared readback finalizer completes ledger",
+        "absent new table preserves old recovery"
+      ]
+    },
+    {
+      "id": "PREP-COMPILED-REVIEWED",
+      "passed": 38,
+      "failed": 0
+    },
+    {
+      "id": "PREP-UNKNOWN-RED",
+      "passed": 0,
+      "failed": 1,
+      "cause": "unclassified dependency failure incorrectly claimed a concurrency conflict"
+    },
+    {
+      "id": "PREP-SOURCE-FINAL",
+      "passed": 58,
+      "failed": 0,
+      "skipped": 0,
+      "artifact": "tests-output.txt",
+      "includes": "truthful static PREPARATION_RECOVERY_FAILED diagnosis; no raw dependency exception"
+    },
+    {
+      "id": "PREP-QUALITY-FINAL",
+      "result": "PASS",
+      "score": 77,
+      "minimum": 77,
+      "runtime_findings": 7096,
+      "baseline": 7096,
+      "baseline_changed": false
+    },
+    {
+      "id": "PREP-OLD-PG-SETUP-1",
+      "passed": 19,
+      "failed": 1,
+      "cause": "existing regression fixture requires pg through NODE_PATH; corrected container environment",
+      "classification": "test setup"
+    },
+    {
+      "id": "PREP-OLD-PG-SETUP-2",
+      "passed": 19,
+      "failed": 1,
+      "cause": "existing immutable migration fixture reads /workspace; added read-only source alias",
+      "classification": "test setup"
+    },
+    {
+      "id": "PREP-OLD-PG-FINAL",
+      "passed": 20,
+      "failed": 0,
+      "skipped": 0,
+      "artifact": "recovery-regression-output.txt"
+    }
+  ],
+  "integration_required": [
+    "Exact combined source backend/frontend compile: final two static error-classification edits occurred after build3",
+    "tests/tdpd/linkedin-preparation-integration.test.cjs: two required cross-package API finalization cases; LinkedIn application module is absent in standalone baseline",
+    "Merge browser_publication_tools preserving recovery second argument and preparation third argument/defaults"
+  ],
+  "uat": "PENDING OWNER",
+  "live_capability": "NOT ADMITTED: no real authenticated pickup transport or exclusively fenced supervisor registered",
+  "production_changes": false
+}

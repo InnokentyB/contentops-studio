@@ -1,0 +1,60 @@
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+✔ VK article art context exposes cover dimensions and safe area (1.791119ms)
+✔ A: no-visual is a positive ready state and does not require generation (0.228342ms)
+✔ B: generated is not publication-ready until visual review approves an asset (0.158271ms)
+✔ C: evidence visuals without evidence refs require a source instead of generation (0.332862ms)
+✔ D: simulated documentation is never a valid visual decision (0.185971ms)
+✔ E: a newer content revision makes an approved visual stale (0.156751ms)
+✔ I: a local approved asset cannot make the handoff ready (0.15435ms)
+✔ F: idempotency contract exposes only deterministic decisions (0.152901ms)
+✔ G: required and forbidden placement modes cannot be bypassed (0.227841ms)
+✔ H: art-director MCP can assess visuals but cannot rewrite publication copy (0.286032ms)
+✔ revision-bound source inspection accepts MP4 and records checksum (0.623844ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+✔ owner recovery creates one fresh revision-bound input, audits it, and holds old generation (2.002861ms)
+✔ recovery rejects published or changed task before any write (0.678673ms)
+✔ recovery stops on compare-and-swap race before creating input (0.292372ms)
+✔ recovery refuses a newer art input or an active old generator (0.454612ms)
+✔ non-owner cannot start recovery (0.212011ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+✔ owner CAS requires a visual and materializes one revision-bound art-direction input (2.099671ms)
+✔ generic visual CAS rejects publication evidence, assets, decisions, active inputs and guard drift (0.912935ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+✔ approved durable asset cancels only actionable visual work for its revision and decision or placement (1.206816ms)
+✔ article channels share the canonical article-cover placement (1.467688ms)
+✔ Dzen distinguishes short feed posts from longread covers without inventing post geometry (0.936555ms)
+✔ VC and Habr covers expose explicit article contracts (0.220922ms)
+✔ accepting site content normalizes a legacy feed default to the canonical blog cover (0.121211ms)
+✔ Telegram and VK stories use channel-specific poll capabilities (0.256141ms)
+✔ VK longread uses a distinct manual article-cover contract (0.235781ms)
+✔ VK exposes approved MP4 video as a canonical browser-capable placement (0.223711ms)
+✔ Setka feed exposes the established 4:3 asset contract (0.185891ms)
+✔ VK feed exposes the accepted square asset contract used by the connector (0.206541ms)
+✔ Dzen longread uses the configured article transport contract (0.248302ms)
+✔ Telegram and Threads feed briefs have explicit editorial geometry (0.195251ms)
+✔ configured channel placement overrides the type fallback (0.16409ms)
+✔ unknown channels cannot be repaired without an explicit contract (0.226231ms)
+✔ Dzen feed is now canonical, while unrelated article channels stay strict (0.207451ms)
+✔ DEV.to article cover uses the manual wide-image contract (0.177441ms)
+✔ managed visual metadata is derived from the binary rather than caller claims (1.026635ms)
+✔ visual base64 and durable URL validation reject unsafe inputs (1.124066ms)
+✔ visual generation is blocked until the weekly topic plan is approved (0.931955ms)
+✔ old site/blog decision cannot generate an asset after article-cover repair (0.187491ms)
+✔ visual decision accepts the bound channel name, ID or legacy type but not another account (0.242401ms)
+✔ visual generation is blocked until the current text revision is accepted (0.131571ms)
+✔ visual generation requires an approved GENERATE brief and alt text (0.170401ms)
+✔ production prompt bans text, pseudo interfaces, office scenes and comic retelling (0.730844ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+✔ storage quota and capacity failures become explicit readiness reasons (0.788095ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+✔ ordinary X uses the provider-safe 280 weighted-character limit (1.282487ms)
+✔ X weighted length treats URLs as t.co length and non-Latin symbols conservatively (0.181871ms)
+✔ content acceptance cannot mark an overlength ordinary X revision ready (0.413512ms)
+ℹ tests 46
+ℹ suites 0
+ℹ pass 46
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1770.12573

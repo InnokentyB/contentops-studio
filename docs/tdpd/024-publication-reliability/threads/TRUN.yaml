@@ -1,0 +1,122 @@
+date: 2026-10-19
+baseline: 3fd625a3b5ecce44fd6956ec0d1355e5ed3ff3e4
+authority: owner approved five LOCK/QAR/ARCH/RISK packets; synthetic implementation only
+runtime: Tower Docker linux/amd64; no real provider calls
+attempts:
+  - id: T-RED-01
+    target: tests/tdpd/threads-api-phases.test.cjs
+    result: EXPECTED_RED
+    tests: 3
+    failures: 3
+    cause: existing transport ignored durable phase and ID hooks; provider calls continued after simulated DB write failures
+  - id: T-GREEN-01
+    target: phase hooks plus identity/store synthetic tests
+    result: PASS
+    tests: 18
+  - id: T-BOUNDARY-01
+    result: FAIL
+    tests: 5
+    failures: 2
+    cause: exhausted budget incorrectly returned BACKOFF; MCP harness lacked synthetic Telegram bootstrap token
+    correction: budget checked before backoff; only synthetic token supplied inside container
+  - id: T-BOUNDARY-02
+    result: PASS
+    tests: 5
+    note: commit error projected to safe FACT_COMMIT_PENDING; expired lease allows later same-attempt recovery
+  - id: T-BUILD-01
+    result: PASS
+    target: backend Prisma/TypeScript and frontend TypeScript/Vite
+  - id: T-SETUP-01
+    result: ERROR
+    cause: Docker default network pools exhausted
+    correction: inspected routes/subnets; allocated free project-isolated 10.231.83.0/28; no existing network changed
+  - id: T-SETUP-02
+    result: ERROR
+    cause: installed Prisma v7 rejects old --skip-generate flag
+    correction: used supported prisma db push only against empty synthetic DB
+  - id: T-SETUP-03
+    result: ERROR
+    cause: compose source mount traversed one parent too far
+    correction: corrected reviewed source-only mount before schema initialization
+  - id: T-PG-01
+    result: FAIL
+    tests: 7
+    failures: 6
+    cause: synthetic User fixture omitted required name
+    correction: required synthetic name added; production code untouched
+  - id: T-PG-02
+    result: PASS
+    tests: 7
+    target: actual canonical fact, CAS/read races, audit rollback, pending API hold, owner/package denial, additive migration
+  - id: T-REGRESSION-01
+    result: FAIL
+    tests: 51
+    failures: 2
+    cause: new numeric validation unintentionally applied to historical reply/chain routes
+    correction: strict durable identity validation limited to journal-enabled route
+  - id: T-REGRESSION-02
+    result: PASS
+    tests: 14
+    target: original provider tests including failed chain/reply scenarios
+  - id: T-QUALITY-01
+    result: ERROR
+    cause: wrong Git administrative directory mounted for linked worktree
+    correction: actual read-only git-common-dir mounted
+  - id: T-QUALITY-02
+    result: FAIL
+    score: 77
+    cause: editing historical capability-set initializer changed baselined identities; two intentionally removed fixed-tenant checks were obsolete baseline entries; static audit actor literal was flagged
+    correction: separate generic capability condition; phase audit attributed to original authenticated snapshot actor; root reviewed deletion of only the two removed comparison rows
+  - id: T-QUALITY-03
+    result: PASS
+    score: 77
+    findings: 7094
+    baseline_findings: 7094
+    exemptions_added: 0
+  - id: T-ADVERSARIAL-RED-01
+    result: EXPECTED_RED
+    tests: 1
+    failures: 1
+    cause: lease expiration between beforeWrite and beforeCommit did not reject
+    evidence: lease-expiry-red-output.txt
+    correction: carry newly reserved expiry; verify original lease expiry and generation at canonical commit
+  - id: T-ADVERSARIAL-SETUP-01
+    result: ERROR
+    cause: first oversized-reader mock intentionally omitted stream EOF and ignored signal, causing RED harness to hang
+    correction: identified/stopped only owned temporary test container; used finite oversized valid JSON for causal RED
+  - id: T-ADVERSARIAL-RED-02
+    result: EXPECTED_RED
+    tests: 2
+    failures: 2
+    cause: recovery GET accepted oversized JSON and omitted redirect:error
+    evidence: bounded-reader-red-output.txt
+    correction: recovery-only bounded streaming reader; preserved existing service error class re-export
+  - id: T-PROTOCOL-RED-01
+    result: EXPECTED_RED
+    tests: 1
+    failures: 1
+    cause: official published media type TEXT_POST was incorrectly confused with container-create TEXT
+    evidence: media-protocol-red-output.txt
+    correction: strict TEXT_POST validator and fixtures; no permissive fallback
+  - id: T-ROOT-REVIEW-RED-01
+    result: EXPECTED_RED
+    tests: 5
+    failures: 5
+    cause: changed schedule or decision escaped original release binding before POST/GET; total DB outage during result journal and freeze returned generic error
+    evidence: root-review-red-output.txt
+    correction: exact package-proof comparison at mutation/confirmation boundaries; static persistence-unavailable error on failed uncertainty write
+  - id: T-OBSERVATION-RED-01
+    result: EXPECTED_RED
+    tests: 1
+    failures: 1
+    cause: package change after dispatch prevented historical post ID persistence
+    evidence: observation-red-output.txt
+    correction: retain validated original receipt through attempt/generation CAS without regranting current send/fact authority
+final:
+  focused: PASS 36/36; focused-output.txt
+  postgres: PASS 8/8; postgres-output.txt
+  affected_regressions: PASS 51/51; regression-output.txt
+  build: backend/frontend PASS f0c73d370742 before final protocol-enum and review fixes; exact-source combined compile pending root integration
+  quality: PASS score77 runtime7094/7094; postcommit gate also required before handoff
+uat: AWAITING_OWNER_UAT
+production_mutations: none

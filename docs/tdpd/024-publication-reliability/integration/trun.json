@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-19",
+  "status": "ENGINEERING_VERIFIED_OWNER_UAT_PENDING",
+  "authorization": "Owner approved five LOCK/QAR/ARCH/RISK packages for synthetic local implementation; MEMORY-001 separately approved",
+  "baseline": "3fd625a3b5ecce44fd6956ec0d1355e5ed3ff3e4",
+  "verified_production_source_commit": "701efcf472de0414aec33f986989a9109e295909",
+  "image": "planner-reliability-integrated:20261019",
+  "image_sha256": "e528950becec9829fd3d5e1da596919e782362f2310490f9e2485acddb906c41",
+  "platform": "linux/amd64",
+  "build": {"backend": "PASS", "frontend": "PASS", "evidence": "build-output.txt"},
+  "runs": [
+    {"boundary": "compiled MCP identity, memory drain, actionable errors, LinkedIn reader, preparation and recovery", "passed": 104, "failed": 0, "evidence": "focused-output.txt"},
+    {"boundary": "actual SDK preview and Threads API transport/store/service contracts", "passed": 58, "failed": 0, "evidence": "focused-output.txt"},
+    {"boundary": "actual MCP plus PostgreSQL visual lifecycle, immutable authority and deterministic races", "passed": 17, "failed": 0, "evidence": "visual-postgres-output.txt"},
+    {"boundary": "compiled art, asset, storage and placement compatibility", "passed": 46, "failed": 0, "evidence": "visual-regression-output.txt"},
+    {"boundary": "PostgreSQL Threads canonical commit, rollback, budgets and immutable visual authority", "passed": 11, "failed": 0, "evidence": "threads-postgres-output.txt"},
+    {"boundary": "actual MCP and PostgreSQL preview read-only enforcement, scope and secret projection", "passed": 6, "failed": 0, "evidence": "preview-postgres-output.txt"},
+    {"boundary": "compiled Threads and authenticated MCP compatibility", "passed": 51, "failed": 0, "evidence": "threads-compiled-regression-output.txt"},
+    {"boundary": "PostgreSQL LinkedIn, preparation, shared finalization, API-to-ledger atomicity and historical recovery", "passed": 49, "failed": 0, "evidence": "browser-postgres-output.txt"},
+    {"boundary": "historical shared-browser and signed-X lifecycle contracts", "passed": 51, "failed": 0, "evidence": "shared-route-regression-output.txt"},
+    {"boundary": "compiled signed-X protocol and authentication compatibility", "passed": 14, "failed": 0, "evidence": "shared-route-regression-output.txt"}
+  ],
+  "counts_note": "Run counts include overlapping regression scenarios; do not describe their sum as unique tests.",
+  "quality": {"score": 77, "runtime_findings": 7093, "baseline": 7093, "new_exemptions": 0, "verdict": "PASS", "evidence": "quality-gate-output.txt"},
+  "migrations": {"target": "three separate empty synthetic PostgreSQL databases", "verdict": "PASS", "evidence": ["migrations-shared.txt", "migrations-threads.txt", "migrations-preview.txt"], "production_applied": false},
+  "corrected_integration_setup_errors": [
+    "Synthetic Compose initially lived under operational ops; generic TS_NODE_PROJECT key was classified as runtime binding. Relocated synthetic-only configuration alongside fixtures; no scanner/baseline exemption added.",
+    "Policy scan attempted a deleted tracked path during unstaged rename; staged/committed exact rename and reran successfully.",
+    "Historical v1 fixtures intentionally expose no v2 storage and require default disabled admission; reran compatibility suite with BROWSER_RECOVERY_V2_ENABLED=false.",
+    "Historical migration-delta fixture requires /workspace; added a second read-only mount of the same project source and reran all 49 PostgreSQL cases successfully."
+  ],
+  "cleanup": "Temporary central database container/network removed with compose down; no named volume, backup or unrelated service pruned",
+  "production_state": "UNCHANGED",
+  "provider_calls": false,
+  "public_push_pr_deploy": false,
+  "live_admission": {"threads_api_recovery": "default disabled", "linkedin_reader_credentials_and_receipt_issuer": "not registered", "preparation_supervisor_and_authenticated_pickup_transport": "not registered", "historical_attempt_adoption": false},
+  "owner_uat": "PENDING",
+  "remote_ci": "NOT_RUN; new workflow wiring added locally"
+}

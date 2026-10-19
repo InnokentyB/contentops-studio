@@ -1,0 +1,18 @@
+{
+  "package": "REL-03",
+  "baseline": "3fd625a3b5ecce44fd6956ec0d1355e5ed3ff3e4",
+  "authorization": "Owner approved five LOCK/QAR/ARCH/RISK packages, 2026-10-19; synthetic tests and local implementation only",
+  "runs": [
+    {"phase": "RED", "boundary": "actual MCP SDK discovery/call", "passed": 1, "failed": 10, "evidence": "red-output.txt"},
+    {"phase": "GREEN", "boundary": "actual MCP SDK plus existing identity/profile regressions", "passed": 35, "failed": 0, "evidence": "green-output.txt"},
+    {"phase": "REVIEW_RED", "boundary": "blocked handoff/status/hold and wrong-channel art decision", "new_failures": 4, "evidence": "review-red-output.txt"},
+    {"phase": "POSTGRES_GREEN", "boundary": "actual MCP and enforced PostgreSQL read-only transaction", "passed": 6, "failed": 0, "evidence": "postgres-output.txt"}
+  ],
+  "quality": {"verdict": "PASS", "score": 77, "runtime_findings": 7096, "baseline": 7096, "evidence": "quality-gate-output.txt"},
+  "build": {"backend_frontend": "PASS", "exact_final_source": "d8bb27e production source", "image": "planner-reliability-preview:20261019", "image_id": "377feb5ecfdb", "evidence": "build-output.txt"},
+  "independent_review": "Threads agent found four reproducible guard gaps; root fixed them and PostgreSQL verification passed",
+  "production_mutations": false,
+  "provider_calls": false,
+  "public_export": false,
+  "owner_uat": "PENDING"
+}

@@ -8,6 +8,7 @@ import threadsEngagementService from '../../services/threads_engagement.service'
 import prisma from '../../db';
 import { registerDzenInboundTools } from './dzen_inbound_tools';
 import { asToolResult, INTERNAL_MUTATION_ANNOTATIONS } from './common';
+import {VisualReviewOutcome} from '../../services/visual_reassessment_binding';
 
 /**
  * Registers media, art direction, metrics, and Dzen engagement tools on the given MCP server.
@@ -51,9 +52,12 @@ export function registerMediaMetricsTools(server: McpServer): void {
             projectId: z.number().int().positive(),
             actorId: z.string(),
             assetId: z.number().int().positive(),
-            decision: z.enum(['approved', 'rejected']),
+            decision: z.nativeEnum(VisualReviewOutcome),
             reason: z.string().optional(),
-            qaReport: z.record(z.string(), z.unknown()).optional()
+            qaReport: z.record(z.string(), z.unknown()).optional(),
+            workItemId:z.number().int().positive().optional(),
+            leaseToken:z.string().min(1).max(500).optional(),
+            reassessmentGeneration:z.string().uuid().optional()
         }
     }, async (args) => {
         const result = await imageAssetService.reviewImageAsset(args);
@@ -121,7 +125,8 @@ export function registerMediaMetricsTools(server: McpServer): void {
             projectId: z.number().int().positive(), actorId: z.string(), contentItemId: z.number().int().positive(),
             fileUrl: z.string().url().optional(), fileDataBase64: z.string().min(1).optional(),
             fileName: z.string().min(1).optional(), mimeType: z.string().min(1).optional(),
-            provenance: z.record(z.string(), z.unknown()), altText: z.string().optional()
+            provenance: z.record(z.string(), z.unknown()), altText: z.string().optional(),
+            decisionId:z.number().int().positive().optional(),reassessmentGeneration:z.string().uuid().optional()
         }
     }, async (args) => asToolResult(await artDirectionService.attachVisualSource(args)));
 

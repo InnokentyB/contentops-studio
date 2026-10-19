@@ -1103,8 +1103,43 @@ model DeliveryAttempt {
   @@schema("planner")
   connector_dispatch_jobs ConnectorDispatchJob[]
   browser_recovery BrowserDeliveryRecovery?
+  api_recovery ApiDeliveryRecovery?
+  preparation_execution BrowserPreparationExecution?
   @@unique([project_id, id])
 
+}
+
+model ApiDeliveryRecovery {
+  id Int @id @default(autoincrement())
+  project_id Int
+  content_item_id Int
+  attempt_id Int
+  transport String @default("threads_api")
+  contract_version Int @default(1)
+  row_version Int @default(0)
+  generation Int @default(1)
+  state String @default("claimed")
+  package_sha256 String
+  release_sha256 String
+  snapshot Json
+  container_id String?
+  post_id String?
+  publish_started_at DateTime? @db.Timestamptz(6)
+  observed_at DateTime? @db.Timestamptz(6)
+  rounds Int @default(0)
+  requests_used Int @default(0)
+  deadline_at DateTime? @db.Timestamptz(6)
+  next_read_at DateTime? @db.Timestamptz(6)
+  lease_sha256 String?
+  lease_expires_at DateTime? @db.Timestamptz(6)
+  cause_code String?
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @updatedAt @db.Timestamptz(6)
+  attempt DeliveryAttempt @relation(fields: [project_id, attempt_id], references: [project_id, id], onDelete: Cascade)
+  @@unique([project_id, attempt_id])
+  @@index([project_id, content_item_id])
+  @@map("api_delivery_recovery")
+  @@schema("planner")
 }
 
 model ImageAsset {
@@ -1346,5 +1381,21 @@ model BrowserDeliveryRecovery {
   @@unique([project_id, attempt_id])
   @@index([project_id, content_item_id])
   @@map("browser_delivery_recovery")
+  @@schema("planner")
+}
+
+// Protected technical ownership and pending pickup; never ordinary project settings.
+model BrowserPreparationExecution {
+  project_id Int
+  attempt_id Int
+  content_item_id Int
+  work_item_id Int
+  row_version Int @default(0)
+  ledger Json
+  updated_at DateTime @updatedAt @db.Timestamptz(6)
+  attempt DeliveryAttempt @relation(fields: [project_id, attempt_id], references: [project_id, id], onDelete: Cascade)
+  @@id([project_id, attempt_id])
+  @@index([project_id, content_item_id])
+  @@map("browser_preparation_execution")
   @@schema("planner")
 }
