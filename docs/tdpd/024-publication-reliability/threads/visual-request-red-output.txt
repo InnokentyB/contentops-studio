@@ -1,0 +1,82 @@
+ Container contentops-threads-reliability-synthetic-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+✖ Threads release respects immutable Owner visual request despite restored no-visual projections (539.936681ms)
+✖ Threads pending reconciliation respects immutable Owner visual request before provider GET (70.600635ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+✖ Actual MCP preview reports immutable pending visual requirement despite restored local projections (4284.131167ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 0
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6215.962671
+
+✖ failing tests:
+
+test at tests/tdpd/threads-visual-reassessment-postgres.test.cjs:48:1
+✖ Threads release respects immutable Owner visual request despite restored no-visual projections (539.936681ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/threads-visual-reassessment-postgres.test.cjs:49:27)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /PUBLICATION_VISUAL_REVIEW_REQUIRED/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/tdpd/threads-visual-reassessment-postgres.test.cjs:53:1
+✖ Threads pending reconciliation respects immutable Owner visual request before provider GET (70.600635ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /PUBLICATION_VISUAL_REVIEW_REQUIRED/. Input:
+  
+  'Error: [THREADS_FACT_COMMIT_PENDING] Reconcile the existing attempt; never resend'
+  
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/threads-visual-reassessment-postgres.test.cjs:70:2)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: [THREADS_FACT_COMMIT_PENDING] Reconcile the existing attempt; never resend
+        at GenericThreadsReleaseService.reconcileOnce (/source/src/services/threads_generic_release.service.ts:382:23)
+        at processTicksAndRejections (node:internal/process/task_queues:104:5)
+        at async GenericThreadsReleaseService.reconcile (/source/src/services/threads_generic_release.service.ts:305:24)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (/source/tests/tdpd/threads-visual-reassessment-postgres.test.cjs:70:2)
+        at async Test.run (node:internal/test_runner/test:1409:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:974:7),
+    expected: /PUBLICATION_VISUAL_REVIEW_REQUIRED/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests/tdpd/threads-visual-reassessment-postgres.test.cjs:75:1
+✖ Actual MCP preview reports immutable pending visual requirement despite restored local projections (4284.131167ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'LOCAL_VALID'
+  - 'BLOCKED'
+  
+      at TestContext.<anonymous> (/source/tests/tdpd/threads-visual-reassessment-postgres.test.cjs:88:9)
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'LOCAL_VALID',
+    expected: 'BLOCKED',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+

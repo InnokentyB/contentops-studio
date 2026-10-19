@@ -57,3 +57,5 @@ export function createBrowserRecoveryOperation(ports:BrowserRecoveryPorts,clock:
   return coordinateBrowserRecovery({scope:{projectId:args.projectId,taskId:args.taskId,attemptId:args.attemptId,packageSha256:digest},provider:args.snapshot.identity.platform,accountSha256:hash(JSON.stringify(args.snapshot.identity)),bodySha256:args.snapshot.bodySha256,assetSha256:args.snapshot.assetSha256,publishedAfterMs:lookupWindow.from.getTime(),publishedBeforeMs:lookupWindow.through.getTime()},{repository:createBrowserRecoveryRepository(deps,args.actorId),ports,clock,finalize});
  };
 }
+
+export {createLinkedInRecoveryReader} from './linkedin_recovery_reader';

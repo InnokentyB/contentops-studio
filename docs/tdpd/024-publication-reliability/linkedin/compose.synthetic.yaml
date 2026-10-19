@@ -1,0 +1,47 @@
+name: tower-contentops-linkedin-synthetic
+services:
+  synthetic-db:
+    image: postgres:15-alpine
+    user: '70:70'
+    environment:
+      POSTGRES_USER: synthetic
+      POSTGRES_PASSWORD: synthetic
+      POSTGRES_DB: shared_browser_synthetic
+    tmpfs:
+      - /var/lib/postgresql/data:uid=70,gid=70,mode=0700
+      - /var/run/postgresql:uid=70,gid=70,mode=0770
+    mem_limit: 512m
+    cpus: 1
+    pids_limit: 128
+    logging: {driver: json-file, options: {max-size: 10m, max-file: '2'}}
+    networks: [synthetic]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U synthetic -d shared_browser_synthetic']
+      interval: 2s
+      timeout: 2s
+      retries: 20
+  check:
+    image: planner-reliability-linkedin:20261019
+    user: '1000:1000'
+    working_dir: /opt/planner
+    environment:
+      DATABASE_URL: postgresql://synthetic:synthetic@synthetic-db:5432/shared_browser_synthetic
+      BROWSER_RECOVERY_V2_ENABLED: 'true'
+      SHARED_BROWSER_DIST: /opt/planner/dist
+      PRISMA_SCHEMA_ENGINE_BINARY: /opt/planner/node_modules/@prisma/engines/schema-engine-debian-openssl-3.0.x
+    volumes:
+      - ../../../..:/source:ro
+    command: [node, --test, --test-concurrency=1, /source/tests/tdpd/linkedin-recovery-postgres.test.cjs]
+    mem_limit: 1g
+    cpus: 1
+    pids_limit: 128
+    logging: {driver: json-file, options: {max-size: 10m, max-file: '2'}}
+    networks: [synthetic]
+    depends_on:
+      synthetic-db: {condition: service_healthy}
+networks:
+  synthetic:
+    internal: true
+    ipam:
+      config:
+        - subnet: 10.231.86.0/28

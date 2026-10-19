@@ -1,0 +1,41 @@
+✔ idle expiry releases resources and recently active sessions remain (1.049976ms)
+✔ executing requests and open response streams are protected even past idle timeout (0.274702ms)
+✔ explicit close releases server resources exactly once after active work finishes (0.722804ms)
+✔ cleanup failures are visible without secret or raw error disclosure (0.436782ms)
+✔ policy defaults and invalid overrides are explicit; stopped sweeper performs no work (21.626734ms)
+✔ explicit shutdown closes idle SSE resources without cancelling executing work (0.484943ms)
+✔ shutdown drain waits disconnected executing work even after transport removed its session (0.271081ms)
+✔ response closed before tracking cannot create a permanently retained phantom stream (0.223741ms)
+✔ closing admission blocks a new executing operation while drain waits existing work (0.351502ms)
+✔ real SDK expires idle session, returns 404 and reconnects by initialize; credentials/endpoint remain bound (81.21216ms)
+{"event":"memory_001_synthetic_soak","sessions_before":0,"sessions_peak":60,"sessions_after":0,"rss_before_bytes":110682112,"rss_peak_bytes":136765440,"rss_after_bytes":143187968,"savings_claim":false}
+✔ real SDK synthetic session soak returns retained count to baseline and records measured RSS (270.958895ms)
+✔ real SDK disconnected tool execution remains protected until callback actually completes (50.522327ms)
+✔ real SDK shutdown rejects new initialization and can drain with a connected idle SSE (26.202669ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+✔ remote MCP replaces caller-controlled actor and user identities (1.540348ms)
+✔ organization researcher scope cannot be overridden by tool arguments (0.161311ms)
+✔ remote MCP rejects an explicit project that differs from the token scope (0.12239ms)
+✔ remote MCP scopes user identity when the requested project matches the token (0.12915ms)
+✔ remote MCP injects the token-bound identity into bootstrap calls (0.14293ms)
+✔ remote MCP denies cross-tenant administrative tools (0.11083ms)
+✔ local MCP without a configured principal preserves tool arguments (0.108811ms)
+✔ writer MCP is restricted to its project and cannot invoke planner tools (0.150521ms)
+✔ writer MCP discovery exposes content tools but not slot mutation tools (113.515372ms)
+✔ planner MCP discovery exposes slot controls but not content mutation (73.160327ms)
+✔ only the owner MCP profile discovers audited content review recovery (55.737405ms)
+✔ editor, publisher and growth profiles expose only their governed lifecycle tools (187.647993ms)
+✔ role-scoped internal mutations do not request destructive host approval (610.791237ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2601.415945

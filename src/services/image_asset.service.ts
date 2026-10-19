@@ -1,4 +1,7 @@
 import prisma from '../db';
+import { Prisma } from '@prisma/client';
+import {createHash} from 'node:crypto';
+import {getVisualReassessment,lockVisualContent,assertVisualAssessmentBinding,assertVisualDecisionBinding,assertVisualMutationBeforeRelease,visualReassessmentError,VISUAL_REASSESSMENT_COMPLETE,VisualReviewOutcome} from './visual_reassessment_binding';
 import { requireProjectActorAccess } from './project_access.service';
 import { assertVisualGenerationGate } from './visual_generation_policy';
 import path from 'path';
@@ -34,6 +37,9 @@ export interface ReviewImageAssetArgs {
     decision: 'approved' | 'rejected';
     reason?: string;
     qaReport?: Record<string, unknown>;
+    workItemId?: number;
+    leaseToken?: string;
+    reassessmentGeneration?: string;
 }
 
 export interface ListImageAssetsArgs {
@@ -150,14 +156,23 @@ export class ImageAssetService {
             throw new Error('[VISUAL_SOURCE_BYTES_REQUIRED] Local visual sources must be registered with fileDataBase64 for durable ingestion');
         }
 
-        const latestAsset = await prisma.imageAsset.findFirst({
+        const asset = await prisma.$transaction(async (tx) => {
+        await lockVisualContent(tx,projectId,contentItemId);
+        const reassessment=await getVisualReassessment(tx,projectId,contentItemId);
+        if(reassessment){
+            await assertVisualMutationBeforeRelease(tx,projectId,contentItemId);
+            const current=await tx.contentItem.findUniqueOrThrow({where:{id:contentItemId}});
+            assertVisualAssessmentBinding(reassessment,reassessment.work_item_id,current,createHash('sha256').update(current.draft_text||'').digest('hex'));
+            await assertVisualDecisionBinding(tx,reassessment,projectId,contentItemId,decisionId||null);
+        }
+        const latestAsset = await tx.imageAsset.findFirst({
             where: { project_id: projectId, content_item_id: contentItemId },
             orderBy: { asset_version: 'desc' },
         });
 
         const nextVersion = latestAsset ? latestAsset.asset_version + 1 : 1;
 
-        const asset = await prisma.imageAsset.create({
+        const asset = await tx.imageAsset.create({
             data: {
                 project_id: projectId,
                 content_item_id: contentItemId,
@@ -173,20 +188,20 @@ export class ImageAssetService {
                 alt_text: altText || null,
                 aspect_ratio: aspectRatio || null,
                 file_url: fileUrl,
-                provenance: provenance as any,
+                provenance: provenance as Prisma.InputJsonValue,
                 status: 'candidate',
             },
         });
 
-        await prisma.$transaction(async (tx) => {
             await tx.contentItem.update({ where: { id: contentItemId }, data: { visual_state: 'IN_REVIEW', handoff_state: 'blocked' } });
             const dedupeKey = `visual-review:${asset.id}:${asset.asset_version}`;
             await tx.workItem.upsert({ where: { dedupe_key: dedupeKey }, update: {}, create: {
                 project_id: projectId, week_package_id: item.week_package_id, content_item_id: contentItemId,
                 item_key: item.item_key || `content:${contentItemId}`, kind: 'visual_review', state: 'available',
                 assignee_role: 'visual_reviewer', input_context_version: boundDecision!.source_content_revision,
-                dedupe_key: dedupeKey, result_payload: { asset_id: asset.id, decision_id: boundDecision!.id } as any
+                dedupe_key: dedupeKey, result_payload: { asset_id: asset.id, decision_id: boundDecision!.id,...(reassessment?{reassessment_generation:reassessment.generation}:{}) }
             } });
+            return asset;
         });
 
         return {
@@ -212,7 +227,7 @@ export class ImageAssetService {
         const { projectId, actorId, assetId, decision, reason, qaReport } = args;
         await requireProjectActorAccess(projectId, actorId);
 
-        const asset = await prisma.imageAsset.findFirst({
+        let asset = await prisma.imageAsset.findFirst({
             where: { id: assetId, project_id: projectId },
             include: { content_item: true, decision: true },
         });
@@ -224,18 +239,46 @@ export class ImageAssetService {
         if (decision === 'approved' && (!asset.decision || asset.content_revision !== asset.content_item.accepted_revision)) {
             throw new Error('[STALE_VISUAL_ASSET] Asset is not bound to the current accepted decision and revision');
         }
+        const visualContentId=asset.content_item_id;
         const updated = await prisma.$transaction(async (tx) => {
+            await lockVisualContent(tx,projectId,visualContentId);
+            const current=await tx.imageAsset.findFirst({where:{id:assetId,project_id:projectId},include:{content_item:true,decision:true}});
+            if(!current)throw visualReassessmentError('VISUAL_REASSESSMENT_ASSET_MISSING');
+            asset=current;
+            const reassessment=await getVisualReassessment(tx,projectId,current.content_item_id);
+            let reviewWorkId:number|null=null;
+            if(reassessment){
+                await assertVisualMutationBeforeRelease(tx,projectId,current.content_item_id);
+                assertVisualAssessmentBinding(reassessment,reassessment.work_item_id,current.content_item,createHash('sha256').update(current.content_item.draft_text||'').digest('hex'));
+                await assertVisualDecisionBinding(tx,reassessment,projectId,current.content_item_id,current.decision_id);
+                if(current.content_revision!==reassessment.revision||current.content_item.content_revision!==reassessment.revision||current.content_item.accepted_revision!==reassessment.revision||args.reassessmentGeneration!==reassessment.generation)throw visualReassessmentError('VISUAL_REASSESSMENT_GENERATION_CONFLICT');
+                if(!args.workItemId||!args.leaseToken)throw visualReassessmentError('VISUAL_REASSESSMENT_REVIEW_LEASE_REQUIRED');
+                const work=await tx.workItem.findFirst({where:{id:args.workItemId,project_id:projectId,content_item_id:current.content_item_id,kind:'visual_review',assignee_role:'visual_reviewer',state:'claimed',lease_actor_id:actorId,lease_token:args.leaseToken,lease_expires_at:{gte:new Date()},input_context_version:reassessment.revision}});
+                const payload=work?.result_payload as Prisma.JsonObject|null;
+                if(!work||payload?.asset_id!==assetId||payload?.decision_id!==current.decision_id)throw visualReassessmentError('VISUAL_REASSESSMENT_REVIEW_LEASE_REQUIRED');
+                if(current.content_item.visual_mode!=='required'||current.decision?.decision_version!==current.content_item.visual_decision_version)throw visualReassessmentError('VISUAL_REASSESSMENT_DECISION_CONFLICT');
+                reviewWorkId=work.id;
+            }
+            const durable = isServerResolvableVisualUrl(asset.file_url);
+            if(reassessment&&!durable)throw visualReassessmentError('VISUAL_REASSESSMENT_ASSET_NOT_DURABLE');
             const reviewed = await tx.imageAsset.update({ where: { id: assetId }, data: {
                 status: decision, review_reason: reason || null, qa_report: (qaReport || {}) as any,
                 reviewed_by: actorId, reviewed_at: new Date()
             } });
-            const durable = isServerResolvableVisualUrl(asset.file_url);
             await tx.contentItem.update({ where: { id: asset.content_item_id }, data: decision === 'approved'
                 ? { status: durable ? 'ready_for_execution' : asset.content_item.status, selected_asset_id: asset.id, visual_state: 'APPROVED', handoff_state: durable ? 'ready' : 'blocked' }
                 : { selected_asset_id: null, visual_state: 'REJECTED', handoff_state: 'blocked' }
             });
+            if(reassessment&&reviewWorkId){
+                const completed=await tx.workItem.updateMany({where:{id:reviewWorkId,state:'claimed',lease_actor_id:actorId,lease_token:args.leaseToken,lease_expires_at:{gte:new Date()}},data:{state:'completed',lease_actor_id:null,lease_token:null,lease_expires_at:null}});
+                if(completed.count!==1)throw visualReassessmentError('VISUAL_REASSESSMENT_REVIEW_LEASE_REQUIRED');
+                await tx.workflowEvent.create({data:{project_id:projectId,content_item_id:current.content_item_id,work_item_id:reviewWorkId,actor_id:actorId,command:decision===VisualReviewOutcome.Approved&&durable?VISUAL_REASSESSMENT_COMPLETE:'ba_reject_publication_visual_reassessment_asset',idempotency_key:reassessment.generation+':'+current.id,after_state:{generation:reassessment.generation,asset_id:current.id,decision_id:current.decision_id}}});
+            }
             if (decision === 'approved' && durable) await cancelSupersededVisualWork(tx, asset);
             return reviewed;
+        }).catch((error:unknown)=>{
+            if(error instanceof Error&&/^\[VISUAL_REASSESSMENT_[A-Z_]+\]/.test(error.message))throw error;
+            throw visualReassessmentError('VISUAL_REASSESSMENT_STORAGE_OR_PLACEMENT_CHECK_FAILED');
         });
 
         return {

@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import prisma from '../db';
+import {assertVisualReassessmentReady} from './visual_reassessment_binding';
 import { loadAgentWorkspaceManifest } from './agent_workspace_manifest.service';
 
 export const checksum = z.string().regex(/^[a-f0-9]{64}$/);
@@ -167,7 +168,9 @@ export async function checkedBrowserContext(tx:BrowserDb,args:BrowserRequest,dep
     await requireBrowserOwner(tx,args);
     const manifest=await deps.manifest(args.projectId,Number(args.actorId.slice(5)),tx);
     if(manifest.checksum!==args.snapshot.manifestChecksum)throw new Error('[STALE_MANIFEST]');
-    const task=await loadBrowserTask(tx,args);assertBrowserSnapshot(task,args.snapshot);return task;
+    const task=await loadBrowserTask(tx,args);
+    await assertVisualReassessmentReady(tx,args.projectId,args.taskId);
+    assertBrowserSnapshot(task,args.snapshot);return task;
 }
 export function browserFingerprint(task:BrowserTask,s:BrowserSnapshot):string {
     return hash(JSON.stringify({snapshot:s,channel:task.channel?.config,imageUrl:task.selected_asset?.file_url,

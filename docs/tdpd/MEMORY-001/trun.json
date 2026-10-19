@@ -1,0 +1,33 @@
+{
+  "package": "MEMORY-001",
+  "date": "2026-10-18",
+  "baseline": "9defd94a34d4d10558a5191d10703ba3f7412245",
+  "environment": "Tower Docker; planner-memory-001; internal subnet 10.231.75.0/28; synthetic only",
+  "red": [
+    {"suite":"mcp_session_lifecycle.test.ts","result":"FAIL","reason":"Approved lifecycle module absent; running Docker harness reached missing behavior module."},
+    {"suite":"mcp_session_sdk.test.ts","result":"FAIL","reason":"Initial fixture incorrectly treated connected SDK SSE as idle; corrected expectation to preserve open stream and disconnect before idle expiry."},
+    {"suite":"mcp_session_sdk.test.ts","result":"ERROR","reason":"Synthetic SDK initialization callback initially returned registry instead of void; fixture type corrected before protocol execution."},
+    {"suite":"mcp_session_lifecycle.test.ts","result":"FAIL","reason":"Explicit shutdown could not release idle SSE; separated shutdown cleanup from idle expiry while protecting execution."},
+    {"suite":"mcp_session_lifecycle.test.ts","result":"FAIL","reason":"Independent review exposed missing drain for disconnected executing work already removed from session map; implemented separate running-operation ownership."},
+    {"suite":"mcp_session_lifecycle.test.ts","result":"FAIL","reason":"A response destroyed before tracking could become a phantom open stream; handle already-closed response state."},
+    {"suite":"mcp_session_lifecycle.test.ts","result":"FAIL","reason":"Independent review exposed new admission during drain; stop admission synchronously and reject new execution."},
+    {"suite":"mcp_session_sdk.test.ts","result":"FAIL","reason":"Live passive GET/SSE blocked operation drain; classify GET as protected response stream rather than business execution."},
+    {"suite":"mcp_session_sdk.test.ts","result":"FAIL","reason":"Fixed-delay disconnect assertion was timing-dependent; fixture now waits bounded actual connection/execution quiescence."}
+  ],
+  "green": [
+    {"suite":"final compiled lifecycle and real SDK plus existing remote auth","tests":26,"passed":26,"failed":0,"skipped":0,"newLifecycleTests":9,"newSdkTests":4,"existingRemoteAuthTests":13},
+    {"command":"Final Docker complete backend and frontend build","result":"PASS","image":"planner-memory-001:20261018","manifest":"sha256:0694577bde03c50fde430543524872dca9f9183b05c4a123a435e6bdf2b68d56"},
+    {"command":"npm run quality:gate in Docker","result":"PASS","score":77,"runtimePolicyFindings":7096,"runtimePolicyBaseline":7096,"hardStops":0,"note":"Final staged-file scan passed at 2026-10-18T22:40:57.605Z; raw report in quality-gate-output.txt. No baseline weakened."},
+    {"command":"git diff --check","result":"PASS"}
+  ],
+  "compiledSyntheticSoak": {
+    "sessionsBefore":0,"sessionsPeak":60,"sessionsAfterCleanup":0,
+    "rssBeforeBytes":111878144,"rssPeakBytes":138223616,"rssAfterCleanupBytes":144384000,
+    "savingsClaim":false,
+    "interpretation":"Retained disconnected sessions returned to baseline; RSS increased in this run. No inferred production memory savings."
+  },
+  "independentReview": {"reviewer":"direct_adapter_diagnostics","findingsFixed":["disconnected in-flight shutdown drain","new request admission during drain"],"finalVerdict":"CLEAR for inspected MEMORY-001 scope; no remaining material source blocker"},
+  "production": {"providerCalls":0,"businessMutations":0,"deployment":"NOT_RUN","blocker":"No authenticated current deployment/quiescent-operation readback available. Public retained-session count cannot establish safe deployment window."},
+  "rawEvidence":["tests-output.txt","quality-gate-output.txt"],
+  "ownerUat":"PENDING"
+}

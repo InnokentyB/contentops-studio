@@ -1,0 +1,63 @@
+ Container tower-contentops-reliability-verification-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+✔ PREP-01 original admitted start creates protected PREPARE ownership and no submit permission (321.868165ms)
+✔ PREP-02/03 original attempt resumes into durable pickup after restart, old executor cannot permit/dispatch (209.55583ms)
+✔ PREP-05 first permit is one-shot, dispatch once, and canonical result completes the same attempt (195.354935ms)
+✔ PREP-06 concurrent recoverers produce at most one durable generation and pickup (91.123553ms)
+✔ PREP-04 bad supervisor proof leaves original attempt held and cannot issue a permit (58.775106ms)
+✔ PREP-07 revoked approval denies before supervisor or lease mutation (52.960307ms)
+✔ PREP-08 expiry survives application restart and cannot reset durable budget (87.137356ms)
+✔ PREP-09 generic settings cannot forge protected execution proof or counters (48.340485ms)
+✔ PREP-08 three resumptions use durable offsets and never reset counters with a new key (188.88544ms)
+✔ PREP-05 an already issued generic permit event prevents quiescence and resume (48.202534ms)
+✔ PREP-07 cross-tenant and non-owner cannot request supervisor quiescence (53.032066ms)
+✔ PREP-06 simultaneous private pickups deliver the same lease, without additional authority (98.852205ms)
+✔ PREP-04 missing real supervisor never admits an otherwise ordinary original start (43.281681ms)
+✔ PREP-06 first permit racing quiescence can never grant both a permit and resumed generation (93.467768ms)
+{"event":"publication_diagnostic","service":"browser","isError":false,"code":"RECOVERY_PREPARE_RESUMED","message":"The same pre-permit attempt is waiting for its registered fenced executor to continue preparation.","retry_allowed":false,"reasons":[{"code":"RECOVERY_PREPARE_RESUMED","field":"recovery","message":"The same pre-permit attempt is waiting for its registered fenced executor to continue preparation.","action":"The registered executor must pick up the current generation and lease, recheck the unchanged approved package and pass the normal pre-submit checks. No submission permission is granted by this status."}]}
+✔ PREP-10 actual MCP owning operation resumes with actionable status and never exposes private pickup lease (109.015753ms)
+✔ PREP-05 dispatch failure preserves uncertain one-shot authority and hides raw provider error (154.367929ms)
+✔ PREP-01 normal admitted original attempt can complete without manufacturing a preparation failure (95.282061ms)
+✔ PREP-04 supervisor timeout cannot commit a late acknowledgement or create pickup authority (10045.278161ms)
+✔ PREP-08 uncertainty replay preserves an active readback lease and original durable deadline (147.984525ms)
+✔ PREP-05 canonical result failure rolls back ledger completion, attempt, fact and recovery together (135.010798ms)
+✔ PREP-03 queued recovery replay reports proven pre-dispatch state without rerunning supervisor (100.373525ms)
+✔ PREP-05 owning uncertainty operation FOUND atomically completes protected ledger via shared finalizer (160.804562ms)
+✔ PREP-01 protected storage discovery preserves old recovery when additive table is absent (7.002907ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+✔ additive migration created constrained storage without admitting historical attempts (73.457184ms)
+✔ two recovery readers race: one reservation wins and per-page budget cannot exceed twenty (306.524432ms)
+✔ readback budget survives repository recreation, crash lease expiry, and stale settlement (97.447916ms)
+✔ cross-tenant/package recovery scopes and non-owner cannot spend a request (56.826623ms)
+✔ v1 submit path cannot bypass v2 hold (50.688571ms)
+✔ verified readback commits same attempt, canonical fact, recovery and audit atomically and replays idempotently (83.164239ms)
+✔ canonical finalization rollback preserves UNKNOWN and pending attempt on audit failure (53.414679ms)
+✔ FOUND races a late v1 response: at most one fact and no unguarded mutation (62.548541ms)
+✔ pre-permit recovery resumes the same attempt with rotated lease and stale replay held (96.944222ms)
+✔ missing executor fence and issued permit evidence prevent same-attempt resume (75.015264ms)
+✔ automatic owning-operation recovery calls only a registered synthetic reader and finalizes through canonical gates (82.492005ms)
+✔ migration delta preserves seeded pre-v2 attempt and enforces tenant FK, uniqueness and budget constraints (25.659673ms)
+✔ disabling new recovery admission cannot remove the hold on an existing v2 attempt (41.775701ms)
+✔ persisted exact recovery status reaches scoped diagnose instead of legacy fallback (76.867997ms)
+✔ revoked release on an existing recovery row blocks provider lookup with precise action (61.777266ms)
+✔ generic internal fact callback cannot bypass an admitted recovery hold (46.627653ms)
+✔ cancellation after the guarded beforeWrite still rolls back canonical fact at beforeCommit (65.233129ms)
+✔ two pre-permit resumptions cannot rotate two generations or create another attempt (67.910067ms)
+✔ owner revocation after beforeWrite prevents canonical commit and rolls back all changes (68.577081ms)
+✔ repeated recovery preserves immutable lookup window, original deadline and exact held permission action (59.818452ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+✔ LI/PREP combined: API-verified UNKNOWN resolution atomically completes protected preparation ledger (519.094192ms)
+✔ LI/PREP combined: protected ledger failure rolls back API fact and attempt together (213.111174ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+✔ LI-01 actual owning uncertainty operation verifies API twice and commits one original attempt/fact (402.004904ms)
+✔ LI-04 actual owning operation keeps denied read UNKNOWN with zero provider calls/facts (101.545553ms)
+✔ LI-03 approval revoked during provider verification rolls back attempted finalization (122.125102ms)
+✔ LI-07 abort after verified beforeWrite rolls back fact, attempt and recovery together (72.263566ms)
+ℹ tests 49
+ℹ suites 0
+ℹ pass 49
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16210.372321

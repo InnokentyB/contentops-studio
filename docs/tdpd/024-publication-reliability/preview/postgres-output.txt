@@ -1,0 +1,20 @@
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+✔ PG01 actual MCP preview reads no secrets and creates no lifecycle mutations (618.81824ms)
+✔ PG02 real repository projection never materializes credential/report payload (51.48279ms)
+✔ PG03 database enforces READ ONLY transaction even if a dependency attempts DDL (34.041692ms)
+✔ PG04 forged trusted principal and foreign tenant fail before task disclosure (41.816645ms)
+✔ PG05 hold SQL safely projects truthiness and local lifecycle blockers (29.906878ms)
+✔ PG06 malformed report cannot remove a hold or leak raw content (44.945803ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7133.211646

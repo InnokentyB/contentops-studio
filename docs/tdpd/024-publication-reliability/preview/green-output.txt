@@ -1,0 +1,55 @@
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+✔ remote MCP replaces caller-controlled actor and user identities (1.607179ms)
+✔ organization researcher scope cannot be overridden by tool arguments (0.172431ms)
+✔ remote MCP rejects an explicit project that differs from the token scope (0.133731ms)
+✔ remote MCP scopes user identity when the requested project matches the token (0.122091ms)
+✔ remote MCP injects the token-bound identity into bootstrap calls (0.152421ms)
+✔ remote MCP denies cross-tenant administrative tools (0.107571ms)
+✔ local MCP without a configured principal preserves tool arguments (0.119731ms)
+✔ writer MCP is restricted to its project and cannot invoke planner tools (0.173631ms)
+✔ writer MCP discovery exposes content tools but not slot mutation tools (68.243773ms)
+✔ planner MCP discovery exposes slot controls but not content mutation (54.010245ms)
+✔ only the owner MCP profile discovers audited content review recovery (52.284116ms)
+✔ editor, publisher and growth profiles expose only their governed lifecycle tools (235.156525ms)
+✔ role-scoped internal mutations do not request destructive host approval (724.717479ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+✔ P01 actual Publisher MCP exposes pure preview, no external send authority (127.512156ms)
+✔ P02 forged actor cannot override trusted session and wrong project never reads task (61.082074ms)
+✔ P03/P04/P09 missing principal (49.131918ms)
+✔ P03/P04/P09 nonmember (46.291733ms)
+✔ P03/P04/P09 not found (56.133977ms)
+✔ P03/P04/P09 DB failure (58.777721ms)
+✔ P06 uncertain original attempt gives reconciliation guidance without retries (102.40454ms)
+✔ P07 vk never infers independent adapter readiness (89.741971ms)
+✔ P07 dzen never infers independent adapter readiness (49.768852ms)
+✔ P08 stale expected accepted revision blocks preview package (52.054294ms)
+✔ P10 other profiles cannot discover preview; existing live tool stays destructive (44.378002ms)
+✔ P02 same-project actor spoof uses authenticated membership (46.590104ms)
+✔ P05 claimed executor (78.71374ms)
+✔ P05 existing fact (90.321943ms)
+✔ P05 terminal state (45.853981ms)
+✔ P05 unsupported provider (40.595842ms)
+✔ P05 stale visual (46.918736ms)
+✔ P05 current approved visual is checked without asset URLs or provenance (47.831181ms)
+✔ P11 blocked handoff, hold or wrong-placement decision never passes local validation {"row":{"handoff_state":"blocked"}} (44.911125ms)
+✔ P11 blocked handoff, hold or wrong-placement decision never passes local validation {"row":{"status":"planned"}} (96.729028ms)
+✔ P11 blocked handoff, hold or wrong-placement decision never passes local validation {"hold":true} (47.916761ms)
+✔ P11 blocked handoff, hold or wrong-placement decision never passes local validation {"row":{"art_direction_decisions":[{"id":41,"project_id":21,"content_item_id":7001,"channel":"threads","placement":"feed","decision":"NO_VISUAL_NEEDED","decision_version":1,"source_content_revision":2,"status":"active"}]}} (51.590582ms)
+ℹ tests 35
+ℹ suites 0
+ℹ pass 35
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11927.149545

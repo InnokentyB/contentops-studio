@@ -1,0 +1,47 @@
+
+Interrupted while running:
+
+⚠ /source/tests/tdpd/threads-api-phases.test.cjs (../../source/tests/tdpd/threads-api-phases.test.cjs:1:1)
+✖ /source/tests/tdpd/threads-api-phases.test.cjs (68926.426494ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 0
+ℹ cancelled 1
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 68931.647253
+
+✖ failing tests:
+
+test at ../../source/tests/tdpd/threads-api-phases.test.cjs:1:1
+✖ /source/tests/tdpd/threads-api-phases.test.cjs (68926.426494ms)
+  'Promise resolution is still pending but the event loop has already resolved'
+text.<anonymous> (/source/tests/tdpd/threads-api-phases.test.cjs:27:6)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/threads-api-phases.test.cjs:30:1
+✖ T06 recovery reader refuses redirects and never discloses response bodies (1.621659ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'error'
+  
+      at TestContext.<anonymous> (/source/tests/tdpd/threads-api-phases.test.cjs:33:9)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'error',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

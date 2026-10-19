@@ -5,9 +5,10 @@ import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createPlannerMcpServer, shutdownMcpResources } from './shared';
 import schemaPlanService from '../services/schema_plan.service';
-import { scopeRemoteMcpRequest } from './remote-auth';
+import { scopeRemoteMcpRequest, type RemotePrincipal } from './remote-auth';
 import { McpCapabilityProfile } from './capabilities';
 import mcpAccessTokenService from '../services/mcp_access_token.service';
+import { McpSessionRegistry, parseMcpSessionPolicy } from './session-lifecycle';
 
 type SessionEntry = {
     transport: StreamableHTTPServerTransport;
@@ -101,7 +102,10 @@ async function main() {
     if (isProduction && (!authToken || !principal)) {
         throw new Error('Production remote MCP requires MCP_AUTH_TOKEN and MCP_PRINCIPAL_USER_ID');
     }
-    const sessions = new Map<string, SessionEntry>();
+    const sessions = new McpSessionRegistry<SessionEntry>({
+        ...parseMcpSessionPolicy(), close: entry => entry.server.close()
+    });
+    sessions.start();
     const app = express();
     app.use(express.json({ limit: process.env.MCP_JSON_BODY_LIMIT || '14mb' }));
 
@@ -123,18 +127,15 @@ async function main() {
         next();
     }
 
-    async function closeSession(sessionId: string) {
-        const entry = sessions.get(sessionId);
-        if (!entry) {
-            return;
-        }
+    function rejectDuringShutdown(res: {status(code: number): {json(body: unknown): unknown}}): boolean {
+        if (sessions.accepting) return false;
+        res.status(503).json({ jsonrpc: '2.0', error: { code: -32000,
+            message: 'MCP gateway is shutting down; reconnect after restart. Do not replay an uncertain publication.' }, id: null });
+        return true;
+    }
 
-        sessions.delete(sessionId);
-        try {
-            await entry.server.close();
-        } catch (_error) {
-            // Ignore server close errors during cleanup.
-        }
+    async function closeSession(sessionId: string) {
+        await sessions.close(sessionId);
     }
 
     async function getOrCreateSession(
@@ -143,8 +144,10 @@ async function main() {
         res: any,
         endpoint = '/mcp',
         profile: McpCapabilityProfile = 'owner',
-        credentialId?: string
+        credentialId?: string,
+        sessionPrincipal: Readonly<RemotePrincipal> | null = principal
     ) {
+        if (rejectDuringShutdown(res)) return null;
         if (sessionId && sessions.has(sessionId)) {
             const entry = sessions.get(sessionId)!;
             if (entry.endpoint !== endpoint || entry.profile !== profile || entry.credentialFingerprint !== credentialId) {
@@ -179,12 +182,13 @@ async function main() {
         }
 
         let transport!: StreamableHTTPServerTransport;
-        const server = createPlannerMcpServer({ profile });
+        let entry!: SessionEntry;
+        const server = createPlannerMcpServer({ profile, principal: sessionPrincipal });
         transport = new StreamableHTTPServerTransport({
             sessionIdGenerator: () => randomUUID(),
             enableJsonResponse: true,
             onsessioninitialized: (newSessionId) => {
-                sessions.set(newSessionId, { transport, server, endpoint, profile, credentialFingerprint: credentialId });
+                sessions.set(newSessionId, entry);
             }
         });
 
@@ -199,8 +203,10 @@ async function main() {
             console.error('[MCP Remote] Transport error:', error);
         };
 
+        entry = { transport, server, endpoint, profile, credentialFingerprint: credentialId };
         await server.connect(transport);
-        return { transport, server };
+        if (rejectDuringShutdown(res)) { await sessions.dispose(entry); return null; }
+        return entry;
     }
 
     app.get('/health', async (_req: any, res: any) => {
@@ -269,20 +275,22 @@ async function main() {
     });
 
     app.get('/mcp', requireAuth, async (req: any, res: any) => {
+        if (rejectDuringShutdown(res)) return;
         const sessionIdHeader = req.headers['mcp-session-id'];
         const sessionId = Array.isArray(sessionIdHeader) ? sessionIdHeader[0] : sessionIdHeader;
         const entry = sessionId ? sessions.get(sessionId) : null;
 
         if (!entry || entry.endpoint !== '/mcp') {
-            res.status(400).send('Invalid or missing session ID');
+            res.status(404).json({ jsonrpc: '2.0', error: { code: -32001, message: 'Unknown MCP session' }, id: null });
             return;
         }
 
-        await entry.transport.handleRequest(req, res);
+        await sessions.track(entry, res, () => entry.transport.handleRequest(req, res), 'stream');
     });
 
     app.post('/mcp', requireAuth, async (req: any, res: any) => {
         try {
+            if (rejectDuringShutdown(res)) return;
             const scopedRequest = scopeRemoteMcpRequest(req.body, principal);
             if (!scopedRequest.allowed) {
                 const projectMismatch = scopedRequest.reason === 'project_scope_mismatch';
@@ -310,7 +318,8 @@ async function main() {
                 return;
             }
 
-            await entry.transport.handleRequest(req, res, req.body);
+            if (rejectDuringShutdown(res)) return;
+            await sessions.track(entry, res, () => entry.transport.handleRequest(req, res, req.body));
         } catch (error) {
             console.error('[MCP Remote] Failed to handle POST request:', error);
             if (!res.headersSent) {
@@ -327,23 +336,17 @@ async function main() {
     });
 
     app.delete('/mcp', requireAuth, async (req: any, res: any) => {
+        if (rejectDuringShutdown(res)) return;
         const sessionIdHeader = req.headers['mcp-session-id'];
         const sessionId = Array.isArray(sessionIdHeader) ? sessionIdHeader[0] : sessionIdHeader;
         const entry = sessionId ? sessions.get(sessionId) : null;
 
         if (!entry || entry.endpoint !== '/mcp') {
-            res.status(400).json({
-                jsonrpc: '2.0',
-                error: {
-                    code: -32000,
-                    message: 'Bad Request: No valid session ID provided'
-                },
-                id: null
-            });
+            res.status(404).json({ jsonrpc: '2.0', error: { code: -32001, message: 'Unknown MCP session' }, id: null });
             return;
         }
 
-        await entry.transport.handleRequest(req, res, req.body);
+        await sessions.track(entry, res, () => entry.transport.handleRequest(req, res, req.body));
     });
 
     function registerScopedEndpoint(endpoint: string, profile: Exclude<McpCapabilityProfile, 'owner'>, credential: ScopedCredential | null) {
@@ -368,19 +371,21 @@ async function main() {
         };
 
         app.get(endpoint, requireScopedAuth, async (req: any, res: any) => {
+            if (rejectDuringShutdown(res)) return;
             const sessionIdHeader = req.headers['mcp-session-id'];
             const sessionId = Array.isArray(sessionIdHeader) ? sessionIdHeader[0] : sessionIdHeader;
             const entry = sessionId ? sessions.get(sessionId) : null;
             const token = getBearerToken(req.headers.authorization)!;
             if (!entry || entry.endpoint !== endpoint || entry.profile !== profile || entry.credentialFingerprint !== req.mcpCredential.credentialId) {
-                res.status(400).send('Invalid or missing session ID');
+                res.status(404).json({ jsonrpc: '2.0', error: { code: -32001, message: 'Unknown MCP session' }, id: null });
                 return;
             }
-            await entry.transport.handleRequest(req, res);
+            await sessions.track(entry, res, () => entry.transport.handleRequest(req, res), 'stream');
         });
 
         app.post(endpoint, requireScopedAuth, async (req: any, res: any) => {
             try {
+                if (rejectDuringShutdown(res)) return;
                 const credentialId = req.mcpCredential.credentialId;
                 const principal = req.mcpCredential.principal;
                 const scopedRequest = scopeRemoteMcpRequest(req.body, principal);
@@ -419,10 +424,12 @@ async function main() {
                     res,
                     endpoint,
                     profile,
-                    credentialId
+                    credentialId,
+                    principal
                 );
                 if (!entry) return;
-                await entry.transport.handleRequest(req, res, req.body);
+                if (rejectDuringShutdown(res)) return;
+                await sessions.track(entry, res, () => entry.transport.handleRequest(req, res, req.body));
             } catch (error) {
                 console.error(`[MCP Remote] Failed to handle ${endpoint} POST request:`, error);
                 if (!res.headersSent) {
@@ -436,15 +443,17 @@ async function main() {
         });
 
         app.delete(endpoint, requireScopedAuth, async (req: any, res: any) => {
+            if (rejectDuringShutdown(res)) return;
             const sessionIdHeader = req.headers['mcp-session-id'];
             const sessionId = Array.isArray(sessionIdHeader) ? sessionIdHeader[0] : sessionIdHeader;
             const entry = sessionId ? sessions.get(sessionId) : null;
             const token = getBearerToken(req.headers.authorization)!;
             if (!entry || entry.endpoint !== endpoint || entry.profile !== profile || entry.credentialFingerprint !== req.mcpCredential.credentialId) {
-                res.status(400).json({ error: 'Invalid or missing session ID' });
+                res.status(404).json({ jsonrpc: '2.0', error: { code: -32001, message: 'Unknown MCP session' }, id: null });
                 return;
             }
-            await entry.transport.handleRequest(req, res, req.body);
+            if (rejectDuringShutdown(res)) return;
+            await sessions.track(entry, res, () => entry.transport.handleRequest(req, res, req.body));
         });
     }
 
@@ -463,6 +472,8 @@ async function main() {
 
     async function shutdown(signal: string, code = 0) {
         console.log(`[MCP Remote] Shutting down on ${signal}`);
+        sessions.stopAdmission();
+        await sessions.drain();
 
         for (const sessionId of Array.from(sessions.keys())) {
             await closeSession(sessionId);

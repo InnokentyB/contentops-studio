@@ -1,0 +1,29 @@
+ Container contentops-threads-reliability-synthetic-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+✖ T07 lease expiration immediately before canonical commit rolls back every write (702.49896ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2097.687256
+
+✖ failing tests:
+
+test at tests/tdpd/threads-api-postgres.test.cjs:49:1
+✖ T07 lease expiration immediately before canonical commit rolls back every write (702.49896ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/threads-api-postgres.test.cjs:52:2)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /RECOVERY_CONFLICT/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+

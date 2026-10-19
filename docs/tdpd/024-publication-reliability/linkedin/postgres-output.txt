@@ -1,0 +1,14 @@
+ Container tower-contentops-linkedin-synthetic-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+✔ LI-01 actual owning uncertainty operation verifies API twice and commits one original attempt/fact (875.02191ms)
+✔ LI-04 actual owning operation keeps denied read UNKNOWN with zero provider calls/facts (102.48022ms)
+✔ LI-03 approval revoked during provider verification rolls back attempted finalization (95.426721ms)
+✔ LI-07 abort after verified beforeWrite rolls back fact, attempt and recovery together (85.663018ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1402.120579

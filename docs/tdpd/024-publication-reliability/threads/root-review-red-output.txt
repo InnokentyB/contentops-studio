@@ -1,0 +1,155 @@
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+{"event":"publication_diagnostic","service":"threads","isError":true,"code":"THREADS_REQUEST_FAILED","message":"The operation could not complete; its exact cause is not classified.","reasons":[{"code":"THREADS_REQUEST_FAILED","field":"operation","message":"The operation could not complete; its exact cause is not classified.","action":"Ask engineering to investigate the failed operation using safe diagnostics. Inspect attempt and fact history first; reconcile any uncertain outcome before another publication request."}],"retry_allowed":false}
+✖ T07 changed released schedule blocks the publication POST (8.810629ms)
+✖ T07 changed released decision blocks the publication POST (1.513638ms)
+✖ T07 changed released schedule blocks recovery before GET (43.049621ms)
+✖ T07 changed released decision blocks recovery before GET (1.539619ms)
+✖ T10 total DB outage after publication returns actionable persistence error through actual MCP (2312.558724ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 0
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3733.660117
+
+✖ failing tests:
+
+test at ../../source/tests/tdpd/threads-api-boundary.test.cjs:73:45
+✖ T07 changed released schedule blocks the publication POST (8.810629ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /PACKAGE_CHANGED/. Input:
+  
+  'Error: [THREADS_RECOVERY_IDENTITY_UNAVAILABLE]'
+  
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/threads-api-boundary.test.cjs:80:2)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: [THREADS_RECOVERY_IDENTITY_UNAVAILABLE]
+        at reserveThreadsRead (/source/src/services/threads_api_store.ts:48:70)
+        at processTicksAndRejections (node:internal/process/task_queues:104:5)
+        at async /source/src/services/threads_generic_release.service.ts:328:26
+        at async GenericThreadsReleaseService.reconcileOnce (/source/src/services/threads_generic_release.service.ts:317:24)
+        at async GenericThreadsReleaseService.reconcile (/source/src/services/threads_generic_release.service.ts:296:24)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (/source/tests/tdpd/threads-api-boundary.test.cjs:80:2)
+        at async Test.run (node:internal/test_runner/test:1409:7)
+        at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3),
+    expected: /PACKAGE_CHANGED/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/threads-api-boundary.test.cjs:73:45
+✖ T07 changed released decision blocks the publication POST (1.513638ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /PACKAGE_CHANGED/. Input:
+  
+  'Error: [THREADS_RECOVERY_IDENTITY_UNAVAILABLE]'
+  
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/threads-api-boundary.test.cjs:80:2)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: [THREADS_RECOVERY_IDENTITY_UNAVAILABLE]
+        at reserveThreadsRead (/source/src/services/threads_api_store.ts:48:70)
+        at processTicksAndRejections (node:internal/process/task_queues:104:5)
+        at async /source/src/services/threads_generic_release.service.ts:328:26
+        at async GenericThreadsReleaseService.reconcileOnce (/source/src/services/threads_generic_release.service.ts:317:24)
+        at async GenericThreadsReleaseService.reconcile (/source/src/services/threads_generic_release.service.ts:296:24)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (/source/tests/tdpd/threads-api-boundary.test.cjs:80:2)
+        at async Test.run (node:internal/test_runner/test:1409:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:974:7),
+    expected: /PACKAGE_CHANGED/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/threads-api-boundary.test.cjs:82:45
+✖ T07 changed released schedule blocks recovery before GET (43.049621ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /PACKAGE_CHANGED/. Input:
+  
+  'Error: [THREADS_RECOVERY_IN_PROGRESS]'
+  
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/threads-api-boundary.test.cjs:86:2)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: [THREADS_RECOVERY_IN_PROGRESS]
+        at reserveThreadsRead (/source/src/services/threads_api_store.ts:50:71)
+        at processTicksAndRejections (node:internal/process/task_queues:104:5)
+        at async /source/src/services/threads_generic_release.service.ts:328:26
+        at async GenericThreadsReleaseService.reconcileOnce (/source/src/services/threads_generic_release.service.ts:317:24)
+        at async GenericThreadsReleaseService.reconcile (/source/src/services/threads_generic_release.service.ts:296:24)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (/source/tests/tdpd/threads-api-boundary.test.cjs:86:2)
+        at async Test.run (node:internal/test_runner/test:1409:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:974:7),
+    expected: /PACKAGE_CHANGED/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/threads-api-boundary.test.cjs:82:45
+✖ T07 changed released decision blocks recovery before GET (1.539619ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /PACKAGE_CHANGED/. Input:
+  
+  'Error: [THREADS_RECOVERY_IN_PROGRESS]'
+  
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/threads-api-boundary.test.cjs:86:2)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: [THREADS_RECOVERY_IN_PROGRESS]
+        at reserveThreadsRead (/source/src/services/threads_api_store.ts:50:71)
+        at processTicksAndRejections (node:internal/process/task_queues:104:5)
+        at async /source/src/services/threads_generic_release.service.ts:328:26
+        at async GenericThreadsReleaseService.reconcileOnce (/source/src/services/threads_generic_release.service.ts:317:24)
+        at async GenericThreadsReleaseService.reconcile (/source/src/services/threads_generic_release.service.ts:296:24)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (/source/tests/tdpd/threads-api-boundary.test.cjs:86:2)
+        at async Test.run (node:internal/test_runner/test:1409:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:974:7),
+    expected: /PACKAGE_CHANGED/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/threads-api-boundary.test.cjs:88:1
+✖ T10 total DB outage after publication returns actionable persistence error through actual MCP (2312.558724ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'THREADS_REQUEST_FAILED'
+  - 'THREADS_ATTEMPT_PERSISTENCE_UNAVAILABLE'
+             ^
+  
+      at TestContext.<anonymous> (/source/tests/tdpd/threads-api-boundary.test.cjs:97:9)
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'THREADS_REQUEST_FAILED',
+    expected: 'THREADS_ATTEMPT_PERSISTENCE_UNAVAILABLE',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

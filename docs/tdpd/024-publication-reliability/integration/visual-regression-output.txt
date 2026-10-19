@@ -1,0 +1,61 @@
+ Container tower-contentops-reliability-verification-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+✔ VK article art context exposes cover dimensions and safe area (1.37179ms)
+✔ A: no-visual is a positive ready state and does not require generation (0.233781ms)
+✔ B: generated is not publication-ready until visual review approves an asset (0.159971ms)
+✔ C: evidence visuals without evidence refs require a source instead of generation (0.292342ms)
+✔ D: simulated documentation is never a valid visual decision (0.141141ms)
+✔ E: a newer content revision makes an approved visual stale (0.105551ms)
+✔ I: a local approved asset cannot make the handoff ready (0.124021ms)
+✔ F: idempotency contract exposes only deterministic decisions (0.112391ms)
+✔ G: required and forbidden placement modes cannot be bypassed (0.208172ms)
+✔ H: art-director MCP can assess visuals but cannot rewrite publication copy (0.220562ms)
+✔ revision-bound source inspection accepts MP4 and records checksum (0.452033ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+✔ owner recovery creates one fresh revision-bound input, audits it, and holds old generation (1.887233ms)
+✔ recovery rejects published or changed task before any write (0.661334ms)
+✔ recovery stops on compare-and-swap race before creating input (0.271681ms)
+✔ recovery refuses a newer art input or an active old generator (0.446743ms)
+✔ non-owner cannot start recovery (0.207641ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+✔ owner CAS requires a visual and materializes one revision-bound art-direction input (2.101274ms)
+✔ generic visual CAS rejects publication evidence, assets, decisions, active inputs and guard drift (0.897466ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+✔ approved durable asset cancels only actionable visual work for its revision and decision or placement (1.052117ms)
+✔ article channels share the canonical article-cover placement (1.445829ms)
+✔ Dzen distinguishes short feed posts from longread covers without inventing post geometry (3.885367ms)
+✔ VC and Habr covers expose explicit article contracts (0.214801ms)
+✔ accepting site content normalizes a legacy feed default to the canonical blog cover (0.135441ms)
+✔ Telegram and VK stories use channel-specific poll capabilities (0.325372ms)
+✔ VK longread uses a distinct manual article-cover contract (0.173401ms)
+✔ VK exposes approved MP4 video as a canonical browser-capable placement (0.154611ms)
+✔ Setka feed exposes the established 4:3 asset contract (0.173731ms)
+✔ VK feed exposes the accepted square asset contract used by the connector (0.199051ms)
+✔ Dzen longread uses the configured article transport contract (0.237571ms)
+✔ Telegram and Threads feed briefs have explicit editorial geometry (0.193491ms)
+✔ configured channel placement overrides the type fallback (0.164341ms)
+✔ unknown channels cannot be repaired without an explicit contract (0.166261ms)
+✔ Dzen feed is now canonical, while unrelated article channels stay strict (0.155261ms)
+✔ DEV.to article cover uses the manual wide-image contract (0.128691ms)
+✔ managed visual metadata is derived from the binary rather than caller claims (1.221808ms)
+✔ visual base64 and durable URL validation reject unsafe inputs (1.082587ms)
+✔ visual generation is blocked until the weekly topic plan is approved (0.870576ms)
+✔ old site/blog decision cannot generate an asset after article-cover repair (0.171552ms)
+✔ visual decision accepts the bound channel name, ID or legacy type but not another account (0.247602ms)
+✔ visual generation is blocked until the current text revision is accepted (0.128281ms)
+✔ visual generation requires an approved GENERATE brief and alt text (0.169541ms)
+✔ production prompt bans text, pseudo interfaces, office scenes and comic retelling (0.818285ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+✔ storage quota and capacity failures become explicit readiness reasons (0.691434ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+✔ ordinary X uses the provider-safe 280 weighted-character limit (1.166737ms)
+✔ X weighted length treats URLs as t.co length and non-Latin symbols conservatively (0.184971ms)
+✔ content acceptance cannot mark an overlength ordinary X revision ready (0.379013ms)
+ℹ tests 46
+ℹ suites 0
+ℹ pass 46
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1169.350045

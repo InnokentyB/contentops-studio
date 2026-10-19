@@ -1,0 +1,23 @@
+{
+  "package": "024-linkedin",
+  "date": "2026-10-19",
+  "baseline": "3fd625a3b5ecce44fd6956ec0d1355e5ed3ff3e4",
+  "owner_gate": "Утверждаю пять пакетов",
+  "runs": [
+    {"id":"LI-RED-READER","kind":"synthetic Docker source tests","passed":0,"failed":11,"cause":"missing createLinkedInRecoveryReader"},
+    {"id":"LI-GREEN-SOURCE","kind":"reader/coordinator/actual MCP serialization Docker tests","passed":44,"failed":0},
+    {"id":"LI-RED-MCP-BASELINE","kind":"new actual registration test against archived deployed baseline","passed":0,"failed":1,"cause":"uncertainty registration supplies no recovery callback"},
+    {"id":"LI-BUILD-CLI-ERROR","exit":125,"cause":"legacy docker build does not support --cpus; corrected to --cpu-period/--cpu-quota","classification":"setup, not product regression"},
+    {"id":"LI-BUILD-1","result":"PASS","image":"cbae1c2d2e65","command":"offline npm run build:backend"},
+    {"id":"LI-NETWORK-ERROR","result":"ERROR","cause":"Tower Docker default subnet pools exhausted; inspected networks and selected isolated10.231.86.0/28","classification":"setup, not product regression"},
+    {"id":"LI-MIGRATIONS","result":"PASS","target":"new dedicated tmpfs PostgreSQL15 synthetic database"},
+    {"id":"LI-POSTGRES-1","passed":2,"failed":0,"scenarios":["LI-01","LI-04"]},
+    {"id":"LI-RED-REVOCATION","passed":2,"failed":1,"target":"first compiled image","cause":"revocation returned RECOVERY_CONFLICT instead of APPROVAL_REVOKED; unsafe writes already rolled back"},
+    {"id":"LI-BUILD-2","result":"PASS","image":"207320ec38e1","command":"offline npm run build:backend"},
+    {"id":"LI-COMPILED-FINAL","passed":46,"failed":0,"skipped":0,"artifact":"tests-output.txt"},
+    {"id":"LI-POSTGRES-FINAL","passed":4,"failed":0,"skipped":0,"scenarios":["LI-01","LI-04","LI-03 approval revoked","LI-07 late abort rollback"],"artifact":"postgres-output.txt"},
+    {"id":"LI-QUALITY-FINAL","result":"PASS","score":77,"minimum":77,"runtime_findings":7096,"baseline":7096,"baseline_changed":false}
+  ],
+  "limits": ["No live grants/roles/credentials/receipt issuer verified or registered", "Default production application admission unavailable", "Provider calls replaced by named deterministic synthetic HTTP responses", "Final MCP descriptive strings updated after compiled image; combined integration compilation required"],
+  "uat": "PENDING OWNER; no live admission/deploy/publication authorized or performed"
+}

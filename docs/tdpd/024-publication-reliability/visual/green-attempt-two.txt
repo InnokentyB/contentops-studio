@@ -1,0 +1,61 @@
+ Container planner-visual-reassessment-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+✔ REL05 actual MCP exposes reusable reassessment with internal-only mutation annotations (40.051868ms)
+✔ REL05 remote profile keeps reassessment Owner-only and binds tenant/actor before command (1.485108ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+{"event":"visual_reassessment_denied","code":"VISUAL_REASSESSMENT_IDEMPOTENCY_CONFLICT","retry_allowed":false,"action":"Refresh the accepted package and current workflow; reconcile any started or uncertain delivery."}
+✔ REL05 MCP preview has zero writes; apply preserves accepted package/history and opens exactly one new input (379.675184ms)
+{"event":"visual_reassessment_denied","code":"VISUAL_REASSESSMENT_PACKAGE_CONFLICT","retry_allowed":false,"action":"Refresh the accepted package and current workflow; reconcile any started or uncertain delivery."}
+{"event":"visual_reassessment_denied","code":"VISUAL_REASSESSMENT_PRIOR_INPUT_CONFLICT","retry_allowed":false,"action":"Refresh the accepted package and current workflow; reconcile any started or uncertain delivery."}
+{"event":"visual_reassessment_denied","code":"VISUAL_REASSESSMENT_PACKAGE_CONFLICT","retry_allowed":false,"action":"Refresh the accepted package and current workflow; reconcile any started or uncertain delivery."}
+{"event":"visual_reassessment_denied","code":"VISUAL_REASSESSMENT_PACKAGE_CONFLICT","retry_allowed":false,"action":"Refresh the accepted package and current workflow; reconcile any started or uncertain delivery."}
+{"event":"visual_reassessment_denied","code":"VISUAL_REASSESSMENT_OWNER_REQUIRED","retry_allowed":false,"action":"Refresh the accepted package and current workflow; reconcile any started or uncertain delivery."}
+✔ REL05 stale guards and non-owner calls cause zero changes, no evidence leaks (69.65227ms)
+{"event":"visual_reassessment_denied","code":"VISUAL_REASSESSMENT_EXISTING_AUTHORITY","retry_allowed":false,"action":"Refresh the accepted package and current workflow; reconcile any started or uncertain delivery."}
+✔ REL05 any delivery attempt including uncertain blocks reassessment without changing history (52.589987ms)
+{"event":"visual_reassessment_denied","code":"VISUAL_REASSESSMENT_STORAGE_OR_PLACEMENT_CHECK_FAILED","retry_allowed":false,"action":"Refresh the accepted package and current workflow; reconcile any started or uncertain delivery."}
+✖ REL05 concurrent identical requests create one generation and one immutable request event (66.933235ms)
+✔ REL05 disabled pipeline cannot bypass request; old asset callback cannot restore old readiness (91.954422ms)
+✔ REL05 new assessment requires visual and separate current review lease/generation before atomic fulfilment (239.843151ms)
+{"event":"visual_reassessment_denied","code":"VISUAL_REASSESSMENT_PACKAGE_CONFLICT","retry_allowed":false,"action":"Refresh the accepted package and current workflow; reconcile any started or uncertain delivery."}
+✔ REL05 direct claim wins before request: request cannot create authority during in-flight send (47.037137ms)
+✔ REL05 request wins before stale direct claim: status CAS fails and creates no dispatch (92.041493ms)
+{"event":"visual_reassessment_denied","code":"VISUAL_REASSESSMENT_STORAGE_OR_PLACEMENT_CHECK_FAILED","retry_allowed":false,"action":"Refresh the accepted package and current workflow; reconcile any started or uncertain delivery."}
+✔ REL05 request audit failure rolls back new input, status and request together with safe operator error (51.042339ms)
+{"event":"visual_reassessment_denied","code":"VISUAL_REASSESSMENT_EXISTING_AUTHORITY","retry_allowed":false,"action":"Refresh the accepted package and current workflow; reconcile any started or uncertain delivery."}
+✔ REL05 leased executor or release projection denies request and does not revoke prior authority (45.124186ms)
+{"event":"visual_reassessment_denied","code":"VISUAL_REASSESSMENT_PRIOR_INPUT_CONFLICT","retry_allowed":false,"action":"Refresh the accepted package and current workflow; reconcile any started or uncertain delivery."}
+{"event":"visual_reassessment_denied","code":"VISUAL_REASSESSMENT_PRIOR_INPUT_CONFLICT","retry_allowed":false,"action":"Refresh the accepted package and current workflow; reconcile any started or uncertain delivery."}
+{"event":"visual_reassessment_denied","code":"VISUAL_REASSESSMENT_PRIOR_INPUT_CONFLICT","retry_allowed":false,"action":"Refresh the accepted package and current workflow; reconcile any started or uncertain delivery."}
+✔ REL05 mismatched active decision channel or placement and duplicate active decisions reject (108.653203ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 12
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2255.966134
+
+✖ failing tests:
+
+test at ../../workspace/tests/tdpd/visual-reassessment-postgres.test.cjs:41:1
+✖ REL05 concurrent identical requests create one generation and one immutable request event (66.933235ms)
+  AssertionError [ERR_ASSERTION]: [{"project_id":22,"task_id":21,"applied":true,"replayed":false,"publication_authorized":false,"provider_called":false,"published":false,"visual_mode":"required","visual_state":"PENDING_ASSESSMENT","handoff_state":"blocked","art_direction_work_item_id":31,"binding":{"version":1,"generation":"1330b52b-e261-42e9-8831-9aed773b7620","work_item_id":31,"prior_decision_id":22,"revision":2,"body_sha256":"cb8bb39a2333580f7f8f5df819acf7c3f35e755066be26310e324261f0181e0a","channel_id":21,"placement":"feed","schedule_at":"2030-01-01T12:00:00.000Z","requirement":"Explain the key mechanism using a meaningful original visual.","reason":"Owner added a visual requirement after accepting copy.","owner_instruction_reference":"Synthetic owner instruction, no external authorization assertion","request_hash":"c18dc0ba661c84444172b59d2adbab0ba40f98b135d5e660b6b2c7655c09182d"}},{"error":"[VISUAL_REASSESSMENT_STORAGE_OR_PLACEMENT_CHECK_FAILED] The database or placement validation could not complete; the exact cause is not established. Ask engineering to inspect service health and the safe diagnostic code before retrying. A closed connection never permits replay of an uncertain publication."}]
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (/workspace/tests/tdpd/visual-reassessment-postgres.test.cjs:42:90)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+

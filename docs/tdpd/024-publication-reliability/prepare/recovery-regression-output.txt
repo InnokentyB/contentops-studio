@@ -1,0 +1,30 @@
+ Container tower-contentops-prepare-synthetic-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+✔ additive migration created constrained storage without admitting historical attempts (107.468063ms)
+✔ two recovery readers race: one reservation wins and per-page budget cannot exceed twenty (613.973119ms)
+✔ readback budget survives repository recreation, crash lease expiry, and stale settlement (76.235302ms)
+✔ cross-tenant/package recovery scopes and non-owner cannot spend a request (48.787308ms)
+✔ v1 submit path cannot bypass v2 hold (40.754434ms)
+✔ verified readback commits same attempt, canonical fact, recovery and audit atomically and replays idempotently (106.658528ms)
+✔ canonical finalization rollback preserves UNKNOWN and pending attempt on audit failure (50.320769ms)
+✔ FOUND races a late v1 response: at most one fact and no unguarded mutation (66.168535ms)
+✔ pre-permit recovery resumes the same attempt with rotated lease and stale replay held (119.803316ms)
+✔ missing executor fence and issued permit evidence prevent same-attempt resume (66.096165ms)
+✔ automatic owning-operation recovery calls only a registered synthetic reader and finalizes through canonical gates (78.156146ms)
+✔ migration delta preserves seeded pre-v2 attempt and enforces tenant FK, uniqueness and budget constraints (29.391277ms)
+✔ disabling new recovery admission cannot remove the hold on an existing v2 attempt (44.840582ms)
+✔ persisted exact recovery status reaches scoped diagnose instead of legacy fallback (44.60045ms)
+✔ revoked release on an existing recovery row blocks provider lookup with precise action (48.777268ms)
+✔ generic internal fact callback cannot bypass an admitted recovery hold (49.604754ms)
+✔ cancellation after the guarded beforeWrite still rolls back canonical fact at beforeCommit (118.012384ms)
+✔ two pre-permit resumptions cannot rotate two generations or create another attempt (78.567989ms)
+✔ owner revocation after beforeWrite prevents canonical commit and rolls back all changes (58.666244ms)
+✔ repeated recovery preserves immutable lookup window, original deadline and exact held permission action (63.333066ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2136.405921

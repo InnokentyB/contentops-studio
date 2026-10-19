@@ -1,0 +1,58 @@
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+✔ snapshot reports all safe fields without values or injected fields (1.248157ms)
+✔ missing prerequisite and unknown failures do not invent downstream causes (0.217152ms)
+✔ uncertainty and replay require reconciliation; success unchanged (0.198011ms)
+✔ registered MCP boundary serializes validation failures without input secrets or mutations (119.165341ms)
+✔ schema rejection explains request correction without raw validation values (0.137661ms)
+✔ read-only persisted snapshot mismatch returns concrete safe reasons (0.158291ms)
+✔ X native MCP controls serialize actionable redacted errors and preserve disabled registration (13.466763ms)
+✔ asset ownership revision and decision mismatches all remain visible without values (0.212401ms)
+✔ unsupported reader reports honest capability gap without database admission (2.772505ms)
+✔ temporary read failures retry within durable round budget without owner consent (1.260197ms)
+✔ FOUND uses registered verification and single atomic finalizer, never separate settlement (1.181346ms)
+✔ malformed mismatching or stale verified evidence cannot finalize (2.288193ms)
+✔ provider request budget stops at twenty even if reader requests a hundred pages (0.683534ms)
+✔ NOT_FOUND retries finitely and incomplete ambiguous strong non-delivery claims never permit resend (0.821605ms)
+✔ abort cancels active port, persists safe UNKNOWN and blocks later request permits (0.546693ms)
+✔ port timeout aborts a hung lookup and remaining attempts are bounded (0.528023ms)
+✔ concurrent lease holder prevents duplicate reads and stale settlement returns held conflict (0.414582ms)
+✔ finalization rejection preserves owner/package/permission blocker and no replacement fact writes (0.850624ms)
+✔ invalid scope and legacy state cause zero provider reads (0.318411ms)
+✔ hung repository reserve is bounded by operation deadline and abort (0.204731ms)
+✔ signed URL queries and control characters in known object identity are rejected (0.402692ms)
+✔ overall deadline cancels hanging request accounting without allowing late provider requests (0.296782ms)
+✔ settlement timeout returns conflict without starting another reader (0.294962ms)
+✔ abort while waiting between rounds does not perform another provider read (0.347302ms)
+✔ ambiguous observations cannot be upgraded by verification or sent to finalizer (0.221881ms)
+✔ abort during initial reservation returns promptly without provider reads (0.290282ms)
+✔ unknown outcome code cannot leak raw data or crash diagnostic factory (0.13338ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+{"event":"publication_diagnostic","service":"browser","isError":false,"code":"READBACK_CAPABILITY_UNAVAILABLE","message":"No admitted read-only provider recovery capability is registered.","retry_allowed":false,"reasons":[{"code":"READBACK_CAPABILITY_UNAVAILABLE","field":"recovery","message":"No admitted read-only provider recovery capability is registered.","action":"Ask engineering to implement and admit a bounded reader through the existing approved route. Preserve the current attempt; do not resend or use another transport."}]}
+✔ LI-09 actual registered uncertainty handler supplies safe application recovery to operation (49.662561ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+✔ LI-01 trusted attempt receipt independently verifies exact provider object (18.577622ms)
+✔ LI-02 unique history match cannot prove attempted dispatch (1.077746ms)
+✔ LI-03 mismatched provider object never confirms {"author":"urn:li:person:other"} (0.377632ms)
+✔ LI-03 mismatched provider object never confirms {"commentary":"different"} (0.357172ms)
+✔ LI-03 mismatched provider object never confirms {"publishedAt":50} (0.296962ms)
+✔ LI-03 mismatched provider object never confirms {"id":"urn:li:share:999"} (0.264941ms)
+✔ LI-03 mismatched provider object never confirms {"lifecycleState":"DRAFT"} (0.926216ms)
+✔ LI-03 mismatched provider object never confirms {"content":{"media":{"id":"urn:li:image:unknown"}}} (0.614563ms)
+✔ LI-04 denied permission and unadmitted route do not call provider (0.606793ms)
+✔ LI-07 cancellation and durable budget prevent HTTP calls (0.283001ms)
+✔ LI-08 arbitrary evidence cannot verify even with matching expected hashes (0.11871ms)
+✔ LI-05 HTTP failures never disclose provider bodies or credentials (0.942436ms)
+✔ LI-05 malformed and oversized payloads are safely incomplete (1.503228ms)
+✔ LI-06 bounded inventory constructs only approved LinkedIn URLs (1.709749ms)
+✔ LI-01 verified image uses trusted upload receipt rather than expected hash alone (0.777884ms)
+✔ LI-08 forged scope and changed receipt cannot verify (0.391812ms)
+✔ LI-07 local request ceiling also bounds a malformed permissive accounting dependency (0.162061ms)
+✔ LI-03 reshares and sponsored objects cannot masquerade as ordinary text post (0.371103ms)
+ℹ tests 46
+ℹ suites 0
+ℹ pass 46
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 835.859367

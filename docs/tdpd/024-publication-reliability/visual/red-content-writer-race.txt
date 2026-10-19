@@ -1,0 +1,33 @@
+ Container planner-visual-reassessment-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+✖ REL05 old content writer races reassessment: accepted copy cannot change after request commits (332.367262ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 824.516871
+
+✖ failing tests:
+
+test at ../../workspace/tests/tdpd/visual-reassessment-postgres.test.cjs:133:1
+✖ REL05 old content writer races reassessment: accepted copy cannot change after request commits (332.367262ms)
+  AssertionError [ERR_ASSERTION]: Only the old writer or the frozen request may commit, never both
+  
+  2 !== 1
+  
+      at TestContext.<anonymous> (/workspace/tests/tdpd/visual-reassessment-postgres.test.cjs:142:202)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+

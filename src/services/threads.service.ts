@@ -1,3 +1,6 @@
+import {ThreadsProviderError} from './threads_provider_error';
+import {readThreadsApiJson} from './threads_api_reader';
+export {ThreadsProviderError} from './threads_provider_error';
 const API = 'https://graph.threads.net/v1.0';
 
 type Options = { pollAttempts?: number; pollIntervalMs?: number };
@@ -9,13 +12,10 @@ export type ThreadsPost = {
     root_post?: { id?: string }; replied_to?: { id?: string };
 };
 type ThreadsPage = { data?: ThreadsPost[]; paging?: { cursors?: { after?: string }; next?: string } };
-
-export class ThreadsProviderError extends Error {
-    constructor(public readonly code: string, public readonly operation: string, public readonly status?: number) {
-        super(`Threads provider request failed (${operation}${status ? `, HTTP ${status}` : ''})`);
-        this.name = 'ThreadsProviderError';
-    }
-}
+export type ThreadsPhaseJournal = {
+    beforeCreate(): Promise<void>; containerCreated(id: string): Promise<void>;
+    beforePublish(): Promise<void>; published(id: string): Promise<void>;
+};
 
 class ThreadsService {
     private readonly pollAttempts: number;
@@ -76,23 +76,30 @@ class ThreadsService {
         throw new ThreadsProviderError('THREADS_CONTAINER_TIMEOUT', 'container_status');
     }
 
-    private async publishTextPost(userId: string, token: string, text: string, replyToId?: string, signal?: AbortSignal) {
+    private async publishTextPost(userId: string, token: string, text: string, replyToId?: string, signal?: AbortSignal, journal?: ThreadsPhaseJournal) {
+        await journal?.beforeCreate();
         const container = await this.request<{ id: string }>('create_text_container', `${API}/${encodeURIComponent(userId)}/threads`, token, {
             signal, method: 'POST', body: JSON.stringify({ media_type: 'TEXT', text, ...(replyToId ? { reply_to_id: replyToId } : {}) })
         });
+        if (journal && (typeof container.id !== 'string' || !/^\d+$/.test(container.id))) throw new ThreadsProviderError('THREADS_PROVIDER_INVALID_RESPONSE', 'create_text_container');
+        await journal?.containerCreated(container.id);
+        await journal?.beforePublish();
         const published = await this.request<{ id: string }>('publish_text_container', `${API}/${encodeURIComponent(userId)}/threads_publish`, token, {
             signal, method: 'POST', body: JSON.stringify({ creation_id: container.id })
         });
+        if (journal && (typeof published.id !== 'string' || !/^\d+$/.test(published.id))) throw new ThreadsProviderError('THREADS_PROVIDER_INVALID_RESPONSE', 'publish_text_container');
+        await journal?.published(published.id);
         return { id: published.id, url: await this.permalink(published.id, token, signal) };
     }
 
     /** For fenced API execution: a failed readback is uncertain, never permission to resend. */
-    async publishVerifiedText(userId: string, token: string, text: string, username: string) {
+    async publishVerifiedText(userId: string, token: string, text: string, username: string, journal?: ThreadsPhaseJournal, callerSignal?:AbortSignal) {
         if (!/^\d+$/.test(userId) || !/^[A-Za-z0-9_.]+$/.test(username) || !text.trim() || text.length > 500) {
             throw new ThreadsProviderError('THREADS_INVALID_PUBLICATION_INPUT', 'verified_publish');
         }
-        const signal = AbortSignal.timeout(30_000);
-        const result = await this.publishTextPost(userId, token, text, undefined, signal);
+        const timeout = AbortSignal.timeout(30_000);
+        const signal = callerSignal ? AbortSignal.any([timeout,callerSignal]) : timeout;
+        const result = await this.publishTextPost(userId, token, text, undefined, signal, journal);
         const post = await this.request<ThreadsPost>('verify_publication',
             `${API}/${encodeURIComponent(result.id)}?fields=${encodeURIComponent('id,text,username,permalink,timestamp')}`, token, { signal });
         let url: URL;
@@ -139,6 +146,16 @@ class ThreadsService {
     async getPost(token: string, postId: string): Promise<ThreadsPost> {
         return this.request<ThreadsPost>('read_post',
             `${API}/${encodeURIComponent(postId)}?fields=${encodeURIComponent('id,text,username,permalink,timestamp,media_type,has_replies')}`, token);
+    }
+
+    /** Bounded direct-object read for durable recovery; never publishes or probes arbitrary URLs. */
+    async readRecoveryPost(token: string, postId: string, signal: AbortSignal): Promise<unknown> {
+        if (!/^\d+$/.test(postId)) throw new ThreadsProviderError('THREADS_INVALID_PUBLICATION_INPUT', 'read_post');
+        return readThreadsApiJson(`${API}/${encodeURIComponent(postId)}?fields=${encodeURIComponent('id,text,username,permalink,timestamp,media_type,is_reply')}`, token, signal);
+    }
+
+    async readRecoveryProfile(token: string, signal: AbortSignal): Promise<unknown> {
+        return readThreadsApiJson(`${API}/me?fields=id,username`, token, signal);
     }
 
     async getOwnPosts(token: string, userId: string, after?: string, signal?: AbortSignal) {

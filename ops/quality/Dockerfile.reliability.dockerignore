@@ -1,0 +1,16 @@
+**
+!package.json
+!package-lock.json
+!tsconfig.json
+!prisma.config.ts
+!src/
+!src/**
+!prisma/
+!prisma/**
+!frontend/
+!frontend/**
+**/node_modules
+**/dist
+**/.env*
+**/.git
+**/logs

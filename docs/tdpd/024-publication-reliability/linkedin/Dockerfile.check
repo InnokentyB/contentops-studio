@@ -1,0 +1,7 @@
+FROM planner-reliability-memory:20261019
+USER root
+WORKDIR /opt/planner
+COPY --chown=1000:1000 src ./src
+COPY --chown=1000:1000 prisma ./prisma
+USER 1000:1000
+RUN PRISMA_SCHEMA_ENGINE_BINARY=/opt/planner/node_modules/@prisma/engines/schema-engine-debian-openssl-3.0.x NODE_OPTIONS=--max-old-space-size=1536 DATABASE_URL=postgresql://synthetic:synthetic@127.0.0.1:1/synthetic npm run build:backend

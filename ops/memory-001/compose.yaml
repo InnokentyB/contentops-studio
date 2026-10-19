@@ -1,0 +1,40 @@
+name: planner-memory-001
+services:
+  checks:
+    image: planner-memory-001:20261018
+    build:
+      context: ../..
+      dockerfile: ops/quality/Dockerfile
+      target: buildcheck
+    platform: linux/amd64
+    user: "1000:1000"
+    init: true
+    restart: "no"
+    working_dir: /workspace
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=1g,mode=1777
+      - /opt/planner/logs:rw,nosuid,nodev,size=16m,mode=1777
+    mem_limit: 3g
+    cpus: 2.0
+    pids_limit: 256
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      NODE_PATH: /opt/planner/node_modules
+      HOME: /tmp
+      TZ: Europe/Lisbon
+      DATABASE_URL: postgresql://synthetic:synthetic@127.0.0.1:1/synthetic
+      TELEGRAM_BOT_TOKEN: 123:synthetic-test-only
+    volumes:
+      - ../..:/workspace:ro
+    networks: [synthetic]
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "2"}
+    command: [node, --test, /opt/planner/dist/tests/mcp_session_lifecycle.test.js]
+networks:
+  synthetic:
+    internal: true
+    ipam:
+      config: [{subnet: 10.231.75.0/28}]

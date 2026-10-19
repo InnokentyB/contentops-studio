@@ -1,0 +1,30 @@
+ Container planner-visual-reassessment-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+✖ REL05 generic completion cannot strand the new art input; release/reclaim then typed assessment remains usable (302.727882ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 812.523089
+
+✖ failing tests:
+
+test at ../../workspace/tests/tdpd/visual-reassessment-postgres.test.cjs:104:1
+✖ REL05 generic completion cannot strand the new art input; release/reclaim then typed assessment remains usable (302.727882ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/workspace/tests/tdpd/visual-reassessment-postgres.test.cjs:107:2)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /VISUAL_REASSESSMENT_TYPED_COMPLETION_REQUIRED/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+

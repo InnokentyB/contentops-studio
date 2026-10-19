@@ -5,6 +5,8 @@ import { registerReviewHandoffRepairTool } from './tools/review_handoff_repair_t
 import { registerLinkedIn1135Tools } from './tools/linkedin1135_tools';
 import { registerBrowserPublicationTools } from './tools/browser_publication_tools';
 import { registerXNativeTools } from './tools/x_native_tools';
+import { registerPublicationPreviewTools } from './tools/publication_preview_tools';
+import type { RemotePrincipal } from './remote-auth';
 import prisma, { pool } from '../db';
 import workQueueService from '../services/work_queue.service';
 import { repairTask1051ReviewCollision } from '../services/task1051_review_collision.service';
@@ -56,7 +58,7 @@ export {
  * @param options - Configuration options, including optional capability profile.
  * @returns Configured McpServer instance with role-appropriate tool capabilities.
  */
-export function createPlannerMcpServer(options: { profile?: McpCapabilityProfile } = {}): McpServer {
+export function createPlannerMcpServer(options: { profile?: McpCapabilityProfile; principal?: Readonly<RemotePrincipal> | null } = {}): McpServer {
     const profile = options.profile || 'owner';
     const server = new McpServer({
         name: 'contentops-studio-publication',
@@ -68,6 +70,7 @@ export function createPlannerMcpServer(options: { profile?: McpCapabilityProfile
     });
 
     registerPlannerTools(server);
+    registerPublicationPreviewTools(server, options.principal);
     return filterMcpServerTools(server, profile);
 }
 

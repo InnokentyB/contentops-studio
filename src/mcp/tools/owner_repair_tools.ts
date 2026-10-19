@@ -5,6 +5,7 @@ import publishedChannelRepairService from '../../services/published_channel_repa
 import workQueueService from '../../services/work_queue.service';
 import threadsCredentialAllocationService from '../../services/threads_credential_allocation.service';
 import { asToolResult } from './common';
+import {requestPublicationVisualReassessment,visualReassessmentSchema} from '../../services/visual_reassessment.service';
 import publicationRetirementService from '../../services/publication_retirement.service';
 import {
     cancelTask1001Owner,
@@ -18,6 +19,11 @@ import {
  * @param server - Target MCP server instance.
  */
 export function registerOwnerRepairTools(server: McpServer): void {
+    server.registerTool('ba_request_publication_visual_reassessment', {
+        description: 'Owner-only preview/apply of a new meaningful visual requirement on unchanged accepted copy. Preserves all history, blocks publication, and creates a fresh art-direction input. Existing release or delivery authority must be reconciled first.',
+        annotations: {readOnlyHint:false,destructiveHint:false,idempotentHint:true,openWorldHint:false},
+        inputSchema: visualReassessmentSchema.shape
+    }, async args=>asToolResult(await requestPublicationVisualReassessment(args)));
     server.registerTool('ba_cancel_task1001_owner', {
         description: 'Owner-only audited CAS cancellation of exact unused p10 task1001. Requires planned/approval_required rev0 with empty copy, no acceptance, assets, fact, link or attempts, one available content_write and exactly three pending checkpoints. Changes only status to cancelled and publication_mode to retired; never publishes.',
         annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },

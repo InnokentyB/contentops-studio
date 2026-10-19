@@ -1,0 +1,46 @@
+ Container tower-contentops-reliability-verification-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+✔ REL05 actual MCP exposes reusable reassessment with internal-only mutation annotations (28.128169ms)
+✔ REL05 remote profile keeps reassessment Owner-only and binds tenant/actor before command (1.000837ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+{"event":"visual_reassessment_denied","code":"VISUAL_REASSESSMENT_IDEMPOTENCY_CONFLICT","retry_allowed":false,"action":"Refresh the accepted package and current workflow; reconcile any started or uncertain delivery."}
+✔ REL05 MCP preview has zero writes; apply preserves accepted package/history and opens exactly one new input (335.93384ms)
+{"event":"visual_reassessment_denied","code":"VISUAL_REASSESSMENT_PACKAGE_CONFLICT","retry_allowed":false,"action":"Refresh the accepted package and current workflow; reconcile any started or uncertain delivery."}
+{"event":"visual_reassessment_denied","code":"VISUAL_REASSESSMENT_PRIOR_INPUT_CONFLICT","retry_allowed":false,"action":"Refresh the accepted package and current workflow; reconcile any started or uncertain delivery."}
+{"event":"visual_reassessment_denied","code":"VISUAL_REASSESSMENT_PACKAGE_CONFLICT","retry_allowed":false,"action":"Refresh the accepted package and current workflow; reconcile any started or uncertain delivery."}
+{"event":"visual_reassessment_denied","code":"VISUAL_REASSESSMENT_PACKAGE_CONFLICT","retry_allowed":false,"action":"Refresh the accepted package and current workflow; reconcile any started or uncertain delivery."}
+{"event":"visual_reassessment_denied","code":"VISUAL_REASSESSMENT_OWNER_REQUIRED","retry_allowed":false,"action":"Refresh the accepted package and current workflow; reconcile any started or uncertain delivery."}
+✔ REL05 stale guards and non-owner calls cause zero changes, no evidence leaks (76.022451ms)
+{"event":"visual_reassessment_denied","code":"VISUAL_REASSESSMENT_EXISTING_AUTHORITY","retry_allowed":false,"action":"Refresh the accepted package and current workflow; reconcile any started or uncertain delivery."}
+✔ REL05 any delivery attempt including uncertain blocks reassessment without changing history (57.383426ms)
+✔ REL05 concurrent identical requests create one generation and one immutable request event (81.007245ms)
+✔ REL05 disabled pipeline cannot bypass request; old asset callback cannot restore old readiness (75.457777ms)
+✔ REL05 new assessment requires visual and separate current review lease/generation before atomic fulfilment (279.317709ms)
+{"event":"visual_reassessment_denied","code":"VISUAL_REASSESSMENT_PACKAGE_CONFLICT","retry_allowed":false,"action":"Refresh the accepted package and current workflow; reconcile any started or uncertain delivery."}
+✔ REL05 direct claim wins before request: request cannot create authority during in-flight send (58.311913ms)
+✔ REL05 request wins before stale direct claim: status CAS fails and creates no dispatch (51.878909ms)
+{"event":"visual_reassessment_denied","code":"VISUAL_REASSESSMENT_STORAGE_OR_PLACEMENT_CHECK_FAILED","retry_allowed":false,"action":"Refresh the accepted package and current workflow; reconcile any started or uncertain delivery."}
+✔ REL05 request audit failure rolls back new input, status and request together with safe operator error (42.737177ms)
+{"event":"visual_reassessment_denied","code":"VISUAL_REASSESSMENT_EXISTING_AUTHORITY","retry_allowed":false,"action":"Refresh the accepted package and current workflow; reconcile any started or uncertain delivery."}
+✔ REL05 leased executor or release projection denies request and does not revoke prior authority (37.862214ms)
+{"event":"visual_reassessment_denied","code":"VISUAL_REASSESSMENT_PRIOR_INPUT_CONFLICT","retry_allowed":false,"action":"Refresh the accepted package and current workflow; reconcile any started or uncertain delivery."}
+{"event":"visual_reassessment_denied","code":"VISUAL_REASSESSMENT_PRIOR_INPUT_CONFLICT","retry_allowed":false,"action":"Refresh the accepted package and current workflow; reconcile any started or uncertain delivery."}
+{"event":"visual_reassessment_denied","code":"VISUAL_REASSESSMENT_PRIOR_INPUT_CONFLICT","retry_allowed":false,"action":"Refresh the accepted package and current workflow; reconcile any started or uncertain delivery."}
+✔ REL05 mismatched active decision channel or placement and duplicate active decisions reject (106.942299ms)
+✔ REL05 generic completion cannot strand the new art input; release/reclaim then typed assessment remains usable (78.421517ms)
+{"event":"publication_diagnostic","service":"browser","isError":true,"code":"BROWSER_STATE_CONFLICT","message":"The publication state changed concurrently; this operation was not committed.","retry_allowed":false,"reasons":[{"code":"BROWSER_STATE_CONFLICT","field":"lifecycle","message":"The publication state changed concurrently; this operation was not committed.","action":"Refresh the current task, work item and audit state. Inspect and reconcile any existing or uncertain delivery before another operation; never resend based on this conflict."}]}
+✔ REL05 actual browser release races Owner reassessment: only one lifecycle can commit (144.18946ms)
+{"event":"visual_reassessment_denied","code":"VISUAL_REASSESSMENT_PACKAGE_CONFLICT","retry_allowed":false,"action":"Refresh the accepted package and current workflow; reconcile any started or uncertain delivery."}
+✔ REL05 old content writer races reassessment: accepted copy cannot change after request commits (51.095544ms)
+{"event":"publication_diagnostic","service":"browser","isError":true,"code":"PUBLICATION_VISUAL_REVIEW_REQUIRED","message":"The current Owner visual requirement has no matching approved independent review.","reasons":[{"code":"PUBLICATION_VISUAL_REVIEW_REQUIRED","field":"visual_review","message":"The current Owner visual requirement has no matching approved independent review.","action":"Read the current art-direction context, complete its source/generation and separate visual review, then obtain a release for that exact package. Restoring old no-visual fields does not satisfy the requirement."}],"retry_allowed":false}
+✔ REL05 restored no-visual projections cannot bypass the durable request at actual browser release (73.782166ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2457.575691

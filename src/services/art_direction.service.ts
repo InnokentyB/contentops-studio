@@ -1,4 +1,6 @@
 import { Prisma } from '@prisma/client';
+import { createHash } from 'node:crypto';
+import {getVisualReassessment,lockVisualContent,assertVisualAssessmentBinding,assertVisualDecisionBinding,assertVisualMutationBeforeRelease,visualReassessmentFulfilled,visualReassessmentError,VisualDecisionCode} from './visual_reassessment_binding';
 import path from 'path';
 import prisma from '../db';
 import { assertPublicationTextWithinLimit } from './publication_text_limit';
@@ -144,10 +146,19 @@ export class ArtDirectionService {
     }
 
     async acceptContentRevision(client: Prisma.TransactionClient, contentItemId: number, actorId: string) {
-        const item = await client.contentItem.findUnique({ where: { id: contentItemId }, include: { channel: true } });
+        let item = await client.contentItem.findUnique({ where: { id: contentItemId }, include: { channel: true } });
         if (!item) throw new Error(`ContentItem ${contentItemId} not found`);
         if (['published', 'removed', 'cancelled'].includes(item.status) || !item.draft_text?.trim()) return null;
         assertPublicationTextWithinLimit(item.channel?.type || item.type, item.draft_text, item.channel?.config);
+        await lockVisualContent(client,item.project_id,contentItemId);
+        item=await client.contentItem.findUniqueOrThrow({where:{id:contentItemId},include:{channel:true}});
+        if(['published','removed','cancelled'].includes(item.status)||!item.draft_text?.trim())return null;
+        assertPublicationTextWithinLimit(item.channel?.type||item.type,item.draft_text,item.channel?.config);
+        const reassessment=await getVisualReassessment(client,item.project_id,item.id);
+        if(reassessment){
+            assertVisualAssessmentBinding(reassessment,reassessment.work_item_id,item,createHash('sha256').update(item.draft_text||'').digest('hex'));
+            return client.workItem.findUnique({where:{id:reassessment.work_item_id}});
+        }
 
         const enabled = await this.isEnabled(item.project_id, client);
         const placement = placementForContentAcceptance(
@@ -190,7 +201,9 @@ export class ArtDirectionService {
     }
 
     async markRevisionStale(client: Prisma.TransactionClient, contentItemId: number) {
-        const item = await client.contentItem.findUnique({ where: { id: contentItemId } });
+        let item = await client.contentItem.findUnique({ where: { id: contentItemId } });
+        if(item){await lockVisualContent(client,item.project_id,item.id);item=await client.contentItem.findUnique({where:{id:contentItemId}});}
+        if(item){const request=await getVisualReassessment(client,item.project_id,item.id);if(request&&!await visualReassessmentFulfilled(client,request,item.project_id,item.id,item.selected_asset_id))throw visualReassessmentError('VISUAL_REASSESSMENT_REVISION_LOCKED');}
         if (!item || !(await this.isEnabled(item.project_id, client))) return;
         await client.artDirectionDecision.updateMany({
             where: { content_item_id: item.id, status: 'active' },
@@ -211,6 +224,8 @@ export class ArtDirectionService {
         const item = workItem.content_item;
         const channelType = item.channel?.type || item.type;
         const placement = item.visual_placement || 'feed';
+        const reassessment=await getVisualReassessment(prisma,projectId,item.id);
+        if(reassessment)assertVisualAssessmentBinding(reassessment,workItem.id,item,createHash('sha256').update(item.draft_text||'').digest('hex'));
         return {
             work_item: workItem,
             content: {
@@ -222,7 +237,8 @@ export class ArtDirectionService {
                 placement_contract: buildArtDirectionPlacementContext(channelType, placement, item.channel?.config),
                 visual_mode: item.visual_mode
             },
-            recent_assets: item.image_assets
+            recent_assets: item.image_assets,
+            visual_reassessment: reassessment
         };
     }
 
@@ -235,6 +251,9 @@ export class ArtDirectionService {
         decision: ArtDirectionDecisionInput;
     }) {
         return prisma.$transaction(async (tx) => {
+            const owner=await tx.workItem.findFirst({where:{id:params.workItemId,project_id:params.projectId},select:{content_item_id:true}});
+            if(owner?.content_item_id)await lockVisualContent(tx,params.projectId,owner.content_item_id);
+            if(owner?.content_item_id){const request=await getVisualReassessment(tx,params.projectId,owner.content_item_id);if(request&&request.work_item_id!==params.workItemId)throw visualReassessmentError('VISUAL_REASSESSMENT_GENERATION_CONFLICT');}
             const cached = await tx.workflowEvent.findUnique({
                 where: { project_id_actor_id_command_idempotency_key: {
                     project_id: params.projectId,
@@ -255,10 +274,14 @@ export class ArtDirectionService {
             }
             if (workItem.lease_expires_at && workItem.lease_expires_at < new Date()) throw new Error('[LEASE_EXPIRED] Art-direction lease expired');
             const item = workItem.content_item;
+            const reassessment=await getVisualReassessment(tx,params.projectId,item.id);
+            if(reassessment){assertVisualAssessmentBinding(reassessment,workItem.id,item,createHash('sha256').update(item.draft_text||'').digest('hex'));await assertVisualMutationBeforeRelease(tx,params.projectId,item.id);}
             if (item.accepted_revision !== params.decision.source_content_revision || item.content_revision !== item.accepted_revision) {
                 throw new Error('[STALE_CONTENT_REVISION] Decision does not match the accepted content revision');
             }
+            if(reassessment&&params.decision.decision===VisualDecisionCode.NotNeeded)throw visualReassessmentError('VISUAL_REASSESSMENT_OWNER_VISUAL_REQUIRED');
             const validated = validateArtDirectionDecision(params.decision, item.visual_mode);
+            if(reassessment&&(validated.channel!==(await tx.socialChannel.findUnique({where:{id:reassessment.channel_id}}))?.type||validated.placement!==reassessment.placement))throw visualReassessmentError('VISUAL_REASSESSMENT_PACKAGE_CONFLICT');
             const version = item.visual_decision_version + 1;
             await tx.artDirectionDecision.updateMany({ where: { content_item_id: item.id, status: 'active' }, data: { status: 'superseded' } });
             const stored = await tx.artDirectionDecision.create({
@@ -303,7 +326,8 @@ export class ArtDirectionService {
                     handoff_state: validated.decision === 'NO_VISUAL_NEEDED' ? 'ready' : 'blocked'
                 }
             });
-            await tx.workItem.update({ where: { id: workItem.id }, data: { state: 'completed', result_version: version, result_payload: validated as unknown as Prisma.InputJsonValue, lease_token: null, lease_actor_id: null, lease_expires_at: null } });
+            const finished=await tx.workItem.updateMany({ where: { id: workItem.id,state:'claimed',lease_token:params.leaseToken,lease_actor_id:params.actorId,OR:[{lease_expires_at:null},{lease_expires_at:{gte:new Date()}}] }, data: { state: 'completed', result_version: version, result_payload: validated as unknown as Prisma.InputJsonValue, lease_token: null, lease_actor_id: null, lease_expires_at: null } });
+            if(finished.count!==1)throw visualReassessmentError('VISUAL_REASSESSMENT_LEASE_CONFLICT');
 
             if (validated.decision === 'GENERATE') {
                 const dedupeKey = `visual-generate:${item.id}:${item.content_revision}:${version}:1`;
@@ -326,6 +350,11 @@ export class ArtDirectionService {
                     }
                 });
             }
+            if(reassessment){
+                const keys=[`visual-generate:${item.id}:${item.content_revision}:${version}:1`,`visual-source:${item.id}:${item.content_revision}:${version}`];
+                const downstream=await tx.workItem.findMany({where:{project_id:params.projectId,content_item_id:item.id,dedupe_key:{in:keys}}});
+                for(const work of downstream)await tx.workItem.update({where:{id:work.id},data:{result_payload:{decision_id:stored.id,reassessment_generation:reassessment.generation,...(work.kind==='visual_generate'?{prompt:stored.prompt,placement:stored.placement}:{})}}});
+            }
             const result = { decision_id: stored.id, decision_version: version, visual_state: stateByDecision[validated.decision] };
             await tx.workflowEvent.create({ data: { project_id: params.projectId, work_item_id: workItem.id, content_item_id: item.id, actor_id: params.actorId, command: 'ba_submit_art_direction_decision', idempotency_key: params.idempotencyKey, after_state: result } });
             return result;
@@ -339,9 +368,13 @@ export class ArtDirectionService {
         });
         if (!item) throw new Error('Content item not found');
         const enabled = await this.isEnabled(projectId);
+        const reassessment=await getVisualReassessment(prisma,projectId,contentItemId);
+        if(reassessment)assertVisualAssessmentBinding(reassessment,reassessment.work_item_id,item,createHash('sha256').update(item.draft_text||'').digest('hex'));
+        const fulfilled=reassessment?await visualReassessmentFulfilled(prisma,reassessment,projectId,contentItemId,item.selected_asset_id):true;
         const storageState = await getVisualStorageIngestState(projectId);
-        const visualReadiness = calculateVisualReadiness({ enabled, textState: item.text_state, acceptedRevision: item.accepted_revision, contentRevision: item.content_revision, visualMode: item.visual_mode, visualState: item.visual_state, selectedAssetRevision: item.selected_asset?.content_revision, selectedAssetUrl: item.selected_asset?.file_url });
-        const effectiveReadiness = storageState.blocked
+        const visualReadiness = calculateVisualReadiness({ enabled:enabled||Boolean(reassessment), textState: item.text_state, acceptedRevision: item.accepted_revision, contentRevision: item.content_revision, visualMode: item.visual_mode, visualState: item.visual_state, selectedAssetRevision: item.selected_asset?.content_revision, selectedAssetUrl: item.selected_asset?.file_url });
+        const effectiveReadiness = reassessment&&(!fulfilled||item.visual_mode!=='required'||item.visual_state!=='APPROVED'||item.selected_asset?.status!=='approved')
+            ?{ready:false,reason:'visual_reassessment_pending_current_review'}: storageState.blocked
             ? { ready: false, reason: storageState.reason || 'storage_ingest_blocked' }
             : visualReadiness;
         return {
@@ -361,7 +394,7 @@ export class ArtDirectionService {
         };
     }
 
-    async attachVisualSource(params: { projectId: number; actorId: string; contentItemId: number; fileUrl?: string; fileDataBase64?: string; fileName?: string; mimeType?: string; provenance: Record<string, unknown>; altText?: string }) {
+    async attachVisualSource(params: { projectId: number; actorId: string; contentItemId: number; fileUrl?: string; fileDataBase64?: string; fileName?: string; mimeType?: string; provenance: Record<string, unknown>; altText?: string; decisionId?:number; reassessmentGeneration?:string }) {
         await requireProjectActorAccess(params.projectId, params.actorId);
         if (!Object.keys(params.provenance || {}).length) throw new Error('[PROVENANCE_REQUIRED] Visual source provenance is required');
         const sourceTarget = await prisma.contentItem.findFirst({
@@ -375,6 +408,8 @@ export class ArtDirectionService {
             || !['SOURCE_REQUIRED', 'MANUAL_ASSET_REQUIRED'].includes(sourceTarget.art_direction_decisions[0].decision)) {
             throw new Error('[SOURCE_NOT_REQUESTED] Active decision does not request a source');
         }
+        const currentRequest=await getVisualReassessment(prisma,params.projectId,sourceTarget.id);
+        if(currentRequest&&(params.reassessmentGeneration!==currentRequest.generation||params.decisionId!==sourceTarget.art_direction_decisions[0].id))throw visualReassessmentError('VISUAL_REASSESSMENT_GENERATION_CONFLICT');
         let fileUrl = params.fileUrl?.trim() || '';
         let provenance = { ...params.provenance } as Record<string, unknown>;
         if (params.fileDataBase64) {
@@ -409,9 +444,16 @@ export class ArtDirectionService {
             throw new Error('[VISUAL_SOURCE_BYTES_REQUIRED] Local visual sources must be attached with fileDataBase64 for durable ingestion');
         }
         return prisma.$transaction(async (tx) => {
+            await lockVisualContent(tx,params.projectId,params.contentItemId);
             const item = await tx.contentItem.findFirst({ where: { id: params.contentItemId, project_id: params.projectId }, include: { art_direction_decisions: { where: { status: 'active' }, orderBy: { decision_version: 'desc' }, take: 1 } } });
             if (!item || !item.accepted_revision || item.accepted_revision !== item.content_revision) throw new Error('[TEXT_NOT_ACCEPTED] Attach sources only to the current accepted revision');
             const decision = item.art_direction_decisions[0];
+            const reassessment=await getVisualReassessment(tx,params.projectId,item.id);
+            if(reassessment){
+                if(params.reassessmentGeneration!==reassessment.generation||params.decisionId!==decision?.id)throw visualReassessmentError('VISUAL_REASSESSMENT_GENERATION_CONFLICT');
+                assertVisualAssessmentBinding(reassessment,reassessment.work_item_id,item,createHash('sha256').update(item.draft_text||'').digest('hex'));
+                await assertVisualDecisionBinding(tx,reassessment,params.projectId,item.id,decision?.id||null);await assertVisualMutationBeforeRelease(tx,params.projectId,item.id);
+            }
             if (!decision || !['SOURCE_REQUIRED', 'MANUAL_ASSET_REQUIRED'].includes(decision.decision)) throw new Error('[SOURCE_NOT_REQUESTED] Active decision does not request a source');
             const latest = await tx.imageAsset.findFirst({ where: { content_item_id: item.id }, orderBy: { asset_version: 'desc' } });
             const asset = await tx.imageAsset.create({ data: {
@@ -425,7 +467,7 @@ export class ArtDirectionService {
                 project_id: item.project_id, week_package_id: item.week_package_id, content_item_id: item.id,
                 item_key: item.item_key || `content:${item.id}`, kind: 'visual_review', state: 'available', assignee_role: 'visual_reviewer',
                 input_context_version: item.content_revision, dedupe_key: dedupeKey,
-                result_payload: { asset_id: asset.id, decision_id: decision.id } as Prisma.InputJsonValue
+                result_payload: { asset_id: asset.id, decision_id: decision.id,...(reassessment?{reassessment_generation:reassessment.generation}:{}) } as Prisma.InputJsonValue
             } });
             await tx.contentItem.update({ where: { id: item.id }, data: { visual_state: 'IN_REVIEW', handoff_state: 'blocked' } });
             return { asset_id: asset.id, visual_state: 'IN_REVIEW', content_revision: item.content_revision };

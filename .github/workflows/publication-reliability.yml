@@ -1,0 +1,42 @@
+name: Publication reliability contracts
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  synthetic-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      RELIABILITY_TEST_IMAGE: planner-policy-build-check:node24
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - name: Compile current source in reviewed Docker image
+        run: docker compose -f ops/quality/compose.yaml --profile build build build-check
+      - name: Start isolated synthetic PostgreSQL and apply current migrations
+        run: |
+          docker compose -f tests/tdpd/publication-reliability.compose.yaml up -d synthetic-db
+          docker compose -f tests/tdpd/publication-reliability.compose.yaml run --rm checks npm run migrate:deploy
+          docker compose -f tests/tdpd/publication-reliability.compose.yaml exec -T synthetic-db createdb -U synthetic threads_reliability_synthetic
+          docker compose -f tests/tdpd/publication-reliability.compose.yaml exec -T synthetic-db createdb -U synthetic preview_reliability_synthetic
+          docker compose -f tests/tdpd/publication-reliability.compose.yaml run --rm -e DATABASE_URL=postgresql://synthetic:synthetic@synthetic-db:5432/threads_reliability_synthetic checks npm run migrate:deploy
+          docker compose -f tests/tdpd/publication-reliability.compose.yaml run --rm -e DATABASE_URL=postgresql://synthetic:synthetic@synthetic-db:5432/preview_reliability_synthetic checks npm run migrate:deploy
+      - name: MCP identity, drain, recovery and preview contracts without providers
+        run: |
+          docker compose -f tests/tdpd/publication-reliability.compose.yaml run --rm checks sh -c 'node --test --test-concurrency=1 dist/tests/mcp_session*.test.js dist/tests/remote_mcp_auth.test.js dist/tests/browser_actionable_diagnostics.test.js dist/tests/linkedin_recovery*.test.js dist/tests/browser_preparation_recovery.test.js dist/tests/browser_recovery*.test.js && node --test --test-concurrency=1 /source/tests/tdpd/publication-preview.test.cjs /source/tests/tdpd/threads-api-recovery.test.cjs /source/tests/tdpd/threads-api-boundary.test.cjs /source/tests/tdpd/threads-api-phases.test.cjs'
+      - name: Real database rollback, fencing, visual workflow and cross-package finalization
+        run: |
+          docker compose -f tests/tdpd/publication-reliability.compose.yaml run --rm checks node --test --test-concurrency=1 /source/tests/tdpd/linkedin-recovery-postgres.test.cjs /source/tests/tdpd/browser-preparation-postgres.test.cjs /source/tests/tdpd/linkedin-preparation-integration.test.cjs /source/tests/tdpd/visual-reassessment-mcp.test.cjs /source/tests/tdpd/visual-reassessment-postgres.test.cjs
+          docker compose -f tests/tdpd/publication-reliability.compose.yaml run --rm -e DATABASE_URL=postgresql://synthetic:synthetic@synthetic-db:5432/threads_reliability_synthetic checks node --test --test-concurrency=1 /source/tests/tdpd/threads-api-postgres.test.cjs /source/tests/tdpd/threads-visual-reassessment-postgres.test.cjs
+          docker compose -f tests/tdpd/publication-reliability.compose.yaml run --rm -e DATABASE_URL=postgresql://synthetic:synthetic@synthetic-db:5432/preview_reliability_synthetic checks node --test /source/tests/tdpd/publication-preview-postgres.test.cjs
+      - name: Mandatory quality gate
+        env:
+          RUNTIME_POLICY_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: docker compose -f tests/tdpd/publication-reliability.compose.yaml run --rm -e RUNTIME_POLICY_BASE_REF checks sh -c 'cd /source && npm run quality:gate'
+      - name: Stop only the temporary synthetic stack
+        if: always()
+        run: docker compose -f tests/tdpd/publication-reliability.compose.yaml down

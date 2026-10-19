@@ -1,0 +1,18 @@
+ Container contentops-threads-reliability-synthetic-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+✔ T04/T09 actual generic lifecycle commits canonical fact, attempt and API state (654.740284ms)
+✔ T09 competing readers produce one canonical fact (165.654203ms)
+✔ T09 injected audit failure rolls back canonical fact, attempt and recovery completion (120.124769ms)
+✔ T07 lease expiration immediately before canonical commit rolls back every write (109.297442ms)
+✔ T07 generic fact writer cannot bypass a pending API hold even with a callback (96.965145ms)
+✔ T07 changed accepted text and revoked owner block readback without provider GET (85.766365ms)
+✔ T08 real serializable reservation persists budget across concurrent readers (102.984372ms)
+✔ additive migration preserves old attempt and enforces tenant FK, uniqueness and budget (40.398782ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2709.671797

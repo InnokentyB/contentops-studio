@@ -164,3 +164,5 @@ Planner/strategist can use `ba_dzen_read_inbound` for scoped Studio comments/rep
 ### Dzen article and reply discovery
 
 External Radar can use `ba_dzen_search_relevant_posts` → `ba_dzen_read_post` → `ba_dzen_read_thread` to review a candidate without direct Dzen access. `ba_dzen_find_replies` combines owned publication inbound with known external threads and channel-bound Planner facts. Counts and history remain bounded; unsupported article layouts and unloaded reply rows retain explicit gaps. See [operator contract](docs/dzen-article-and-replies-contract.md).
+
+Remote MCP idle-session resource ownership, protected requests/SSE,404 reinitialization and isolated verification are documented in [MCP idle sessions](docs/operations/mcp-idle-sessions.md).

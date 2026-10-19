@@ -1,0 +1,123 @@
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+✔ P01 actual Publisher MCP exposes pure preview, no external send authority (106.607412ms)
+✔ P02 forged actor cannot override trusted session and wrong project never reads task (58.395119ms)
+✔ P03/P04/P09 missing principal (57.133732ms)
+✔ P03/P04/P09 nonmember (85.226016ms)
+✔ P03/P04/P09 not found (78.66739ms)
+✔ P03/P04/P09 DB failure (66.107531ms)
+✔ P06 uncertain original attempt gives reconciliation guidance without retries (56.79095ms)
+✔ P07 vk never infers independent adapter readiness (54.218226ms)
+✔ P07 dzen never infers independent adapter readiness (104.532711ms)
+✔ P08 stale expected accepted revision blocks preview package (43.82328ms)
+✔ P10 other profiles cannot discover preview; existing live tool stays destructive (66.055951ms)
+✔ P02 same-project actor spoof uses authenticated membership (49.194829ms)
+✔ P05 claimed executor (48.700696ms)
+✔ P05 existing fact (55.929345ms)
+✔ P05 terminal state (68.088702ms)
+✔ P05 unsupported provider (102.179038ms)
+✔ P05 stale visual (57.613805ms)
+✔ P05 current approved visual is checked without asset URLs or provenance (49.274119ms)
+✖ P11 blocked handoff, hold or wrong-placement decision never passes local validation {"row":{"handoff_state":"blocked"}} (43.873259ms)
+✖ P11 blocked handoff, hold or wrong-placement decision never passes local validation {"row":{"status":"planned"}} (53.562232ms)
+✖ P11 blocked handoff, hold or wrong-placement decision never passes local validation {"hold":true} (94.163294ms)
+✖ P11 blocked handoff, hold or wrong-placement decision never passes local validation {"row":{"art_direction_decisions":[{"id":41,"project_id":21,"content_item_id":7001,"channel":"threads","placement":"feed","decision":"NO_VISUAL_NEEDED","decision_version":1,"source_content_revision":2,"status":"active"}]}} (62.22995ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 18
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4906.118762
+
+✖ failing tests:
+
+test at tests/tdpd/publication-preview.test.cjs:107:3
+✖ P11 blocked handoff, hold or wrong-placement decision never passes local validation {"row":{"handoff_state":"blocked"}} (43.873259ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'LOCAL_VALID'
+  - 'BLOCKED'
+  
+      at /workspace/tests/tdpd/publication-preview.test.cjs:108:95
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async clientRun (/workspace/tests/tdpd/publication-preview.test.cjs:48:55)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'LOCAL_VALID',
+    expected: 'BLOCKED',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/tdpd/publication-preview.test.cjs:107:3
+✖ P11 blocked handoff, hold or wrong-placement decision never passes local validation {"row":{"status":"planned"}} (53.562232ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'LOCAL_VALID'
+  - 'BLOCKED'
+  
+      at /workspace/tests/tdpd/publication-preview.test.cjs:108:95
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async clientRun (/workspace/tests/tdpd/publication-preview.test.cjs:48:55)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'LOCAL_VALID',
+    expected: 'BLOCKED',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/tdpd/publication-preview.test.cjs:107:3
+✖ P11 blocked handoff, hold or wrong-placement decision never passes local validation {"hold":true} (94.163294ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'LOCAL_VALID'
+  - 'BLOCKED'
+  
+      at /workspace/tests/tdpd/publication-preview.test.cjs:108:95
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async clientRun (/workspace/tests/tdpd/publication-preview.test.cjs:48:55)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'LOCAL_VALID',
+    expected: 'BLOCKED',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/tdpd/publication-preview.test.cjs:107:3
+✖ P11 blocked handoff, hold or wrong-placement decision never passes local validation {"row":{"art_direction_decisions":[{"id":41,"project_id":21,"content_item_id":7001,"channel":"threads","placement":"feed","decision":"NO_VISUAL_NEEDED","decision_version":1,"source_content_revision":2,"status":"active"}]}} (62.22995ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'LOCAL_VALID'
+  - 'BLOCKED'
+  
+      at /workspace/tests/tdpd/publication-preview.test.cjs:108:95
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async clientRun (/workspace/tests/tdpd/publication-preview.test.cjs:48:55)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'LOCAL_VALID',
+    expected: 'BLOCKED',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
