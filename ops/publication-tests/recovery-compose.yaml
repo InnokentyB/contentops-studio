@@ -1,0 +1,16 @@
+name: planner-browser-recovery-synthetic
+services:
+  synthetic-db:
+    extends:
+      file: compose.yaml
+      service: synthetic-db
+  tests:
+    extends:
+      file: compose.yaml
+      service: tests
+    command: [node, --test, --test-concurrency=1, /workspace/tests/tdpd/browser-recovery-postgres.test.cjs]
+networks:
+  synthetic:
+    internal: true
+    ipam:
+      config: [{subnet: 10.231.74.0/28}]

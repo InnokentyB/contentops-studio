@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+cd /home/innokenty/workspaces/planner-engineering-20261018/x-native-shared-route
+docker compose -f ops/quality/compose.yaml run --rm --no-deps -e DATABASE_URL=postgresql://synthetic:synthetic@127.0.0.1:1/synthetic build-check sh -c 'mkdir -p /tmp/recovery-unit/tests && cp -a /workspace/tests/tdpd /tmp/recovery-unit/tests/ && cp -a /workspace/tests/fixtures /tmp/recovery-unit/tests/ && ln -s /opt/planner/dist /tmp/recovery-unit/dist && ln -s /opt/planner/node_modules /tmp/recovery-unit/node_modules && node --test --test-concurrency=1 /tmp/recovery-unit/tests/tdpd/linkedin1128-rev3-fact.unit.test.js /tmp/recovery-unit/tests/tdpd/linkedin1086-lifecycle.unit.test.js /tmp/recovery-unit/tests/tdpd/linkedin1128-rev3-lifecycle.unit.test.js /tmp/recovery-unit/tests/tdpd/threads1114-store.unit.test.js /tmp/recovery-unit/tests/tdpd/linkedin1128-store.unit.test.js'

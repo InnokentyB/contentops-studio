@@ -7,7 +7,11 @@ test('r3 fact completes only its new WI and preserves superseded WI1924 verbatim
     t.mock.method(access, 'requireProjectActorAccess', async () => undefined);
     const rows = [{ id: 1924, state: 'blocked', reason_code: 'SUPERSEDED_BY_ACCEPTED_REVISION3' }, { id: 2001, state: 'claimed', reason_code: null }];
     const originalOld = { ...rows[0] }; const now = new Date();
-    const tx = { contentItem: { findFirst: async () => ({ id: 1128, channel_id: 6, channel: { type: 'linkedin' } }), update: async () => undefined },
+    const tx = { $queryRaw: async (sql, ...values) => {
+        assert.equal(sql.join(''), "SELECT to_regclass('planner.browser_delivery_recovery') IS NOT NULL AS available");
+        assert.deepEqual(values, []);
+        return [{ available: false }];
+    }, contentItem: { findFirst: async () => ({ id: 1128, channel_id: 6, channel: { type: 'linkedin' } }), update: async () => undefined },
         publicationFact: { create: async ({ data }) => ({ ...data, id: 900, created_at: now, updated_at: now }) },
         metricSnapshot: { findUnique: async () => ({ id: 1 }) },
         workItem: { findFirst: async () => ({ id: 1000 }), updateMany: async ({ where, data }) => {

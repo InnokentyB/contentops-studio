@@ -47,7 +47,7 @@ function fixture() {
             const row={id:100+state[name].length,...(name==='attempts'?{created_at:new Date()}:{}),...data};state[name].push(row);return row;},
         updateMany:async({where,data})=>{const rows=state[name].filter(row=>matches(row,where));
             rows.forEach(row=>Object.assign(row,data));return{count:rows.length};}});
-    const db = {projectMember:{findUnique:async()=>({role:state.owner?'owner':'editor'})},
+    const db = {$queryRaw:async()=>[{available:false}],projectMember:{findUnique:async()=>({role:state.owner?'owner':'editor'})},
         contentItem:{findFirst:async({where})=>matches(state.task,where)?state.task:null,
             updateMany:async({where,data})=>{if(!matches(state.task,where))return{count:0};Object.assign(state.task,data);return{count:1};}},
         workflowEvent:table('events'), workItem:table('work'), deliveryAttempt:table('attempts'),

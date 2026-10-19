@@ -1102,6 +1102,7 @@ model DeliveryAttempt {
   @@map("delivery_attempts")
   @@schema("planner")
   connector_dispatch_jobs ConnectorDispatchJob[]
+  browser_recovery BrowserDeliveryRecovery?
   @@unique([project_id, id])
 
 }
@@ -1309,5 +1310,41 @@ model ConnectorHostStatus {
   @@id([project_id, host_id])
   @@index([project_id, heartbeat_at])
   @@map("connector_host_status")
+  @@schema("planner")
+}
+
+// Subordinate versioned recovery state; never independent publication or send authority.
+model BrowserDeliveryRecovery {
+  id Int @id @default(autoincrement())
+  project_id Int
+  content_item_id Int
+  attempt_id Int
+  work_item_id Int
+  contract_version Int @default(2)
+  row_version Int @default(0)
+  execution_generation Int @default(0)
+  package_sha256 String
+  approval_sha256 String
+  original_snapshot Json
+  lookup_window_start_at DateTime? @db.Timestamptz(6)
+  lookup_window_end_at DateTime? @db.Timestamptz(6)
+  stage String
+  delivery_certainty String
+  state String @default("idle")
+  cause_code String
+  recovery_action String
+  rounds Int @default(0)
+  requests_used Int @default(0)
+  started_at DateTime? @db.Timestamptz(6)
+  deadline_at DateTime? @db.Timestamptz(6)
+  next_read_at DateTime? @db.Timestamptz(6)
+  recovery_lease_sha256 String?
+  recovery_lease_expires_at DateTime? @db.Timestamptz(6)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @updatedAt @db.Timestamptz(6)
+  attempt DeliveryAttempt @relation(fields: [project_id, attempt_id], references: [project_id, id], onDelete: Cascade)
+  @@unique([project_id, attempt_id])
+  @@index([project_id, content_item_id])
+  @@map("browser_delivery_recovery")
   @@schema("planner")
 }

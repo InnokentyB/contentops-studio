@@ -1,3 +1,5 @@
+import {withRecoveryFactTransactions} from './browser_recovery_fact_transaction';
+import {prisma as canonicalPrisma} from '../db';
 import prisma from '../db';
 import { guardManualPublicationFact } from './publication_manual_fact_guard';
 import { Prisma } from '@prisma/client';
@@ -12,6 +14,8 @@ export interface RecordPublicationFactArgs {
     browserWorkItemId?: number;
     /** Internal atomic transport guard; never exposed by generic fact MCP arguments. */
     beforeWrite?: (tx: Prisma.TransactionClient) => Promise<void>;
+    /** Internal last transactional cancellation/fencing check; never exposed as RPC data. */
+    beforeCommit?: (tx: Prisma.TransactionClient) => Promise<void>;
     /** Internal exact browser proof, rechecked atomically before writing a clip fact. */
     clipConfirmation?: VkClipFactGuard;
     projectId: number;
@@ -114,6 +118,7 @@ function serializeFact(fact: any) {
 
 export class PublicationFactService {
     async record(args: RecordPublicationFactArgs) {
+        const prisma=withRecoveryFactTransactions(canonicalPrisma,args);
         if (args.browserWorkItemId !== undefined && (!Number.isSafeInteger(args.browserWorkItemId)
             || args.browserWorkItemId < 1 || typeof args.beforeWrite !== 'function')) throw new Error('SCOPED_BROWSER_COMPLETION_REQUIRES_GUARD');
         await requireProjectActorAccess(args.projectId, args.actorId);

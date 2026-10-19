@@ -1,3 +1,6 @@
+import {browserRecoveryStorageAvailable} from './browser_recovery_guard';
+import {projectBrowserRecovery} from './browser_recovery_assessment';
+import {assessLegacyBrowserRecovery} from './browser_recovery_assessment';
 import { z } from 'zod';
 import { BrowserDependencies,browserDefaults,requireBrowserOwner,loadBrowserTask,object,hash,checksum,
     browserSnapshotSchema,browserSnapshotMismatches } from './browser_publication_contract';
@@ -12,9 +15,11 @@ export async function diagnoseBrowserPublication(input:unknown,deps:BrowserDepen
         if(!task)throw new Error('[PUBLICATION_TASK_NOT_FOUND]');
         const [attempts,work]=await Promise.all([
             tx.deliveryAttempt.findMany({where:{project_id:args.projectId,content_item_id:args.taskId},
-                select:{id:true,status:true,requires_manual_confirmation:true,created_at:true,actual_published_at:true}}),
+                select:{id:true,status:true,requires_manual_confirmation:true,created_at:true,actual_published_at:true,error_message:true}}),
             tx.workItem.findMany({where:{project_id:args.projectId,content_item_id:args.taskId,kind:'browser_publish'},
                 select:{id:true,state:true,input_context_version:true,lease_expires_at:true}})]);
+        const persistedRecovery=await browserRecoveryStorageAvailable(tx)?await tx.browserDeliveryRecovery.findFirst({where:{project_id:args.projectId,content_item_id:args.taskId}}):null;
+        const recovery=persistedRecovery?projectBrowserRecovery({code:persistedRecovery.state==='reading'?'RECOVERY_IN_PROGRESS':persistedRecovery.cause_code}):attempts.length&&!task.publication_fact?assessLegacyBrowserRecovery(attempts[0]?.error_message||undefined):null;
         const quality=object(task.quality_report),release=object(quality.browser_release);
         const body=object(object(quality.handoff_bundle).publication).body;
         const mismatches=args.expectedSnapshot?browserSnapshotMismatches(task,args.expectedSnapshot):null;
@@ -24,7 +29,8 @@ export async function diagnoseBrowserPublication(input:unknown,deps:BrowserDepen
             selected_asset_id:task.selected_asset_id,asset_sha256:assetHash.success?assetHash.data:null,
             schedule_at:task.schedule_at,publish_at:task.publish_at,
             content_language:quality.content_language||null,handoff_language:object(quality.handoff_bundle).content_language||null,
-            release_snapshot:release.snapshot||null,attempts,browser_work_items:work,
+            release_snapshot:release.snapshot||null,attempts:attempts.map(({error_message:privateError,...safe})=>safe),browser_work_items:work,
+            recovery,
             persisted_handoff:{bundle_present:quality.handoff_bundle!==undefined,
                 publication_body_present:typeof body==='string',publication_body_sha256:typeof body==='string'?hash(body):null},
             snapshot_check:mismatches?{valid:mismatches.length===0,mismatches}:null,

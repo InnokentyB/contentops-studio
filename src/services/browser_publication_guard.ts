@@ -1,3 +1,4 @@
+import {assertBrowserRecoveryWriter} from './browser_recovery_guard';
 import { timingSafeEqual } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { z } from 'zod';
@@ -21,6 +22,7 @@ export function equalBrowserLease(stored:string|null,supplied:string):boolean {
     return a.length===b.length&&timingSafeEqual(a,b);
 }
 export async function checkedBrowserRelease(tx:BrowserDb,args:BrowserRequest&{workItemId:number},deps:BrowserDependencies) {
+    await assertBrowserRecoveryWriter(tx,args);
     const task=await checkedBrowserContext(tx,args,deps);
     if(task.publication_fact||task.published_link||task.publication_mode!=='browser_required')throw new Error('[BROWSER_RECONCILIATION_REQUIRED]');
     const work=await tx.workItem.findFirst({where:{id:args.workItemId,project_id:args.projectId,content_item_id:args.taskId,

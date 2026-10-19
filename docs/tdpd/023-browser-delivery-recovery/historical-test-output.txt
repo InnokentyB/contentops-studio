@@ -1,0 +1,51 @@
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+✔ 1086 start never creates another WI and CAS failure creates no attempt (2.33271ms)
+✔ 1086 prior attempt is reconcile-only even with a different key (0.390671ms)
+✔ 1086 atomic confirmation rechecks lease inside canonical fact before mutating attempt (1.176625ms)
+✔ 1086 pre-submit rejects changed author evidence under an existing phase key (0.748524ms)
+✔ 1086 uncertainty forbids another pre-submit permission (0.404602ms)
+✔ 1086 replay of an issued pre-submit check never grants a second Submit (0.508282ms)
+✔ 1086 valid confirmation updates attempt and audit inside the canonical fact hook (0.824094ms)
+✔ 1086 cannot attach an older publication to a newly started attempt (0.604943ms)
+✔ r3 cannot confirm an unrelated native body or fabricated author/time (0.255881ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+✔ r3 fact completes only its new WI and preserves superseded WI1924 verbatim (2.731803ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+✔ 1128 start never creates another WI and CAS failure creates no attempt (2.38845ms)
+✔ 1128 prior attempt is reconcile-only even with a different key (0.403362ms)
+✔ 1128 atomic confirmation rechecks lease inside canonical fact before mutating attempt (1.289026ms)
+✔ 1128 pre-submit rejects changed author evidence under an existing phase key (0.701253ms)
+✔ 1128 uncertainty forbids another pre-submit permission (0.572373ms)
+✔ 1128 replay of an issued pre-submit check never grants a second Submit (0.542003ms)
+✔ 1128 valid confirmation updates attempt and audit inside the canonical fact hook (0.894574ms)
+✔ 1128 cannot attach an older publication to a newly started attempt (0.661523ms)
+✔ r3 cannot confirm an unrelated native body or fabricated author/time (0.261531ms)
+✔ r3 historical fence allows reconciliation after expiry but never another Submit (3.539376ms)
+✔ r3 normal confirmation and reconciliation use different lease policies (0.530532ms)
+✔ r3 uncertain state cannot be confirmed through the normal tool even with an active lease (0.855124ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+✔ 1128 start never creates another WI and CAS failure creates no attempt (2.41851ms)
+✔ 1128 prior attempt is reconcile-only even with a different key (0.411762ms)
+✔ 1128 atomic confirmation rechecks lease inside canonical fact before mutating attempt (1.095115ms)
+✔ 1128 pre-submit rejects changed author evidence under an existing phase key (0.674323ms)
+✔ 1128 uncertainty forbids another pre-submit permission (0.435762ms)
+✔ 1128 replay of an issued pre-submit check never grants a second Submit (0.564272ms)
+✔ 1128 valid confirmation updates attempt and audit inside the canonical fact hook (0.835594ms)
+✔ 1128 cannot attach an older publication to a newly started attempt (0.589403ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+✔ 1114 claim CAS failure creates neither attempt nor claim event (2.38929ms)
+✔ 1114 claim persists pending/manual-confirmation fence before returning the body (1.082005ms)
+✔ 1114 confirmation guards and updates attempt inside canonical fact transaction (0.519612ms)
+✔ 1114 conflicting replay rejects before returning another request proof (0.640123ms)
+✔ 1114 pending replay is reconcile-only with no new attempt (0.465732ms)
+✔ 1114 recorded replay remains available after manifest drift without new writes (0.650183ms)
+✔ 1114 identical release rechecks its durable proof inside the CAS transaction (0.695023ms)
+✔ 1114 release proof cannot transfer across owners or release keys (0.287281ms)
+ℹ tests 38
+ℹ suites 0
+ℹ pass 38
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 847.212698

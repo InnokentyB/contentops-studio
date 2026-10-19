@@ -2,7 +2,7 @@ const test=require('node:test');const assert=require('node:assert/strict');const
 require('ts-node').register({transpileOnly:true});
 const root=path.resolve(__dirname,'../..');const {z}=require('zod');
 test('R10 actual MCP and REST canonical fact/confirmation handlers refuse1002 at all lifecycle stages',async()=>{
- const dbModule=require(path.join(root,'src/db.ts'));const original=dbModule.default;
+ const dbModule=require(path.join(root,'src/db.ts'));const original=dbModule.default;const originalNamed=dbModule.prisma;
  let state='ready_for_execution';let transactions=0;
  const forbidden=new Proxy({}, {get(){throw Error('FACT_WRITE_OR_READ_FORBIDDEN');}});
  dbModule.default={
@@ -10,6 +10,7 @@ test('R10 actual MCP and REST canonical fact/confirmation handlers refuse1002 at
   contentItem:{findFirst:async()=>({id:1002,project_id:10,type:'article',status:state,published_link:null})},
   $transaction:async callback=>{transactions++;return callback(forbidden);}
  };
+ dbModule.prisma=dbModule.default;
  try{
   const tools=new Map();require(path.join(root,'src/mcp/tools/task_publication_tools.ts')).registerTaskPublicationTools({registerTool(n,c,h){tools.set(n,{schema:z.object(c.inputSchema),handler:h});}});
   const routes=new Map();const fastify=new Proxy({}, {get(_t,method){return (name,...rest)=>{if(method==='post')routes.set(name,rest.at(-1));};}});
@@ -27,5 +28,5 @@ test('R10 actual MCP and REST canonical fact/confirmation handlers refuse1002 at
    await assert.rejects(routes.get('/api/publication-tasks/:id/confirm-publication')({...request,body:{publishedLink:fact.publicUrl}},reply),/DZEN1002_EXACT_CONFIRMATION_REQUIRED/);
   }
   assert.equal(transactions,12);
- }finally{dbModule.default=original;}
+ }finally{dbModule.default=original;dbModule.prisma=originalNamed;}
 });

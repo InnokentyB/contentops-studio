@@ -38,6 +38,9 @@ jobs:
           docker compose -f ops/publication-tests/compose.yaml run --rm tests
           X_NATIVE_TEST_IMAGE=planner-policy-build-check:node24 docker compose -f ops/publication-tests/compose.yaml -f tests/tdpd/x-native-postgres.compose.yaml run --rm tests
           X_NATIVE_TEST_IMAGE=planner-policy-build-check:node24 docker compose -f ops/publication-tests/compose.yaml -f tests/tdpd/x-native-postgres.compose.yaml run --rm tests node --test --test-concurrency=1 /workspace/tests/tdpd/x-native-state-read-postgres.test.cjs /workspace/tests/tdpd/x-native-state-read-load.test.cjs
+      - name: Versioned recovery MCP, bounded coordinator and same-attempt resume (synthetic only)
+        run: |
+          docker compose -f ops/publication-tests/compose.yaml run --rm tests node --test --test-concurrency=1 /opt/planner/dist/tests/browser_recovery_coordinator.test.js /opt/planner/dist/tests/browser_recovery_resume.test.js /opt/planner/dist/tests/browser_recovery_resume_repository.test.js /workspace/tests/tdpd/browser-recovery-boundary.test.cjs /workspace/tests/tdpd/browser-recovery-postgres.test.cjs
       - name: Remove only the synthetic in-memory database stack
         if: always()
         run: docker compose -f ops/publication-tests/compose.yaml down

@@ -1,0 +1,222 @@
+ Container planner-browser-recovery-synthetic-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+✔ snapshot reports all safe fields without values or injected fields (1.170525ms)
+✔ missing prerequisite and unknown failures do not invent downstream causes (0.200991ms)
+✔ uncertainty and replay require reconciliation; success unchanged (0.179831ms)
+✔ registered MCP boundary serializes validation failures without input secrets or mutations (77.100412ms)
+✔ schema rejection explains request correction without raw validation values (0.15041ms)
+✔ read-only persisted snapshot mismatch returns concrete safe reasons (0.181431ms)
+✔ X native MCP controls serialize actionable redacted errors and preserve disabled registration (22.315832ms)
+✔ asset ownership revision and decision mismatches all remain visible without values (0.296661ms)
+✔ unsupported reader reports honest capability gap without database admission (2.880803ms)
+✔ temporary read failures retry within durable round budget without owner consent (1.248516ms)
+✔ FOUND uses registered verification and single atomic finalizer, never separate settlement (1.254976ms)
+✔ malformed mismatching or stale verified evidence cannot finalize (2.24091ms)
+✔ provider request budget stops at twenty even if reader requests a hundred pages (0.561933ms)
+✔ NOT_FOUND retries finitely and incomplete ambiguous strong non-delivery claims never permit resend (0.833944ms)
+✔ abort cancels active port, persists safe UNKNOWN and blocks later request permits (0.561353ms)
+✔ port timeout aborts a hung lookup and remaining attempts are bounded (0.563003ms)
+✔ concurrent lease holder prevents duplicate reads and stale settlement returns held conflict (0.405902ms)
+✔ finalization rejection preserves owner/package/permission blocker and no replacement fact writes (0.893494ms)
+✔ invalid scope and legacy state cause zero provider reads (0.318322ms)
+✔ hung repository reserve is bounded by operation deadline and abort (0.229431ms)
+✔ signed URL queries and control characters in known object identity are rejected (0.410612ms)
+✔ overall deadline cancels hanging request accounting without allowing late provider requests (0.298712ms)
+✔ settlement timeout returns conflict without starting another reader (0.322001ms)
+✔ abort while waiting between rounds does not perform another provider read (0.366822ms)
+✔ ambiguous observations cannot be upgraded by verification or sent to finalizer (0.224531ms)
+✔ abort during initial reservation returns promptly without provider reads (0.298701ms)
+✔ unknown outcome code cannot leak raw data or crash diagnostic factory (0.134041ms)
+✔ same attempt resumes with fenced generation, private new lease and safe idempotent replay (1.845699ms)
+✔ resume denied ownerAuthorized (0.224761ms)
+✔ resume denied permissionAllowed (0.142301ms)
+✔ resume denied approvalActive (0.121471ms)
+✔ resume denied currentApprovalSha256 (0.13183ms)
+✔ resume denied currentPackageSha256 (0.123151ms)
+✔ resume denied projectId (0.128321ms)
+✔ resume denied attemptStatus (0.12156ms)
+✔ resume denied stage (0.193911ms)
+✔ resume denied deliveryCertainty (0.228131ms)
+✔ unsupported executor never mutates (0.155051ms)
+✔ issued permit or incomplete proof never resumes (0.151921ms)
+✔ conflict and changed replay key cannot grant another lease (0.177251ms)
+✔ untrusted malformed request cannot supply technical evidence (0.259361ms)
+✔ untrusted/incomplete executor proof issuedPermitCount (0.153951ms)
+✔ untrusted/incomplete executor proof dispatchCount (0.10108ms)
+✔ untrusted/incomplete executor proof oldExecutorQuiescent (0.103621ms)
+✔ untrusted/incomplete executor proof challengeSupersessionSupported (0.123441ms)
+✔ untrusted/incomplete executor proof executorId (0.09567ms)
+✔ untrusted/incomplete executor proof evidenceRef (0.090321ms)
+✔ repository exceptions propagate for safe boundary serialization without a false resume (0.15493ms)
+✔ malformed immutable proof cannot satisfy equal missing values (0.14536ms)
+✔ committed replay after permit issuance cannot claim executor pickup (0.195921ms)
+✔ committed replay after generation advances is a held conflict (0.182841ms)
+✔ committed replay after pickup lease expiry cannot advertise a usable pickup (0.190281ms)
+✔ committed replay after state is held cannot advertise pickup (3.340205ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+✔ Prisma resume repository never registers an executor by default (0.674093ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+✔ exact task1114 cannot use generic send, processing or browser fallback (472.60631ms)
+✔ exact task1128 cannot use generic send, processing or browser fallback (0.324132ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+✔ canonical task MCP explains ACCEPTED_REVISION_REQUIRED with no raw provider error (17.51362ms)
+✔ canonical task MCP explains PUBLICATION_ATTEMPT_UNCERTAIN with no raw provider error (5.079123ms)
+✔ direct MCP explains adapter requirement, removes raw failed-result extras and never retries (9.836466ms)
+✔ direct MCP unexpected error has safe investigation path and does not echo raw trace (4.766431ms)
+✔ shared diagnostic boundary preserves successful payload and does not log (1.246325ms)
+✔ shared boundary serializes only reviewed diagnostic and logs once without raw error data (0.495162ms)
+✔ failed result projection replaces unsafe error data while preserving safe state (0.218061ms)
+✔ diagnostic status read remains a successful read instead of a failed command (0.626753ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+✔ remote MCP replaces caller-controlled actor and user identities (1.308475ms)
+✔ organization researcher scope cannot be overridden by tool arguments (0.15204ms)
+✔ remote MCP rejects an explicit project that differs from the token scope (0.12679ms)
+✔ remote MCP scopes user identity when the requested project matches the token (0.105221ms)
+✔ remote MCP injects the token-bound identity into bootstrap calls (0.134561ms)
+✔ remote MCP denies cross-tenant administrative tools (0.09949ms)
+✔ local MCP without a configured principal preserves tool arguments (0.103261ms)
+✔ writer MCP is restricted to its project and cannot invoke planner tools (0.140461ms)
+✔ writer MCP discovery exposes content tools but not slot mutation tools (107.850593ms)
+✔ planner MCP discovery exposes slot controls but not content mutation (68.047861ms)
+✔ only the owner MCP profile discovers audited content review recovery (50.431371ms)
+✔ editor, publisher and growth profiles expose only their governed lifecycle tools (193.551584ms)
+✔ role-scoped internal mutations do not request destructive host approval (548.511137ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+{"event":"publication_diagnostic","service":"browser","isError":false,"code":"READBACK_CAPABILITY_UNAVAILABLE","message":"No admitted read-only provider recovery capability is registered.","retry_allowed":false,"reasons":[{"code":"READBACK_CAPABILITY_UNAVAILABLE","field":"recovery","message":"No admitted read-only provider recovery capability is registered.","action":"Ask engineering to implement and admit a bounded reader through the existing approved route. Preserve the current attempt; do not resend or use another transport."}]}
+✔ operator sees capability gap and no fabricated automatic provider lookup after uncertainty (14.328356ms)
+✔ legacy prepare failure cannot be mislabeled definitely not sent without controlled executor proof (3.069574ms)
+✔ scoped diagnostic permission denial returns no recovery evidence (1.587217ms)
+✔ real MCP serialization preserves actionable recovery code and correction without lease or raw error (72.634432ms)
+✔ resume denial exposes structured reason, stage, certainty and concrete action (0.699803ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+✔ additive migration created constrained storage without admitting historical attempts (74.693212ms)
+✔ two recovery readers race: one reservation wins and per-page budget cannot exceed twenty (319.709091ms)
+✔ readback budget survives repository recreation, crash lease expiry, and stale settlement (83.677983ms)
+✔ cross-tenant/package recovery scopes and non-owner cannot spend a request (61.17433ms)
+✔ v1 submit path cannot bypass v2 hold (43.233378ms)
+✔ verified readback commits same attempt, canonical fact, recovery and audit atomically and replays idempotently (80.685819ms)
+✔ canonical finalization rollback preserves UNKNOWN and pending attempt on audit failure (47.187206ms)
+✔ FOUND races a late v1 response: at most one fact and no unguarded mutation (64.179004ms)
+✔ pre-permit recovery resumes the same attempt with rotated lease and stale replay held (90.475893ms)
+✔ missing executor fence and issued permit evidence prevent same-attempt resume (80.147616ms)
+✔ automatic owning-operation recovery calls only a registered synthetic reader and finalizes through canonical gates (84.964858ms)
+✔ migration delta preserves seeded pre-v2 attempt and enforces tenant FK, uniqueness and budget constraints (26.15727ms)
+✔ disabling new recovery admission cannot remove the hold on an existing v2 attempt (40.467875ms)
+✔ persisted exact recovery status reaches scoped diagnose instead of legacy fallback (43.83623ms)
+✔ revoked release on an existing recovery row blocks provider lookup with precise action (51.505475ms)
+✔ generic internal fact callback cannot bypass an admitted recovery hold (44.085452ms)
+✔ cancellation after the guarded beforeWrite still rolls back canonical fact at beforeCommit (59.824433ms)
+✔ two pre-permit resumptions cannot rotate two generations or create another attempt (62.113365ms)
+✔ owner revocation after beforeWrite prevents canonical commit and rolls back all changes (58.297716ms)
+✔ repeated recovery preserves immutable lookup window, original deadline and exact held permission action (55.964956ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+✔ S5 shared atomic confirmation and reconciliation controls exist (0.707523ms)
+✔ S5 fact+attempt+audit commit together; exact replay is read-only (15.3052ms)
+✔ S5 failed fact write rolls back completion audit and attempt state (2.877363ms)
+✔ S5 forged identity, wrong company, image, attempt or body never writes a fact (4.624991ms)
+✔ S5 UNKNOWN + expired lease reconcile only existing provider object, never reopen send (4.348119ms)
+✔ S5 reconciliation cannot bypass pre-submit during a healthy active lease (6.69449ms)
+✔ S5 normal confirmation rejects native action beyond recorded permit deadline atomically (1.647798ms)
+✔ S5 missing or invalid permit deadline never confirms (2.739683ms)
+✔ S5 explicit UNKNOWN can reconcile existing object while lease remains active (1.727968ms)
+✔ S5 expired lease alone permits reconciliation, missing lease expiry does not (2.614692ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+✔ Setka r2 diagnosis reads actual missing persisted bundle without mutation or snapshot requirement (2.981924ms)
+✔ Setka-shaped expected package reports exact missing body field with hash-only evidence (4.246219ms)
+✔ missing legacy bundle previews then repairs atomically before normal exact release (9.150903ms)
+✔ legacy repair rejects partial/divergent bundles, changed binding and every browser delivery history (10.431397ms)
+✔ diagnostic mismatches redact unexpected strings and reject owner/tenant changes without writes (0.833133ms)
+✔ legacy materialization never replaces a malformed metadata container or its history (1.066655ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+✔ S3 shared claim/start/pre-submit/uncertain controls exist (0.639793ms)
+✔ S3 claim replay returns only same current lease; durable audit never contains raw lease (8.271828ms)
+✔ S3 an expired claim key cannot retrieve a newer lease generation from the same actor (5.577625ms)
+✔ S3 start creates exactly one attempt; replay and UNKNOWN never issue another send permit (3.412586ms)
+✔ S4 pre-submit rejects actual company/text/image/block mismatch and only first valid call permits submit (5.905997ms)
+✔ S6 every generic dispatch entry rejects a shared governed package without task-numbered admission (0.814284ms)
+✔ S6 generic manual fact refuses to impersonate a browser attempt confirmation (0.513663ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+✔ LI-TEXT-01: no-visual personal and company snapshots reach owner preview/repair/release without fake assets (16.121674ms)
+✔ LI-TEXT-02: null requires current exact NO_VISUAL_NEEDED decision, no required image and exact trusted context (4.122628ms)
+✔ LI-TEXT-05: real MCP repair/release accepts the null pair and retains current canonical guards (54.7626ms)
+✔ LI-TEXT-06: missing legacy handoff materializes no image and no content/revision/date change (2.390111ms)
+✔ LI-TEXT-03: zero-image native observation permits once and confirms exact identity/body; image injection fails (11.797394ms)
+✔ LI-TEXT-04: UNKNOWN remains same-attempt reconciliation, never another start or permit (3.666236ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+✔ S6 shared controls are publisher-only; project and actor remain token-principal bound (0.785564ms)
+✔ S6 registered MCP surface matches capabilities and mutations never claim read-only (158.511024ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+✔ legacy Setka PostgreSQL bundle materialization rolls back audit failure, then repairs/releases once (273.52615ms)
+✔ legacy Setka PostgreSQL repair rejects completed browser history and partial persisted bundle (52.004887ms)
+✔ Setka PostgreSQL confirmation is atomic, canonical and same-attempt replay only (116.803574ms)
+✔ Setka PostgreSQL UNKNOWN freezes sending and reconciles the original attempt (84.268175ms)
+✔ S1/S2 PostgreSQL concurrent releases create exactly one WI and preserve accepted bytes (27.732987ms)
+✔ S3 PostgreSQL concurrent start/permit never authorizes two attempts or two clicks (45.597969ms)
+✔ S4 PostgreSQL concurrent pre-submit returns one permit; replay and UNKNOWN are read-only (66.529494ms)
+✔ S5 canonical fact transaction rolls back hook failures, then concurrent confirms persist one fact (76.41715ms)
+✔ 004 Telegram review recovery is atomic and never accepts or releases a draft (87.684591ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+✔ S1 generic preview/repair/release exists at the operator boundary (0.665563ms)
+✔ S1 preview never writes; metadata repair preserves accepted body/date/art/channel and creates no release (5.591705ms)
+✔ S1 release creates one revision-bound WI and records exact replay; changed request conflicts (1.808208ms)
+✔ S2 wrong owner/tenant/binding/manifest/content/date/asset/decision, hold or prior attempt reject without mutation (8.66536ms)
+✔ S2 failed release audit atomically rolls back task and WI, even after valid metadata repair (1.029544ms)
+✔ S1 ordinary next task is parameters, not another deployed module (0.894384ms)
+✔ S2 numeric company profile and adopted Registry provider ID must agree (0.392662ms)
+✔ S2 token-bound outer project/task cannot hide a different tenant in the snapshot (0.805084ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+✔ Setka preview is no-write and ordinary next task uses validated package data (11.03065ms)
+✔ Setka personal UUID identity and approved image stay mandatory (3.532076ms)
+✔ Setka native profile/body/image mismatch cannot produce another permit (6.355609ms)
+✔ Setka UUID permalink, native object/time and evidence commit atomically; replay is read-only (9.965736ms)
+✔ Setka UNKNOWN/expired lease reconciles same attempt and never grants resend (3.184055ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+✔ X no-visual package is data-driven; existing image routes cannot omit their approved image (9.601354ms)
+✔ X acceptance requires exact active no-visual decision and no selected asset (2.054879ms)
+✔ X mixed-case identity disagreement is rejected before release or provider action (0.423402ms)
+✔ raw generic X start cannot create an attempt; internal gate failure rolls back its own writes (4.107769ms)
+✔ X internal signed gate precedes one attempt; only first native permit grants <=15 seconds (8.66188ms)
+✔ X confirm/reconcile reject raw caller observations; signed result keeps native object namespace (4.669501ms)
+✔ X UNKNOWN remains same-attempt reconciliation after lease expiry, with no fresh permit (4.726842ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+✔ enrollment preview is no-write and unsigned/foreign-origin pairing cannot enroll (15.823943ms)
+✔ a signed pairing for one reviewed bundle cannot enroll another bundle or rewrite its proof (3.791547ms)
+✔ all signed delegate operations and owner issue reject a different bundle before state changes (14.521027ms)
+✔ enrolled build digest is immutable and legacy missing-digest enrollment cannot execute (4.776302ms)
+✔ signed start consumes one nonce with one durable attempt; delegate wire never contains lease (12.032955ms)
+✔ future-dated signed package cannot start an attempt, consume a nonce or gain a permit (4.115168ms)
+✔ expired unused START refresh returns a complete canonical sanitized stage without renewing lease (4.38844ms)
+✔ wrong origin, settings replacement and revoked installation yield no attempt or permit (10.799329ms)
+✔ another current tenant owner can revoke an installation and revocation audit remains sticky (3.889148ms)
+✔ nonce consume rolls back when the canonical attempt audit fails; no partial authority persists (4.562581ms)
+✔ a lost nonce CAS grants no attempt and no consume audit (4.566441ms)
+✔ UNKNOWN after start remains one attempt and expired lease yields reconciliation, not a new permit (14.012334ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+✔ PostgreSQL concurrent enrollment consumes one signed pairing and creates one audited installation (287.531714ms)
+✔ PostgreSQL signed start and permit races create one attempt and at most one true permit (224.756397ms)
+✔ PostgreSQL later attempt-audit failure rolls back nonce consumption and attempt together (84.900958ms)
+✔ PostgreSQL build mismatch and legacy enrollment cannot consume a nonce or create an attempt (72.605422ms)
+✔ PostgreSQL UNKNOWN and expired lease remain reconciliation-only; revocation stops signed delegates (179.305729ms)
+ℹ tests 179
+ℹ suites 0
+ℹ pass 179
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9031.447978
