@@ -1,0 +1,58 @@
+ Container tower-contentops-linkedin-api-verification-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+✔ 025 actual HTTP initiation binds selected channel and browser with secure opaque state (166.516507ms)
+✔ 025 explicit channel required; cannot infer or create a channel (8.091541ms)
+✔ 025 invalid browser never exchanges (18.543793ms)
+✔ 025 concurrent actual callbacks consume once and encrypted commit preserves channel (47.264997ms)
+✔ 025 stale config prevents exchange (15.209326ms)
+✔ 025 wrong member does not overwrite or leak (22.0447ms)
+✔ 025 audit failure rolls back final token and callback remains consumed (50.053902ms)
+✔ 025 expiry and denied-consent validate state before any exchange (15.540538ms)
+✔ 025 Owner revocation before callback prevents exchange (11.365427ms)
+✔ 025 Owner revocation during exchange prevents final commit (16.269772ms)
+✔ 025 provider rejection never leaks body and consumed request cannot replay (11.556468ms)
+✔ 025 valid denial consumes once without exchange (10.834494ms)
+✔ 025 foreign project/channel and demo credentials reject initiation (11.027496ms)
+✔ 025 swapped state/browser cannot exchange or create organization replacement (15.622568ms)
+✔ 025 encrypted credentials cannot attest forged metadata or another tenant/channel (38.136402ms)
+✔ 025 organization callback preserves exact author and requires verified ORGANIC_SHARE_CREATE (15.038565ms)
+✔ 025 unbound channel requires expected identity, explicit first-binding stays data-driven (19.473208ms)
+✔ 025 canonical personal profile slug must match actual Profile API vanityName (12.477223ms)
+✔ 025 status never returns token or activates publication, unknown metadata stays unknown (20.214652ms)
+✔ 025 same-origin HTTPS and encryption configuration fail before exchange (4.850675ms)
+✔ 025 duplicate callback parameters are rejected without consuming or exchanging (7.295237ms)
+✔ 025 lost exchange response is consumed with safe recovery guidance, no retry (12.831874ms)
+✔ 025 unverified actual grants/client/expiry never overwrite credentials (35.65683ms)
+✔ 025 channel change during exchange blocks final credential commit (15.282397ms)
+✔ 025 bounded provider response cannot leak an oversized secret body (16.280892ms)
+✖ 025 expiry during gated exchange preserves credentials and consumed history (14.752484ms)
+✔ 025 exact canonical personal profile slug can establish first member binding (13.154986ms)
+✔ 025 organization authority response for another organization cannot bind token (9.97817ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 27
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1225.067168
+
+✖ failing tests:
+
+test at ../../source/tests/tdpd/linkedin-oauth-postgres.test.cjs:36:1
+✖ 025 expiry during gated exchange preserves credentials and consumed history (14.752484ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /LINKEDIN_OAUTH_STATE_INVALID/. Input:
+
+  'https://ui.example.invalid/settings?tab=channels&linkedin=connected&channelId=73&projectId=74'
+
+      at TestContext.<anonymous> (/source/tests/tdpd/linkedin-oauth-postgres.test.cjs:36:625)
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'https://ui.example.invalid/settings?tab=channels&linkedin=connected&channelId=73&projectId=74',
+    expected: /LINKEDIN_OAUTH_STATE_INVALID/,
+    operator: 'match',
+    diff: 'simple'
+  }

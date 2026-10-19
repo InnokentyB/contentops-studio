@@ -1,0 +1,173 @@
+ Container tower-linkedin-oauth-verification-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+✖ 025 actual HTTP initiation binds selected channel and browser with secure opaque state (164.338579ms)
+✖ 025 explicit channel required; cannot infer or create a channel (10.501168ms)
+[LinkedIn OAuth] Error sorting callback: Error: Unexpected synthetic provider URL
+    at global.fetch (/source/tests/tdpd/linkedin-oauth-postgres.test.cjs:11:615)
+    at LinkedInService.getUserProfile (/source/src/services/linkedin.service.ts:75:32)
+    at Object.<anonymous> (/source/src/routes/linkedin.routes.ts:67:57)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+✖ 025 invalid browser or expired state never exchanges (37.111241ms)
+[LinkedIn OAuth] Error sorting callback: Error: Unexpected synthetic provider URL
+    at global.fetch (/source/tests/tdpd/linkedin-oauth-postgres.test.cjs:11:615)
+    at LinkedInService.getUserProfile (/source/src/services/linkedin.service.ts:75:32)
+    at Object.<anonymous> (/source/src/routes/linkedin.routes.ts:67:57)
+[LinkedIn OAuth] Error sorting callback: Error: Unexpected synthetic provider URL
+    at global.fetch (/source/tests/tdpd/linkedin-oauth-postgres.test.cjs:11:615)
+    at LinkedInService.getUserProfile (/source/src/services/linkedin.service.ts:75:32)
+    at Object.<anonymous> (/source/src/routes/linkedin.routes.ts:67:57)
+✖ 025 concurrent actual callbacks consume once and encrypted commit preserves channel (110.344479ms)
+[LinkedIn OAuth] Error sorting callback: Error: Unexpected synthetic provider URL
+    at global.fetch (/source/tests/tdpd/linkedin-oauth-postgres.test.cjs:11:615)
+    at LinkedInService.getUserProfile (/source/src/services/linkedin.service.ts:75:32)
+    at Object.<anonymous> (/source/src/routes/linkedin.routes.ts:67:57)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+✖ 025 revoked owner and stale config prevent exchange (13.867464ms)
+[LinkedIn OAuth] Error sorting callback: Error: Unexpected synthetic provider URL
+    at global.fetch (/source/tests/tdpd/linkedin-oauth-postgres.test.cjs:11:615)
+    at LinkedInService.getUserProfile (/source/src/services/linkedin.service.ts:75:32)
+    at Object.<anonymous> (/source/src/routes/linkedin.routes.ts:67:57)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+✖ 025 wrong member and raw provider failures do not overwrite or leak (9.802605ms)
+[LinkedIn OAuth] Error sorting callback: Error: Unexpected synthetic provider URL
+    at global.fetch (/source/tests/tdpd/linkedin-oauth-postgres.test.cjs:11:615)
+    at LinkedInService.getUserProfile (/source/src/services/linkedin.service.ts:75:32)
+    at Object.<anonymous> (/source/src/routes/linkedin.routes.ts:67:57)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+✖ 025 audit failure rolls back final token and callback remains consumed (15.449321ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 0
+ℹ fail 7
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 936.580595
+
+✖ failing tests:
+
+test at ../../source/tests/tdpd/linkedin-oauth-postgres.test.cjs:8:1
+✖ 025 actual HTTP initiation binds selected channel and browser with secure opaque state (164.338579ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /HttpOnly/. Input:
+
+  ''
+
+      at TestContext.<anonymous> (/source/tests/tdpd/linkedin-oauth-postgres.test.cjs:8:191)
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: /HttpOnly/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/linkedin-oauth-postgres.test.cjs:9:1
+✖ 025 explicit channel required; cannot infer or create a channel (10.501168ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  200 !== 400
+
+      at TestContext.<anonymous> (/source/tests/tdpd/linkedin-oauth-postgres.test.cjs:9:226)
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 400,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/linkedin-oauth-postgres.test.cjs:12:1
+✖ 025 invalid browser or expired state never exchanges (37.111241ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /LINKEDIN_OAUTH_BROWSER_MISMATCH/. Input:
+
+  'https://ui.example.invalid/settings?error=linkedin_auth_error'
+
+      at TestContext.<anonymous> (/source/tests/tdpd/linkedin-oauth-postgres.test.cjs:12:283)
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'https://ui.example.invalid/settings?error=linkedin_auth_error',
+    expected: /LINKEDIN_OAUTH_BROWSER_MISMATCH/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/linkedin-oauth-postgres.test.cjs:13:1
+✖ 025 concurrent actual callbacks consume once and encrypted commit preserves channel (110.344479ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /LINKEDIN_OAUTH_ALREADY_USED/. Input:
+
+  'https://ui.example.invalid/settings?error=linkedin_auth_error'
+
+      at TestContext.<anonymous> (/source/tests/tdpd/linkedin-oauth-postgres.test.cjs:13:464)
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'https://ui.example.invalid/settings?error=linkedin_auth_error',
+    expected: /LINKEDIN_OAUTH_ALREADY_USED/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/linkedin-oauth-postgres.test.cjs:14:1
+✖ 025 revoked owner and stale config prevent exchange (13.867464ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /LINKEDIN_OAUTH_CHANNEL_CHANGED/. Input:
+
+  'https://ui.example.invalid/settings?error=linkedin_auth_error'
+
+      at TestContext.<anonymous> (/source/tests/tdpd/linkedin-oauth-postgres.test.cjs:14:288)
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'https://ui.example.invalid/settings?error=linkedin_auth_error',
+    expected: /LINKEDIN_OAUTH_CHANNEL_CHANGED/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/linkedin-oauth-postgres.test.cjs:15:1
+✖ 025 wrong member and raw provider failures do not overwrite or leak (9.802605ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /LINKEDIN_OAUTH_IDENTITY_MISMATCH/. Input:
+
+  'https://ui.example.invalid/settings?error=linkedin_auth_error'
+
+      at TestContext.<anonymous> (/source/tests/tdpd/linkedin-oauth-postgres.test.cjs:15:208)
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'https://ui.example.invalid/settings?error=linkedin_auth_error',
+    expected: /LINKEDIN_OAUTH_IDENTITY_MISMATCH/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/linkedin-oauth-postgres.test.cjs:16:1
+✖ 025 audit failure rolls back final token and callback remains consumed (15.449321ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /LINKEDIN_OAUTH_SAVE_FAILED/. Input:
+
+  'https://ui.example.invalid/settings?error=linkedin_auth_error'
+
+      at TestContext.<anonymous> (/source/tests/tdpd/linkedin-oauth-postgres.test.cjs:16:872)
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'https://ui.example.invalid/settings?error=linkedin_auth_error',
+    expected: /LINKEDIN_OAUTH_SAVE_FAILED/,
+    operator: 'match',
+    diff: 'simple'
+  }

@@ -1,0 +1,23 @@
+ Container tower-contentops-linkedin-api-verification-synthetic-db-1  Running
+Loaded Prisma config from prisma.config.ts.
+
+Error:
+unknown or unexpected option: --schema
+
+Usage
+
+  $ prisma db execute [options]
+
+  The datasource URL configuration is read from the Prisma config file (e.g., prisma7.config.ts).
+
+Options
+
+-h, --help            Display this help message
+--config              Custom path to your Prisma config file
+
+Script input, only 1 must be provided:
+--file                Path to a file. The content will be sent as the script to be executed
+
+Flags
+
+--stdin              Use the terminal standard input as the script to be executed

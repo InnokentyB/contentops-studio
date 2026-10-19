@@ -73,7 +73,7 @@ test('shared publication adapter exposes the LinkedIn contract and operator chec
     assert.ok(checklist.some((item) => item.includes('semantic blocks')));
 });
 
-test('LinkedIn connector rejects a non-native body before any provider call', async (context) => {
+test('Legacy LinkedIn dispatcher rejects direct publication before any provider call', async (context) => {
     let providerCalls = 0;
     context.mock.method(globalThis, 'fetch', async () => {
         providerCalls += 1;
@@ -88,7 +88,7 @@ test('LinkedIn connector rejects a non-native body before any provider call', as
             { linkedin_urn: 'urn:li:person:test', access_token: 'test-token' },
             { actions: [], assets: {}, accounts: {} }
         ),
-        /\[LINKEDIN_NATIVE_FORMAT_INVALID\] markdown_styling/
+        /\[LINKEDIN_API_GOVERNED_ROUTE_REQUIRED\]/
     );
     assert.equal(providerCalls, 0);
 });

@@ -1,0 +1,73 @@
+ Container tower-contentops-linkedin-api-verification-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+✔ signed demo session preserves the server-side read-only claim (2.803204ms)
+✔ LinkedIn callback rejects reusable JWT state instead of treating it as durable authority (1.208056ms)
+✔ demo account can read project APIs (0.112981ms)
+✔ demo account cannot change data or trigger publication (0.09597ms)
+✔ demo restriction does not affect regular users or non-API navigation (0.101871ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+✔ LinkedIn contract accepts plain text with deliberate block spacing and supported bullets (2.100471ms)
+✔ LinkedIn contract rejects dense prose and Markdown formatting before publication (0.339212ms)
+✔ LinkedIn readback compares semantic blocks instead of bytes (0.232171ms)
+✔ LinkedIn readback detects a merged semantic block (0.15861ms)
+✔ shared publication adapter exposes the LinkedIn contract and operator checklist (0.355051ms)
+✔ Legacy LinkedIn dispatcher rejects direct publication before any provider call (0.987705ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+✔ LI-01 trusted attempt receipt independently verifies exact provider object (19.233316ms)
+✔ LI-02 unique history match cannot prove attempted dispatch (1.088555ms)
+✔ LI-03 mismatched provider object never confirms {"author":"urn:li:person:other"} (0.379941ms)
+✔ LI-03 mismatched provider object never confirms {"commentary":"different"} (0.341692ms)
+✔ LI-03 mismatched provider object never confirms {"publishedAt":50} (0.294992ms)
+✔ LI-03 mismatched provider object never confirms {"id":"urn:li:share:999"} (0.262932ms)
+✔ LI-03 mismatched provider object never confirms {"lifecycleState":"DRAFT"} (0.578733ms)
+✔ LI-03 mismatched provider object never confirms {"content":{"media":{"id":"urn:li:image:unknown"}}} (0.516262ms)
+✔ LI-04 denied permission and unadmitted route do not call provider (0.540432ms)
+✔ LI-07 cancellation and durable budget prevent HTTP calls (0.257031ms)
+✔ LI-08 arbitrary evidence cannot verify even with matching expected hashes (0.134531ms)
+✔ LI-05 HTTP failures never disclose provider bodies or credentials (0.828354ms)
+✔ LI-05 malformed and oversized payloads are safely incomplete (13.419268ms)
+✔ LI-06 bounded inventory constructs only approved LinkedIn URLs (1.536188ms)
+✔ LI-01 verified image uses trusted upload receipt rather than expected hash alone (0.791094ms)
+✔ LI-08 forged scope and changed receipt cannot verify (0.376832ms)
+✔ LI-07 local request ceiling also bounds a malformed permissive accounting dependency (0.163ms)
+✔ LI-03 reshares and sponsored objects cannot masquerade as ordinary text post (0.379152ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+✔ publication task readback removes encrypted and plaintext channel credentials recursively (0.871174ms)
+✔ publication task readback rematerializes task-bound content language into its handoff bundle (0.640033ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+✔ sanitizeChannelConfig masks sensitive fields (0.853284ms)
+✔ mergeChannelConfig preserves existing secrets when incoming is masked (0.198471ms)
+✔ mergeChannelConfig updates secrets when incoming has actual new values (0.126951ms)
+✔ Threads access token is encrypted at rest, masked in responses, and resolved for execution (0.963835ms)
+✔ Threads encrypted token in raw_account remains compatible and a masked edit preserves it (0.308682ms)
+✔ Threads legacy plaintext token remains readable until an explicit migration rewrites it (0.126411ms)
+✔ Dzen session cookies are encrypted at rest and masked in API responses (0.259591ms)
+✔ Dzen credentials nested in raw_account are also encrypted and redacted (0.228442ms)
+✔ Dzen credentials nested in raw_account are resolved for connection checks (0.275201ms)
+✔ effective Dzen config keeps legacy raw_account fields but prefers rotated top-level session (0.339362ms)
+✔ GET /api/projects/:id masks secrets (60.376764ms)
+✔ PUT /api/projects/:id/channels/:channelId merges configs (9.003335ms)
+✔ PUT /api/projects/:id/channels/:channelId requires project owner (5.617528ms)
+✔ mergeChannelConfig keeps channel workflow mode (0.135281ms)
+✔ GET /api/projects/:id/mcp/status reports the configured MCP health (8.536983ms)
+✔ POST /api/projects/:id/mcp/workspace-access issues the seven-role bundle only for an owner (6.375032ms)
+✔ workspace access API reports an active bundle and revokes a complete bundle (5.016185ms)
+✔ cleanAndFormatHashtags removes duplicate and double hashtags (0.344262ms)
+✔ cleanAndFormatHashtags handles category fallback tag (0.0987ms)
+✔ generateSlots uses explicit channelId when provided (0.433122ms)
+ℹ tests 51
+ℹ suites 0
+ℹ pass 51
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5186.413362

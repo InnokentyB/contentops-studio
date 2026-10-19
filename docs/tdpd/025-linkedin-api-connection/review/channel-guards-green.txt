@@ -1,0 +1,17 @@
+ Container tower-contentops-linkedin-api-verification-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+✔ 025 generic create denies server OAuth proof and ciphertext including nested raw account (149.464992ms)
+✔ 025 generic update cannot forge legacy verification or change verified identity/token (36.978676ms)
+✔ 025 ordinary settings update preserves protected server connection and masks ciphertext (11.642399ms)
+✔ 025 name-only and masked credential echo retain verified connection and nested proof (14.830295ms)
+✔ 025 concurrent OAuth completion cannot be overwritten by stale generic settings (83.38005ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1638.701548

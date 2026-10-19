@@ -9,12 +9,12 @@ export async function resolveLegacyPublicationChannel(db: Pick<Prisma.Transactio
     }
     return db.socialChannel.findFirst({ where: { project_id: post.project_id, type: 'telegram' } });
 }
-/** Unknown and VK bindings are held. Only known legacy non-VK transports retain their existing flow. */
+/** Unknown, VK and LinkedIn bindings are held. Only known Telegram/Threads legacy transports retain their existing flow. */
 export async function selectLegacyNonVkPosts<T extends LegacyChannelBinding>(db: Pick<Prisma.TransactionClient, 'socialChannel'>, posts: T[]): Promise<T[]> {
     const selected: T[] = [];
     for (const post of posts) {
         const channel = await resolveLegacyPublicationChannel(db, post);
-        if (channel && !isVkPublicationPlatform(channel.type) && ['telegram','threads','linkedin'].includes(channel.type.trim().toLowerCase())) selected.push(post);
+        if (channel && !isVkPublicationPlatform(channel.type) && ['telegram','threads'].includes(channel.type.trim().toLowerCase())) selected.push(post);
     }
     return selected;
 }

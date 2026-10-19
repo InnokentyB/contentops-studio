@@ -1,10 +1,12 @@
+import { decryptLinkedInToken } from '../services/linkedin_connection_credentials';
 import { decryptChannelSecret, encryptChannelSecret } from './channel_secrets';
 import { supportedVkSearchToken } from '../services/vk_search/credentials';
 
 const DZEN_TYPES = new Set(['zen', 'zen_article', 'dzen']);
 const ENCRYPTED_SECRET_FIELDS: Record<string, string[]> = {
     vk: ['search_access_token', 'publish_access_token', 'user_access_token', 'vk_oauth_access_token', 'stats_access_token', 'vk_refresh_token', 'vk_device_id'],
-    threads: ['access_token']
+    threads: ['access_token'],
+    linkedin: ['access_token']
 };
 
 /** Removes an explicitly cleared search key from current and legacy snapshots only. */
@@ -101,7 +103,7 @@ export function mergeChannelConfig(incomingConfig: any, existingConfig: any): an
 
 export function prepareChannelConfigForStorage(type: string, config: any): any {
     const prepared = { ...(config || {}) };
-    if (type === 'threads') {
+    if (type === 'threads' || type === 'linkedin') {
         if (prepared.raw_account && typeof prepared.raw_account === 'object') {
             prepared.raw_account = prepareChannelConfigForStorage(type, prepared.raw_account);
         }
@@ -167,12 +169,12 @@ export function prepareChannelConfigForStorage(type: string, config: any): any {
 
 export function resolveChannelConfigSecrets(type: string, config: any): any {
     const resolved = { ...(config || {}) };
-    if (type === 'threads') {
+    if (type === 'threads' || type === 'linkedin') {
         if (resolved.raw_account && typeof resolved.raw_account === 'object') {
             resolved.raw_account = resolveChannelConfigSecrets(type, resolved.raw_account);
         }
         if (!resolved.access_token && typeof resolved.access_token_encrypted === 'string') {
-            resolved.access_token = decryptChannelSecret(resolved.access_token_encrypted);
+            resolved.access_token = type === 'linkedin' ? decryptLinkedInToken(resolved.access_token_encrypted) : decryptChannelSecret(resolved.access_token_encrypted);
         }
         delete resolved.access_token_encrypted;
         return resolved;

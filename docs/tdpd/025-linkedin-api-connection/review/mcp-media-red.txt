@@ -1,0 +1,48 @@
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+✔ 025 actual MCP exposes truthful API operation annotations and projects no credentials (15.809399ms)
+✔ 025 trusted principal denies forged actor and foreign project before service (2.0733ms)
+✔ 025 MCP safe failure names recovery action without upstream error payload (1.850889ms)
+✔ 025 new API commands stay in Owner and Publisher capability boundary (6.403172ms)
+✖ 025 MCP rejects unsafe strings smuggled through otherwise allowed output keys (3.035225ms)
+✔ 025 actual factory carries session principal and enforces Owner/Publisher tool profiles (2542.361551ms)
+✔ 025 actual factory missing principal and mismatched scope never enters service (206.735199ms)
+✔ 025 media resolves only canonical managed bytes and verifies accepted SHA (19.79412ms)
+✔ 025 media wrong tenant, asset, provenance and URL are denied before fetch (0.930614ms)
+✔ 025 media truncated, changed, oversized and redirected responses never yield publish bytes (1.091175ms)
+✔ 025 media network error never reveals secret-bearing upstream diagnostics (0.402682ms)
+✔ 025 aborted media request makes zero storage calls (0.410632ms)
+✔ 025 streamed oversized body without content length is bounded and cancelled (5.518728ms)
+✔ 025 actual response MIME and accepted binary dimensions must match (1.305267ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 13
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4001.638526
+
+✖ failing tests:
+
+test at ../../source/tests/tdpd/linkedin-api-mcp.test.cjs:12:1
+✖ 025 MCP rejects unsafe strings smuggled through otherwise allowed output keys (3.035225ms)
+  AssertionError [ERR_ASSERTION]: The input was expected to not match the regular expression /DO_NOT_LEAK/. Input:
+
+  '{"content":[{"type":"text","text":"{\\n  \\"ready\\": \\"DO_NOT_LEAK\\",\\n  \\"route\\": \\"DO_NOT_LEAK\\",\\n  \\"author_urn\\": \\"DO_NOT_LEAK\\",\\n  \\"status\\": \\"DO_NOT_LEAK\\",\\n  \\"attempt_id\\": \\"DO_NOT_LEAK\\",\\n  \\"provider_object_id\\": \\"DO_NOT_LEAK\\",\\n  \\"code\\": \\"LINKEDIN_API_UNKNOWN\\",\\n  \\"next_action\\": \\"Reconcile this same attempt only; never resend.\\"\\n}"}],"structuredContent":{"ready":"DO_NOT_LEAK","route":"DO_NOT_LEAK","author_urn":"DO_NOT_LEAK","status":"DO_NOT_LEAK","attempt_id":"DO_NOT_LEAK","provider_object_id":"DO_NOT_LEAK","code":"LINKEDIN_API_UNKNOWN","next_action":"Reconcile this same attempt only; never resend."},"isError":false}'
+
+      at TestContext.<anonymous> (/source/tests/tdpd/linkedin-api-mcp.test.cjs:12:505)
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '{"content":[{"type":"text","text":"{\\n  \\"ready\\": \\"DO_NOT_LEAK\\",\\n  \\"route\\": \\"DO_NOT_LEAK\\",\\n  \\"author_urn\\": \\"DO_NOT_LEAK\\",\\n  \\"status\\": \\"DO_NOT_LEAK\\",\\n  \\"attempt_id\\": \\"DO_NOT_LEAK\\",\\n  \\"provider_object_id\\": \\"DO_NOT_LEAK\\",\\n  \\"code\\": \\"LINKEDIN_API_UNKNOWN\\",\\n  \\"next_action\\": \\"Reconcile this same attempt only; never resend.\\"\\n}"}],"structuredContent":{"ready":"DO_NOT_LEAK","route":"DO_NOT_LEAK","author_urn":"DO_NOT_LEAK","status":"DO_NOT_LEAK","attempt_id":"DO_NOT_LEAK","provider_object_id":"DO_NOT_LEAK","code":"LINKEDIN_API_UNKNOWN","next_action":"Reconcile this same attempt only; never resend."},"isError":false}',
+    expected: /DO_NOT_LEAK/,
+    operator: 'doesNotMatch',
+    diff: 'simple'
+  }

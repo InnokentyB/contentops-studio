@@ -1,5 +1,3 @@
-import fs from 'fs';
-import path from 'path';
 import { validateLinkedInNativeText } from './linkedin_content_contract';
 
 class LinkedInService {
@@ -90,85 +88,7 @@ class LinkedInService {
         return { urn, name };
     }
 
-    /**
-     * Upload an image to LinkedIn using the Assets API
-     */
-    private async uploadImage(urn: string, token: string, imageUrl: string): Promise<string> {
-        // 1. Register Upload
-        const registerBody = {
-            registerUploadRequest: {
-                recipes: ['urn:li:digitalmediaRecipe:feedshare-image'],
-                owner: urn,
-                serviceRelationships: [
-                    {
-                        relationshipType: "OWNER",
-                        identifier: "urn:li:userGeneratedContent"
-                    }
-                ]
-            }
-        };
-
-        const registerRes = await fetch('https://api.linkedin.com/v2/assets?action=registerUpload', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(registerBody)
-        });
-
-        if (!registerRes.ok) {
-            const errorText = await registerRes.text();
-            throw new Error(`LinkedIn image register failed: ${errorText}`);
-        }
-
-        const registerData: any = await registerRes.json();
-        const uploadUrl = registerData.value.uploadMechanism['com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest'].uploadUrl;
-        const asset = registerData.value.asset;
-
-        // 2. Fetch/Prepare Image
-        let imageBuffer: Buffer;
-        if (imageUrl.startsWith('data:')) {
-            const base64Data = imageUrl.split(',')[1];
-            imageBuffer = Buffer.from(base64Data, 'base64');
-        } else if (imageUrl.startsWith('/uploads/')) {
-            const { safeResolveUploadPath } = require('../utils/path_safety');
-            const localPath = safeResolveUploadPath(imageUrl);
-            if (localPath && fs.existsSync(localPath)) {
-                imageBuffer = fs.readFileSync(localPath);
-            } else {
-                throw new Error(`Local image file access denied or not found: ${imageUrl}`);
-            }
-        } else if (imageUrl.startsWith('http')) {
-            const imgRes = await fetch(imageUrl);
-            if (!imgRes.ok) throw new Error(`Failed to fetch remote image: ${imgRes.statusText}`);
-            const arrayBuffer = await imgRes.arrayBuffer();
-            imageBuffer = Buffer.from(arrayBuffer);
-        } else {
-            throw new Error(`Unsupported image format: ${imageUrl}`);
-        }
-
-        // 3. Upload Image Binary
-        const uploadRes = await fetch(uploadUrl, {
-            method: 'POST',
-            headers: {
-                // Let the proxy or fetch set Content-Length / Content-Type based on Buffer
-                // If it fails, maybe 'Authorization' generic
-            },
-            body: new Uint8Array(imageBuffer)
-        });
-
-        if (!uploadRes.ok && uploadRes.status !== 201) {
-            const errorText = await uploadRes.text();
-            throw new Error(`LinkedIn image binary upload failed [${uploadRes.status}]: ${errorText}`);
-        }
-
-        return asset;
-    }
-
-    /**
-     * Publishes a post to LinkedIn using the ugcPosts API.
-     */
+    /** Compatibility entry point: validates copy, then requires the governed API lifecycle. */
     async publishPost(urn: string, token: string, text: string, imageUrl?: string): Promise<string> {
         const contentValidation = validateLinkedInNativeText(text);
         if (!contentValidation.valid) {
@@ -176,74 +96,7 @@ class LinkedInService {
             throw new Error(`[LINKEDIN_NATIVE_FORMAT_INVALID] ${issueCodes}`);
         }
 
-        let mediaAsset: string | undefined;
-
-        if (imageUrl) {
-            try {
-                mediaAsset = await this.uploadImage(urn, token, imageUrl);
-            } catch (err: any) {
-                console.error('[LinkedInService] Image upload failed, falling back to text only', err);
-            }
-        }
-
-        const postBody: any = {
-            author: urn,
-            lifecycleState: "PUBLISHED",
-            specificContent: {
-                "com.linkedin.ugc.ShareContent": {
-                    shareCommentary: {
-                        text: text
-                    },
-                    shareMediaCategory: mediaAsset ? "IMAGE" : "NONE",
-                }
-            },
-            visibility: {
-                "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"
-            }
-        };
-
-        if (mediaAsset) {
-            postBody.specificContent["com.linkedin.ugc.ShareContent"].media = [
-                {
-                    status: "READY",
-                    description: {
-                        text: "Image description"
-                    },
-                    media: mediaAsset
-                }
-            ];
-        }
-
-        const response = await fetch('https://api.linkedin.com/v2/ugcPosts', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-                'X-Restli-Protocol-Version': '2.0.0'
-            },
-            body: JSON.stringify(postBody)
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`LinkedIn publish failed: ${errorText}`);
-        }
-
-        const responseText = await response.text();
-        let data: any = {};
-        if (responseText.trim()) {
-            try { data = JSON.parse(responseText); } catch { data = {}; }
-        }
-        // Return LinkedIn activity URL or ID
-        // The id is e.g. "urn:li:share:61231231231"
-        const postIdStr = data.id || response.headers.get('x-restli-id') || '';
-        const numericIdMatch = postIdStr.match(/:(\d+)$/);
-        
-        if (numericIdMatch) {
-            return `https://www.linkedin.com/feed/update/${postIdStr}`;
-        }
-        
-        throw new Error('[LINKEDIN_PROVIDER_ID_MISSING] Provider accepted the request without a stable post identity; reconcile before retry');
+        throw new Error('[LINKEDIN_API_GOVERNED_ROUTE_REQUIRED] Use the governed LinkedIn API release/send lifecycle. Legacy direct send is disabled; reconcile any existing attempt before continuing.');
     }
 
     /** Read-only recent-post lookup used to reconcile an uncertain write. */

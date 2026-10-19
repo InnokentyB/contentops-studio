@@ -1,117 +1,54 @@
 import { FastifyInstance } from 'fastify';
-import linkedinService from '../services/linkedin.service';
 import authService from '../services/auth.service';
-import prisma from '../db';
-
-
+import { oauthStartSchema, oauthCallbackSchema, oauthDiagnostic, oauthConfiguration, LinkedInOAuthError } from '../services/linkedin_oauth_contract';
+import { initiateLinkedInConnection, finishLinkedInConnection, oauthCookieName, getLinkedInConnectionStatus } from '../services/linkedin_oauth.service';
+function authenticatedUserId(authorization: string | undefined): number {
+    if (!authorization?.startsWith('Bearer ')) throw new LinkedInOAuthError('LINKEDIN_OAUTH_AUTH_REQUIRED');
+    try {
+        const user = authService.verifyToken(authorization.slice(7));
+        if (user.is_demo) throw new LinkedInOAuthError('LINKEDIN_OAUTH_AUTH_REQUIRED');
+        return user.id;
+    } catch {
+        throw new LinkedInOAuthError('LINKEDIN_OAUTH_AUTH_REQUIRED');
+    }
+}
+/** Existing OAuth surface; explicit tenant channel, no publication or incidental channel creation. */
 export default async function linkedinRoutes(fastify: FastifyInstance) {
-    
-    // GET /api/auth/linkedin/connect?projectId=123
-    fastify.get('/api/auth/linkedin/connect', async (request, reply) => {
-        const { projectId } = request.query as any;
-        const parsedProjectId = Number(projectId);
-        const token = request.headers.authorization?.split(' ')[1];
-        if (!token) return reply.code(401).send({ error: 'Authentication required' });
-        if (!Number.isInteger(parsedProjectId)) {
-            return reply.code(400).send({ error: 'projectId is required' });
-        }
-
+    fastify.addHook('onRequest', async (request, reply) => { if (request.url.startsWith('/api/auth/linkedin/'))
+        reply.header('Cache-Control', 'no-store').header('Referrer-Policy', 'no-referrer'); });
+    fastify.get('/api/auth/linkedin/connect', async (request, reply) => { const parsed = oauthStartSchema.safeParse(request.query); if (!parsed.success)
+        return reply.code(400).send(oauthDiagnostic(new LinkedInOAuthError('LINKEDIN_CHANNEL_REQUIRED'))); try {
+        const userId = authenticatedUserId(request.headers.authorization);
+        const started = await initiateLinkedInConnection(userId, parsed.data.projectId, parsed.data.channelId, parsed.data.expectedAuthorUrn);
+        reply.header('Set-Cookie', `${oauthCookieName(started.state)}=${started.browser}; Path=/; Max-Age=600; Secure; HttpOnly; SameSite=Lax`);
+        return { url: started.url };
+    }
+    catch (error) {
+        const diagnostic = oauthDiagnostic(error);
+        return reply.code(diagnostic.code === 'LINKEDIN_OAUTH_AUTH_REQUIRED' ? 403 : 400).send(diagnostic);
+    } });
+    fastify.get('/api/auth/linkedin/status', async (request, reply) => { const parsed = oauthStartSchema.safeParse(request.query); if (!parsed.success)
+        return reply.code(400).send(oauthDiagnostic(new LinkedInOAuthError('LINKEDIN_CHANNEL_REQUIRED'))); try {
+        const userId = authenticatedUserId(request.headers.authorization);
+        return await getLinkedInConnectionStatus(userId, parsed.data.projectId, parsed.data.channelId);
+    }
+    catch (error) {
+        return reply.code(403).send(oauthDiagnostic(error));
+    } });
+    fastify.get('/api/auth/linkedin/callback', async (request, reply) => { const parsed = oauthCallbackSchema.safeParse(request.query); if (!parsed.success)
+        return reply.code(400).send(oauthDiagnostic(new LinkedInOAuthError('LINKEDIN_OAUTH_STATE_INVALID'))); const name = oauthCookieName(parsed.data.state); const cookies = (request.headers.cookie || '').split(';').map(part => part.trim().split('=')); const matching = cookies.filter(([key]) => key === name); const browser = matching.length === 1 ? matching[0]?.[1] : undefined; reply.header('Set-Cookie', `${name}=; Path=/; Max-Age=0; Secure; HttpOnly; SameSite=Lax`); try {
+        const connected = await finishLinkedInConnection(parsed.data, browser);
+        return reply.redirect(`${oauthConfiguration().frontend}/settings?tab=channels&linkedin=connected&channelId=${connected.channelId}&projectId=${connected.projectId}`);
+    }
+    catch (error) {
+        const diagnostic = oauthDiagnostic(error);
+        let frontend: string;
         try {
-            const user = authService.verifyToken(token);
-            if (user.is_demo) {
-                return reply.code(403).send({ error: 'Demo access is read-only', code: 'DEMO_READ_ONLY' });
-            }
-            const membership = await prisma.projectMember.findUnique({
-                where: { project_id_user_id: { project_id: parsedProjectId, user_id: user.id } }
-            });
-            if (membership?.role !== 'owner') {
-                return reply.code(403).send({ error: 'Project owner access required' });
-            }
-
-            const state = authService.createLinkedInOAuthState(user.id, parsedProjectId);
-            return { url: linkedinService.getAuthUrl(state) };
-        } catch {
-            return reply.code(401).send({ error: 'Invalid token' });
+            frontend = oauthConfiguration().frontend;
         }
-    });
-
-    // GET /api/auth/linkedin/callback
-    fastify.get('/api/auth/linkedin/callback', async (request, reply) => {
-        const { code, state, error, error_description } = request.query as any;
-
-        if (error) {
-            console.error(`LinkedIn Auth Error: ${error} - ${error_description}`);
-            // Redirect back to frontend with error
-            return reply.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/settings?error=linkedin_auth_failed`);
+        catch {
+            return reply.code(503).send(diagnostic);
         }
-
-        if (!code || !state) {
-            return reply.code(400).send({ error: 'Code or state missing' });
-        }
-
-        try {
-            const binding = authService.verifyLinkedInOAuthState(state);
-            const projectId = binding.project_id;
-            const membership = await prisma.projectMember.findUnique({
-                where: { project_id_user_id: { project_id: projectId, user_id: binding.user_id } },
-                include: { user: true }
-            });
-            if (membership?.role !== 'owner' || membership.user.is_demo) {
-                throw new Error('LinkedIn OAuth owner binding is no longer valid');
-            }
-
-            // 1. Exchange code for access token
-            const token = await linkedinService.exchangeCodeToToken(code);
-
-            // 2. Fetch User Profile to get URN and Name
-            const { urn, name } = await linkedinService.getUserProfile(token);
-
-            const existingChannel = await prisma.socialChannel.findFirst({
-                where: {
-                    project_id: projectId,
-                    type: 'linkedin',
-                    config: {
-                        path: ['linkedin_urn'],
-                        equals: urn
-                    }
-                }
-            });
-
-            if (existingChannel) {
-                await prisma.socialChannel.update({
-                    where: { id: existingChannel.id },
-                    data: {
-                        name: `LinkedIn: ${name}`,
-                        config: {
-                            ...(existingChannel.config as any),
-                            linkedin_urn: urn,
-                            access_token: token,
-                            analytics_scope_enabled: true,
-                            last_reconnected_at: new Date().toISOString()
-                        } as any
-                    }
-                });
-            } else {
-                await prisma.socialChannel.create({
-                    data: {
-                        project_id: projectId,
-                        type: 'linkedin',
-                        name: `LinkedIn: ${name}`,
-                        config: {
-                            linkedin_urn: urn,
-                            access_token: token,
-                            analytics_scope_enabled: true,
-                            last_reconnected_at: new Date().toISOString()
-                        }
-                    }
-                });
-            }
-
-            // Redirect back to frontend settings page on success
-            reply.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/settings`);
-        } catch (err: any) {
-            console.error('[LinkedIn OAuth] Error sorting callback:', err);
-            reply.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/settings?error=linkedin_auth_error`);
-        }
-    });
+        return reply.redirect(`${frontend}/settings?tab=channels&error=${diagnostic.code}`);
+    } });
 }

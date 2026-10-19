@@ -1,0 +1,81 @@
+ Container tower-contentops-linkedin-api-verification-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+✖ 025 generic create denies server OAuth proof and ciphertext including nested raw account (175.59596ms)
+✖ 025 generic update cannot forge legacy verification or change verified identity/token (12.91479ms)
+✖ 025 ordinary settings update preserves protected server connection and masks ciphertext (10.038326ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 0
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1562.045113
+
+✖ failing tests:
+
+test at ../../source/tests/tdpd/linkedin-channel-guards-postgres.test.cjs:10:1
+✖ 025 generic create denies server OAuth proof and ciphertext including nested raw account (175.59596ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  200 !== 400
+
+      at TestContext.<anonymous> (/source/tests/tdpd/linkedin-channel-guards-postgres.test.cjs:10:493)
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 400,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/linkedin-channel-guards-postgres.test.cjs:11:1
+✖ 025 generic update cannot forge legacy verification or change verified identity/token (12.91479ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  200 !== 400
+
+      at TestContext.<anonymous> (/source/tests/tdpd/linkedin-channel-guards-postgres.test.cjs:11:303)
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 400,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/linkedin-channel-guards-postgres.test.cjs:12:1
+✖ 025 ordinary settings update preserves protected server connection and masks ciphertext (10.038326ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+  + undefined
+  - {
+  -   accountKind: 'personal',
+  -   authorUrn: 'urn:li:person:synthetic',
+  -   memberUrn: 'urn:li:person:synthetic',
+  -   postReadAuthorized: true,
+  -   scopes: [
+  -     'r_member_social'
+  -   ]
+  - }
+
+      at TestContext.<anonymous> (/source/tests/tdpd/linkedin-channel-guards-postgres.test.cjs:12:368)
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: { authorUrn: 'urn:li:person:synthetic', memberUrn: 'urn:li:person:synthetic', accountKind: 'personal', scopes: [ 'r_member_social' ], postReadAuthorized: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

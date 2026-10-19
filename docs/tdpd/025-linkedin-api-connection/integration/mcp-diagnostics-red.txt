@@ -1,0 +1,45 @@
+ Container tower-contentops-linkedin-api-verification-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+✔ 025 actual MCP exposes truthful API operation annotations and projects no credentials (33.169226ms)
+✔ 025 trusted principal denies forged actor and foreign project before service (2.250861ms)
+✔ 025 MCP safe failure names recovery action without upstream error payload (1.89267ms)
+✔ 025 new API commands stay in Owner and Publisher capability boundary (6.706844ms)
+✔ 025 MCP rejects unsafe strings smuggled through otherwise allowed output keys (2.360182ms)
+✔ 025 actual factory carries session principal and enforces Owner/Publisher tool profiles (2669.036967ms)
+✔ 025 actual factory missing principal and mismatched scope never enters service (181.502663ms)
+✖ 025 MCP preserves held preparation reason and distinguishes image permission from probe (3.88033ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 7
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3840.059024
+
+✖ failing tests:
+
+test at ../../source/tests/tdpd/linkedin-api-mcp.test.cjs:16:1
+✖ 025 MCP preserves held preparation reason and distinguishes image permission from probe (3.88033ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - true
+
+      at TestContext.<anonymous> (/source/tests/tdpd/linkedin-api-mcp.test.cjs:16:412)
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

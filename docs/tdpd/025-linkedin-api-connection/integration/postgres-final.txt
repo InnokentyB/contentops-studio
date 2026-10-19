@@ -1,0 +1,93 @@
+ Container tower-contentops-linkedin-api-verification-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+✔ 025 actual HTTP initiation binds selected channel and browser with secure opaque state (173.08705ms)
+✔ 025 explicit channel required; cannot infer or create a channel (7.615018ms)
+✔ 025 invalid browser never exchanges (19.326497ms)
+✔ 025 concurrent actual callbacks consume once and encrypted commit preserves channel (50.237283ms)
+✔ 025 stale config prevents exchange (16.901645ms)
+✔ 025 wrong member does not overwrite or leak (21.81928ms)
+✔ 025 audit failure rolls back final token and callback remains consumed (50.676685ms)
+✔ 025 expiry and denied-consent validate state before any exchange (14.343002ms)
+✔ 025 Owner revocation before callback prevents exchange (11.379397ms)
+✔ 025 Owner revocation during exchange prevents final commit (15.386008ms)
+✔ 025 provider rejection never leaks body and consumed request cannot replay (11.639959ms)
+✔ 025 valid denial consumes once without exchange (11.808359ms)
+✔ 025 foreign project/channel and demo credentials reject initiation (10.279272ms)
+✔ 025 swapped state/browser cannot exchange or create organization replacement (16.970245ms)
+✔ 025 encrypted credentials cannot attest forged metadata or another tenant/channel (40.902155ms)
+✔ 025 organization callback preserves exact author and requires verified ORGANIC_SHARE_CREATE (15.86094ms)
+✔ 025 unbound channel requires expected identity, explicit first-binding stays data-driven (21.476528ms)
+✔ 025 canonical personal profile slug must match actual Profile API vanityName (13.162506ms)
+✔ 025 status never returns token or activates publication, unknown metadata stays unknown (17.192577ms)
+✔ 025 same-origin HTTPS and encryption configuration fail before exchange (4.362192ms)
+✔ 025 duplicate callback parameters are rejected without consuming or exchanging (7.440907ms)
+✔ 025 lost exchange response is consumed with safe recovery guidance, no retry (11.125486ms)
+✔ 025 unverified actual grants/client/expiry never overwrite credentials (35.552808ms)
+✔ 025 channel change during exchange blocks final credential commit (22.184101ms)
+✔ 025 bounded provider response cannot leak an oversized secret body (11.352647ms)
+✔ 025 expiry during gated exchange preserves credentials and consumed history (13.346198ms)
+✔ 025 exact canonical personal profile slug can establish first member binding (15.079215ms)
+✔ 025 organization authority response for another organization cannot bind token (11.308627ms)
+✔ 025 actual post-read grant plus bounded finder can produce usable sealed API credentials (345.850769ms)
+✔ 025 restricted personal read scope request is opt-in and never grants authority by itself (10.086291ms)
+✔ 025 actual read grant without a successful supported reader probe stays blocked (14.509333ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 31
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1610.991069
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+✔ 025 generic create denies server OAuth proof and ciphertext including nested raw account (149.502331ms)
+✔ 025 generic update cannot forge legacy verification or change verified identity/token (46.342653ms)
+✔ 025 ordinary settings update preserves protected server connection and masks ciphertext (12.149131ms)
+✔ 025 name-only and masked credential echo retain verified connection and nested proof (15.022556ms)
+✔ 025 concurrent OAuth completion cannot be overwritten by stale generic settings (82.184343ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1630.655057
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+✔ actual release/send/readback commits one canonical fact, attempt and typed API state (360.446582ms)
+✔ frozen browser attempt denies ordinary API release without provider requests (50.116502ms)
+✔ ambiguous public send persists dispatch fence and cannot send a second time (94.052712ms)
+✔ image upload failure preserves image identity and never creates text-only post (78.510144ms)
+✔ bad accepted bytes cause zero image initialization and zero public sends (33.974641ms)
+✔ owner revoked during initialization retains causal image receipt, blocks upload/send (48.739725ms)
+✔ fact failure preserves receipt and rolls back canonical completion; generic callback cannot bypass hold (69.146258ms)
+✔ foreign or revoked reconcile caller spends no read budget and makes zero GET (56.771276ms)
+✔ concurrent publishers create at most one attempt and one public POST (91.157638ms)
+✔ owner revoked during provider GET cannot commit late canonical fact (61.859711ms)
+✔ injected final audit failure rolls back fact, successful attempt and API completion together (77.299408ms)
+✔ abort after provider response prevents late fact and retains original receipt (57.220797ms)
+✔ recreated service cannot reset durable read deadline or exhausted budget (63.60574ms)
+✔ competing unknown transport API row prevents valid first-row finalizer capability (61.073387ms)
+✔ finalization holds current owner authority until canonical commit rather than re-reading stale snapshot (195.601663ms)
+✔ wrong returned body remains receipt-bound hold without canonical fact (53.515118ms)
+✔ malformed quality report and competing work each deny release before provider writes (24.711284ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+{"timestamp":"2026-10-19T18:38:42.707Z","event":"publisher_log","level":"INFO","code":"LINKEDIN_API_GOVERNED_ROUTE_REQUIRED","message":"Legacy LinkedIn publishing is held because it has no governed delivery authority.","action":"Use the governed LinkedIn API release/send/reconcile lifecycle. Preserve and reconcile any existing uncertain attempt; no browser fallback or resend.","retry_allowed":false}
+{"event":"publisher_log","level":"ERROR","code":"PUBLISHER_LOG_WRITE_FAILED","message":"The publisher diagnostic file could not be written.","action":"Ask the administrator to inspect log storage permissions and capacity. Console diagnostics remain available; reconcile existing attempts before further execution.","retry_allowed":false}
+✔ actual legacy scheduled, immediate and reset entries preserve held LinkedIn rows without network (954.74194ms)
+✔ actual HTTP OAuth consent feeds sealed resolver and usable governed text API release (160.870569ms)
+✔ operator distinguishes readback wait interval from another active lease without extra GET (81.730091ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3476.963249

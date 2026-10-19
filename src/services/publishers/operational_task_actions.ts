@@ -1,3 +1,4 @@
+import { resolveLinkedInCredentials } from '../linkedin_connection_credentials';
 import prisma from '../../db';
 import gscService from '../gsc.service';
 import linkedinService from '../linkedin.service';
@@ -144,7 +145,7 @@ export class OperationalTaskActions {
                     linkedinTasks.map(async (item) => {
                         const config = (item.channel?.config as Record<string, unknown>) || {};
                         const urn = config.linkedin_urn as string | undefined;
-                        const token = config.access_token as string | undefined;
+                        const token = resolveLinkedInCredentials(config).token;
                         const itemMetrics = item.metrics as Record<string, unknown> | null;
                         if (!urn || !token || !item.published_link) {
                             return {
