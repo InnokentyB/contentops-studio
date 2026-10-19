@@ -1,0 +1,172 @@
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+✖ preclaim unauthorized exposes safe cause and preserves zero sends/attempts (27.71441ms)
+✖ preclaim forbidden exposes safe cause and preserves zero sends/attempts (7.113148ms)
+✖ preclaim rate limited exposes safe cause and preserves zero sends/attempts (30.337531ms)
+✖ preclaim unavailable exposes safe cause and preserves zero sends/attempts (7.49974ms)
+✖ preclaim invalid JSON exposes safe cause and preserves zero sends/attempts (8.653255ms)
+✖ preclaim network exposes safe cause and preserves zero sends/attempts (10.982874ms)
+✖ preclaim timeout exposes safe cause and preserves zero sends/attempts (5.750613ms)
+✔ untrusted provider metadata remains masked rather than serialized (0.334241ms)
+✔ dry run remains local and never claims provider verification (0.442191ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 2
+ℹ fail 7
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4176.296585
+
+✖ failing tests:
+
+test at ../../source/tests/tdpd/threads-preflight-diagnostics.test.cjs:25:42
+✖ preclaim unauthorized exposes safe cause and preserves zero sends/attempts (27.71441ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'THREADS_REQUEST_FAILED'
+  - 'THREADS_PROVIDER_AUTH_REQUIRED'
+             ^
+
+      at TestContext.<anonymous> (/source/tests/tdpd/threads-preflight-diagnostics.test.cjs:36:9)
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'THREADS_REQUEST_FAILED',
+    expected: 'THREADS_PROVIDER_AUTH_REQUIRED',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/threads-preflight-diagnostics.test.cjs:25:42
+✖ preclaim forbidden exposes safe cause and preserves zero sends/attempts (7.113148ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'THREADS_REQUEST_FAILED'
+  - 'THREADS_PROVIDER_PERMISSION_REQUIRED'
+             ^
+
+      at TestContext.<anonymous> (/source/tests/tdpd/threads-preflight-diagnostics.test.cjs:36:9)
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'THREADS_REQUEST_FAILED',
+    expected: 'THREADS_PROVIDER_PERMISSION_REQUIRED',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/threads-preflight-diagnostics.test.cjs:25:42
+✖ preclaim rate limited exposes safe cause and preserves zero sends/attempts (30.337531ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'THREADS_REQUEST_FAILED'
+  - 'THREADS_PROVIDER_RATE_LIMITED'
+             ^
+
+      at TestContext.<anonymous> (/source/tests/tdpd/threads-preflight-diagnostics.test.cjs:36:9)
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'THREADS_REQUEST_FAILED',
+    expected: 'THREADS_PROVIDER_RATE_LIMITED',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/threads-preflight-diagnostics.test.cjs:25:42
+✖ preclaim unavailable exposes safe cause and preserves zero sends/attempts (7.49974ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'THREADS_REQUEST_FAILED'
+  - 'THREADS_PROVIDER_UNAVAILABLE'
+             ^
+
+      at TestContext.<anonymous> (/source/tests/tdpd/threads-preflight-diagnostics.test.cjs:36:9)
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'THREADS_REQUEST_FAILED',
+    expected: 'THREADS_PROVIDER_UNAVAILABLE',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/threads-preflight-diagnostics.test.cjs:25:42
+✖ preclaim invalid JSON exposes safe cause and preserves zero sends/attempts (8.653255ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'THREADS_REQUEST_FAILED'
+  - 'THREADS_PROVIDER_INVALID_RESPONSE'
+             ^
+
+      at TestContext.<anonymous> (/source/tests/tdpd/threads-preflight-diagnostics.test.cjs:36:9)
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'THREADS_REQUEST_FAILED',
+    expected: 'THREADS_PROVIDER_INVALID_RESPONSE',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/threads-preflight-diagnostics.test.cjs:25:42
+✖ preclaim network exposes safe cause and preserves zero sends/attempts (10.982874ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'THREADS_REQUEST_FAILED'
+  - 'THREADS_PROVIDER_UNAVAILABLE'
+             ^
+
+      at TestContext.<anonymous> (/source/tests/tdpd/threads-preflight-diagnostics.test.cjs:36:9)
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'THREADS_REQUEST_FAILED',
+    expected: 'THREADS_PROVIDER_UNAVAILABLE',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/threads-preflight-diagnostics.test.cjs:25:42
+✖ preclaim timeout exposes safe cause and preserves zero sends/attempts (5.750613ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'THREADS_REQUEST_FAILED'
+  - 'THREADS_PROVIDER_TIMEOUT'
+             ^
+
+      at TestContext.<anonymous> (/source/tests/tdpd/threads-preflight-diagnostics.test.cjs:36:9)
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'THREADS_REQUEST_FAILED',
+    expected: 'THREADS_PROVIDER_TIMEOUT',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

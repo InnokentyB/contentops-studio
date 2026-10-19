@@ -187,16 +187,31 @@ test('004 Telegram review recovery is atomic and never accepts or releases a dra
         content_revision:2,draft_text:body,text_state:'draft',status:'drafted',publication_mode:'approval_required',
         visual_state:'STALE',visual_placement:'feed',schedule_at:new Date(template.scheduleAt),publish_at:new Date(template.publishAt),
         quality_report:{preserved:'history',handoff_bundle:{mode:'manual'}}}});
+    await db.socialChannel.update({where:{id:channel.id},data:{type:'zen_article'}});
+    const {ArtDirectionService}=require(path.join(base,'services/art_direction.service.js'));
+    await assert.rejects(db.$transaction(tx=>new ArtDirectionService().acceptContentRevision(tx,task.id,`user:${user.id}`)),/TARGET_PLACEMENT_MISMATCH/);
+    const rejected=await db.contentItem.findUnique({where:{id:task.id}});
+    assert.equal(rejected.accepted_revision,null);assert.equal(rejected.status,'drafted');
+    assert.equal(rejected.draft_text,body);assert.equal(await db.workItem.count({where:{content_item_id:task.id}}),0);
+    await db.socialChannel.update({where:{id:channel.id},data:{type:'telegram'}});
     const work=await db.workItem.create({data:{project_id:project.id,content_item_id:task.id,item_key:`review-${nonce}`,
         kind:'content_review',state:'waiting_approval',assignee_role:'content_reviewer',input_context_version:2,
         result_version:2,result_payload:{content_revision:2},note:'Historical note'}});
     const actorId=`user:${user.id}`;
     const approval=await db.approvalDecision.create({data:{work_item_id:work.id,result_version:2,decision:'approved',actor_id:actorId}});
-    await db.contentItem.update({where:{id:task.id},data:{visual_placement:'video_cover'}});
-    await assert.rejects(review.getReviewRepairSnapshot({projectId:project.id,taskId:task.id,workItemId:work.id,actorId},db),/REVIEW_PLACEMENT_UNSUPPORTED/);
+    for(const placement of ['video_cover',null,'']){
+        await db.contentItem.update({where:{id:task.id},data:{visual_placement:placement}});
+        await assert.rejects(review.getReviewRepairSnapshot({projectId:project.id,taskId:task.id,workItemId:work.id,actorId},db),/REVIEW_PLACEMENT_UNSUPPORTED/);
+        assert.deepEqual((await db.contentItem.findUnique({where:{id:task.id}})).quality_report,task.quality_report);
+        assert.equal(await db.workItem.count({where:{content_item_id:task.id}}),1);
+    }
+    await db.contentItem.update({where:{id:task.id},data:{visual_placement:'feed'}});
+    await db.socialChannel.update({where:{id:channel.id},data:{type:'reddit',config:{canonical_placements:['feed'],execution_modes:['manual']}}});
+    const dataDeclared=await review.getReviewRepairSnapshot({projectId:project.id,taskId:task.id,workItemId:work.id,actorId},db);
+    assert.equal(dataDeclared.publication_authorized,false);
     assert.deepEqual((await db.contentItem.findUnique({where:{id:task.id}})).quality_report,task.quality_report);
     assert.equal(await db.workItem.count({where:{content_item_id:task.id}}),1);
-    await db.contentItem.update({where:{id:task.id},data:{visual_placement:'feed'}});
+    await db.socialChannel.update({where:{id:channel.id},data:{type:'telegram',config:{execution_modes:['automated']}}});
     const snap=await review.getReviewRepairSnapshot({projectId:project.id,taskId:task.id,workItemId:work.id,actorId},db);
     const args={...snap.expected_snapshot,reason:'Approved transport-neutral review recovery',idempotencyKey:'review-recovery',apply:true};
     const failDb=new Proxy(db,{get(target,key){if(key!=='$transaction')return Reflect.get(target,key);

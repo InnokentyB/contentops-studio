@@ -35,7 +35,10 @@ class ThreadsService {
                 ...(init.headers || {})
             } });
         } catch (error: unknown) {
-            if (error instanceof Error && error.name === 'AbortError') throw error;
+            if (error instanceof Error && ['AbortError','TimeoutError'].includes(error.name)) {
+                if(operation==='read_own_posts'||operation==='test_connection')throw new ThreadsProviderError('THREADS_PROVIDER_TIMEOUT', operation);
+                throw error;
+            }
             throw new ThreadsProviderError('THREADS_PROVIDER_UNAVAILABLE', operation);
         }
         if (!response.ok) throw new ThreadsProviderError('THREADS_PROVIDER_REQUEST_FAILED', operation, response.status);

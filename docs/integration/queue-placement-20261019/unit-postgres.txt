@@ -1,0 +1,59 @@
+ Container tower-contentops-queue-placement-checks-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+✔ preview has no writes or approval (4.876969ms)
+✔ repair preserves immutable review/approval and body, replaces review at result0 and manual handoff atomically (0.990484ms)
+✔ same key replays one replacement; changed key payload is rejected (1.088295ms)
+✔ owner/tenant/body/revision/config/fact/attempt/lease drift fail before mutation (3.157742ms)
+✔ audit failure rolls back review supersession, replacement, projection (0.667892ms)
+✔ safe snapshot rejects a non-owner and foreign task without writes (0.982884ms)
+✔ apply snapshot reads occur only inside the replay transaction (5.20114ms)
+✔ blocked competing review is not a second review path (0.498282ms)
+✔ placement, title, item identity, account name/type and review scheduling are snapshot-bound (1.651347ms)
+✔ repair cannot discard a review prerequisite when creating available work (0.463242ms)
+✔ owner can obtain safe server-computed snapshot through the operator boundary (1.464016ms)
+✔ configured Telegram review recovery preserves all publication gates and immutable history (1.896777ms)
+✔ unsupported placement never becomes configured execution metadata during review recovery (1.436946ms)
+✔ missing stored placement cannot silently materialize as feed (8.853605ms)
+✔ canonical Dzen article-cover aliases preserve existing manual recovery behavior (2.827881ms)
+✔ article-specific Dzen alias never admits feed, including configuration override (3.040912ms)
+✔ existing Habr, VC and OK aliases retain canonical contract and review identity (1.396445ms)
+✔ arbitrary configuration-only feed contract cannot become configured execution metadata (0.553133ms)
+✔ adapter-supported providers honor explicit data-declared feed contracts without gaining release authority (0.888783ms)
+✔ unregistered provider cannot spoof support through capability flags (0.421332ms)
+✔ adapter fallback cannot override established article-only provider placement (1.210245ms)
+✔ derived manual-only provider compatibility never invents automated authority (1.398155ms)
+✔ established feed contracts remain recoverable without enabling unimplemented formats (3.982215ms)
+✔ article-only Dzen acceptance rejects feed before accepting content or creating work (47.610569ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 24
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 260.622745
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+Datasource "db": PostgreSQL database "shared_browser_synthetic", schemas "planner" at "synthetic-db:5432"
+
+🚀  Your database is now in sync with your Prisma schema. Done in 424ms
+
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+✔ legacy Setka PostgreSQL bundle materialization rolls back audit failure, then repairs/releases once (316.302086ms)
+✔ legacy Setka PostgreSQL repair rejects completed browser history and partial persisted bundle (67.99072ms)
+✔ Setka PostgreSQL confirmation is atomic, canonical and same-attempt replay only (144.708315ms)
+✔ Setka PostgreSQL UNKNOWN freezes sending and reconciles the original attempt (114.880816ms)
+✔ S1/S2 PostgreSQL concurrent releases create exactly one WI and preserve accepted bytes (42.76117ms)
+✔ S3 PostgreSQL concurrent start/permit never authorizes two attempts or two clicks (66.446594ms)
+✔ S4 PostgreSQL concurrent pre-submit returns one permit; replay and UNKNOWN are read-only (77.138546ms)
+✔ S5 canonical fact transaction rolls back hook failures, then concurrent confirms persist one fact (92.219036ms)
+✔ 004 Telegram review recovery is atomic and never accepts or releases a draft (163.849681ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1279.26402

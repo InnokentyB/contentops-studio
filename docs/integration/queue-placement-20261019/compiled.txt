@@ -1,0 +1,48 @@
+✔ public send uses REST Posts and retains trusted response object ID (13.805934ms)
+✔ accepted image upload failure cannot downgrade into public text send (1.591866ms)
+✔ malicious upload destination never receives accepted bytes (0.403352ms)
+✔ missing identity after accepted public send is UNKNOWN without retry (0.514412ms)
+✔ image readiness requires correct owner and AVAILABLE (2.826011ms)
+✔ ordinary accepted punctuation is escaped as literal LittleText and decoded on GET (1.212424ms)
+✔ unapproved rich LittleText mention cannot be verified as plain accepted body (0.354682ms)
+✔ documented text-only GET may return empty content object (0.436902ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+✔ legacy low-level LinkedIn sender rejects valid content before fetch (1.682967ms)
+✔ legacy task dispatcher refuses governed LinkedIn work before route rewrite (0.489202ms)
+✔ browser fallback cannot revive LinkedIn delivery via direct call (0.235381ms)
+✔ legacy LinkedIn hold diagnostic names its actual route and repair (0.351961ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+✔ default disabled governed API refuses public send before any database or provider operation (1.996439ms)
+✔ malformed scope cannot reach governed release or reconcile (1.665486ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+✔ manual-only channel overrides stale API flags without changing approval policy or copy (1.611186ms)
+✔ API-capable and unspecified channels retain configured transport; manual-only never widens transport (0.16284ms)
+✔ repair is owner/Editor scoped; remote principal prevents caller impersonation and foreign project (2.191768ms)
+✔ article channels share the canonical article-cover placement (1.886427ms)
+✔ Dzen distinguishes short feed posts from longread covers without inventing post geometry (0.339952ms)
+✔ VC and Habr covers expose explicit article contracts (0.168711ms)
+✔ accepting site content normalizes a legacy feed default to the canonical blog cover (0.10903ms)
+✔ Telegram and VK stories use channel-specific poll capabilities (0.222231ms)
+✔ VK longread uses a distinct manual article-cover contract (0.128581ms)
+✔ VK exposes approved MP4 video as a canonical browser-capable placement (0.13176ms)
+✔ Setka feed exposes the established 4:3 asset contract (0.1527ms)
+✔ VK feed exposes the accepted square asset contract used by the connector (0.146661ms)
+✔ Dzen longread uses the configured article transport contract (0.187661ms)
+✔ Telegram and Threads feed briefs have explicit editorial geometry (3.287813ms)
+✔ configured channel placement overrides the type fallback (0.186121ms)
+✔ unknown channels cannot be repaired without an explicit contract (0.149491ms)
+✔ Dzen feed is now canonical, while unrelated article channels stay strict (0.141041ms)
+✔ DEV.to article cover uses the manual wide-image contract (0.11821ms)
+ℹ tests 32
+ℹ suites 0
+ℹ pass 32
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 903.88755

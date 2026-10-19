@@ -1,4 +1,5 @@
 import { PublicationDiagnosticError, type PublicationDiagnostic } from './publication_diagnostics';
+import { threadsProviderDiagnostic } from './threads_provider_diagnostics';
 
 // Static text only. Never interpolate error messages, proof values, IDs or provider responses.
 const catalog: Record<string, readonly [string, string, string]> = {
@@ -45,6 +46,8 @@ const catalog: Record<string, readonly [string, string, string]> = {
 /** Maps only allowlisted codes to static explanations. Unknown errors disclose no raw text and forbid blind retry. */
 export function threadsErrorDiagnostic(error: unknown): PublicationDiagnostic {
     if (error instanceof PublicationDiagnosticError) return error.diagnostics;
+    const provider = threadsProviderDiagnostic(error);
+    if (provider) return provider;
     const candidate = error instanceof Error ? /^\[([A-Z_]+)\]/.exec(error.message)?.[1] : undefined;
     const code = candidate && Object.prototype.hasOwnProperty.call(catalog, candidate) ? candidate : 'THREADS_REQUEST_FAILED';
     const [field, message, action] = catalog[code]!;

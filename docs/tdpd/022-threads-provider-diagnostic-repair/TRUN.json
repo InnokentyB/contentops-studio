@@ -1,0 +1,25 @@
+{
+  "id": "TRUN-022-threads-provider-diagnostic-repair-20261019",
+  "base_commit": "d36bce9b41b37732dd3c1dbcbc7e8bb3c1d9e4f6",
+  "status": "ENGINEERING_VERIFIED_OWNER_UAT_PENDING",
+  "contract": "docs/operations/actionable-publication-diagnostics.md",
+  "runtime": "Docker linux/amd64; network none; non-root; bounded CPU/memory/PIDs",
+  "image": "sha256:479408db3cf6c7f3dafe0b764a17167b5db60a23b60313e1eb158c7cd1011165",
+  "red": {"passed": 2, "failed": 7, "cause": "Typed history-read errors lost their allowlisted code/operation/status at the actual MCP boundary", "evidence": "red.txt"},
+  "green": [
+    {"new_cases": 12, "boundary": "actual registered MCP SDK plus real generic service and mocked fetch transport", "passed": 12, "failed": 0, "skipped": 0},
+    {"boundary": "existing source Threads API boundary/recovery/phase", "passed": 36, "failed": 0, "skipped": 0},
+    {"boundary": "compiled Threads transport/release, actual HTTP and shared diagnostic compatibility", "passed": 38, "failed": 0, "skipped": 0}
+  ],
+  "green_evidence": "green.txt",
+  "build": {"backend": "PASS", "frontend": "PASS", "evidence": "build.txt"},
+  "quality": {"verdict": "PASS", "score": 77, "runtime_findings": 7093, "baseline": 7093, "new_exemptions": 0, "evidence": "quality.txt"},
+  "observed_environment_failures": [],
+  "production_changes": false,
+  "live_provider_calls": false,
+  "secret_provisioning": false,
+  "historical_attempt_changes": false,
+  "public_push_pr_deploy": false,
+  "owner_uat": "PENDING",
+  "notes": "Read operation stage is not a retrospective claim about a historical request. Text logs have trailing whitespace normalized; original local logs remain in /tmp. Counts include regression suites, not a new product-acceptance claim."
+}

@@ -4,6 +4,7 @@ export type PublicationDiagnostic = {
     message: string;
     reasons: readonly { code: string; field: string; message: string; action: string }[];
     retry_allowed: false;
+    provider?: { operation: 'read_own_posts' | 'test_connection'; stage: 'provider_history' | 'provider_identity'; http_status?: number };
 };
 
 export type PublicationDiagnosticService = 'publication' | 'telegram' | 'threads' | 'browser' | 'vk';

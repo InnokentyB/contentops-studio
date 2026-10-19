@@ -1,3 +1,5 @@
+import publicationAdapterService from './publication_adapter.service';
+
 const DEFAULT_PLACEMENTS: Record<string, string[]> = {
     habr: ['article_cover'],
     vc: ['article_cover'],
@@ -48,12 +50,39 @@ export function publicationPlacementAssetContract(
     return contract;
 }
 
+function placementPlatform(type:string):string {
+    const normalized=type.trim().toLowerCase();
+    if(normalized==='zen')return 'dzen';
+    if(normalized==='habr_article')return 'habr';
+    if(normalized==='vc_article')return 'vc';
+    return normalized==='odnoklassniki'?'ok':normalized;
+}
+
+function declaredPlacements(type:string):string[] {
+    return type.trim().toLowerCase()==='zen_article'?['article_cover']:(DEFAULT_PLACEMENTS[placementPlatform(type)]||[]);
+}
+
+/** Implemented materialization, not live readiness or publication authority. */
+export function isKnownPublicationPlacement(channel:{type:string;config?:unknown},placement:string):boolean {
+    const declared=declaredPlacements(channel.type);
+    if(declared.length)return declared.includes(placement);
+    // Existing adapter support may supply a feed contract absent editorial
+    // defaults. Configuration alone cannot register an executor or override an
+    // article-only provider; never trust config.platform or capability flags.
+    if(placement!=='feed'||!configuredPlacements(channel.config).includes('feed'))return false;
+    const account={platform:channel.type.trim().toLowerCase()};
+    if(publicationAdapterService.supportsDirectExecution(account))return true;
+    const derived=publicationAdapterService.buildAdapterConfig('',account);
+    return derived.capability_flags.manual_handoff
+        &&publicationPlacementAssetContract(channel,placement).transport.connector_authority==='manual_only';
+}
+
 function basePlacementAssetContract(
     channel: { type: string; config?: unknown },
     placement: string,
     media: { mime_type?: string; width?: number | null; height?: number | null } = {}
 ): PublicationPlacementAssetContract {
-    const normalizedType = channel.type.trim().toLowerCase();
+    const normalizedType = placementPlatform(channel.type);
     if (normalizedType === 'vk' && placement === 'clip') {
         // Editorial canvas, not an assertion about VK upload limits. Live Clip UAT is pending.
         return {
@@ -249,11 +278,17 @@ function configuredPlacements(config: unknown) {
 
 export function canonicalPlacementsForChannel(channel: { type: string; config?: unknown }) {
     const configured = configuredPlacements(channel.config);
-    return configured.length ? [...new Set(configured)] : (DEFAULT_PLACEMENTS[channel.type.trim().toLowerCase()] || []);
+    const placements=configured.length?[...new Set(configured)]:declaredPlacements(channel.type);
+    return channel.type.trim().toLowerCase()==='zen_article'?placements.filter(placement=>placement==='article_cover'):placements;
 }
 
 export function placementForContentAcceptance(channel: { type: string; config?: unknown }, current: string | null | undefined) {
     const canonical = canonicalPlacementsForChannel(channel);
+    // This article-only provider alias must not accept an old feed binding that
+    // its native route will reinterpret as an article. Other legacy types retain
+    // their existing acceptance semantics; this is not an unrelated migration.
+    if(channel.type.trim().toLowerCase()==='zen_article')
+        return assertCanonicalPublicationPlacement(channel,current||canonical[0]||'article_cover');
     if (channel.type.trim().toLowerCase() === 'site' && current === 'feed' && canonical.includes('article_cover')) {
         return 'article_cover';
     }
