@@ -1,6 +1,8 @@
+import {withBrowserRecoveryFinalization,assertBrowserRecoveryCommit} from './browser_recovery_guard';
+import type {RecoveryReservation} from './browser_recovery_contract';
 import { z } from 'zod';
 import publicationFactService,{ RecordPublicationFactArgs } from './publication_fact.service';
-import { BrowserDependencies,browserDefaults,object,hash,browserPrior,requireBrowserOwner,browserProviderUuid } from './browser_publication_contract';
+import { BrowserDependencies,browserDefaults,object,hash,snapshotHash,browserPrior,requireBrowserOwner,browserProviderUuid } from './browser_publication_contract';
 import { browserObservedSchema,checkedBrowserRelease,checkedBrowserAttempt,assertBrowserLease,
     assertBrowserObserved,browserObservationHash } from './browser_publication_guard';
 import { assertBrowserNativeAdmission,requireBrowserNativeGate,type NativeGate } from './browser_publication_native';
@@ -49,7 +51,7 @@ export function browserProviderIdentity(args:Reconciliation) {
         throw new Error('[PROVIDER_IDENTITY_INVALID]');
     return `https://dev.to${url.pathname.replace(/\/$/,'')}`;
 }
-async function completeBrowser(input:unknown,reconcile:boolean,deps:BrowserDependencies,writeFact:FactWriter,nativeGate?:NativeGate) {
+async function completeBrowser(input:unknown,reconcile:boolean,deps:BrowserDependencies,writeFact:FactWriter,nativeGate?:NativeGate,recovery?:{reservation:RecoveryReservation;signal:AbortSignal}) {
     const args=reconcile?browserReconcileSchema.parse(input):browserConfirmSchema.parse(input);
     assertBrowserNativeAdmission(args,nativeGate);
     const command=reconcile?'ba_reconcile_browser_submission':'ba_confirm_browser_submission';
@@ -71,7 +73,8 @@ async function completeBrowser(input:unknown,reconcile:boolean,deps:BrowserDepen
         artifactKind:args.snapshot.identity.platform==='devto'?'article':'post',outcome:'published',
         browserWorkItemId:args.workItemId,publicUrl,providerObjectId:args.providerObjectId,publishedAt:args.publishedAt,
         confirmationMode:reconcile?'reconciled':'automatic',evidence:{type:'screenshot',ref:`sha256:${args.evidenceSha256}`},
-        utmStatus:'not_applicable',beforeWrite:async tx=>{
+        utmStatus:'not_applicable',beforeCommit:recovery?tx=>assertBrowserRecoveryCommit(tx,recovery.reservation,args.actorId,recovery.signal):undefined,beforeWrite:async tx=>{
+            const check=async()=>{
             const {task,work}=await checkedBrowserRelease(tx,args,deps);
             if(task.status!=='publishing')throw new Error('[BROWSER_NOT_STARTED]');
             const attempt=await checkedBrowserAttempt(tx,args);assertBrowserObserved(task.draft_text!,args);
@@ -98,6 +101,9 @@ async function completeBrowser(input:unknown,reconcile:boolean,deps:BrowserDepen
             await tx.workflowEvent.create({data:{project_id:args.projectId,content_item_id:args.taskId,work_item_id:args.workItemId,
                 actor_id:args.actorId,command,idempotency_key:args.idempotencyKey,
                 before_state:{request_hash:hash(JSON.stringify(args))},after_state:result}});
+            };
+            if(recovery)await withBrowserRecoveryFinalization(tx,recovery.reservation,args.actorId,recovery.signal,check);
+            else await check();
         }});
     return{...object(fact),...result};
 }
@@ -110,4 +116,11 @@ export function confirmBrowserSubmission(input:unknown,deps:BrowserDependencies=
 export function reconcileBrowserSubmission(input:unknown,deps:BrowserDependencies=browserDefaults,
     writeFact:FactWriter=args=>publicationFactService.record(args),nativeGate?:NativeGate) {
     return completeBrowser(input,true,deps,writeFact,nativeGate);
+}
+
+/** Registered read-only adapter finalization only; actual observed confirmation input is still mandatory. */
+export function finalizeBrowserRecoverySubmission(input:unknown,reservation:RecoveryReservation,signal:AbortSignal,deps:BrowserDependencies=browserDefaults,writeFact:FactWriter=args=>publicationFactService.record(args),nativeGate?:NativeGate){
+    const args=browserReconcileSchema.parse(input);
+    if(args.projectId!==reservation.scope.projectId||args.taskId!==reservation.scope.taskId||args.attemptId!==reservation.scope.attemptId||snapshotHash(args.snapshot)!==reservation.scope.packageSha256)throw new Error('[RECOVERY_SCOPE_MISMATCH]');
+    return completeBrowser(input,true,deps,writeFact,nativeGate,{reservation,signal});
 }

@@ -1,3 +1,4 @@
+import {projectBrowserRecovery} from './browser_recovery_assessment';
 import type { PublicationDiagnostic } from './publication_diagnostics';
 
 type Entry=readonly [string,string,string];
@@ -24,6 +25,9 @@ add(['BROWSER_PUBLICATION_TIME_MISMATCH'],['published_at','Provider publication 
 add(['BROWSER_RECONCILIATION_NOT_REQUIRED'],['delivery_attempt','The current attempt does not meet reconciliation prerequisites.','Inspect the current attempt and publication fact and use the documented confirmation or read-only route. Do not create a duplicate attempt.']);
 add(['BROWSER_NATIVE_RECEIPT_REQUIRED','BROWSER_NATIVE_POLICY_MISMATCH'],['native_admission','The registered native execution admission requirements were not met.','Use the registered independent adapter and inspect its admission status. Repair that adapter if unavailable; no browser/session or manual bypass is permitted.']);
 add(['BROWSER_METADATA_CAS_CONFLICT','BROWSER_RELEASE_CAS_CONFLICT','BROWSER_START_CAS_CONFLICT','BROWSER_UNCERTAIN_CAS_CONFLICT','BROWSER_CONFIRM_CAS_CONFLICT'],['lifecycle','The persisted state changed before this operation could be recorded.','Read current task, work item, attempt and audit state. Review the change and reconcile any started or uncertain attempt before another operation.']);
+add(['RECOVERY_SCOPE_MISMATCH','RECOVERY_CONFLICT','RECOVERY_CANCELLED'],['recovery','Recovery could not safely change the current scoped attempt.','Read the persisted recovery status and canonical fact. Resolve the reported scope or concurrent change through engineering; do not clear errors, replace keys or resend.']);
+add(['BROWSER_RECOVERY_STORAGE_UNAVAILABLE'],['recovery','Recovery storage is not ready for the configured runtime.','Ask engineering to apply the reviewed additive migration before enabling recovery admission. Preserve current attempts; do not retry publication.']);
+add(['BROWSER_RECOVERY_V2_HELD'],['recovery','This attempt is held by the versioned recovery lifecycle.','Read the recovery status and use its admitted read-only recovery route. Do not use v1 controls to clear errors, issue another permit or resend.']);
 const fields=new Set(('task.exists project_id id channel_id channel.id channel.project_id channel.is_active channel.type channel.config.account_type channel.config.account_ref channel.config.profile_url channel.config.execution_modes.manual channel.config.capability_flags.manual_handoff content_revision accepted_revision text_state draft_text.sha256 schedule_at publish_at handoff_state quality_report.publication_hold visual_state visual_placement selected_asset_id selected_asset.id selected_asset.project_id selected_asset.content_item_id selected_asset.content_revision selected_asset.decision_id selected_asset.absent snapshot.selected_asset_id snapshot.asset_sha256 visual_mode.not_required draft_text.native_length selected_asset.placement selected_asset.status selected_asset.file_url.https selected_asset.storage.sha256 selected_asset.storage.managed selected_asset.storage.provider selected_asset.storage.mime_type visual_decision_version decision.id decision.project_id decision.content_item_id decision.source_content_revision decision.decision_version decision.status decision.decision decision.channel decision.placement quality_report.handoff_bundle.publication.body').split(' '));
 function diagnostic(code:string):PublicationDiagnostic {
  const [field,message,action]=catalog[code]!;
@@ -52,6 +56,8 @@ export function browserErrorDiagnostic(error:unknown):PublicationDiagnostic {
   action:'Read the current value through scoped inspection, resolve this field through its normal review workflow, then request an owner release matching the accepted package. Do not overwrite delivery history.'}))};
 }
 export function browserResultDiagnostic(result:Record<string,unknown>):PublicationDiagnostic|undefined {
+ const recovery=projectBrowserRecovery(result.recovery);
+ if(recovery&&recovery.code!=='RECONCILIATION_FOUND')return {code:recovery.code,message:recovery.message,retry_allowed:false,reasons:[{code:recovery.code,field:'recovery',message:recovery.message,action:recovery.action}]};
  const check=result.snapshot_check;
  if(check&&typeof check==='object'&&!Array.isArray(check)){
   const snapshot=check as Record<string,unknown>;
@@ -70,6 +76,8 @@ export function browserResultProjection(result:Record<string,unknown>): {payload
  if(!detail)return {payload:result};
  const allowed=['state','status','attempt_id','work_item_id','submission_permitted','retry_allowed','replayed','mutates_state','next_action'];
  const payload:Record<string,unknown>={};
+ const recovery=projectBrowserRecovery(result.recovery);
+ if(recovery)payload.recovery=recovery;
  if(result.mutates_state===false)return {payload:result,diagnostic:detail,isError:false};
  for(const key of allowed)if(Object.prototype.hasOwnProperty.call(result,key))payload[key]=result[key];
  return {payload,diagnostic:detail,isError:false};

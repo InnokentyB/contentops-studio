@@ -1,0 +1,70 @@
+
+> contentops-studio@1.0.0 quality:gate
+> node scripts/check_quality_gate.mjs
+
+{
+  "command": "npm run quality:gate",
+  "timestamp": "2026-10-18T22:38:45.572Z",
+  "revision": "1d61c72",
+  "score": 77,
+  "minimum_score": 77,
+  "checks": [
+    {
+      "id": "remote_mcp_identity",
+      "file": "src/tests/remote_mcp_auth.test.ts",
+      "pass": true
+    },
+    {
+      "id": "mutating_tool_annotations",
+      "file": "src/tests/remote_mcp_auth.test.ts",
+      "pass": true
+    },
+    {
+      "id": "header_cookie_sanitization",
+      "file": "src/services/puppeteer_publisher.service.ts",
+      "pass": true
+    },
+    {
+      "id": "auth_rate_limits",
+      "file": "src/routes/auth.routes.ts",
+      "pass": true
+    },
+    {
+      "id": "db_pool_safety",
+      "file": "src/db.ts",
+      "pass": true
+    },
+    {
+      "id": "external_idempotency",
+      "file": "src/services/delivery.service.ts",
+      "pass": true
+    },
+    {
+      "id": "uncertain_provider_outcomes",
+      "file": "src/tests/delivery.service.test.ts",
+      "pass": true
+    },
+    {
+      "id": "browser_cleanup",
+      "file": "src/services/puppeteer_publisher.service.ts",
+      "pass": true
+    },
+    {
+      "id": "graceful_shutdown",
+      "file": "src/server.ts",
+      "pass": true
+    }
+  ],
+  "runtime_policy": {
+    "verdict": "PASS",
+    "errors": [],
+    "scannedFiles": 1137,
+    "operationalFiles": 639,
+    "findingsCount": 7096,
+    "baselineCount": 7096,
+    "appliedTransitions": [],
+    "elapsedMs": 2096
+  },
+  "hard_stops": [],
+  "verdict": "PASS"
+}

@@ -1,0 +1,70 @@
+id: TRUN-023
+status: CORE_GREEN_AWAITING_REVIEW_AND_UAT
+observedAt: "2026-10-18T22:39:32Z"
+sourceBase: 1d61c72a884a82b83efa0912c184e19ac3585e6a
+branch: codex/browser-delivery-recovery-v2
+checkedStagedSourceDiffSha256: "39d3691df4ba955d48fbf76b55d16fc9d1153b8d79695a2cd5e593ae616917f0"
+checkedDockerImage: sha256:819498d0b642e7b3e1e30b04f55114661db38d4468d71f9fd360a38c39845e23
+environment: Tower Docker linux-amd64; synthetic tmpfs PostgreSQL; no provider calls
+approval: LOCK-023/QAR-023/ARCH-023/RISK-023 approved in current owner chat
+runs:
+  - id: RED-BOUNDARY
+    target: existing lifecycle and actual MCP serialization
+    result: expected failure; recovery absent or discarded
+    corrected: safe structured recovery projection at actual operator boundary
+  - id: RED-STORAGE
+    target: synthetic pre-v2 PostgreSQL
+    result: expected missing recovery relation after correcting regclass SQL result cast
+    corrected: additive SQL delta applied only to synthetic DB
+  - id: RED-REVIEW
+    target: resume replay; admission flag rollback; persisted status; revoked approval; canonical callback bypass; late cancellation
+    result: reproduced missing protections; errors retained in session tool evidence
+    corrected: scoped writer/commit fencing and typed transaction adapter
+  - id: RED-HELD-REPLAY
+    target: repeat invocation of a permanent permission blocker
+    result: pre-fix saved source snapshot incorrectly returned RECOVERY_IN_PROGRESS
+    evidence: held-replay-red.txt
+    corrected: retained exact blocker and immutable window/deadline
+  - id: GREEN-FOCUSED-AND-REGRESSION
+    command: docker compose -f ops/publication-tests/recovery-compose.yaml run --rm -e TELEGRAM_BOT_TOKEN=123:synthetic-test-only -e JWT_SECRET=synthetic-recovery-only tests sh /workspace/ops/publication-tests/recovery-checks.sh
+    tests: 179
+    passed: 179
+    failed: 0
+    skipped: 0
+    evidence: test-output.txt
+    scenarios: [S01, S02, S03, S04, S05, S06, S07, S08, S09, S10, S11, S12, S13, S14, S15, S16, S17, S18, S19, S20, S21, S22, S23, S24, S25, S26]
+    limit: synthetic admitted ports/executors only; live capability/UAT not established
+  - id: GREEN-HISTORICAL
+    tests: 38
+    passed: 38
+    failed: 0
+    evidence: historical-test-output.txt
+    commandArtifact: historical-check-command.sh
+  - id: BUILD
+    command: docker compose -f ops/quality/compose.yaml --profile build build build-check
+    backend: PASS
+    prismaGenerate: PASS
+    frontend: PASS
+    limit: existing dependency eval warning; no application started
+  - id: QUALITY
+    command: npm run quality:gate inside reviewed offline Docker snapshot
+    result: PASS
+    score: 77
+    minimum: 77
+    runtimeFindings: 7096
+    runtimeBaseline: 7096
+    appliedTransitions: []
+    hardStops: []
+    evidence: quality-gate.txt
+setupIssuesResolved:
+  - Docker default address pools exhausted; selected isolated free 10.231.74.0/28 without pruning
+  - Prisma initial relation attached to wrong model; corrected before first successful build
+  - Synthetic Telegram/JWT environment missing in two broader tests; configured synthetic values and reran successfully
+  - Quality AST anchor changed around unchanged historical comparisons; preserved canonical body with a typed adapter, no baseline remap/exemption
+  - Prior image reference unavailable for control RED; reproduced against saved pre-fix source inside Docker instead
+notExecuted:
+  - full historical Prisma migrate-deploy chain
+  - production migration or deploy
+  - real provider reader/executor admission or smoke
+  - automatic processing of historical frozen attempts
+  - owner UAT

@@ -1,3 +1,5 @@
+import {assessLegacyBrowserRecovery} from './browser_recovery_assessment';
+import type {BrowserRecoveryOperation} from './browser_recovery_runtime';
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
@@ -83,10 +85,10 @@ export async function preSubmitBrowserSubmission(input:unknown,deps:BrowserDepen
 export const browserUncertainSchema=browserBoundarySchema.safeExtend({attemptId:z.number().int().positive(),
     reasonCode:z.enum(['PROVIDER_RESULT_UNCERTAIN','PRE_SUBMIT_REJECTED','BROWSER_UNAVAILABLE'])});
 /** Freeze after lost result, including expired leases; no resend or synthetic fact. */
-export async function markBrowserSubmissionUncertain(input:unknown,deps:BrowserDependencies=browserDefaults,nativeGate?:NativeGate) {
+export async function markBrowserSubmissionUncertain(input:unknown,deps:BrowserDependencies=browserDefaults,nativeGate?:NativeGate,recoveryOperation?:BrowserRecoveryOperation) {
     const args=browserUncertainSchema.parse(input),command='ba_mark_browser_submission_uncertain';
     assertBrowserNativeAdmission(args,nativeGate);
-    return deps.db.$transaction(async tx=>{
+    const result=await deps.db.$transaction(async tx=>{
         await requireBrowserOwner(tx,args);const {task,work}=await checkedBrowserRelease(tx,args,deps);
         if(task.status!=='publishing'||work.lease_actor_id!==args.actorId||hash(work.lease_token||'')!==hash(args.leaseToken))
             throw new Error('[BROWSER_ATTEMPT_SCOPE_MISMATCH]');
@@ -103,4 +105,6 @@ export async function markBrowserSubmissionUncertain(input:unknown,deps:BrowserD
             before_state:{request_hash:hash(JSON.stringify(args))},after_state:{...result,reason_code:args.reasonCode}}});
         return result;
     },serial);
+    const recovery=recoveryOperation?await recoveryOperation(args):assessLegacyBrowserRecovery(args.reasonCode);
+    return {...result,state:recovery.code==='RECONCILIATION_FOUND'?'confirmed':result.state,recovery};
 }

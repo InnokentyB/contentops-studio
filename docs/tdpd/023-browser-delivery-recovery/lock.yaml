@@ -1,0 +1,45 @@
+id: LOCK-023
+status: APPROVED_FOR_SYNTHETIC_IMPLEMENTATION
+baseline:
+  context: owner recovery request 2026-10-18
+  specification: design.md#lock-023
+  surface: existing shared browser MCP and owning adapter execution
+  project: ContentOps Planner; Tower Docker synthetic workloads only
+  architecture: ARCH-023
+  riskReview: RISK-023
+  qualityRequirements: [Q01, Q02, Q03, Q04, Q05, Q06, Q07, Q08, Q09]
+readiness:
+  goalReady: true
+  functionalReady: true
+  qualityReady: true
+  architectureReady: true
+  riskReady: true
+  surfaceReady: true
+  projectReady: true
+blockingGaps: []
+residualRisks:
+  - Existing generic browser executors lack demonstrated no-dispatch fencing
+  - Most providers lack registered generic authorized read-only recovery lookup
+  - X readback needs budget and lifecycle adaptation; live readiness unverified
+finalScenarioDraftingAuthorized: true
+redAuthorized: true
+approvedBy: owner
+approvedAt: '2026-10-18'
+approvalSource: request_user_input_async call_1dffb0ee77fd421f8746481c6c5bd387; current coordinating chat
+approvalQuote: Утверждаю этот дизайн и границы реализации
+approvalEvidenceLimit: approval date only; no exact timestamp asserted
+approvalScope: bounded synthetic implementation of LOCK/QAR/ARCH/RISK; no live authority
+scenarioMatrix: scenarios.md
+capabilityMatrix: capability-matrix.md
+engineeringVerification: CORE_GREEN_LIVE_CAPABILITIES_NOT_ADMITTED
+ownerUat: PENDING
+productionMigrationAuthorized: false
+productionDeployAuthorized: false
+liveProviderCallsAuthorized: false
+publicationAuthorized: false
+invalidationTriggers:
+  - New send authority after uncertainty
+  - Changed provider route or admission policy
+  - Changed accepted-package or historical fact authority
+  - New persistent scheduler or publisher
+  - Increased retry or resource budgets
