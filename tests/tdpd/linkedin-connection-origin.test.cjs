@@ -30,7 +30,13 @@ async function exercise(configuredOrigin) {
             if (name === './linkedin-connection-state') {
                 const helpers = {};
                 const helperSource = readFileSync(path.join(path.dirname(componentPath), 'linkedin-connection-state.ts'), 'utf8');
-                vm.runInNewContext(ts.transpileModule(helperSource, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, { exports: helpers, URL });
+                const copy = {};
+                const copySource = readFileSync(path.join(path.dirname(componentPath), 'linkedin-oauth-failure-copy.ts'), 'utf8');
+                vm.runInNewContext(ts.transpileModule(copySource, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, { exports: copy });
+                vm.runInNewContext(ts.transpileModule(helperSource, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, { exports: helpers, URL, require: name => {
+                    if (name === './linkedin-oauth-failure-copy') return copy;
+                    throw new Error('Unexpected helper dependency');
+                } });
                 return helpers;
             }
             throw new Error('Unexpected dependency');

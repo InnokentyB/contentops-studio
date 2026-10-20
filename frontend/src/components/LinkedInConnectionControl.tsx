@@ -13,8 +13,9 @@ export function LinkedInConnectionControl({ projectId, token, channel, disabled,
     const [checking, setChecking] = useState(false);
     const [refresh, setRefresh] = useState(0);
     const connecting = useRef(false);
+    const authorEdited = useRef(false);
     const initialAuthor = savedAuthor(channel);
-    useEffect(() => { setExpectedUrn(initialAuthor); setFailure(''); connecting.current = false; setPending(false); }, [projectId, channel.id, initialAuthor]);
+    useEffect(() => { setExpectedUrn(initialAuthor); setFailure(''); connecting.current = false; authorEdited.current = false; setPending(false); }, [projectId, channel.id, initialAuthor]);
     useEffect(() => {
         setStatus(null); setFailure('');
         if (disabled) { setChecking(false); return; }
@@ -28,7 +29,10 @@ export function LinkedInConnectionControl({ projectId, token, channel, disabled,
                 const body: unknown = await response.json();
                 if (abort.signal.aborted) return;
                 const parsed = response.ok ? readConnectionStatus(body, channel.id) : null;
-                if (parsed) setStatus(parsed);
+                if (parsed) {
+                    setStatus(parsed);
+                    if (!initialAuthor && !authorEdited.current && parsed.latestAttempt?.expectedAuthorUrn) setExpectedUrn(parsed.latestAttempt.expectedAuthorUrn);
+                }
                 else setFailure(connectionDiagnostic(responseCode(body), locale));
             } catch {
                 if (!abort.signal.aborted) setFailure(connectionDiagnostic(null, locale));
@@ -36,7 +40,7 @@ export function LinkedInConnectionControl({ projectId, token, channel, disabled,
         }
         void check();
         return () => abort.abort();
-    }, [projectId, channel.id, token, disabled, refresh, locale]);
+    }, [projectId, channel.id, token, disabled, refresh, locale, initialAuthor]);
     const validUrn = /^urn:li:(person:[A-Za-z0-9_-]+|organization:[0-9]+)$/.test(expectedUrn.trim());
     async function connect(): Promise<void> {
         if (disabled || connecting.current || !validUrn) return;
@@ -60,6 +64,7 @@ export function LinkedInConnectionControl({ projectId, token, channel, disabled,
                     : (ru ? 'Подключение не проверено' : 'Connection not checked');
     const yesNo = (value: boolean) => value ? (ru ? 'Подтверждено' : 'Verified') : (ru ? 'Не подтверждено' : 'Not verified');
     const authorId = `linkedin-author-${channel.id}`;
+    const attemptLabels: Record<string, string> = { failed: ru ? 'Ошибка' : 'Failed', completed: ru ? 'Завершена' : 'Completed', pending: ru ? 'Ожидает возврата из LinkedIn' : 'Awaiting return from LinkedIn', exchanging: ru ? 'Проверка доступа начата' : 'Verification started', expired: ru ? 'Запрос истёк' : 'Request expired' };
     return <section className="linkedin-connection sm:col-span-2" aria-labelledby={`linkedin-heading-${channel.id}`}>
         <header className="linkedin-connection__heading">
             <div><h3 id={`linkedin-heading-${channel.id}`}>{ru ? 'Подключение LinkedIn' : 'LinkedIn connection'}</h3>
@@ -69,16 +74,25 @@ export function LinkedInConnectionControl({ projectId, token, channel, disabled,
         {disabled && <p className="linkedin-connection__notice">{connectionDiagnostic('LINKEDIN_OAUTH_AUTH_REQUIRED', locale)}</p>}
         <div className="linkedin-connection__identity">
             <label htmlFor={authorId}>{ru ? 'Идентификатор профиля или компании' : 'Profile or organization identifier'}</label>
-            <input id={authorId} value={expectedUrn} onChange={event => setExpectedUrn(event.target.value)}
+            <input id={authorId} value={expectedUrn} onChange={event => { authorEdited.current = true; setExpectedUrn(event.target.value); }}
                 placeholder="urn:li:organization:…" autoComplete="off" spellCheck={false}
                 readOnly={Boolean(initialAuthor)} disabled={disabled || pending}
                 aria-describedby={`${authorId}-help`} aria-invalid={Boolean(expectedUrn && !validUrn)} />
             <p id={`${authorId}-help`}>{initialAuthor
                 ? (ru ? 'Сохранённая привязка этого канала. Смена аккаунта требует отдельной проверки.' : 'Saved channel identity. Changing the account requires a separate review.')
-                : (ru ? 'Для компании: urn:li:organization:числовой ID. Для профиля: urn:li:person:ID. Привязка сохранится после успешного OAuth.' : 'Company: urn:li:organization:numeric ID. Profile: urn:li:person:ID. Identity is saved after successful OAuth.')}</p>
+                : status?.latestAttempt?.expectedAuthorUrn === expectedUrn
+                    ? (ru ? 'Ожидаемый аккаунт из прошлой попытки. Это черновик, а не подтверждённая привязка: проверьте его перед подключением.' : 'Expected account from the previous attempt. This is a draft, not a verified binding; check it before connecting.')
+                    : (ru ? 'Для компании: urn:li:organization:числовой ID. Для профиля: urn:li:person:ID. Привязка сохранится после успешного OAuth.' : 'Company: urn:li:organization:numeric ID. Profile: urn:li:person:ID. Identity is saved after successful OAuth.')}</p>
         </div>
         {failure && <p className="linkedin-connection__notice" role="alert">{failure}</p>}
         {status && !checking && <>
+            {status.latestAttempt && <div className="linkedin-connection__notice" aria-label={ru ? 'Последняя попытка подключения' : 'Latest connection attempt'}>
+                <h4>{ru ? 'Последняя попытка подключения' : 'Latest connection attempt'}</h4>
+                <p>{new Date(status.latestAttempt.createdAt).toLocaleString(ru ? 'ru-RU' : 'en-GB')}{' · '}
+                    {attemptLabels[status.latestAttempt.status]}</p>
+                {status.latestAttempt.code && <><p>{connectionDiagnostic(status.latestAttempt.code, locale)}</p><code className="break-all text-xs">{status.latestAttempt.code}</code></>}
+                {status.latestAttempt.code === 'LINKEDIN_OAUTH_GRANTS_UNKNOWN' && <p>{ru ? 'Это прежняя общая ошибка. Её точную причину восстановить нельзя; новая попытка сохранит отдельный код причины.' : 'This is a previous generic error. Its exact cause cannot be recovered; a new attempt will retain a specific reason.'}</p>}
+            </div>}
             {status.code !== 'LINKEDIN_OAUTH_CONNECTED' && <p className="linkedin-connection__notice">{connectionDiagnostic(status.code, locale)}</p>}
             <dl className="linkedin-connection__facts">
                 <div><dt>{ru ? 'Тип аккаунта' : 'Account type'}</dt><dd>{status.accountKind === 'organization' ? (ru ? 'Страница компании' : 'Company page') : status.accountKind === 'personal' ? (ru ? 'Личный профиль' : 'Personal profile') : '—'}</dd></div>

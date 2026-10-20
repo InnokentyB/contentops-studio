@@ -1,8 +1,10 @@
+import { oauthFailureCopy } from './linkedin-oauth-failure-copy';
 export type ConnectionLocale = 'ru' | 'en';
 export type LinkedInChannel = { id: number; name: string; type: string; config?: Record<string, unknown> };
 export type ConnectionStatus = {
     connected: boolean; expiresAt: string | null; scopes: string[]; accountKind: string | null;
     postReadVerified: boolean; imageReadPermitted: boolean; code: string;
+    latestAttempt: { status: string; createdAt: string; code: string | null; expectedAuthorUrn: string | null } | null;
 };
 const record = (input: unknown): Record<string, unknown> => input !== null && typeof input === 'object' && !Array.isArray(input) ? input as Record<string, unknown> : {};
 export function readConnectionStatus(input: unknown, channelId: number): ConnectionStatus | null {
@@ -15,13 +17,24 @@ export function readConnectionStatus(input: unknown, channelId: number): Connect
         || (value.expiresAt !== null && (typeof value.expiresAt !== 'string' || !Number.isFinite(Date.parse(value.expiresAt))))) return null;
     return { connected: value.connected, expiresAt: value.expiresAt, scopes: value.scopes,
         accountKind: value.accountKind === 'personal' || value.accountKind === 'organization' ? value.accountKind : null,
-        postReadVerified: value.postReadVerified, imageReadPermitted: value.imageReadPermitted, code: value.code };
+        postReadVerified: value.postReadVerified, imageReadPermitted: value.imageReadPermitted, code: value.code,
+        latestAttempt: readLatestAttempt(value.latestAttempt) };
+}
+function readLatestAttempt(input: unknown): ConnectionStatus['latestAttempt'] {
+    const value = record(input);
+    if (typeof value.status !== 'string' || !['pending', 'exchanging', 'completed', 'failed', 'expired'].includes(value.status)
+        || typeof value.createdAt !== 'string' || !Number.isFinite(Date.parse(value.createdAt))) return null;
+    const expected = value.expectedAuthorUrn;
+    return { status: value.status, createdAt: value.createdAt,
+        code: typeof value.code === 'string' && Object.hasOwn(diagnostics, value.code) ? value.code : null,
+        expectedAuthorUrn: typeof expected === 'string' && expected.length <= 200 && /^urn:li:(person:[A-Za-z0-9_-]+|organization:[0-9]+)$/.test(expected) ? expected : null };
 }
 export function savedAuthor(channel: LinkedInChannel): string {
     const urn = channel.config?.linkedin_urn;
     return typeof urn === 'string' && /^urn:li:(person:[A-Za-z0-9_-]+|organization:[0-9]+)$/.test(urn) ? urn : '';
 }
 const diagnostics: Record<string, [string, string]> = {
+    ...oauthFailureCopy,
     LINKEDIN_OAUTH_GRANTS_UNKNOWN: ['Planner не подтвердил идентичность, срок действия или выданные права. Подключение не завершено; требуется проверка OAuth.', 'Planner could not verify identity, expiry or permissions. Connection is incomplete; OAuth needs investigation.'],
     LINKEDIN_OAUTH_POST_READ_REQUIRED: ['Аккаунт подключён, но право чтения публикаций не подтверждено. Проверьте разрешения приложения перед публикацией.', 'Account connected, but post-read permission is not verified. Review app permissions before publishing.'],
     LINKEDIN_OAUTH_AUTH_REQUIRED: ['Подключать канал может только владелец проекта. Войдите под его учётной записью.', 'Only the project Owner can connect this channel. Sign in with that account.'],

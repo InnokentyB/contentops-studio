@@ -17,7 +17,7 @@ jobs:
       - name: Build reviewed compiler image without application startup
         run: docker compose -f ops/quality/compose.yaml --profile build build build-check
       - name: Browser connection requests preserve same origin and OAuth binding
-        run: docker compose -f tests/tdpd/linkedin-api-connection.compose.yaml run --rm --no-deps checks node --test /source/tests/tdpd/linkedin-connection-origin.test.cjs /source/tests/tdpd/linkedin-channel-ui.test.cjs
+        run: docker compose -f tests/tdpd/linkedin-api-connection.compose.yaml run --rm --no-deps checks node --test /source/tests/tdpd/linkedin-connection-origin.test.cjs /source/tests/tdpd/linkedin-channel-ui.test.cjs /source/tests/tdpd/linkedin-oauth-diagnostics.test.cjs
       - name: Create isolated synthetic databases and current schema
         run: |
           docker compose -f tests/tdpd/linkedin-api-connection.compose.yaml up -d synthetic-db
