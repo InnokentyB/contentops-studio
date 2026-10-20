@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { connectionDiagnostic, connectionRedirect, readConnectionStatus, responseCode, savedAuthor,
+import { connectionDiagnostic, connectionRedirect, readConnectionStatus, responseCode, savedAuthor, savedPersonalProfile,
     type ConnectionLocale, type ConnectionStatus, type LinkedInChannel } from './linkedin-connection-state';
 
 export function LinkedInConnectionControl({ projectId, token, channel, disabled, locale }: {
@@ -15,7 +15,9 @@ export function LinkedInConnectionControl({ projectId, token, channel, disabled,
     const connecting = useRef(false);
     const authorEdited = useRef(false);
     const initialAuthor = savedAuthor(channel);
-    useEffect(() => { setExpectedUrn(initialAuthor); setFailure(''); connecting.current = false; authorEdited.current = false; setPending(false); }, [projectId, channel.id, initialAuthor]);
+    const personalProfile = savedPersonalProfile(channel);
+    const personalChannel = Boolean(personalProfile || channel.config?.account_type === 'personal');
+    useEffect(() => { setExpectedUrn(initialAuthor); setFailure(''); connecting.current = false; authorEdited.current = false; setPending(false); }, [projectId, channel.id, initialAuthor, personalProfile]);
     useEffect(() => {
         setStatus(null); setFailure('');
         if (disabled) { setChecking(false); return; }
@@ -31,7 +33,9 @@ export function LinkedInConnectionControl({ projectId, token, channel, disabled,
                 const parsed = response.ok ? readConnectionStatus(body, channel.id) : null;
                 if (parsed) {
                     setStatus(parsed);
-                    if (!initialAuthor && !authorEdited.current && parsed.latestAttempt?.expectedAuthorUrn) setExpectedUrn(parsed.latestAttempt.expectedAuthorUrn);
+                    const draft = parsed.latestAttempt?.expectedAuthorUrn;
+                    if (!initialAuthor && !personalProfile && !authorEdited.current && draft
+                        && (!personalChannel || draft.startsWith('urn:li:person:'))) setExpectedUrn(draft);
                 }
                 else setFailure(connectionDiagnostic(responseCode(body), locale));
             } catch {
@@ -40,13 +44,16 @@ export function LinkedInConnectionControl({ projectId, token, channel, disabled,
         }
         void check();
         return () => abort.abort();
-    }, [projectId, channel.id, token, disabled, refresh, locale, initialAuthor]);
+    }, [projectId, channel.id, token, disabled, refresh, locale, initialAuthor, personalProfile, personalChannel]);
     const validUrn = /^urn:li:(person:[A-Za-z0-9_-]+|organization:[0-9]+)$/.test(expectedUrn.trim());
+    const validIdentity = (validUrn && (!personalChannel || expectedUrn.trim().startsWith('urn:li:person:')))
+        || Boolean(personalProfile && !expectedUrn.trim());
     async function connect(): Promise<void> {
-        if (disabled || connecting.current || !validUrn) return;
+        if (disabled || connecting.current || !validIdentity) return;
         connecting.current = true; setPending(true); setFailure('');
         try {
-            const response = await fetch(`/api/auth/linkedin/connect?projectId=${projectId}&channelId=${channel.id}&expectedAuthorUrn=${encodeURIComponent(expectedUrn.trim())}`, {
+            const authorQuery = expectedUrn.trim() ? `&expectedAuthorUrn=${encodeURIComponent(expectedUrn.trim())}` : '';
+            const response = await fetch(`/api/auth/linkedin/connect?projectId=${projectId}&channelId=${channel.id}${authorQuery}`, {
                 headers: { Authorization: `Bearer ${token}` }, credentials: 'include', signal: AbortSignal.timeout(15000),
             });
             const body: unknown = await response.json();
@@ -73,17 +80,20 @@ export function LinkedInConnectionControl({ projectId, token, channel, disabled,
         </header>
         {disabled && <p className="linkedin-connection__notice">{connectionDiagnostic('LINKEDIN_OAUTH_AUTH_REQUIRED', locale)}</p>}
         <div className="linkedin-connection__identity">
-            <label htmlFor={authorId}>{ru ? 'Идентификатор профиля или компании' : 'Profile or organization identifier'}</label>
-            <input id={authorId} value={expectedUrn} onChange={event => { authorEdited.current = true; setExpectedUrn(event.target.value); }}
+            <label htmlFor={authorId}>{personalProfile ? (ru ? 'Личный профиль' : 'Personal profile') : (ru ? 'Идентификатор профиля или компании' : 'Profile or organization identifier')}</label>
+            <input id={authorId} value={personalProfile || expectedUrn} onChange={event => { authorEdited.current = true; setExpectedUrn(event.target.value); }}
                 placeholder="urn:li:organization:…" autoComplete="off" spellCheck={false}
-                readOnly={Boolean(initialAuthor)} disabled={disabled || pending}
-                aria-describedby={`${authorId}-help`} aria-invalid={Boolean(expectedUrn && !validUrn)} />
-            <p id={`${authorId}-help`}>{initialAuthor
+                readOnly={Boolean(initialAuthor || personalProfile)} disabled={disabled || pending}
+                aria-describedby={`${authorId}-help`} aria-invalid={Boolean(expectedUrn && !validIdentity)} />
+            <p id={`${authorId}-help`}>{personalProfile
+                ? (ru ? 'Подключаем сохранённый личный профиль. LinkedIn подтвердит его ID при входе; идентификатор компании здесь не нужен.' : 'Connect the saved personal profile. LinkedIn will verify its ID during sign-in; no organization identifier is needed here.')
+                : initialAuthor
                 ? (ru ? 'Сохранённая привязка этого канала. Смена аккаунта требует отдельной проверки.' : 'Saved channel identity. Changing the account requires a separate review.')
                 : status?.latestAttempt?.expectedAuthorUrn === expectedUrn
                     ? (ru ? 'Ожидаемый аккаунт из прошлой попытки. Это черновик, а не подтверждённая привязка: проверьте его перед подключением.' : 'Expected account from the previous attempt. This is a draft, not a verified binding; check it before connecting.')
                     : (ru ? 'Для компании: urn:li:organization:числовой ID. Для профиля: urn:li:person:ID. Привязка сохранится после успешного OAuth.' : 'Company: urn:li:organization:numeric ID. Profile: urn:li:person:ID. Identity is saved after successful OAuth.')}</p>
         </div>
+        {personalChannel && expectedUrn.trim().startsWith('urn:li:organization:') && <p className="linkedin-connection__notice" role="alert">{ru ? 'Это личный канал. Идентификатор компании нельзя использовать для подключения личного профиля.' : 'This is a personal channel. An organization identifier cannot connect a personal profile.'}</p>}
         {failure && <p className="linkedin-connection__notice" role="alert">{failure}</p>}
         {status && !checking && <>
             {status.latestAttempt && <div className="linkedin-connection__notice" aria-label={ru ? 'Последняя попытка подключения' : 'Latest connection attempt'}>
@@ -106,7 +116,7 @@ export function LinkedInConnectionControl({ projectId, token, channel, disabled,
         </>}
         <footer className="linkedin-connection__footer">
             <div className="linkedin-connection__actions">
-                <button type="button" className="linkedin-connection__primary" onClick={() => void connect()} disabled={disabled || pending || !validUrn}>
+                <button type="button" className="linkedin-connection__primary" onClick={() => void connect()} disabled={disabled || pending || !validIdentity}>
                     {pending ? (ru ? 'Открываем LinkedIn…' : 'Opening LinkedIn…') : connected ? (ru ? 'Переподключить LinkedIn' : 'Reconnect LinkedIn') : (ru ? 'Подключить LinkedIn' : 'Connect LinkedIn')}</button>
                 <button type="button" onClick={() => setRefresh(value => value + 1)} disabled={disabled || checking || pending}>
                     {checking ? (ru ? 'Проверяем…' : 'Checking…') : (ru ? 'Проверить подключение' : 'Check connection')}</button>

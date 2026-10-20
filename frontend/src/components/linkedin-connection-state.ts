@@ -33,6 +33,24 @@ export function savedAuthor(channel: LinkedInChannel): string {
     const urn = channel.config?.linkedin_urn;
     return typeof urn === 'string' && /^urn:li:(person:[A-Za-z0-9_-]+|organization:[0-9]+)$/.test(urn) ? urn : '';
 }
+/** Mirror the existing server's saved-profile path; a public slug never becomes a fabricated person URN. */
+export function savedPersonalProfile(channel: LinkedInChannel): string {
+    if (savedAuthor(channel) || channel.config?.account_type === 'organization') return '';
+    let slug = '';
+    for (const field of ['profile_url', 'channel_url', 'account_ref']) {
+        const value = channel.config?.[field];
+        if (typeof value !== 'string') continue;
+        let url: URL;
+        try { url = new URL(value); } catch { continue; /* Invalid saved URLs cannot establish a profile. */ }
+        if (url.protocol !== 'https:' || !['www.linkedin.com', 'linkedin.com'].includes(url.hostname)
+            || url.username || url.password || url.search || url.hash) continue;
+        const match = url.pathname.match(/^\/in\/([A-Za-z0-9_-]+)\/?$/);
+        if (!match) continue;
+        if (slug && slug !== match[1]) return '';
+        slug = match[1];
+    }
+    return slug ? `https://www.linkedin.com/in/${slug}/` : '';
+}
 const diagnostics: Record<string, [string, string]> = {
     ...oauthFailureCopy,
     LINKEDIN_OAUTH_GRANTS_UNKNOWN: ['Planner не подтвердил идентичность, срок действия или выданные права. Подключение не завершено; требуется проверка OAuth.', 'Planner could not verify identity, expiry or permissions. Connection is incomplete; OAuth needs investigation.'],
