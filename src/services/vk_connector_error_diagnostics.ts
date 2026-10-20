@@ -1,3 +1,4 @@
+import {ownerManualPreservationDiagnostic} from './owner_manual_publication_diagnostics';
 import type { PublicationDiagnostic } from './publication_diagnostics';
 
 const catalog: Record<string, readonly [string, string, string]> = {
@@ -51,6 +52,8 @@ function diagnostic(key: string): PublicationDiagnostic {
 
 /** Classifies only reviewed connector codes; raw exception data never crosses this boundary. */
 export function vkConnectorErrorDiagnostic(error: unknown): PublicationDiagnostic {
+    const manual = ownerManualPreservationDiagnostic(error);
+    if (manual) return manual;
     const key = error instanceof Error ? /^\[VK_CONNECTOR_([A-Z_]+)\]/.exec(error.message)?.[1] : undefined;
     return diagnostic(key && Object.prototype.hasOwnProperty.call(catalog, key) ? key : 'REQUEST_FAILED');
 }

@@ -1,3 +1,4 @@
+import {lockManualTransportMutation,withManualTransportMutation} from './manual_publication_transport_projection';
 import { createHash } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import prisma from '../db';
@@ -85,6 +86,7 @@ export async function reconcileDzenTask1045PhaseBIncident(args: Dzen1045PhaseBRe
             idempotency_key: DZEN1045_PHASE_B_RECONCILE.idempotencyKey } })
     ]);
     if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
+    await withManualTransportMutation(prisma,args,async()=>undefined);
     if (manifest.checksum !== DZEN1045_RECOVERY_MANIFEST) throw new Error('[STALE_MANIFEST]');
     if (prior && args.confirm) {
         const after = object(prior.after_state);
@@ -105,6 +107,7 @@ export async function reconcileDzenTask1045PhaseBIncident(args: Dzen1045PhaseBRe
         idempotencyKey: args.idempotencyKey }, {
         inspect: () => inspect(config, guarded.task.draft_text || ''),
         recordNotAttempted: async () => prisma.$transaction(async tx => {
+            await lockManualTransportMutation(tx,args);
             const latest = assertTask(await tx.contentItem.findFirst({ where: { id: 1045, project_id: 10 },
                 include: { channel: true, selected_asset: true, publication_fact: true } }));
             const quality = object(latest.task.quality_report); const now = new Date().toISOString();
@@ -125,10 +128,10 @@ export async function reconcileDzenTask1045PhaseBIncident(args: Dzen1045PhaseBRe
             return evidence;
         }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }),
         record: async publication => {
-            await prisma.workflowEvent.create({ data: { project_id: 10, content_item_id: 1045,
+            await withManualTransportMutation(prisma,args,tx=>tx.workflowEvent.create({ data: { project_id: 10, content_item_id: 1045,
                 actor_id: args.actorId, command: DZEN1045_PHASE_B_RECONCILE.command,
                 idempotency_key: DZEN1045_PHASE_B_RECONCILE.idempotencyKey,
-                after_state: { mode: 'exact_public', publication, provider_writes: 0 } as Prisma.InputJsonValue } });
+                after_state: { mode: 'exact_public', publication, provider_writes: 0 } as Prisma.InputJsonValue } }));
             return recordFact(args, publication);
         }
     });

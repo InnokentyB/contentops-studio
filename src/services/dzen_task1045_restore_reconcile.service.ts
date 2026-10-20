@@ -1,3 +1,4 @@
+import {lockManualTransportMutation,withManualTransportMutation} from './manual_publication_transport_projection';
 import { createHash } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import prisma from '../db';
@@ -100,6 +101,7 @@ export async function reconcileDzenTask1045ZeroRestoreIncident(args: Dzen1045Res
             idempotency_key: DZEN1045_RESTORE_RECONCILE.idempotencyKey }, orderBy: { id: 'desc' } })
     ]);
     if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
+    await withManualTransportMutation(prisma,args,async()=>undefined);
     if (manifest.checksum !== DZEN1045_RECOVERY_MANIFEST) throw new Error('[STALE_MANIFEST]');
     if (prior && args.confirm === true) {
         const publication = publicationFromState(prior.after_state);
@@ -116,6 +118,7 @@ export async function reconcileDzenTask1045ZeroRestoreIncident(args: Dzen1045Res
         inspect: () => dzenService.inspectTask1045RestoreIncident(config, guarded.task.draft_text || ''),
         reconcile: async publication => {
             await prisma.$transaction(async tx => {
+            await lockManualTransportMutation(tx,args);
                 const latest = await tx.contentItem.findFirst({ where: { id: 1045, project_id: 10 },
                     include: { channel: true, selected_asset: true, publication_fact: true } });
                 assertDzen1045RestoreReconcileTask(latest);

@@ -19,6 +19,7 @@ import { PublicationOutcome } from './types';
 import { sanitizeChannelConfig } from '../../utils/channel.utils';
 import { linkedIn1128ManualHandoff } from '../linkedin1128_release_policy';
 import { preserve1086Handoff } from '../linkedin1086_projection';
+import { ownerManualFactReadback } from '../owner_manual_publication_readback';
 
 type PublicationTaskWithChannel = {
     channel?: ({ type: string; config: unknown } & Record<string, unknown>) | null;
@@ -130,7 +131,7 @@ export async function listPublicationTasks(projectId: number, status?: string, m
         })
         : activeFiltered;
 
-    return filtered.map((item: (typeof items)[number]) => ({
+    return Promise.all(filtered.map(async (item: (typeof items)[number]) => ({
         id: item.id,
         title: item.title,
         type: item.type,
@@ -159,8 +160,9 @@ export async function listPublicationTasks(projectId: number, status?: string, m
             : null,
         execution_mode: (item.quality_report as Record<string, unknown> | null)?.execution_mode || null,
         publication_outcome: (item.metrics as Record<string, unknown> | null)?.publication_outcome || (item.quality_report as Record<string, unknown> | null)?.publication_outcome || null,
-        publication_fact: item.publication_fact || null
-    }));
+        publication_fact: item.publication_fact
+            ? { ...item.publication_fact, ...await ownerManualFactReadback(prisma, item.publication_fact) } : null
+    })));
 }
 
 /**
@@ -183,6 +185,8 @@ export async function getPublicationTask(projectId: number, taskId: number) {
         throw new Error(`Publication task ${taskId} not found for project ${projectId}`);
     }
 
+    const publicationFact = item.publication_fact
+        ? { ...item.publication_fact, ...await ownerManualFactReadback(prisma, item.publication_fact) } : null;
     const plan = await loadPublicationPlanContext(projectId);
     const action = (item.assets as Record<string, unknown> | null)?.action;
     if (!plan || !action) {
@@ -190,6 +194,7 @@ export async function getPublicationTask(projectId: number, taskId: number) {
         const bundleWithLanguage = publicationHandoffWithLanguage(bundle, item.channel, item.quality_report);
         return sanitizePublicationTaskChannel({
             ...item,
+            publication_fact: publicationFact,
             content_state: derivePublicationContentState(item),
             generation_stage: derivePublicationGenerationStage({
                 status: item.status,
@@ -214,6 +219,7 @@ export async function getPublicationTask(projectId: number, taskId: number) {
         ? linkedIn1128ManualHandoff(languageBundle, item.quality_report) : languageBundle;
     return sanitizePublicationTaskChannel({
         ...item,
+        publication_fact: publicationFact,
         generation_stage: derivePublicationGenerationStage({
             status: item.status,
             draftText: item.draft_text,

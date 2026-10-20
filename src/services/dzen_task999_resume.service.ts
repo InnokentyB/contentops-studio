@@ -1,3 +1,4 @@
+import {lockManualTransportMutation,withManualTransportMutation} from './manual_publication_transport_projection';
 import { createHash } from 'crypto';
 import { Prisma } from '@prisma/client';
 import prisma from '../db';
@@ -21,6 +22,7 @@ export async function resumeDzenTask999(args: { projectId: number; taskId: numbe
         project_id_user_id: { project_id: 10, user_id: Number(user[1]) }
     } });
     if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
+    await withManualTransportMutation(prisma,args,async()=>undefined);
     const prior = await prisma.workflowEvent.findFirst({ where: { project_id: 10, content_item_id: 999,
         command, idempotency_key: DZEN999.key }, orderBy: { id: 'desc' } });
     if (prior) throw new Error('[DZEN999_RESUME_ALREADY_CLAIMED] Read publication fact; never repeat resume');
@@ -48,6 +50,7 @@ export async function resumeDzenTask999(args: { projectId: number; taskId: numbe
         const result = await publisher.resumeDzen999(resolveEffectiveChannelConfig('dzen', task.channel?.config || {}),
             task.draft_text || '', { confirm: args.confirm === true, idempotencyKey: args.idempotencyKey }, async proof => {
                 const changed = await prisma.$transaction(async tx => {
+            await lockManualTransportMutation(tx,args);
                     const owner = await tx.projectMember.findUnique({ where: {
                         project_id_user_id: { project_id: 10, user_id: Number(user[1]) }
                     } });
@@ -83,10 +86,10 @@ export async function resumeDzenTask999(args: { projectId: number; taskId: numbe
             });
         if (result.mode === 'preview') return result;
         const publication = result.result;
-        await prisma.workflowEvent.create({ data: { project_id: 10, content_item_id: 999,
+        await withManualTransportMutation(prisma,args,tx=>tx.workflowEvent.create({ data: { project_id: 10, content_item_id: 999,
             actor_id: args.actorId, command: 'dzen999_existing_draft_provider_confirmed',
             idempotency_key: DZEN999.key, after_state: publication
-        } });
+        } }));
         await facts.record({ projectId: 10, taskId: 999, actorId: args.actorId, artifactKind: DZEN999.artifactKind, outcome: 'published',
             publicUrl: publication.public_url!, providerObjectId: DZEN999.draftId,
             publishedAt: publication.published_at!, confirmationMode: 'automatic',
@@ -94,11 +97,11 @@ export async function resumeDzenTask999(args: { projectId: number; taskId: numbe
             note: `Resumed original ${DZEN999.key} exact draft; cover SHA and public body verified` });
         return result;
     } catch (error: unknown) {
-        if (claimed) await prisma.workflowEvent.create({ data: {
+        if (claimed) await withManualTransportMutation(prisma,args,tx=>tx.workflowEvent.create({ data: {
             project_id: 10, content_item_id: 999, actor_id: args.actorId,
             command: 'dzen999_resume_requires_reconciliation', idempotency_key: DZEN999.key,
             after_state: { state: 'uncertain', draft_id: DZEN999.draftId, retry_via_api: false }
-        } });
+        } }));
         throw error;
     }
 }

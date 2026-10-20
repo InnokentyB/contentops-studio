@@ -1,0 +1,101 @@
+ Container tower-contentops-owner-manual-verification-synthetic-db-1  Running
+{"event":"publication_diagnostic","service":"publication","isError":true,"code":"MANUAL_PUBLICATION_TRANSPORT_PRESERVED","message":"The Owner recorded an existing external object; prior transport remains unresolved and immutable.","reasons":[{"code":"MANUAL_PUBLICATION_TRANSPORT_PRESERVED","field":"publication_history","message":"The Owner recorded an existing external object; prior transport remains unresolved and immutable.","action":"Read the canonical manual fact and its Owner confirmation audit. Do not retry, adopt, finalize or resend the previous transport. A correction requires a fresh Owner preview."}],"retry_allowed":false}
+{"event":"publication_diagnostic","service":"publication","isError":true,"code":"MANUAL_PUBLICATION_OBJECT_CONFLICT","message":"This external object already belongs to another task Owner confirmation.","reasons":[{"code":"MANUAL_PUBLICATION_OBJECT_CONFLICT","field":"external_object","message":"This external object already belongs to another task Owner confirmation.","action":"Read the existing canonical manual fact with the Owner and correct the selected task or object. Do not reassign the object, create another confirmation or resend it."}],"retry_allowed":false}
+{"event":"publication_diagnostic","service":"publication","isError":true,"code":"MANUAL_PUBLICATION_POLICY_INVALID","message":"The requested write mixes incompatible confirmation authorities or lacks a valid internal Owner policy.","reasons":[{"code":"MANUAL_PUBLICATION_POLICY_INVALID","field":"confirmation_authority","message":"The requested write mixes incompatible confirmation authorities or lacks a valid internal Owner policy.","action":"Use the authenticated Owner manual preview and confirmation commands. Ask engineering to repair the integration; never add bypass flags, actor fields or transport completion proof."}],"retry_allowed":false}
+{"event":"publication_diagnostic","service":"publication","isError":true,"code":"MANUAL_PUBLICATION_POLICY_REQUIRED","message":"The reserved Owner provenance marker requires the authenticated manual confirmation lifecycle.","reasons":[{"code":"MANUAL_PUBLICATION_POLICY_REQUIRED","field":"confirmation_authority","message":"The reserved Owner provenance marker requires the authenticated manual confirmation lifecycle.","action":"Use the current project Owner profile to preview and confirm the existing external object. Do not submit reserved provenance through a generic fact writer or fabricate transport success."}],"retry_allowed":false}
+✔ manual accounting direct retains exact MANUAL_PUBLICATION_TRANSPORT_PRESERVED cause with safe remedy (1.103186ms)
+✔ manual accounting browser retains exact MANUAL_PUBLICATION_TRANSPORT_PRESERVED cause with safe remedy (0.234901ms)
+✔ manual accounting vk retains exact MANUAL_PUBLICATION_TRANSPORT_PRESERVED cause with safe remedy (0.144851ms)
+✔ manual accounting adapter boundary exposes MANUAL_PUBLICATION_TRANSPORT_PRESERVED without raw exception (0.775055ms)
+✔ manual accounting direct retains exact MANUAL_PUBLICATION_OBJECT_CONFLICT cause with safe remedy (0.112781ms)
+✔ manual accounting browser retains exact MANUAL_PUBLICATION_OBJECT_CONFLICT cause with safe remedy (0.104671ms)
+✔ manual accounting vk retains exact MANUAL_PUBLICATION_OBJECT_CONFLICT cause with safe remedy (0.101131ms)
+✔ manual accounting adapter boundary exposes MANUAL_PUBLICATION_OBJECT_CONFLICT without raw exception (0.183641ms)
+✔ manual accounting direct retains exact MANUAL_PUBLICATION_POLICY_INVALID cause with safe remedy (0.138311ms)
+✔ manual accounting browser retains exact MANUAL_PUBLICATION_POLICY_INVALID cause with safe remedy (0.161081ms)
+✔ manual accounting vk retains exact MANUAL_PUBLICATION_POLICY_INVALID cause with safe remedy (0.109401ms)
+✔ manual accounting adapter boundary exposes MANUAL_PUBLICATION_POLICY_INVALID without raw exception (0.162801ms)
+✔ manual accounting direct retains exact MANUAL_PUBLICATION_POLICY_REQUIRED cause with safe remedy (0.092691ms)
+✔ manual accounting browser retains exact MANUAL_PUBLICATION_POLICY_REQUIRED cause with safe remedy (0.09358ms)
+✔ manual accounting vk retains exact MANUAL_PUBLICATION_POLICY_REQUIRED cause with safe remedy (0.11551ms)
+✔ manual accounting adapter boundary exposes MANUAL_PUBLICATION_POLICY_REQUIRED without raw exception (0.147471ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+✔ 026 actual MCP preview exists, reads PostgreSQL and performs no mutation or provider call (276.272355ms)
+✔ 026 actual MCP commit exists and records manual fact without accepting current edition or rewriting UNKNOWN custody (112.690236ms)
+✔ 026 publisher principal cannot obtain Owner accounting authority (22.68938ms)
+✔ 026 writer principal cannot obtain Owner accounting authority (27.634749ms)
+✔ 026 planner principal cannot obtain Owner accounting authority (21.415183ms)
+✔ 026 researcher principal cannot obtain Owner accounting authority (59.354151ms)
+✔ 026 absent principal cannot obtain authority from URL/reference/input actor (16.903567ms)
+✔ 026 actual demo Owner and revoked membership fail closed (33.598673ms)
+✔ 026 cross-tenant principal cannot access a valid task or its preview (18.599067ms)
+✔ 026 inactive channel cannot obtain historical accounting authority (24.603412ms)
+✔ 026 Dzen invalid permalink dzen.ru is refused without a fetch (19.576892ms)
+✔ 026 Dzen invalid permalink user:password@dzen.ru is refused without a fetch (20.650769ms)
+✔ 026 Dzen invalid permalink dzen.ru is refused without a fetch (21.135481ms)
+✔ 026 Dzen invalid permalink dzen.ru is refused without a fetch (23.171353ms)
+✔ 026 Dzen invalid permalink dzen.ru is refused without a fetch (16.564224ms)
+✔ 026 Dzen invalid permalink localhost is refused without a fetch (16.549595ms)
+✔ 026 Dzen invalid permalink vk.com is refused without a fetch (17.165178ms)
+✔ 026 ambiguous malformed or future time is refused: 2026-10-19T12:34:56 (25.167664ms)
+✔ 026 ambiguous malformed or future time is refused: invalid (17.736581ms)
+✔ 026 ambiguous malformed or future time is refused: 2999-10-19T12:34:56+01:00 (15.63881ms)
+✔ 026 ambiguous malformed or future time is refused: 2026-02-30T12:00:00+01:00 (18.779297ms)
+✔ 026 ambiguous malformed or future time is refused: 2026-10-19T24:00:00+01:00 (22.595859ms)
+✔ 026 unretained revision cannot be labelled the published edition (16.745756ms)
+✔ 026 preview tampering, stale task and stale expected fact do not write (114.904989ms)
+✔ 026 exact replay returns the same fact with zero additional audit/checkpoints; changed key payload conflicts (149.814139ms)
+✔ 026 same canonical dzen object cannot be concurrently assigned to different tasks (112.335254ms)
+✔ 026 same canonical vk object cannot be concurrently assigned to different tasks (206.302993ms)
+✔ 026 VK ru/com aliases bind the same canonical identity without following links (48.76901ms)
+✔ 026 actual PostgreSQL audit write failure rolls back fact, projection and audit (111.673681ms)
+✔ 026 actual PostgreSQL checkpoint write failure rolls back fact, projection and audit (84.467295ms)
+✔ 026 manual fact fences generic writer and rolls back a late callback attempt mutation (124.309762ms)
+✔ 026 blocked connector custody and old audit rows remain byte-identical (139.283359ms)
+✔ 026 concurrent same-task same-key requests create one fact and one provenance authority (140.730878ms)
+✔ 026 correction requires fresh exact fact digest and reason, appends provenance and preserves prior audit (241.246624ms)
+✔ 026 real user authority remains locked through fact/audit commit (2098.728869ms)
+✔ 026 real membership authority remains locked through fact/audit commit (2067.57102ms)
+✔ 026 existing fact/get-task/list-task MCP readbacks expose manual origin and unknown published revision (112.541895ms)
+✔ 026 existing channel repair refuses a manual fact before any reassignment or audit change (95.79474ms)
+✔ 026 ordinary canonical writer cannot adopt another task manual object, including VK alias (72.739147ms)
+✔ 026 concurrent ordinary writer and Owner command cannot establish two authorities for one object (113.185189ms)
+✔ 026 ordinary writer rejects a forged opaque policy and reserved provenance prefix (16.859736ms)
+✔ 026 corrupted manual audit readback exposes repair_required and never verified provenance (69.136316ms)
+✔ 026 Owner command cannot adopt a URL-only legacy ordinary fact through VK host/protocol aliases (147.738537ms)
+✔ 026 generic queue claim cannot change preserved browser_publish work or replay lease authority (75.123061ms)
+✔ 026 generic queue complete cannot change preserved browser_publish work or replay lease authority (77.571995ms)
+✔ 026 generic queue block cannot change preserved browser_publish work or replay lease authority (64.055307ms)
+✔ 026 generic queue release cannot change preserved browser_publish work or replay lease authority (70.197552ms)
+✔ 026 generic queue reschedule cannot change preserved browser_publish work or replay lease authority (65.423315ms)
+✔ 026 generic queue claim cannot change preserved provider_publish work or replay lease authority (146.302869ms)
+✔ 026 generic queue complete cannot change preserved provider_publish work or replay lease authority (61.08371ms)
+✔ 026 generic queue block cannot change preserved provider_publish work or replay lease authority (66.070858ms)
+✔ 026 generic queue release cannot change preserved provider_publish work or replay lease authority (62.551969ms)
+✔ 026 generic queue reschedule cannot change preserved provider_publish work or replay lease authority (67.747259ms)
+✔ 026 ordinary metric_capture queue work remains claimable and completable after manual confirmation (70.870046ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+✔ late owned freeze preserves manual fact and original attempt/job byte-for-byte (2.780817ms)
+✔ late legacy uncertainty preserves original attempt without synthesizing delivery (0.337792ms)
+✔ VK job projection cannot reinterpret Owner manual fact as adapter confirmation (1.043546ms)
+✔ late projection rechecks the manual fact after acquiring its task lock (0.599594ms)
+✔ ordinary transport facts retain the existing projection path (0.262332ms)
+✔ actual direct dispatcher fallback cannot replace a manual projection or reopen browser work (1.75941ms)
+ℹ tests 76
+ℹ suites 0
+ℹ pass 76
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9407.309392

@@ -162,7 +162,7 @@ export async function loadAgentWorkspaceManifest(projectId: number, userId: numb
     const project = await reader.project.findUnique({
         where: { id: projectId },
         include: {
-            channels: { where: { is_active: true }, orderBy: { id: 'asc' } },
+            channels: { where: { is_active: true }, orderBy: { id: 'asc' }, select: { id: true, name: true, type: true, updated_at: true } },
             settings: {
                 where: {
                     OR: [

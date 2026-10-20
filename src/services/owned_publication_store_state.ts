@@ -1,3 +1,4 @@
+import {assertManualPublicationTransportMutable} from './owner_manual_publication_fence';
 import type {Prisma} from '@prisma/client';
 import {ownedLegacyCommitted,ownedLegacyReceipt} from './owned_publication_legacy';
 import {ownedClaimSchema,ownedDigest,ownedHash,ownedObject as object,checkedOwnedReceipt,ownedPackageSchema} from './owned_publication_contract';
@@ -28,7 +29,7 @@ export async function ownedUniqueHistory(tx:Prisma.TransactionClient,c:Claim){
         ||work.length!==(c.workItemId?1:0)||c.workItemId&&work[0]?.id!==c.workItemId||claims.length!==1)throw Error('OWNED_HISTORY_AMBIGUOUS');
 }
 export async function ownedCurrent(tx:Prisma.TransactionClient,r:Request,p:Principal,d:Dependencies,c:Claim){
-    await ownedPrincipal(tx,r,p);await ownedLock(tx,r);
+    await ownedPrincipal(tx,r,p);await ownedLock(tx,r);await assertManualPublicationTransportMutable(tx,r);
     if(r.projectId!==c.package.projectId||r.taskId!==c.package.taskId||r.idempotencyKey!==c.key)throw Error('OWNED_CLAIM_CONFLICT');
     const retained=await ownedCommitted(tx,c);await ownedUniqueHistory(tx,c);const current=await ownedSnapshot(tx,{...r,operation:'publish'},p,d,c);
     const compared: Array<keyof typeof current>=['projectId','taskId','channelId','revision','decisionId','decisionVersion','selectedAssetId','bodySha256','assetSha256','schedule','manifest','accountId','body','title','assetUrl','approvalReference','releaseActorId','releaseId'];

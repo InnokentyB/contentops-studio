@@ -1,3 +1,5 @@
+import {assertManualPublicationTransportMutable} from './owner_manual_publication_fence';
+import {lockOwnedPublicationTask} from './publication_owned_guard';
 import { Prisma } from '@prisma/client';
 import { DZEN1002_RUNTIME as p, dzen1002Hash, dzen1002Object as obj, validateDzen1002Receipt } from './dzen1002_runtime_contract';
 import type { Dzen1002Args as Args, Dzen1002Claim as Claim, Dzen1002Result as Result, Dzen1002Receipt } from './dzen1002_runtime_contract';
@@ -11,10 +13,11 @@ export class Dzen1002RuntimeStore {
     constructor(readonly dependencies: Dzen1002StoreDependencies) {}
     private now() { return this.dependencies.now?.() || new Date(); }
     async inspect(a: Args) {
-        return this.dependencies.db.$transaction(async tx => (await dzen1002Snapshot(tx, a, this.dependencies)).package, serial);
+        return this.dependencies.db.$transaction(async tx => {await lockOwnedPublicationTask(tx,a);await assertManualPublicationTransportMutable(tx,a);return (await dzen1002Snapshot(tx,a,this.dependencies)).package;},serial);
     }
     async claim(a: Args): Promise<Claim> {
         return this.dependencies.db.$transaction(async tx => {
+            await lockOwnedPublicationTask(tx,a);await assertManualPublicationTransportMutable(tx,a);
             const snap = await dzen1002Snapshot(tx, a, this.dependencies);
             const [attempt, fact, legacy, browser, preflight] = await Promise.all([
                 tx.deliveryAttempt.findFirst({ where: { project_id: 10, content_item_id: 1002 } }),
@@ -44,15 +47,17 @@ export class Dzen1002RuntimeStore {
         }, serial);
     }
     async loadClaim(a: Args, id: number) {
-        return this.dependencies.db.$transaction(tx => dzen1002ReadClaim(tx, a, id, this.dependencies), serial);
+        return this.dependencies.db.$transaction(async tx => {await lockOwnedPublicationTask(tx,a);await assertManualPublicationTransportMutable(tx,a);return dzen1002ReadClaim(tx,a,id,this.dependencies);},serial);
     }
     private async bound(tx: Prisma.TransactionClient, a: Args, c: Claim) {
+        await lockOwnedPublicationTask(tx,a);await assertManualPublicationTransportMutable(tx,a);
         const stored = await dzen1002ReadClaim(tx, a, c.attemptId, this.dependencies);
         if (stored.key !== c.key || stored.package.digest !== c.package.digest || JSON.stringify(stored.package) !== JSON.stringify(c.package)) throw new Error('[DZEN1002_CLAIM_MISMATCH]');
         return stored;
     }
     async start(a: Args, c: Claim): Promise<void> {
         await this.dependencies.db.$transaction(async tx => {
+            await lockOwnedPublicationTask(tx,a);await assertManualPublicationTransportMutable(tx,a);
             await this.bound(tx, a, c);
             const attempt = await tx.deliveryAttempt.findUnique({ where: { id: c.attemptId } });
             if (attempt?.status !== 'pending') throw new Error('[DZEN1002_ATTEMPT_FROZEN]');
@@ -61,6 +66,7 @@ export class Dzen1002RuntimeStore {
     }
     async assertSubmit(a: Args, c: Claim): Promise<void> {
         await this.dependencies.db.$transaction(async tx => {
+            await lockOwnedPublicationTask(tx,a);await assertManualPublicationTransportMutable(tx,a);
             await this.bound(tx, a, c); await dzen1002RequireStarted(tx, c);
             const attempt = await tx.deliveryAttempt.findUnique({ where: { id: c.attemptId } });
             if (attempt?.status !== 'pending' || attempt.error_message) throw new Error('[DZEN1002_ATTEMPT_FROZEN]');
@@ -69,6 +75,7 @@ export class Dzen1002RuntimeStore {
     async saveReceipt(a: Args, c: Claim, value: Dzen1002Receipt): Promise<void> {
         const receipt = validateDzen1002Receipt(value, c, this.now());
         await this.dependencies.db.$transaction(async tx => {
+            await lockOwnedPublicationTask(tx,a);await assertManualPublicationTransportMutable(tx,a);
             const committed = await dzen1002CommittedClaim(tx, a, c, this.dependencies);
             // A native publication must belong to this attempt, allowing bounded clock skew.
             if (Date.parse(receipt.publishedAt) < committed.createdAt.getTime() - 120_000) {
@@ -108,6 +115,7 @@ export class Dzen1002RuntimeStore {
     }
     async confirm(a: Args, c: Claim): Promise<Result> {
         const receipt = await this.dependencies.db.$transaction(async tx => {
+            await lockOwnedPublicationTask(tx,a);await assertManualPublicationTransportMutable(tx,a);
             await this.bound(tx, a, c); await dzen1002RequireStarted(tx, c);
             return this.receipt(tx, c);
         }, serial);
@@ -141,6 +149,7 @@ export class Dzen1002RuntimeStore {
     }
     async replay(a: Args, attemptId?: number): Promise<Result | null> {
         return this.dependencies.db.$transaction(async tx => {
+            await lockOwnedPublicationTask(tx,a);await assertManualPublicationTransportMutable(tx,a);
             await dzen1002Owner(tx, a, this.dependencies);
             const attempts = await tx.deliveryAttempt.findMany({ where: { project_id: 10, content_item_id: 1002 }, orderBy: { id: 'asc' } });
             const fact = await tx.publicationFact.findFirst({ where: { project_id: 10, content_item_id: 1002 } });
@@ -158,6 +167,7 @@ export class Dzen1002RuntimeStore {
     }
     async uncertain(a: Args, c: Claim): Promise<void> {
         await this.dependencies.db.$transaction(async tx => {
+            await lockOwnedPublicationTask(tx,a);await assertManualPublicationTransportMutable(tx,a);
             await dzen1002Owner(tx, a, this.dependencies);
             const attempt = await tx.deliveryAttempt.findFirst({ where: { id: c.attemptId, project_id: 10, content_item_id: 1002, idempotency_key: c.key } });
             if (!attempt || c.key !== a.idempotencyKey) throw new Error('[DZEN1002_ATTEMPT_CONFLICT]');

@@ -1,0 +1,45 @@
+ Container tower-contentops-owner-manual-verification-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+✔ workspace manifest exposes the governed chat topology without secrets (11.853435ms)
+✔ workspace update is empty for a known checksum and returns a snapshot after configuration changes (0.506975ms)
+✔ chat bootstrap is role-scoped and references an MCP capability profile (0.271683ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+✔ provider-confirmed manual publication may be reconciled without inventing a channel binding (0.95911ms)
+✔ unaccepted or terminal slot is not eligible for unbound-channel reconciliation (0.336013ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+✔ preview returns the exact bounded Dzen diff without writes (9.671134ms)
+✔ apply is atomic, audited, preserves published identity and replays idempotently (4.10028ms)
+✔ wrong expected state aborts with zero writes (1.063271ms)
+✔ apply with a wrong guard aborts with zero writes (0.607866ms)
+✔ stale preview hash rolls back every write (1.735916ms)
+✔ a late snapshot conflict rolls back prior task and fact writes (2.931988ms)
+✔ preview requires an owner and an active Dzen target (0.767298ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+✔ remote Owner manual accounting is limited to its token-bound project and Owner profile (1.623556ms)
+✔ remote MCP replaces caller-controlled actor and user identities (0.235202ms)
+✔ organization researcher scope cannot be overridden by tool arguments (0.156621ms)
+✔ remote MCP rejects an explicit project that differs from the token scope (0.188872ms)
+✔ remote MCP scopes user identity when the requested project matches the token (0.166382ms)
+✔ remote MCP injects the token-bound identity into bootstrap calls (0.161012ms)
+✔ remote MCP denies cross-tenant administrative tools (0.135192ms)
+✔ local MCP without a configured principal preserves tool arguments (0.104301ms)
+✔ writer MCP is restricted to its project and cannot invoke planner tools (0.185351ms)
+✔ writer MCP discovery exposes content tools but not slot mutation tools (95.820041ms)
+✔ planner MCP discovery exposes slot controls but not content mutation (72.526145ms)
+✔ only the owner MCP profile discovers audited content review recovery (55.762511ms)
+✔ editor, publisher and growth profiles expose only their governed lifecycle tools (240.424206ms)
+✔ role-scoped internal mutations do not request destructive host approval (814.21385ms)
+✔ VK016-PROCESS: real standalone process receives explicit Planner job and persists an honest provider-blocked receipt (158.956264ms)
+ℹ tests 27
+ℹ suites 0
+ℹ pass 27
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2715.576951

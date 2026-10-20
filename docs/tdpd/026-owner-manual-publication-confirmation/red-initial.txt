@@ -1,0 +1,52 @@
+ Container tower-contentops-owner-manual-verification-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+✖ 026 actual MCP preview exists, reads PostgreSQL and performs no mutation or provider call (194.665287ms)
+✖ 026 actual MCP commit exists and records manual fact without accepting current edition or rewriting UNKNOWN custody (37.775081ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1099.30477
+
+✖ failing tests:
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:34:1
+✖ 026 actual MCP preview exists, reads PostgreSQL and performs no mutation or provider call (194.665287ms)
+  AssertionError [ERR_ASSERTION]: {"content":[{"type":"text","text":"MCP error -32602: Tool ba_preview_owner_manual_publication_confirmation not found"}],"isError":true}
+      at Object.preview (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:26:232)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:36:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: true,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:40:1
+✖ 026 actual MCP commit exists and records manual fact without accepting current edition or rewriting UNKNOWN custody (37.775081ms)
+  AssertionError [ERR_ASSERTION]: {"content":[{"type":"text","text":"MCP error -32602: Tool ba_preview_owner_manual_publication_confirmation not found"}],"isError":true}
+      at Object.preview (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:26:232)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:43:42)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: true,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+

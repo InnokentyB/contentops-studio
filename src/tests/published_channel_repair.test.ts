@@ -50,6 +50,9 @@ function fixture() {
             }
         },
         publicationFact: {
+            findFirst: async ({ where }: { where: { project_id: number; content_item_id: number } }) =>
+                state.fact.project_id === where.project_id && state.fact.content_item_id === where.content_item_id
+                    ? structuredClone(state.fact) : null,
             updateMany: async ({ where, data }: any) => {
                 if (state.fact.id !== where.id || state.fact.project_id !== where.project_id || state.fact.content_item_id !== where.content_item_id || state.fact.channel_id !== where.channel_id || state.fact.public_url !== where.public_url) return { count: 0 };
                 Object.assign(state.fact, structuredClone(data));

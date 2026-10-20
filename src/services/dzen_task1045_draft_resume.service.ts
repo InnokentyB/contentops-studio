@@ -1,3 +1,4 @@
+import {lockManualTransportMutation,withManualTransportMutation} from './manual_publication_transport_projection';
 import { createHash } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import prisma from '../db';
@@ -55,6 +56,7 @@ export async function reconcileOrResumeDzenTask1045Draft(args: { projectId: numb
         project_id: 10, user_id: userId
     } } });
     if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
+    await withManualTransportMutation(prisma,args,async()=>undefined);
     const prior = await prisma.workflowEvent.findFirst({ where: { project_id: 10, content_item_id: 1045,
         command: COMMAND, idempotency_key: DZEN1045.resumeKey }, orderBy: { id: 'desc' } });
     if (prior) throw new Error('[DZEN1045_RESUME_ALREADY_CLAIMED] Read fact/reconciliation; never click again');
@@ -71,6 +73,7 @@ export async function reconcileOrResumeDzenTask1045Draft(args: { projectId: numb
             confirm: args.confirm === true, idempotencyKey: args.idempotencyKey
         }, async (proof: Dzen1045DraftProof) => {
             const changed = await prisma.$transaction(async tx => {
+            await lockManualTransportMutation(tx,args);
                 const owner = await tx.projectMember.findUnique({ where: { project_id_user_id: {
                     project_id: 10, user_id: userId
                 } } });
@@ -104,9 +107,9 @@ export async function reconcileOrResumeDzenTask1045Draft(args: { projectId: numb
         });
         if (result.mode === 'preview') return { ...result, published: false, original_claim_event_id: claim.id };
         const publication = result.result;
-        await prisma.workflowEvent.create({ data: { project_id: 10, content_item_id: 1045,
+        await withManualTransportMutation(prisma,args,tx=>tx.workflowEvent.create({ data: { project_id: 10, content_item_id: 1045,
             actor_id: args.actorId, command: 'dzen1045_existing_draft_provider_confirmed',
-            idempotency_key: DZEN1045.resumeKey, after_state: publication as Prisma.InputJsonValue } });
+            idempotency_key: DZEN1045.resumeKey, after_state: publication as Prisma.InputJsonValue } }));
         const fact = await publicationFactService.record({ projectId: 10, taskId: 1045, actorId: args.actorId,
             artifactKind: 'article', outcome: 'published', publicUrl: publication.public_url,
             providerObjectId: publication.provider_object_id, publishedAt: publication.published_at,
@@ -114,10 +117,10 @@ export async function reconcileOrResumeDzenTask1045Draft(args: { projectId: numb
             utmStatus: 'not_applicable', note: 'Resumed exact existing task1045 draft; no content rebuild or resend.' });
         return { ...result, publication_fact_id: fact.publication_fact.id };
     } catch (error: unknown) {
-        if (claimed) await prisma.workflowEvent.create({ data: { project_id: 10, content_item_id: 1045,
+        if (claimed) await withManualTransportMutation(prisma,args,tx=>tx.workflowEvent.create({ data: { project_id: 10, content_item_id: 1045,
             actor_id: args.actorId, command: 'dzen1045_existing_draft_resume_requires_reconciliation',
             idempotency_key: DZEN1045.resumeKey, after_state: { state: 'uncertain', retry_via_api: false,
-                final_submit_may_have_been_attempted: true } } });
+                final_submit_may_have_been_attempted: true } } }));
         throw error;
     }
 }

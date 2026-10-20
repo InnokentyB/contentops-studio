@@ -6,11 +6,17 @@ import { guardManualPublicationFact } from './publication_manual_fact_guard';
 import { Prisma } from '@prisma/client';
 import { guardVkClipFactWrite, type VkClipFactGuard } from './vk_clip_fact_guard';
 import { requireProjectActorAccess } from './project_access.service';
+import { ownerManualFactPolicy, type OwnerManualFactPolicy } from './owner_manual_fact_policy';
+import { isOwnerManualFact, OWNER_MANUAL_EVIDENCE_PREFIX } from './owner_manual_publication_fence';
+import { ownerManualFactReadback } from './owner_manual_publication_readback';
+import { assertOwnerManualObjectAvailable } from './owner_manual_publication_identity';
 
 export type ArtifactKind = 'post' | 'article' | 'video' | 'story' | 'email' | 'comment' | 'other';
 export type PublicationOutcome = 'published' | 'blocked' | 'removed' | 'restricted';
 
 export interface RecordPublicationFactArgs {
+    /** Unforgeable internal Owner policy; never accepted as RPC input. */
+    ownerManualPolicy?: OwnerManualFactPolicy;
     /** Internal exact lifecycle completion scope; never exposed by generic fact tools. */
     browserWorkItemId?: number;
     /** Internal atomic transport guard; never exposed by generic fact MCP arguments. */
@@ -121,6 +127,14 @@ function serializeFact(fact: any) {
 
 export class PublicationFactService {
     async record(args: RecordPublicationFactArgs) {
+        const manual = ownerManualFactPolicy(args.ownerManualPolicy);
+        if (manual && (args.confirmationMode !== 'manual' || args.beforeWrite || args.afterWrite
+            || args.browserWorkItemId !== undefined || args.clipConfirmation)) {
+            throw new Error('[MANUAL_PUBLICATION_POLICY_INVALID] Use only the authenticated Owner confirmation lifecycle.');
+        }
+        if (!manual && args.evidence?.ref.startsWith(OWNER_MANUAL_EVIDENCE_PREFIX)) {
+            throw new Error('[MANUAL_PUBLICATION_POLICY_REQUIRED] Reserved manual provenance requires the Owner confirmation command.');
+        }
         const prisma=withRecoveryFactTransactions(canonicalPrisma,args);
         if (args.afterWrite && !args.beforeWrite) throw new Error('SCOPED_COMPLETION_REQUIRES_GUARD');
         if (args.browserWorkItemId !== undefined && (!Number.isSafeInteger(args.browserWorkItemId)
@@ -141,14 +155,24 @@ export class PublicationFactService {
         return ownedTransaction(prisma, async (tx) => {
             await requireProjectActorAccess(args.projectId, args.actorId, tx);
             ownedCheck();
+            const readItem = () => tx.contentItem.findFirst({
+                where: { id: args.taskId, project_id: args.projectId },
+                include: { channel: { select: { id: true, type: true } }, publication_fact: true }
+            });
+            let item = await readItem();
+            if (!manual && isOwnerManualFact(item?.publication_fact)) {
+                throw new Error('[MANUAL_PUBLICATION_TRANSPORT_PRESERVED] Read the Owner-confirmed fact; corrections require a fresh Owner preview. Previous transport remains unresolved.');
+            }
+            if (!manual && item?.channel) await assertOwnerManualObjectAvailable(tx, {
+                projectId: args.projectId, taskId: args.taskId, channelType: item.channel.type,
+                publicUrl: args.publicUrl, providerObjectId: args.providerObjectId
+            });
+            if (manual) await manual.beforeWrite(tx);
             await guardManualPublicationFact(tx, { projectId: args.projectId, taskId: args.taskId,
-                internalConfirmation: typeof args.beforeWrite === 'function' });
+                internalConfirmation: Boolean(manual) || typeof args.beforeWrite === 'function' });
             if (args.beforeWrite) await args.beforeWrite(tx);
             if (args.clipConfirmation) await guardVkClipFactWrite(tx, args, args.clipConfirmation);
-            const item = await tx.contentItem.findFirst({
-                where: { id: args.taskId, project_id: args.projectId },
-                include: { channel: true, publication_fact: true }
-            });
+            if (args.beforeWrite) item = await readItem();
             if (!item) throw new Error('PUBLICATION_TASK_NOT_FOUND');
             const channelPolicy = publicationFactChannelPolicy(item);
             const metricPolicy = publicationMetricCollectionPolicy(item);
@@ -173,7 +197,8 @@ export class PublicationFactService {
 
             if (item.publication_fact && factsEqual(item.publication_fact, nextData)) {
                 if (args.afterWrite) await args.afterWrite(tx, item.publication_fact.id);
-                return { publication_fact: serializeFact(item.publication_fact), created_checkpoints: 0, replayed: true };
+                if (manual) await manual.afterWrite(tx, item.publication_fact.id);
+                return { publication_fact: { ...serializeFact(item.publication_fact), ...await ownerManualFactReadback(tx, item.publication_fact) }, created_checkpoints: 0, replayed: true };
             }
             if (item.publication_fact && !args.correctionReason?.trim()) {
                 throw new Error('PUBLICATION_FACT_CORRECTION_REASON_REQUIRED');
@@ -200,11 +225,12 @@ export class PublicationFactService {
                         ...metrics,
                         publication_outcome: args.outcome,
                         manual_confirmation_at: fact.confirmed_at.toISOString()
-                    } as any
+                    } as any,
+                    ...(manual ? { quality_report: undefined } : {})
                 }
             });
 
-            if (args.outcome === 'published') {
+            if (args.outcome === 'published' && !manual) {
                 await tx.workItem.updateMany({
                     where: {
                         project_id: args.projectId,
@@ -301,8 +327,9 @@ export class PublicationFactService {
             });
 
             if (args.afterWrite) await args.afterWrite(tx, fact.id);
+            if (manual) await manual.afterWrite(tx, fact.id);
             return {
-                publication_fact: serializeFact(fact),
+                publication_fact: { ...serializeFact(fact), ...await ownerManualFactReadback(tx, fact) },
                 created_checkpoints: createdCheckpoints,
                 created_metric_work_items: createdMetricWorkItems,
                 replayed: false
@@ -316,7 +343,7 @@ export class PublicationFactService {
             where: { project_id: projectId, content_item_id: taskId }
         });
         if (!fact) throw new Error('PUBLICATION_FACT_NOT_FOUND');
-        return serializeFact(fact);
+        return { ...serializeFact(fact), ...await ownerManualFactReadback(prisma, fact) };
     }
 
     async listCheckpoints(params: { projectId: number; actorId: string; status?: string; dueBefore?: string; channelId?: number }) {

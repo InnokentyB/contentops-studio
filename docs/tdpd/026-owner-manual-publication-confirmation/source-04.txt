@@ -1,0 +1,53 @@
+ Container tower-contentops-owner-manual-verification-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+✔ 026 actual MCP preview exists, reads PostgreSQL and performs no mutation or provider call (265.966983ms)
+✔ 026 actual MCP commit exists and records manual fact without accepting current edition or rewriting UNKNOWN custody (164.108915ms)
+✔ 026 publisher principal cannot obtain Owner accounting authority (20.250226ms)
+✔ 026 writer principal cannot obtain Owner accounting authority (18.654921ms)
+✔ 026 planner principal cannot obtain Owner accounting authority (18.736662ms)
+✔ 026 researcher principal cannot obtain Owner accounting authority (21.029174ms)
+✔ 026 absent principal cannot obtain authority from URL/reference/input actor (17.339999ms)
+✔ 026 actual demo Owner and revoked membership fail closed (34.99882ms)
+✔ 026 cross-tenant principal cannot access a valid task or its preview (21.952114ms)
+✔ 026 inactive channel cannot obtain historical accounting authority (18.739852ms)
+✔ 026 Dzen invalid permalink dzen.ru is refused without a fetch (21.52091ms)
+✔ 026 Dzen invalid permalink user:password@dzen.ru is refused without a fetch (18.871184ms)
+✔ 026 Dzen invalid permalink dzen.ru is refused without a fetch (24.637ms)
+✔ 026 Dzen invalid permalink dzen.ru is refused without a fetch (17.918654ms)
+✔ 026 Dzen invalid permalink dzen.ru is refused without a fetch (18.336698ms)
+✔ 026 Dzen invalid permalink localhost is refused without a fetch (16.184448ms)
+✔ 026 Dzen invalid permalink vk.com is refused without a fetch (24.323606ms)
+✔ 026 ambiguous malformed or future time is refused: 2026-10-19T12:34:56 (17.50002ms)
+✔ 026 ambiguous malformed or future time is refused: invalid (16.220567ms)
+✔ 026 ambiguous malformed or future time is refused: 2999-10-19T12:34:56+01:00 (20.887183ms)
+✔ 026 ambiguous malformed or future time is refused: 2026-02-30T12:00:00+01:00 (16.878504ms)
+✔ 026 ambiguous malformed or future time is refused: 2026-10-19T24:00:00+01:00 (19.621421ms)
+✔ 026 unretained revision cannot be labelled the published edition (18.813913ms)
+✔ 026 preview tampering, stale task and stale expected fact do not write (111.012718ms)
+✔ 026 exact replay returns the same fact with zero additional audit/checkpoints; changed key payload conflicts (196.322357ms)
+✔ 026 same canonical dzen object cannot be concurrently assigned to different tasks (111.749035ms)
+✔ 026 same canonical vk object cannot be concurrently assigned to different tasks (169.89863ms)
+✔ 026 VK ru/com aliases bind the same canonical identity without following links (29.551967ms)
+✔ 026 actual PostgreSQL audit write failure rolls back fact, projection and audit (70.506115ms)
+✔ 026 actual PostgreSQL checkpoint write failure rolls back fact, projection and audit (54.231956ms)
+✔ 026 manual fact fences generic writer and rolls back a late callback attempt mutation (70.99109ms)
+✔ 026 blocked connector custody and old audit rows remain byte-identical (78.652514ms)
+✔ 026 concurrent same-task same-key requests create one fact and one provenance authority (89.146936ms)
+✔ 026 correction requires fresh exact fact digest and reason, appends provenance and preserves prior audit (125.62249ms)
+✔ 026 real user authority remains locked through fact/audit commit (2066.097012ms)
+✔ 026 real membership authority remains locked through fact/audit commit (2082.451211ms)
+✔ 026 existing fact/get-task/list-task MCP readbacks expose manual origin and unknown published revision (146.17878ms)
+✔ 026 existing channel repair refuses a manual fact before any reassignment or audit change (131.75471ms)
+ℹ tests 38
+ℹ suites 0
+ℹ pass 38
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8917.485622

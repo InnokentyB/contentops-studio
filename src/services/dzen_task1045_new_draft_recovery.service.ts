@@ -1,3 +1,4 @@
+import {lockManualTransportMutation,withManualTransportMutation} from './manual_publication_transport_projection';
 import { createHash } from 'crypto';
 import { Prisma } from '@prisma/client';
 import prisma from '../db';
@@ -99,6 +100,7 @@ export async function authorizeDzenTask1045NewDraftRetry(args: Dzen1045NewDraftA
         } } })
     ]);
     if (owner?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
+    await withManualTransportMutation(deps.database,args,async()=>undefined);
     if (manifest.checksum !== DZEN1045_RECOVERY_MANIFEST) throw new Error('[STALE_MANIFEST]');
     if (prior?.after_state) return { ...record(prior.after_state), replayed: true };
 
@@ -128,6 +130,7 @@ export async function authorizeDzenTask1045NewDraftRetry(args: Dzen1045NewDraftA
     const checkedAt = absence.checkedAt;
     const authorizedAt = deps.now().toISOString();
     return deps.database.$transaction(async (tx: any) => {
+        await lockManualTransportMutation(tx,args);
         const replay = await tx.workflowEvent.findUnique({ where: { project_id_actor_id_command_idempotency_key: {
             project_id: 10, actor_id: args.actorId, command: DZEN1045_NEW_DRAFT_COMMAND,
             idempotency_key: args.idempotencyKey

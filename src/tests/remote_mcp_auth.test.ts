@@ -2,8 +2,20 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { scopeRemoteMcpRequest } from '../mcp/remote-auth';
 import { createPlannerMcpServer } from '../mcp/shared';
+import type { McpCapabilityProfile } from '../mcp/capabilities';
 
 const principal = { userId: 2, actorId: 'user:2' };
+
+test('remote Owner manual accounting is limited to its token-bound project and Owner profile', () => {
+    const profiles: McpCapabilityProfile[] = ['owner', 'strategist', 'planner', 'writer', 'editor', 'art_director', 'publisher', 'growth_analyst', 'organization_researcher'];
+    for (const profile of profiles) {
+        for (const name of ['ba_preview_owner_manual_publication_confirmation', 'ba_confirm_owner_manual_publication']) {
+            const request = { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: { projectId: 7, taskId: 123 } } };
+            assert.equal(scopeRemoteMcpRequest(request, { ...principal, projectId: 7, profile }).allowed, profile === 'owner');
+            assert.equal(scopeRemoteMcpRequest(request, { ...principal, projectId: 8, profile }).allowed, false);
+        }
+    }
+});
 
 test('remote MCP replaces caller-controlled actor and user identities', () => {
     const result = scopeRemoteMcpRequest({

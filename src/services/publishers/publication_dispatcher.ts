@@ -1,3 +1,5 @@
+import {assertManualPublicationTransportMutable} from '../owner_manual_publication_fence';
+import {lockOwnedPublicationTask} from '../publication_owned_guard';
 import { tryOwnedPublicationTask } from '../publication_owned_route';
 import prisma from '../../db';
 import { exactOwnedRouteBlock } from '../exact_owned_route_guard';
@@ -64,6 +66,8 @@ export class PublicationDispatcher {
         };
 
         await prisma.$transaction(async (tx) => {
+            const scope={projectId:task.project_id,taskId:task.id};
+            await lockOwnedPublicationTask(tx,scope);await assertManualPublicationTransportMutable(tx,scope);
             await tx.contentItem.update({
                 where: { id: task.id },
                 data: {
@@ -778,7 +782,10 @@ export class PublicationDispatcher {
             return this.routeToBrowserPublication(task, bundle, fallback);
         }
 
-        await prisma.contentItem.update({
+        await prisma.$transaction(async tx=>{
+        const scope={projectId:task.project_id,taskId:task.id};
+        await lockOwnedPublicationTask(tx,scope);await assertManualPublicationTransportMutable(tx,scope);
+        await tx.contentItem.update({
             where: { id: task.id },
             data: {
                 status: 'published',
@@ -797,6 +804,8 @@ export class PublicationDispatcher {
                     ...(automatedResult.metrics ? automatedResult.metrics : {})
                 } as any
             }
+        });
+
         });
 
         if (automatedResult.publishedLink) {

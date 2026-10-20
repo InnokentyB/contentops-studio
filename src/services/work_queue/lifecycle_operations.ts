@@ -5,6 +5,7 @@ import artDirectionService from '../art_direction.service';
 import {assertTypedVisualCompletion} from '../visual_reassessment_binding';
 import { requireProjectAccess } from './auth';
 import { checkIdempotency, recordWorkflowEvent } from './infrastructure';
+import { assertWorkItemTransportMutable } from './manual_publication_custody';
 
 /**
  * Claims a work item with an atomic conditional lease reservation.
@@ -19,6 +20,7 @@ export async function claimWorkItem(params: {
 }): Promise<Record<string, unknown>> {
     return prisma.$transaction(async (tx) => {
         await requireProjectAccess(tx, params.projectId, params.actorId, 'work_queue:claim');
+        await assertWorkItemTransportMutable(tx, params);
 
         const cached = await checkIdempotency(tx, {
             projectId: params.projectId,
@@ -133,6 +135,7 @@ export async function completeWorkItem(params: {
 }): Promise<Record<string, unknown>> {
     return prisma.$transaction(async (tx) => {
         await requireProjectAccess(tx, params.projectId, params.actorId, 'work_queue:complete');
+        await assertWorkItemTransportMutable(tx, params);
 
         const cached = await checkIdempotency(tx, {
             projectId: params.projectId,
@@ -283,6 +286,7 @@ export async function blockWorkItem(params: {
 }): Promise<Record<string, unknown>> {
     return prisma.$transaction(async (tx) => {
         await requireProjectAccess(tx, params.projectId, params.actorId, 'work_queue:block');
+        await assertWorkItemTransportMutable(tx, params);
 
         const cached = await checkIdempotency(tx, {
             projectId: params.projectId,
@@ -363,6 +367,7 @@ export async function releaseWorkItem(params: {
 }): Promise<Record<string, unknown>> {
     return prisma.$transaction(async (tx) => {
         await requireProjectAccess(tx, params.projectId, params.actorId, 'work_queue:release');
+        await assertWorkItemTransportMutable(tx, params);
 
         const cached = await checkIdempotency(tx, {
             projectId: params.projectId,
@@ -442,6 +447,7 @@ export async function rescheduleWorkItem(params: {
 }): Promise<Record<string, unknown>> {
     return prisma.$transaction(async (tx) => {
         await requireProjectAccess(tx, params.projectId, params.actorId, 'work_queue:reschedule');
+        await assertWorkItemTransportMutable(tx, params);
 
         const cached = await checkIdempotency(tx, {
             projectId: params.projectId,

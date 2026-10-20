@@ -59,7 +59,11 @@ test('1036 dry-run checks exact release and cover, never calls the provider or m
         schedule_at: new Date(dzen.expectedScheduleAt), publication_fact: null, published_link: null, quality_report: {} };
     const service = new DzenTaskPublicationService({
         hashBody: () => dzen.expectedBodySha256,
-        db: { contentItem: { findFirst: async () => task, updateMany: forbidden },
+        db: {
+            $queryRaw: async () => [],
+            publicationFact: { findFirst: async () => null },
+            async $transaction<T>(run: (tx: unknown) => Promise<T>): Promise<T> { return run(this); },
+            contentItem: { findFirst: async () => task, updateMany: forbidden },
             deliveryAttempt: {
                 findFirst: async ({ where }: { where: { project_id: number; content_item_id: number } }) => {
                     assert.deepEqual(where, { project_id: 10, content_item_id: 1036 });

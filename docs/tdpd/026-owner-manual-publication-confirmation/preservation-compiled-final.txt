@@ -1,0 +1,41 @@
+ Container tower-contentops-owner-manual-verification-synthetic-db-1  Running
+{"event":"publication_diagnostic","service":"publication","isError":true,"code":"MANUAL_PUBLICATION_TRANSPORT_PRESERVED","message":"The Owner recorded an existing external object; prior transport remains unresolved and immutable.","reasons":[{"code":"MANUAL_PUBLICATION_TRANSPORT_PRESERVED","field":"publication_history","message":"The Owner recorded an existing external object; prior transport remains unresolved and immutable.","action":"Read the canonical manual fact and its Owner confirmation audit. Do not retry, adopt, finalize or resend the previous transport. A correction requires a fresh Owner preview."}],"retry_allowed":false}
+{"event":"publication_diagnostic","service":"publication","isError":true,"code":"MANUAL_PUBLICATION_OBJECT_CONFLICT","message":"This external object already belongs to another task Owner confirmation.","reasons":[{"code":"MANUAL_PUBLICATION_OBJECT_CONFLICT","field":"external_object","message":"This external object already belongs to another task Owner confirmation.","action":"Read the existing canonical manual fact with the Owner and correct the selected task or object. Do not reassign the object, create another confirmation or resend it."}],"retry_allowed":false}
+{"event":"publication_diagnostic","service":"publication","isError":true,"code":"MANUAL_PUBLICATION_POLICY_INVALID","message":"The requested write mixes incompatible confirmation authorities or lacks a valid internal Owner policy.","reasons":[{"code":"MANUAL_PUBLICATION_POLICY_INVALID","field":"confirmation_authority","message":"The requested write mixes incompatible confirmation authorities or lacks a valid internal Owner policy.","action":"Use the authenticated Owner manual preview and confirmation commands. Ask engineering to repair the integration; never add bypass flags, actor fields or transport completion proof."}],"retry_allowed":false}
+{"event":"publication_diagnostic","service":"publication","isError":true,"code":"MANUAL_PUBLICATION_POLICY_REQUIRED","message":"The reserved Owner provenance marker requires the authenticated manual confirmation lifecycle.","reasons":[{"code":"MANUAL_PUBLICATION_POLICY_REQUIRED","field":"confirmation_authority","message":"The reserved Owner provenance marker requires the authenticated manual confirmation lifecycle.","action":"Use the current project Owner profile to preview and confirm the existing external object. Do not submit reserved provenance through a generic fact writer or fabricate transport success."}],"retry_allowed":false}
+✔ manual accounting direct retains exact MANUAL_PUBLICATION_TRANSPORT_PRESERVED cause with safe remedy (1.155491ms)
+✔ manual accounting browser retains exact MANUAL_PUBLICATION_TRANSPORT_PRESERVED cause with safe remedy (0.240782ms)
+✔ manual accounting vk retains exact MANUAL_PUBLICATION_TRANSPORT_PRESERVED cause with safe remedy (0.139251ms)
+✔ manual accounting adapter boundary exposes MANUAL_PUBLICATION_TRANSPORT_PRESERVED without raw exception (0.744317ms)
+✔ manual accounting direct retains exact MANUAL_PUBLICATION_OBJECT_CONFLICT cause with safe remedy (0.106011ms)
+✔ manual accounting browser retains exact MANUAL_PUBLICATION_OBJECT_CONFLICT cause with safe remedy (0.095911ms)
+✔ manual accounting vk retains exact MANUAL_PUBLICATION_OBJECT_CONFLICT cause with safe remedy (0.101361ms)
+✔ manual accounting adapter boundary exposes MANUAL_PUBLICATION_OBJECT_CONFLICT without raw exception (0.188782ms)
+✔ manual accounting direct retains exact MANUAL_PUBLICATION_POLICY_INVALID cause with safe remedy (0.130461ms)
+✔ manual accounting browser retains exact MANUAL_PUBLICATION_POLICY_INVALID cause with safe remedy (0.174392ms)
+✔ manual accounting vk retains exact MANUAL_PUBLICATION_POLICY_INVALID cause with safe remedy (0.103351ms)
+✔ manual accounting adapter boundary exposes MANUAL_PUBLICATION_POLICY_INVALID without raw exception (3.327882ms)
+✔ manual accounting direct retains exact MANUAL_PUBLICATION_POLICY_REQUIRED cause with safe remedy (0.093581ms)
+✔ manual accounting browser retains exact MANUAL_PUBLICATION_POLICY_REQUIRED cause with safe remedy (0.06736ms)
+✔ manual accounting vk retains exact MANUAL_PUBLICATION_POLICY_REQUIRED cause with safe remedy (0.072371ms)
+✔ manual accounting adapter boundary exposes MANUAL_PUBLICATION_POLICY_REQUIRED without raw exception (0.167642ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+✔ late owned freeze preserves manual fact and original attempt/job byte-for-byte (2.369522ms)
+✔ late legacy uncertainty preserves original attempt without synthesizing delivery (0.289703ms)
+✔ VK job projection cannot reinterpret Owner manual fact as adapter confirmation (0.877029ms)
+✔ late projection rechecks the manual fact after acquiring its task lock (0.390074ms)
+✔ ordinary transport facts retain the existing projection path (0.218572ms)
+✔ actual direct dispatcher fallback cannot replace a manual projection or reopen browser work (1.474604ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 716.572221

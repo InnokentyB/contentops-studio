@@ -1,0 +1,48 @@
+ Container tower-contentops-owner-manual-verification-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+✔ 026 actual MCP preview exists, reads PostgreSQL and performs no mutation or provider call (258.775624ms)
+✔ 026 actual MCP commit exists and records manual fact without accepting current edition or rewriting UNKNOWN custody (142.210002ms)
+✔ 026 publisher principal cannot obtain Owner accounting authority (22.806482ms)
+✔ 026 writer principal cannot obtain Owner accounting authority (18.766162ms)
+✔ 026 planner principal cannot obtain Owner accounting authority (18.146766ms)
+✔ 026 researcher principal cannot obtain Owner accounting authority (19.398989ms)
+✔ 026 absent principal cannot obtain authority from URL/reference/input actor (13.834725ms)
+✔ 026 actual demo Owner and revoked membership fail closed (27.905531ms)
+✔ 026 cross-tenant principal cannot access a valid task or its preview (18.193486ms)
+✔ 026 Dzen invalid permalink dzen.ru is refused without a fetch (15.907334ms)
+✔ 026 Dzen invalid permalink user:password@dzen.ru is refused without a fetch (15.169388ms)
+✔ 026 Dzen invalid permalink dzen.ru is refused without a fetch (20.374348ms)
+✔ 026 Dzen invalid permalink dzen.ru is refused without a fetch (24.549058ms)
+✔ 026 Dzen invalid permalink dzen.ru is refused without a fetch (16.339019ms)
+✔ 026 Dzen invalid permalink localhost is refused without a fetch (16.093787ms)
+✔ 026 Dzen invalid permalink vk.com is refused without a fetch (16.550991ms)
+✔ 026 ambiguous malformed or future time is refused: 2026-10-19T12:34:56 (21.340688ms)
+✔ 026 ambiguous malformed or future time is refused: invalid (14.893255ms)
+✔ 026 ambiguous malformed or future time is refused: 2999-10-19T12:34:56+01:00 (14.732633ms)
+✔ 026 unretained revision cannot be labelled the published edition (20.731531ms)
+✔ 026 preview tampering, stale task and stale expected fact do not write (81.461171ms)
+✔ 026 exact replay returns the same fact with zero additional audit/checkpoints; changed key payload conflicts (131.701299ms)
+✔ 026 same canonical object cannot be concurrently assigned to different tasks (127.876952ms)
+✔ 026 actual PostgreSQL audit write failure rolls back fact, projection and audit (68.208522ms)
+✔ 026 actual PostgreSQL checkpoint write failure rolls back fact, projection and audit (49.706473ms)
+✔ 026 manual fact fences generic writer and rolls back a late callback attempt mutation (74.993738ms)
+✔ 026 blocked connector custody and old audit rows remain byte-identical (83.461291ms)
+✔ 026 concurrent same-task same-key requests create one fact and one provenance authority (78.687385ms)
+✔ 026 correction requires fresh exact fact digest and reason, appends provenance and preserves prior audit (140.937509ms)
+✔ 026 real user authority remains locked through fact/audit commit (2082.071418ms)
+✔ 026 real membership authority remains locked through fact/audit commit (2058.311407ms)
+✔ 026 existing fact/get-task/list-task MCP readbacks expose manual origin and unknown published revision (121.082836ms)
+✔ 026 existing channel repair refuses a manual fact before any reassignment or audit change (99.88183ms)
+ℹ tests 33
+ℹ suites 0
+ℹ pass 33
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8188.643003

@@ -12,6 +12,8 @@ function fixture(){
  const receipt={schemaVersion:'dzen1002-native-v1',attemptId:c.attemptId,key:c.key,packageDigest:c.package.digest,accountId:p.providerChannelId,objectId:'Synthetic1002',url:'https://dzen.ru/a/Synthetic1002',publishedAt:'2026-10-16T11:59:00.000Z',observedAt:'2026-10-16T12:00:00.000Z',bodySha256:p.bodySha256,assetSha256:p.assetSha256,title:c.package.title};
  let writes=0;
  const tx={workflowEvent:{findFirst:async x=>x.where.command.endsWith(':claim')?{after_state:{actor_id:a.actorId,attempt_id:c.attemptId,package:c.package,release_id:3126}}:x.where.command.endsWith(':started')?{after_state:{package_digest:c.package.digest}}:null,create:async()=>{writes++;}},deliveryAttempt:{findFirst:async()=>({id:c.attemptId,status:'pending',created_at:new Date('2026-10-16T12:00:00.000Z')}),updateMany:async()=>({count:1})},projectMember:{findUnique:async()=>{throw Error('current owner drift');}},contentItem:{findFirst:async()=>{throw Error('current package drift');}}};
+ tx.$queryRaw=async(_sql,...bindings)=>{assert.deepEqual(bindings,[a.taskId,a.projectId]);return[{id:a.taskId}];};
+ tx.publicationFact={findFirst:async({where})=>{assert.deepEqual(where,{project_id:a.projectId,content_item_id:a.taskId});return null;}};
  const store=new Dzen1002RuntimeStore({db:{$transaction:fn=>fn(tx)},loadManifest:async()=>{throw Error('current manifest drift');},facts:{record:async()=>{throw Error('fact unavailable');}},now:()=>new Date('2026-10-16T12:00:00.000Z'),hashBody:()=>p.bodySha256});
  return {a,c,receipt,store,writes:()=>writes};
 }

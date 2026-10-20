@@ -1,3 +1,4 @@
+import {lockManualTransportMutation,withManualTransportMutation} from './manual_publication_transport_projection';
 import { createHash } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import prisma from '../db';
@@ -70,6 +71,7 @@ async function recordFact(args: Args, publication: Dzen1045SecondAttemptPublicat
         confirmationMode: 'reconciled', evidence: { type: 'public_url', ref: publication.public_url },
         utmStatus: 'not_applicable', note: 'Provider-read-only reconciliation of exact Dzen task1045 Phase C incident.' });
     await prisma.$transaction(async tx => {
+            await lockManualTransportMutation(tx,args);
         const latest = await tx.contentItem.findFirst({ where: { id: 1045, project_id: 10 } });
         const quality = object(latest?.quality_report); const delivery = object(quality.publication_task_delivery);
         await tx.contentItem.update({ where: { id: 1045 }, data: { quality_report: { ...quality,
@@ -103,6 +105,7 @@ export async function reconcileDzenTask1045PhaseCIncident(args: Args) {
             idempotency_key: DZEN1045_PHASE_C_RECONCILE.idempotencyKey } })
     ]);
     if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
+    await withManualTransportMutation(prisma,args,async()=>undefined);
     if (manifest.checksum !== DZEN1045_RECOVERY_MANIFEST) throw new Error('[STALE_MANIFEST]');
     if (prior && confirm) { const after = object(prior.after_state);
         if (after.mode !== 'exact_public') throw new Error('[DZEN1045_PHASE_C_RECONCILE_AUDIT_INVALID]');
@@ -115,13 +118,13 @@ export async function reconcileDzenTask1045PhaseCIncident(args: Args) {
     return runDzen1045PhaseCReconcile({ confirm, idempotencyKey: args.idempotencyKey }, {
         inspect: () => inspect(config, guarded.task.draft_text || ''),
         record: async publication => {
-            await prisma.workflowEvent.create({ data: { project_id: 10, content_item_id: 1045,
+            await withManualTransportMutation(prisma,args,tx=>tx.workflowEvent.create({ data: { project_id: 10, content_item_id: 1045,
                 actor_id: args.actorId, command: DZEN1045_PHASE_C_RECONCILE.command,
                 idempotency_key: DZEN1045_PHASE_C_RECONCILE.idempotencyKey,
                 before_state: { state: 'phase_c_uncertain', source_key: DZEN1045_PHASE_C_RECONCILE.sourceKey,
                     failed_at: DZEN1045_PHASE_C_RECONCILE.failedAt } as Prisma.InputJsonValue,
                 after_state: { mode: 'exact_public', publication, provider_writes: 0,
-                    clicked_controls: 0 } as Prisma.InputJsonValue } });
+                    clicked_controls: 0 } as Prisma.InputJsonValue } }));
             return recordFact(args, publication);
         }
     });

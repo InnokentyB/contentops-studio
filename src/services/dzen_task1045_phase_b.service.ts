@@ -1,3 +1,4 @@
+import {lockManualTransportMutation,withManualTransportMutation} from './manual_publication_transport_projection';
 import { createHash } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import prisma from '../db';
@@ -74,6 +75,7 @@ export async function publishDzenTask1045PhaseB(args: Dzen1045PhaseBArgs) {
             command: DZEN1045_PHASE_B.command, idempotency_key: DZEN1045_PHASE_B.idempotencyKey } })
     ]);
     if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
+    await withManualTransportMutation(prisma,args,async()=>undefined);
     if (manifest.checksum !== DZEN1045_RECOVERY_MANIFEST) throw new Error('[STALE_MANIFEST]');
     if (prior) {
         if (task?.publication_fact?.provider_object_id === DZEN1045_PHASE_B.providerId) {
@@ -93,6 +95,7 @@ export async function publishDzenTask1045PhaseB(args: Dzen1045PhaseBArgs) {
             inspect: async () => preflightFromProbe(object(await dzenService.probeTask1045ExactEditorState(
                 config, guarded.task.draft_text || ''))),
             claim: async preflight => prisma.$transaction(async tx => {
+            await lockManualTransportMutation(tx,args);
                 const latest = assertTask(await tx.contentItem.findFirst({ where: { id: 1045, project_id: 10 },
                     include: { channel: true, selected_asset: true, publication_fact: true } }));
                 const quality = object(latest.task.quality_report);
@@ -122,6 +125,7 @@ export async function publishDzenTask1045PhaseB(args: Dzen1045PhaseBArgs) {
                     evidence: { type: 'public_url', ref: publication.public_url }, utmStatus: 'not_applicable',
                     note: 'Exact one-click Phase B publication of pre-existing Dzen task1045 draft.' });
                 await prisma.$transaction(async tx => {
+            await lockManualTransportMutation(tx,args);
                     const latest = await tx.contentItem.findFirst({ where: { id: 1045, project_id: 10 } });
                     const quality = object(latest?.quality_report); const delivery = object(quality.publication_task_delivery);
                     await tx.contentItem.update({ where: { id: 1045 }, data: { quality_report: { ...quality,
@@ -142,11 +146,11 @@ export async function publishDzenTask1045PhaseB(args: Dzen1045PhaseBArgs) {
         if (claimed) {
             const current = await prisma.contentItem.findFirst({ where: { id: 1045, project_id: 10 } });
             const quality = object(current?.quality_report); const delivery = object(quality.publication_task_delivery);
-            await prisma.contentItem.update({ where: { id: 1045 }, data: { quality_report: { ...quality,
+            await withManualTransportMutation(prisma,args,tx=>tx.contentItem.update({ where: { id: 1045 }, data: { quality_report: { ...quality,
                 publication_task_delivery: { ...delivery, state: 'phase_b_uncertain', final_submit_allowed: false,
                     final_submit_may_have_occurred: true, final_submit_count_max: 1, retry_via_api: false,
                     error: error instanceof Error ? error.message : String(error),
-                    phase_b_failed_at: new Date().toISOString() } } as Prisma.InputJsonValue } });
+                    phase_b_failed_at: new Date().toISOString() } } as Prisma.InputJsonValue } }));
         }
         throw error;
     }

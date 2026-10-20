@@ -1,3 +1,4 @@
+import {lockManualTransportMutation,withManualTransportMutation} from './manual_publication_transport_projection';
 import { Prisma } from '@prisma/client';
 import prisma from '../db';
 import dzenService from './dzen.service';
@@ -47,6 +48,7 @@ export async function createDzenTask1045DurableDraftPhaseA(args: Dzen1045PhaseAA
             command: proofCommand, idempotency_key: DZEN1045_PHASE_A.idempotencyKey } })
     ]);
     if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
+    await withManualTransportMutation(prisma,args,async()=>undefined);
     if (manifest.checksum !== DZEN1045_RECOVERY_MANIFEST) throw new Error('[STALE_MANIFEST]');
     if (prior) {
         const proof = proofFromState(proofEvent?.after_state);
@@ -65,6 +67,7 @@ export async function createDzenTask1045DurableDraftPhaseA(args: Dzen1045PhaseAA
             idempotencyKey: args.idempotencyKey }, {
             inspect: () => dzenService.inspectTask1045RestoreIncident(config, guarded.task.draft_text || ''),
             claim: async inspection => prisma.$transaction(async tx => {
+            await lockManualTransportMutation(tx,args);
                 const latest = await tx.contentItem.findFirst({ where: { id: 1045, project_id: 10 },
                     include: { channel: true, selected_asset: true, publication_fact: true } });
                 const exact = assertDzen1045RestoreReconcileTask(latest);
@@ -97,6 +100,7 @@ export async function createDzenTask1045DurableDraftPhaseA(args: Dzen1045PhaseAA
         });
         if (result.mode === 'preview') return { ...result, published: false, replayed: false };
         await prisma.$transaction(async tx => {
+            await lockManualTransportMutation(tx,args);
             const latest = await tx.contentItem.findFirst({ where: { id: 1045, project_id: 10 } });
             const quality = object(latest?.quality_report); const delivery = object(quality.publication_task_delivery);
             if (delivery.state !== 'draft_phase_a_started'
@@ -117,12 +121,12 @@ export async function createDzenTask1045DurableDraftPhaseA(args: Dzen1045PhaseAA
         if (claimed) {
             const current = await prisma.contentItem.findFirst({ where: { id: 1045, project_id: 10 } });
             const quality = object(current?.quality_report); const delivery = object(quality.publication_task_delivery);
-            await prisma.contentItem.update({ where: { id: 1045 }, data: { quality_report: { ...quality,
+            await withManualTransportMutation(prisma,args,tx=>tx.contentItem.update({ where: { id: 1045 }, data: { quality_report: { ...quality,
                 publication_task_delivery: { ...delivery, state: 'draft_phase_a_uncertain',
                     draft_create_may_have_occurred: true, final_submit_allowed: false,
                     final_submit_count: 0, retry_via_api: false,
                     error: error instanceof Error ? error.message : String(error),
-                    failed_at: new Date().toISOString() } } as Prisma.InputJsonValue } });
+                    failed_at: new Date().toISOString() } } as Prisma.InputJsonValue } }));
         }
         throw error;
     }

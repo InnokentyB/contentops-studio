@@ -1,3 +1,4 @@
+import {lockManualTransportMutation} from './manual_publication_transport_projection';
 import { validateVkPostConfirmation, type VkPostConfirmationFields } from './vk_post_confirmation';
 import { createHash } from 'node:crypto';
 import { Prisma } from '@prisma/client';
@@ -167,6 +168,7 @@ function validateProviderIdentity(task: { channel?: { config?: unknown } | null 
 
 export async function startVkBrowserSubmission(dependencies: Dependencies, args: StartArgs) {
     return dependencies.transaction(async (tx) => {
+        await lockManualTransportMutation(tx,args);
         const now = dependencies.now();
         const workItem = await tx.workItem.findFirst({ where: { id: args.workItemId, project_id: args.projectId } });
         assertLease(workItem, args, now);
@@ -248,6 +250,7 @@ export async function startVkBrowserSubmission(dependencies: Dependencies, args:
 
 export async function confirmVkBrowserSubmission(dependencies: Dependencies, args: ConfirmArgs) {
     const checked = await dependencies.transaction(async (tx) => {
+        await lockManualTransportMutation(tx,args);
         const now = dependencies.now();
         const workItem = await tx.workItem.findFirst({ where: { id: args.workItemId, project_id: args.projectId } });
         assertLease(workItem, args, now);
@@ -313,6 +316,7 @@ export async function confirmVkBrowserSubmission(dependencies: Dependencies, arg
     });
     const publicationFactId = factResult.publication_fact.id;
     await dependencies.transaction(async (tx) => {
+        await lockManualTransportMutation(tx,args);
         const changed = await tx.deliveryAttempt.updateMany({
             where: {
                 id: args.attemptId,
@@ -348,6 +352,7 @@ export async function confirmVkBrowserSubmission(dependencies: Dependencies, arg
 
 export async function markVkBrowserSubmissionUncertain(dependencies: Dependencies, args: UncertainArgs) {
     return dependencies.transaction(async (tx) => {
+        await lockManualTransportMutation(tx,args);
         const workItem = await tx.workItem.findFirst({ where: { id: args.workItemId, project_id: args.projectId } });
         assertLease(workItem, args, dependencies.now());
         const changed = await tx.deliveryAttempt.updateMany({

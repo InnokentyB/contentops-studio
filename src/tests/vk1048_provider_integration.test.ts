@@ -170,6 +170,22 @@ test('VK017-INTEGRATION: actual fact service runs transport beforeWrite guard be
         assert.equal(projectId, 10); assert.equal(actorId, 'user:2');
     });
     const transaction = new Proxy(prisma, { get(target, property): unknown {
+        if (property === '$queryRaw') return async () => [];
+        if (property === 'contentItem') return {
+            create: forbiddenWrite, update: forbiddenWrite, updateMany: forbiddenWrite,
+            findFirst: async ({ where }: { where: Record<string, unknown> }) => {
+                assert.deepEqual(where, { id: 1048, project_id: 10 });
+                return { id: 1048, project_id: 10, channel: { id: 139, type: 'vk' }, publication_fact: null };
+            }
+        };
+        if (property === 'publicationFact') return {
+            create: forbiddenWrite, update: forbiddenWrite, updateMany: forbiddenWrite,
+            findFirst: async ({ where }: { where: Record<string, unknown> }) => {
+                assert.equal(where.project_id, 10);
+                assert.deepEqual(where.content_item_id, { not: 1048 });
+                return null;
+            }
+        };
         if (['publicationFact', 'contentItem', 'workItem', 'metricSnapshot'].includes(String(property))) {
             return { create: forbiddenWrite, update: forbiddenWrite, updateMany: forbiddenWrite, findFirst: forbiddenWrite };
         }
