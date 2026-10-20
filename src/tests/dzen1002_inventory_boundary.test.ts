@@ -7,6 +7,8 @@ import { enumerateDzen1002Inventory, type InventoryState } from '../services/dze
 test('INV011 owning preflight selects task1002 reader and exposes sanitized incomplete evidence without writes', async () => {
     let events = 0; let selectedTask: number | undefined;
     const db = {
+        $queryRaw: async () => [],
+        publicationFact: { findFirst: async () => null },
         projectMember: { findUnique: async () => ({ role: 'owner' }) },
         project: { findUnique: async () => ({ slug: 'analystcraft-2' }) },
         workflowEvent: { findFirst: async () => null, create: async () => { events++; } },

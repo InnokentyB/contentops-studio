@@ -14,6 +14,9 @@ function harness(checksum = current, slug = 'analystcraft-2', role = 'owner') {
     const calls: string[] = [];
     const dependencies = {
         db: {
+            $queryRaw: async () => [],
+            publicationFact: { findFirst: async () => null },
+            async $transaction<T>(run: (tx: unknown) => Promise<T>): Promise<T> { return run(this); },
             projectMember: { findUnique: async () => { calls.push('owner'); return { role }; } },
             workflowEvent: { findUnique: async () => { calls.push('cached'); return { after_state: { mode: 'dry_run' } }; } }
         },
@@ -106,6 +109,9 @@ test('current manifest preserves release3126/package guards and dry-run remains 
     const releaseBefore = JSON.stringify(release);
     const service = new DzenTaskPublicationService({
         db: {
+            $queryRaw: async () => [],
+            publicationFact: { findFirst: async () => null },
+            async $transaction<T>(run: (tx: unknown) => Promise<T>): Promise<T> { return run(this); },
             projectMember: { findUnique: async () => ({ role: 'owner' }) },
             contentItem: { findFirst: async () => task },
             deliveryAttempt: { findFirst: async () => attempts },
