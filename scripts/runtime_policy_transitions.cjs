@@ -3,6 +3,7 @@ const fs=require('node:fs');
 const {createReadBudget,fail}=require('./runtime_policy_budget.cjs');
 const {artifactPath,parseTransitions}=require('./runtime_policy_transition_schema.cjs');
 const {contexts}=require('./runtime_policy_transition_context.cjs');
+const {preservationPath,parsePreservations,validatePreservation,completePreservationPack,preservationBijection}=require('./runtime_policy_transition_preservation.cjs');
 const {readSource}=require('./runtime_policy_source.cjs');
 const {digest}=require('./runtime_policy_scanner.cjs');
 const key=row=>[row.file,row.rule,row.identity].join('\0');
@@ -32,12 +33,30 @@ function currentSource(file,budget){
     if(value.length>mib)fail('TRANSITION_SOURCE_TOO_LARGE');
     budget.check();return value;
 }
-function prepareEntry(entry,{base,budget}){
-    const before=trustedBlob(base,entry.file,budget);
-    if(!before)fail('TRANSITION_SOURCE_UNAVAILABLE');
-    const after=currentSource(entry.file,budget);
-    if(digest(before)!==entry.oldSourceSha256||digest(after)!==entry.newSourceSha256)fail('TRANSITION_SOURCE_MISMATCH');
-    return {entry,before,after};
+function prepareEntries(entries,{base,budget}){
+    if(!entries.length)return [];
+    const files=[...new Set(entries.map(entry=>entry.file))];
+    const records=budget.git(['ls-tree','-z',base,'--',...files],{maxBytes:files.length*4096}).toString();
+    const modes=new Map();
+    for(const record of records.split('\0').filter(Boolean)){
+        const match=/^(100644|100755) blob ([a-f0-9]{40})\t([^\0]+)$/.exec(record);
+        if(!match||!files.includes(match[3])||modes.has(match[3]))fail('TRANSITION_SOURCE_MODE_INVALID');
+        modes.set(match[3],match[2]);
+    }
+    const sources=new Map();let total=0;
+    for(const file of files){
+        budget.check();
+        if(!modes.has(file))fail('TRANSITION_SOURCE_UNAVAILABLE');
+        const before=budget.git(['show',`${base}:${file}`],{maxBytes:mib,overflowCode:'TRANSITION_SOURCE_TOO_LARGE'});
+        const after=currentSource(file,budget);
+        total+=before.length+after.length;if(total>8*mib)fail('TRANSITION_SOURCE_TOO_LARGE');
+        sources.set(file,{before,after});
+    }
+    return entries.map(entry=>{
+        const {before,after}=sources.get(entry.file);
+        if(digest(before)!==entry.oldSourceSha256||digest(after)!==entry.newSourceSha256)fail('TRANSITION_SOURCE_MISMATCH');
+        return {entry,before,after};
+    });
 }
 function validateEntry({entry,before,after},{budget,old,current}){
     const oldContexts=contexts(entry.file,before.toString(),budget),newContexts=contexts(entry.file,after.toString(),budget);
@@ -61,18 +80,27 @@ function reviewedTransitions({base,cli,oldRows,currentRows}){
     requireTransitionBase(base,cli);
     const budget=createReadBudget();
     const bytes=trustedBlob(base,artifactPath,budget,{artifact:true});
-    if(!bytes)return [];
-    const entries=parseTransitions(bytes),old=new Map(oldRows.map(row=>[key(row),row])),current=new Map(currentRows.map(row=>[key(row),row]));
+    const preservedBytes=trustedBlob(base,preservationPath,budget,{artifact:true});
+    const entries=bytes?parseTransitions(bytes):[],preservations=preservedBytes?parsePreservations(preservedBytes):[];
+    const old=new Map(oldRows.map(row=>[key(row),row])),current=new Map(currentRows.map(row=>[key(row),row]));
     const growth=new Set(currentRows.filter(row=>row.count>(old.get(key(row))?.count||0)).map(key));
-    const result=[],prepared=[];let total=0;
-    for(const entry of entries){
-        budget.check();
-        if(!entry.remaps.some(row=>growth.has(key({file:entry.file,rule:row.rule,identity:row.newIdentity}))))continue;
-        const item=prepareEntry(entry,{base,budget});
-        total+=item.before.length+item.after.length;if(total>8*mib)fail('TRANSITION_SOURCE_TOO_LARGE');
-        prepared.push(item);
+    const active=entry=>entry.remaps.some(row=>growth.has(key({file:entry.file,rule:row.rule,identity:row.newIdentity})));
+    const selected=entries.filter(active),pack=preservations.some(active)?preservations:[];
+    if(pack.length)completePreservationPack(pack,{old,current,budget});
+    const prepared=prepareEntries([...selected,...pack],{base,budget}),result=[];
+    for(let index=0;index<prepared.length;index++){
+        const item=prepared[index];
+        result.push(...(index<selected.length?validateEntry(item,{budget,old,current}):validatePreservation(item,{budget,old,current})));
     }
-    for(const item of prepared)result.push(...validateEntry(item,{budget,old,current}));
+    const used=new Set();
+    for(const row of result){
+        for(const identity of [row.oldIdentity,row.newIdentity]){
+            const identityKey=key({...row,identity});
+            if(used.has(identityKey))fail('TRANSITION_CONTEXT_MISMATCH');
+            used.add(identityKey);
+        }
+    }
+    if(pack.length)preservationBijection(result,{old,current,budget});
     budget.check();return result;
 }
 module.exports={reviewedTransitions};

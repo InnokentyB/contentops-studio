@@ -78,3 +78,36 @@ an evidence candidate into this path as an approval shortcut. After debt pruning
 its old rows are absent and a stale record cannot resurrect them. Applied old/new
 hash/count pairs appear in the gate report; baseline writes remain manual and
 reviewed. No record or baseline auto-generation/update command exists.
+
+## Exact preservation pack
+
+The Owner approved the separate TDPD026 preservation proposal for local tests
+and implementation on 20 October 2026. This does not authorize public staging,
+deployment or publication. The original transition format above remains strict.
+
+The separate `docs/code-quality/runtime-policy-preservations.json` format binds
+review metadata, complete old/new source hashes, and individual old/new finding
+identities with exact printed-leaf SHA256 and occurrence counts. Its limits are
+16 files, 102 pairs and 64 pairs per file; the approved pack contains exactly
+16 files, 102 pairs and 110 occurrences. Only `task_identifier`,
+`business_binding`, `business_record_lookup` and `business_comparison` are
+eligible. A filename, provider or rule name alone never admits a finding.
+
+The record is read only from the trusted event/comparison commit. A current
+branch record cannot authorize itself. Any active preservation consumes the
+whole reviewed pack: source hashes, leaf syntax, named lexical scopes, baseline
+ownership/remediation and counts must match. Missing pairs, collisions, partial
+replacement or unrelated baseline edits fail closed. Anonymous transaction
+callbacks may enclose the same leaf; changing its named callable binding cannot
+inherit approval. Scanner identities are unchanged.
+
+Both transition formats share the existing 32 Git reads and two-second budget.
+Batch mode checks and cached source reads keep the maximum combined 24 source
+files within that read budget. Existing one-second per-read, 64 KiB artifact,
+1 MiB per-source and 8 MiB aggregate source limits remain. Git/source/parse
+errors are sanitized; no source excerpts or private payloads are printed.
+
+Delivery remains two-stage: first merge a separately authorized policy-only
+change with product sources/baseline unchanged; then consume that record in a
+feature PR based on the merged trusted commit. A local simulation with a local
+Stage A commit proves local behavior only and cannot claim public CI admission.

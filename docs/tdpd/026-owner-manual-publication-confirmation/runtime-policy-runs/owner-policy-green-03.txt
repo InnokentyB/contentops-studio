@@ -1,0 +1,112 @@
+✔ P01 synthetic102 pairs across16 files are admitted only from synthetic trusted Git base (892.751534ms)
+✔ P02 StageA inert trusted manifest does not change old source or baseline (216.640551ms)
+✔ P03 current-branch manifest cannot authorize its own baseline replacement (242.271358ms)
+✖ P04 explicitly requested actual frozen feature102/16 passes CLI in a synthetic trusted Git repository (602.707205ms)
+✔ P05 additional unreviewed literal cannot consume the exact pack (312.783337ms)
+✔ P06 changed leaf fails even when evil trusted manifest and baseline match its new source hash (561.069544ms)
+✔ P07 renamed named scope fails with exact trusted source hashes and unchanged leaf syntax (343.668828ms)
+✔ P08 count growth fails despite trusted matching new source and scanner baseline (553.423203ms)
+✔ P09 changed baseline owner cannot inherit old authority (308.102216ms)
+✔ P09 changed baseline reason cannot inherit old authority (323.035873ms)
+✔ P09 changed baseline remediation cannot inherit old authority (328.692521ms)
+✔ P10 changed rule in trusted manifest is refused (249.204083ms)
+✔ P11 changed file binding in trusted manifest is refused (267.2867ms)
+✔ P12 trusted oldSourceSha256 drift is refused (307.954065ms)
+✔ P12 trusted newSourceSha256 drift is refused (328.688161ms)
+✔ P13 old identity collision is refused without cardinality growth (247.868304ms)
+✔ P14 new identity collision is refused without cardinality growth (248.275976ms)
+✔ P15 missing reviewed pair cannot widen the baseline (251.90974ms)
+✔ P16 one matching growth validates the entire pack rather than an active subset (294.157266ms)
+✔ P17 production artifact byte limit remains65536 (260.128864ms)
+✔ P18 malformed trusted artifact is refused safely (274.707469ms)
+✔ P19 unknown trusted base cannot supply authority (277.036364ms)
+✔ P20 missing explicit trusted base cannot authorize baseline growth (248.411298ms)
+✔ P21 symlinked current source is rejected (220.559477ms)
+✔ P22 symlinked artifact cannot be a trusted Git authority (268.356697ms)
+✔ P23 proxy indirection cannot launder an old business leaf (329.760307ms)
+✔ P24 renamed object-property callable scope fails despite fully rebound trusted hashes and identities (1131.174696ms)
+✔ P25 actual active preservation pack stays within32 Git reads and shared2second budget (819.019873ms)
+✔ P26 one hung preservation Git read is bounded and sanitized (1254.402158ms)
+✔ P27 repeated subsecond Git reads cannot restart the shared2second deadline (2266.256097ms)
+✔ P28 individual source larger than1MiB cannot be admitted with a matching reviewed hash (286.236164ms)
+✔ P29 aggregate old/new sources larger than8MiB remain bounded below individual limits (452.696638ms)
+✔ P30 trusted source mode must be regular even when blob bytes and hashes match (294.535788ms)
+✔ proposed R27: before source over 1 MiB is classified and rejected (640.652362ms)
+✔ proposed R27: after source over 1 MiB is classified and rejected (644.415737ms)
+✔ proposed R28: exact 1 MiB source boundary permits the reviewed correction (717.450052ms)
+✔ proposed R29: aggregate source bytes over 8 MiB are rejected despite individual limits (730.687278ms)
+✔ proposed R30: trusted source Git mode is checked independently of valid source bytes (587.157144ms)
+✔ proposed R31: working-tree source symlink is rejected by the existing source boundary (545.453632ms)
+✔ proposed R32: a missing nonzero full commit object cannot authorize a transition (574.829983ms)
+✔ proposed R33: one hung transition Git read has a bounded sanitized failure (1563.29645ms)
+✔ proposed R1: exact previously reviewed security correction can replace context fingerprints (562.969006ms)
+✔ proposed R2: unchanged reviewed debt and its pending transition remain admissible (547.002692ms)
+✔ proposed R3: current-branch transition cannot authorize its own new baseline (549.72597ms)
+✔ proposed R4: remapping requires a trusted base, never only the working tree (553.864537ms)
+✔ proposed R5: exact transition cannot cover an additional source edit or task authority (589.455829ms)
+✔ proposed R6: duplicated authority cannot consume a one-occurrence transition (584.063934ms)
+✔ proposed R7: expanded task comparison remains unadmitted (568.748144ms)
+✔ proposed R8: business binding identities cannot be remapped, even with an exact source proposal (553.201333ms)
+✔ proposed R9: stale old permission cannot remain beside the new fingerprint (552.389827ms)
+✔ proposed R10: old source hash mismatch invalidates an otherwise matching proposal (598.343976ms)
+✔ proposed R11: changed baseline owner is not admitted (572.287926ms)
+✔ proposed R11: changed baseline reason is not admitted (598.275706ms)
+✔ proposed R11: changed baseline remediation is not admitted (566.194057ms)
+✔ proposed R12: a previously retired finding cannot be resurrected using a pending transition (575.575818ms)
+✔ proposed R13: a new task symbol cannot inherit an existing symbol allowance (561.669627ms)
+✔ proposed R14: duplicate trusted remaps are ambiguous and rejected (548.871584ms)
+✔ proposed R15: exact task-identifier transition cannot also admit a new business binding (569.508589ms)
+✔ proposed R16: modified working-tree review cannot extend the trusted source hash (752.147008ms)
+✔ proposed R17: matching full pull_request event base can consume the transition (571.855154ms)
+✔ proposed R17: matching full push event base can consume the transition (558.425047ms)
+✔ proposed R18: a conflicting CLI base cannot replace the event base (557.082958ms)
+✔ proposed R19: transition cannot consume symbolic, zero or unavailable base HEAD (544.626647ms)
+✔ proposed R19: transition cannot consume symbolic, zero or unavailable base 0000000000000000000000000000000000000000 (549.911181ms)
+✔ proposed R19: transition cannot consume symbolic, zero or unavailable base deadbeef (546.732801ms)
+✔ proposed R20: unknown artifact fields are not a reviewed extension (562.386652ms)
+✔ proposed R21: many-to-one remaps cannot merge distinct allowances (550.801107ms)
+✔ proposed R22: duplicate entries for one source file are ambiguous (553.091101ms)
+✔ proposed R23: artifact traversal paths cannot authorize a replacement (562.09044ms)
+✔ proposed R24: an artifact over 64 KiB cannot authorize a replacement (548.120029ms)
+✔ proposed R25: artifact symlink in the trusted tree is not JSON authority (550.830237ms)
+✔ proposed R26: workflow_dispatch cannot consume a transition using a supplied commit (544.033142ms)
+✔ CI pull_request cannot bypass base comparison by deleting the current artifact (544.131604ms)
+✔ CI push cannot bypass base comparison by deleting the current artifact (548.27847ms)
+✔ CI workflow_dispatch cannot bypass base comparison by deleting the current artifact (538.874659ms)
+✔ local missing-base comparison cannot be hidden by deleting the artifact (535.670098ms)
+✔ unchanged committed local debt needs no transition or implicit grant (547.916198ms)
+✔ transition schema cannot select protected or non-JavaScript source .env (558.856299ms)
+✔ transition schema cannot select protected or non-JavaScript source src/.env.ts (562.832575ms)
+✔ transition schema cannot select protected or non-JavaScript source ops/release.yaml (556.604355ms)
+ℹ tests 80
+ℹ suites 0
+ℹ pass 79
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 43586.570674
+
+✖ failing tests:
+
+test at tests/tdpd/runtime-policy-preservation-transition.test.cjs:68:12
+✖ P04 explicitly requested actual frozen feature102/16 passes CLI in a synthetic trusted Git repository (602.707205ms)
+  AssertionError [ERR_ASSERTION]: {"verdict":"FAIL","errors":[{"code":"TRANSITION_CONTEXT_MISMATCH"},{"code":"BASELINE_WIDENED"}],"scannedFiles":16,"operationalFiles":16,"findingsCount":1152,"baselineCount":1152,"appliedTransitions":[],"elapsedMs":351}
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (/workspace/tests/tdpd/runtime-policy-preservation-transition.test.cjs:68:191)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+

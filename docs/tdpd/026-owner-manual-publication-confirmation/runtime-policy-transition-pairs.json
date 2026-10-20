@@ -1,0 +1,1616 @@
+{
+  "status": "PROPOSAL_ONLY_RELEASE_BLOCKED",
+  "baseCommit": "5b5bb0324d8f6b7003c0ca1fa2ca2e681c451c4b",
+  "sourceTree": "uncommitted frozen implementation; hashes below are binding",
+  "scannerSourceSha256": "60e5e6c627c9b1a519f2fe890a0d3226611d3a143149c167155f26cf5436be47",
+  "baselineSourceSha256": "bf09a6ba7613b94790a779d6007b4374d16e9edaf419b6cb589cd57473b02ef4",
+  "files": [
+    {
+      "file": "src/services/agent_workspace_manifest.service.ts",
+      "oldSourceSha256": "ae38070a752c842a7bcd76b8a046d83b3ec224921e98f804a199326c66209a06",
+      "newSourceSha256": "1296fbd53a9c0ac11ce2bc71a2186317754bc8c31505dd41b461c4cc8e8d6861",
+      "pairs": 1,
+      "rules": {
+        "business_record_lookup": {
+          "pairs": 1,
+          "occurrences": 1
+        }
+      }
+    },
+    {
+      "file": "src/services/dzen1002_runtime_store.ts",
+      "oldSourceSha256": "a511e54b397e00eb13922f6a8c7b6c791781f423c1de90b2a8a36fef834d9fcf",
+      "newSourceSha256": "ec4f8781f162ae904ed511534678fc46530a67e915bd28f5ae2d603040673c26",
+      "pairs": 5,
+      "rules": {
+        "task_identifier": {
+          "pairs": 5,
+          "occurrences": 7
+        }
+      }
+    },
+    {
+      "file": "src/services/dzen_task1045_draft_resume.service.ts",
+      "oldSourceSha256": "d0ef0474bab65d7ca3f91c1ff06462502e7ddd16c42b1df48b71d7150cac2725",
+      "newSourceSha256": "55bcbd36aa590403ff2a7ec444d7c4bedc6fa4130d55b8839400a7ca00ec0d5f",
+      "pairs": 9,
+      "rules": {
+        "business_binding": {
+          "pairs": 4,
+          "occurrences": 4
+        },
+        "task_identifier": {
+          "pairs": 5,
+          "occurrences": 5
+        }
+      }
+    },
+    {
+      "file": "src/services/dzen_task1045_new_draft_recovery.service.ts",
+      "oldSourceSha256": "aae93a42dcd93afed41dffd6c3cfe3819550ee7e95bca33c341d8621bc04bae4",
+      "newSourceSha256": "3a9e6f2964e58132b628260f2f60484d45103642565247d21031827d37b2d14b",
+      "pairs": 2,
+      "rules": {
+        "task_identifier": {
+          "pairs": 2,
+          "occurrences": 2
+        }
+      }
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_a.service.ts",
+      "oldSourceSha256": "ee867976936847f1ea1ec2958bfa1a4a236e59861354edfd404894894fb8669c",
+      "newSourceSha256": "97dac5ce8aad0dff13055df08b3c62f74194eab2d460f5b6040532dc46cab027",
+      "pairs": 6,
+      "rules": {
+        "business_record_lookup": {
+          "pairs": 1,
+          "occurrences": 1
+        },
+        "task_identifier": {
+          "pairs": 5,
+          "occurrences": 5
+        }
+      }
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_a_v2.service.ts",
+      "oldSourceSha256": "39f801722f7b7c2dbbff6da84f00e476cbc9ea6b89f2ed614664ff1bd84b24dd",
+      "newSourceSha256": "1b09fddc1a810b7f05fe4c35986ddc8c706615182b79e3fa56896121908bed4c",
+      "pairs": 6,
+      "rules": {
+        "business_record_lookup": {
+          "pairs": 1,
+          "occurrences": 1
+        },
+        "task_identifier": {
+          "pairs": 5,
+          "occurrences": 5
+        }
+      }
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_a_v2_reconcile.service.ts",
+      "oldSourceSha256": "f78e8ff7f4e99387d422b31a14ccd20c63853557d4998b14fa7441183a37b677",
+      "newSourceSha256": "e190b7bc2775293518ab33cf018a734e9458003154878245ee29c1856d198534",
+      "pairs": 6,
+      "rules": {
+        "task_identifier": {
+          "pairs": 6,
+          "occurrences": 6
+        }
+      }
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_b.service.ts",
+      "oldSourceSha256": "036c16570c3b1272c0ed22bac4ba2f1726a049cf32e010aa6cd18ccdb3639c34",
+      "newSourceSha256": "1eea9762a9bd320241a94a161adc0c4d366358c0ba17f44827f9bf522914a094",
+      "pairs": 6,
+      "rules": {
+        "business_record_lookup": {
+          "pairs": 1,
+          "occurrences": 1
+        },
+        "task_identifier": {
+          "pairs": 5,
+          "occurrences": 5
+        }
+      }
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_b_reconcile.service.ts",
+      "oldSourceSha256": "f37010d3fc4912063835ec77ccdce5b2ca1845a54adea887b5b740e674939421",
+      "newSourceSha256": "77c9edd2b6eee6f00293087746f7691b1335c1322a5e8ac681149381d079023b",
+      "pairs": 6,
+      "rules": {
+        "business_binding": {
+          "pairs": 2,
+          "occurrences": 2
+        },
+        "task_identifier": {
+          "pairs": 4,
+          "occurrences": 5
+        }
+      }
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_c.service.ts",
+      "oldSourceSha256": "15747824c9d324318e6c28cf296f2528184f1e99631b5c69abc747578fc438a1",
+      "newSourceSha256": "ea62e9a758b48f1e4ee6817a2bca9a995e1e70a6b5fff54986f0395bd546575a",
+      "pairs": 6,
+      "rules": {
+        "business_record_lookup": {
+          "pairs": 1,
+          "occurrences": 1
+        },
+        "task_identifier": {
+          "pairs": 5,
+          "occurrences": 5
+        }
+      }
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_c_reconcile.service.ts",
+      "oldSourceSha256": "122e5ff61c82459d79a2a1605cafb7e584bf7a12b38a685c2c91fc5c8681aec8",
+      "newSourceSha256": "0b96c6063a9ef9bf272abd24fc83e69912942e1bf7e237510e92396d6e373966",
+      "pairs": 6,
+      "rules": {
+        "business_binding": {
+          "pairs": 2,
+          "occurrences": 2
+        },
+        "task_identifier": {
+          "pairs": 4,
+          "occurrences": 7
+        }
+      }
+    },
+    {
+      "file": "src/services/dzen_task1045_restore_reconcile.service.ts",
+      "oldSourceSha256": "188be06693352306369334f529fbc3c6a0150f4eab6db2e36130b5c2eee4aece",
+      "newSourceSha256": "8ef5a43ca5d2d822ebf92a6352992975cfe948dd8436e57568e63687da97ded1",
+      "pairs": 4,
+      "rules": {
+        "task_identifier": {
+          "pairs": 4,
+          "occurrences": 4
+        }
+      }
+    },
+    {
+      "file": "src/services/dzen_task1045_second_attempt_recovery.service.ts",
+      "oldSourceSha256": "273ff8cf5903936200092c29e88c17a2259377ca6d65103ded8a54d4eec99450",
+      "newSourceSha256": "0b852246fb65421e49c51d6a15c3436861a3caccc2223394424da29e0b12cb9a",
+      "pairs": 15,
+      "rules": {
+        "business_binding": {
+          "pairs": 4,
+          "occurrences": 4
+        },
+        "business_record_lookup": {
+          "pairs": 2,
+          "occurrences": 2
+        },
+        "task_identifier": {
+          "pairs": 9,
+          "occurrences": 10
+        }
+      }
+    },
+    {
+      "file": "src/services/dzen_task1045_zero_restore.service.ts",
+      "oldSourceSha256": "986ae7239f78e6a03606858678fcd60a5acc092d2ebbf147288250424b193ae5",
+      "newSourceSha256": "ff9917a1776b0752e9a01b53ba7ad744dda68862c3bfe8621a8c71034cee6e8d",
+      "pairs": 9,
+      "rules": {
+        "business_binding": {
+          "pairs": 2,
+          "occurrences": 2
+        },
+        "business_record_lookup": {
+          "pairs": 1,
+          "occurrences": 1
+        },
+        "task_identifier": {
+          "pairs": 6,
+          "occurrences": 6
+        }
+      }
+    },
+    {
+      "file": "src/services/dzen_task999_resume.service.ts",
+      "oldSourceSha256": "f153f55d4b5bc89985a8798eafe2971be00f149358f2738bc41dc8ae0a220048",
+      "newSourceSha256": "67e4a88e25b9e59b090a502cf30dec8225d5f124a5e528625c0fc82f452434c9",
+      "pairs": 8,
+      "rules": {
+        "business_binding": {
+          "pairs": 4,
+          "occurrences": 4
+        },
+        "task_identifier": {
+          "pairs": 4,
+          "occurrences": 5
+        }
+      }
+    },
+    {
+      "file": "src/services/dzen_task_publication.service.ts",
+      "oldSourceSha256": "d9ea01531f12bcab8466a5156fde88d7dc9469490677ce3c5ed017f6bce7822f",
+      "newSourceSha256": "85b2bf88d3be577d0daf4b419fc5aa83ec4a524616a30a9dfe3deeed869a226e",
+      "pairs": 7,
+      "rules": {
+        "business_binding": {
+          "pairs": 2,
+          "occurrences": 2
+        },
+        "business_comparison": {
+          "pairs": 1,
+          "occurrences": 1
+        },
+        "task_identifier": {
+          "pairs": 4,
+          "occurrences": 4
+        }
+      }
+    }
+  ],
+  "totals": {
+    "business_record_lookup": {
+      "pairs": 8,
+      "occurrences": 8
+    },
+    "task_identifier": {
+      "pairs": 73,
+      "occurrences": 81
+    },
+    "business_binding": {
+      "pairs": 20,
+      "occurrences": 20
+    },
+    "business_comparison": {
+      "pairs": 1,
+      "occurrences": 1
+    }
+  },
+  "pairs": [
+    {
+      "file": "src/services/agent_workspace_manifest.service.ts",
+      "rule": "business_record_lookup",
+      "oldIdentity": "d3a76e85d31782bd53044201da5ad7c6cbecb2c3cad76d7ef02a699583cf8c51",
+      "newIdentity": "88058ed0e6b9630934cd66c00aeac0e7f02b6db5e01c3b740400bd5b48c32e77",
+      "count": 1,
+      "leaf": "id: 'asc'",
+      "leafSha256": "001a72cf871896689aaf0fc60437f0eed94842c7e762017d7b8a9ebe730db3bc",
+      "oldLine": 165,
+      "newLine": 165,
+      "oldAnchorKind": "FirstStatement",
+      "newAnchorKind": "FirstStatement"
+    },
+    {
+      "file": "src/services/dzen1002_runtime_store.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "1498ba26825e5770e6030249712dd2812247d1bf94e58fe90fda869aba2dfc50",
+      "newIdentity": "a19ddf37ecd97c927ccb0d5cb90cdee084bbac4944395727d1f171327cce3d16",
+      "count": 1,
+      "leaf": "Dzen1002RuntimeStore",
+      "leafSha256": "3765e73e2ce8ab52cdea294293b48743323266d40801c24124faaa9e96eab597",
+      "oldLine": 10,
+      "newLine": 12,
+      "oldAnchorKind": "ClassDeclaration",
+      "newAnchorKind": "ClassDeclaration"
+    },
+    {
+      "file": "src/services/dzen1002_runtime_store.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "b9140a1460bc124687db5cf85a2b0cf4951ad7c69870ef4d31ac23b1e1cae15f",
+      "newIdentity": "c485c5f765082de03a53e8eadf43c0e651c251b06b432ec7364dafa869f88e43",
+      "count": 1,
+      "leaf": "Dzen1002StoreDependencies",
+      "leafSha256": "821422299467572ad2bb9a5950bf4ce2bb0195fda9d61a2240d689b1f0aa8617",
+      "oldLine": 11,
+      "newLine": 13,
+      "oldAnchorKind": "ClassDeclaration",
+      "newAnchorKind": "ClassDeclaration"
+    },
+    {
+      "file": "src/services/dzen1002_runtime_store.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "1eda07a5e7255173f9a40a287adec191035c25ba6106537d29c95c7458c49b35",
+      "newIdentity": "67de60d978240d1589d682631d831f195a6659733ae5d28956996dc7a42c70ed",
+      "count": 1,
+      "leaf": "dzen1002Snapshot",
+      "leafSha256": "a4f2d4c9a67733ccde0397255be06936257bbb4e573da1db30966383f080991b",
+      "oldLine": 14,
+      "newLine": 16,
+      "oldAnchorKind": "ReturnStatement",
+      "newAnchorKind": "ReturnStatement"
+    },
+    {
+      "file": "src/services/dzen1002_runtime_store.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "d8c8622a7460991420f5a59bfaa13ed58eb851d1166936a6c77406186cb28779",
+      "newIdentity": "d37c46fd3a645754376701f9789a4ef8377585af1d1edae64b56d1b48358a517",
+      "count": 1,
+      "leaf": "dzen1002ReadClaim",
+      "leafSha256": "c52cb17279c836a9e5c5a0c629038d8a22eb9d543ca9cf63c3d88cd90a64045f",
+      "oldLine": 47,
+      "newLine": 50,
+      "oldAnchorKind": "ReturnStatement",
+      "newAnchorKind": "ReturnStatement"
+    },
+    {
+      "file": "src/services/dzen1002_runtime_store.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "be9735b0f08a2ffaca9fb6c882ade9060854d151302a52743a28aa86d5e2d004",
+      "newIdentity": "e50a2ab5b31bf1e264abe01b28e7ddccf0cd60cab83085a76759768bcdf5a710",
+      "count": 3,
+      "leaf": "Dzen1002Receipt",
+      "leafSha256": "8fc840403dc3e65f9bd965ccf137a1509c1e918754e6098cde4960a660eec3bc",
+      "oldLine": 69,
+      "newLine": 75,
+      "oldAnchorKind": "ClassDeclaration",
+      "newAnchorKind": "ClassDeclaration"
+    },
+    {
+      "file": "src/services/dzen_task1045_draft_resume.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "ff0fd62177b2b912767065ccb5cf51adff5c21de9deadd03cc3be5240240a8f3",
+      "newIdentity": "cb5b5ab7d4dc258bf92ae3521b46d0a918f3d444910acb5788d5e4d854e1446d",
+      "count": 1,
+      "leaf": "reconcileOrResumeDzenTask1045Draft",
+      "leafSha256": "9b0acfe58b70fe0dd52f73d6ced637368de027d0242ab23f0f34c0d1dd42b79b",
+      "oldLine": 51,
+      "newLine": 52,
+      "oldAnchorKind": "FunctionDeclaration",
+      "newAnchorKind": "FunctionDeclaration"
+    },
+    {
+      "file": "src/services/dzen_task1045_draft_resume.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "9b2ed036366568f2160644137c3107643dce40395a31ba85789f19757c833f78",
+      "newIdentity": "f2336499910500b785e7bdc422f14af51226dd2d7a3def50c26982179617fd4d",
+      "count": 1,
+      "leaf": "resumeTask1045Draft",
+      "leafSha256": "71b7359fc1454ac5cbdbce72223957ac4b34809021562df7d9c53de2be3366eb",
+      "oldLine": 70,
+      "newLine": 72,
+      "oldAnchorKind": "FirstStatement",
+      "newAnchorKind": "FirstStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_draft_resume.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "0e96a030f42789c776c7f298a497c4bca5837151d88297cb9ee7b69d3e42fd1c",
+      "newIdentity": "c627038c3d17490cf89e40c761b217c9dc72368b3d186a3316469e6515f4d72f",
+      "count": 1,
+      "leaf": "Dzen1045DraftProof",
+      "leafSha256": "ad6307867b135445f0349f5ccee6f9875a119ea4e101b5e75672920e2d81ae39",
+      "oldLine": 72,
+      "newLine": 74,
+      "oldAnchorKind": "FirstStatement",
+      "newAnchorKind": "FirstStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_draft_resume.service.ts",
+      "rule": "business_binding",
+      "oldIdentity": "7f5ccb54e9718bb50c322124a3b0db8774bea7c805349d86f7bbd0b6713bf680",
+      "newIdentity": "faf83268877266c20be3aedc496fd10799c4fb95392167b8a2ea53edb1ec26f4",
+      "count": 1,
+      "leaf": "project_id: 10",
+      "leafSha256": "18117371b5baa61d991abca74b580bb4da4ad1ba25d485e38923b67396fb7eec",
+      "oldLine": 107,
+      "newLine": 110,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_draft_resume.service.ts",
+      "rule": "business_binding",
+      "oldIdentity": "ffde56def97e52b63dd3ccbdb723aab8d820105c56495393c88e97c9cf0f55f6",
+      "newIdentity": "8f5a83174faaca02a8b724a2d1009d4b0dfb4cecbf6f08f2957969043447b594",
+      "count": 1,
+      "leaf": "project_id: 10",
+      "leafSha256": "18117371b5baa61d991abca74b580bb4da4ad1ba25d485e38923b67396fb7eec",
+      "oldLine": 117,
+      "newLine": 120,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_draft_resume.service.ts",
+      "rule": "business_binding",
+      "oldIdentity": "98e49b93b5fcf3d7d69b996b3aee00657135cfeaf3444e6823e939fd5703b224",
+      "newIdentity": "e64b2eec493584f4648c2d3e2d098d7e52ad6d7cb2456109742b6cfa7137003a",
+      "count": 1,
+      "leaf": "content_item_id: 1045",
+      "leafSha256": "b75a134eff9c47c942d70b93c80855038fdf2813cac3bde39d4a10a6df953757",
+      "oldLine": 107,
+      "newLine": 110,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_draft_resume.service.ts",
+      "rule": "business_binding",
+      "oldIdentity": "44fbc2067d7c678e0b3228012dc2ecfa8ccf382b2090077cbd4c29631e8089bb",
+      "newIdentity": "18aa8ef4361ac03b697bea0c50cba9601992e52feea22625760abb0ecc6c05a7",
+      "count": 1,
+      "leaf": "content_item_id: 1045",
+      "leafSha256": "b75a134eff9c47c942d70b93c80855038fdf2813cac3bde39d4a10a6df953757",
+      "oldLine": 117,
+      "newLine": 120,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_draft_resume.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "bbd45b91f71d535ddfc1eefb134a8d615b639d40f78797d613cb15e6e8528fa1",
+      "newIdentity": "87450861d3049d008109fb25884bf64a9b23adb03c50f4a8389ebd9bacf0cc7f",
+      "count": 1,
+      "leaf": "DZEN1045",
+      "leafSha256": "53d133420b187377061c75d84e9a93552b2ddd17beea190ad1f6c9d7a0a930bd",
+      "oldLine": 109,
+      "newLine": 112,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_draft_resume.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "fcf2f6ed52a866e37968db3d7bca50a7339d5be40fcc634eff5aad5580f684f3",
+      "newIdentity": "376e1313574bf78b5e68529febb626c2c4177365abd05771e7e25ddef955b432",
+      "count": 1,
+      "leaf": "DZEN1045",
+      "leafSha256": "53d133420b187377061c75d84e9a93552b2ddd17beea190ad1f6c9d7a0a930bd",
+      "oldLine": 119,
+      "newLine": 122,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_new_draft_recovery.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "5c0b44207eefebd890c4e5f4a6b81863c37678e616b24c949f33fbd13b2abf44",
+      "newIdentity": "16dd6068f047b416d24241ca53a897f5f3be15be3df1c2443dbb7bec8371173e",
+      "count": 1,
+      "leaf": "authorizeDzenTask1045NewDraftRetry",
+      "leafSha256": "6a7dc06ac8e1f48824ca256aad7b4a86ab87baebdfc2eabcfc40cc8dde71c775",
+      "oldLine": 77,
+      "newLine": 78,
+      "oldAnchorKind": "FunctionDeclaration",
+      "newAnchorKind": "FunctionDeclaration"
+    },
+    {
+      "file": "src/services/dzen_task1045_new_draft_recovery.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "dae63283951cdd1acb0ee3dd49234caefb40892c2d8a9d898e232779be203735",
+      "newIdentity": "4b639aa3544d100d914149893a08144c54ccf73273e82d0c1d11aa823227047b",
+      "count": 1,
+      "leaf": "Dzen1045NewDraftArgs",
+      "leafSha256": "6cda3416b4c820ae8a3c4c982359f05351750263f49f94908904148b5b7deb62",
+      "oldLine": 77,
+      "newLine": 78,
+      "oldAnchorKind": "FunctionDeclaration",
+      "newAnchorKind": "FunctionDeclaration"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_a.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "d24a048b70bb9e8435087e5af6ec228cc1c6dc819579ecea3453f540f4edf83d",
+      "newIdentity": "d95a1bd1f2d23a3d82c9eb08be13c40833d4ccc7e5bd8a43ccdc69b25db69efc",
+      "count": 1,
+      "leaf": "createDzenTask1045DurableDraftPhaseA",
+      "leafSha256": "ad03289baa4cb3c3a66b029e541024ca0a2870f461304f5fac9285c3e43a07a1",
+      "oldLine": 37,
+      "newLine": 38,
+      "oldAnchorKind": "FunctionDeclaration",
+      "newAnchorKind": "FunctionDeclaration"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_a.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "e876f42e726e57e3f71814512077778b179712814edfdffaf9482efc5fdb86d4",
+      "newIdentity": "d65a3f2ffb9d4f74a64aa02f939cbdb86bcf0aa28dab9cad22a95abbc5e75f2c",
+      "count": 1,
+      "leaf": "Dzen1045PhaseAArgs",
+      "leafSha256": "4f3e248c51bd5930a558bb8bc00b4e14606e93f87bb090553bb8308fd1f44230",
+      "oldLine": 37,
+      "newLine": 38,
+      "oldAnchorKind": "FunctionDeclaration",
+      "newAnchorKind": "FunctionDeclaration"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_a.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "bdf1cbf4c35831ea032ac33d94a398f7b6ac3b835aed2fc3d04a4f6f39a82538",
+      "newIdentity": "4befa88cb0e80face7e7a652f90cb4aa936e65a40b0ffb1693765104952e63a0",
+      "count": 1,
+      "leaf": "runDzen1045PhaseA",
+      "leafSha256": "0dc707a2ea94dfb8b893545c26dd6a3e1f9c65a7c8bfd328549659802000fc15",
+      "oldLine": 64,
+      "newLine": 66,
+      "oldAnchorKind": "FirstStatement",
+      "newAnchorKind": "FirstStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_a.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "611520b6ddcb6677b57194f893cd2dc20a7c78da05f7c571bf0e527a99880f9f",
+      "newIdentity": "0851236a31aa2aa79db5c0101fccaab61178992060cc9e5567ac936127b8f8a4",
+      "count": 1,
+      "leaf": "inspectTask1045RestoreIncident",
+      "leafSha256": "b68e663fe653f6b76fd30a7ec9d87f102140b05b6a5a753dc25fc94661430cc4",
+      "oldLine": 66,
+      "newLine": 68,
+      "oldAnchorKind": "FirstStatement",
+      "newAnchorKind": "FirstStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_a.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "199d952fa26e2235c33d79d2763674b0d3deed0096348ab9ebd2a0c771dc7220",
+      "newIdentity": "2727cb5b83d80bda1c15b755ef660c1c7856685d5e0902767d18789915d23d6d",
+      "count": 1,
+      "leaf": "createTask1045DurableDraftPhaseA",
+      "leafSha256": "2d8ade55299e516659f97f08dcd49af531dfd26fea5f3a2c0473367251f85d79",
+      "oldLine": 95,
+      "newLine": 98,
+      "oldAnchorKind": "FirstStatement",
+      "newAnchorKind": "FirstStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_a.service.ts",
+      "rule": "business_record_lookup",
+      "oldIdentity": "8e2f2cb28e56c22b0f205eccbe8ed4f8feb93f3ef8a328bfd5e978ec59f1f771",
+      "newIdentity": "bef9dc6bfe3f92380a729439cec86a3b9b709b77f261c03c4524dd75191b0e6b",
+      "count": 1,
+      "leaf": "id: 1045",
+      "leafSha256": "3464a9aa872b19d37984fb3d182d3463d015df7e218288b947142cb7a654210d",
+      "oldLine": 120,
+      "newLine": 124,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_a_v2.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "0b589963f7d9b2b4eebfe9de26fdc5c24b29b770da136cd9e7793401982a9404",
+      "newIdentity": "27141dd072c4be9b6a2939173716eeb9281f2ae2aad27639b20a6c07575adce3",
+      "count": 1,
+      "leaf": "createDzenTask1045DurableDraftPhaseAV2",
+      "leafSha256": "2d59b6a6aaf0382e181492816cd99801bfd4acc3cdd1900ec3aa2ec574fc04b5",
+      "oldLine": 62,
+      "newLine": 63,
+      "oldAnchorKind": "FunctionDeclaration",
+      "newAnchorKind": "FunctionDeclaration"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_a_v2.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "a3b1b99b9f6a7e5635709421fefbf85f6d4818986dec2f04e96b0e51641920f4",
+      "newIdentity": "d69b37d658b8883e5074251947ac48c6972d4ae7b14c53c11f46ae0b6bd641eb",
+      "count": 1,
+      "leaf": "Dzen1045PhaseAV2Args",
+      "leafSha256": "2148aaeb67daffed45f20c0aaf65ee4aeba4b72ce9e791ba2e42109712e46c4d",
+      "oldLine": 62,
+      "newLine": 63,
+      "oldAnchorKind": "FunctionDeclaration",
+      "newAnchorKind": "FunctionDeclaration"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_a_v2.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "f7bb582c0d467eb1cde1d07303abeaa37145238600a2e5c93fa66adf4673d6eb",
+      "newIdentity": "f56d4bfb9f2e1ffe7bff30a46445781a16a200c3ceef0cd4a75a0247731c9c12",
+      "count": 1,
+      "leaf": "runDzen1045PhaseAV2",
+      "leafSha256": "2870760c39b9818063056a3f69f1b316e745950c8c16aca5b4f820f3a3a01dc3",
+      "oldLine": 89,
+      "newLine": 91,
+      "oldAnchorKind": "FirstStatement",
+      "newAnchorKind": "FirstStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_a_v2.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "6d6ba3003b5e3c1937ed53db37c1e714c3faec9f633bff1daaeb41b47e98b9d2",
+      "newIdentity": "7ffdd63b140a2a5873aa3199c2f5e4a0bd4c4f4f200947c9619f78eaadd9a9d5",
+      "count": 1,
+      "leaf": "inspectTask1045RestoreIncident",
+      "leafSha256": "b68e663fe653f6b76fd30a7ec9d87f102140b05b6a5a753dc25fc94661430cc4",
+      "oldLine": 91,
+      "newLine": 93,
+      "oldAnchorKind": "FirstStatement",
+      "newAnchorKind": "FirstStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_a_v2.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "a5adad97e0d10e3adb72518c1c5354ebe9c5cf03b66df97bb66c2b249ce2d60c",
+      "newIdentity": "6543053345ebcb33e8baf80127e68e98368e02af564978e6a5a9b3ec9163814b",
+      "count": 1,
+      "leaf": "createTask1045DurableDraftPhaseAV2",
+      "leafSha256": "2b537f02b4234019828216a6fa05233ea74a4b0bfaaf25ea007414d23c8c2dd4",
+      "oldLine": 123,
+      "newLine": 126,
+      "oldAnchorKind": "FirstStatement",
+      "newAnchorKind": "FirstStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_a_v2.service.ts",
+      "rule": "business_record_lookup",
+      "oldIdentity": "6ec8403e80abe99169af183a7f3238455e7d48ba4943020562ef6853cc474db9",
+      "newIdentity": "e20aa504fd9eedd8483d8b0e9dc4018a5bd50c6bcf2070d96932528527bc75f7",
+      "count": 1,
+      "leaf": "id: 1045",
+      "leafSha256": "3464a9aa872b19d37984fb3d182d3463d015df7e218288b947142cb7a654210d",
+      "oldLine": 149,
+      "newLine": 153,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_a_v2_reconcile.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "360d64f73c7e63e92c8bd08ffb75351f72a2e4891a306fe4f8fbc0abee86859a",
+      "newIdentity": "8f54e490039082fe720b16725a0846f65fa476079bf44927a07a91692c1f7ae3",
+      "count": 1,
+      "leaf": "probeDzenTask1045PhaseAV2EditorState",
+      "leafSha256": "0213dd32537a6b77d233cad61add3c2e42fcb42c8601b9a90f1fa2e659e18c5f",
+      "oldLine": 72,
+      "newLine": 73,
+      "oldAnchorKind": "FunctionDeclaration",
+      "newAnchorKind": "FunctionDeclaration"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_a_v2_reconcile.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "5c384a27fcd109a3851c0f54c62b7b3a0205d8b5ce4d2900d02d0c5824b4c6a8",
+      "newIdentity": "425918c601adc59aa9802171010dd4ce95330912b3cc74fa09ce1467cbd12d14",
+      "count": 1,
+      "leaf": "Dzen1045PhaseAV2EditorProbeArgs",
+      "leafSha256": "e97e16bdaeafb504ced035f554d68f938824d1d99d8a3725014102ebfe8a7665",
+      "oldLine": 72,
+      "newLine": 73,
+      "oldAnchorKind": "FunctionDeclaration",
+      "newAnchorKind": "FunctionDeclaration"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_a_v2_reconcile.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "f10b330bef705386989efdef62ee0b8fac1171e9f05e6a83f5a5c1062ea92e1e",
+      "newIdentity": "7d620e1d42ac4dfbd55c59825a294e87f40c45277ebeeb09d58044d97b161fbe",
+      "count": 1,
+      "leaf": "reconcileDzenTask1045PhaseAV2Incident",
+      "leafSha256": "1587d57ba7cb7079dacc729ee8b7a69f27e005185adbd1f9d30170dacc4d5d9a",
+      "oldLine": 94,
+      "newLine": 96,
+      "oldAnchorKind": "FunctionDeclaration",
+      "newAnchorKind": "FunctionDeclaration"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_a_v2_reconcile.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "f299c283a424317c08c342d5fad1b852eace9a35b05f1854243520ceb951fc53",
+      "newIdentity": "a0f7a2673b3d8e454f5baf002d3ce9d786f27beee82ddddee8cf2355c3c6c9d4",
+      "count": 1,
+      "leaf": "Dzen1045PhaseAV2ReconcileArgs",
+      "leafSha256": "e5f5ec38d19d81b0bc9a38780498ae5502585f936f7cd043465cd7c37d2b03b3",
+      "oldLine": 94,
+      "newLine": 96,
+      "oldAnchorKind": "FunctionDeclaration",
+      "newAnchorKind": "FunctionDeclaration"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_a_v2_reconcile.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "ba80c2b4a81bb35b1e7bf077fea76ca8599469286a2a3fae98c4c3120e358aac",
+      "newIdentity": "21e74bcc7a1861a06bf99cddbcda66ab3357647c106ff058f3357fca3a259f8b",
+      "count": 1,
+      "leaf": "runDzen1045PhaseAV2Reconcile",
+      "leafSha256": "8ca49672a0d7ed495b3799f3f4c8bad1a8344367c205d83da6aae60ece1fc376",
+      "oldLine": 121,
+      "newLine": 124,
+      "oldAnchorKind": "ReturnStatement",
+      "newAnchorKind": "ReturnStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_a_v2_reconcile.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "55a120b265aa889e7d478a1a4922e9e1840e98cedad88f520ba1212ce0faaa7c",
+      "newIdentity": "4a648b2949108ca6d5a75c4b4d35314eaf8c3d638c29e4f1df9f1bebb1098afe",
+      "count": 1,
+      "leaf": "inspectTask1045PhaseAV2Incident",
+      "leafSha256": "4edca107423df8c90a708055a6966a70de00839dbb928fd44b7296601a93a9f0",
+      "oldLine": 123,
+      "newLine": 126,
+      "oldAnchorKind": "ReturnStatement",
+      "newAnchorKind": "ReturnStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_b.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "3fcc41b2963b1a408f7c36f2b1f9e47fc6696590e89cf85f43096b01c380190e",
+      "newIdentity": "90dd9f74239f943d2ad2e84bf0f6afed28146cf52666fdd487d61f7dd064c283",
+      "count": 1,
+      "leaf": "publishDzenTask1045PhaseB",
+      "leafSha256": "7551e1413d27f7c9ebfed82c35a9a6af85b93fde33ae9d9767cb2200ce6a66df",
+      "oldLine": 66,
+      "newLine": 67,
+      "oldAnchorKind": "FunctionDeclaration",
+      "newAnchorKind": "FunctionDeclaration"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_b.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "bc89d2c2106debb7f5ce3d567151dc9f1c0b39a45b7b000d2b9df1aec4563663",
+      "newIdentity": "a3aa5bc24fefbb0b4badfab729c06427b4b0ce765123e3f00fa14b14b9abc3bd",
+      "count": 1,
+      "leaf": "Dzen1045PhaseBArgs",
+      "leafSha256": "87e9c8cf8111c2ebfe5ebdb2f91d5c7b292e2f8a08513ac03dbc88fe1d4dd300",
+      "oldLine": 66,
+      "newLine": 67,
+      "oldAnchorKind": "FunctionDeclaration",
+      "newAnchorKind": "FunctionDeclaration"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_b.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "04bc2c4f5c193b04b1546fc960924466d183ba1a097e7b1bc9e3cab6c0198e04",
+      "newIdentity": "8e46f37df2d84666de049a50878718f1f9c5c16ab01137c0aa8a818dd28ddba6",
+      "count": 1,
+      "leaf": "runDzen1045PhaseB",
+      "leafSha256": "0ea24fc9a5940528d65140ab2148665ee4eebc3561b494653344052d45543b6b",
+      "oldLine": 91,
+      "newLine": 93,
+      "oldAnchorKind": "FirstStatement",
+      "newAnchorKind": "FirstStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_b.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "e7f5818cd66f7f1b588af181ba6fb40f70bc3c0044dcdfccb549e16eebfd4dab",
+      "newIdentity": "1a2735f322c20ac87aff60d7bd8d3ddc77a832c4c9b12ee03ed58627b0682087",
+      "count": 1,
+      "leaf": "probeTask1045ExactEditorState",
+      "leafSha256": "3470e5d31e72ff3ce2a08737f4e80377511b9580cd899d531ea62fdf0d9eaf87",
+      "oldLine": 93,
+      "newLine": 95,
+      "oldAnchorKind": "FirstStatement",
+      "newAnchorKind": "FirstStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_b.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "7a4faf23ae98b46cc64e2589f3ddafb1ffc4eaebd8e19194e0e2ebfaba8ede35",
+      "newIdentity": "695314853618776b5b0a3877cca8db434410529c4194342d97be2aec286e5000",
+      "count": 1,
+      "leaf": "publishTask1045ExistingDraftOnce",
+      "leafSha256": "dd0025109734837d7edcb920a55f75b08211367374fb60e209c1bb6ce00610e4",
+      "oldLine": 116,
+      "newLine": 119,
+      "oldAnchorKind": "FirstStatement",
+      "newAnchorKind": "FirstStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_b.service.ts",
+      "rule": "business_record_lookup",
+      "oldIdentity": "fb7117ee15dfc963ed4dd625448f546d6da70caad849b355bed19fcad37f2dd0",
+      "newIdentity": "ef7b0894a17194c49f0297f93261c9ea683401491190ea4f95b8c25207fefe09",
+      "count": 1,
+      "leaf": "id: 1045",
+      "leafSha256": "3464a9aa872b19d37984fb3d182d3463d015df7e218288b947142cb7a654210d",
+      "oldLine": 145,
+      "newLine": 149,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_b_reconcile.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "63b87ac44195b277afdaf6beb8c343dfa4538d8ea7b45f396b40fd820c259cbb",
+      "newIdentity": "a1511d2d55439021a076f38d9fbadb6e7e62ab2c8de2cc397cf551d35db4170f",
+      "count": 1,
+      "leaf": "reconcileDzenTask1045PhaseBIncident",
+      "leafSha256": "fa82b77965a6e380514f082d4a79327b584eb9ba0ba156c93064adc1a1e44417",
+      "oldLine": 76,
+      "newLine": 77,
+      "oldAnchorKind": "FunctionDeclaration",
+      "newAnchorKind": "FunctionDeclaration"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_b_reconcile.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "6fa0613d394c6b0af44d55b3d6a9cd36d854d25e1f138288d9be580540ec84bd",
+      "newIdentity": "554553b6245f82747697f1805722703dfbb34e5984c3e68549375cfb8806891d",
+      "count": 1,
+      "leaf": "Dzen1045PhaseBReconcileArgs",
+      "leafSha256": "29b17e039f019dff968a17b8bbcd957f032a7800dc739fa4812576ec5260a2b9",
+      "oldLine": 76,
+      "newLine": 77,
+      "oldAnchorKind": "FunctionDeclaration",
+      "newAnchorKind": "FunctionDeclaration"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_b_reconcile.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "0588e9ec66d49762de82430ddfc0dce302e7b43e3a92cfb86e7406bc4755ac0c",
+      "newIdentity": "f7956717bcf6cb21e3bc97f761e8d6186b20ec53ba23e6125abbe6f5781d9a6a",
+      "count": 1,
+      "leaf": "runDzen1045PhaseBReconcile",
+      "leafSha256": "51bae0cf0c87c5e0b2a4fab37168af7e3d76772c03f19fe3251e8209c7444bd6",
+      "oldLine": 104,
+      "newLine": 106,
+      "oldAnchorKind": "ReturnStatement",
+      "newAnchorKind": "ReturnStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_b_reconcile.service.ts",
+      "rule": "business_binding",
+      "oldIdentity": "6ac28185e2941f5eeed915f8adf37756130dfe89d5b1e13b348c1a6ad189dab1",
+      "newIdentity": "658a0bd52c24731bf1c515d9a031f1dce7ee6d07cca23bfecc7a440b24c6b88f",
+      "count": 1,
+      "leaf": "project_id: 10",
+      "leafSha256": "18117371b5baa61d991abca74b580bb4da4ad1ba25d485e38923b67396fb7eec",
+      "oldLine": 128,
+      "newLine": 131,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_b_reconcile.service.ts",
+      "rule": "business_binding",
+      "oldIdentity": "ce4717fd231a1c59a35d6b5e84272018709f0a3d63768425a2b4bacb9d078a1d",
+      "newIdentity": "ab0bab4846d77f0dcd55afc3b8373d08c4139404bed1502985a15468c9705b4c",
+      "count": 1,
+      "leaf": "content_item_id: 1045",
+      "leafSha256": "b75a134eff9c47c942d70b93c80855038fdf2813cac3bde39d4a10a6df953757",
+      "oldLine": 128,
+      "newLine": 131,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_b_reconcile.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "ff8e4f294bc73372913f16b39724d80047bbadeb84f3b46500ea5d97c546ebd0",
+      "newIdentity": "5eee53f3f36c7468660f11a1b20873176e8f042556fdc569e73f7370dda00431",
+      "count": 2,
+      "leaf": "DZEN1045_PHASE_B_RECONCILE",
+      "leafSha256": "11e4aa21bc2382c462da8d11e5c7f415a800153366adf0f273fbc15885c88009",
+      "oldLine": 129,
+      "newLine": 132,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_c.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "7220947c110a5ca838b7c4f90f70da5d9e32ffa3e5cc8530c7b6afb1aff7a021",
+      "newIdentity": "7cf584f46ff649ffe0d1e82a277996efe08d3f9e9f2f7292be50bcfcd9ec5344",
+      "count": 1,
+      "leaf": "executeDzenTask1045PhaseC",
+      "leafSha256": "69921f67656716c97084ef78d4aa135aa3b4ca0813e89d5a562876518b761f13",
+      "oldLine": 62,
+      "newLine": 63,
+      "oldAnchorKind": "FunctionDeclaration",
+      "newAnchorKind": "FunctionDeclaration"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_c.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "4ae485e10b40b564d1915d0fa460830629df29426e9226495b5fa32ded694c28",
+      "newIdentity": "d93c534b48e603eb39349eaf59eca199b16a444af4e08081e71e657b67ab99b8",
+      "count": 1,
+      "leaf": "Dzen1045PhaseCArgs",
+      "leafSha256": "10702957ca23196376cae10e46b0cb447413d41872835f64fde7ec42bb42ad76",
+      "oldLine": 62,
+      "newLine": 63,
+      "oldAnchorKind": "FunctionDeclaration",
+      "newAnchorKind": "FunctionDeclaration"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_c.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "7bbb0517d7e32ea51c86f6ce4e32c4d8c7899c21e89df8e353fb4a75f4f9b31d",
+      "newIdentity": "12739a6e74a00dd83e2206acfeb3ae1bf72ad4655ae7c76887aea18edb135160",
+      "count": 1,
+      "leaf": "runDzen1045PhaseC",
+      "leafSha256": "a89629dd7f31d8d8ed569b639ca1d45cae0dde3d6b4f1ed209e6917111406514",
+      "oldLine": 86,
+      "newLine": 88,
+      "oldAnchorKind": "FirstStatement",
+      "newAnchorKind": "FirstStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_c.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "8d29c1fbeccb326af832a6e5d80030a844a10840b84594809ef16e91d5832aff",
+      "newIdentity": "7d54526a6c634c3d2b3b289904709ee614871916f8317981809814ad3cae66e2",
+      "count": 1,
+      "leaf": "previewTask1045PhaseC",
+      "leafSha256": "99c0f3e5b424f84c997f174ffee21ee2723b1595ab4b0d9afae33b4dfdd85841",
+      "oldLine": 88,
+      "newLine": 90,
+      "oldAnchorKind": "FirstStatement",
+      "newAnchorKind": "FirstStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_c.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "1fec25d3cd121145566340c3541fb4985d7b88244cac46d0d31d439cc09bb3a1",
+      "newIdentity": "91b8c53938e1f958e1b846dcf94ad562f4fe6ffb98210911ee35a8c9ceb985bd",
+      "count": 1,
+      "leaf": "publishTask1045PhaseCOnce",
+      "leafSha256": "69290bbed98dc920e4e8660cdc05273b13dc89de600240f5af854d55f7ec70bb",
+      "oldLine": 111,
+      "newLine": 114,
+      "oldAnchorKind": "FirstStatement",
+      "newAnchorKind": "FirstStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_c.service.ts",
+      "rule": "business_record_lookup",
+      "oldIdentity": "ada7798810887fd394ea989506330921e4029a2818f921d7169598222253dedd",
+      "newIdentity": "7a96c22c819fa60562a6c9e18fd8536cb3d0e1fc7cc0e284e253a0caab90eb58",
+      "count": 1,
+      "leaf": "id: 1045",
+      "leafSha256": "3464a9aa872b19d37984fb3d182d3463d015df7e218288b947142cb7a654210d",
+      "oldLine": 140,
+      "newLine": 144,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_c_reconcile.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "3fd01ceeede9adbb7d18b9ecd600d56f9a17c00418b74f7fab716a52eb55ecfa",
+      "newIdentity": "f073f364033353b60d3ed0fd0a6a762df5fa64c3f51525f37d07bea7aa32db2d",
+      "count": 1,
+      "leaf": "Dzen1045SecondAttemptPublication",
+      "leafSha256": "9baa222d30257e60efd8d52ce452de8c1a59098e0174904fc262fa239689ce9e",
+      "oldLine": 66,
+      "newLine": 67,
+      "oldAnchorKind": "FunctionDeclaration",
+      "newAnchorKind": "FunctionDeclaration"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_c_reconcile.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "af6752b5d96f8759724d6b33cccaa8e6657a57dd131976bec4f2a0605be03101",
+      "newIdentity": "8dfb6b825ba8cc516254878049c0ea08c4d7ab256c12fc46c6218fdb1b7ee80b",
+      "count": 1,
+      "leaf": "reconcileDzenTask1045PhaseCIncident",
+      "leafSha256": "525d9ad47f187adb5de3000d8dd811c8932702f96aaff392e535b032045de78f",
+      "oldLine": 94,
+      "newLine": 96,
+      "oldAnchorKind": "FunctionDeclaration",
+      "newAnchorKind": "FunctionDeclaration"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_c_reconcile.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "f8fff7e086a66451428f031fbbfd5446bff3339587db191c8e04b2d70f22a058",
+      "newIdentity": "f34aa0ed76ac2db0fe5a0e82e770ebb6bf63df48199605169706391535124106",
+      "count": 1,
+      "leaf": "runDzen1045PhaseCReconcile",
+      "leafSha256": "ca3a222372a47053f151e8213cac520458a13f30c9fea435e2cfb3d8e8916b43",
+      "oldLine": 115,
+      "newLine": 118,
+      "oldAnchorKind": "ReturnStatement",
+      "newAnchorKind": "ReturnStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_c_reconcile.service.ts",
+      "rule": "business_binding",
+      "oldIdentity": "aab478542a736b3affab7f5b202d3130bad4d5f2544dad2eb7a2cf45a5624323",
+      "newIdentity": "bca5e61de3b1764438e70f5657e4d9699eb9b97b7027b287c33dbb8ad83fb90c",
+      "count": 1,
+      "leaf": "project_id: 10",
+      "leafSha256": "18117371b5baa61d991abca74b580bb4da4ad1ba25d485e38923b67396fb7eec",
+      "oldLine": 118,
+      "newLine": 121,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_c_reconcile.service.ts",
+      "rule": "business_binding",
+      "oldIdentity": "b3c2d0cbacd62ade50e006cd3b030ffcbe54b74f59009372e9e28d620c1f208a",
+      "newIdentity": "78099875056b02192c601126bf2e52b401d4ceeec43348ed1fa3c382dd70eb21",
+      "count": 1,
+      "leaf": "content_item_id: 1045",
+      "leafSha256": "b75a134eff9c47c942d70b93c80855038fdf2813cac3bde39d4a10a6df953757",
+      "oldLine": 118,
+      "newLine": 121,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_phase_c_reconcile.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "7f0dcc45ba5f1486a86d79c1d3a48fba082ce6ddace3eaa40af054051006e5a6",
+      "newIdentity": "15c0737020b48301ef1f5b137ae2dd3a1eeb5459a57b064dd2423f415188716b",
+      "count": 4,
+      "leaf": "DZEN1045_PHASE_C_RECONCILE",
+      "leafSha256": "fd43ab3daad4db54757d60328ddeec90d2c46b1b97a50e8733bebf6efb8c24ff",
+      "oldLine": 119,
+      "newLine": 122,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_restore_reconcile.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "b4b36d6f34eb8c6e5f391808651c63fc3220fe5ec54c29191b7566ad45dc3614",
+      "newIdentity": "d78bd341eb855b662b04a5a7367c2760713cf310a40b437313e8c7a4a0ea9e9e",
+      "count": 1,
+      "leaf": "reconcileDzenTask1045ZeroRestoreIncident",
+      "leafSha256": "962611b2d00831a3e6c80896397d595d4f7914e6fc34df70a397dc77336a8e41",
+      "oldLine": 93,
+      "newLine": 94,
+      "oldAnchorKind": "FunctionDeclaration",
+      "newAnchorKind": "FunctionDeclaration"
+    },
+    {
+      "file": "src/services/dzen_task1045_restore_reconcile.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "bc235d2cc37db31fde409cfda8c8d83b7f53607b822685f470c064115ef277e1",
+      "newIdentity": "1154cbd969f4ab2e4cccf71fb7f41473ba4d8ed05b7bca691178b0a6f77b85d2",
+      "count": 1,
+      "leaf": "Dzen1045RestoreReconcileArgs",
+      "leafSha256": "81f3ca48ba01f73e0613bee9bb340bc062fb0376b7104bb5638e7701e72fbda6",
+      "oldLine": 93,
+      "newLine": 94,
+      "oldAnchorKind": "FunctionDeclaration",
+      "newAnchorKind": "FunctionDeclaration"
+    },
+    {
+      "file": "src/services/dzen_task1045_restore_reconcile.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "b47a1057fb48b4655ca14aaee8d81df14030d393e330a40f01a56783f50228b5",
+      "newIdentity": "e6c43a490ed0501f35eca4fa1a9f01a9ab9690e6e419570a8c2ced83d450b365",
+      "count": 1,
+      "leaf": "runDzen1045RestoreReconcile",
+      "leafSha256": "68f9fbe66d5a74784c2f94fe163fc49c4088b985037eaf0c2de708531226e61f",
+      "oldLine": 114,
+      "newLine": 116,
+      "oldAnchorKind": "FirstStatement",
+      "newAnchorKind": "FirstStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_restore_reconcile.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "f25a0af25420e04724f1bac9d40943cace61f7771385b2d1f7bd8c53b5721519",
+      "newIdentity": "b4c7fcc0d74358071fe5a14274d7470a985ec003794254083343e5ec04646610",
+      "count": 1,
+      "leaf": "inspectTask1045RestoreIncident",
+      "leafSha256": "b68e663fe653f6b76fd30a7ec9d87f102140b05b6a5a753dc25fc94661430cc4",
+      "oldLine": 116,
+      "newLine": 118,
+      "oldAnchorKind": "FirstStatement",
+      "newAnchorKind": "FirstStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_second_attempt_recovery.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "240b2cd823a517719c84c2cd3c8f40f80e4f3080de0e9bb0e342e770f856a3b1",
+      "newIdentity": "4484c394a7b283bae5fdc0f5996a3f7a2206ad454864c0764d2b5866a6104b05",
+      "count": 1,
+      "leaf": "Dzen1045SecondAttemptRecoveryArgs",
+      "leafSha256": "50316acaa10d2fa514deac314884416c7341580c44ce6e1fa20b0a60a70e549c",
+      "oldLine": 108,
+      "newLine": 109,
+      "oldAnchorKind": "FunctionDeclaration",
+      "newAnchorKind": "FunctionDeclaration"
+    },
+    {
+      "file": "src/services/dzen_task1045_second_attempt_recovery.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "20aa39f6e38259163df44ff0fcb76c2c146f6065e94b85363e11a0bdf180aa6e",
+      "newIdentity": "7c8e99dcbceb04e511241222af53fc522f24f82b6bdb58e562dd9fda542e0167",
+      "count": 1,
+      "leaf": "Dzen1045SecondAttemptRecoveryArgs",
+      "leafSha256": "50316acaa10d2fa514deac314884416c7341580c44ce6e1fa20b0a60a70e549c",
+      "oldLine": 157,
+      "newLine": 158,
+      "oldAnchorKind": "FunctionDeclaration",
+      "newAnchorKind": "FunctionDeclaration"
+    },
+    {
+      "file": "src/services/dzen_task1045_second_attempt_recovery.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "266ffc065087af0ffbb962bec65d164781e9f65d3eff210946441c07dcfd17f5",
+      "newIdentity": "c6f19d429f9f951c9570bdb781126c8f7fa78bbfa587b6e59bd41ae8d264f654",
+      "count": 1,
+      "leaf": "Dzen1045SecondAttemptPublication",
+      "leafSha256": "9baa222d30257e60efd8d52ce452de8c1a59098e0174904fc262fa239689ce9e",
+      "oldLine": 109,
+      "newLine": 110,
+      "oldAnchorKind": "FunctionDeclaration",
+      "newAnchorKind": "FunctionDeclaration"
+    },
+    {
+      "file": "src/services/dzen_task1045_second_attempt_recovery.service.ts",
+      "rule": "business_binding",
+      "oldIdentity": "5ebf4eb6358ed25775e682e56602dba3b8e8086efb45734efdf2041a2b97bf70",
+      "newIdentity": "6454dda218b95919456526180db73a97488d16b4e15f43c27731f83cde424cd3",
+      "count": 1,
+      "leaf": "project_id: 10",
+      "leafSha256": "18117371b5baa61d991abca74b580bb4da4ad1ba25d485e38923b67396fb7eec",
+      "oldLine": 114,
+      "newLine": 115,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_second_attempt_recovery.service.ts",
+      "rule": "business_binding",
+      "oldIdentity": "eba58da6a7ee6048bfbf95f396e7811ae3d4df014ffcf1f1ed69ec5edbc60b3a",
+      "newIdentity": "63124f228c739e2c0f728d6eb2fcff9fa97d5a8443032429953956b66b51b941",
+      "count": 1,
+      "leaf": "project_id: 10",
+      "leafSha256": "18117371b5baa61d991abca74b580bb4da4ad1ba25d485e38923b67396fb7eec",
+      "oldLine": 264,
+      "newLine": 267,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_second_attempt_recovery.service.ts",
+      "rule": "business_binding",
+      "oldIdentity": "b5a05d964d19f2750fb22a37fbf116ae2f433b125c06a674fb7dc56536356146",
+      "newIdentity": "bde1c5b4ae852da16a68219af90ec785219ff7e133651fa64e81114c117ae436",
+      "count": 1,
+      "leaf": "content_item_id: 1045",
+      "leafSha256": "b75a134eff9c47c942d70b93c80855038fdf2813cac3bde39d4a10a6df953757",
+      "oldLine": 114,
+      "newLine": 115,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_second_attempt_recovery.service.ts",
+      "rule": "business_binding",
+      "oldIdentity": "bc4914500281d958e58938a3b3e64ca77dcb92ef240e7a14bf03f834dc366958",
+      "newIdentity": "4e64b6cab086971fe9379e8b0503969c306bdf127c60e87153fc3d2bc9b3c8cc",
+      "count": 1,
+      "leaf": "content_item_id: 1045",
+      "leafSha256": "b75a134eff9c47c942d70b93c80855038fdf2813cac3bde39d4a10a6df953757",
+      "oldLine": 264,
+      "newLine": 267,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_second_attempt_recovery.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "8db8d6392448111f60d4d9a8e8552a0190b40fe3363dea724feca0f0b29a05fb",
+      "newIdentity": "f85abecfd96751e65f13ae3b29cb48575c298cae891237a9c6f112bdae9dbfaa",
+      "count": 1,
+      "leaf": "DZEN1045_SECOND_ATTEMPT",
+      "leafSha256": "a0a73fe162b8e3d30376baff83ad5a6abd226d2412a14a9886f6537312767477",
+      "oldLine": 116,
+      "newLine": 117,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_second_attempt_recovery.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "4f6827af03f0ff585dfdebc4f6d9710bb29ca985a44f103234b7f9387e68a391",
+      "newIdentity": "0ea534bf4f99c4049ba241b0c0a9cf347f4e9f847532f3daefb47a471bccffcf",
+      "count": 2,
+      "leaf": "DZEN1045_SECOND_ATTEMPT",
+      "leafSha256": "a0a73fe162b8e3d30376baff83ad5a6abd226d2412a14a9886f6537312767477",
+      "oldLine": 131,
+      "newLine": 132,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_second_attempt_recovery.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "9f51aeb969203318e73ccbca0b28deb7976be2e989493931bb97a336002021ae",
+      "newIdentity": "cd7dd6dfc968f641d7b81aa1f36aa551ff5865c12b79fae6de5391b0401cc4b2",
+      "count": 1,
+      "leaf": "DZEN1045_SECOND_ATTEMPT",
+      "leafSha256": "a0a73fe162b8e3d30376baff83ad5a6abd226d2412a14a9886f6537312767477",
+      "oldLine": 266,
+      "newLine": 269,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_second_attempt_recovery.service.ts",
+      "rule": "business_record_lookup",
+      "oldIdentity": "3db18226cb7c5b021e3ae8f938a0b2d5a2c8a6cbaeb0580e35f44e3f4259bc33",
+      "newIdentity": "a5c79779e4aabf1e2be5107eec9f3464e7d0adba8b82ce74937a343301644697",
+      "count": 1,
+      "leaf": "id: 1045",
+      "leafSha256": "3464a9aa872b19d37984fb3d182d3463d015df7e218288b947142cb7a654210d",
+      "oldLine": 129,
+      "newLine": 130,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_second_attempt_recovery.service.ts",
+      "rule": "business_record_lookup",
+      "oldIdentity": "47c894de005bde527187d4c99e0b4fd5f81f96b6d06801507e07e43fcc348d0b",
+      "newIdentity": "3b109e5e7d79c83cb1c7846b7a2fe5762887bbdb212a6c69a3f7c1cbe4b9ed2a",
+      "count": 1,
+      "leaf": "id: 1045",
+      "leafSha256": "3464a9aa872b19d37984fb3d182d3463d015df7e218288b947142cb7a654210d",
+      "oldLine": 258,
+      "newLine": 261,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_second_attempt_recovery.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "348e4985a4bb92d74ccee668e885ab0375622ded419badc0adcfb12ace4d529b",
+      "newIdentity": "f76f0c55f556c0c9d3e3c6a3c61b60814004c8c45e86b091709336fcff313588",
+      "count": 1,
+      "leaf": "reconcileOrResumeDzenTask1045SecondAttempt",
+      "leafSha256": "38fe90e9d99641a7f2b3ad1e356da09d8a1c1c2c3a5411273cb44cfce0a1f944",
+      "oldLine": 157,
+      "newLine": 158,
+      "oldAnchorKind": "FunctionDeclaration",
+      "newAnchorKind": "FunctionDeclaration"
+    },
+    {
+      "file": "src/services/dzen_task1045_second_attempt_recovery.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "911fc1faa477475e47189beaa6a8ef5a8fe7938d93ebf7ee3088fd7ca53efd0a",
+      "newIdentity": "70a46232c281dcb53080f34632ee2a2505522bd780453bad0b209d7bc7ea4ae6",
+      "count": 1,
+      "leaf": "recoverTask1045SecondAttempt",
+      "leafSha256": "4985ebb00de29d478951210cb94090f6797696961aee76d26ced61989be50ec9",
+      "oldLine": 207,
+      "newLine": 209,
+      "oldAnchorKind": "FirstStatement",
+      "newAnchorKind": "FirstStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_second_attempt_recovery.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "9895d059389a5feb954406c16b7332afca912e45848cf4bf36b83e71a97a25a7",
+      "newIdentity": "6216bc7ee0cbd957c0474231b79907d92bcd3af230dbf6b5a56b59af18e21662",
+      "count": 1,
+      "leaf": "Dzen1045SecondAttemptDraftProof",
+      "leafSha256": "98e97156174b21d5b1c7656d22503a19eaae87bd183cb5e4137846a776311a16",
+      "oldLine": 209,
+      "newLine": 211,
+      "oldAnchorKind": "FirstStatement",
+      "newAnchorKind": "FirstStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_zero_restore.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "894b27691da88a7ba3a67b95a0037d169bbd568f3b9db0f0852025719098274b",
+      "newIdentity": "61450d24808b7c939f5960a628e1e16f75fef381bfacffd4d704a1668421cafc",
+      "count": 1,
+      "leaf": "restoreDzenTask1045AfterZeroInventory",
+      "leafSha256": "bdc8fa324be2864f8b9e77624c9e1141f4c67ead1cc0fd1a37ab627af90af359",
+      "oldLine": 53,
+      "newLine": 54,
+      "oldAnchorKind": "FunctionDeclaration",
+      "newAnchorKind": "FunctionDeclaration"
+    },
+    {
+      "file": "src/services/dzen_task1045_zero_restore.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "b072e92e873e73dd4fca6ecd53f04da113519f7849a12c96ad404c71759ee736",
+      "newIdentity": "b6c964b34acd4567ab86e673948927800758cd2d4da7518b07f723b2f6ef7ec7",
+      "count": 1,
+      "leaf": "Dzen1045ZeroRestoreArgs",
+      "leafSha256": "9746f72d777b0d824ff4cb8fa479ebef2177653e676661881a15addad9e8c3ca",
+      "oldLine": 53,
+      "newLine": 54,
+      "oldAnchorKind": "FunctionDeclaration",
+      "newAnchorKind": "FunctionDeclaration"
+    },
+    {
+      "file": "src/services/dzen_task1045_zero_restore.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "ce25dcc2e2c53a8257248c415d2d348310bf2b132d2f0cf4b69f6d83e0ec6e57",
+      "newIdentity": "1ebbb2edeb48089b2980233f10132d1971b4edafe91d9404cdb3d2dac972771e",
+      "count": 1,
+      "leaf": "runDzen1045ZeroRestore",
+      "leafSha256": "b22e73b07cad4c0f6aae0fc0a75a1b583a32ed64217eabf35f20f12bfa0d1933",
+      "oldLine": 79,
+      "newLine": 81,
+      "oldAnchorKind": "FirstStatement",
+      "newAnchorKind": "FirstStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_zero_restore.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "b29008f9f52359d7d97902f86d1b8a1336414bdea4a23dff107f787af7b80f23",
+      "newIdentity": "fa36450ee542449f1e0b28c79784bc29c26b330a3b9fc16bc078c5d6f481b7e4",
+      "count": 1,
+      "leaf": "inspectTask1045ExactObjects",
+      "leafSha256": "c5aed2cf4752a3416b67ab7053f9dc0c99324a6e95a4ee0004df0e3e2119219f",
+      "oldLine": 81,
+      "newLine": 83,
+      "oldAnchorKind": "FirstStatement",
+      "newAnchorKind": "FirstStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_zero_restore.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "ec2de579b2c13f5b895eb3741d63df0a63d293495e09ea9dd981df6826e0cca4",
+      "newIdentity": "486ba05f967b734d838e890d2243a8a16d421d55ddd7fc8c967637d69614d363",
+      "count": 1,
+      "leaf": "restoreTask1045",
+      "leafSha256": "5b27c2a15855bbc25a492aee0cfff0fde58d888f280b66032afbb5d395505bfa",
+      "oldLine": 113,
+      "newLine": 116,
+      "oldAnchorKind": "FirstStatement",
+      "newAnchorKind": "FirstStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_zero_restore.service.ts",
+      "rule": "business_binding",
+      "oldIdentity": "b3cca24e15e5e86a9f512da270543bccb122396ba2cc923327ecc94f4e418ea3",
+      "newIdentity": "caba4accb6fcaae3a28669e88057766d3e070358459ae48608b71edc8a4a7504",
+      "count": 1,
+      "leaf": "project_id: 10",
+      "leafSha256": "18117371b5baa61d991abca74b580bb4da4ad1ba25d485e38923b67396fb7eec",
+      "oldLine": 118,
+      "newLine": 121,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_zero_restore.service.ts",
+      "rule": "business_binding",
+      "oldIdentity": "8c10c0e2532dc98f8f7f89687213ae8629f14b0428b8e02ff45cb4afbc59acd2",
+      "newIdentity": "2228b52e9a23aeb89a496f8785154278a9431a2730c914959e005113eafd7b2b",
+      "count": 1,
+      "leaf": "content_item_id: 1045",
+      "leafSha256": "b75a134eff9c47c942d70b93c80855038fdf2813cac3bde39d4a10a6df953757",
+      "oldLine": 118,
+      "newLine": 121,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_zero_restore.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "b71add4df1c11f110c06cb23cf3e5469b932bd69d7d8725c5ae6255ef00b8058",
+      "newIdentity": "a96d3b6c0fc86f74cf9b16f06ecfc0f58c42f3349c2fd1389176f43df27229ca",
+      "count": 1,
+      "leaf": "DZEN1045_ZERO_RESTORE",
+      "leafSha256": "440a1e60be3f77e71c118dbea7814dabbd9c1968f925273fde2ee3e5a6a69ac2",
+      "oldLine": 120,
+      "newLine": 123,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task1045_zero_restore.service.ts",
+      "rule": "business_record_lookup",
+      "oldIdentity": "db91daa47bd5738fdc00724bc00009bd337837ee8ab5261fbeacd8c3a6f8f916",
+      "newIdentity": "2085fbaf7d1b33177ab3ee261c0a4683892681803d75c7ec1d5b1ca83be0e571",
+      "count": 1,
+      "leaf": "id: 1045",
+      "leafSha256": "3464a9aa872b19d37984fb3d182d3463d015df7e218288b947142cb7a654210d",
+      "oldLine": 140,
+      "newLine": 143,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task999_resume.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "ca0415708385dd23a67f0fe8dc24e3d123cd0a4e344ce2ead4aba0bbd369c843",
+      "newIdentity": "c03ecb9c7096165b17631dabb170b472d3f508738f74b0004c772ae877505294",
+      "count": 1,
+      "leaf": "resumeDzenTask999",
+      "leafSha256": "727be42c0840a41b0f8cc73606577ee7ee136cdcd887c8873ac6c653ccefdfc1",
+      "oldLine": 13,
+      "newLine": 14,
+      "oldAnchorKind": "FunctionDeclaration",
+      "newAnchorKind": "FunctionDeclaration"
+    },
+    {
+      "file": "src/services/dzen_task999_resume.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "79a51ccddb5264a416e6cd602369005db5deef28df00ea28d422e77eb68a6fc4",
+      "newIdentity": "44b0900b94586656f93aac35d8c09d8bab227818b70556c5277b3db9a53fb211",
+      "count": 1,
+      "leaf": "resumeDzen999",
+      "leafSha256": "4f9b0a13fc392dc6b8fff1c1b328284600e34724c5ffc3227d9b9effe412f516",
+      "oldLine": 48,
+      "newLine": 50,
+      "oldAnchorKind": "FirstStatement",
+      "newAnchorKind": "FirstStatement"
+    },
+    {
+      "file": "src/services/dzen_task999_resume.service.ts",
+      "rule": "business_binding",
+      "oldIdentity": "e3a05bd4b414831508cae0080f4cb526687f9d5dcc3cfe2de8ea0df2a2b73afc",
+      "newIdentity": "a85c9380750bcf1276ea64f1130ae3b64870485763b3846655af4af0d0fa2ea2",
+      "count": 1,
+      "leaf": "project_id: 10",
+      "leafSha256": "18117371b5baa61d991abca74b580bb4da4ad1ba25d485e38923b67396fb7eec",
+      "oldLine": 86,
+      "newLine": 89,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task999_resume.service.ts",
+      "rule": "business_binding",
+      "oldIdentity": "a937b77d36890324a7112f150ba7cab7fffc22df26ad18ce845875db3a9b838c",
+      "newIdentity": "6749cb86dee4f9bf83757734598202172c1480450367d4923577623c4f1f8bf0",
+      "count": 1,
+      "leaf": "project_id: 10",
+      "leafSha256": "18117371b5baa61d991abca74b580bb4da4ad1ba25d485e38923b67396fb7eec",
+      "oldLine": 98,
+      "newLine": 101,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task999_resume.service.ts",
+      "rule": "business_binding",
+      "oldIdentity": "4b572f8bb608e4fa6b5913710d2cb608005ac8cdde93e039ec515344b64fb233",
+      "newIdentity": "2f232c72fba1379d448c5eb9295d5b16fb079fdf6488c1e87c9a657634f761e7",
+      "count": 1,
+      "leaf": "content_item_id: 999",
+      "leafSha256": "dd7708c4a9d3814b7ed13da65ba5751d1b765ad7b687de70597313ac31ef9237",
+      "oldLine": 86,
+      "newLine": 89,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task999_resume.service.ts",
+      "rule": "business_binding",
+      "oldIdentity": "8e5f68d9806061d2a7529f665d6500b0275c18441de81af0e0a130e1ca473c4c",
+      "newIdentity": "7dfe9495346c9bc7b305b9bb3126660bc1c9ec43c6a83ab55806faa44c18ba4f",
+      "count": 1,
+      "leaf": "content_item_id: 999",
+      "leafSha256": "dd7708c4a9d3814b7ed13da65ba5751d1b765ad7b687de70597313ac31ef9237",
+      "oldLine": 98,
+      "newLine": 101,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task999_resume.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "d282bd9e1e72d95517ee1d4a347f10207d988120adba05e756c18b270360349d",
+      "newIdentity": "4704b3b149cea10227cb9143d55f4038035f1cbffc8036ced86c131e3b115b8d",
+      "count": 1,
+      "leaf": "DZEN999",
+      "leafSha256": "4844c899cf1311a25844d4f6be17fa21d0e39d181db252bd2fc47f7ad25d2af8",
+      "oldLine": 88,
+      "newLine": 91,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task999_resume.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "fcbf4373f2458d57acc00db173aca6e4ade31e1577f2f730757b7b9fbc627888",
+      "newIdentity": "58402bc7ebddea49001f75aace0697e356fef4f3d9a1a087ea8c5177e8b0bad4",
+      "count": 2,
+      "leaf": "DZEN999",
+      "leafSha256": "4844c899cf1311a25844d4f6be17fa21d0e39d181db252bd2fc47f7ad25d2af8",
+      "oldLine": 99,
+      "newLine": 102,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task_publication.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "ae04bd9c2831a4c613d21aea37396d45749b0ed976b8619c858fd599a05c425d",
+      "newIdentity": "36aa6176bd4b8a7ff37d8f8a70f6d63496b3c14b4fbd20bc8f978bf68bf1157e",
+      "count": 1,
+      "leaf": "reconcileTask1036",
+      "leafSha256": "ab47940fb163c1120521505f135c4243380af7ccb7091deb5dc200d99c54f072",
+      "oldLine": 177,
+      "newLine": 185,
+      "oldAnchorKind": "ClassDeclaration",
+      "newAnchorKind": "ClassDeclaration"
+    },
+    {
+      "file": "src/services/dzen_task_publication.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "c77e3f3c7b19ffef976c2bd13ca6bc34c26a3ade24e5635fa8575beb2b3f3f2c",
+      "newIdentity": "7556a55f6d661a1ea006e21cfe241e30764e52ed15fc3709ccf0d9bbc0473873",
+      "count": 1,
+      "leaf": "DZEN_1036_INCIDENT_KEY",
+      "leafSha256": "8fea12a17f29136a00756e1592571bc35bdf5d46d4739c9cffe22222620d634a",
+      "oldLine": 178,
+      "newLine": 186,
+      "oldAnchorKind": "ClassDeclaration",
+      "newAnchorKind": "ClassDeclaration"
+    },
+    {
+      "file": "src/services/dzen_task_publication.service.ts",
+      "rule": "business_binding",
+      "oldIdentity": "ead101bdb60f4d6b60293348be08080ebd877d549d966f77d40b55b3e0e1117b",
+      "newIdentity": "2d8c57dc3092a7efc88705253c58c79193dde67515830361162b648ef25e2ac6",
+      "count": 1,
+      "leaf": "project_id: 10",
+      "leafSha256": "18117371b5baa61d991abca74b580bb4da4ad1ba25d485e38923b67396fb7eec",
+      "oldLine": 291,
+      "newLine": 300,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task_publication.service.ts",
+      "rule": "business_binding",
+      "oldIdentity": "260b3086b0a417e5a6953fe5be42d4fafd7739b761d98c2fb97001fbea0742a5",
+      "newIdentity": "69ef737cda67e4f968ef3bd5cc5e634b51f22acf72051974bb745d8795ac355d",
+      "count": 1,
+      "leaf": "content_item_id: 1036",
+      "leafSha256": "a2e67b9d423dbf3f284f38b0548e58cd5b9637f3fe8b89bc7fce01a6bd2efc90",
+      "oldLine": 291,
+      "newLine": 300,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task_publication.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "ee7db97480df09b4380801306172b604eef45b2f88e020c6f36e3766d191eeec",
+      "newIdentity": "fe5443a3904fe133ef6ac4a5436c4bcf0ac03a4bfca99f7dc69f6d9afebb60e0",
+      "count": 1,
+      "leaf": "DZEN_1036_RECONCILE_COMMAND",
+      "leafSha256": "29ed33e4ab8f2ecc09fa576f4378cc9c9a03c6af56f3438be15eb5dfb93bda82",
+      "oldLine": 292,
+      "newLine": 301,
+      "oldAnchorKind": "ExpressionStatement",
+      "newAnchorKind": "ExpressionStatement"
+    },
+    {
+      "file": "src/services/dzen_task_publication.service.ts",
+      "rule": "task_identifier",
+      "oldIdentity": "c7008ebeab43402a66787e5250fe5b53f259f034f423d8309fe195698831420b",
+      "newIdentity": "7abf9017da1206256d9ec669cad66ea8718c0e8c358efacb4cbbcc3d0b9da96c",
+      "count": 1,
+      "leaf": "reconcileTask1045",
+      "leafSha256": "0afa98e2faecd9b65e591e2998247d248e1049f5b27a016b91d10c9e1ff80f1c",
+      "oldLine": 300,
+      "newLine": 309,
+      "oldAnchorKind": "ClassDeclaration",
+      "newAnchorKind": "ClassDeclaration"
+    },
+    {
+      "file": "src/services/dzen_task_publication.service.ts",
+      "rule": "business_comparison",
+      "oldIdentity": "7ccced13e0218e46b16a107b080511c030c6baf7fd85c3f995ec2ab24751d7cd",
+      "newIdentity": "38d69ed62e147d575dcf1d250724c9e1a6026df0c453428c6e860a89c55a445d",
+      "count": 1,
+      "leaf": "spec.taskId === 1002",
+      "leafSha256": "1aeeb2538bcbf8f09d215935c9060517027b943b7e2eb731bc4dd01afea341fc",
+      "oldLine": 694,
+      "newLine": 706,
+      "oldAnchorKind": "IfStatement",
+      "newAnchorKind": "IfStatement"
+    }
+  ],
+  "sameLeafNodeProof": {
+    "method": "Exact existing scanner anchors and leaf printer; one-to-one old/new finding match by file/rule/identical printed leaf/count; stable source-order disambiguation for repeated identical leaves",
+    "allPairsSameLeafAndCount": true,
+    "originalScannerAndBaselineUnmodified": true
+  },
+  "counts": {
+    "files": 16,
+    "oldRows": 102,
+    "newRows": 102,
+    "totalOccurrences": 110,
+    "findings": 6823,
+    "baseline": 6823
+  }
+}

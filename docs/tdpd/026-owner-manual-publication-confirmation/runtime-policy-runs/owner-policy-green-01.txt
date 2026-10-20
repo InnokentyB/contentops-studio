@@ -1,0 +1,113 @@
+✖ P01 actual frozen102 pairs across16 files are admitted only from synthetic trusted Git base (22.491247ms)
+✖ P02 StageA inert trusted manifest does not change old source or baseline (20.763655ms)
+✖ P03 current-branch manifest cannot authorize its own baseline replacement (17.456803ms)
+✔ proposed R27: before source over 1 MiB is classified and rejected (631.297046ms)
+✔ proposed R27: after source over 1 MiB is classified and rejected (586.726437ms)
+✔ proposed R28: exact 1 MiB source boundary permits the reviewed correction (646.987819ms)
+✔ proposed R29: aggregate source bytes over 8 MiB are rejected despite individual limits (669.983548ms)
+✔ proposed R30: trusted source Git mode is checked independently of valid source bytes (557.94722ms)
+✔ proposed R31: working-tree source symlink is rejected by the existing source boundary (534.182775ms)
+✔ proposed R32: a missing nonzero full commit object cannot authorize a transition (560.228634ms)
+✔ proposed R33: one hung transition Git read has a bounded sanitized failure (1576.632007ms)
+✔ proposed R1: exact previously reviewed security correction can replace context fingerprints (566.912457ms)
+✔ proposed R2: unchanged reviewed debt and its pending transition remain admissible (544.762493ms)
+✔ proposed R3: current-branch transition cannot authorize its own new baseline (550.979354ms)
+✔ proposed R4: remapping requires a trusted base, never only the working tree (544.380931ms)
+✔ proposed R5: exact transition cannot cover an additional source edit or task authority (560.878818ms)
+✔ proposed R6: duplicated authority cannot consume a one-occurrence transition (565.74128ms)
+✔ proposed R7: expanded task comparison remains unadmitted (554.95597ms)
+✔ proposed R8: business binding identities cannot be remapped, even with an exact source proposal (545.80041ms)
+✔ proposed R9: stale old permission cannot remain beside the new fingerprint (556.358129ms)
+✔ proposed R10: old source hash mismatch invalidates an otherwise matching proposal (580.386136ms)
+✔ proposed R11: changed baseline owner is not admitted (580.487046ms)
+✔ proposed R11: changed baseline reason is not admitted (566.218614ms)
+✔ proposed R11: changed baseline remediation is not admitted (561.000259ms)
+✔ proposed R12: a previously retired finding cannot be resurrected using a pending transition (568.414898ms)
+✔ proposed R13: a new task symbol cannot inherit an existing symbol allowance (557.751847ms)
+✔ proposed R14: duplicate trusted remaps are ambiguous and rejected (541.553433ms)
+✔ proposed R15: exact task-identifier transition cannot also admit a new business binding (582.264918ms)
+✔ proposed R16: modified working-tree review cannot extend the trusted source hash (751.465648ms)
+✔ proposed R17: matching full pull_request event base can consume the transition (563.528796ms)
+✔ proposed R17: matching full push event base can consume the transition (567.413441ms)
+✔ proposed R18: a conflicting CLI base cannot replace the event base (547.532541ms)
+✔ proposed R19: transition cannot consume symbolic, zero or unavailable base HEAD (538.870485ms)
+✔ proposed R19: transition cannot consume symbolic, zero or unavailable base 0000000000000000000000000000000000000000 (549.883067ms)
+✔ proposed R19: transition cannot consume symbolic, zero or unavailable base deadbeef (554.487307ms)
+✔ proposed R20: unknown artifact fields are not a reviewed extension (557.670537ms)
+✔ proposed R21: many-to-one remaps cannot merge distinct allowances (543.192113ms)
+✔ proposed R22: duplicate entries for one source file are ambiguous (554.097734ms)
+✔ proposed R23: artifact traversal paths cannot authorize a replacement (552.745286ms)
+✔ proposed R24: an artifact over 64 KiB cannot authorize a replacement (563.680767ms)
+✔ proposed R25: artifact symlink in the trusted tree is not JSON authority (556.845532ms)
+✔ proposed R26: workflow_dispatch cannot consume a transition using a supplied commit (528.990981ms)
+✔ CI pull_request cannot bypass base comparison by deleting the current artifact (560.011723ms)
+✔ CI push cannot bypass base comparison by deleting the current artifact (542.894281ms)
+✔ CI workflow_dispatch cannot bypass base comparison by deleting the current artifact (545.74623ms)
+✔ local missing-base comparison cannot be hidden by deleting the artifact (546.515885ms)
+✔ unchanged committed local debt needs no transition or implicit grant (542.945491ms)
+✔ transition schema cannot select protected or non-JavaScript source .env (558.347363ms)
+✔ transition schema cannot select protected or non-JavaScript source src/.env.ts (550.501121ms)
+✔ transition schema cannot select protected or non-JavaScript source ops/release.yaml (549.111912ms)
+ℹ tests 50
+ℹ suites 0
+ℹ pass 47
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 27830.433545
+
+✖ failing tests:
+
+test at tests/tdpd/runtime-policy-preservation-transition.test.cjs:29:1
+✖ P01 actual frozen102 pairs across16 files are admitted only from synthetic trusted Git base (22.491247ms)
+  Error: ENOENT: no such file or directory, open '/feature/src/services/agent_workspace_manifest.service.ts'
+      at Object.readFileSync (node:fs:483:20)
+      at fixture (/workspace/tests/tdpd/runtime-policy-preservation-transition.test.cjs:18:103)
+      at TestContext.<anonymous> (/workspace/tests/tdpd/runtime-policy-preservation-transition.test.cjs:30:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/feature/src/services/agent_workspace_manifest.service.ts'
+  }
+
+test at tests/tdpd/runtime-policy-preservation-transition.test.cjs:34:1
+✖ P02 StageA inert trusted manifest does not change old source or baseline (20.763655ms)
+  Error: ENOENT: no such file or directory, open '/feature/src/services/agent_workspace_manifest.service.ts'
+      at Object.readFileSync (node:fs:483:20)
+      at fixture (/workspace/tests/tdpd/runtime-policy-preservation-transition.test.cjs:18:103)
+      at TestContext.<anonymous> (/workspace/tests/tdpd/runtime-policy-preservation-transition.test.cjs:34:93)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/feature/src/services/agent_workspace_manifest.service.ts'
+  }
+
+test at tests/tdpd/runtime-policy-preservation-transition.test.cjs:35:1
+✖ P03 current-branch manifest cannot authorize its own baseline replacement (17.456803ms)
+  Error: ENOENT: no such file or directory, open '/feature/src/services/agent_workspace_manifest.service.ts'
+      at Object.readFileSync (node:fs:483:20)
+      at fixture (/workspace/tests/tdpd/runtime-policy-preservation-transition.test.cjs:18:103)
+      at TestContext.<anonymous> (/workspace/tests/tdpd/runtime-policy-preservation-transition.test.cjs:35:94)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/feature/src/services/agent_workspace_manifest.service.ts'
+  }
+
