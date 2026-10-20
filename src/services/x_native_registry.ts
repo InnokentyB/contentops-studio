@@ -42,7 +42,10 @@ export async function registerNativeInstallation(input: unknown, deps: BrowserDe
             await installedNative(tx, record);
             return { mode: 'registered', replayed: true, publication_authorized: false };
         }
-        if (!a.apply) return { mode: 'preview', installation_id: a.installationId, bundle_sha256: a.bundleSha256, publication_authorized: false };
+        if (!a.apply) {
+            await consumeNativePairing(tx, a, record, deps, false);
+            return { mode: 'preview', installation_id: a.installationId, bundle_sha256: a.bundleSha256, publication_authorized: false };
+        }
         const pairingHash = await consumeNativePairing(tx, a, record, deps);
         await tx.projectSettings.create({ data: { project_id: a.projectId, key, value: JSON.stringify(record) } });
         await tx.workflowEvent.create({ data: { project_id: a.projectId, content_item_id: a.taskId, actor_id: a.actorId,

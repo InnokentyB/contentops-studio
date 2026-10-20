@@ -1,0 +1,50 @@
+{
+  "date": "2026-10-20",
+  "operatorBoundary": "Existing owner pair command, durable one-use recovery grant, fresh signed current-manifest no-send proof, delayed enrollment",
+  "ownerApproval": "Direct owner yes to one recovery and 24-hour verified enrollment; no publication",
+  "red": {
+    "tests": 2,
+    "failed": 2,
+    "causes": [
+      "X_NATIVE_PAIRING_EXPIRED",
+      "Recovery input unsupported"
+    ],
+    "baselineBackendBuild": "PASS after selecting current Prisma dependency image"
+  },
+  "green": {
+    "focusedXTests": 93,
+    "failed": 0,
+    "skipped": 0,
+    "isolatedPostgresTests": 7,
+    "postgresIncludes": [
+      "single recovery winner",
+      "enrollment versus supersession race",
+      "rollback and existing native fences"
+    ],
+    "backendBuild": "PASS",
+    "qualityGate": "PASS baseline77",
+    "includesBroaderSharedPublicationContracts": true
+  },
+  "environmentFailures": [
+    "Initial compiler heap limit exceeded; retried with1536MiB",
+    "Old dependency image Prisma schema lacked existing models; selected current reviewed image",
+    "Git worktree common directory missing in container; mounted read-only for quality gate"
+  ],
+  "independentPatchReview": "PENDING",
+  "productionDeployment": false,
+  "actualRecoveryEnrollment": "PENDING",
+  "publicationPerformed": false,
+  "reviewCorrections": [
+    {
+      "target": "4d018523d4b33b69ff8bdfec9d49c06aa2a5b88e",
+      "codeFailure": "TS2304 BrowserDb missing after final import cleanup; runtime pass did not override build failure",
+      "resolution": "Restored import, integrated deployed cc90beb, full backend compile PASS"
+    },
+    {
+      "target": "4716e71cc051b7804bf3c8bb7c2c992be95e98c0",
+      "previewRed": "Preview falsely returned apply-ready mode before server grant",
+      "resolution": "Explicit not-ready authorization preview plus exact-grant apply-ready preview; RED then93testsPASS,7PostgresPASS"
+    }
+  ],
+  "integrationBase": "cc90beb34d29c1cceae2de8861de268064a262ff"
+}

@@ -75,7 +75,7 @@ test('enrollment preview is no-write and unsigned/foreign-origin pairing cannot 
     const { f, args } = await ready(), input = { ...args, publicKey, installationId, bundleSha256, extensionId,
         uatReference: 'Explicit synthetic owner no-send UAT reference' };
     const before = structuredClone(f.state);
-    assert.equal((await registry.registerNativeInstallation(input, f)).mode, 'preview');
+    await assert.rejects(registry.registerNativeInstallation(input, f), /PAIRING_REQUIRED/);
     assert.deepEqual(f.state, before);
     await assert.rejects(registry.registerNativeInstallation({ ...input, apply: true }, f), /PAIRING_REQUIRED/);
     assert.deepEqual(f.state, before);

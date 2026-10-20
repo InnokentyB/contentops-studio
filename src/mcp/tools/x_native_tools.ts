@@ -24,7 +24,7 @@ export function registerXNativeTools(server: McpServer, enabled = process.env.X_
     const safe = (run: () => Promise<Record<string, unknown>>) =>
         publicationDiagnosticResult('browser', run, xNativeErrorDiagnostic);
     server.registerTool('ba_issue_x_native_pairing', {
-        description: 'Owner-only issue of a short-lived one-shot pairing challenge for a canonical tenant-owned X package and public extension key. No claim, provider action or publication authority.',
+        description: 'Owner-only issue of a short-lived one-shot pairing challenge for a canonical tenant-owned X package and public extension key. Optional recovery preview/authorize/apply/revoke uses one audited owner grant and fresh current-manifest proof; ordinary cap is unchanged. No claim, provider action or publication authority.',
         annotations: INTERNAL_MUTATION_ANNOTATIONS, inputSchema: nativePairingIssueSchema.shape
     }, async args => safe(() => issueNativePairing(args)));
     server.registerTool('ba_register_x_native_installation', {
