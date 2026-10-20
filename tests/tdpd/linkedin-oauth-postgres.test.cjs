@@ -55,3 +55,27 @@ test('diagnostics latest attempt belongs to exact channel and exposes only safe 
  assert.equal(await db.providerOAuthConnectionAttempt.count({where:{project_id:f.p.id}}),1);
  assert.deepEqual((await db.socialChannel.findUnique({where:{id:f.c.id}})).config,f.c.config);
 });
+test('inactive provider evidence survives real callback and exact-channel status without credential writes', async t => {
+    const f = await fixture(t), old = global.fetch;
+    let evidence;
+    global.fetch = async url => String(url).endsWith('/accessToken')
+        ? Response.json({ access_token: 'private-inactive-token-marker' })
+        : Response.json({ active: false, ...evidence, extra: 'private-response-marker' });
+    t.after(() => { global.fetch = old; });
+    for (const [fields, expected] of [
+        [{ status: 'revoked' }, 'LINKEDIN_OAUTH_TOKEN_REVOKED'],
+        [{ status: 'expired' }, 'LINKEDIN_OAUTH_TOKEN_EXPIRED'],
+        [{ client_id: 'other-app' }, 'LINKEDIN_OAUTH_TOKEN_CLIENT_MISMATCH'],
+        [{ status: 'active' }, 'LINKEDIN_OAUTH_INTROSPECTION_INCONSISTENT'],
+        [{ status: 'private-response-marker' }, 'LINKEDIN_OAUTH_TOKEN_INACTIVE'],
+    ]) {
+        evidence = fields;
+        const s = await start(f), response = await app.inject(callback(s));
+        assert.equal(new URL(response.headers.location).searchParams.get('error'), expected);
+        const status = await app.inject({ method: 'GET', url: `/api/auth/linkedin/status?projectId=${f.p.id}&channelId=${f.c.id}`, headers: f.headers });
+        assert.equal(status.json().latestAttempt.code, expected);
+        assert.equal(status.json().connected, false);
+        assert.doesNotMatch(status.body, /private-/);
+        assert.deepEqual((await db.socialChannel.findUnique({ where: { id: f.c.id } })).config, f.c.config);
+    }
+});
