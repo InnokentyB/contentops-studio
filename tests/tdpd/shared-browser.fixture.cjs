@@ -44,7 +44,7 @@ function fixture() {
         findMany:async({where={}}={})=>state[name].filter(row=>matches(row,where)),
         count:async({where={}}={})=>state[name].filter(row=>matches(row,where)).length,
         create:async({data})=>{if(name==='events'&&state.failAudit)throw Error('synthetic audit unavailable');
-            const row={id:100+state[name].length,...(name==='attempts'?{created_at:new Date()}:{}),...data};state[name].push(row);return row;},
+            const row={id:100+state[name].length,...(['attempts','events'].includes(name)?{created_at:new Date(Date.now())}:{}),...data};state[name].push(row);return row;},
         updateMany:async({where,data})=>{const rows=state[name].filter(row=>matches(row,where));
             rows.forEach(row=>Object.assign(row,data));return{count:rows.length};}});
     const db = {$queryRaw:async()=>[{available:false}],projectMember:{findUnique:async()=>({role:state.owner?'owner':'editor'})},

@@ -41,6 +41,43 @@ cannot consume an editor receipt or start an attempt, and native click rejects
 before page interaction. X account reference, profile handle and provider ID
 must agree exactly before admission, avoiding an unconfirmable case mismatch.
 
+### Expired verified pairing recovery
+
+Challenge read/signature verification remains limited to five minutes. A verified,
+unconsumed proof with an immutable, timely server verification audit may enroll
+until original issuance +24 hours, only against its exact still-current snapshot.
+Registration preview now validates the same proof eligibility without consuming it.
+
+When the manifest changed after timely verification, ordinary issue retries and
+counter resets are not recovery. The existing `ba_issue_x_native_pairing` control
+accepts optional `recovery`: `phase`, `predecessorNonce`, `approvalReference`, plus
+`grantId` for apply-ready `preview`, `apply` and `revoke`. Preserve the exact same canonical request and approval
+through the sequence. After explicit human recovery approval, sole Publisher:
+
+1. Reads current canonical snapshot and existing installation/delivery history.
+2. Calls `phase: preview` without grant ID only to inspect authorization eligibility:
+   its result explicitly says `apply_ready:false` and grant required. Calls `authorize` with the actual owner
+   recovery approval reference. The server resolves current owner and stores an
+   audited exact-binding grant, expiring in15 minutes or root issuance +24 hours,
+   whichever comes first. Repeated authorize does not renew it.
+3. Calls read-only `preview` with returned exact `grantId` and checks `apply_ready:true`,
+   then `apply` with that same ID. The one-time grant atomically creates a
+   fresh five-minute challenge against current manifest and supersedes predecessor
+   via an immutable relation. No signed predecessor bytes or counters are changed.
+4. Runs actual fresh signed no-send verification in the same reviewed extension,
+   then registers using that successor nonce and actual human no-send UAT reference.
+
+One recovery grant/successor is allowed per project/task across actors, roots and
+installations. A successor cannot itself be recovered. Only manifest checksum may
+change; every other snapshot field, actor, installation/key/extension/bundle must
+match the original verified binding. Changed accepted copy/identity/schedule,
+revocation, delivery history, expired/invalid proof or grant requires investigation,
+not a new lineage. `revoke` marks an unused grant sticky-revoked with audit.
+Preview grants no reservation. Lost apply response: inspect/reconcile the existing
+recovery audit; do not issue another ordinary challenge. Enrollment/recovery grants
+no release, claim, click or publication authority. See
+`docs/tdpd/x-pairing-recovery/contract.md` for time and concurrency boundaries.
+
 ## Build and verify
 
 ### Read-only installation/task diagnostics
