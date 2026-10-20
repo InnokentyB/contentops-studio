@@ -85,6 +85,8 @@ test('Dzen task1002 preflight records complete provider absence proof for the ex
         publication_fact: null, published_link: null, quality_report: {}
     };
     const db: any = {
+        $queryRaw: async () => [{id:task.id}],
+        publicationFact: {findFirst:async()=>task.publication_fact},
         projectMember: { findUnique: async () => ({ role: 'owner' }) },
         project: { findUnique: async () => ({ slug: 'analystcraft-2' }) },
         workflowEvent: { findFirst: async () => null,

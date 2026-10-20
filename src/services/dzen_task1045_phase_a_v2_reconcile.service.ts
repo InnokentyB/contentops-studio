@@ -1,3 +1,4 @@
+import {lockManualTransportMutation,withManualTransportMutation} from './manual_publication_transport_projection';
 import { createHash } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import prisma from '../db';
@@ -79,6 +80,7 @@ export async function probeDzenTask1045PhaseAV2EditorState(args: Dzen1045PhaseAV
         loadAgentWorkspaceManifest(10, userId), loadTask()
     ]);
     if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
+    await withManualTransportMutation(prisma,args,async()=>undefined);
     if (manifest.checksum !== DZEN1045_RECOVERY_MANIFEST) throw new Error('[STALE_MANIFEST]');
     const guarded = assertTask(task);
     const config = resolveEffectiveChannelConfig('dzen', guarded.task.channel!.config || {});
@@ -101,6 +103,7 @@ export async function reconcileDzenTask1045PhaseAV2Incident(args: Dzen1045PhaseA
             idempotency_key: DZEN1045_PHASE_A_V2_RECONCILE.idempotencyKey } })
     ]);
     if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
+    await withManualTransportMutation(prisma,args,async()=>undefined);
     if (manifest.checksum !== DZEN1045_RECOVERY_MANIFEST) throw new Error('[STALE_MANIFEST]');
     if (prior && args.confirm) {
         const after = object(prior.after_state); const mode = string(after.mode);
@@ -122,6 +125,7 @@ export async function reconcileDzenTask1045PhaseAV2Incident(args: Dzen1045PhaseA
         idempotencyKey: args.idempotencyKey }, {
         inspect: () => dzenService.inspectTask1045PhaseAV2Incident(config, guarded.task.draft_text || ''),
         applyDraft: async draft => prisma.$transaction(async tx => {
+            await lockManualTransportMutation(tx,args);
             const latest = assertTask(await tx.contentItem.findFirst({ where: { id: 1045, project_id: 10 },
                 include: { channel: true, selected_asset: true, publication_fact: true } }));
             const quality = object(latest.task.quality_report);
@@ -143,6 +147,7 @@ export async function reconcileDzenTask1045PhaseAV2Incident(args: Dzen1045PhaseA
         }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }),
         applyPublished: async publication => {
             await prisma.$transaction(async tx => {
+            await lockManualTransportMutation(tx,args);
                 assertTask(await tx.contentItem.findFirst({ where: { id: 1045, project_id: 10 },
                     include: { channel: true, selected_asset: true, publication_fact: true } }));
                 await tx.workflowEvent.create({ data: { project_id: 10, content_item_id: 1045,

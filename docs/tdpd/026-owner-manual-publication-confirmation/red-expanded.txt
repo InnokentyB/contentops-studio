@@ -1,0 +1,455 @@
+ Container tower-contentops-owner-manual-verification-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+✖ 026 actual MCP preview exists, reads PostgreSQL and performs no mutation or provider call (188.388947ms)
+✖ 026 actual MCP commit exists and records manual fact without accepting current edition or rewriting UNKNOWN custody (31.843603ms)
+✖ 026 publisher principal cannot obtain Owner accounting authority (44.808415ms)
+✖ 026 writer principal cannot obtain Owner accounting authority (22.034666ms)
+✖ 026 planner principal cannot obtain Owner accounting authority (20.153217ms)
+✖ 026 researcher principal cannot obtain Owner accounting authority (25.03431ms)
+✖ 026 absent principal cannot obtain authority from URL/reference/input actor (13.832646ms)
+✖ 026 actual demo Owner and revoked membership fail closed (17.321163ms)
+✖ 026 cross-tenant principal cannot access a valid task or its preview (33.18057ms)
+✖ 026 Dzen invalid permalink dzen.ru is refused without a fetch (14.739751ms)
+✖ 026 Dzen invalid permalink user:password@dzen.ru is refused without a fetch (12.314389ms)
+✖ 026 Dzen invalid permalink dzen.ru is refused without a fetch (12.817212ms)
+✖ 026 Dzen invalid permalink dzen.ru is refused without a fetch (12.41822ms)
+✖ 026 Dzen invalid permalink dzen.ru is refused without a fetch (11.816767ms)
+✖ 026 Dzen invalid permalink localhost is refused without a fetch (16.860471ms)
+✖ 026 Dzen invalid permalink vk.com is refused without a fetch (12.839732ms)
+✖ 026 ambiguous malformed or future time is refused: 2026-10-19T12:34:56 (12.870522ms)
+✖ 026 ambiguous malformed or future time is refused: invalid (13.689846ms)
+✖ 026 ambiguous malformed or future time is refused: 2999-10-19T12:34:56+01:00 (21.572284ms)
+✖ 026 unretained revision cannot be labelled the published edition (12.063908ms)
+✖ 026 preview tampering, stale task and stale expected fact do not write (10.25471ms)
+✖ 026 exact replay returns the same fact with zero additional audit/checkpoints; changed key payload conflicts (13.027343ms)
+✖ 026 same canonical object cannot be concurrently assigned to different tasks (13.877257ms)
+✖ 026 actual PostgreSQL audit write failure rolls back fact, projection and audit (16.302999ms)
+✖ 026 actual PostgreSQL checkpoint write failure rolls back fact, projection and audit (10.531641ms)
+✖ 026 manual fact fences generic writer and rolls back a late callback attempt mutation (11.126644ms)
+✖ 026 blocked connector custody and old audit rows remain byte-identical (21.868935ms)
+✖ 026 concurrent same-task same-key requests create one fact and one provenance authority (16.742901ms)
+✖ 026 correction requires fresh exact fact digest and reason, appends provenance and preserves prior audit (12.880802ms)
+✖ 026 real user authority remains locked through fact/audit commit (13.182613ms)
+✖ 026 real membership authority remains locked through fact/audit commit (10.937233ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 0
+ℹ fail 31
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1358.901009
+
+✖ failing tests:
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:34:1
+✖ 026 actual MCP preview exists, reads PostgreSQL and performs no mutation or provider call (188.388947ms)
+  AssertionError [ERR_ASSERTION]: {"content":[{"type":"text","text":"MCP error -32602: Tool ba_preview_owner_manual_publication_confirmation not found"}],"isError":true}
+      at Object.preview (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:26:232)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:36:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: true,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:40:1
+✖ 026 actual MCP commit exists and records manual fact without accepting current edition or rewriting UNKNOWN custody (31.843603ms)
+  AssertionError [ERR_ASSERTION]: {"content":[{"type":"text","text":"MCP error -32602: Tool ba_preview_owner_manual_publication_confirmation not found"}],"isError":true}
+      at Object.preview (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:26:232)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:43:42)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: true,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:55:68
+✖ 026 publisher principal cannot obtain Owner accounting authority (44.808415ms)
+  SyntaxError [Error]: Unexpected token 'M', "MCP error "... is not valid JSON
+      at JSON.parse (<anonymous>)
+      at Object.payload (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:25:55)
+      at denied (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:52:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:56:25)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:55:68
+✖ 026 writer principal cannot obtain Owner accounting authority (22.034666ms)
+  SyntaxError [Error]: Unexpected token 'M', "MCP error "... is not valid JSON
+      at JSON.parse (<anonymous>)
+      at Object.payload (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:25:55)
+      at denied (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:52:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:56:25)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:55:68
+✖ 026 planner principal cannot obtain Owner accounting authority (20.153217ms)
+  SyntaxError [Error]: Unexpected token 'M', "MCP error "... is not valid JSON
+      at JSON.parse (<anonymous>)
+      at Object.payload (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:25:55)
+      at denied (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:52:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:56:25)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:55:68
+✖ 026 researcher principal cannot obtain Owner accounting authority (25.03431ms)
+  SyntaxError [Error]: Unexpected token 'M', "MCP error "... is not valid JSON
+      at JSON.parse (<anonymous>)
+      at Object.payload (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:25:55)
+      at denied (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:52:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:56:25)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:58:1
+✖ 026 absent principal cannot obtain authority from URL/reference/input actor (13.832646ms)
+  SyntaxError [Error]: Unexpected token 'M', "MCP error "... is not valid JSON
+      at JSON.parse (<anonymous>)
+      at Object.payload (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:25:55)
+      at denied (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:52:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:58:117)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:59:1
+✖ 026 actual demo Owner and revoked membership fail closed (17.321163ms)
+  SyntaxError [Error]: Unexpected token 'M', "MCP error "... is not valid JSON
+      at JSON.parse (<anonymous>)
+      at Object.payload (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:25:55)
+      at denied (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:52:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:60:90)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:65:1
+✖ 026 cross-tenant principal cannot access a valid task or its preview (33.18057ms)
+  SyntaxError [Error]: Unexpected token 'M', "MCP error "... is not valid JSON
+      at JSON.parse (<anonymous>)
+      at Object.payload (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:25:55)
+      at denied (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:52:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:65:110)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:66:329
+✖ 026 Dzen invalid permalink dzen.ru is refused without a fetch (14.739751ms)
+  SyntaxError [Error]: Unexpected token 'M', "MCP error "... is not valid JSON
+      at JSON.parse (<anonymous>)
+      at Object.payload (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:25:55)
+      at denied (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:52:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:66:450)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:66:329
+✖ 026 Dzen invalid permalink user:password@dzen.ru is refused without a fetch (12.314389ms)
+  SyntaxError [Error]: Unexpected token 'M', "MCP error "... is not valid JSON
+      at JSON.parse (<anonymous>)
+      at Object.payload (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:25:55)
+      at denied (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:52:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:66:450)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:66:329
+✖ 026 Dzen invalid permalink dzen.ru is refused without a fetch (12.817212ms)
+  SyntaxError [Error]: Unexpected token 'M', "MCP error "... is not valid JSON
+      at JSON.parse (<anonymous>)
+      at Object.payload (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:25:55)
+      at denied (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:52:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:66:450)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:66:329
+✖ 026 Dzen invalid permalink dzen.ru is refused without a fetch (12.41822ms)
+  SyntaxError [Error]: Unexpected token 'M', "MCP error "... is not valid JSON
+      at JSON.parse (<anonymous>)
+      at Object.payload (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:25:55)
+      at denied (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:52:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:66:450)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:66:329
+✖ 026 Dzen invalid permalink dzen.ru is refused without a fetch (11.816767ms)
+  SyntaxError [Error]: Unexpected token 'M', "MCP error "... is not valid JSON
+      at JSON.parse (<anonymous>)
+      at Object.payload (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:25:55)
+      at denied (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:52:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:66:450)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:66:329
+✖ 026 Dzen invalid permalink localhost is refused without a fetch (16.860471ms)
+  SyntaxError [Error]: Unexpected token 'M', "MCP error "... is not valid JSON
+      at JSON.parse (<anonymous>)
+      at Object.payload (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:25:55)
+      at denied (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:52:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:66:450)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:66:329
+✖ 026 Dzen invalid permalink vk.com is refused without a fetch (12.839732ms)
+  SyntaxError [Error]: Unexpected token 'M', "MCP error "... is not valid JSON
+      at JSON.parse (<anonymous>)
+      at Object.payload (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:25:55)
+      at denied (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:52:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:66:450)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:67:88
+✖ 026 ambiguous malformed or future time is refused: 2026-10-19T12:34:56 (12.870522ms)
+  SyntaxError [Error]: Unexpected token 'M', "MCP error "... is not valid JSON
+      at JSON.parse (<anonymous>)
+      at Object.payload (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:25:55)
+      at denied (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:52:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:67:194)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:67:88
+✖ 026 ambiguous malformed or future time is refused: invalid (13.689846ms)
+  SyntaxError [Error]: Unexpected token 'M', "MCP error "... is not valid JSON
+      at JSON.parse (<anonymous>)
+      at Object.payload (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:25:55)
+      at denied (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:52:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:67:194)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:67:88
+✖ 026 ambiguous malformed or future time is refused: 2999-10-19T12:34:56+01:00 (21.572284ms)
+  SyntaxError [Error]: Unexpected token 'M', "MCP error "... is not valid JSON
+      at JSON.parse (<anonymous>)
+      at Object.payload (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:25:55)
+      at denied (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:52:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:67:194)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:68:1
+✖ 026 unretained revision cannot be labelled the published edition (12.063908ms)
+  SyntaxError [Error]: Unexpected token 'M', "MCP error "... is not valid JSON
+      at JSON.parse (<anonymous>)
+      at Object.payload (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:25:55)
+      at denied (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:52:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:68:106)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:69:1
+✖ 026 preview tampering, stale task and stale expected fact do not write (10.25471ms)
+  AssertionError [ERR_ASSERTION]: {"content":[{"type":"text","text":"MCP error -32602: Tool ba_preview_owner_manual_publication_confirmation not found"}],"isError":true}
+      at Object.preview (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:26:232)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:70:27)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: true,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:74:1
+✖ 026 exact replay returns the same fact with zero additional audit/checkpoints; changed key payload conflicts (13.027343ms)
+  AssertionError [ERR_ASSERTION]: {"content":[{"type":"text","text":"MCP error -32602: Tool ba_preview_owner_manual_publication_confirmation not found"}],"isError":true}
+      at Object.preview (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:26:232)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:75:27)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: true,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:82:1
+✖ 026 same canonical object cannot be concurrently assigned to different tasks (13.877257ms)
+  AssertionError [ERR_ASSERTION]: {"content":[{"type":"text","text":"MCP error -32602: Tool ba_preview_owner_manual_publication_confirmation not found"}],"isError":true}
+      at Object.preview (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:26:232)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:84:11)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: true,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:88:92
+✖ 026 actual PostgreSQL audit write failure rolls back fact, projection and audit (16.302999ms)
+  AssertionError [ERR_ASSERTION]: {"content":[{"type":"text","text":"MCP error -32602: Tool ba_preview_owner_manual_publication_confirmation not found"}],"isError":true}
+      at Object.preview (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:26:232)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:89:27)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: true,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:88:92
+✖ 026 actual PostgreSQL checkpoint write failure rolls back fact, projection and audit (10.531641ms)
+  AssertionError [ERR_ASSERTION]: {"content":[{"type":"text","text":"MCP error -32602: Tool ba_preview_owner_manual_publication_confirmation not found"}],"isError":true}
+      at Object.preview (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:26:232)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:89:27)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: true,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:97:1
+✖ 026 manual fact fences generic writer and rolls back a late callback attempt mutation (11.126644ms)
+  AssertionError [ERR_ASSERTION]: {"content":[{"type":"text","text":"MCP error -32602: Tool ba_preview_owner_manual_publication_confirmation not found"}],"isError":true}
+      at Object.preview (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:26:232)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:98:27)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: true,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:105:1
+✖ 026 blocked connector custody and old audit rows remain byte-identical (21.868935ms)
+  AssertionError [ERR_ASSERTION]: {"content":[{"type":"text","text":"MCP error -32602: Tool ba_preview_owner_manual_publication_confirmation not found"}],"isError":true}
+      at Object.preview (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:26:232)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:110:42)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: true,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:114:1
+✖ 026 concurrent same-task same-key requests create one fact and one provenance authority (16.742901ms)
+  AssertionError [ERR_ASSERTION]: {"content":[{"type":"text","text":"MCP error -32602: Tool ba_preview_owner_manual_publication_confirmation not found"}],"isError":true}
+      at Object.preview (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:26:232)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:115:27)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: true,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:121:1
+✖ 026 correction requires fresh exact fact digest and reason, appends provenance and preserves prior audit (12.880802ms)
+  AssertionError [ERR_ASSERTION]: {"content":[{"type":"text","text":"MCP error -32602: Tool ba_preview_owner_manual_publication_confirmation not found"}],"isError":true}
+      at Object.preview (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:26:232)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:122:27)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: true,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:130:43
+✖ 026 real user authority remains locked through fact/audit commit (13.182613ms)
+  AssertionError [ERR_ASSERTION]: {"content":[{"type":"text","text":"MCP error -32602: Tool ba_preview_owner_manual_publication_confirmation not found"}],"isError":true}
+      at Object.preview (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:26:232)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:131:27)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: true,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:130:43
+✖ 026 real membership authority remains locked through fact/audit commit (10.937233ms)
+  AssertionError [ERR_ASSERTION]: {"content":[{"type":"text","text":"MCP error -32602: Tool ba_preview_owner_manual_publication_confirmation not found"}],"isError":true}
+      at Object.preview (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:26:232)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:131:27)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: true,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+

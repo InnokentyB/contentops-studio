@@ -1,0 +1,59 @@
+ Container tower-contentops-owner-manual-verification-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+✔ 026 actual MCP preview exists, reads PostgreSQL and performs no mutation or provider call (300.158676ms)
+✔ 026 actual MCP commit exists and records manual fact without accepting current edition or rewriting UNKNOWN custody (97.421777ms)
+✔ 026 publisher principal cannot obtain Owner accounting authority (20.098025ms)
+✔ 026 writer principal cannot obtain Owner accounting authority (22.870492ms)
+✔ 026 planner principal cannot obtain Owner accounting authority (26.966032ms)
+✔ 026 researcher principal cannot obtain Owner accounting authority (17.48968ms)
+✔ 026 absent principal cannot obtain authority from URL/reference/input actor (14.591742ms)
+✔ 026 actual demo Owner and revoked membership fail closed (38.911177ms)
+✔ 026 cross-tenant principal cannot access a valid task or its preview (16.914684ms)
+✔ 026 Dzen invalid permalink dzen.ru is refused without a fetch (17.228707ms)
+✔ 026 Dzen invalid permalink user:password@dzen.ru is refused without a fetch (17.515301ms)
+✔ 026 Dzen invalid permalink dzen.ru is refused without a fetch (22.445458ms)
+✔ 026 Dzen invalid permalink dzen.ru is refused without a fetch (19.653021ms)
+✔ 026 Dzen invalid permalink dzen.ru is refused without a fetch (18.155757ms)
+✔ 026 Dzen invalid permalink localhost is refused without a fetch (16.717992ms)
+✔ 026 Dzen invalid permalink vk.com is refused without a fetch (26.76845ms)
+✔ 026 ambiguous malformed or future time is refused: 2026-10-19T12:34:56 (17.517561ms)
+✔ 026 ambiguous malformed or future time is refused: invalid (16.383959ms)
+✔ 026 ambiguous malformed or future time is refused: 2999-10-19T12:34:56+01:00 (21.111375ms)
+✔ 026 unretained revision cannot be labelled the published edition (16.203887ms)
+✔ 026 preview tampering, stale task and stale expected fact do not write (79.418141ms)
+✔ 026 exact replay returns the same fact with zero additional audit/checkpoints; changed key payload conflicts (107.988549ms)
+✔ 026 same canonical object cannot be concurrently assigned to different tasks (122.56667ms)
+✔ 026 actual PostgreSQL audit write failure rolls back fact, projection and audit (62.254595ms)
+✔ 026 actual PostgreSQL checkpoint write failure rolls back fact, projection and audit (44.854815ms)
+✔ 026 manual fact fences generic writer and rolls back a late callback attempt mutation (134.817ms)
+✔ 026 blocked connector custody and old audit rows remain byte-identical (58.823661ms)
+✔ 026 concurrent same-task same-key requests create one fact and one provenance authority (84.060206ms)
+✔ 026 correction requires fresh exact fact digest and reason, appends provenance and preserves prior audit (111.406362ms)
+✔ 026 real user authority remains locked through fact/audit commit (2068.097901ms)
+✔ 026 real membership authority remains locked through fact/audit commit (2052.858458ms)
+✖ 026 existing fact/get-task/list-task MCP readbacks expose manual origin and unknown published revision (97.316285ms)
+✔ 026 existing channel repair refuses a manual fact before any reassignment or audit change (128.689981ms)
+ℹ tests 33
+ℹ suites 0
+ℹ pass 32
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8314.387538
+
+✖ failing tests:
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:154:1
+✖ 026 existing fact/get-task/list-task MCP readbacks expose manual origin and unknown published revision (97.316285ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'publication_fact')
+      at TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:159:163)
+      at processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+

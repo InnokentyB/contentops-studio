@@ -1,0 +1,9 @@
+{
+  "status": "LOCAL_SIMULATION_PASS_PUBLIC_BASE_NOT_ADMITTED",
+  "findings": 6823,
+  "baseline": 6823,
+  "pairs": 102,
+  "files": 16,
+  "occurrences": 110,
+  "originalBaseRefusal": "BASELINE_WIDENED"
+}

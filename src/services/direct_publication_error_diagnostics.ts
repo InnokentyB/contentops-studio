@@ -1,3 +1,4 @@
+import {ownerManualPreservationDiagnostic} from './owner_manual_publication_diagnostics';
 import { PublicationDiagnostic } from './publication_diagnostics';
 import { dzenPublicationAdapterRequired, vkPublicationAdapterRequired } from './vk_publication_route_contract';
 
@@ -97,6 +98,8 @@ function diagnostic(code: string): PublicationDiagnostic {
 }
 /** Recognizes only reviewed local guard prefixes/exact legacy strings; never echoes provider error text. */
 export function diagnoseDirectPublicationError(error: unknown): PublicationDiagnostic {
+    const manual = ownerManualPreservationDiagnostic(error);
+    if (manual) return manual;
     const message = error instanceof Error ? error.message : '';
     const code = /^\[([A-Z][A-Z0-9_]+)\](?:\s|$)/.exec(message)?.[1];
     if (Object.prototype.hasOwnProperty.call(catalog, message)) return diagnostic(message);

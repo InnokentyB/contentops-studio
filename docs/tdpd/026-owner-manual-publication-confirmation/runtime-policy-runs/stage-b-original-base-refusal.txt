@@ -1,0 +1,2 @@
+{"verdict":"FAIL","errors":[{"code":"BASELINE_WIDENED"}],"scannedFiles":1289,"operationalFiles":723,"findingsCount":6823,"baselineCount":6823,"appliedTransitions":[],"elapsedMs":2389}
+

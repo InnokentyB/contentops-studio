@@ -1,3 +1,5 @@
+import {assertManualPublicationTransportMutable} from './owner_manual_publication_fence';
+import {lockOwnedPublicationTask} from './publication_owned_guard';
 import {ownedTransaction} from './owned_publication_invocation';
 import {Prisma} from '@prisma/client';
 import {randomUUID} from 'crypto';
@@ -13,11 +15,11 @@ export type {OwnedPublicationDependencies} from './owned_publication_guard';
 export class OwnedPublicationStore{
     constructor(readonly dependencies:Dependencies){}
     private now(){return this.dependencies.now?.()||new Date();}
-    inspect(r:Request,p:Principal){return ownedTransaction(this.dependencies.db,tx=>ownedSnapshot(tx,r,p,this.dependencies),serial);}
+    inspect(r:Request,p:Principal){return ownedTransaction(this.dependencies.db,async tx=>{await ownedPrincipal(tx,r,p);await ownedLock(tx,r);await assertManualPublicationTransportMutable(tx,r);return ownedSnapshot(tx,r,p,this.dependencies);},serial);}
     /** An exact release replay returns its immutable identity without creating authorization again. */
     async releaseReplay(r:Request,p:Principal):Promise<Result|null>{
         return ownedTransaction(this.dependencies.db,async tx=>{
-            await ownedPrincipal(tx,r,p,true);await ownedLock(tx,r);const release=await ownedReleaseEvent(tx,r);
+            await ownedPrincipal(tx,r,p,true);await ownedLock(tx,r);await assertManualPublicationTransportMutable(tx,r);const release=await ownedReleaseEvent(tx,r);
             if(!release||release.command!=='owned_publication.release'||release.idempotency_key!==r.idempotencyKey)return null;
             const pkg=ownedPackageSchema.parse(object(release.after_state).package);ownedExpected(r,pkg);
             if(r.approvalReference!==pkg.approvalReference||p.actorId!==pkg.releaseActorId)throw Error('OWNED_RELEASE_CONFLICT');
@@ -38,7 +40,7 @@ export class OwnedPublicationStore{
     }
     async release(r:Request,p:Principal):Promise<Result>{
         return ownedTransaction(this.dependencies.db,async tx=>{
-            await ownedPrincipal(tx,r,p,true);await ownedLock(tx,r);const pkg=await ownedSnapshot(tx,r,p,this.dependencies);ownedExpected(r,pkg);
+            await ownedPrincipal(tx,r,p,true);await ownedLock(tx,r);await assertManualPublicationTransportMutable(tx,r);const pkg=await ownedSnapshot(tx,r,p,this.dependencies);ownedExpected(r,pkg);
             if(!r.idempotencyKey||!r.approvalReference)throw Error('OWNED_RELEASE_BINDING_REQUIRED');
             const attempts=await tx.deliveryAttempt.count({where:{project_id:r.projectId,content_item_id:r.taskId}});
             const facts=await tx.publicationFact.count({where:{project_id:r.projectId,content_item_id:r.taskId}});
@@ -70,7 +72,7 @@ export class OwnedPublicationStore{
     }
     async claim(r:Request,p:Principal,inventory:Inventory):Promise<Claim>{
         return ownedTransaction(this.dependencies.db,async tx=>{
-            await ownedPrincipal(tx,r,p);await ownedLock(tx,r);const pkg=await ownedSnapshot(tx,r,p,this.dependencies);ownedExpected(r,pkg);
+            await ownedPrincipal(tx,r,p);await ownedLock(tx,r);await assertManualPublicationTransportMutable(tx,r);const pkg=await ownedSnapshot(tx,r,p,this.dependencies);ownedExpected(r,pkg);
             const task=await tx.contentItem.findUnique({where:{id:r.taskId}});
             const release=await ownedReleaseEvent(tx,r);
             if(!release)throw Error('OWNED_RELEASE_REQUIRED');
@@ -136,6 +138,7 @@ export class OwnedPublicationStore{
     }
     private async saveReceiptOnce(c:Claim,value:Receipt){
         await ownedTransaction(this.dependencies.db,async tx=>{
+            await lockOwnedPublicationTask(tx,c.package);await assertManualPublicationTransportMutable(tx,c.package);
             const {attempt}=await ownedCommitted(tx,c);await ownedStage(tx,c,'submit_consumed');
             const receipt=checkedOwnedReceipt(value,c,attempt.created_at,this.now());
             const submit=await tx.workflowEvent.findFirst({where:{project_id:c.package.projectId,content_item_id:c.package.taskId,actor_id:ownedActor,command:'owned_publication.submit_consumed',idempotency_key:String(c.attemptId)}});
@@ -150,7 +153,7 @@ export class OwnedPublicationStore{
     }
     async loadClaim(r:Request,p:Principal):Promise<Claim>{
         return ownedTransaction(this.dependencies.db,async tx=>{
-            await ownedPrincipal(tx,r,p);await ownedLock(tx,r);
+            await ownedPrincipal(tx,r,p);await ownedLock(tx,r);await assertManualPublicationTransportMutable(tx,r);
             if(!r.attemptId||!r.idempotencyKey)throw Error('OWNED_ORIGINAL_ATTEMPT_REQUIRED');
             const event=await tx.workflowEvent.findFirst({where:{project_id:r.projectId,content_item_id:r.taskId,actor_id:ownedActor,command:'owned_publication.claim',idempotency_key:r.idempotencyKey}});
             const c=event?ownedClaimSchema.parse(object(event.after_state).claim):await ownedLegacyClaim(tx,r);
@@ -163,11 +166,11 @@ export class OwnedPublicationStore{
         },serial);
     }
     async assertRecovery(r:Request,p:Principal,c:Claim){
-        await ownedTransaction(this.dependencies.db,async tx=>{await ownedPrincipal(tx,r,p);await ownedLock(tx,r);await ownedCommitted(tx,c);await ownedUniqueHistory(tx,c);},serial);
+        await ownedTransaction(this.dependencies.db,async tx=>{await ownedPrincipal(tx,r,p);await ownedLock(tx,r);await assertManualPublicationTransportMutable(tx,r);await ownedCommitted(tx,c);await ownedUniqueHistory(tx,c);},serial);
     }
     async replay(r:Request,p:Principal):Promise<Result|null>{
         return ownedTransaction(this.dependencies.db,async tx=>{
-            await ownedPrincipal(tx,r,p);await ownedLock(tx,r);
+            await ownedPrincipal(tx,r,p);await ownedLock(tx,r);await assertManualPublicationTransportMutable(tx,r);
             const attempts=await tx.deliveryAttempt.findMany({where:{project_id:r.projectId,content_item_id:r.taskId},orderBy:{id:'asc'}});
             const fact=await tx.publicationFact.findFirst({where:{project_id:r.projectId,content_item_id:r.taskId}});
             if(!attempts.length)return fact?this.held(r):null;
@@ -186,6 +189,7 @@ export class OwnedPublicationStore{
     /** Internal uncertainty custody records a bounded reason; it never reopens dispatch. */
     async freeze(c:Claim,reason:'OWNED_PROVIDER_OUTCOME_UNCERTAIN'|'OWNED_COMPLETION_REQUIRES_RECONCILIATION'){
         await ownedTransaction(this.dependencies.db,async tx=>{
+            await lockOwnedPublicationTask(tx,c.package);await assertManualPublicationTransportMutable(tx,c.package);
             const {attempt}=await ownedCommitted(tx,c);if(attempt.status==='delivered')return;
             await tx.deliveryAttempt.updateMany({where:{id:c.attemptId,project_id:c.package.projectId,content_item_id:c.package.taskId,status:{in:['pending','verification_required']}},data:{requires_manual_confirmation:true,error_message:reason}});
             if(c.jobId)await tx.connectorDispatchJob.updateMany({where:{id:c.jobId,...ownedJobWhere(c.package),attempt_id:c.attemptId,generation:c.generation,state:{not:'confirmed'}},data:{blocker_code:reason}});

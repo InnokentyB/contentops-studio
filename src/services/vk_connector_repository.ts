@@ -1,4 +1,6 @@
 import { legacyProviderJobWhere } from './publication_provider_queue';
+import {assertManualPublicationTransportMutable} from './owner_manual_publication_fence';
+import {lockOwnedPublicationTask} from './publication_owned_guard';
 import { Prisma, type ConnectorDispatchJob, type ConnectorHostStatus } from '@prisma/client';
 import { z } from 'zod';
 import prisma from '../db';
@@ -37,6 +39,8 @@ function storeFor(tx: Prisma.TransactionClient): ConnectorStore {
             else await requireProjectAccess(tx, p, actor, 'work_queue:read');
         },
         bindLease: async (p, actor, token, expires, binding) => {
+            await lockOwnedPublicationTask(tx,{projectId:p,taskId:binding.taskId});
+            await assertManualPublicationTransportMutable(tx,{projectId:p,taskId:binding.taskId});
             const row = await tx.workItem.findFirst({ where: { id: binding.workItemId, project_id: p, content_item_id: binding.taskId },
                 select: { state: true, lease_token: true, lease_actor_id: true, lease_expires_at: true, updated_at: true } });
             if (!row || row.state !== 'claimed' || row.lease_actor_id !== actor || !row.lease_token || !connectorSecretEqual(row.lease_token, token)
@@ -62,6 +66,8 @@ function storeFor(tx: Prisma.TransactionClient): ConnectorStore {
                 permissionStatus: 'NOT_CHECKED', providerExecution: 'blocked' };
         },
         snapshot: async (p, id) => {
+            await lockOwnedPublicationTask(tx,{projectId:p,taskId:id});
+            await assertManualPublicationTransportMutable(tx,{projectId:p,taskId:id});
             const task = await tx.contentItem.findFirst({ where: { project_id: p, id },
                 include: { channel: true, selected_asset: true, publication_fact: true } });
             if (!task) invalid();
@@ -82,12 +88,19 @@ function storeFor(tx: Prisma.TransactionClient): ConnectorStore {
             return null;
         },
         jobByPackage: async (p, hash) => { const r = await tx.connectorDispatchJob.findFirst({ where: { project_id: p, package_sha256: hash, ...legacyProviderJobWhere('vk') } }); return r ? toJob(r) : null; },
-        insertJob: async j => { await tx.connectorDispatchJob.create({ data: {
+        insertJob: async j => {
+            await lockOwnedPublicationTask(tx,{projectId:j.projectId,taskId:j.taskId});
+            await assertManualPublicationTransportMutable(tx,{projectId:j.projectId,taskId:j.taskId});
+            await tx.connectorDispatchJob.create({ data: {
             id: j.jobId, project_id: j.projectId, content_item_id: j.taskId, channel_id: j.channelId,
             work_item_id: j.workItemId, content_revision: j.package.revision, selected_asset_id: j.package.selectedAssetId,
             package_sha256: j.packageSha256, binding: { ...j.package }, idempotency_key: j.idempotencyKey,
             state: j.state, generation: j.generation, updated_at: j.updatedAt } }); },
         updateJob: async (id, generation, state: ConnectorState, patch) => {
+            const job=await tx.connectorDispatchJob.findFirst({where:{id,generation,state,...legacyProviderJobWhere('vk')},select:{project_id:true,content_item_id:true}});
+            if(!job)return false;
+            const scope={projectId:job.project_id,taskId:job.content_item_id};
+            await lockOwnedPublicationTask(tx,scope);await assertManualPublicationTransportMutable(tx,scope);
             const result = await tx.connectorDispatchJob.updateMany({ where: { id, generation, state, ...legacyProviderJobWhere('vk') }, data: {
                 state: patch.state, host_id: patch.hostId, consumer_instance_id: patch.instanceId,
                 generation: patch.generation, canonical_lease_sha256: patch.canonicalLeaseSha256,

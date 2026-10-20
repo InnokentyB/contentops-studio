@@ -40,6 +40,8 @@ test('VK017 canonical transaction fence rejects stale generation, hold and cance
         assert.equal(Reflect.set(target, key, value), true);
         context.after(() => { assert.equal(Reflect.set(target, key, before), true); });
     };
+    stub(prisma, '$queryRaw', async () => [{id:task.id}]);
+    stub(prisma.publicationFact, 'findFirst', async () => task.publication_fact);
     stub(prisma.projectMember, 'findUnique', async () => ({ role: 'owner' }));
     stub(prisma.connectorDispatchJob, 'findFirst', async () => job);
     stub(prisma.connectorHostStatus, 'findUnique', async () => ({ instance_id: args.instanceId, heartbeat_at: now, mode: 'vk_feed_provider' }));

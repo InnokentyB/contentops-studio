@@ -1,0 +1,8 @@
+ Container tower-contentops-owner-manual-verification-synthetic-db-1  Running
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from ../../source/prisma/schema.prisma.
+Datasource "db": PostgreSQL database "shared_browser_synthetic", schemas "planner" at "synthetic-db:5432"
+
+🚀  Your database is now in sync with your Prisma schema. Done in 643ms
+

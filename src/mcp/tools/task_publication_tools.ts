@@ -1,4 +1,5 @@
 import type { OwnedPublicationRequest } from '../../services/owned_publication_contract';
+import { registerOwnerManualPublicationTools } from './owner_manual_publication_tools';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import mcpPublicationService from '../../services/mcp_publication.service';
@@ -59,6 +60,7 @@ export async function executePublicationTaskByChannel(
  * @param server - Target MCP server instance.
  */
 export function registerTaskPublicationTools(server: McpServer): void {
+    registerOwnerManualPublicationTools(server);
     server.registerTool('ba_reconcile_threads_publication',{
         description:'Reconcile an existing versioned Threads API attempt using provider GETs only and atomically record its verified fact. No create, publish, reset or resend is permitted.',
         annotations:{...INTERNAL_MUTATION_ANNOTATIONS,openWorldHint:true},inputSchema:threadsReconcileSchema.shape

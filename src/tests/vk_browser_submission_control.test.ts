@@ -56,6 +56,8 @@ function harness() {
         factCalls: [] as any[]
     };
     const tx: any = {
+        $queryRaw:async()=>[{id:state.task.id}],
+        publicationFact:{findFirst:async()=>state.task.publication_fact},
         workItem: {
             findFirst: async () => state.workItem,
             updateMany: async () => ({ count: 1 })

@@ -1,3 +1,4 @@
+import {lockManualTransportMutation,withManualTransportMutation} from './manual_publication_transport_projection';
 import { Prisma } from '@prisma/client';
 import prisma from '../db';
 import dzenService from './dzen.service';
@@ -64,6 +65,7 @@ export async function restoreDzenTask1045AfterZeroInventory(args: Dzen1045ZeroRe
             idempotency_key: DZEN1045_ZERO_RESTORE.idempotencyKey } })
     ]);
     if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
+    await withManualTransportMutation(prisma,args,async()=>undefined);
     if (manifest.checksum !== DZEN1045_RECOVERY_MANIFEST) throw new Error('[STALE_MANIFEST]');
     if (prior) {
         if (!providerEvent) throw new Error('[DZEN1045_ZERO_RESTORE_ALREADY_CLAIMED] Reconcile; never create or submit again');
@@ -80,6 +82,7 @@ export async function restoreDzenTask1045AfterZeroInventory(args: Dzen1045ZeroRe
             idempotencyKey: args.idempotencyKey }, {
             inspect: () => dzenService.inspectTask1045ExactObjects(config, guarded.task.draft_text || ''),
             claim: async inspection => prisma.$transaction(async tx => {
+            await lockManualTransportMutation(tx,args);
                 const latest = await tx.contentItem.findFirst({ where: { id: 1045, project_id: 10 },
                     include: { channel: true, selected_asset: true, publication_fact: true } });
                 const exact = assertDzen1045SecondAttemptState(latest);
@@ -115,13 +118,13 @@ export async function restoreDzenTask1045AfterZeroInventory(args: Dzen1045ZeroRe
         });
         if (result.mode === 'preview') return { ...result, published: false };
         const restored = result.result;
-        await prisma.workflowEvent.create({ data: { project_id: 10, content_item_id: 1045,
+        await withManualTransportMutation(prisma,args,tx=>tx.workflowEvent.create({ data: { project_id: 10, content_item_id: 1045,
             actor_id: args.actorId, command: 'dzen1045_zero_restore_provider_confirmed',
             idempotency_key: DZEN1045_ZERO_RESTORE.idempotencyKey,
             after_state: { ...restored.publication, recovery_mode: restored.mode,
                 created_new_draft: restored.created, final_submit_count: restored.finalSubmitCount,
                 draft_id: restored.proof?.draftId || restored.publication.provider_object_id,
-                save_trace: restored.saveTrace } as Prisma.InputJsonValue } });
+                save_trace: restored.saveTrace } as Prisma.InputJsonValue } }));
         const fact = await publicationFactService.record({ projectId: 10, taskId: 1045, actorId: args.actorId,
             artifactKind: 'article', outcome: 'published', publicUrl: restored.publication.public_url,
             providerObjectId: restored.publication.provider_object_id,
@@ -137,12 +140,12 @@ export async function restoreDzenTask1045AfterZeroInventory(args: Dzen1045ZeroRe
             const current = await prisma.contentItem.findFirst({ where: { id: 1045, project_id: 10 } });
             const quality = object(current?.quality_report);
             const delivery = object(quality.publication_task_delivery);
-            await prisma.contentItem.update({ where: { id: 1045 }, data: { quality_report: { ...quality,
+            await withManualTransportMutation(prisma,args,tx=>tx.contentItem.update({ where: { id: 1045 }, data: { quality_report: { ...quality,
                 publication_task_delivery: { ...delivery, state: 'zero_inventory_restore_uncertain',
                     retry_via_api: false, provider_create_may_have_occurred: true,
                     final_submit_may_have_occurred: true,
                     error: error instanceof Error ? error.message : String(error),
-                    failed_at: new Date().toISOString() } } as Prisma.InputJsonValue } });
+                    failed_at: new Date().toISOString() } } as Prisma.InputJsonValue } }));
         }
         throw error;
     }

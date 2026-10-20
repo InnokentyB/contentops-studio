@@ -1,3 +1,4 @@
+import {lockManualTransportMutation,withManualTransportMutation} from './manual_publication_transport_projection';
 import { createHash } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import prisma from '../db';
@@ -111,10 +112,10 @@ async function recordConfirmedPublication(args: Dzen1045SecondAttemptRecoveryArg
         project_id: 10, content_item_id: 1045, command: 'dzen1045_second_attempt_provider_confirmed',
         idempotency_key: DZEN1045_SECOND_ATTEMPT.resumeKey
     } });
-    if (!providerEvent) await prisma.workflowEvent.create({ data: { project_id: 10, content_item_id: 1045,
+    if (!providerEvent) await withManualTransportMutation(prisma,args,tx=>tx.workflowEvent.create({ data: { project_id: 10, content_item_id: 1045,
         actor_id: args.actorId, command: 'dzen1045_second_attempt_provider_confirmed',
         idempotency_key: DZEN1045_SECOND_ATTEMPT.resumeKey,
-        after_state: { ...publication, recovery_mode: mode } as Prisma.InputJsonValue } });
+        after_state: { ...publication, recovery_mode: mode } as Prisma.InputJsonValue } }));
     const fact = await publicationFactService.record({ projectId: 10, taskId: 1045, actorId: args.actorId,
         artifactKind: 'article', outcome: 'published', publicUrl: publication.public_url,
         providerObjectId: publication.provider_object_id, publishedAt: publication.published_at,
@@ -126,13 +127,13 @@ async function recordConfirmedPublication(args: Dzen1045SecondAttemptRecoveryArg
     const current = await prisma.contentItem.findFirst({ where: { id: 1045, project_id: 10 } });
     const quality = object(current?.quality_report);
     const delivery = object(quality.publication_task_delivery);
-    await prisma.contentItem.update({ where: { id: 1045 }, data: { quality_report: {
+    await withManualTransportMutation(prisma,args,tx=>tx.contentItem.update({ where: { id: 1045 }, data: { quality_report: {
         ...quality, publication_task_delivery: { ...delivery, state: 'provider_confirmed',
             idempotency_key: DZEN1045_SECOND_ATTEMPT.attemptKey,
             recovery_idempotency_key: DZEN1045_SECOND_ATTEMPT.resumeKey,
             provider_object_id: publication.provider_object_id, permalink: publication.public_url,
             final_submit_count: mode === 'submitted' ? 1 : 0, completed_at: new Date().toISOString() }
-    } as Prisma.InputJsonValue } });
+    } as Prisma.InputJsonValue } }));
     return { fact, readback: await authoritativeReadback() };
 }
 
@@ -161,6 +162,7 @@ export async function reconcileOrResumeDzenTask1045SecondAttempt(args: Dzen1045S
         loadAgentWorkspaceManifest(10, userId)
     ]);
     if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
+    await withManualTransportMutation(prisma,args,async()=>undefined);
     if (manifest.checksum !== DZEN1045_RECOVERY_MANIFEST) throw new Error('[STALE_MANIFEST]');
     const [prior, providerEvent] = await Promise.all([
         prisma.workflowEvent.findFirst({ where: { project_id: 10, content_item_id: 1045,
@@ -208,6 +210,7 @@ export async function reconcileOrResumeDzenTask1045SecondAttempt(args: Dzen1045S
             confirm: args.confirm === true, idempotencyKey: args.idempotencyKey
         }, async (proof: Dzen1045SecondAttemptDraftProof) => {
             const changed = await prisma.$transaction(async tx => {
+            await lockManualTransportMutation(tx,args);
                 const [owner, latest] = await Promise.all([
                     tx.projectMember.findUnique({ where: { project_id_user_id: { project_id: 10, user_id: userId } } }),
                     loadTask(tx as typeof prisma)
@@ -254,19 +257,19 @@ export async function reconcileOrResumeDzenTask1045SecondAttempt(args: Dzen1045S
             const task = await prisma.contentItem.findFirst({ where: { id: 1045, project_id: 10 } });
             const quality = object(task?.quality_report);
             const delivery = object(quality.publication_task_delivery);
-            await prisma.$transaction([
-                prisma.contentItem.update({ where: { id: 1045 }, data: { quality_report: { ...quality,
+            await withManualTransportMutation(prisma,args,async tx=>{
+                await tx.contentItem.update({ where: { id: 1045 }, data: { quality_report: { ...quality,
                     publication_task_delivery: { ...delivery, state: 'second_attempt_resume_uncertain',
                         retry_via_api: false, final_submit_may_have_been_attempted: true,
                         error: error instanceof Error ? error.message : 'Unknown recovery error',
                         failed_at: new Date().toISOString() }
-                } as Prisma.InputJsonValue } }),
-                prisma.workflowEvent.create({ data: { project_id: 10, content_item_id: 1045,
+                } as Prisma.InputJsonValue } });
+                await tx.workflowEvent.create({ data: { project_id: 10, content_item_id: 1045,
                     actor_id: args.actorId, command: 'dzen1045_second_attempt_requires_reconciliation',
                     idempotency_key: DZEN1045_SECOND_ATTEMPT.resumeKey,
                     after_state: { state: 'uncertain', retry_via_api: false,
-                        final_submit_may_have_been_attempted: true } } })
-            ]);
+                        final_submit_may_have_been_attempted: true } } });
+            });
         }
         throw error;
     }

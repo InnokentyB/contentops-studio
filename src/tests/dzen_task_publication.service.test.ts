@@ -54,6 +54,8 @@ function harness(options: { released?: boolean; verified?: boolean; providerErro
     let factCalls = 0;
     let studioReads = 0;
     const db = {
+        $queryRaw: async () => [{id:task.id}],
+        publicationFact: {findFirst:async()=>task.publication_fact},
         deliveryAttempt: { findFirst: async () => null },
         contentItem: {
             findFirst: async () => task,

@@ -1,0 +1,179 @@
+ Container tower-contentops-owner-manual-verification-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+✖ 026 generic queue claim cannot change preserved browser_publish work or replay lease authority (337.273124ms)
+✖ 026 generic queue complete cannot change preserved browser_publish work or replay lease authority (100.705737ms)
+✖ 026 generic queue block cannot change preserved browser_publish work or replay lease authority (75.288012ms)
+✖ 026 generic queue release cannot change preserved browser_publish work or replay lease authority (91.226273ms)
+✖ 026 generic queue reschedule cannot change preserved browser_publish work or replay lease authority (73.436031ms)
+✖ 026 generic queue claim cannot change preserved provider_publish work or replay lease authority (70.604915ms)
+✖ 026 generic queue complete cannot change preserved provider_publish work or replay lease authority (79.105904ms)
+✖ 026 generic queue block cannot change preserved provider_publish work or replay lease authority (71.045098ms)
+✖ 026 generic queue release cannot change preserved provider_publish work or replay lease authority (73.15484ms)
+✖ 026 generic queue reschedule cannot change preserved provider_publish work or replay lease authority (64.67891ms)
+✔ 026 ordinary metric_capture queue work remains claimable and completable after manual confirmation (72.604896ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 1
+ℹ fail 10
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1800.294937
+
+✖ failing tests:
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:215:133
+✖ 026 generic queue claim cannot change preserved browser_publish work or replay lease authority (337.273124ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:223:2)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /MANUAL_PUBLICATION_TRANSPORT_PRESERVED/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:215:133
+✖ 026 generic queue complete cannot change preserved browser_publish work or replay lease authority (100.705737ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:223:2)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /MANUAL_PUBLICATION_TRANSPORT_PRESERVED/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:215:133
+✖ 026 generic queue block cannot change preserved browser_publish work or replay lease authority (75.288012ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:223:2)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /MANUAL_PUBLICATION_TRANSPORT_PRESERVED/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:215:133
+✖ 026 generic queue release cannot change preserved browser_publish work or replay lease authority (91.226273ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:223:2)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /MANUAL_PUBLICATION_TRANSPORT_PRESERVED/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:215:133
+✖ 026 generic queue reschedule cannot change preserved browser_publish work or replay lease authority (73.436031ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:223:2)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /MANUAL_PUBLICATION_TRANSPORT_PRESERVED/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:215:133
+✖ 026 generic queue claim cannot change preserved provider_publish work or replay lease authority (70.604915ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:223:2)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /MANUAL_PUBLICATION_TRANSPORT_PRESERVED/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:215:133
+✖ 026 generic queue complete cannot change preserved provider_publish work or replay lease authority (79.105904ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:223:2)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /MANUAL_PUBLICATION_TRANSPORT_PRESERVED/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:215:133
+✖ 026 generic queue block cannot change preserved provider_publish work or replay lease authority (71.045098ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:223:2)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /MANUAL_PUBLICATION_TRANSPORT_PRESERVED/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:215:133
+✖ 026 generic queue release cannot change preserved provider_publish work or replay lease authority (73.15484ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:223:2)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /MANUAL_PUBLICATION_TRANSPORT_PRESERVED/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at ../../source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:215:133
+✖ 026 generic queue reschedule cannot change preserved provider_publish work or replay lease authority (64.67891ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/source/tests/tdpd/owner-manual-confirmation-postgres.test.cjs:223:2)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /MANUAL_PUBLICATION_TRANSPORT_PRESERVED/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+

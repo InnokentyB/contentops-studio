@@ -1,3 +1,6 @@
+import type {Prisma} from '@prisma/client';
+import {assertManualPublicationTransportMutable} from './owner_manual_publication_fence';
+import {lockOwnedPublicationTask} from './publication_owned_guard';
 import { createHash } from 'crypto';
 import { describeDzenStoredReadiness } from './dzen_stored_readiness';
 import prisma from '../db';
@@ -172,6 +175,11 @@ type Dependencies = {
 
 export class DzenTaskPublicationService {
     constructor(private readonly dependencies: Dependencies) {}
+    private async transportProjection<T>(scope:{projectId:number;taskId:number},write:(tx:Prisma.TransactionClient)=>Promise<T>):Promise<T>{
+        return this.dependencies.db.$transaction(async(tx:Prisma.TransactionClient)=>{
+            await lockOwnedPublicationTask(tx,scope);await assertManualPublicationTransportMutable(tx,scope);return write(tx);
+        });
+    }
 
     /** Provider-read-only reconciliation for the single frozen Dzen #1036 attempt. */
     async reconcileTask1036(args: { projectId: 10; taskId: 1036; actorId: string;
@@ -188,6 +196,7 @@ export class DzenTaskPublicationService {
             project_id: 10, user_id: Number(actor[1])
         } } });
         if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
+        await this.transportProjection(args,async()=>undefined);
         const prior = await db.workflowEvent.findUnique({ where: {
             project_id_actor_id_command_idempotency_key: { project_id: 10, actor_id: args.actorId,
                 command: DZEN_1036_RECONCILE_COMMAND, idempotency_key: args.idempotencyKey }
@@ -288,11 +297,11 @@ export class DzenTaskPublicationService {
         }, orderBy: { id: 'asc' } });
         const applied = { ...result, publication_fact_id: fact.publication_fact.id,
             checkpoint_ids: checkpoints.map((item: { id: number }) => item.id) };
-        await db.workflowEvent.create({ data: { project_id: 10, content_item_id: 1036,
+        await this.transportProjection(args,tx=>tx.workflowEvent.create({ data: { project_id: 10, content_item_id: 1036,
             actor_id: args.actorId, command: DZEN_1036_RECONCILE_COMMAND,
             idempotency_key: args.idempotencyKey,
             before_state: { status: 'publishing', publication_mode: 'owner_released',
-                prior_attempt_event_id: 2597, prior_attempt_preserved: true }, after_state: applied } });
+                prior_attempt_event_id: 2597, prior_attempt_preserved: true }, after_state: applied } }));
         return applied;
     }
 
@@ -312,6 +321,7 @@ export class DzenTaskPublicationService {
             project_id: 10, user_id: Number(match[1])
         } } });
         if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
+        await this.transportProjection(args,async()=>undefined);
         const command = 'ba_reconcile_dzen_task1045_uncertain_attempt';
         const prior = await db.workflowEvent.findUnique({ where: {
             project_id_actor_id_command_idempotency_key: { project_id: 10, actor_id: args.actorId,
@@ -421,6 +431,7 @@ export class DzenTaskPublicationService {
             project_id_user_id: { project_id: 10, user_id: Number(match[1]) }
         } });
         if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
+        await this.transportProjection(args,async()=>undefined);
         const prior = await db.workflowEvent.findUnique({ where: {
             project_id_actor_id_command_idempotency_key: {
                 project_id: 10, actor_id: args.actorId, command: DZEN_992_RECOVERY_COMMAND,
@@ -536,6 +547,7 @@ export class DzenTaskPublicationService {
             project_id_user_id: { project_id: 10, user_id: Number(match[1]) }
         } });
         if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
+        await this.transportProjection(args,async()=>undefined);
         const project = await db.project.findUnique({ where: { id: 10 }, select: { slug: true } });
         if (project?.slug !== 'analystcraft-2') throw new Error('[MCP_PROJECT_SCOPE_MISMATCH]');
         const prior = await db.workflowEvent.findFirst({ where: {
@@ -698,6 +710,7 @@ export class DzenTaskPublicationService {
             const member = await db.projectMember.findUnique({ where: { project_id_user_id: {
                 project_id: 10, user_id: Number(actor[1]) } } });
             if (member?.role !== 'owner') throw new Error('[OWNER_REQUIRED]');
+        await this.transportProjection(args,async()=>undefined);
             await assertDzen1002CurrentManifest(Number(actor[1]), this.dependencies.manifestLoader);
             // Stored proof cannot resolve action applicability or enter the legacy sender.
             if (!args.dryRun) {
@@ -706,6 +719,7 @@ export class DzenTaskPublicationService {
                 return publishExactDzen1002(args);
             }
         }
+        await this.transportProjection(args,async()=>undefined);
         const key = args.idempotencyKey?.trim() || null;
         if (!args.dryRun && !key) throw new Error('[IDEMPOTENCY_KEY_REQUIRED]');
         if (key) {
@@ -818,6 +832,7 @@ export class DzenTaskPublicationService {
         const owner = await db.projectMember.findFirst({ where: { project_id: 10, role: 'owner' }, orderBy: { id: 'asc' } });
         if (!owner) throw new Error('[PROJECT_OWNER_REQUIRED]');
         const claimed = await db.$transaction(async (tx: any) => {
+            await lockOwnedPublicationTask(tx,args);await assertManualPublicationTransportMutable(tx,args);
             const changed = await tx.contentItem.updateMany({ where: {
                 id: spec.taskId, project_id: 10, channel_id: 116,
                 status: task.status, publication_mode: 'owner_released',
@@ -849,7 +864,7 @@ export class DzenTaskPublicationService {
                 spec.publicationType);
             if (!isDzenPublishedUrl(url)) throw new Error('Provider did not confirm a public Dzen URL');
         } catch (error: any) {
-            await db.contentItem.update({ where: { id: spec.taskId }, data: {
+            await this.transportProjection(args,tx=>tx.contentItem.update({ where: { id: spec.taskId }, data: {
                 status: 'publishing', quality_report: {
                     ...((task.quality_report as any) || {}),
                     publication_task_delivery: { state: 'provider_result_uncertain', channel_type: 'dzen',
@@ -858,7 +873,7 @@ export class DzenTaskPublicationService {
                         ...(delivery?.prior_incident ? { prior_incident: delivery.prior_incident } : {}),
                         ...(delivery?.absence_proof ? { absence_proof: delivery.absence_proof } : {}) }
                 }
-            } });
+            } }));
             throw new Error('[DZEN_PUBLICATION_UNCERTAIN] Provider result requires manual reconciliation; do not retry');
         }
         const providerId = new URL(url).pathname.split('/').filter(Boolean).pop()!;
@@ -868,7 +883,7 @@ export class DzenTaskPublicationService {
                 publicUrl: url, providerObjectId: providerId, confirmationMode: 'automatic',
                 evidence: { type: 'public_url', ref: url }, note: 'Published from exact owner-released Dzen task' });
         } catch {
-            await db.contentItem.update({ where: { id: spec.taskId }, data: {
+            await this.transportProjection(args,tx=>tx.contentItem.update({ where: { id: spec.taskId }, data: {
                 status: 'publishing', quality_report: {
                     ...((task.quality_report as any) || {}),
                     publication_task_delivery: { state: 'provider_confirmed_fact_pending', channel_type: 'dzen',
@@ -878,7 +893,7 @@ export class DzenTaskPublicationService {
                         ...(delivery?.prior_incident ? { prior_incident: delivery.prior_incident } : {}),
                         ...(delivery?.absence_proof ? { absence_proof: delivery.absence_proof } : {}) }
                 }
-            } });
+            } }));
             throw new Error('[DZEN_FACT_PENDING] Provider URL confirmed but fact write failed; reconcile without sending again');
         }
         const result = { mode: 'published', task_id: spec.taskId, project_id: 10, channel_id: 116,
@@ -886,6 +901,7 @@ export class DzenTaskPublicationService {
             delivery_method: 'dzen_browser', visual_decision_id: spec.decisionId,
             ...(selectedAsset ? { selected_asset_id: selectedAsset.id } : {}) };
         await db.$transaction(async (tx: any) => {
+            await lockOwnedPublicationTask(tx,args);await assertManualPublicationTransportMutable(tx,args);
             await tx.contentItem.update({ where: { id: spec.taskId }, data: {
                 status: 'published', publication_mode: 'owner_released', published_link: url,
                 quality_report: { ...((task.quality_report as any) || {}),

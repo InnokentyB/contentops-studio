@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import prisma from '../db';
 import { repairMaterializedPublicationProjection } from './publication_metadata_repair';
 import { assertCanonicalPublicationPlacement } from './publication_placement_contract';
+import { assertManualPublicationTransportMutable } from './owner_manual_publication_fence';
 
 type SnapshotGuard = { id: number; channelId: number };
 
@@ -326,6 +327,7 @@ export class PublishedChannelRepairService {
             const replayAfterLock = await replay();
             if (replayAfterLock) return replayAfterLock;
 
+            await assertManualPublicationTransportMutable(tx, { projectId: params.projectId, taskId: params.taskId });
             const preview = this.buildPreview(params, await this.loadAndValidate(tx, params));
             if (preview.preview_hash !== params.previewHash) throw new Error('[PREVIEW_CONFLICT] Published state changed since preview');
 

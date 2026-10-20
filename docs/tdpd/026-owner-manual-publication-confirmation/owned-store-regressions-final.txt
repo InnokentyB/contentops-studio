@@ -1,0 +1,131 @@
+ Container tower-contentops-owner-manual-verification-synthetic-db-1  Running
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+✔ R01 command lifecycle commits start before native and receipt before fact (178.814147ms)
+✔ R03 unresolved action scope is local precise cause, before replayed success/session access (3.659858ms)
+✔ R02 invalid and caller-extended commands cannot reach any port (1.158876ms)
+✔ R06 failure after native freezes original attempt; next key sees same history, no resend (0.365242ms)
+✔ R07 reconciliation performs DB-only completion, with no native dispatch or policy probe (0.574023ms)
+✔ R08 transport cannot return a receipt without both committing hooks (0.204231ms)
+✔ R09 dry-run is metadata-only and cannot export accepted body or asset URL (0.184821ms)
+✔ R10 generic canonical fact guard refuses1002 after scoped history reads without writes (13.668227ms)
+✔ R01/R10 registered bounded Publisher commands exercise the new lifecycle (743.282729ms)
+✔ DA21 automatic re-accept cannot reset a started exact package after marker replacement (0.967565ms)
+✔ DA21 project art-direction backfill skips owned history before revision or state changes (0.319291ms)
+✔ DA21 generic positive work-item approval cannot reset an owned provider task projection (0.836495ms)
+✔ DA21 leased positive art decision cannot supersede the immutable accepted decision (0.645313ms)
+✔ DA21 attaching a new requested source cannot replace an owned accepted cover (0.375412ms)
+✔ DA02 actual scoped publication request keeps token identity without caller actor field (67.549262ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+✔ DA02 concurrent async requests cannot inherit another tenant or caller actor (6.262171ms)
+✔ DA02 local stdio principal is configured identity, not first owner or request data (0.668673ms)
+✔ DA05 existing publication task command routes arbitrary Dzen data before legacy IDs and Telegram (1737.902249ms)
+✔ DA23 registered existing MCP command rejects transport, session and forged actor input (62.410486ms)
+✔ INTEGRATION cleanup retains live group children after browser parent exits; late child=false (923.097271ms)
+✔ INTEGRATION cleanup retains live group children after browser parent exits; late child=true (807.331717ms)
+✔ INTEGRATION foreign group and reused PID identity receive no signal (771.522065ms)
+✔ INTEGRATION parent-group signal rejects reused leader and leaves foreign groups alive (154.487658ms)
+✔ INTEGRATION spawn failure without pid is handled before late ChildProcess error (66.322525ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+(node:101) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+{"event":"publication_diagnostic","service":"publication","isError":true,"code":"PUBLICATION_PRINCIPAL_REQUIRED","message":"This governed publication has no authenticated operator identity.","reasons":[{"code":"PUBLICATION_PRINCIPAL_REQUIRED","field":"principal","message":"This governed publication has no authenticated operator identity.","action":"Reconnect using the scoped Owner or Publisher profile and inspect the existing task. Actor arguments cannot supply authority."}],"retry_allowed":false}
+{"event":"publication_diagnostic","service":"publication","isError":true,"code":"PUBLICATION_PRINCIPAL_SCOPE_MISMATCH","message":"The selected project differs from the authenticated profile scope.","reasons":[{"code":"PUBLICATION_PRINCIPAL_SCOPE_MISMATCH","field":"project","message":"The selected project differs from the authenticated profile scope.","action":"Select the project bound to this profile or reconnect with the intended project profile. Do not alter actor arguments."}],"retry_allowed":false}
+{"event":"publication_diagnostic","service":"publication","isError":true,"code":"PROVIDER_OPERATION_UNSUPPORTED","message":"The selected provider does not support this governed operation.","reasons":[{"code":"PROVIDER_OPERATION_UNSUPPORTED","field":"operation","message":"The selected provider does not support this governed operation.","action":"Use the documented operation for this task provider; release and reconciliation fields cannot be sent to a different route."}],"retry_allowed":false}
+{"event":"publication_diagnostic","service":"publication","isError":true,"code":"OWNED_PACKAGE_CONFLICT","message":"The current accepted package differs from the expected release binding.","reasons":[{"code":"OWNED_PACKAGE_CONFLICT","field":"accepted_package","message":"The current accepted package differs from the expected release binding.","action":"Read the current accepted revision, asset, account and manifest with the owner. Preserve the existing release and attempts; reconcile uncertainty before considering any new approval."}],"retry_allowed":false}
+{"event":"publication_diagnostic","service":"publication","isError":true,"code":"OWNED_INVENTORY_INCOMPLETE","message":"Complete owned published and draft coverage could not be proved.","reasons":[{"code":"OWNED_INVENTORY_INCOMPLETE","field":"inventory","message":"Complete owned published and draft coverage could not be proved.","action":"Obtain permitted adapter evidence with explicit end-of-list for every required collection. Partial or empty pages never establish absence. Do not send."}],"retry_allowed":false}
+{"event":"publication_diagnostic","service":"publication","isError":true,"code":"OWNED_RECONCILIATION_REQUIRED","message":"The existing attempt or retained provider evidence requires reconciliation.","reasons":[{"code":"OWNED_RECONCILIATION_REQUIRED","field":"publication_attempt","message":"The existing attempt or retained provider evidence requires reconciliation.","action":"Reconcile the existing attempt and provider evidence with the project owner. Do not resend, change the idempotency key or bypass the existing attempt."}],"retry_allowed":false}
+{"event":"publication_diagnostic","service":"publication","isError":true,"code":"OWNED_DZEN_ACTION_SCOPE_UNRESOLVED","message":"The existing Dzen action restriction is unresolved; no provider action was admitted.","reasons":[{"code":"OWNED_DZEN_ACTION_SCOPE_UNRESOLVED","field":"action_permission","message":"The existing Dzen action restriction is unresolved; no provider action was admitted.","action":"Keep the task blocked until the owning permission boundary resolves applicability. Owner approval, another browser, process or API cannot clear the restriction."}],"retry_allowed":false}
+{"event":"publication_diagnostic","service":"publication","isError":true,"code":"OWNED_PROVIDER_OUTCOME_UNCERTAIN","message":"The existing attempt or retained provider evidence requires reconciliation.","reasons":[{"code":"OWNED_PROVIDER_OUTCOME_UNCERTAIN","field":"publication_attempt","message":"The existing attempt or retained provider evidence requires reconciliation.","action":"Reconcile the existing attempt and provider evidence with the project owner. Do not resend, change the idempotency key or bypass the existing attempt."}],"retry_allowed":false}
+✔ DA02 actual registered default command preserves legacy non-Dzen stdio without new principal (1.867549ms)
+✔ DA02 default command preserves Threads selection without inferring an owned principal (0.20064ms)
+✔ DA02 missing owned principal cannot fall through to any legacy executor (0.872744ms)
+✔ DA02 token-bound foreign project rejects before provider metadata lookup (0.527083ms)
+✔ DA02 owned-only release fields cannot fall through to legacy providers (0.377442ms)
+✔ INTEGRATION known owned failure retains static cause and remedy without secret text (0.471032ms)
+✔ INTEGRATION held owned result exposes cause and next step while dropping unsafe fields (0.278061ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+✔ DA15 internal afterWrite binds actual fact identity in same transaction on create (2.629893ms)
+✔ DA15 internal afterWrite binds actual fact identity in same transaction on replay (0.286962ms)
+✔ DA15 unguarded internal afterWrite is rejected before access (0.406282ms)
+✔ INTEGRATION recovery final fencing runs after owned fact link on create (0.775514ms)
+✔ INTEGRATION recovery final fencing runs after owned fact link on replay (0.246182ms)
+✔ DA02 actual HTTP owner and scoped publisher transport retain token principal through registered command (2248.678526ms)
+✔ L01/L02 two unrelated owner packages release and publish through same service (748.633564ms)
+✔ L03 dryRun defaults true and foreign/role/stale bindings have zero effect (65.29684ms)
+✔ L04 parallel keys have one claim and one submit permit; all later calls reconcile (194.230163ms)
+✔ L05 started/unknown legacy attempt blocks new release, job and send (33.652915ms)
+✔ L06 retained receipt survives drift and fact failure; same attempt finalizes after repair (152.300247ms)
+✔ L07 legacy retained receipt is adopted into original attempt without new job/release/send (99.295208ms)
+✔ L08 original valid legacy release is consumed without renewed approval identity (138.322419ms)
+✔ L09 lost receipt recovery reads only committed native object and never submits again (173.02283ms)
+✔ L10 separate PostgreSQL processes serialize generic/generic and legacy CAS pattern races (4338.120178ms)
+✔ L11 real mixed-provider queue selection excludes generic binding before legacy VK decoder (63.15431ms)
+✔ L12 denied/incomplete inventory never creates attempt or mutates release job (100.510283ms)
+✔ L13 start and Submit are single-use and lease expiry never permits resend (126.447461ms)
+✔ L14 post-submit role/manifest/package drift retains receipt and blocks fact until repair (152.954169ms)
+✔ L15 claim and receipt audit failures roll back all related PostgreSQL transitions (111.381836ms)
+✔ L16 afterWrite fault rolls back fact, attempt, job-link and audit while receipt survives (176.501386ms)
+✔ L17 wrong native receipt fields/object/time/extra payload stay noncanonical (179.037959ms)
+✔ L18 release replay retains original identity after consumption; stale release/queue binding rejected (286.199685ms)
+✔ L19 legacy stale manifest and multiple attempts freeze rather than renew or adopt (65.489702ms)
+✔ L20 generic and legacy ambiguous aggregate history freezes fact/readback but retains original receipt (288.747237ms)
+✔ L21 current owner-release revocation and manifest drift block start/submit without refreshing claim (101.579639ms)
+✔ L22 historical-only outcome markers deny new release/inventory/claim/send with empty canonical history (300.970257ms)
+✔ L23 receipt serialization retry is DB-only, retains evidence and never re-enters native adapter (167.360001ms)
+✔ L24 concurrent uncertainty and receipt persistence retain evidence; stale Submit cannot resume (149.908766ms)
+✔ L25 exhausted receipt DB retries and failed uncertainty audit return honest held result without resend (118.382331ms)
+✔ L26 foreign-actor historical receipt cannot supply immutable server custody (43.256563ms)
+✔ L27 one invocation deadline spans inventory+publish; aborted adapter has no late Submit or fact (610.252476ms)
+✔ L28 invocation deadline cancels PostgreSQL query and rolls back instead of allowing late release writes (364.142718ms)
+✔ L29 actual PostgreSQL ownership helpers preserve release/job/legacy histories despite removed markers (82.692176ms)
+✔ L30 actual update/prepare/week repair apply+rollback reject held histories without losing ownership (431.76221ms)
+✔ L31 separate actual content-writer and release processes contend on the canonical row lock (2258.401826ms)
+✔ L32 actual fact authorization SELECT obeys invocation deadline and preserves receipt on rollback (359.352664ms)
+✔ L33 actual production facade rejects missing/foreign principal and scoped foreign task before native work (86.595355ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+✔ L34 registered REST material writers reject owned history before fixer/upload/native work (1068.192763ms)
+[EgressDiag] publication_tasks.save_content projectId=51 taskId=52 requestBodyBytes=20 responseBytes=275
+[EgressDiag] publication_tasks.prepare_handoff projectId=51 taskId=52 hasPlan=false bundleResourceFiles=0 publicationBodyBytes=46 responseBytes=1422
+[EgressDiag] publication_tasks.fix_with_critic projectId=51 taskId=52 inputTextBytes=20 outputTextBytes=20 responseBytes=164
+✔ L35 ordinary nonowned REST content/prepare/fixer/upload behavior remains available (90.715845ms)
+✔ L36 REST upload rechecks under lock when owner release commits during storage work (49.518002ms)
+✔ L37 actual top-level retirement uncertainty marker blocks release/send and REST edits (38.046577ms)
+✔ L38 exposed image generation and review refuse owned aggregates without asset/work mutations (51.931875ms)
+✔ L39 ordinary image generation and approval preserve visual workflow with atomic asset/work rollback (52.307056ms)
+✔ L40 storage failure incident after concurrent release preserves owned task and accepted asset (52.313397ms)
+✔ L41 automatic art acceptance/backfill and generic work approval preserve owned aggregate; ordinary approval works (169.440292ms)
+✔ L42 leased art replacement and source attachment preserve released cover; deliberate BLOCKED hold remains audited (74.033543ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+{"event":"publication_diagnostic","service":"publication","isError":true,"code":"OWNED_DEMO_READ_ONLY","message":"Demo identities cannot authorize or execute owned publications.","reasons":[{"code":"OWNED_DEMO_READ_ONLY","field":"identity","message":"Demo identities cannot authorize or execute owned publications.","action":"Use an authenticated non-demo project Owner or authorized Publisher profile. Do not change actor arguments or bypass the demo restriction."}],"retry_allowed":false}
+✔ SECURITY demo Owner is rejected at actual registered MCP release and before provider or writes (270.476148ms)
+✔ SECURITY canonical fact commit holds user and membership authority against concurrent revocation (336.849044ms)
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+✔ DA07 mixed queue selects legacy VK without decoding or starving on Dzen rows (308.792126ms)
+✔ DA07 VK lookup and CAS cannot interpret or change a Dzen job (12.22448ms)
+✔ DA07 cross-provider idempotency collision is explicit, not foreign decode or new job (40.821521ms)
+✔ DA21 actual content edit rejects durable ownership after marker/status replacement (1.062315ms)
+✔ DA21 actual task preparation cannot overwrite lifecycle despite removed quality marker (0.245441ms)
+✔ DA20 actual generic manual/automatic/imported fact guard rejects durable lifecycle ownership (0.201311ms)
+✔ DA20 status projection cannot offer manual confirmation after durable ownership marker removal (0.485162ms)
+ℹ tests 87
+ℹ suites 0
+ℹ pass 87
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 29321.50796

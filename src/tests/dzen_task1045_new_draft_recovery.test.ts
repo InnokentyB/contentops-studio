@@ -34,6 +34,8 @@ function fixture(options: { draftObjects?: number; publishedMatches?: number } =
     const events: any[] = [];
     let inspections = 0;
     const database: any = {
+        $queryRaw: async () => [{id:task.id}],
+        publicationFact: {findFirst:async()=>task.publication_fact},
         projectMember: { findUnique: async () => ({ role: 'owner' }) },
         contentItem: { findFirst: async () => task, updateMany: async ({ data }: any) => {
             Object.assign(task, data); return { count: 1 };

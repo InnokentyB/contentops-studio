@@ -1,3 +1,4 @@
+import {lockManualTransportMutation} from './manual_publication_transport_projection';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import prisma from '../db';
@@ -24,6 +25,7 @@ export async function assertVkConnectorTransactionFence(tx: Prisma.TransactionCl
         || job.host_id !== args.hostId || job.consumer_instance_id !== args.instanceId
         || !host || host.mode !== 'vk_feed_provider' || host.instance_id !== args.instanceId || Date.now() - host.heartbeat_at.getTime() > 30_000
         || !(requireLease ? ['ready','executing'] : ['accepted','reconciling','ready','executing','verification_required']).includes(job.state)) fail('FENCED');
+    await lockManualTransportMutation(tx,{projectId:args.projectId,taskId:job.content_item_id});
     const task = await tx.contentItem.findFirst({ where: { project_id: args.projectId, id: job.content_item_id },
         include: { channel: true, selected_asset: true, publication_fact: true } });
     const work = await tx.workItem.findFirst({ where: { project_id: args.projectId, id: job.work_item_id, content_item_id: job.content_item_id } });
@@ -67,6 +69,7 @@ async function canonicalLease(args: ConnectorExecutionIdentity & { leaseToken: s
 }
 async function start(args: ConnectorStartArgs) {
     return prisma.$transaction(async tx => {
+        await lockManualTransportMutation(tx,args);
         await assertVkConnectorTransactionFence(tx, args, true);
         if (await tx.deliveryAttempt.findFirst({ where: { project_id: args.projectId, content_item_id: args.taskId }, select: { id: true } })) fail('VERIFICATION_REQUIRED');
         return startVkBrowserSubmission({ transaction: async callback => callback(tx), now: () => new Date(),
@@ -76,6 +79,7 @@ async function start(args: ConnectorStartArgs) {
 async function confirm(args: ConnectorConfirmArgs) {
     let first = true;
     return confirmVkBrowserSubmission({ transaction: async callback => prisma.$transaction(async tx => {
+        await lockManualTransportMutation(tx,args);
         if (first) { await assertVkConnectorTransactionFence(tx, args, true); first = false; }
         else {
             const row = await tx.connectorDispatchJob.findFirst({ where: { id: args.jobId, project_id: args.projectId,
@@ -91,6 +95,7 @@ async function confirm(args: ConnectorConfirmArgs) {
 }
 async function uncertain(args: ConnectorUncertainArgs) {
     return prisma.$transaction(async tx => {
+        await lockManualTransportMutation(tx,args);
         await requireProjectOwner(tx, args.projectId, args.actorId);
         const job = await tx.connectorDispatchJob.findFirst({ where: { id: args.jobId, project_id: args.projectId,
             generation: args.generation, package_sha256: args.packageSha256, attempt_id: args.attemptId,
