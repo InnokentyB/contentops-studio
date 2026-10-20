@@ -1,0 +1,32 @@
+✖ P01 actual frozen102 pairs across16 files are admitted only from synthetic trusted Git base (442.556649ms)
+✔ P02 StageA inert trusted manifest does not change old source or baseline (416.495749ms)
+✔ P03 current-branch manifest cannot authorize its own baseline replacement (405.983661ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 2
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1321.919659
+
+✖ failing tests:
+
+test at tests/tdpd/runtime-policy-preservation-transition.test.cjs:29:1
+✖ P01 actual frozen102 pairs across16 files are admitted only from synthetic trusted Git base (442.556649ms)
+  AssertionError [ERR_ASSERTION]: {"verdict":"FAIL","errors":[{"code":"BASELINE_WIDENED"}],"scannedFiles":16,"operationalFiles":16,"findingsCount":1152,"baselineCount":1152,"appliedTransitions":[],"elapsedMs":219}
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (/workspace/tests/tdpd/runtime-policy-preservation-transition.test.cjs:30:59)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

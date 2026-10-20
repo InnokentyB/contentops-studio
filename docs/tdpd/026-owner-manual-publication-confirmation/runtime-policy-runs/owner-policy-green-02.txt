@@ -1,0 +1,816 @@
+✔ P01 synthetic102 pairs across16 files are admitted only from synthetic trusted Git base (861.717781ms)
+✔ P02 StageA inert trusted manifest does not change old source or baseline (222.689501ms)
+✔ P03 current-branch manifest cannot authorize its own baseline replacement (237.067214ms)
+✔ P05 additional unreviewed literal cannot consume the exact pack (297.237506ms)
+✔ P06 changed leaf fails even when evil trusted manifest and baseline match its new source hash (517.289728ms)
+✔ P07 renamed named scope fails with exact trusted source hashes and unchanged leaf syntax (311.097906ms)
+✔ P08 count growth fails despite trusted matching new source and scanner baseline (523.148387ms)
+✔ P09 changed baseline owner cannot inherit old authority (291.987611ms)
+✔ P09 changed baseline reason cannot inherit old authority (298.392373ms)
+✔ P09 changed baseline remediation cannot inherit old authority (296.651661ms)
+✔ P10 changed rule in trusted manifest is refused (233.109318ms)
+✔ P11 changed file binding in trusted manifest is refused (248.020064ms)
+✔ P12 trusted oldSourceSha256 drift is refused (293.590992ms)
+✔ P12 trusted newSourceSha256 drift is refused (288.64593ms)
+✔ P13 old identity collision is refused without cardinality growth (293.615732ms)
+✔ P14 new identity collision is refused without cardinality growth (308.759701ms)
+✖ P15 missing reviewed pair cannot widen the baseline (319.060858ms)
+✔ P16 one matching growth validates the entire pack rather than an active subset (281.282322ms)
+✔ P17 production artifact byte limit remains65536 (241.801085ms)
+✔ P18 malformed trusted artifact is refused safely (250.430821ms)
+✔ P19 unknown trusted base cannot supply authority (235.423383ms)
+✔ P20 missing explicit trusted base cannot authorize baseline growth (227.17461ms)
+✔ P21 symlinked current source is rejected (202.71852ms)
+✔ P22 symlinked artifact cannot be a trusted Git authority (247.745924ms)
+✔ P23 proxy indirection cannot launder an old business leaf (307.058459ms)
+✔ P24 renamed object-property callable scope fails despite fully rebound trusted hashes and identities (1070.070568ms)
+✔ proposed R27: before source over 1 MiB is classified and rejected (615.206026ms)
+✔ proposed R27: after source over 1 MiB is classified and rejected (596.548085ms)
+✔ proposed R28: exact 1 MiB source boundary permits the reviewed correction (641.95176ms)
+✔ proposed R29: aggregate source bytes over 8 MiB are rejected despite individual limits (657.697973ms)
+✔ proposed R30: trusted source Git mode is checked independently of valid source bytes (560.43339ms)
+✔ proposed R31: working-tree source symlink is rejected by the existing source boundary (537.806132ms)
+✔ proposed R32: a missing nonzero full commit object cannot authorize a transition (549.000405ms)
+✔ proposed R33: one hung transition Git read has a bounded sanitized failure (1556.208385ms)
+✔ proposed R1: exact previously reviewed security correction can replace context fingerprints (573.864417ms)
+✔ proposed R2: unchanged reviewed debt and its pending transition remain admissible (558.237725ms)
+✔ proposed R3: current-branch transition cannot authorize its own new baseline (550.349934ms)
+✔ proposed R4: remapping requires a trusted base, never only the working tree (533.057081ms)
+✔ proposed R5: exact transition cannot cover an additional source edit or task authority (553.039851ms)
+✔ proposed R6: duplicated authority cannot consume a one-occurrence transition (576.323622ms)
+✔ proposed R7: expanded task comparison remains unadmitted (594.909684ms)
+✔ proposed R8: business binding identities cannot be remapped, even with an exact source proposal (547.940638ms)
+✔ proposed R9: stale old permission cannot remain beside the new fingerprint (553.910497ms)
+✔ proposed R10: old source hash mismatch invalidates an otherwise matching proposal (562.859465ms)
+✔ proposed R11: changed baseline owner is not admitted (555.727278ms)
+✔ proposed R11: changed baseline reason is not admitted (552.996521ms)
+✔ proposed R11: changed baseline remediation is not admitted (553.280463ms)
+✔ proposed R12: a previously retired finding cannot be resurrected using a pending transition (561.123954ms)
+✔ proposed R13: a new task symbol cannot inherit an existing symbol allowance (552.646669ms)
+✔ proposed R14: duplicate trusted remaps are ambiguous and rejected (544.594946ms)
+✔ proposed R15: exact task-identifier transition cannot also admit a new business binding (573.612955ms)
+✔ proposed R16: modified working-tree review cannot extend the trusted source hash (745.688116ms)
+✔ proposed R17: matching full pull_request event base can consume the transition (550.206363ms)
+✔ proposed R17: matching full push event base can consume the transition (558.159695ms)
+✔ proposed R18: a conflicting CLI base cannot replace the event base (549.213667ms)
+✔ proposed R19: transition cannot consume symbolic, zero or unavailable base HEAD (558.763879ms)
+✔ proposed R19: transition cannot consume symbolic, zero or unavailable base 0000000000000000000000000000000000000000 (551.680523ms)
+✔ proposed R19: transition cannot consume symbolic, zero or unavailable base deadbeef (543.702381ms)
+✔ proposed R20: unknown artifact fields are not a reviewed extension (547.477595ms)
+✔ proposed R21: many-to-one remaps cannot merge distinct allowances (545.602452ms)
+✔ proposed R22: duplicate entries for one source file are ambiguous (550.045251ms)
+✔ proposed R23: artifact traversal paths cannot authorize a replacement (544.145843ms)
+✔ proposed R24: an artifact over 64 KiB cannot authorize a replacement (543.62112ms)
+✔ proposed R25: artifact symlink in the trusted tree is not JSON authority (543.58031ms)
+✔ proposed R26: workflow_dispatch cannot consume a transition using a supplied commit (548.392761ms)
+✔ CI pull_request cannot bypass base comparison by deleting the current artifact (549.091986ms)
+✔ CI push cannot bypass base comparison by deleting the current artifact (552.434058ms)
+✔ CI workflow_dispatch cannot bypass base comparison by deleting the current artifact (537.629771ms)
+✔ local missing-base comparison cannot be hidden by deleting the artifact (541.119593ms)
+✔ unchanged committed local debt needs no transition or implicit grant (572.206296ms)
+✔ transition schema cannot select protected or non-JavaScript source .env (579.803856ms)
+✔ transition schema cannot select protected or non-JavaScript source src/.env.ts (615.920131ms)
+✔ transition schema cannot select protected or non-JavaScript source ops/release.yaml (575.167656ms)
+ℹ tests 73
+ℹ suites 0
+ℹ pass 72
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 36823.456904
+
+✖ failing tests:
+
+test at tests/tdpd/runtime-policy-preservation-transition.test.cjs:86:1
+✖ P15 missing reviewed pair cannot widen the baseline (319.060858ms)
+  AssertionError [ERR_ASSERTION]: invalid preservation pack must not partially apply
+  + actual - expected
+  
+  + [
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_0.ts',
+  +     newIdentity: '235a5e519c69481dea8f0cc4b8a9bb6f3af968c8e9b819d5f0623f3e2e344400',
+  +     oldIdentity: '01b1ba022a274a453f09ba821e25c3a2401b8e4438c2cdf9af14d39706d858c4',
+  +     rule: 'business_binding'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_0.ts',
+  +     newIdentity: '286b76293f01c2d966c632a9b59475bb9128c83cc29b8b146bb7da1ae5459416',
+  +     oldIdentity: '11ff8a4639acecdaff6c1fc1cbbfb139c37b6e8b9f19f5bbfd8f6bc957902ab1',
+  +     rule: 'business_record_lookup'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_0.ts',
+  +     newIdentity: 'b4c7faa4922e8b98ee72406cc99456f04aebdec4d850028337d815891ab8af78',
+  +     oldIdentity: '287d5dbe169a37e5260bcb522798bb7e2064aaf0d50a06196e464bf60eaf88a5',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 2,
+  +     file: 'src/synthetic_0.ts',
+  +     newIdentity: 'bff37d5a58a1fbebdaca604047a8da688759f5d2439c87c4d8ce1ded55903457',
+  +     oldIdentity: '93b1bddada98314777e6fb6c2ab1b483af26f6c0717f90fe237cc8323c613f4a',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_0.ts',
+  +     newIdentity: '18703144fa2b47e6fc9925fe83bf16ca42f2b820249bba538b7f73ce7a2ddb90',
+  +     oldIdentity: 'd8f2a06c201a9a4015c905014459bc9c76ab9c0939b907d76da24fb6647606c0',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_0.ts',
+  +     newIdentity: '745fcb0cdae16a09c9a413e941631e1cdbb7bf39da58b9bb1e5962fba12c740a',
+  +     oldIdentity: 'f5012d80ce21b1612d1c316ef819d0f2839da11d0d561899716ead6e65e37de7',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_1.ts',
+  +     newIdentity: 'bba481cf684693af12295fae067dc6fd409a41e86e37f4b350a57e32dfb9f328',
+  +     oldIdentity: '0bba0eec463ebc1ebb84a1604409b70b007f4839566b595254e42c8a9e63dbeb',
+  +     rule: 'business_binding'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_1.ts',
+  +     newIdentity: '48394cf91c5096ea40a48834976263ac4413665c8737ec2ea4d9345a6f0d8368',
+  +     oldIdentity: '6389d4b801b7e23e15f871277db62d8c78709e2ad79c9804342f6704359f61ac',
+  +     rule: 'business_record_lookup'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_1.ts',
+  +     newIdentity: '124523ed4ef97b64ab68bf381fad464cef50e767d9516b1fb6daa4a4d893fc7e',
+  +     oldIdentity: '216a1b6be520c57c7263518c5438288474b4bde297815e16b08ee889153e552a',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 2,
+  +     file: 'src/synthetic_1.ts',
+  +     newIdentity: '94275b252ed61a026f6d60efb1bdfc8d0f674b493af9fcfed01dded3bcb9fd29',
+  +     oldIdentity: '22dfbeb0d8355905cfdbf467bbe5fe8264a0041795f65a3d40d63d6af8761e02',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_1.ts',
+  +     newIdentity: '3a0774b4bc5988cac3b6453e62569314cae64022a5a9db8eb190f85c21878736',
+  +     oldIdentity: '75d9248dcc4085274d80462a7caaa0841a9e9e6f0f901e0b25193dd3411d548c',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_1.ts',
+  +     newIdentity: '71759082c8b258969955d9ea837f77490b77ee7f3e77393459a4e6c5eed192e4',
+  +     oldIdentity: '94b7926d13526ba772b14279af50d099b0a8f16075b2b83fd4cbf61c008981ba',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_1.ts',
+  +     newIdentity: '03cc37f731b920c354441bdbeb82125deead305ae8951911d84143ad9844ea5a',
+  +     oldIdentity: 'c909316f8e1a72945b176e2bd53432f6b87d1b2da2b951e76217e2ad9f7fbb76',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_2.ts',
+  +     newIdentity: 'b539b9718afd0ed66545c280ee9abab694437b5c0ceca7c5afa42dab9f009246',
+  +     oldIdentity: '9f36579f045d9b7321862f5948083d54c23efe66189cdf68226ba9cf0daa58ba',
+  +     rule: 'business_binding'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_2.ts',
+  +     newIdentity: 'ff0db071ab9ed9a6dc9129872388d04f721119284e450d74ce3ad2d921544313',
+  +     oldIdentity: '834629b364863a622df89641d1d586ba4b139e4472920b7619e05106e464b14c',
+  +     rule: 'business_record_lookup'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_2.ts',
+  +     newIdentity: '9c8e91fa971344539207df7d515b0770c9693e068c4930d44e0ba7e16fb1590a',
+  +     oldIdentity: '2558bfc86d619100990cfa8fb0875d9f185cef88bb7ce6dccd28ceff06029aba',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 2,
+  +     file: 'src/synthetic_2.ts',
+  +     newIdentity: '9d2bb5309abccc0e922b23e089f6f153708e95a1e59f95b5fcc76b78bdef54fe',
+  +     oldIdentity: '2c7114df99d1b6297c10d7af68aff935dca071b1004f1b8b42e2e77f46f37016',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_2.ts',
+  +     newIdentity: 'e0d0bc8b4c99d34b0dec8ae20a8d6f96a047912d7f4b84192ee56a5e2c839b33',
+  +     oldIdentity: 'c088f33d666ebc61460472888bb4745d270da8484f8c2e409e755d6fe1189f35',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_2.ts',
+  +     newIdentity: '1365ace53e3e4883f1eaf5b64bfbfc02afcd4699e1923d3ff1f26cfbb52e211b',
+  +     oldIdentity: 'c9074c47e4b62aeff7e45b4413c4359442b161b27866127876c236952966b40a',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_2.ts',
+  +     newIdentity: '9ef6581720c9390b0f530e7cda45e777c42ef0cbf67ccb4fe476d4a79bc8ec43',
+  +     oldIdentity: 'fb7db3048fa9d3fc027d2887d0ffa06a92a630adb0adea353cf437155c6983c9',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_3.ts',
+  +     newIdentity: '2470b404ec5e1c5fe32460e9ad9141454f1a59ac5e5f3215d6963ac1d14070c3',
+  +     oldIdentity: '2d479762cc22df8635450a02fd1e11dc23c4fc0add605875e0aafb0b12521c7a',
+  +     rule: 'business_binding'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_3.ts',
+  +     newIdentity: '0d7cd5350cff2556c2da0ceb1fba73d3018631f1768da1f5ee9370c49a1e3e1c',
+  +     oldIdentity: 'ab484a2c69d5eea9dc15c2ea92dd2333d2f88431f2a8e888add2ae4cc4959ec4',
+  +     rule: 'business_record_lookup'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_3.ts',
+  +     newIdentity: '80e89ddb534c21a5062ecc23193f53fb0a33fc1d23d3acc663512540b34c5a13',
+  +     oldIdentity: '05a22efc4449297120621c76ed9ef1301b618ae36b1fc4079f834245043527b1',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_3.ts',
+  +     newIdentity: '3cbcda5970c28de9418996d560589f732d446882d98c3739a6deb3ed2aefcb8a',
+  +     oldIdentity: '3d9f6e52e11b1d710d31d0a852c32f30c1cbc48013d49170b2f09cc5fdffb568',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_3.ts',
+  +     newIdentity: '7ffc4638adb7fe172e820652b69f1c0c692f79dc2a447f21492fb1909be141d5',
+  +     oldIdentity: '861633facc95bb8d818dd7cf19dfee6ac5854d514927f1b64ae1c50b530841d1',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_3.ts',
+  +     newIdentity: '957671e54950fb2494e6b2da30cb28c9ad424fed05a3ef5e623878c001e08315',
+  +     oldIdentity: '9b6de5680da2d6a9f2cdb2edf1694dac7e1e316ddaad8f3a346d5b5733b1f7a8',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 2,
+  +     file: 'src/synthetic_3.ts',
+  +     newIdentity: '3c65a34f6f9d23c15b5829a6dd31dddf756221dc3aa743a2b72b25455b975279',
+  +     oldIdentity: 'ce84e1ebf4faa6b53a619b7fdd85e7e89ab246700f83e9e31d16979aaa2d0124',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_4.ts',
+  +     newIdentity: '581fe99e0ad38ef4411400c7965f6975d0c9b3cabc3f8505baf80fd21a816995',
+  +     oldIdentity: '1a0eb961eb648edf48a8e1d0b7b5b3bc3d3c65501d89278c0e76eb02aba54865',
+  +     rule: 'business_binding'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_4.ts',
+  +     newIdentity: '11ec94f13884e69f99534f513c120d50dbbbf78e953b655fa95e65bff6a3be1b',
+  +     oldIdentity: '76b3cfd3f82f6080f3a13dbbdcdc774fd5896e27f7b03934cf974a96dacf0785',
+  +     rule: 'business_record_lookup'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_4.ts',
+  +     newIdentity: '4fabd1dec3e7bdf5970f5ebdb4ee89cde92c060b474a86eafb0df3206fd300f3',
+  +     oldIdentity: '08a21b04b79e09382002464a314d01ed151334a6e4c6c981acbcbb1418e01b57',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_4.ts',
+  +     newIdentity: '474a92a0778413b2acc1351cb7dcd519aaf2c370056bf21b1aaddfc336569919',
+  +     oldIdentity: '84883f6c777379aa08ef5bae6893e0572e7de5b9a9df2e3028de9e862e8309c8',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 2,
+  +     file: 'src/synthetic_4.ts',
+  +     newIdentity: '946c019fbf37bc2624bdc58f529c46794f0b342bc18ae446e0b48b72f4b31da8',
+  +     oldIdentity: '882d98cde2625f5888001447d007e4c260debfbfa5225959d075204c89ff6ce5',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_4.ts',
+  +     newIdentity: '0cf1fc11b01df5b5866a807c14a8102bc10dc4450e8380d45e9748b299365040',
+  +     oldIdentity: '969eea4bc3638ecc3346f163ebc02c4385631ad2416e6f5f3382b02e2fd18efc',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_4.ts',
+  +     newIdentity: '9fa712a47558e349fc5f52a1dc97f029121ee0ec7c3aa681c99f534f8aa23d2b',
+  +     oldIdentity: 'c1362ab966d3da29a1663b92e4d2d4d992429922db80e20c858ca2382936e696',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_5.ts',
+  +     newIdentity: '34d3a73a7dea444ae7c723ac106935ce4263e7aac7be79cd4eaa50d43a9b24a5',
+  +     oldIdentity: '3dc1c42353e9a0dfbaf3666786feb0d19029436bddc88bb0aa4dd9a1335dd8e3',
+  +     rule: 'business_binding'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_5.ts',
+  +     newIdentity: 'dc4ad78ee243efca263129c11a2654f732c35c2067b1fb61b61425eb0c108789',
+  +     oldIdentity: '6ce6b958b5515dcfe9871a1b955829a896d45f5034164ad1c41503321e4e9bdc',
+  +     rule: 'business_comparison'
+  +   },
+  +   {
+  +     count: 2,
+  +     file: 'src/synthetic_5.ts',
+  +     newIdentity: 'abd61c9bf3ca6b50a203ef35ea7b322cec6040aa1aacd1bd3a1b8ed4f8cd4d2a',
+  +     oldIdentity: '0b10b65199b64c8b08a10ef1b01b96375c8289233cdc17aa4659954eaa3a5645',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_5.ts',
+  +     newIdentity: '703684999ad3a41d93ccd88a48576ff7f70d025d135b294ee9adec6d46fe3b62',
+  +     oldIdentity: '7292e2877743631c94bdeaa65f3c072e6968bd9185e710f46d0d9cfc84de4707',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_5.ts',
+  +     newIdentity: '3c3952b1fdc2bbb0d2250c5a39d980f95bd6075f041cfd186c0097d8623d8d2e',
+  +     oldIdentity: '8de28111b9a67b27b52b7503cb68290623a48e205a110ed2987401362f10163a',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_5.ts',
+  +     newIdentity: '26b274b00192830bda1c8a006a92efff566f599498a7f816523f99ecc4f18ca6',
+  +     oldIdentity: 'bf488607aadadf22f4249e44cc54d8935b2c8f799d661d284973e301296af2b5',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_5.ts',
+  +     newIdentity: '3b2debc6415656193c89eb65cee4b7305ac203a641ea603879fa03ff8f1552aa',
+  +     oldIdentity: 'dc482f685a3fe90e0161bf4694c1237cb7d337726259d9e30cd60644d252e703',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_6.ts',
+  +     newIdentity: '298611c2bd4430bc6e012238053398deca98adfda6766109a3f4e9d6d3447fe0',
+  +     oldIdentity: 'db068af63256134e55bc0388eb4d934a7d379c9dcc8e5f736e4cd8c307a5d0ea',
+  +     rule: 'business_binding'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_6.ts',
+  +     newIdentity: '24773840853add1636aaaa94655bfe5288345b39f1e716e450e6c88375b213a1',
+  +     oldIdentity: '15d8663a9e3f7d66e9a92f4b09c9f21809c30423962aeecaa80719e0ce18f732',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_6.ts',
+  +     newIdentity: '93c81fba398ed6e1498ee9639b68ece90b2897ea4fc7f52e2a60f7f55ef72645',
+  +     oldIdentity: '2209c77966cd6259992d4c020bc534364b6698328c4b4d212477e9d87df8712a',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_6.ts',
+  +     newIdentity: '3b7441d1eb82c4efad6180e7d264ffcea06b6cde7412a13e2ba8cdf395ca4be1',
+  +     oldIdentity: '48e65d15af1d4ebf02874bccd25d957499c2ac4d8c1ab4824f7c8c85a661f7d7',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 2,
+  +     file: 'src/synthetic_6.ts',
+  +     newIdentity: '699b48d9e7340a560559b25fadf359a3d749612a874657fad5fa78d9ed698870',
+  +     oldIdentity: '4ccbb687d4fe4df2842b9ee8fb830080ec35e4fb1ead4ad2a5e65a10af436346',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_6.ts',
+  +     newIdentity: '8b0345ea5a4e5a99fd4d498311d583eb7e2fe7d68daadd24c1415dcb086cda8b',
+  +     oldIdentity: 'a72676b68c800710ec430d351dee310ea55707aa47e17466cbbcbecb9b3f1495',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_7.ts',
+  +     newIdentity: '8ba4c14c654de238acc0a45bf990da56661c296088d0f27082ba78e62da92808',
+  +     oldIdentity: 'bd72d3db83198ce79b8fc56abcf8d6ded7b15a76cfde23e84dccabb2682c0f03',
+  +     rule: 'business_binding'
+  +   },
+  +   {
+  +     count: 2,
+  +     file: 'src/synthetic_7.ts',
+  +     newIdentity: '0a19fc5b6b1d3876d81c967d6715880626cda8cccb366a9032f2ddf8c1db9195',
+  +     oldIdentity: '186ba4cab75ea5a9b672f53df1481e34701a400ef703f60d0034119687b27c11',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_7.ts',
+  +     newIdentity: 'b65038166b09c4c0e088c4e23bda4acca8705daf997e1dc788afdd42b42bcc93',
+  +     oldIdentity: '30421b333a8c0a55351c5b6e05e16d20af4103e56638e414f6d775a2662953be',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_7.ts',
+  +     newIdentity: 'cedf0f66f0bf0768e985abbfc5a223c86fbdc7c1e86b0e383861b3e6d09fda1f',
+  +     oldIdentity: '8dc0f707a221798fea741b39be1d54e676a356e0fd0fb07ff8ca816033a724cb',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_7.ts',
+  +     newIdentity: 'e6d3f94ef9e531c375d46fcc90022618ee75e1752a9ffddfa6dcb6f2c356d440',
+  +     oldIdentity: 'dad4cf52f2de3ae78313600cd9133c03d108c7402b33506065335c57c92b60e6',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_7.ts',
+  +     newIdentity: '0003bb789eb229658b489be6241e52abdc01e877607f964edc4fac3da035ced0',
+  +     oldIdentity: 'e9acf092c41c63cb03c8103a490e7498037c83e3fcc2022e76b180d8b81f412a',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_8.ts',
+  +     newIdentity: '8f8020d6cae2f71c8e771bfbd087a286e7f20a834704c44e754575200edc1556',
+  +     oldIdentity: '4eb1edd676d8215793221c6e27a904e45f95a0273f307e07bdf3b6196ba2ec76',
+  +     rule: 'business_binding'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_8.ts',
+  +     newIdentity: '5184feb7528c12577fac6f68754c6e826ab16dbfcf8a8a87b4e8b5523c08d06e',
+  +     oldIdentity: '07aa601ce0c7092a54e86dc476c6b9d07ce30014e7f8f50cd0f7a040357cf5ed',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_8.ts',
+  +     newIdentity: 'aec69ba403eb07c62eb4265238ff28c1c5cc3f2bfd4c718ed2293f9f97c4687a',
+  +     oldIdentity: '52ee569ef64bba8c89c493abe675a38bf6da713212ab3f60e0f49368e4e30992',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_8.ts',
+  +     newIdentity: '83f26bb602fdd5003038d5309fedcdf462a8101c44eb94502f08026093c16604',
+  +     oldIdentity: '85fe09d4ebae6fa1483957197217ef8fa44e3897a6d3d9d3643eb413ddda2f71',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_8.ts',
+  +     newIdentity: '22523c0bb7fbac1ba801cb63fe4a91d8891473ca1a67090bf7a3f50c884fb132',
+  +     oldIdentity: '89bf7960593b536823a1e10f82dace2f9edb43c98b946ef39a942c0dec87fb7e',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_8.ts',
+  +     newIdentity: 'dc9f0553044a55a6957e4bd9d7e9b2248447584bb229cea2c9cb17a1def96d31',
+  +     oldIdentity: 'a372df4b742622f698fcbb715502eaefec47cc90e1868281b255c6132af620a6',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_9.ts',
+  +     newIdentity: 'c4ce413b6b631a1b051df46b52f2a76cd82420e2a5940eb3c55fed91df9d6a06',
+  +     oldIdentity: 'b93126e249c8c6cb89fc79d02e183f45739532d2a30417e82921d4ac691d422e',
+  +     rule: 'business_binding'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_9.ts',
+  +     newIdentity: 'b1f3e56c3bbe3c8c262f385ace1b3c867f0bc6d7a11b1487b97a91c007a02488',
+  +     oldIdentity: 'e2c4cb91ef9bc4e2cbeb8fe90b3a7bab545c9d97c915f82992244cdb42d25178',
+  +     rule: 'business_binding'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_9.ts',
+  +     newIdentity: 'e2ff36af72e5faa1b55889ffee70ca024122c41a82a7e58508c7d69ee2a0dd36',
+  +     oldIdentity: '534edd2c74beacf9e9a4cb19aac994e3549fd433ff6c21c76ec61f02ac7993bc',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_9.ts',
+  +     newIdentity: '64d40528cf83c28c6244fb72a899b045d01bd63c15947036856c6a6bf5a0e13d',
+  +     oldIdentity: '555006740fbfddadd9a4a0d46130e78e46eba973dfeddc85c24aa1123d9e96d3',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_9.ts',
+  +     newIdentity: '3f1a9264f51bdf092e06e9153c711e50da14793416515c30f52f7da55bf7f74e',
+  +     oldIdentity: '59e5e195d19d9da364fa2de5f00832938951157eb19aeb878f9e5dbe26be939e',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_9.ts',
+  +     newIdentity: 'be91d82f1dc6f0b8f5559b7663f46537166b9f69824c26c546d26b1d8cfc96e2',
+  +     oldIdentity: 'd696fa15ab2cd49a74fcc58e76a3f64537e88ac10e7f3daf5fee2e61ae228b4a',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_10.ts',
+  +     newIdentity: 'fcf294ef50324e361dd84f18b287eb483d395f9ec194b43f4f04d368a5daa17a',
+  +     oldIdentity: '20b163def830c778acd1931402af98d0a727dcb75914a7782c820f58094546ca',
+  +     rule: 'business_binding'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_10.ts',
+  +     newIdentity: '03d880387a8dac825baf623cfe84fa7754539a97dc0f5d10aa805679a4cba3e4',
+  +     oldIdentity: '32470a6eab8d672c4e9ebb66453cd63c9dc71a441462a7b9cab40ab7c102d179',
+  +     rule: 'business_binding'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_10.ts',
+  +     newIdentity: '3567c0b8446a1ed6d9f35546db33f5e30f5b1c5fb36e146cb31ecfa9be6aec60',
+  +     oldIdentity: '1a7ebea698a61d19ae95e405c2e2b985eed7b885e64e7ec9daeeef4b1ab69234',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_10.ts',
+  +     newIdentity: '36517b714c5c9634becde85d8f24ff20a428c67f98cdeba2e75f11cda240e0d6',
+  +     oldIdentity: '534aac9232fe904822c516590cb5bc80fd9be947b160a54813e3cd5a58454048',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_10.ts',
+  +     newIdentity: '485831ec15ad578d3d8c0fcd253bdc7adfd561ea5cf6af9daf749e1784885675',
+  +     oldIdentity: 'cba253ce405866e19e87a178756d139a60d45165eddc2af64767779a91ca59a5',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_10.ts',
+  +     newIdentity: 'b30d850f35ab756815eb5aa80a9fe5ff57a64f05ff0256691421f758ae32740a',
+  +     oldIdentity: 'df1826425e26f0060827612d8f023a937a2b70d61f8ab15f6875c9282b786042',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_11.ts',
+  +     newIdentity: '7f904209acdb3d5e1fc93e52b60a010711db74a3adcdb24c4cd02cf606887c15',
+  +     oldIdentity: 'bb78fe8a4dbb0ae362854dc517068192d3ca987dd0e027c30453af6c8f52ac90',
+  +     rule: 'business_binding'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_11.ts',
+  +     newIdentity: '564c3e456c8bdd63ba91d4dc0317317ad2fcdd61e00cead26edcf519b458698c',
+  +     oldIdentity: 'cfb08708037023b9d608782e9498c6cd69dc1d6add135e48f320fdebaeaab3ee',
+  +     rule: 'business_binding'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_11.ts',
+  +     newIdentity: 'ca9006812f1fe29a6b2b98fbcfd8de8d0d8b892b526e1efa0797da4bfe261539',
+  +     oldIdentity: '17ac32d5dc1c648711dc6cdca39afac9c31b03fc75334b2fbd68aa48ba7083af',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_11.ts',
+  +     newIdentity: 'a99eb689ff175df596fdd17336eae8637b6cb00519c208d315116f3943dd2b65',
+  +     oldIdentity: 'b9be7062e321e24d0738d86f68be90f85f710131181243fc4ca0ed0368397485',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_11.ts',
+  +     newIdentity: 'e1e23c25c392473ad199ce5b4dca78a66fbe3cc7bb63f3f55b9aafe5618c1a1e',
+  +     oldIdentity: 'e432a72013b8f09ab3efd5dc33892c3e5c2bb3327c0e2c865860e5bfc08f2ad8',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_11.ts',
+  +     newIdentity: '61478a00a0e15ccdbbe487973d0371dc614ad7e1274a0be18a4a06e8172b74b7',
+  +     oldIdentity: 'fca60255d8930a27b44209f00cd5247440ab528a1b119ffe0b2cf343d8970767',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_12.ts',
+  +     newIdentity: 'b8ef53066bf77465defbb6785f88f0dabdc75a25f57420c7bff510f34aa39b4b',
+  +     oldIdentity: '26e1c0738c66f03f46e6e103d9a228bddd9ad9ca02dd2ce5a7bf71c498b9c055',
+  +     rule: 'business_binding'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_12.ts',
+  +     newIdentity: 'fb9e41156838f835df8701667158adee7066b181e34a7d12851ef232c31e3885',
+  +     oldIdentity: 'd132901ad8b676358e0698146bf02d2171d6bee495a2d48afbec20e411f2be51',
+  +     rule: 'business_binding'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_12.ts',
+  +     newIdentity: '606313decff70d3d0e2c8bdf5721cf4bbee8e9a15e51172b1e961cbdf18c1919',
+  +     oldIdentity: '593bba5de2ab81612e5e996ffd3dec60c0d6b7581e602b3f08302185cd495264',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_12.ts',
+  +     newIdentity: 'b9d8f900c4435deabfdf3b230432bf764133fe27e97a68e422bf1d6d49e00e72',
+  +     oldIdentity: '6f6088bce7fef239a7f5b9c2aa7f72f6fdf00eaeeb5e971a1bd5c7181aa2df6b',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_12.ts',
+  +     newIdentity: '590434f024d986f6f2e53fa8d78fa381a65b93d32abbb1ab67854c4f5ee8fd75',
+  +     oldIdentity: '9e1e12b5964950b7b26c0ddbee7eea828fc1bd2aedadf3555400d54dcb589646',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_12.ts',
+  +     newIdentity: '6f6380908748ca08cdf01f4e0d83cfaf95f830b347fd9192cd05d9360ae51329',
+  +     oldIdentity: 'ce8c97eb3a8c69ee48aa5ac0a86ef88d971155df1c2b163dd9ddf9a48bd8fc62',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_13.ts',
+  +     newIdentity: '477ed122534cad2de94808be8cdb34b2eeaf718ae9b60bf7195d98c8dea6d9b0',
+  +     oldIdentity: '6560f149dcf97dbbce030c5b2f5f4e813d4263fce5ed11b4fdcf92f76ff261ae',
+  +     rule: 'business_binding'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_13.ts',
+  +     newIdentity: 'ba7d8263f7bdba7c863f8ce3702c2cda55a08ea12107501ad206981fa4b40a8c',
+  +     oldIdentity: 'fa60b550961519502e63c504605eace8e3bc7f9b9d192bd64b5df25d119a43d2',
+  +     rule: 'business_record_lookup'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_13.ts',
+  +     newIdentity: 'ce2079bccc6208b3c136fc8968a1269017001a7a43ce623e97eb21ba117fe63c',
+  +     oldIdentity: '1e93c3bf52f7f60e65ff036fd150b363cda40994d126125e4b396fe83a81b0f5',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_13.ts',
+  +     newIdentity: '5774d0fe24f546de81371e9833e0605f032f3941f21d2c96a1ab69e2aa65d65e',
+  +     oldIdentity: '2d0041d8ddfad283f2d5910bd0c87628352e845f5bd6d914c6020cc826e88623',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_13.ts',
+  +     newIdentity: 'f5f727873bdff575383c2d3ad9555dc4b9ce673b7da735103c5a8159dc4074a8',
+  +     oldIdentity: 'a2a45317f797b78d15da3fd24830abb25bdc1ab9a5f534f5abc2796ae7f90d27',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_13.ts',
+  +     newIdentity: '956e179c22ba7778cb197779bb45c9f3e2d04962786db4c6d227a697069b1a58',
+  +     oldIdentity: 'be72415c086b147d22e60fef3cd50d83dcb1ee426000de4d1eeae4230f1c1579',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_14.ts',
+  +     newIdentity: 'c80fc0c83954e5015ccab38cf65927520d69a5ccf2a1731c42c74123c18d6d92',
+  +     oldIdentity: '2214b1952a23e9b4b363a01e9c0c262de333eb1d9a1ac5aa8ecefc9b7ca52e9c',
+  +     rule: 'business_binding'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_14.ts',
+  +     newIdentity: '00b511933a43b1f070b23999a3b4b7dd39c00f7fc8cb2599a5edb782816b7a25',
+  +     oldIdentity: '0d78f31a930cc5651574f241bab273eb39d4d950eba8b77f43f4394ca8193cba',
+  +     rule: 'business_record_lookup'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_14.ts',
+  +     newIdentity: 'b0eddebcbdd3d9540606e977576a8d527ddc1762e51bf9d9571161ce9d752623',
+  +     oldIdentity: '4ffbcb6aa136a342e79956d3ae494717849c60d0d9060434b400ff113d761d29',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_14.ts',
+  +     newIdentity: 'ebf03efaf2212b34806538390f05f301f0b0cdbdc0209c533621d5153975b8fd',
+  +     oldIdentity: '59476249b73a481823d0502c196f9dcf72e35345a27b0325ed2e3bcf2244e333',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_14.ts',
+  +     newIdentity: '906b25d76e5f059a909159ff54f1249608498f1410883ed9b08b0fa18f790a6e',
+  +     oldIdentity: 'bc2de44174ae3badb663ac05ed7303d78c8d160004abbde13c052cb77f0a6956',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_14.ts',
+  +     newIdentity: '50dfcc0aa32fe167aa41451d11372e7943f64b9ac83010fb750c25afb3b47be3',
+  +     oldIdentity: 'd6a66aa8004aed2c3af2fa127935bd0dd915927e070822ced7c893bd5d45c49d',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_15.ts',
+  +     newIdentity: 'af6bc5f9d4ca7c7956d431829aceab3b53ae334e5f524da5b57ca9b8c9c8e085',
+  +     oldIdentity: 'deeaa2946a0bdadc0500b21241ff7c327efb18ea5897b1d0234d6157bc9f7098',
+  +     rule: 'business_binding'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_15.ts',
+  +     newIdentity: '702ef4840605a86995ff424f1d5b0b236f16dbaac46332088604c4818900a576',
+  +     oldIdentity: '6cbfbe828d6cfc01fc97d664a6b4a31b0560425689876c2842f4c8d785244028',
+  +     rule: 'business_record_lookup'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_15.ts',
+  +     newIdentity: 'f114a5e35064bc0cc73ba9a40dd6481550dda6508cd5c75f95a59f13fa282598',
+  +     oldIdentity: '0e2eb9f2d67453e6497ef8ea2abd7ef5e245dc481d01d0384656962d47cb45c9',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_15.ts',
+  +     newIdentity: 'ded8354f0bebd835b8eb86f2d67aee9c1916cea0cfb54122a19fdeaed4b6613e',
+  +     oldIdentity: '7e79e9d3aece1952723ab54c9e9d987e93b7b94f4d95fc0a70135f9448916345',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_15.ts',
+  +     newIdentity: '25aa048db81111de53171a56be722db208f01afe2237ad391c044f5d2719b250',
+  +     oldIdentity: 'a4dd62a5dbb144ffa9d341ab75eb3ee7f895708bc52f621018b2992f189ce9fc',
+  +     rule: 'task_identifier'
+  +   },
+  +   {
+  +     count: 1,
+  +     file: 'src/synthetic_15.ts',
+  +     newIdentity: 'ba4dbb85ff47d32beef6cf456c9e4bb8b762f8559d1903fd0fff213f4de976c0',
+  +     oldIdentity: 'a700358c8548ceb3b9e08b3e4f2dc0e873492566f8be2a6067442cbafb41da50',
+  +     rule: 'task_identifier'
+  +   }
+  + ]
+  - []
+  
+      at refused (/workspace/tests/tdpd/runtime-policy-preservation-transition.test.cjs:69:136)
+      at TestContext.<anonymous> (/workspace/tests/tdpd/runtime-policy-preservation-transition.test.cjs:86:146)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ { file: 'src/synthetic_0.ts', rule: 'business_binding', oldIdentity: '01b1ba022a274a453f09ba821e25c3a2401b8e4438c2cdf9af14d39706d858c4', newIdentity: '235a5e519c69481dea8f0cc4b8a9bb6f3af968c8e9b819d5f0623f3e2e344400', count: 1 }, { file: 'src/synthetic_0.ts', rule: 'business_record_lookup', oldIdentity: '11ff8a4639acecdaff6c1fc1cbbfb139c37b6e8b9f19f5bbfd8f6bc957902ab1', newIdentity: '286b76293f01c2d966c632a9b59475bb9128c83cc29b8b146bb7da1ae5459416', count: 1 }, { file: 'src/synthetic_0.ts', rule: 'task_identifier', oldIdentity: '287d5dbe169a37e5260bcb522798bb7e2064aaf0d50a06196e464bf60eaf88a5', newIdentity: 'b4c7faa4922e8b98ee72406cc99456f04aebdec4d850028337d815891ab8af78', count: 1 }, { file: 'src/synthetic_0.ts', rule: 'task_identifier', oldIdentity: '93b1bddada98314777e6fb6c2ab1b483af26f6c0717f90fe237cc8323c613f4a', newIdentity: 'bff37d5a58a1fbebdaca604047a8da688759f5d2439c87c4d8ce1ded55903457', count: 2 }, { file: 'src/synthetic_0.ts', rule: 'task_identifier', oldIdentity: 'd8f2a06c201a9a4015c905014459bc9c76ab9c0939b907d76da24fb6647606c0', newIdentity: '18703144fa2b47e6fc9925fe83bf16ca42f2b820249bba538b7f73ce7a2ddb90', count: 1 }, { file: 'src/synthetic_0.ts', rule: 'task_identifier', oldIdentity: 'f5012d80ce21b1612d1c316ef819d0f2839da11d0d561899716ead6e65e37de7', newIdentity: '745fcb0cdae16a09c9a413e941631e1cdbb7bf39da58b9bb1e5962fba12c740a', count: 1 }, { file: 'src/synthetic_1.ts', rule: 'business_binding', oldIdentity: '0bba0eec463ebc1ebb84a1604409b70b007f4839566b595254e42c8a9e63dbeb', newIdentity: 'bba481cf684693af12295fae067dc6fd409a41e86e37f4b350a57e32dfb9f328', count: 1 }, { file: 'src/synthetic_1.ts', rule: 'business_record_lookup', oldIdentity: '6389d4b801b7e23e15f871277db62d8c78709e2ad79c9804342f6704359f61ac', newIdentity: '48394cf91c5096ea40a48834976263ac4413665c8737ec2ea4d9345a6f0d8368', count: 1 }, { file: 'src/synthetic_1.ts', rule: 'task_identifier', oldIdentity: '216a1b6be520c57c7263518c5438288474b4bde297815e16b08ee889153e552a', newIdentity: '124523ed4ef97b64ab68bf381fad464cef50e767d9516b1fb6daa4a4d893fc7e', count: 1 }, { file: 'src/synthetic_1.ts', rule: 'task_identifier', oldIdentity: '22dfbeb0d8355905cfdbf467bbe5fe8264a0041795f65a3d40d63d6af8761e02', newIdentity: '94275b252ed61a026f6d60efb1bdfc8d0f674b493af9fcfed01dded3bcb9fd29', count: 2 }, { file: 'src/synthetic_1.ts', rule: 'task_identifier', oldIdentity: '75d9248dcc4085274d80462a7caaa0841a9e9e6f0f901e0b25193dd3411d548c', newIdentity: '3a0774b4bc5988cac3b6453e62569314cae64022a5a9db8eb190f85c21878736', count: 1 }, { file: 'src/synthetic_1.ts', rule: 'task_identifier', oldIdentity: '94b7926d13526ba772b14279af50d099b0a8f16075b2b83fd4cbf61c008981ba', newIdentity: '71759082c8b258969955d9ea837f77490b77ee7f3e77393459a4e6c5eed192e4', count: 1 }, { file: 'src/synthetic_1.ts', rule: 'task_identifier', oldIdentity: 'c909316f8e1a72945b176e2bd53432f6b87d1b2da2b951e76217e2ad9f7fbb76', newIdentity: '03cc37f731b920c354441bdbeb82125deead305ae8951911d84143ad9844ea5a', count: 1 }, { file: 'src/synthetic_2.ts', rule: 'business_binding', oldIdentity: '9f36579f045d9b7321862f5948083d54c23efe66189cdf68226ba9cf0daa58ba', newIdentity: 'b539b9718afd0ed66545c280ee9abab694437b5c0ceca7c5afa42dab9f009246', count: 1 }, { file: 'src/synthetic_2.ts', rule: 'business_record_lookup', oldIdentity: '834629b364863a622df89641d1d586ba4b139e4472920b7619e05106e464b14c', newIdentity: 'ff0db071ab9ed9a6dc9129872388d04f721119284e450d74ce3ad2d921544313', count: 1 }, { file: 'src/synthetic_2.ts', rule: 'task_identifier', oldIdentity: '2558bfc86d619100990cfa8fb0875d9f185cef88bb7ce6dccd28ceff06029aba', newIdentity: '9c8e91fa971344539207df7d515b0770c9693e068c4930d44e0ba7e16fb1590a', count: 1 }, { file: 'src/synthetic_2.ts', rule: 'task_identifier', oldIdentity: '2c7114df99d1b6297c10d7af68aff935dca071b1004f1b8b42e2e77f46f37016', newIdentity: '9d2bb5309abccc0e922b23e089f6f153708e95a1e59f95b5fcc76b78bdef54fe', count: 2 }, { file: 'src/synthetic_2.ts', rule: 'task_identifier', oldIdentity: 'c088f33d666ebc61460472888bb4745d270da8484f8c2e409e755d6fe1189f35', newIdentity: 'e0d0bc8b4c99d34b0dec8ae20a8d6f96a047912d7f4b84192ee56a5e2c839b33', count: 1 }, { file: 'src/synthetic_2.ts', rule: 'task_identifier', oldIdentity: 'c9074c47e4b62aeff7e45b4413c4359442b161b27866127876c236952966b40a', newIdentity: '1365ace53e3e4883f1eaf5b64bfbfc02afcd4699e1923d3ff1f26cfbb52e211b', count: 1 }, { file: 'src/synthetic_2.ts', rule: 'task_identifier', oldIdentity: 'fb7db3048fa9d3fc027d2887d0ffa06a92a630adb0adea353cf437155c6983c9', newIdentity: '9ef6581720c9390b0f530e7cda45e777c42ef0cbf67ccb4fe476d4a79bc8ec43', count: 1 }, { file: 'src/synthetic_3.ts', rule: 'business_binding', oldIdentity: '2d479762cc22df8635450a02fd1e11dc23c4fc0add605875e0aafb0b12521c7a', newIdentity: '2470b404ec5e1c5fe32460e9ad9141454f1a59ac5e5f3215d6963ac1d14070c3', count: 1 }, { file: 'src/synthetic_3.ts', rule: 'business_record_lookup', oldIdentity: 'ab484a2c69d5eea9dc15c2ea92dd2333d2f88431f2a8e888add2ae4cc4959ec4', newIdentity: '0d7cd5350cff2556c2da0ceb1fba73d3018631f1768da1f5ee9370c49a1e3e1c', count: 1 }, { file: 'src/synthetic_3.ts', rule: 'task_identifier', oldIdentity: '05a22efc4449297120621c76ed9ef1301b618ae36b1fc4079f834245043527b1', newIdentity: '80e89ddb534c21a5062ecc23193f53fb0a33fc1d23d3acc663512540b34c5a13', count: 1 }, { file: 'src/synthetic_3.ts', rule: 'task_identifier', oldIdentity: '3d9f6e52e11b1d710d31d0a852c32f30c1cbc48013d49170b2f09cc5fdffb568', newIdentity: '3cbcda5970c28de9418996d560589f732d446882d98c3739a6deb3ed2aefcb8a', count: 1 }, { file: 'src/synthetic_3.ts', rule: 'task_identifier', oldIdentity: '861633facc95bb8d818dd7cf19dfee6ac5854d514927f1b64ae1c50b530841d1', newIdentity: '7ffc4638adb7fe172e820652b69f1c0c692f79dc2a447f21492fb1909be141d5', count: 1 }, { file: 'src/synthetic_3.ts', rule: 'task_identifier', oldIdentity: '9b6de5680da2d6a9f2cdb2edf1694dac7e1e316ddaad8f3a346d5b5733b1f7a8', newIdentity: '957671e54950fb2494e6b2da30cb28c9ad424fed05a3ef5e623878c001e08315', count: 1 }, { file: 'src/synthetic_3.ts', rule: 'task_identifier', oldIdentity: 'ce84e1ebf4faa6b53a619b7fdd85e7e89ab246700f83e9e31d16979aaa2d0124', newIdentity: '3c65a34f6f9d23c15b5829a6dd31dddf756221dc3aa743a2b72b25455b975279', count: 2 }, { file: 'src/synthetic_4.ts', rule: 'business_binding', oldIdentity: '1a0eb961eb648edf48a8e1d0b7b5b3bc3d3c65501d89278c0e76eb02aba54865', newIdentity: '581fe99e0ad38ef4411400c7965f6975d0c9b3cabc3f8505baf80fd21a816995', count: 1 }, { file: 'src/synthetic_4.ts', rule: 'business_record_lookup', oldIdentity: '76b3cfd3f82f6080f3a13dbbdcdc774fd5896e27f7b03934cf974a96dacf0785', newIdentity: '11ec94f13884e69f99534f513c120d50dbbbf78e953b655fa95e65bff6a3be1b', count: 1 }, { file: 'src/synthetic_4.ts', rule: 'task_identifier', oldIdentity: '08a21b04b79e09382002464a314d01ed151334a6e4c6c981acbcbb1418e01b57', newIdentity: '4fabd1dec3e7bdf5970f5ebdb4ee89cde92c060b474a86eafb0df3206fd300f3', count: 1 }, { file: 'src/synthetic_4.ts', rule: 'task_identifier', oldIdentity: '84883f6c777379aa08ef5bae6893e0572e7de5b9a9df2e3028de9e862e8309c8', newIdentity: '474a92a0778413b2acc1351cb7dcd519aaf2c370056bf21b1aaddfc336569919', count: 1 }, { file: 'src/synthetic_4.ts', rule: 'task_identifier', oldIdentity: '882d98cde2625f5888001447d007e4c260debfbfa5225959d075204c89ff6ce5', newIdentity: '946c019fbf37bc2624bdc58f529c46794f0b342bc18ae446e0b48b72f4b31da8', count: 2 }, { file: 'src/synthetic_4.ts', rule: 'task_identifier', oldIdentity: '969eea4bc3638ecc3346f163ebc02c4385631ad2416e6f5f3382b02e2fd18efc', newIdentity: '0cf1fc11b01df5b5866a807c14a8102bc10dc4450e8380d45e9748b299365040', count: 1 }, { file: 'src/synthetic_4.ts', rule: 'task_identifier', oldIdentity: 'c1362ab966d3da29a1663b92e4d2d4d992429922db80e20c858ca2382936e696', newIdentity: '9fa712a47558e349fc5f52a1dc97f029121ee0ec7c3aa681c99f534f8aa23d2b', count: 1 }, { file: 'src/synthetic_5.ts', rule: 'business_binding', oldIdentity: '3dc1c42353e9a0dfbaf3666786feb0d19029436bddc88bb0aa4dd9a1335dd8e3', newIdentity: '34d3a73a7dea444ae7c723ac106935ce4263e7aac7be79cd4eaa50d43a9b24a5', count: 1 }, { file: 'src/synthetic_5.ts', rule: 'business_comparison', oldIdentity: '6ce6b958b5515dcfe9871a1b955829a896d45f5034164ad1c41503321e4e9bdc', newIdentity: 'dc4ad78ee243efca263129c11a2654f732c35c2067b1fb61b61425eb0c108789', count: 1 }, { file: 'src/synthetic_5.ts', rule: 'task_identifier', oldIdentity: '0b10b65199b64c8b08a10ef1b01b96375c8289233cdc17aa4659954eaa3a5645', newIdentity: 'abd61c9bf3ca6b50a203ef35ea7b322cec6040aa1aacd1bd3a1b8ed4f8cd4d2a', count: 2 }, { file: 'src/synthetic_5.ts', rule: 'task_identifier', oldIdentity: '7292e2877743631c94bdeaa65f3c072e6968bd9185e710f46d0d9cfc84de4707', newIdentity: '703684999ad3a41d93ccd88a48576ff7f70d025d135b294ee9adec6d46fe3b62', count: 1 }, { file: 'src/synthetic_5.ts', rule: 'task_identifier', oldIdentity: '8de28111b9a67b27b52b7503cb68290623a48e205a110ed2987401362f10163a', newIdentity: '3c3952b1fdc2bbb0d2250c5a39d980f95bd6075f041cfd186c0097d8623d8d2e', count: 1 }, { file: 'src/synthetic_5.ts', rule: 'task_identifier', oldIdentity: 'bf488607aadadf22f4249e44cc54d8935b2c8f799d661d284973e301296af2b5', newIdentity: '26b274b00192830bda1c8a006a92efff566f599498a7f816523f99ecc4f18ca6', count: 1 }, { file: 'src/synthetic_5.ts', rule: 'task_identifier', oldIdentity: 'dc482f685a3fe90e0161bf4694c1237cb7d337726259d9e30cd60644d252e703', newIdentity: '3b2debc6415656193c89eb65cee4b7305ac203a641ea603879fa03ff8f1552aa', count: 1 }, { file: 'src/synthetic_6.ts', rule: 'business_binding', oldIdentity: 'db068af63256134e55bc0388eb4d934a7d379c9dcc8e5f736e4cd8c307a5d0ea', newIdentity: '298611c2bd4430bc6e012238053398deca98adfda6766109a3f4e9d6d3447fe0', count: 1 }, { file: 'src/synthetic_6.ts', rule: 'task_identifier', oldIdentity: '15d8663a9e3f7d66e9a92f4b09c9f21809c30423962aeecaa80719e0ce18f732', newIdentity: '24773840853add1636aaaa94655bfe5288345b39f1e716e450e6c88375b213a1', count: 1 }, { file: 'src/synthetic_6.ts', rule: 'task_identifier', oldIdentity: '2209c77966cd6259992d4c020bc534364b6698328c4b4d212477e9d87df8712a', newIdentity: '93c81fba398ed6e1498ee9639b68ece90b2897ea4fc7f52e2a60f7f55ef72645', count: 1 }, { file: 'src/synthetic_6.ts', rule: 'task_identifier', oldIdentity: '48e65d15af1d4ebf02874bccd25d957499c2ac4d8c1ab4824f7c8c85a661f7d7', newIdentity: '3b7441d1eb82c4efad6180e7d264ffcea06b6cde7412a13e2ba8cdf395ca4be1', count: 1 }, { file: 'src/synthetic_6.ts', rule: 'task_identifier', oldIdentity: '4ccbb687d4fe4df2842b9ee8fb830080ec35e4fb1ead4ad2a5e65a10af436346', newIdentity: '699b48d9e7340a560559b25fadf359a3d749612a874657fad5fa78d9ed698870', count: 2 }, { file: 'src/synthetic_6.ts', rule: 'task_identifier', oldIdentity: 'a72676b68c800710ec430d351dee310ea55707aa47e17466cbbcbecb9b3f1495', newIdentity: '8b0345ea5a4e5a99fd4d498311d583eb7e2fe7d68daadd24c1415dcb086cda8b', count: 1 }, { file: 'src/synthetic_7.ts', rule: 'business_binding', oldIdentity: 'bd72d3db83198ce79b8fc56abcf8d6ded7b15a76cfde23e84dccabb2682c0f03', newIdentity: '8ba4c14c654de238acc0a45bf990da56661c296088d0f27082ba78e62da92808', count: 1 }, { file: 'src/synthetic_7.ts', rule: 'task_identifier', oldIdentity: '186ba4cab75ea5a9b672f53df1481e34701a400ef703f60d0034119687b27c11', newIdentity: '0a19fc5b6b1d3876d81c967d6715880626cda8cccb366a9032f2ddf8c1db9195', count: 2 }, { file: 'src/synthetic_7.ts', rule: 'task_identifier', oldIdentity: '30421b333a8c0a55351c5b6e05e16d20af4103e56638e414f6d775a2662953be', newIdentity: 'b65038166b09c4c0e088c4e23bda4acca8705daf997e1dc788afdd42b42bcc93', count: 1 }, { file: 'src/synthetic_7.ts', rule: 'task_identifier', oldIdentity: '8dc0f707a221798fea741b39be1d54e676a356e0fd0fb07ff8ca816033a724cb', newIdentity: 'cedf0f66f0bf0768e985abbfc5a223c86fbdc7c1e86b0e383861b3e6d09fda1f', count: 1 }, { file: 'src/synthetic_7.ts', rule: 'task_identifier', oldIdentity: 'dad4cf52f2de3ae78313600cd9133c03d108c7402b33506065335c57c92b60e6', newIdentity: 'e6d3f94ef9e531c375d46fcc90022618ee75e1752a9ffddfa6dcb6f2c356d440', count: 1 }, { file: 'src/synthetic_7.ts', rule: 'task_identifier', oldIdentity: 'e9acf092c41c63cb03c8103a490e7498037c83e3fcc2022e76b180d8b81f412a', newIdentity: '0003bb789eb229658b489be6241e52abdc01e877607f964edc4fac3da035ced0', count: 1 }, { file: 'src/synthetic_8.ts', rule: 'business_binding', oldIdentity: '4eb1edd676d8215793221c6e27a904e45f95a0273f307e07bdf3b6196ba2ec76', newIdentity: '8f8020d6cae2f71c8e771bfbd087a286e7f20a834704c44e754575200edc1556', count: 1 }, { file: 'src/synthetic_8.ts', rule: 'task_identifier', oldIdentity: '07aa601ce0c7092a54e86dc476c6b9d07ce30014e7f8f50cd0f7a040357cf5ed', newIdentity: '5184feb7528c12577fac6f68754c6e826ab16dbfcf8a8a87b4e8b5523c08d06e', count: 1 }, { file: 'src/synthetic_8.ts', rule: 'task_identifier', oldIdentity: '52ee569ef64bba8c89c493abe675a38bf6da713212ab3f60e0f49368e4e30992', newIdentity: 'aec69ba403eb07c62eb4265238ff28c1c5cc3f2bfd4c718ed2293f9f97c4687a', count: 1 }, { file: 'src/synthetic_8.ts', rule: 'task_identifier', oldIdentity: '85fe09d4ebae6fa1483957197217ef8fa44e3897a6d3d9d3643eb413ddda2f71', newIdentity: '83f26bb602fdd5003038d5309fedcdf462a8101c44eb94502f08026093c16604', count: 1 }, { file: 'src/synthetic_8.ts', rule: 'task_identifier', oldIdentity: '89bf7960593b536823a1e10f82dace2f9edb43c98b946ef39a942c0dec87fb7e', newIdentity: '22523c0bb7fbac1ba801cb63fe4a91d8891473ca1a67090bf7a3f50c884fb132', count: 1 }, { file: 'src/synthetic_8.ts', rule: 'task_identifier', oldIdentity: 'a372df4b742622f698fcbb715502eaefec47cc90e1868281b255c6132af620a6', newIdentity: 'dc9f0553044a55a6957e4bd9d7e9b2248447584bb229cea2c9cb17a1def96d31', count: 1 }, { file: 'src/synthetic_9.ts', rule: 'business_binding', oldIdentity: 'b93126e249c8c6cb89fc79d02e183f45739532d2a30417e82921d4ac691d422e', newIdentity: 'c4ce413b6b631a1b051df46b52f2a76cd82420e2a5940eb3c55fed91df9d6a06', count: 1 }, { file: 'src/synthetic_9.ts', rule: 'business_binding', oldIdentity: 'e2c4cb91ef9bc4e2cbeb8fe90b3a7bab545c9d97c915f82992244cdb42d25178', newIdentity: 'b1f3e56c3bbe3c8c262f385ace1b3c867f0bc6d7a11b1487b97a91c007a02488', count: 1 }, { file: 'src/synthetic_9.ts', rule: 'task_identifier', oldIdentity: '534edd2c74beacf9e9a4cb19aac994e3549fd433ff6c21c76ec61f02ac7993bc', newIdentity: 'e2ff36af72e5faa1b55889ffee70ca024122c41a82a7e58508c7d69ee2a0dd36', count: 1 }, { file: 'src/synthetic_9.ts', rule: 'task_identifier', oldIdentity: '555006740fbfddadd9a4a0d46130e78e46eba973dfeddc85c24aa1123d9e96d3', newIdentity: '64d40528cf83c28c6244fb72a899b045d01bd63c15947036856c6a6bf5a0e13d', count: 1 }, { file: 'src/synthetic_9.ts', rule: 'task_identifier', oldIdentity: '59e5e195d19d9da364fa2de5f00832938951157eb19aeb878f9e5dbe26be939e', newIdentity: '3f1a9264f51bdf092e06e9153c711e50da14793416515c30f52f7da55bf7f74e', count: 1 }, { file: 'src/synthetic_9.ts', rule: 'task_identifier', oldIdentity: 'd696fa15ab2cd49a74fcc58e76a3f64537e88ac10e7f3daf5fee2e61ae228b4a', newIdentity: 'be91d82f1dc6f0b8f5559b7663f46537166b9f69824c26c546d26b1d8cfc96e2', count: 1 }, { file: 'src/synthetic_10.ts', rule: 'business_binding', oldIdentity: '20b163def830c778acd1931402af98d0a727dcb75914a7782c820f58094546ca', newIdentity: 'fcf294ef50324e361dd84f18b287eb483d395f9ec194b43f4f04d368a5daa17a', count: 1 }, { file: 'src/synthetic_10.ts', rule: 'business_binding', oldIdentity: '32470a6eab8d672c4e9ebb66453cd63c9dc71a441462a7b9cab40ab7c102d179', newIdentity: '03d880387a8dac825baf623cfe84fa7754539a97dc0f5d10aa805679a4cba3e4', count: 1 }, { file: 'src/synthetic_10.ts', rule: 'task_identifier', oldIdentity: '1a7ebea698a61d19ae95e405c2e2b985eed7b885e64e7ec9daeeef4b1ab69234', newIdentity: '3567c0b8446a1ed6d9f35546db33f5e30f5b1c5fb36e146cb31ecfa9be6aec60', count: 1 }, { file: 'src/synthetic_10.ts', rule: 'task_identifier', oldIdentity: '534aac9232fe904822c516590cb5bc80fd9be947b160a54813e3cd5a58454048', newIdentity: '36517b714c5c9634becde85d8f24ff20a428c67f98cdeba2e75f11cda240e0d6', count: 1 }, { file: 'src/synthetic_10.ts', rule: 'task_identifier', oldIdentity: 'cba253ce405866e19e87a178756d139a60d45165eddc2af64767779a91ca59a5', newIdentity: '485831ec15ad578d3d8c0fcd253bdc7adfd561ea5cf6af9daf749e1784885675', count: 1 }, { file: 'src/synthetic_10.ts', rule: 'task_identifier', oldIdentity: 'df1826425e26f0060827612d8f023a937a2b70d61f8ab15f6875c9282b786042', newIdentity: 'b30d850f35ab756815eb5aa80a9fe5ff57a64f05ff0256691421f758ae32740a', count: 1 }, { file: 'src/synthetic_11.ts', rule: 'business_binding', oldIdentity: 'bb78fe8a4dbb0ae362854dc517068192d3ca987dd0e027c30453af6c8f52ac90', newIdentity: '7f904209acdb3d5e1fc93e52b60a010711db74a3adcdb24c4cd02cf606887c15', count: 1 }, { file: 'src/synthetic_11.ts', rule: 'business_binding', oldIdentity: 'cfb08708037023b9d608782e9498c6cd69dc1d6add135e48f320fdebaeaab3ee', newIdentity: '564c3e456c8bdd63ba91d4dc0317317ad2fcdd61e00cead26edcf519b458698c', count: 1 }, { file: 'src/synthetic_11.ts', rule: 'task_identifier', oldIdentity: '17ac32d5dc1c648711dc6cdca39afac9c31b03fc75334b2fbd68aa48ba7083af', newIdentity: 'ca9006812f1fe29a6b2b98fbcfd8de8d0d8b892b526e1efa0797da4bfe261539', count: 1 }, { file: 'src/synthetic_11.ts', rule: 'task_identifier', oldIdentity: 'b9be7062e321e24d0738d86f68be90f85f710131181243fc4ca0ed0368397485', newIdentity: 'a99eb689ff175df596fdd17336eae8637b6cb00519c208d315116f3943dd2b65', count: 1 }, { file: 'src/synthetic_11.ts', rule: 'task_identifier', oldIdentity: 'e432a72013b8f09ab3efd5dc33892c3e5c2bb3327c0e2c865860e5bfc08f2ad8', newIdentity: 'e1e23c25c392473ad199ce5b4dca78a66fbe3cc7bb63f3f55b9aafe5618c1a1e', count: 1 }, { file: 'src/synthetic_11.ts', rule: 'task_identifier', oldIdentity: 'fca60255d8930a27b44209f00cd5247440ab528a1b119ffe0b2cf343d8970767', newIdentity: '61478a00a0e15ccdbbe487973d0371dc614ad7e1274a0be18a4a06e8172b74b7', count: 1 }, { file: 'src/synthetic_12.ts', rule: 'business_binding', oldIdentity: '26e1c0738c66f03f46e6e103d9a228bddd9ad9ca02dd2ce5a7bf71c498b9c055', newIdentity: 'b8ef53066bf77465defbb6785f88f0dabdc75a25f57420c7bff510f34aa39b4b', count: 1 }, { file: 'src/synthetic_12.ts', rule: 'business_binding', oldIdentity: 'd132901ad8b676358e0698146bf02d2171d6bee495a2d48afbec20e411f2be51', newIdentity: 'fb9e41156838f835df8701667158adee7066b181e34a7d12851ef232c31e3885', count: 1 }, { file: 'src/synthetic_12.ts', rule: 'task_identifier', oldIdentity: '593bba5de2ab81612e5e996ffd3dec60c0d6b7581e602b3f08302185cd495264', newIdentity: '606313decff70d3d0e2c8bdf5721cf4bbee8e9a15e51172b1e961cbdf18c1919', count: 1 }, { file: 'src/synthetic_12.ts', rule: 'task_identifier', oldIdentity: '6f6088bce7fef239a7f5b9c2aa7f72f6fdf00eaeeb5e971a1bd5c7181aa2df6b', newIdentity: 'b9d8f900c4435deabfdf3b230432bf764133fe27e97a68e422bf1d6d49e00e72', count: 1 }, { file: 'src/synthetic_12.ts', rule: 'task_identifier', oldIdentity: '9e1e12b5964950b7b26c0ddbee7eea828fc1bd2aedadf3555400d54dcb589646', newIdentity: '590434f024d986f6f2e53fa8d78fa381a65b93d32abbb1ab67854c4f5ee8fd75', count: 1 }, { file: 'src/synthetic_12.ts', rule: 'task_identifier', oldIdentity: 'ce8c97eb3a8c69ee48aa5ac0a86ef88d971155df1c2b163dd9ddf9a48bd8fc62', newIdentity: '6f6380908748ca08cdf01f4e0d83cfaf95f830b347fd9192cd05d9360ae51329', count: 1 }, { file: 'src/synthetic_13.ts', rule: 'business_binding', oldIdentity: '6560f149dcf97dbbce030c5b2f5f4e813d4263fce5ed11b4fdcf92f76ff261ae', newIdentity: '477ed122534cad2de94808be8cdb34b2eeaf718ae9b60bf7195d98c8dea6d9b0', count: 1 }, { file: 'src/synthetic_13.ts', rule: 'business_record_lookup', oldIdentity: 'fa60b550961519502e63c504605eace8e3bc7f9b9d192bd64b5df25d119a43d2', newIdentity: 'ba7d8263f7bdba7c863f8ce3702c2cda55a08ea12107501ad206981fa4b40a8c', count: 1 }, { file: 'src/synthetic_13.ts', rule: 'task_identifier', oldIdentity: '1e93c3bf52f7f60e65ff036fd150b363cda40994d126125e4b396fe83a81b0f5', newIdentity: 'ce2079bccc6208b3c136fc8968a1269017001a7a43ce623e97eb21ba117fe63c', count: 1 }, { file: 'src/synthetic_13.ts', rule: 'task_identifier', oldIdentity: '2d0041d8ddfad283f2d5910bd0c87628352e845f5bd6d914c6020cc826e88623', newIdentity: '5774d0fe24f546de81371e9833e0605f032f3941f21d2c96a1ab69e2aa65d65e', count: 1 }, { file: 'src/synthetic_13.ts', rule: 'task_identifier', oldIdentity: 'a2a45317f797b78d15da3fd24830abb25bdc1ab9a5f534f5abc2796ae7f90d27', newIdentity: 'f5f727873bdff575383c2d3ad9555dc4b9ce673b7da735103c5a8159dc4074a8', count: 1 }, { file: 'src/synthetic_13.ts', rule: 'task_identifier', oldIdentity: 'be72415c086b147d22e60fef3cd50d83dcb1ee426000de4d1eeae4230f1c1579', newIdentity: '956e179c22ba7778cb197779bb45c9f3e2d04962786db4c6d227a697069b1a58', count: 1 }, { file: 'src/synthetic_14.ts', rule: 'business_binding', oldIdentity: '2214b1952a23e9b4b363a01e9c0c262de333eb1d9a1ac5aa8ecefc9b7ca52e9c', newIdentity: 'c80fc0c83954e5015ccab38cf65927520d69a5ccf2a1731c42c74123c18d6d92', count: 1 }, { file: 'src/synthetic_14.ts', rule: 'business_record_lookup', oldIdentity: '0d78f31a930cc5651574f241bab273eb39d4d950eba8b77f43f4394ca8193cba', newIdentity: '00b511933a43b1f070b23999a3b4b7dd39c00f7fc8cb2599a5edb782816b7a25', count: 1 }, { file: 'src/synthetic_14.ts', rule: 'task_identifier', oldIdentity: '4ffbcb6aa136a342e79956d3ae494717849c60d0d9060434b400ff113d761d29', newIdentity: 'b0eddebcbdd3d9540606e977576a8d527ddc1762e51bf9d9571161ce9d752623', count: 1 }, { file: 'src/synthetic_14.ts', rule: 'task_identifier', oldIdentity: '59476249b73a481823d0502c196f9dcf72e35345a27b0325ed2e3bcf2244e333', newIdentity: 'ebf03efaf2212b34806538390f05f301f0b0cdbdc0209c533621d5153975b8fd', count: 1 }, { file: 'src/synthetic_14.ts', rule: 'task_identifier', oldIdentity: 'bc2de44174ae3badb663ac05ed7303d78c8d160004abbde13c052cb77f0a6956', newIdentity: '906b25d76e5f059a909159ff54f1249608498f1410883ed9b08b0fa18f790a6e', count: 1 }, { file: 'src/synthetic_14.ts', rule: 'task_identifier', oldIdentity: 'd6a66aa8004aed2c3af2fa127935bd0dd915927e070822ced7c893bd5d45c49d', newIdentity: '50dfcc0aa32fe167aa41451d11372e7943f64b9ac83010fb750c25afb3b47be3', count: 1 }, { file: 'src/synthetic_15.ts', rule: 'business_binding', oldIdentity: 'deeaa2946a0bdadc0500b21241ff7c327efb18ea5897b1d0234d6157bc9f7098', newIdentity: 'af6bc5f9d4ca7c7956d431829aceab3b53ae334e5f524da5b57ca9b8c9c8e085', count: 1 }, { file: 'src/synthetic_15.ts', rule: 'business_record_lookup', oldIdentity: '6cbfbe828d6cfc01fc97d664a6b4a31b0560425689876c2842f4c8d785244028', newIdentity: '702ef4840605a86995ff424f1d5b0b236f16dbaac46332088604c4818900a576', count: 1 }, { file: 'src/synthetic_15.ts', rule: 'task_identifier', oldIdentity: '0e2eb9f2d67453e6497ef8ea2abd7ef5e245dc481d01d0384656962d47cb45c9', newIdentity: 'f114a5e35064bc0cc73ba9a40dd6481550dda6508cd5c75f95a59f13fa282598', count: 1 }, { file: 'src/synthetic_15.ts', rule: 'task_identifier', oldIdentity: '7e79e9d3aece1952723ab54c9e9d987e93b7b94f4d95fc0a70135f9448916345', newIdentity: 'ded8354f0bebd835b8eb86f2d67aee9c1916cea0cfb54122a19fdeaed4b6613e', count: 1 }, { file: 'src/synthetic_15.ts', rule: 'task_identifier', oldIdentity: 'a4dd62a5dbb144ffa9d341ab75eb3ee7f895708bc52f621018b2992f189ce9fc', newIdentity: '25aa048db81111de53171a56be722db208f01afe2237ad391c044f5d2719b250', count: 1 }, ... 1 more item ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+

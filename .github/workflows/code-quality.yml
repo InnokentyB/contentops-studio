@@ -217,7 +217,7 @@ jobs:
           PUPPETEER_SKIP_DOWNLOAD: 'true'
 
       - name: Offline policy positive and negative acceptance scenarios
-        run: node --test --test-concurrency=1 tests/tdpd/runtime-policy-collector.test.cjs tests/tdpd/runtime-policy-gate.test.cjs tests/tdpd/runtime-policy-transition.proposed.cjs tests/tdpd/runtime-policy-transition-resources.proposed.cjs tests/tdpd/runtime-policy-budget.test.cjs
+        run: node --test --test-concurrency=1 tests/tdpd/runtime-policy-collector.test.cjs tests/tdpd/runtime-policy-gate.test.cjs tests/tdpd/runtime-policy-transition.proposed.cjs tests/tdpd/runtime-policy-transition-resources.proposed.cjs tests/tdpd/runtime-policy-budget.test.cjs tests/tdpd/runtime-policy-preservation-transition.test.cjs
 
       - name: 🔍 Run Automated Code Quality & Security Audit
         env:

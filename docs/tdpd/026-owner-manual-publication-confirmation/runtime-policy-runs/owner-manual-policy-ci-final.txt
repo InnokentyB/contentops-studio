@@ -1,0 +1,44 @@
+✔ P01 synthetic102 pairs across16 files are admitted only from synthetic trusted Git base (869.903995ms)
+✔ P02 StageA inert trusted manifest does not change old source or baseline (222.424598ms)
+✔ P03 current-branch manifest cannot authorize its own baseline replacement (228.76661ms)
+✔ P05 additional unreviewed literal cannot consume the exact pack (292.637226ms)
+✔ P06 changed leaf fails even when evil trusted manifest and baseline match its new source hash (518.419296ms)
+✔ P07 renamed named scope fails with exact trusted source hashes and unchanged leaf syntax (304.751804ms)
+✔ P08 count growth fails despite trusted matching new source and scanner baseline (523.363409ms)
+✔ P09 changed baseline owner cannot inherit old authority (299.494611ms)
+✔ P09 changed baseline reason cannot inherit old authority (297.108375ms)
+✔ P09 changed baseline remediation cannot inherit old authority (297.681749ms)
+✔ P10 changed rule in trusted manifest is refused (236.116907ms)
+✔ P11 changed file binding in trusted manifest is refused (239.45572ms)
+✔ P12 trusted oldSourceSha256 drift is refused (296.721032ms)
+✔ P12 trusted newSourceSha256 drift is refused (284.13772ms)
+✔ P13 old identity collision is refused without cardinality growth (234.049445ms)
+✔ P14 new identity collision is refused without cardinality growth (239.64113ms)
+✔ P15 missing reviewed pair cannot widen the baseline (237.741248ms)
+✔ P16 one matching growth validates the entire pack rather than an active subset (277.510487ms)
+✔ P17 production artifact byte limit remains65536 (242.469748ms)
+✔ P18 malformed trusted artifact is refused safely (243.897368ms)
+✔ P19 unknown trusted base cannot supply authority (256.597601ms)
+✔ P20 missing explicit trusted base cannot authorize baseline growth (229.256603ms)
+✔ P21 symlinked current source is rejected (200.591856ms)
+✔ P22 symlinked artifact cannot be a trusted Git authority (245.039515ms)
+✔ P23 proxy indirection cannot launder an old business leaf (315.448764ms)
+✔ P24 renamed object-property callable scope fails despite fully rebound trusted hashes and identities (1001.147049ms)
+✔ P25 actual active preservation pack stays within32 Git reads and shared2second budget (724.199915ms)
+✔ P26 one hung preservation Git read is bounded and sanitized (1254.117567ms)
+✔ P27 repeated subsecond Git reads cannot restart the shared2second deadline (2239.453514ms)
+✔ P28 individual source larger than1MiB cannot be admitted with a matching reviewed hash (274.272966ms)
+✔ P29 aggregate old/new sources larger than8MiB remain bounded below individual limits (387.255482ms)
+✔ P30 trusted source mode must be regular even when blob bytes and hashes match (258.533214ms)
+✔ P31 unchanged finding outside the reviewed pack cannot change owner (555.160776ms)
+✔ P31 unchanged finding outside the reviewed pack cannot change reason (552.357647ms)
+✔ P31 unchanged finding outside the reviewed pack cannot change remediation (533.504454ms)
+✔ P32 dropping an unchanged outside finding cannot partially apply an otherwise valid pack (532.560978ms)
+ℹ tests 36
+ℹ suites 0
+ℹ pass 36
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16145.351269
