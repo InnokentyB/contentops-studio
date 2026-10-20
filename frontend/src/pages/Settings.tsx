@@ -1,4 +1,5 @@
-import { LinkedInConnectionControl } from '../components/LinkedInConnectionControl'
+import { LinkedInChannelEditor } from '../components/LinkedInChannelEditor'
+import { connectionDiagnostic } from '../components/linkedin-connection-state'
 import { VkSearchTokenField } from '../components/VkSearchTokenField'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { ApiJson } from '../types/api-json'
@@ -1679,11 +1680,17 @@ export default function Settings() {
                 <div className="rounded-2xl bg-white p-5 shadow-sm sm:p-7">
                     <h2 className="text-2xl font-headline font-black text-on-surface">{copy.publicationChannels}</h2>
                     <p className="mb-6 mt-2 text-sm leading-6 text-on-surface-variant">{copy.publicationChannelsHelp}</p>
+                    {linkedinError?.startsWith('LINKEDIN_OAUTH_') && <p role="alert" className="linkedin-connection__notice mb-6">
+                        {connectionDiagnostic(linkedinError, locale === 'ru' ? 'ru' : 'en')}
+                        {' '}{locale === 'ru' ? 'Откройте настройки нужного LinkedIn-канала ниже.' : 'Open the relevant LinkedIn channel settings below.'}
+                    </p>}
 
-                    <div className="mb-3 p-2" style={{ border: '1px solid var(--border)', borderRadius: '8px' }}>
-                        <div className="flex-between mb-3">
-                            <h3 style={{ margin: 0 }}>Add Channel</h3>
-                            <select value={newChannelType} onChange={(e: ApiJson) => {
+                    <details className="channel-setup mb-6 rounded-xl bg-surface-container-low p-4 sm:p-5">
+                        <summary className="cursor-pointer text-sm font-semibold text-primary">{locale === 'ru' ? 'Добавить другой канал' : 'Add another channel'}</summary>
+                        <div className="mb-4 mt-4 flex flex-wrap items-center justify-between gap-3">
+                            <h3 className="text-base font-bold">{locale === 'ru' ? 'Новый канал' : 'New channel'}</h3>
+                            <label className="sr-only" htmlFor="new-channel-platform">{locale === 'ru' ? 'Площадка' : 'Platform'}</label>
+                            <select id="new-channel-platform" value={newChannelType} onChange={(e: ApiJson) => {
                                 const nextType = e.target.value;
                                 setNewChannelType(nextType);
                                 setNewThreadsConnectionFeedback(null);
@@ -1695,7 +1702,6 @@ export default function Settings() {
                             }}>
                                 <option value="telegram">Telegram</option>
                                 <option value="vk">VKontakte (VK)</option>
-                                <option value="linkedin">LinkedIn</option>
                                 <option value="ok">Odnoklassniki (OK)</option>
                                 <option value="habr">Habr</option>
                                 <option value="vc">VC.ru</option>
@@ -1705,11 +1711,11 @@ export default function Settings() {
                             </select>
                         </div>
 
-                        <div className="grid-2" style={{ gap: '1rem' }}>
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div>
-                                <label>Channel Name (Internal)</label>
+                                <label>{locale === 'ru' ? 'Название канала' : 'Channel name'}</label>
                                 <input
-                                    placeholder="e.g. My Tech Blog"
+                                    placeholder={locale === 'ru' ? 'Например, блог компании' : 'For example, company blog'}
                                     value={newChannelName}
                                     onChange={e => setNewChannelName(e.target.value)}
                                 />
@@ -2014,15 +2020,7 @@ export default function Settings() {
                                             : 'Planner prepares the article and durable cover, but publication remains manual. No API key is created.'}
                                     </p>
                                 </div>
-                            ) : (
-                                <div style={{ gridColumn: '1 / -1' }}>
-                                    {currentProject && <LinkedInConnectionControl
-                                        projectId={currentProject.id} token={token || ''}
-                                        channels={(projectData?.channels || []) as SocialChannel[]}
-                                        disabled={currentProject?.role !== 'owner' || Boolean(user?.is_demo)} error={linkedinError}
-                                    />}
-                                </div>
-                            )}
+                            ) : null}
                             {newChannelType !== 'linkedin' && (
                                 <div style={{ display: 'flex', alignItems: 'flex-end', gridColumn: '1 / -1' }}>
                                     <button
@@ -2042,7 +2040,7 @@ export default function Settings() {
                                 </div>
                             )}
                         </div>
-                    </div>
+                    </details>
 
                     <div className="channel-table-shell">
                         <table className="channel-table">
@@ -2059,6 +2057,14 @@ export default function Settings() {
                             <tbody>
                         {(projectData as ApiJson)?.channels?.map((channel: SocialChannel) => {
                             if (editingChannelId === channel.id) {
+                                if (channel.type === 'linkedin' && currentProject) return <tr key={channel.id} className="channel-table__editor-row"><td colSpan={6}>
+                                    <LinkedInChannelEditor projectId={currentProject.id} token={token || ''} channel={channel}
+                                        locale={locale === 'ru' ? 'ru' : 'en'} disabled={currentProject.role !== 'owner' || Boolean(user?.is_demo)}
+                                        name={editingChannelName} config={editingChannelConfig} saving={editChannel.isPending}
+                                        onName={setEditingChannelName} onConfig={setEditingChannelConfig}
+                                        onSave={() => editChannel.mutate({ id: channel.id, name: editingChannelName, config: editingChannelConfig })}
+                                        onClose={() => setEditingChannelId(null)} />
+                                </td></tr>;
                                 return (
                                     <tr key={channel.id} className="channel-table__editor-row">
                                       <td colSpan={6}>
@@ -2549,11 +2555,10 @@ export default function Settings() {
                                     ? copy.prepareOnly
                                     : copy.afterApproval;
                             const isVkConnected = channel.type === 'vk' && channel.config?.publish_access_token === '******';
-                            const needsLinkedinAnalytics = channel.type === 'linkedin' && !channel.config?.analytics_scope_enabled;
                             const connectionLabel = channel.type === 'vk'
                                 ? (isVkConnected ? (locale === 'ru' ? 'Подключён' : 'Connected') : (locale === 'ru' ? 'Нужно подключить' : 'Connection required'))
                                 : channel.type === 'linkedin'
-                                    ? (needsLinkedinAnalytics ? (locale === 'ru' ? 'Нужен доступ к аналитике' : 'Analytics access needed') : (locale === 'ru' ? 'Готово' : 'Ready'))
+                                    ? (locale === 'ru' ? 'Проверить в карточке' : 'Check in channel settings')
                                     : (channel.is_active ? (locale === 'ru' ? 'Активен' : 'Active') : (locale === 'ru' ? 'Отключён' : 'Inactive'));
 
                             return (
@@ -2573,7 +2578,7 @@ export default function Settings() {
                                         <span className="channel-table__workflow">{workflowLabel}</span>
                                     </td>
                                     <td data-label={locale === 'ru' ? 'Подключение' : 'Connection'}>
-                                        <span className={`channel-table__status ${(!channel.is_active || needsLinkedinAnalytics || (channel.type === 'vk' && !isVkConnected)) ? 'channel-table__status--attention' : 'channel-table__status--ready'}`}>
+                                        <span className={`channel-table__status ${(!channel.is_active || channel.type === 'linkedin' || (channel.type === 'vk' && !isVkConnected)) ? 'channel-table__status--attention' : 'channel-table__status--ready'}`}>
                                             <span aria-hidden="true" />{connectionLabel}
                                         </span>
                                     </td>
