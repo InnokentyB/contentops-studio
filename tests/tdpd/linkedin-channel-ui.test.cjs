@@ -73,3 +73,15 @@ test('unsafe OAuth targets and raw diagnostic messages never reach navigation or
     assert.equal(connectionRedirect({ url: 'https://www.linkedin.com/oauth/v2/authorization?synthetic=1' }), 'https://www.linkedin.com/oauth/v2/authorization?synthetic=1');
     assert.ok(!connectionDiagnostic('raw-provider-secret', 'ru').includes('raw-provider-secret'));
 });
+
+test('latest-attempt diagnostics retain safe exact reason and draft identity without claiming connection', () => {
+    const { readConnectionStatus, connectionDiagnostic } = load(path.join(path.dirname(componentPath), 'linkedin-connection-state.ts'));
+    const status = { channelId: 23, connected: false, expiresAt: null, scopes: [], accountKind: null, postReadVerified: false, imageReadPermitted: false, code: 'LINKEDIN_OAUTH_GRANTS_UNKNOWN',
+        latestAttempt: { status: 'failed', createdAt: '2026-10-20T10:00:00Z', code: 'LINKEDIN_OAUTH_TOKEN_CLIENT_MISSING', expectedAuthorUrn: 'urn:li:organization:12345' } };
+    const parsed = readConnectionStatus(status, 23);
+    assert.equal(parsed.connected, false); assert.equal(parsed.latestAttempt.code, 'LINKEDIN_OAUTH_TOKEN_CLIENT_MISSING');
+    assert.equal(parsed.latestAttempt.expectedAuthorUrn, 'urn:li:organization:12345');
+    assert.match(connectionDiagnostic(parsed.latestAttempt.code, 'ru'), /идентификатор приложения/);
+    assert.equal(readConnectionStatus({ ...status, latestAttempt: { ...status.latestAttempt, code: 'private-provider-secret', expectedAuthorUrn: 'javascript:secret' } }, 23).latestAttempt.code, null);
+    assert.equal(readConnectionStatus({ ...status, latestAttempt: { ...status.latestAttempt, code: 'private-provider-secret', expectedAuthorUrn: 'javascript:secret' } }, 23).latestAttempt.expectedAuthorUrn, null);
+});

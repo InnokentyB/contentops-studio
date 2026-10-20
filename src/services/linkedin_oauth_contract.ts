@@ -8,6 +8,22 @@ function canonical(value: unknown): unknown { if (Array.isArray(value))
     return value.map(canonical); if (value && typeof value === 'object')
     return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => [k, canonical(v)])); return value; }
 const failures = {
+    LINKEDIN_OAUTH_TOKEN_EXCHANGE_FAILED: ['LinkedIn token exchange did not return a supported response.', 'Check the app credentials and callback configuration. Inspect this consumed attempt before starting a fresh connection.'],
+    LINKEDIN_OAUTH_TOKEN_RESPONSE_INVALID: ['LinkedIn token exchange returned no valid access token.', 'Ask engineering to inspect token exchange compatibility; no connection was saved.'],
+    LINKEDIN_OAUTH_TOKEN_INTROSPECTION_FAILED: ['LinkedIn token introspection did not return a supported response.', 'Check application access to token introspection; no connection was saved.'],
+    LINKEDIN_OAUTH_APP_CREDENTIALS_REJECTED: ['LinkedIn rejected application authentication during token introspection.', 'Verify the exact app client ID and secret privately in server configuration, then start a fresh connection.'],
+    LINKEDIN_OAUTH_INTROSPECTION_INVALID: ['LinkedIn introspection did not include a valid active indicator.', 'Ask engineering to inspect introspection response compatibility; do not assume the token is active.'],
+    LINKEDIN_OAUTH_TOKEN_INACTIVE: ['LinkedIn reports that the issued token is inactive.', 'Check whether access was revoked or the token belongs to another application, then reconnect.'],
+    LINKEDIN_OAUTH_TOKEN_CLIENT_MISSING: ['Token introspection did not supply a verifiable application client ID.', 'The route requires authenticated application binding. Inspect introspection support before reconnecting.'],
+    LINKEDIN_OAUTH_TOKEN_CLIENT_MISMATCH: ['The token belongs to a different application client.', 'Verify the approved application configuration and start a fresh connection with that application.'],
+    LINKEDIN_OAUTH_TOKEN_EXPIRY_INVALID: ['Token introspection did not supply a supported expiry timestamp.', 'Inspect the provider expiry response; Planner cannot invent a token lifetime.'],
+    LINKEDIN_OAUTH_TOKEN_EXPIRED: ['The issued LinkedIn token has already expired.', 'Start a fresh connection after checking application and clock configuration.'],
+    LINKEDIN_OAUTH_TOKEN_SCOPES_MISSING: ['Token introspection did not supply the granted permissions.', 'Verify introspection support for the member authorization flow; do not infer grants from the consent request.'],
+    LINKEDIN_OAUTH_TOKEN_SCOPES_INVALID: ['Token introspection returned unsupported permission metadata.', 'Ask engineering to inspect the permission response format; no connection was saved.'],
+    LINKEDIN_OAUTH_PROFILE_SCOPE_REQUIRED: ['The issued token lacks the supported profile permission required to verify identity.', 'Enable an approved r_basicprofile or r_liteprofile permission for this app, then reconnect.'],
+    LINKEDIN_OAUTH_PROFILE_REQUEST_FAILED: ['LinkedIn profile verification did not return a supported response.', 'Check that the app and issued token can access the supported member profile endpoint.'],
+    LINKEDIN_OAUTH_PROFILE_ID_INVALID: ['LinkedIn profile verification returned no supported member ID.', 'Inspect profile API compatibility; do not substitute an unverified person or organization identity.'],
+    LINKEDIN_OAUTH_ORGANIZATION_REQUEST_FAILED: ['LinkedIn organization authorization verification did not return a supported response.', 'Check organization authorization API access and the page administrator role.'],
     LINKEDIN_CHANNEL_REQUIRED: ['Select an existing LinkedIn channel.', 'Choose the exact personal or organization channel in Settings and reconnect.'],
     LINKEDIN_OAUTH_AUTH_REQUIRED: ['A current non-demo project Owner must initiate this connection.', 'Sign in as the project Owner and reconnect the selected channel.'],
     LINKEDIN_OAUTH_CHANNEL_CHANGED: ['The selected channel changed while connection was in progress.', 'Check its identity and start a fresh connection for that channel.'],
@@ -25,6 +41,7 @@ const failures = {
     LINKEDIN_OAUTH_SAVE_FAILED: ['The verified connection could not be saved atomically.', 'Check channel status and start a fresh connection if incomplete; the consumed callback cannot be retried.']
 } as const;
 export type OAuthFailureCode = keyof typeof failures;
+export function isOAuthFailureCode(value: unknown): value is OAuthFailureCode { return typeof value === 'string' && Object.prototype.hasOwnProperty.call(failures, value); }
 export class LinkedInOAuthError extends Error {
     constructor(readonly code: OAuthFailureCode) { super(failures[code][0]); }
 }

@@ -1,6 +1,6 @@
 import { randomBytes } from 'crypto';
 import prisma from '../db';
-import { oauthRepository, oauthChannel } from './linkedin_oauth_repository';
+import { oauthRepository, oauthChannel, latestLinkedInConnectionAttempt } from './linkedin_oauth_repository';
 import { oauthHash, configHash, LinkedInOAuthError, oauthConfiguration } from './linkedin_oauth_contract';
 import { verifyOAuthCode } from './linkedin_oauth_provider';
 export function oauthCookieName(state: string) { return `__Host-linkedin-${oauthHash(state).slice(0, 24)}`; }
@@ -90,9 +90,11 @@ export async function getLinkedInConnectionStatus(userId: number, projectId: num
     }
     const expired = Boolean(resolved.metadata && new Date(resolved.metadata.expiresAt).getTime() <= Date.now());
     const missing = !resolved.token;
+    const latestAttempt = await latestLinkedInConnectionAttempt(projectId, channelId);
     const postReadVerified = Boolean(resolved.verified && resolved.metadata?.postReadAuthorized);
     return {
         channelId,
+        latestAttempt,
         connected: resolved.verified,
         expiresAt: resolved.metadata?.expiresAt || null,
         scopes: resolved.metadata?.scopes || [],

@@ -1,8 +1,23 @@
 import { Prisma, ProviderOAuthConnectionAttempt } from '@prisma/client';
 import prisma from '../db';
-import { configHash, LinkedInOAuthError, oauthConfiguration } from './linkedin_oauth_contract';
+import { configHash, LinkedInOAuthError, oauthConfiguration, isOAuthFailureCode, type OAuthFailureCode } from './linkedin_oauth_contract';
 import { sealLinkedInCredentials, LinkedInConnectionMetadata } from './linkedin_connection_credentials';
 type Client = Prisma.TransactionClient;
+/** Read only the latest exact-channel attempt metadata; no credential, state or browser binding fields are selected. */
+export async function latestLinkedInConnectionAttempt(projectId: number, channelId: number): Promise<{
+    status: string; code: OAuthFailureCode | null; createdAt: string; expectedAuthorUrn: string | null;
+} | null> {
+    const attempt = await prisma.providerOAuthConnectionAttempt.findFirst({
+        where: { project_id: projectId, channel_id: channelId, provider: 'linkedin', purpose: 'channel_reconnect' },
+        orderBy: [{ created_at: 'desc' }, { id: 'desc' }],
+        select: { status: true, failure_code: true, created_at: true, expires_at: true, expected_author_urn: true },
+    });
+    if (!attempt || !['pending', 'exchanging', 'completed', 'failed'].includes(attempt.status)) return null;
+    const expected = attempt.expected_author_urn;
+    return { status: attempt.status === 'pending' && attempt.expires_at.getTime() <= Date.now() ? 'expired' : attempt.status,
+        code: attempt.status === 'failed' && isOAuthFailureCode(attempt.failure_code) ? attempt.failure_code : null,
+        createdAt: attempt.created_at.toISOString(), expectedAuthorUrn: expected && expected.length <= 200 && /^urn:li:(person:[A-Za-z0-9_-]+|organization:[0-9]+)$/.test(expected) ? expected : null };
+}
 export async function oauthChannel(client: Client, userId: number, projectId: number, channelId: number) { const member = await client.projectMember.findUnique({ where: { project_id_user_id: { project_id: projectId, user_id: userId } }, include: { user: true } }); if (member?.role !== 'owner' || member.user.is_demo)
     throw new LinkedInOAuthError('LINKEDIN_OAUTH_AUTH_REQUIRED'); const channel = await client.socialChannel.findUnique({ where: { project_id_id: { project_id: projectId, id: channelId } } }); if (!channel || channel.type !== 'linkedin')
     throw new LinkedInOAuthError('LINKEDIN_CHANNEL_REQUIRED'); return channel; }
