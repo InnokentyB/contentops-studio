@@ -72,15 +72,22 @@
             || location.search || location.hash) throw Error('NATIVE_EDITOR_MODE_INVALID');
         account(expected);
         const dialogs = [...document.querySelectorAll('[role="dialog"]')].filter(visible);
-        if (dialogs.length !== 1) throw Error('NATIVE_EDITOR_AMBIGUOUS');
-        const root = dialogs[0];
+        // X wraps one composer in nested dialogs. Only one ancestor chain is valid;
+        // sibling dialogs and a nested confirmation that excludes the editor fail closed.
+        const leaf = dialogs.find(dialog => dialogs.every(parent => parent === dialog || parent.contains(dialog)));
+        const root = dialogs.find(dialog => dialogs.every(child => child === dialog || dialog.contains(child)));
+        if (!leaf || !root) throw Error('NATIVE_EDITOR_AMBIGUOUS');
         const fields = [...root.querySelectorAll('[data-testid="tweetTextarea_0"][contenteditable="true"]')].filter(visible);
         const buttons = [...root.querySelectorAll('[data-testid="tweetButton"]')].filter(visible);
-        if (fields.length !== 1 || buttons.length !== 1) throw Error('NATIVE_EDITOR_AMBIGUOUS');
+        if (fields.length !== 1 || buttons.length !== 1 || !leaf.contains(fields[0]) || !leaf.contains(buttons[0])) {
+            throw Error('NATIVE_EDITOR_AMBIGUOUS');
+        }
         if (fields[0].innerText !== text) throw Error('NATIVE_EDITOR_TEXT_MISMATCH');
         if (root.querySelector('[data-testid="attachments"], [data-testid="quoteTweet"], [data-testid="inline_reply_offscreen"]')) throw Error('NATIVE_EDITOR_MEDIA_PRESENT');
         if (buttons[0].getAttribute('aria-disabled') === 'true' || buttons[0].disabled) throw Error('NATIVE_POST_DISABLED');
-        if (buttons[0].innerText.trim() !== 'Post') throw Error('NATIVE_POST_LABEL_UNSUPPORTED');
+        const language = (document.documentElement.lang || 'en').toLowerCase().split('-')[0];
+        const postLabel = { en: 'Post', ru: 'Опубликовать пост' }[language];
+        if (!postLabel || buttons[0].innerText.trim() !== postLabel) throw Error('NATIVE_POST_LABEL_UNSUPPORTED');
         return { button: buttons[0], observedAt: new Date().toISOString(), account: expected.account, text,
             kind: 'editor', editorMode: 'new_post', attachments: 0 };
     }
