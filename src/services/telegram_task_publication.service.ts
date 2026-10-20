@@ -103,8 +103,8 @@ function extractVkConfig(channel: any) {
 
 function prepareTaskPayload(task: any, allowUnsupportedDryRun = false) {
     const channelType = task.channel?.type;
-    const isVkVideo = channelType === 'vk'
-        && visualMetadataFromProvenance(task.selected_asset?.provenance).mime_type === 'video/mp4';
+    const isVkVideo = channelType === 'vk' && visualMetadataFromProvenance(task.selected_asset?.provenance).mime_type === 'video/mp4';
+    const isTelegramVideo = ['telegram', 'telegram_chat'].includes(channelType) && !isTelegramStoryTask(task) && visualMetadataFromProvenance(task.selected_asset?.provenance).mime_type === 'video/mp4';
     const directSupported = ['telegram', 'vk'].includes(channelType) && !isVkVideo;
     if (isVkVideo && !allowUnsupportedDryRun) {
         throw new Error('[VK_NATIVE_VIDEO_ADAPTER_UNSUPPORTED] Native video transport is not enabled; do not use the photo adapter');
@@ -169,7 +169,7 @@ function prepareTaskPayload(task: any, allowUnsupportedDryRun = false) {
         : { text: isVkPersonalStory ? '' : text, imageUrl: isVkVideo ? null : selectedAsset?.file_url || null };
     return {
         channelType, payload, selectedAsset, directSupported, connectorReady, connectorReason,
-        isStory, isTelegramStory, isVkPersonalStory, isVkVideo, nativePoll, storyFrames
+        isStory, isTelegramStory, isVkPersonalStory, isVkVideo, isTelegramVideo, nativePoll, storyFrames
     };
 }
 
@@ -270,8 +270,8 @@ export class TelegramTaskPublicationService {
         const { payload, selectedAsset } = prepared;
         const preview = {
             text: payload.text,
-            image_url: payload.imageUrl,
-            has_image: Boolean(payload.imageUrl),
+            image_url: prepared.isTelegramVideo ? null : payload.imageUrl,
+            has_image: prepared.isTelegramVideo ? false : Boolean(payload.imageUrl), ...(prepared.isTelegramVideo ? { video_url: payload.imageUrl, has_video: true } : {}),
             ...(prepared.storyFrames ? { story_frames: prepared.storyFrames.map(frame => ({
                 order: frame.order, asset_id: frame.assetId, image_url: frame.imageUrl,
                 checksum_sha256: frame.checksumSha256,
