@@ -96,8 +96,9 @@ function basePlacementAssetContract(
             transport: { materialization: 'article', connector_authority: 'manual_only' }
         };
     }
-    if (normalizedType === 'vk' && (placement === 'video_cover'
-        || (placement === 'feed' && media.mime_type === 'video/mp4'))) {
+    if ((normalizedType === 'vk' && placement === 'video_cover')
+        || (['vk', 'telegram', 'telegram_chat'].includes(normalizedType)
+            && placement === 'feed' && media.mime_type === 'video/mp4')) {
         return {
             placement,
             artifact_kind: 'video',
@@ -107,7 +108,10 @@ function basePlacementAssetContract(
             safe_area: null,
             accepted_mime_types: ['video/mp4'],
             poll: { supported: false, configuration_mode: 'not_applicable', render_in_asset: false },
-            transport: { materialization: 'video', connector_authority: 'manual_only' }
+            transport: {
+                materialization: 'video',
+                connector_authority: normalizedType === 'vk' ? 'manual_only' : 'configured'
+            }
         };
     }
     if (normalizedType === 'setka' && placement === 'feed') {
