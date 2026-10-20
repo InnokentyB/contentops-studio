@@ -1,61 +1,103 @@
-import { useEffect, useState } from 'react';
-const callbackMessages: Record<string, string> = {
-    LINKEDIN_OAUTH_EXPECTED_IDENTITY_REQUIRED: 'The channel has no expected identity. Enter its exact public LinkedIn person/organization URN or configure the personal profile URL, then reconnect.',
-    LINKEDIN_OAUTH_STATE_INVALID: 'Connection expired or state is invalid. Start a fresh connection from Settings.',
-    LINKEDIN_OAUTH_BROWSER_MISMATCH: 'This browser does not match the request. Reconnect in the same browser and allow the secure cookie.',
-    LINKEDIN_OAUTH_ALREADY_USED: 'This request was already consumed. Check channel status; if incomplete, start a fresh connection without replaying the callback.',
-    LINKEDIN_OAUTH_AUTH_REQUIRED: 'Project Owner access changed. Sign in as the current non-demo Owner and reconnect.',
-    LINKEDIN_OAUTH_CHANNEL_CHANGED: 'Channel configuration changed. Check its exact identity and start a fresh connection.',
-    LINKEDIN_OAUTH_IDENTITY_MISMATCH: 'LinkedIn returned a different member. Sign in to the intended account and reconnect this channel.',
-    LINKEDIN_OAUTH_ORGANIZATION_UNVERIFIED: 'Authority for this exact organization was not verified. Check the organization role and supported authorization permissions, then reconnect.',
-    LINKEDIN_OAUTH_CONNECTION_UNREADABLE: 'Saved credentials could not be authenticated. Ask the administrator to check the channel encryption key, then reconnect this channel.',
-    LINKEDIN_OAUTH_GRANTS_UNKNOWN: 'Issued grants or expiry could not be verified. Enable the supported profile and token introspection permissions, then reconnect.',
-    LINKEDIN_OAUTH_PROVIDER_DENIED: 'LinkedIn consent was declined. Start a fresh connection and grant the approved permissions.',
-    LINKEDIN_OAUTH_PROVIDER_UNAVAILABLE: 'LinkedIn returned an unsupported response. Check provider availability and application permissions, then start a fresh connection.',
-    LINKEDIN_OAUTH_CONFIG_REQUIRED: 'Secure application configuration is incomplete. Ask the administrator to check the approved client, matching HTTPS API/frontend origin, callback and encryption key.',
-    LINKEDIN_OAUTH_SAVE_FAILED: 'Connection could not be saved atomically. Check channel status, then reconnect if incomplete; do not reuse this callback.'
-};
-type Channel = {
-    id: number;
-    name: string;
-    type: string;
-};
-export function LinkedInConnectionControl({ projectId, token, channels, disabled, error }: {
-    projectId: number;
-    token: string;
-    channels: Channel[];
-    disabled: boolean;
-    error: string | null;
+import { useEffect, useRef, useState } from 'react';
+import { connectionDiagnostic, connectionRedirect, readConnectionStatus, responseCode, savedAuthor,
+    type ConnectionLocale, type ConnectionStatus, type LinkedInChannel } from './linkedin-connection-state';
+
+export function LinkedInConnectionControl({ projectId, token, channel, disabled, locale }: {
+    projectId: number; token: string; channel: LinkedInChannel; disabled: boolean; locale: ConnectionLocale;
 }) {
-    const [selected, setSelected] = useState(''), [pending, setPending] = useState(false), [failure, setFailure] = useState(''), [expectedUrn, setExpectedUrn] = useState('');
-    const [status, setStatus] = useState('');
-    useEffect(() => { if (!selected || disabled) {
-        setStatus('');
-        return;
-    } let active = true; fetch(`/api/auth/linkedin/status?projectId=${projectId}&channelId=${selected}`, { headers: { Authorization: `Bearer ${token}` } }).then(async (response) => { const body = await response.json() as {
-        reason?: string;
-        error?: string;
-        action?: string;
-        expiresAt?: string;
-    }; if (active)
-        setStatus([body.reason || body.error, body.action, body.expiresAt ? `Token expires: ${body.expiresAt}` : ''].filter(Boolean).join(' ')); }).catch(() => { if (active)
-        setStatus('Connection status could not be read. Check your project access and reload.'); }); return () => { active = false; }; }, [selected, projectId, token, disabled]);
-    const candidates = channels.filter(channel => channel.type === 'linkedin');
-    async function connect() { setPending(true); setFailure(''); try {
-        const response = await fetch(`/api/auth/linkedin/connect?projectId=${projectId}&channelId=${selected}${expectedUrn ? `&expectedAuthorUrn=${encodeURIComponent(expectedUrn)}` : ''}`, { headers: { Authorization: `Bearer ${token}` }, credentials: 'include' });
-        const body = await response.json() as {
-            url?: string;
-            error?: string;
-            action?: string;
-        };
-        if (!response.ok || !body.url)
-            throw new Error([body.error, body.action].filter(Boolean).join(' '));
-        window.location.assign(body.url);
+    const ru = locale === 'ru';
+    const [expectedUrn, setExpectedUrn] = useState(() => savedAuthor(channel));
+    const [pending, setPending] = useState(false);
+    const [failure, setFailure] = useState('');
+    const [status, setStatus] = useState<ConnectionStatus | null>(null);
+    const [checking, setChecking] = useState(false);
+    const [refresh, setRefresh] = useState(0);
+    const connecting = useRef(false);
+    const initialAuthor = savedAuthor(channel);
+    useEffect(() => { setExpectedUrn(initialAuthor); setFailure(''); connecting.current = false; setPending(false); }, [projectId, channel.id, initialAuthor]);
+    useEffect(() => {
+        setStatus(null); setFailure('');
+        if (disabled) { setChecking(false); return; }
+        const abort = new AbortController();
+        setChecking(true);
+        async function check(): Promise<void> {
+            try {
+                const response = await fetch(`/api/auth/linkedin/status?projectId=${projectId}&channelId=${channel.id}`, {
+                    headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.any([abort.signal, AbortSignal.timeout(15000)]),
+                });
+                const body: unknown = await response.json();
+                if (abort.signal.aborted) return;
+                const parsed = response.ok ? readConnectionStatus(body, channel.id) : null;
+                if (parsed) setStatus(parsed);
+                else setFailure(connectionDiagnostic(responseCode(body), locale));
+            } catch {
+                if (!abort.signal.aborted) setFailure(connectionDiagnostic(null, locale));
+            } finally { if (!abort.signal.aborted) setChecking(false); }
+        }
+        void check();
+        return () => abort.abort();
+    }, [projectId, channel.id, token, disabled, refresh, locale]);
+    const validUrn = /^urn:li:(person:[A-Za-z0-9_-]+|organization:[0-9]+)$/.test(expectedUrn.trim());
+    async function connect(): Promise<void> {
+        if (disabled || connecting.current || !validUrn) return;
+        connecting.current = true; setPending(true); setFailure('');
+        try {
+            const response = await fetch(`/api/auth/linkedin/connect?projectId=${projectId}&channelId=${channel.id}&expectedAuthorUrn=${encodeURIComponent(expectedUrn.trim())}`, {
+                headers: { Authorization: `Bearer ${token}` }, credentials: 'include', signal: AbortSignal.timeout(15000),
+            });
+            const body: unknown = await response.json();
+            const target = response.ok ? connectionRedirect(body) : null;
+            if (!target) { setFailure(connectionDiagnostic(responseCode(body), locale)); connecting.current = false; setPending(false); return; }
+            window.location.assign(target);
+        } catch { setFailure(connectionDiagnostic(null, locale)); connecting.current = false; setPending(false); }
     }
-    catch (reason) {
-        setFailure(reason instanceof Error ? reason.message : 'Connection could not start. Select the channel and reconnect.');
-        setPending(false);
-    } }
-    const callbackError = error ? callbackMessages[error] || null : null;
-    return <div><label htmlFor="linkedin-existing-channel">Reconnect an existing LinkedIn channel</label><select id="linkedin-existing-channel" value={selected} onChange={event => { setSelected(event.target.value); setExpectedUrn(''); }} disabled={disabled || pending}><option value="">Select the exact personal or organization channel</option>{candidates.map(channel => <option key={channel.id} value={channel.id}>{channel.name}</option>)}</select><label htmlFor="linkedin-expected-author">Expected public LinkedIn URN (required if this channel has no bound identity)</label><input id="linkedin-expected-author" value={expectedUrn} onChange={event => setExpectedUrn(event.target.value)} placeholder="urn:li:person:… or urn:li:organization:…" disabled={disabled || pending}/><p>Personal and organization identities stay separate. Connecting does not activate publishing. Token grants and API readiness must be verified separately.</p>{status && <p role="status">{status}</p>}{!candidates.length && <p>Create the intended channel first; this connection never creates a replacement.</p>}{(failure || callbackError) && <p role="alert">{failure || callbackError} {callbackError && error}</p>}<button type="button" className="btn-secondary" disabled={disabled || pending || !selected} onClick={connect}>{pending ? 'Connecting…' : 'Connect / Reconnect LinkedIn'}</button></div>;
+    const expired = status?.expiresAt ? Date.parse(status.expiresAt) <= Date.now() : false;
+    const connected = Boolean(status?.connected && !expired && ['LINKEDIN_OAUTH_CONNECTED', 'LINKEDIN_OAUTH_POST_READ_REQUIRED'].includes(status.code));
+    const title = checking ? (ru ? 'Проверяем подключение…' : 'Checking connection…')
+        : connected ? (ru ? 'Аккаунт подключён' : 'Account connected')
+            : expired ? (ru ? 'Срок доступа истёк' : 'Access expired')
+                : status ? (ru ? 'Подключение не завершено' : 'Connection incomplete')
+                    : (ru ? 'Подключение не проверено' : 'Connection not checked');
+    const yesNo = (value: boolean) => value ? (ru ? 'Подтверждено' : 'Verified') : (ru ? 'Не подтверждено' : 'Not verified');
+    const authorId = `linkedin-author-${channel.id}`;
+    return <section className="linkedin-connection sm:col-span-2" aria-labelledby={`linkedin-heading-${channel.id}`}>
+        <header className="linkedin-connection__heading">
+            <div><h3 id={`linkedin-heading-${channel.id}`}>{ru ? 'Подключение LinkedIn' : 'LinkedIn connection'}</h3>
+                <p>{ru ? 'Аккаунт и права для этого канала' : 'Account and permissions for this channel'}</p></div>
+            <span className={`linkedin-connection__status ${connected ? 'linkedin-connection__status--connected' : ''}`} role="status">{title}</span>
+        </header>
+        {disabled && <p className="linkedin-connection__notice">{connectionDiagnostic('LINKEDIN_OAUTH_AUTH_REQUIRED', locale)}</p>}
+        <div className="linkedin-connection__identity">
+            <label htmlFor={authorId}>{ru ? 'Идентификатор профиля или компании' : 'Profile or organization identifier'}</label>
+            <input id={authorId} value={expectedUrn} onChange={event => setExpectedUrn(event.target.value)}
+                placeholder="urn:li:organization:…" autoComplete="off" spellCheck={false}
+                readOnly={Boolean(initialAuthor)} disabled={disabled || pending}
+                aria-describedby={`${authorId}-help`} aria-invalid={Boolean(expectedUrn && !validUrn)} />
+            <p id={`${authorId}-help`}>{initialAuthor
+                ? (ru ? 'Сохранённая привязка этого канала. Смена аккаунта требует отдельной проверки.' : 'Saved channel identity. Changing the account requires a separate review.')
+                : (ru ? 'Для компании: urn:li:organization:числовой ID. Для профиля: urn:li:person:ID. Привязка сохранится после успешного OAuth.' : 'Company: urn:li:organization:numeric ID. Profile: urn:li:person:ID. Identity is saved after successful OAuth.')}</p>
+        </div>
+        {failure && <p className="linkedin-connection__notice" role="alert">{failure}</p>}
+        {status && !checking && <>
+            {status.code !== 'LINKEDIN_OAUTH_CONNECTED' && <p className="linkedin-connection__notice">{connectionDiagnostic(status.code, locale)}</p>}
+            <dl className="linkedin-connection__facts">
+                <div><dt>{ru ? 'Тип аккаунта' : 'Account type'}</dt><dd>{status.accountKind === 'organization' ? (ru ? 'Страница компании' : 'Company page') : status.accountKind === 'personal' ? (ru ? 'Личный профиль' : 'Personal profile') : '—'}</dd></div>
+                <div><dt>{ru ? 'Доступ действует до' : 'Access expires'}</dt><dd>{status.expiresAt ? new Date(status.expiresAt).toLocaleString(ru ? 'ru-RU' : 'en-GB') : '—'}</dd></div>
+                <div><dt>{ru ? 'Чтение публикаций' : 'Post reading'}</dt><dd>{yesNo(status.postReadVerified && connected)}</dd></div>
+                <div><dt>{ru ? 'Право чтения изображений' : 'Image-read permission'}</dt><dd>{yesNo(status.imageReadPermitted && connected)}</dd></div>
+            </dl>
+            <div className="linkedin-connection__grants"><h4>{ru ? 'Выданные права LinkedIn' : 'Granted LinkedIn permissions'}</h4>
+                {status.scopes.length ? <ul>{status.scopes.map(scope => <li key={scope}><code>{scope}</code></li>)}</ul>
+                    : <p>{ru ? 'Подтверждённые права пока не сохранены.' : 'No verified permissions have been saved yet.'}</p>}</div>
+        </>}
+        <footer className="linkedin-connection__footer">
+            <div className="linkedin-connection__actions">
+                <button type="button" className="linkedin-connection__primary" onClick={() => void connect()} disabled={disabled || pending || !validUrn}>
+                    {pending ? (ru ? 'Открываем LinkedIn…' : 'Opening LinkedIn…') : connected ? (ru ? 'Переподключить LinkedIn' : 'Reconnect LinkedIn') : (ru ? 'Подключить LinkedIn' : 'Connect LinkedIn')}</button>
+                <button type="button" onClick={() => setRefresh(value => value + 1)} disabled={disabled || checking || pending}>
+                    {checking ? (ru ? 'Проверяем…' : 'Checking…') : (ru ? 'Проверить подключение' : 'Check connection')}</button>
+            </div>
+            <p>{ru ? 'Проверка читает сохранённое состояние в Planner. Подключение не включает публикации; доступ к конкретному изображению проверяется при подготовке поста.' : 'The check reads saved Planner state. Connecting does not enable publishing; access to the exact image is checked during post preparation.'}</p>
+        </footer>
+    </section>;
 }

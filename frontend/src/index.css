@@ -277,3 +277,49 @@
   --tw-shadow: 0 10px 15px -3px var(--tw-shadow-color), 0 4px 6px -4px var(--tw-shadow-color) !important;
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow) !important;
 }
+
+/* Channel settings use the incumbent palette; controls are local to each editor. */
+.channel-setup, .channel-editor, .linkedin-connection { min-width: 0; color: theme('colors.on-surface'); }
+.channel-setup label, .channel-editor label { display: block; margin-bottom: .375rem; font-size: .875rem; font-weight: 600; }
+.channel-setup input, .channel-setup select, .channel-setup textarea,
+.channel-editor input, .channel-editor select, .channel-editor textarea {
+  display: block; width: 100%; min-width: 0; min-height: 2.75rem;
+  padding: .625rem .75rem; border: 1px solid theme('colors.outline-variant');
+  border-radius: .5rem; background: theme('colors.surface-container-lowest');
+  color: theme('colors.on-surface'); font: inherit; font-size: .875rem;
+}
+.channel-setup input::placeholder, .channel-editor input::placeholder { color: theme('colors.on-surface-variant'); opacity: .9; }
+.channel-editor button, .channel-setup button { min-height: 2.75rem; }
+.channel-setup :is(input, select, textarea, button):focus-visible,
+.channel-editor :is(input, select, textarea, button):focus-visible {
+  outline: 2px solid theme('colors.primary'); outline-offset: 3px;
+}
+.channel-editor input[readonly] { background: theme('colors.surface-container-low'); }
+.linkedin-connection { margin-top: .75rem; border-top: 1px solid theme('colors.outline-variant'); padding-top: 1.5rem; }
+.linkedin-connection__heading { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; }
+.linkedin-connection h3 { font-size: 1.125rem; font-weight: 700; line-height: 1.5; }
+.linkedin-connection h4 { font-size: .875rem; font-weight: 600; }
+.linkedin-connection p, .linkedin-connection dt { font-size: .875rem; line-height: 1.6; color: theme('colors.on-surface-variant'); }
+.linkedin-connection__status { padding: .375rem .625rem; border-radius: .375rem; font-size: .8125rem; font-weight: 600; background: #fef3c7; color: #78350f; }
+.linkedin-connection__status--connected { background: #dcfce7; color: #14532d; }
+.linkedin-connection__identity { max-width: 44rem; }
+.linkedin-connection__identity p { margin-top: .5rem; max-width: 70ch; }
+.linkedin-connection__notice { margin-top: 1rem; padding: .875rem 1rem; border-radius: .5rem; background: #fff7ed; color: #7c2d12 !important; font-size: .875rem; line-height: 1.6; overflow-wrap: anywhere; }
+.linkedin-connection__facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem 2rem; margin-top: 1.5rem; }
+.linkedin-connection dd { margin-top: .25rem; font-size: .875rem; font-weight: 600; overflow-wrap: anywhere; }
+.linkedin-connection__grants { margin-top: 1.5rem; }
+.linkedin-connection__grants ul { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .625rem; list-style: none; }
+.linkedin-connection__grants code { display: block; max-width: 100%; overflow-wrap: anywhere; padding: .25rem .5rem; border-radius: .25rem; background: theme('colors.surface-container-high'); font-size: .8125rem; }
+.linkedin-connection__footer { margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid theme('colors.outline-variant'); }
+.linkedin-connection__footer > p { margin-top: .875rem; max-width: 75ch; font-size: .8125rem; }
+.linkedin-connection__actions { display: flex; flex-wrap: wrap; gap: .75rem; }
+.linkedin-connection__actions button { padding: .625rem 1rem; border: 1px solid theme('colors.outline-variant'); border-radius: .5rem; font-size: .875rem; font-weight: 600; transition: background-color 150ms; }
+.linkedin-connection__actions button:hover:enabled { background: theme('colors.surface-container-high'); }
+.linkedin-connection__actions .linkedin-connection__primary { background: theme('colors.primary'); color: theme('colors.on-primary'); border-color: transparent; }
+.linkedin-connection__actions .linkedin-connection__primary:hover:enabled { background: theme('colors.on-primary-fixed-variant'); }
+.linkedin-connection__actions button:disabled { opacity: .55; cursor: not-allowed; }
+@media (max-width: 639px) {
+  .linkedin-connection__facts { grid-template-columns: minmax(0, 1fr); }
+  .linkedin-connection__actions { flex-direction: column; }
+  .linkedin-connection__actions button { width: 100%; }
+}
