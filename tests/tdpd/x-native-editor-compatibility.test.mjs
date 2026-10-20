@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
-const { chromium } = createRequire(import.meta.url)('/app/node_modules/playwright');
+const { chromium } = createRequire(import.meta.url)(process.env.X_BROWSER_PLAYWRIGHT_MODULE || 'playwright');
 const text = 'Accepted synthetic copy. Never send to a provider.';
 const stamp = 'a'.repeat(64);
 const packageData = { projectId: 301, taskId: 401, channelId: 501, revision: 1,
