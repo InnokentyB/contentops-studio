@@ -130,6 +130,8 @@ jobs:
           stat -c '%F %a %U %n' "$browser_path"
           echo "APP_BROWSER_EXECUTABLE_PATH=$browser_path" >> "$GITHUB_ENV"
           APP_BROWSER_EXECUTABLE_PATH="$browser_path" node --test tests/tdpd/vk-shared-browser.test.cjs
+      - name: X native editor DOM compatibility (synthetic pages, no send)
+        run: X_BROWSER_EXECUTABLE="$APP_BROWSER_EXECUTABLE_PATH" node --test tests/tdpd/x-native-editor-compatibility.test.mjs
       - name: Full backend regression with synthetic auth and bundled consumer
         env:
           # Legacy recurring-trigger fixtures assert Lisbon wall-clock dates.
