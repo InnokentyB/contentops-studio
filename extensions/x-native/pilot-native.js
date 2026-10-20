@@ -67,6 +67,21 @@
             historyFrom: new Date(Math.min(...[...statuses.values()].map(status => Date.parse(status.publishedAt)))).toISOString(),
             historyThrough: new Date().toISOString() };
     }
+    function editorCopy(field) {
+        const blocks = [...field.querySelectorAll('[data-block="true"]')];
+        if (!blocks.length) return field.innerText;
+        // DraftJS stores one logical line per block. innerText adds layout-only
+        // breaks around empty blocks; never trim/collapse actual accepted copy.
+        if (blocks.length > 281 || blocks.some(block => block.querySelector('[data-block="true"]')
+            || (block.querySelector('br') && block.textContent !== ''))) throw Error('NATIVE_EDITOR_TEXT_MISMATCH');
+        const nodes = document.createTreeWalker(field, NodeFilter.SHOW_TEXT);
+        while (nodes.nextNode()) {
+            if (nodes.currentNode.textContent && !blocks.some(block => block.contains(nodes.currentNode))) {
+                throw Error('NATIVE_EDITOR_TEXT_MISMATCH');
+            }
+        }
+        return blocks.map(block => block.textContent).join('\n');
+    }
     function editor(text, expected) {
         if (location.origin !== 'https://x.com' || !/^\/compose\/(post|tweet)\/?$/.test(location.pathname)
             || location.search || location.hash) throw Error('NATIVE_EDITOR_MODE_INVALID');
@@ -82,7 +97,7 @@
         if (fields.length !== 1 || buttons.length !== 1 || !leaf.contains(fields[0]) || !leaf.contains(buttons[0])) {
             throw Error('NATIVE_EDITOR_AMBIGUOUS');
         }
-        if (fields[0].innerText !== text) throw Error('NATIVE_EDITOR_TEXT_MISMATCH');
+        if (editorCopy(fields[0]) !== text) throw Error('NATIVE_EDITOR_TEXT_MISMATCH');
         if (root.querySelector('[data-testid="attachments"], [data-testid="quoteTweet"], [data-testid="inline_reply_offscreen"]')) throw Error('NATIVE_EDITOR_MEDIA_PRESENT');
         if (buttons[0].getAttribute('aria-disabled') === 'true' || buttons[0].disabled) throw Error('NATIVE_POST_DISABLED');
         const language = (document.documentElement.lang || 'en').toLowerCase().split('-')[0];

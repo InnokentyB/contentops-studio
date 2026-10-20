@@ -12,6 +12,20 @@
     {"id":"quality-final","result":"PASS","score":77,"baselineMinimum":77,"hardStops":0},
     {"id":"extension-build-final","result":"PASS","version":"0.2.1","files":14}
   ],
+  "followup": {
+    "version":"0.2.2",
+    "bundleSha256":"3ade668f914bff9c66f1a4c823fd4b4df7370396a3f79f4cf405b413f0a83159",
+    "realAccount021":"NATIVE_EDITOR_TEXT_MISMATCH after previous ambiguity/locale guards passed",
+    "cause":"DraftJS innerText has layout-only breaks; exact logical blocks match accepted copy",
+    "red":"EXPECTED_FAIL on exact multiline DraftJS acceptance case",
+    "editorTests":23,
+    "focusedTests":25,
+    "browserIntegrationTests":24,
+    "failed":0,
+    "skipped":0,
+    "qualityGate":"PASS",
+    "installed":false
+  },
   "uat":"PENDING_REAL_ACCOUNT_NO_SEND",
   "publicationAuthorized":false
 }
