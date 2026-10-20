@@ -20,7 +20,10 @@ function fixture() {
     const work = { id: 501, project_id: 10, content_item_id: 900, kind: 'browser_publish',
         assignee_role: 'browser_publisher', state: 'claimed', lease_token: 'test-lease',
         lease_actor_id: 'user:2', lease_expires_at: new Date('2026-10-09T12:00:00Z'), result_payload: release };
-    const tx = { workItem: { findFirst: async () => work }, contentItem: { findFirst: async () => task },
+    const tx = {
+        $queryRaw: async () => [],
+        publicationFact: { findFirst: async () => null },
+        workItem: { findFirst: async () => work }, contentItem: { findFirst: async () => task },
         deliveryAttempt: { findFirst: async () => attempt, updateMany: async () => ({ count: 1 }) },
         workflowEvent: { create: async () => ({ id: 1 }) } };
     const deps: Parameters<typeof confirmVkBrowserSubmission>[0] = {
