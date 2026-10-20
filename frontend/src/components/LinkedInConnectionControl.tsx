@@ -32,7 +32,7 @@ export function LinkedInConnectionControl({ projectId, token, channels, disabled
     useEffect(() => { if (!selected || disabled) {
         setStatus('');
         return;
-    } let active = true; const base = import.meta.env.VITE_API_URL || 'http://localhost:3003'; fetch(`${base}/api/auth/linkedin/status?projectId=${projectId}&channelId=${selected}`, { headers: { Authorization: `Bearer ${token}` } }).then(async (response) => { const body = await response.json() as {
+    } let active = true; fetch(`/api/auth/linkedin/status?projectId=${projectId}&channelId=${selected}`, { headers: { Authorization: `Bearer ${token}` } }).then(async (response) => { const body = await response.json() as {
         reason?: string;
         error?: string;
         action?: string;
@@ -42,8 +42,7 @@ export function LinkedInConnectionControl({ projectId, token, channels, disabled
         setStatus('Connection status could not be read. Check your project access and reload.'); }); return () => { active = false; }; }, [selected, projectId, token, disabled]);
     const candidates = channels.filter(channel => channel.type === 'linkedin');
     async function connect() { setPending(true); setFailure(''); try {
-        const base = import.meta.env.VITE_API_URL || 'http://localhost:3003';
-        const response = await fetch(`${base}/api/auth/linkedin/connect?projectId=${projectId}&channelId=${selected}${expectedUrn ? `&expectedAuthorUrn=${encodeURIComponent(expectedUrn)}` : ''}`, { headers: { Authorization: `Bearer ${token}` }, credentials: 'include' });
+        const response = await fetch(`/api/auth/linkedin/connect?projectId=${projectId}&channelId=${selected}${expectedUrn ? `&expectedAuthorUrn=${encodeURIComponent(expectedUrn)}` : ''}`, { headers: { Authorization: `Bearer ${token}` }, credentials: 'include' });
         const body = await response.json() as {
             url?: string;
             error?: string;
