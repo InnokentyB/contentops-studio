@@ -7,9 +7,9 @@ const ts = require('typescript');
 
 const componentPath = path.resolve(__dirname, '../../frontend/src/components/LinkedInConnectionControl.tsx');
 
-async function exercise(configuredOrigin) {
+async function exercise(configuredOrigin, channelConfig = { linkedin_urn: 'urn:li:organization:12345' }, draft = 'urn:li:organization:12345') {
     const requests = [], navigations = [], effects = [];
-    const states = ['urn:li:organization:12345', false, '', null, false, 0];
+    const states = [draft, false, '', null, false, 0];
     let index = 0;
     const source = readFileSync(componentPath, 'utf8').replaceAll('import.meta.env.VITE_API_URL', JSON.stringify(configuredOrigin));
     const compiled = ts.transpileModule(source, { compilerOptions: {
@@ -48,7 +48,7 @@ async function exercise(configuredOrigin) {
         window: { location: { assign: url => navigations.push(url) } },
     });
     const tree = exports.LinkedInConnectionControl({ projectId: 11, token: 'synthetic-only',
-        channel: { id: 23, name: 'Synthetic organization', type: 'linkedin', config: { linkedin_urn: 'urn:li:organization:12345' } }, disabled: false, locale: 'en' });
+        channel: { id: 23, name: 'Synthetic channel', type: 'linkedin', config: channelConfig }, disabled: false, locale: 'en' });
     for (const effect of effects) effect();
     function findButton(node) {
         if (!node || typeof node !== 'object') return undefined;
@@ -59,6 +59,29 @@ async function exercise(configuredOrigin) {
     await new Promise(resolve => setImmediate(resolve));
     return { requests, navigations };
 }
+
+test('saved canonical personal profile starts existing personal OAuth without invented URN', async () => {
+    const { requests, navigations } = await exercise('', { account_type: 'personal', channel_url: 'https://www.linkedin.com/in/synthetic-person/', account_ref: 'https://www.linkedin.com/in/synthetic-person/' }, '');
+    assert.equal(requests.length, 2);
+    assert.equal(requests[1].url, '/api/auth/linkedin/connect?projectId=11&channelId=23');
+    assert.equal(requests[1].options.credentials, 'include');
+    assert.equal(navigations.length, 1);
+});
+for (const config of [
+    { account_type: 'personal', channel_url: 'https://evil.invalid/in/synthetic-person/' },
+    { account_type: 'personal', channel_url: 'https://user:pass@www.linkedin.com/in/synthetic-person/' },
+    { account_type: 'personal', channel_url: 'https://www.linkedin.com/in/first/', account_ref: 'https://www.linkedin.com/in/second/' },
+    { account_type: 'organization', channel_url: 'https://www.linkedin.com/in/synthetic-person/' },
+]) test(`unsupported or conflicting saved profile cannot initiate OAuth ${JSON.stringify(config)}`, async () => {
+    const { requests, navigations } = await exercise('', config, '');
+    assert.equal(requests.length, 1);
+    assert.equal(navigations.length, 0);
+});
+test('personal channel never submits an organization draft', async () => {
+    const { requests, navigations } = await exercise('', { account_type: 'personal', channel_url: 'https://www.linkedin.com/in/synthetic-person/' }, 'urn:li:organization:12345');
+    assert.equal(requests.length, 1);
+    assert.equal(navigations.length, 0);
+});
 
 for (const configuredOrigin of ['', 'http://localhost:3003', 'https://different-origin.invalid']) {
     test(`Owner status/connect stay on current origin despite build setting ${configuredOrigin || '(unset)'}`, async () => {
