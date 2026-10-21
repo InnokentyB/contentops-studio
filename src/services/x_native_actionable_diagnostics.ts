@@ -4,6 +4,14 @@ import { NativePairingWaitError } from './x_native_pairing_issue';
 type Entry=readonly [string,string,string];
 const catalog:Record<string,Entry>={};
 const add=(codes:string[],entry:Entry):void=>{for(const code of codes)catalog[code]=entry;};
+const pairingWait:Record<NativePairingWaitError['code'],readonly [string,string]>={
+ X_NATIVE_PAIRING_ACTIVE:['An active pairing code already exists for this installation.',
+    'Replay the identical request to retrieve the current code, or wait until retry_at before an explicit new request.'],
+ X_NATIVE_PAIRING_THROTTLED:['Too many new pairing codes were requested in the recent window.',
+    'Wait retry_after_seconds before an explicit new pairing request. This delay expires; no history reset is needed.'],
+ X_NATIVE_PAIRING_BUSY:['A concurrent pairing update prevented this request from completing.',
+    'Read current pairing and installation state, then explicitly retry after retry_at if still needed. Do not retry publication.']
+};
 add(['X_NATIVE_STATE_INVALID_INPUT'],['request','The X state request does not satisfy its scoped input contract.','Read the tool schema and correct missing or invalid fields using the current tenant-owned task and installation.']);
 add(['X_NATIVE_PILOT_DISABLED'],['adapter','The X native adapter is disabled.','Ask the administrator to review adapter readiness and the approved enablement process. Do not use another session or execution route.']);
 add(['X_NATIVE_STATE_SCOPE_DENIED'],['scope','The requested X task/channel scope is not authorized.','Inspect the current workspace and tenant-owned channel/task binding. Use an authorized owner or Publisher identity without broadening permissions.']);
@@ -18,10 +26,11 @@ add(['X_NATIVE_PHASE_MISMATCH','X_NATIVE_INVALID_MESSAGE','X_NATIVE_SIGNATURE_IN
 add(['X_NATIVE_NOT_DUE'],['schedule','The approved X publication time has not arrived.','Wait for the accepted schedule; use normal review and release if that schedule needs changing.']);
 add(['X_NATIVE_REQUEST_REJECTED'],['operation','The X operation failed; the exact cause is not classified.','Ask engineering to investigate safe adapter diagnostics. Read existing attempt and fact history and reconcile uncertain outcomes before another operation.']);
 export function xNativeErrorDiagnostic(error:unknown):PublicationDiagnostic & { retry_after_seconds?: number; retry_at?: string } {
- if(error instanceof NativePairingWaitError) return {code:error.message.slice(1,-1),message:'Pairing is temporarily unavailable.',
-    reasons:[{code:error.message.slice(1,-1),field:'pairing',message:'Wait for the current challenge or request window.',
-        action:'Use retry_after_seconds before an explicit new request; do not retry publication.'}],retry_allowed:false,
-    retry_after_seconds:error.retryAfterSeconds,retry_at:error.retryAt};
+ if(error instanceof NativePairingWaitError) {
+    const [message,action]=pairingWait[error.code];
+    return {code:error.code,message,reasons:[{code:error.code,field:'pairing',message,action}],retry_allowed:false,
+        retry_after_seconds:error.retryAfterSeconds,retry_at:error.retryAt};
+ }
  if(error instanceof Error&&error.name==='ZodError')return browserErrorDiagnostic(error);
  const candidate=error instanceof Error?/^\[([A-Z0-9_]+)\]/.exec(error.message)?.[1]:undefined;
  if(candidate&&!candidate.startsWith('X_NATIVE_'))return browserErrorDiagnostic(error);

@@ -10,7 +10,7 @@ type Input = BrowserRequest & { publicKey: PairingState['publicKey']; installati
 export class NativePairingWaitError extends Error {
     readonly retryAfterSeconds: number;
     readonly retryAt: string;
-    constructor(code: 'X_NATIVE_PAIRING_ACTIVE' | 'X_NATIVE_PAIRING_THROTTLED' | 'X_NATIVE_PAIRING_BUSY', seconds: number) {
+    constructor(public readonly code: 'X_NATIVE_PAIRING_ACTIVE' | 'X_NATIVE_PAIRING_THROTTLED' | 'X_NATIVE_PAIRING_BUSY', seconds: number) {
         super(`[${code}]`); this.name = 'NativePairingWaitError';
         this.retryAfterSeconds = Math.max(1, Math.min(900, Math.ceil(seconds)));
         this.retryAt = new Date(Date.now() + this.retryAfterSeconds * 1000).toISOString();

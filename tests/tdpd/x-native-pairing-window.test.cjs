@@ -83,3 +83,22 @@ test('fresh issue requires a current snapshot, and same-key request rebinding is
     await assert.rejects(s.ordinary({ idempotencyKey: 'stale-window' }), /STALE_MANIFEST/);
     s.f.state.manifest = before.manifest; assert.deepEqual(s.f.state, before);
 });
+test('HTTP pairing wait explains its concrete cause and corrective action', async () => {
+    const Fastify = require('fastify'), base = process.env.SHARED_BROWSER_DIST || '/opt/planner/dist';
+    const { registerXNativeRoutes } = require(base + '/routes/x_native.routes.js');
+    const { NativePairingWaitError } = require(base + '/services/x_native_pairing_issue.js');
+    for (const [code, reason] of [['X_NATIVE_PAIRING_ACTIVE', /active/i], ['X_NATIVE_PAIRING_THROTTLED', /too many/i],
+        ['X_NATIVE_PAIRING_BUSY', /concurrent/i]]) {
+        const app = Fastify();
+        try {
+            await registerXNativeRoutes(app, { enabled: () => true, actorFromToken: () => 'user:2',
+                owner: async () => { throw new NativePairingWaitError(code, 123); }, delegate: async () => ({}) });
+            const r = await app.inject({ method: 'POST', url: '/api/integrations/x-native/pair',
+                headers: { authorization: 'Bearer synthetic-owner' }, payload: {} });
+            const body = r.json();
+            assert.match(body.message, reason); assert.equal(body.reasons[0].field, 'pairing');
+            assert.match(body.reasons[0].action, /request|retry|state/i); assert.equal(body.retry_after_seconds, 123);
+            assert.equal(r.headers['retry-after'], '123'); assert.equal(body.retry_allowed, false);
+        } finally { await app.close(); }
+    }
+});
