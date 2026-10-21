@@ -1,3 +1,5 @@
+> Historical policy: superseded by owner21Oct2026. Current contract: ../x-pairing-window/contract.md. Preserve these audit/build records.
+
 # X verified pairing recovery
 
 Owner LOCK/QAR/ARCH/RISK approval: direct owner answer `да` to the owning

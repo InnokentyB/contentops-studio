@@ -1,4 +1,3 @@
-import { randomBytes } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
@@ -10,7 +9,8 @@ import { requireNativeSnapshot, type NativeInstallation } from './x_native_regis
 import { assertNativeExtensionOrigin } from './x_native_origin';
 import { nativePairingChallengeSchema, pairingStoredSchema as storedSchema, pairingKey as key, validPairingTime as validTime,
     auditedPairing as audited, notSupersededPairing, verifiedPairing } from './x_native_pairing_contract';
-import { pairingRecoverySchema, recoverPairing } from './x_native_pairing_recovery';
+import { pairingRecoverySchema } from './x_native_pairing_recovery';
+import { issueCurrentPairing, NativePairingWaitError } from './x_native_pairing_issue';
 export { nativePairingChallengeSchema } from './x_native_pairing_contract';
 
 const serial = { isolationLevel: Prisma.TransactionIsolationLevel.Serializable } as const;
@@ -27,25 +27,14 @@ export async function issueNativePairing(input: unknown, deps: BrowserDependenci
     if (nativeKeyFingerprint(a.publicKey) !== a.installationId) throw new Error('[X_NATIVE_INSTALLATION_INVALID]');
     return deps.db.$transaction(async tx => {
         await checkedBrowserContext(tx, a, deps);
-        if (a.recovery) return recoverPairing(tx, a, deps);
-        if (await tx.workflowEvent.count({ where: { project_id: a.projectId, content_item_id: a.taskId,
-            actor_id: a.actorId, command: 'x_native_issue_pairing' } }) >= 3) throw new Error('[X_NATIVE_PAIRING_LIMIT]');
-        const now = Date.now(), s = a.snapshot;
-        const challenge = nativePairingChallengeSchema.parse({ version: 1, purpose: 'pair', projectId: a.projectId,
-            taskId: a.taskId, channelId: s.channelId, revision: s.contentRevision, bodySha256: s.bodySha256,
-            manifest: s.manifestChecksum, account: s.identity.accountRef, profileUrl: s.identity.profileUrl,
-            scheduleAt: s.scheduleAt, installationId: a.installationId, bundleSha256: a.bundleSha256, actorId: a.actorId, extensionId: a.extensionId,
-            nonce: randomBytes(32).toString('hex'), issuedAt: new Date(now).toISOString(), expiresAt: new Date(now + 300000).toISOString() });
-        const context = browserRequestSchema.parse(Object.fromEntries(Object.entries(a).filter(([name]) =>
-            !['publicKey', 'installationId', 'extensionId', 'bundleSha256', 'recovery'].includes(name))));
-        await tx.projectSettings.create({ data: { project_id: a.projectId, key: key(challenge.nonce),
-            value: JSON.stringify({ challenge, context, publicKey: a.publicKey, verifiedSha256: null, consumed: false }) } });
-        await tx.workflowEvent.create({ data: { project_id: a.projectId, content_item_id: a.taskId, actor_id: a.actorId,
-            command: 'x_native_issue_pairing', idempotency_key: hash(challenge.nonce),
-            after_state: { installation_id: a.installationId, bundle_sha256: a.bundleSha256, challenge_sha256: hash(JSON.stringify(challenge)),
-                snapshot_sha256: snapshotHash(s), publication_authorized: false } } });
-        return { mode: 'pairing_challenge', challenge, publication_authorized: false };
-    }, serial);
+        if (a.recovery) throw new Error('[X_NATIVE_PAIRING_USE_CURRENT_FLOW]');
+        return issueCurrentPairing(tx, a);
+    }, serial).catch((error: unknown) => {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && ['P2002', 'P2034'].includes(error.code)) {
+            throw new NativePairingWaitError('X_NATIVE_PAIRING_BUSY', 1);
+        }
+        throw error;
+    });
 }
 export async function readNativePairing(input: unknown, deps: BrowserDependencies = browserDefaults, origin?: string) {
     const request = nativeReadSchema.parse(input);

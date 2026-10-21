@@ -32,6 +32,8 @@ function fixture() {
         if(value&&typeof value==='object'&&!(value instanceof Date)) {
             if('in' in value)return value.in.includes(row[key]);
             if('notIn' in value)return !value.notIn.includes(row[key]);
+            if('gte' in value)return row[key]>=value.gte;
+            if('lte' in value)return row[key]<=value.lte;
             if('lt' in value)return row[key]<value.lt;
             if('gt' in value)return row[key]>value.gt;
             if('not' in value)return row[key]!==value.not;

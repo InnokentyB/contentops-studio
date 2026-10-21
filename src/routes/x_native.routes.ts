@@ -6,6 +6,7 @@ import { registerNativeInstallation, revokeNativeInstallation } from '../service
 import { issueNativeChallenge, readNativeChallenge, refreshNativeStart, heartbeatNativeExecution } from '../services/x_native_control';
 import { advanceNativeChallenge } from '../services/x_native_advance';
 import { executeNativeReceipt } from '../services/x_native_execution';
+import { NativePairingWaitError } from '../services/x_native_pairing_issue';
 
 type OwnerOperation = 'pair' | 'register' | 'revoke' | 'challenge';
 type DelegateOperation = 'pair-read' | 'pair-receipt' | 'read' | 'advance' | 'reconcile' | 'refresh' | 'heartbeat' | 'receipt';
@@ -84,6 +85,9 @@ export async function registerXNativeRoutes(server: FastifyInstance, dependencie
                 if (!/^user:[1-9]\d*$/.test(actorId)) throw new Error('[OWNER_REQUIRED]');
                 return await dependencies.owner(operation as OwnerOperation, ownerInput(operation as OwnerOperation, request.body, actorId));
             } catch (error: unknown) {
+                if (error instanceof NativePairingWaitError) return reply.header('Retry-After', String(error.retryAfterSeconds))
+                    .code(error.message === '[X_NATIVE_PAIRING_THROTTLED]' ? 429 : 409).send({ code: error.message.slice(1,-1),
+                        retry_allowed: false, retry_after_seconds: error.retryAfterSeconds, retry_at: error.retryAt });
                 const candidate = error instanceof Error ? /^\[([A-Z0-9_]+)\]/.exec(error.message)?.[1] : undefined;
                 const code = candidate && /^(X_NATIVE_[A-Z0-9_]+|BROWSER_[A-Z0-9_]+|OWNER_REQUIRED|STALE_MANIFEST|IDEMPOTENCY_CONFLICT)$/.test(candidate)
                     ? candidate : 'X_NATIVE_REQUEST_REJECTED';
