@@ -1,0 +1,26 @@
+{
+  "date": "2026-10-21",
+  "ownerDecision": "Portfolio HQ direct human message01a15df1-71a1-7d30-96b1-915e1e5f317c removes lifetime caps and authorizes reviewed fix/release/existing-installation enrollment without publication",
+  "red": "PASS: baseline backend compiles; new service tests fail on lifetime cap, exhausted legacy successor, missing idempotency/active backoff/throttling and missing registration admission guards",
+  "green": {
+    "backendBuild": "PASS",
+    "focusedAndSharedTests": 85,
+    "failed": 0,
+    "skipped": 0,
+    "isolatedPostgresTests": 7,
+    "qualityGate": "PASS baseline77"
+  },
+  "postgresEvidence": [
+    "one concurrent successor",
+    "enrollment versus renewal one winner",
+    "existing registration/permit/rollback/revocation fences"
+  ],
+  "policyChange": "Finite ten-issue sliding15-minute owner/project window replaces lifetime3+recovery1; five-minute signed proof and24-hour verified enrollment retained",
+  "legacyTests": "Superseded lifetime recovery assertions replaced under explicit owner policy; delayed enrollment/audit/clock/consumption negatives preserved; expired old recovery fixtures tested through new normal issuance",
+  "handoffCorrection": "Direct public result consumed synchronously; all transfer approval/readiness before issuance; optional SSH follows instead of blocking; exact approval operation identified",
+  "independentSecurityReview": "Initial review31506cf: all security/rate/scope/race checks pass; sole P2 HTTP missing cause/action reproduced RED and corrected; fresh delta review pending",
+  "deployment": "PENDING",
+  "realSignedNoSendAndEnrollment": "PENDING",
+  "publicationAuthorized": false,
+  "httpCorrection": "Native HTTP and MCP share per-code human cause, field, corrective action and exact Retry-After; all three backoff modes covered"
+}

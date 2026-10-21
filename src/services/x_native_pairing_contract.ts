@@ -7,9 +7,12 @@ export const nativePairingChallengeSchema = nativeChallengeSchema.omit({ workIte
     purpose: z.literal('pair'), extensionId: z.string().regex(/^[a-p]{32}$/) }).strict();
 export const pairingStoredSchema = z.object({ challenge: nativePairingChallengeSchema, context: browserRequestSchema,
     publicKey: nativePublicKeySchema, verifiedSha256: z.string().regex(/^[a-f0-9]{64}$/).nullable(), consumed: z.boolean(),
-    recoveryRoot: z.string().regex(/^[a-f0-9]{64}$/).optional() }).strict();
+    recoveryRoot: z.string().regex(/^[a-f0-9]{64}$/).optional(), issueVersion: z.literal(2).optional() }).strict();
 export type PairingState = z.infer<typeof pairingStoredSchema>;
 export const pairingKey = (nonce: string): string => `x_native:pairing:v1:${hash(nonce)}`;
+export const pairingActiveKey = (installationId: string): string => `x_native:pairing-active:v2:${installationId}`;
+export const pairingActiveSchema = z.object({ pairingKey: z.string().regex(/^x_native:pairing:v1:[a-f0-9]{64}$/),
+    generation: z.number().int().positive() }).strict();
 export const pairingEnrollmentWindowMs = 86400000;
 /** Signed observation freshness remains five minutes; delayed enrollment is a separate gate. */
 export function validPairingTime(challenge: PairingState['challenge']): void {
@@ -32,6 +35,18 @@ export async function auditedPairing(tx: BrowserDb, state: PairingState): Promis
 }
 /** Supersession is a separate durable relation; signed predecessor bytes remain immutable. */
 export async function notSupersededPairing(tx: BrowserDb, state: PairingState): Promise<void> {
+    const active = await tx.projectSettings.findUnique({ where: { project_id_key: { project_id: state.context.projectId,
+        key: pairingActiveKey(state.challenge.installationId) } } });
+    if (state.issueVersion === 2 && !active) throw new Error('[X_NATIVE_PAIRING_AUDIT_REQUIRED]');
+    if (active) {
+        const pointer = pairingActiveSchema.parse(JSON.parse(active.value));
+        if (pointer.pairingKey !== pairingKey(state.challenge.nonce)) throw new Error('[X_NATIVE_PAIRING_SUPERSEDED]');
+        const audit = await tx.workflowEvent.findFirst({ where: { project_id: state.context.projectId, actor_id: state.context.actorId,
+            command: 'x_native_issue_pairing', idempotency_key: hash(state.challenge.nonce) } });
+        if (object(audit?.after_state).active_sha256 !== hash(active.value)) throw new Error('[X_NATIVE_PAIRING_AUDIT_REQUIRED]');
+    }
+    if (await tx.workflowEvent.findFirst({ where: { project_id: state.context.projectId, command: 'x_native_pairing_superseded',
+        idempotency_key: hash(state.challenge.nonce) } })) throw new Error('[X_NATIVE_PAIRING_SUPERSEDED]');
     if (await tx.workflowEvent.findFirst({ where: { project_id: state.context.projectId,
         content_item_id: state.context.taskId, command: 'x_native_recover_pairing', idempotency_key: hash(state.challenge.nonce) } })) {
         throw new Error('[X_NATIVE_PAIRING_SUPERSEDED]');

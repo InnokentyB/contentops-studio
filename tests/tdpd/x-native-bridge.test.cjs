@@ -38,8 +38,9 @@ async function ready(taskId = 4801, future = false) {
         f.state.task.schedule_at = date; f.state.task.publish_at = date;
     }
     f.state.nativeSettings = [];
-    const matches = (r, w) => Object.entries(w).every(([k, v]) => r[k] === v);
+    const matches = (r, w) => Object.entries(w).every(([k, v]) => v && typeof v === 'object' ? ('startsWith' in v ? String(r[k]).startsWith(v.startsWith) : 'contains' in v ? String(r[k]).includes(v.contains) : false) : r[k] === v);
     f.db.projectSettings = {
+        findFirst: async ({ where }) => f.state.nativeSettings.filter(row => matches(row, where)).sort((a,b)=>b.id-a.id)[0] || null,
         findUnique: async ({ where }) => f.state.nativeSettings.find(row => matches(row, where.project_id_key || where)) || null,
         create: async ({ data }) => {
             if (f.state.nativeSettings.some(row => row.project_id === data.project_id && row.key === data.key)) throw Error('synthetic unique conflict');

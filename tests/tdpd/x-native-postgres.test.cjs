@@ -82,34 +82,31 @@ async function ready(t) {
     const issued = await control.issueNativeChallenge({ context, installationId: state.installationId, bundleSha256, phase: 'start', attemptId: null }, deps);
     return { ...state, context, challenge: issued.challenge };
 }
-async function recoverySetup(t) {
+async function renewalSetup(t) {
     const s = await setup(t), actualNow = Date.now, now = actualNow() + 300001;
     Date.now = () => now; t.after(() => { Date.now = actualNow; });
     const { pairingNonce, uatReference, ...args } = s.enrollment;
-    const recover = (phase, grantId) => pairing.issueNativePairing({ ...args,
-        recovery: { phase, predecessorNonce: pairingNonce, approvalReference: 'Explicit synthetic Owner recovery authority',
-            ...(grantId ? { grantId } : {}) } }, deps);
-    return { ...s, recover };
+    const renew = () => pairing.issueNativePairing({ ...args, idempotencyKey: 'renew-current-installation' }, deps);
+    return { ...s, renew };
 }
-test('PostgreSQL recovery races create one successor and consume one durable grant atomically', async t => {
-    const s = await recoverySetup(t), grant = await s.recover('authorize');
+test('PostgreSQL concurrent reissue creates one active successor and preserves historical proof', async t => {
+    const s = await renewalSetup(t);
     const before = await db.projectSettings.findFirst({ where: { project_id: s.args.projectId, key: { startsWith: 'x_native:pairing:v1:' } } });
-    const results = await Promise.allSettled([s.recover('apply', grant.grantId), s.recover('apply', grant.grantId)]);
-    assert.equal(fulfilled(results).length, 1);
-    assert.equal(await db.workflowEvent.count({ where: { project_id: s.args.projectId, command: 'x_native_recover_pairing' } }), 1);
+    const results = await Promise.allSettled([s.renew(), s.renew()]);
+    assert.ok(fulfilled(results).length >= 1);
+    assert.equal(new Set(fulfilled(results).map(r=>r.value.challenge.nonce)).size, 1);
+    assert.equal(await db.workflowEvent.count({ where: { project_id: s.args.projectId, command: 'x_native_pairing_superseded' } }), 1);
     assert.equal(await db.projectSettings.count({ where: { project_id: s.args.projectId, key: { startsWith: 'x_native:pairing:v1:' } } }), 2);
     assert.equal((await db.projectSettings.findUnique({ where: { id: before.id } })).value, before.value);
     assert.equal(await db.deliveryAttempt.count({ where: { content_item_id: s.args.taskId } }), 0);
 });
-test('PostgreSQL enrollment versus supersession has one winner without partial grant consumption', async t => {
-    const s = await recoverySetup(t), grant = await s.recover('authorize');
-    const results = await Promise.allSettled([s.recover('apply', grant.grantId), registry.registerNativeInstallation(s.enrollment, deps)]);
+test('PostgreSQL enrollment versus reissue has one winner without reviving the old nonce', async t => {
+    const s = await renewalSetup(t);
+    const results = await Promise.allSettled([s.renew(), registry.registerNativeInstallation(s.enrollment, deps)]);
     assert.equal(fulfilled(results).length, 1);
-    const recovered = await db.workflowEvent.count({ where: { project_id: s.args.projectId, command: 'x_native_recover_pairing' } });
+    const renewed = await db.workflowEvent.count({ where: { project_id: s.args.projectId, command: 'x_native_pairing_superseded' } });
     const registered = await db.workflowEvent.count({ where: { project_id: s.args.projectId, command: 'x_native_register_installation' } });
-    assert.equal(recovered + registered, 1);
-    const saved = await db.projectSettings.findFirst({ where: { project_id: s.args.projectId, key: { startsWith: 'x_native:pairing-recovery:' } } });
-    assert.equal(JSON.parse(saved.value).consumed, recovered === 1);
+    assert.equal(renewed + registered, 1);
     assert.equal(await db.deliveryAttempt.count({ where: { content_item_id: s.args.taskId } }), 0);
 });
 test('PostgreSQL concurrent enrollment consumes one signed pairing and creates one audited installation', async t => {

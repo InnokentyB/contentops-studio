@@ -4,12 +4,14 @@ import Fastify from 'fastify';
 import rateLimit from '@fastify/rate-limit';
 import cors from '@fastify/cors';
 import { registerXNativeRoutes, type NativeHttpServices } from '../routes/x_native.routes';
+import { NativePairingWaitError } from '../services/x_native_pairing_issue';
+import { xNativeErrorDiagnostic } from '../services/x_native_actionable_diagnostics';
 
-async function fixture(enabled = true) {
+async function fixture(enabled = true, ownerError?: Error) {
     const calls: { operation: string; input: unknown; origin?: string }[] = [];
     const services: NativeHttpServices = { enabled: () => enabled,
         actorFromToken: token => { if (token !== 'synthetic-owner') throw Error('RAW_PRIVATE_AUTH_DETAIL'); return 'user:4'; },
-        owner: async (operation, input) => { calls.push({ operation, input }); return { publication_authorized: false }; },
+        owner: async (operation, input) => { if (ownerError) throw ownerError; calls.push({ operation, input }); return { publication_authorized: false }; },
         delegate: async (operation, input, origin) => { calls.push({ operation, input, origin });
             if (operation === 'receipt') throw Error('[X_NATIVE_SIGNATURE_INVALID] RAW_PRIVATE_DETAIL');
             return { submission_permitted: false }; } };
@@ -19,6 +21,18 @@ async function fixture(enabled = true) {
     await registerXNativeRoutes(app, services); await app.ready();
     return { app, calls };
 }
+test('pairing backoff is exact and safe through HTTP and MCP diagnostics', async () => {
+    const error = new NativePairingWaitError('X_NATIVE_PAIRING_THROTTLED', 123), h = await fixture(true, error);
+    try {
+        const response = await h.app.inject({ method: 'POST', url: '/api/integrations/x-native/pair',
+            headers: { authorization: 'Bearer synthetic-owner' }, payload: {} });
+        assert.equal(response.statusCode, 429); assert.equal(response.headers['retry-after'], '123');
+        assert.equal(response.json().retry_after_seconds, 123); assert.equal(response.json().retry_at, error.retryAt);
+        const diagnostic = xNativeErrorDiagnostic(error);
+        assert.equal(diagnostic.retry_after_seconds, 123); assert.equal(diagnostic.retry_at, error.retryAt);
+        assert.equal(diagnostic.retry_allowed, false); assert.deepEqual(h.calls, []);
+    } finally { await h.app.close(); }
+});
 test('disabled rollout and missing owner authorization have zero execution authority', async () => {
     const off = await fixture(false);
     try { assert.equal((await off.app.inject({ method: 'POST', url: '/api/integrations/x-native/pair', payload: {} })).statusCode, 503);
