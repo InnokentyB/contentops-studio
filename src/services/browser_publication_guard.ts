@@ -1,3 +1,4 @@
+import {instructionForRequest} from './browser_owner_instruction_state';
 import {assertBrowserRecoveryWriter,type PreparationWriterPurpose} from './browser_recovery_guard';
 import { timingSafeEqual } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
@@ -45,17 +46,18 @@ export function assertBrowserLease(work:{state:string;lease_actor_id:string|null
 export async function checkedBrowserAttempt(tx:BrowserDb,args:BrowserRequest&{attemptId:number}) {
     const attempt=await tx.deliveryAttempt.findFirst({where:{id:args.attemptId,project_id:args.projectId,
         content_item_id:args.taskId,channel_id:args.snapshot.channelId,idempotency_key:args.idempotencyKey,status:'pending'}});
-    if(!attempt||await tx.deliveryAttempt.count({where:{project_id:args.projectId,content_item_id:args.taskId}})!==1)
+    const instruction=await instructionForRequest(tx,args),through=instruction?.historicalThroughAttemptId??0;
+    if(!attempt||(instruction&&attempt.id<=through)||await tx.deliveryAttempt.count({where:{project_id:args.projectId,content_item_id:args.taskId,...(instruction?{id:{gt:through}}:{})}})!==1)
         throw new Error('[BROWSER_RECONCILIATION_REQUIRED]');
     return attempt;
 }
 /** Actual executor observations are necessary, but not independently signed provider proof. */
-export function assertBrowserObserved(body:string,args:Omit<BrowserObserved,'leaseToken'>):void {
+export function assertBrowserObserved(body:string,args:Omit<BrowserObserved,'leaseToken'>,ownerAllowsDuplicate=false):void {
     const s=args.snapshot,i=s.identity;
     if(args.observedProfileUrl.replace(/\/$/,'')!==i.profileUrl.replace(/\/$/,'')
         ||args.observedProviderAccountId!==i.providerAccountId||args.observedAccountType!==i.accountType
         ||args.observedBodySha256!==s.bodySha256||args.observedAssetSha256!==s.assetSha256
-        ||args.attachedImageCount!==(isBrowserTextOnlySnapshot(s)?0:1)||!args.duplicateAbsent
+        ||args.attachedImageCount!==(isBrowserTextOnlySnapshot(s)?0:1)||(!args.duplicateAbsent&&!ownerAllowsDuplicate)
         ||!isDeepStrictEqual(args.paragraphBlockSha256,paragraphHashes(body)))throw new Error('[BROWSER_OBSERVATION_MISMATCH]');
 }
 export function browserObservationHash(args:Omit<BrowserObserved,'leaseToken'>):string {

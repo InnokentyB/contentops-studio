@@ -39,6 +39,7 @@ jobs:
           docker compose -f ops/publication-tests/compose.yaml up -d synthetic-db
           docker compose -f ops/publication-tests/compose.yaml run --rm tests node node_modules/prisma/build/index.js db push
           docker compose -f ops/publication-tests/compose.yaml run --rm tests
+          docker compose -f ops/publication-tests/compose.yaml run --rm tests node --test --test-concurrency=1 /workspace/tests/tdpd/owner-browser-instruction-postgres.test.cjs
           X_NATIVE_TEST_IMAGE=planner-policy-build-check:node24 docker compose -f ops/publication-tests/compose.yaml -f tests/tdpd/x-native-postgres.compose.yaml run --rm tests
           X_NATIVE_TEST_IMAGE=planner-policy-build-check:node24 docker compose -f ops/publication-tests/compose.yaml -f tests/tdpd/x-native-postgres.compose.yaml run --rm tests node --test --test-concurrency=1 /workspace/tests/tdpd/x-native-state-read-postgres.test.cjs /workspace/tests/tdpd/x-native-state-read-load.test.cjs
       - name: Versioned recovery MCP, bounded coordinator and same-attempt resume (synthetic only)

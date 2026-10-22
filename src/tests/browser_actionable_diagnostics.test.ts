@@ -25,7 +25,7 @@ test('registered MCP boundary serializes validation failures without input secre
  const handlers:Array<(args:unknown)=>Promise<unknown>>=[];
  const server={registerTool(_name:string,_config:unknown,handler:(args:unknown)=>Promise<unknown>){handlers.push(handler);}};
  registerBrowserPublicationTools(server as unknown as Parameters<typeof registerBrowserPublicationTools>[0]);
- assert.equal(handlers.length,10);
+ assert.equal(handlers.length,11);
  const logs:string[]=[];const original=console.warn;
  console.warn=(line:unknown)=>{logs.push(String(line));};
  try{
@@ -36,7 +36,7 @@ test('registered MCP boundary serializes validation failures without input secre
   assert.equal((response as {isError:boolean}).isError,true);
   assert.ok(serialized.includes('reasons'));assert.ok(serialized.includes('action'));
  }
- assert.equal(logs.length,10);assert.equal(logs.some(line=>line.includes('secret-private')),false);
+ assert.equal(logs.length,11);assert.equal(logs.some(line=>line.includes('secret-private')),false);
  }finally{console.warn=original;}
 });
 test('schema rejection explains request correction without raw validation values',()=>{

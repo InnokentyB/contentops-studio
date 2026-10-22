@@ -1,7 +1,7 @@
 import { browserDefaults, object, requireBrowserOwner, type BrowserDependencies } from './browser_publication_contract';
 import { nativeReadSchema, verifyNativeRead, assertNativeBundle, type NativeChallenge } from './x_native_receipt';
 import { installedNative, nativeSerial } from './x_native_registry';
-import { nativeBoundary, loadNativeState, restoredNativeContext, safeNativeContext } from './x_native_state';
+import { nativeBoundary, loadNativeState, restoredNativeContext, safeNativeContext,scopedNativeAttempts } from './x_native_state';
 import { issueNativeChallenge } from './x_native_control';
 import { assertNativeExtensionOrigin } from './x_native_origin';
 
@@ -17,7 +17,7 @@ export async function advanceNativeChallenge(input: unknown, reconcileOnly = fal
         verifyNativeRead(request, registration.publicKey, Date.now(), reconcileOnly ? 'reconcile' : 'advance', registration.bundleSha256);
         if (request.channelId !== c.channelId || request.installationId !== c.installationId) throw new Error('[X_NATIVE_INSTALLATION_INVALID]');
         await requireBrowserOwner(tx, state.context);
-        const attempts = await tx.deliveryAttempt.findMany({ where: { project_id: c.projectId, content_item_id: c.taskId } });
+        const attempts = await scopedNativeAttempts(tx,state.context);
         if (reconcileOnly && c.phase === 'start' && c.attemptId === null && !state.consumedSha256 && attempts.length === 0) {
             const context = await restoredNativeContext(tx, state);
             const { task } = await nativeBoundary(tx, context, deps);

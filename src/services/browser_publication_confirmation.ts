@@ -1,3 +1,4 @@
+import {instructionForRequest} from './browser_owner_instruction_state';
 import {withBrowserRecoveryFinalization,assertBrowserRecoveryCommit} from './browser_recovery_guard';
 import type {RecoveryReservation} from './browser_recovery_contract';
 import { z } from 'zod';
@@ -77,7 +78,7 @@ async function completeBrowser(input:unknown,reconcile:boolean,deps:BrowserDepen
             const check=async()=>{
             const {task,work}=await checkedBrowserRelease(tx,args,deps);
             if(task.status!=='publishing')throw new Error('[BROWSER_NOT_STARTED]');
-            const attempt=await checkedBrowserAttempt(tx,args);assertBrowserObserved(task.draft_text!,args);
+            const attempt=await checkedBrowserAttempt(tx,args);assertBrowserObserved(task.draft_text!,args,Boolean(await instructionForRequest(tx,args)));
             assertBrowserPublicationTime(attempt,args.publishedAt);
             if(reconcile&&!recovery&&!attempt.error_message&&(!work.lease_expires_at||work.lease_expires_at>new Date()))
                 throw new Error('[BROWSER_RECONCILIATION_NOT_REQUIRED]');

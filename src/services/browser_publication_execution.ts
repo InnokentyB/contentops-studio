@@ -1,3 +1,4 @@
+import {instructionForRequest} from './browser_owner_instruction_state';
 import type {PreparationAdmission,PreparationPermit,PreparationUncertainty} from './browser_preparation_contract';
 import {isBrowserPreparationWriter,preparationWriterPurpose} from './browser_recovery_guard';
 import {assessLegacyBrowserRecovery} from './browser_recovery_assessment';
@@ -16,7 +17,8 @@ export async function claimBrowserPublication(input:unknown,deps:BrowserDependen
     const args=browserClaimSchema.parse(input),command='ba_claim_browser_publication';
     return deps.db.$transaction(async tx=>{
         const {task,work}=await checkedBrowserRelease(tx,args,deps);
-        if(await tx.deliveryAttempt.count({where:{project_id:args.projectId,content_item_id:args.taskId}}))
+        const instruction=await instructionForRequest(tx,args);
+        if(await tx.deliveryAttempt.count({where:{project_id:args.projectId,content_item_id:args.taskId,...(instruction?{id:{gt:instruction.historicalThroughAttemptId}}:{})}}))
             throw new Error('[BROWSER_RECONCILIATION_REQUIRED]');
         if(task.status!=='browser_required')throw new Error('[BROWSER_NOT_CLAIMABLE]');
         const prior=await browserPrior(tx,args,command),now=new Date();
@@ -46,11 +48,12 @@ export async function startBrowserSubmission(input:unknown,deps:BrowserDependenc
         const prior=await browserPrior(tx,args,command);
         if(prior)return{...prior,submission_permitted:false,retry_allowed:false};
         const {task,work}=await checkedBrowserRelease(tx,args,deps);assertBrowserLease(work,args);
-        if(task.status!=='browser_required'||await tx.deliveryAttempt.count({where:{project_id:args.projectId,content_item_id:args.taskId}}))
+        const instruction=await instructionForRequest(tx,args);
+        if(task.status!=='browser_required'||await tx.deliveryAttempt.count({where:{project_id:args.projectId,content_item_id:args.taskId,...(instruction?{id:{gt:instruction.historicalThroughAttemptId}}:{})}}))
             throw new Error('[BROWSER_RECONCILIATION_REQUIRED]');
         await requireBrowserNativeGate(tx,'start',args,nativeGate);
         const attempt=await tx.deliveryAttempt.create({data:{project_id:args.projectId,content_item_id:args.taskId,
-            channel_id:args.snapshot.channelId,mode:'assisted',status:'pending',attempt_number:1,
+            channel_id:args.snapshot.channelId,mode:'assisted',status:'pending',attempt_number:instruction?.nextAttemptNumber??1,
             idempotency_key:args.idempotencyKey,scheduled_at:task.schedule_at,requires_manual_confirmation:true}});
         const changed=await tx.contentItem.updateMany({where:{id:args.taskId,project_id:args.projectId,
             status:'browser_required',content_revision:args.snapshot.contentRevision,publication_mode:'browser_required'},data:{status:'publishing'}});
@@ -73,7 +76,9 @@ export async function preSubmitBrowserSubmission(input:unknown,deps:BrowserDepen
         if(task.status!=='publishing')throw new Error('[BROWSER_NOT_STARTED]');
         const attempt=await checkedBrowserAttempt(tx,args);
         if(attempt.error_message&&!isBrowserPreparationWriter(tx,args))throw new Error('[BROWSER_RECONCILIATION_REQUIRED]');
-        assertBrowserObserved(task.draft_text!,args);
+        const instruction=await instructionForRequest(tx,args);
+        assertBrowserObserved(task.draft_text!,args,Boolean(instruction));
+        if(instruction&&await tx.workflowEvent.findFirst({where:{project_id:args.projectId,content_item_id:args.taskId,work_item_id:args.workItemId,command}}))return {submission_permitted:false,retry_allowed:false,replayed:true};
         const prior=await browserPrior(tx,args,command);if(prior)return{...prior,submission_permitted:false,retry_allowed:false};
         await requireBrowserNativeGate(tx,'permit',args,nativeGate);
         const proof={attempt_id:attempt.id,work_item_id:work.id,lease_sha256:hash(args.leaseToken),

@@ -1,0 +1,17 @@
+# Self-review and release boundary
+
+Owner explicitly approved the reusable architecture before scenarios. Implementation preserves original UNKNOWN attempts, original release audit and existing recovery rows; a new numbered attempt/work is separate authority. Historical attempts are delimited by a server-recorded scoped ID watermark, with next number from the actual maximum, so a large history does not create a synthetic admission prerequisite.
+
+Authority: authenticated Owner profile, project membership, actor binding and non-demo issuer are required to mint the command. Issuer membership/demo status is rechecked on consumption. Publisher cannot mint commands. Existing role/project/actor MCP binding and source package/identity/image validation remain. Ordinary agent retry behavior is unchanged.
+
+Replay/concurrency: one command key returns the same work; serializable task CAS and audit transaction reject races; one additional attempt and permit per instruction. Same-key permit replay never permits another click; changed send key rejects. A distinct new Owner command is a distinct instruction. Old work is cancelled and lease revoked atomically with new authority, while old attempt rows remain unchanged. This revokes Planner authority, not a claim that a historical browser cannot produce a late external effect; that duplicate risk is accepted by the Owner.
+
+Old held callbacks: the historical recovery exception only applies to the new work item. Unrelated/old canonical callbacks still roll back; successful new confirmation retains the original recovery row. Accepted copy, image, account and canonical result evidence are still checked. The instruction creates no provider read/write and adds no sender, session, transport, scheduler or migration.
+
+Verification: compiled backend PASS; 109/109 tests PASS, including nine new real PostgreSQL scenarios plus shared release/execution/confirmation/recovery/preparation/MCP/diagnostic regressions; quality gate77 PASS,6823 baseline findings unchanged, no new exceptions. RED and intermediate failures retained. This is self-review, not independent security review or live-provider evidence. Owner UAT and public CI are pending.
+
+Scope: blocked/UNKNOWN browser publication without an existing Planner canonical fact. A provider post may already exist; duplicateAbsent=false is permitted under this Owner instruction. A task with an existing canonical fact requires a separate publication instance to preserve both facts; it is not silently overwritten here. Existing provider/site restrictions and actual browser failures remain actual execution constraints. No real task, attempt, fact, secret or provider was changed during implementation.
+
+Release: exact diff/commit must be reviewed and public CI/backup/restore/normal deployment gates completed before production availability. Do not mix the unreleased legacy adoption package into this change. Existing Owner publication GO is not requested again. No new recovery flag is needed: the explicit Owner tool creates scope-bound authority; tool registration alone never sends.
+
+Rollback: stop issuing/consuming new instructions, drain active operations, roll back code while preserving work/attempt/audit/fact/recovery history. Old code may hold the new operation because of multiple attempts; do not clear history or manufacture a success to make rollback appear complete. Never revert a rotated secret as part of source rollback.

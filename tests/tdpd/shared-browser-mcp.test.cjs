@@ -20,8 +20,26 @@ test('S6 registered MCP surface matches capabilities and mutations never claim r
     const {registerBrowserPublicationTools}=require(path.join(base,'mcp/tools/browser_publication_tools.js'));
     const server=new McpServer({name:'synthetic-browser-contract',version:'1'});
     registerBrowserPublicationTools(server);
-    assert.deepEqual(Object.keys(server._registeredTools).sort(),[...commands].sort());
+    assert.deepEqual(Object.keys(server._registeredTools).sort(),[...commands,'ba_authorize_browser_publication'].sort());
+    assert.equal(server._registeredTools.ba_authorize_browser_publication.annotations.readOnlyHint,false);
+    assert.equal(isToolAllowedForProfile('publisher','ba_authorize_browser_publication'),false);
+    assert.equal(isToolAllowedForProfile('owner','ba_authorize_browser_publication'),true);
     for(const name of commands){const tool=server._registeredTools[name];
         const readonly=['ba_inspect_browser_publication','ba_diagnose_browser_publication'].includes(name);
         assert.equal(tool.annotations.readOnlyHint,readonly,name);}
+});
+test('Owner instruction replay retains usable work and package at the MCP serialization boundary',async()=>{
+ const service=require(path.join(base,'services/browser_owner_instruction.js'));
+ const original=service.authorizeBrowserPublication;
+ const result={version:1,applied:true,replayed:true,browser_work_item_id:77,snapshot_sha256:'a'.repeat(64),submission_permitted:false};
+ const handlers=new Map();const server={registerTool(name,_config,handler){handlers.set(name,handler);}};
+ service.authorizeBrowserPublication=async()=>result;
+ try{
+  require(path.join(base,'mcp/tools/browser_publication_tools.js')).registerBrowserPublicationTools(server);
+  const response=await handlers.get('ba_authorize_browser_publication')({});
+  const payload=JSON.parse(response.content[0].text);
+  assert.equal(response.isError,false);assert.equal(payload.browser_work_item_id,77);
+  assert.equal(payload.applied,true);assert.equal(payload.snapshot_sha256,result.snapshot_sha256);
+  assert.equal(payload.code,undefined);
+ }finally{service.authorizeBrowserPublication=original;}
 });
