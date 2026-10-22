@@ -1,3 +1,4 @@
+import {currentOwnerInstruction} from './browser_owner_instruction_state';
 import {completePreparationAfterFinalization} from './browser_preparation_finalization';
 import {requireBrowserOwner,type BrowserDb} from './browser_publication_contract';
 import type {RecoveryReservation} from './browser_recovery_contract';
@@ -14,13 +15,16 @@ export async function browserRecoveryStorageAvailable(tx:BrowserDb):Promise<bool
 }
 /** Existing v1 mutation paths cannot bypass a v2 hold. Admission being off does not disable persisted holds. */
 export type PreparationWriterPurpose={kind:'first_permit';attemptId:number;generation:number};
-export async function assertBrowserRecoveryWriter(tx:BrowserDb,args:{projectId:number;taskId:number;attemptId?:number},purpose?:PreparationWriterPurpose):Promise<void>{
+export async function assertBrowserRecoveryWriter(tx:BrowserDb,args:{projectId:number;taskId:number;attemptId?:number;workItemId?:number},purpose?:PreparationWriterPurpose):Promise<void>{
  if(!await browserRecoveryStorageAvailable(tx))return;
  const preparation=preparationWriters.get(tx);
  if(purpose?.kind==='first_permit'&&preparation?.projectId===args.projectId&&preparation.taskId===args.taskId&&preparation.attemptId===args.attemptId&&preparation.attemptId===purpose.attemptId&&preparation.generation===purpose.generation)return;
  const permit=admittedTransactions.get(tx);
  if(permit?.projectId===args.projectId&&permit.taskId===args.taskId)return;
- if(await tx.browserDeliveryRecovery.findFirst({where:{project_id:args.projectId,content_item_id:args.taskId}}))throw new Error('[BROWSER_RECOVERY_V2_HELD]');
+ if(!await tx.browserDeliveryRecovery.findFirst({where:{project_id:args.projectId,content_item_id:args.taskId}}))return;
+ const instruction=await currentOwnerInstruction(tx,args);
+ if(instruction&&(args.workItemId!==instruction.workItemId||(args.attemptId!==undefined&&args.attemptId<=instruction.historicalThroughAttemptId)))throw new Error('[BROWSER_RECOVERY_V2_HELD]');
+ if(await tx.browserDeliveryRecovery.findFirst({where:{project_id:args.projectId,content_item_id:args.taskId,...(instruction?{attempt_id:{gt:instruction.historicalThroughAttemptId}}:{})}}))throw new Error('[BROWSER_RECOVERY_V2_HELD]');
 }
 /** Internal canonical finalization capability, never a request flag or serialized token. */
 export async function withBrowserRecoveryFinalization(tx:BrowserDb,r:RecoveryReservation,actorId:string,signal:AbortSignal,check:()=>Promise<void>):Promise<void>{
@@ -33,10 +37,10 @@ export async function withBrowserRecoveryFinalization(tx:BrowserDb,r:RecoveryRes
 }
 
 /** All canonical fact callers, including internal callbacks, must respect the same hold. */
-export async function assertBrowserRecoveryFactWriter(tx:BrowserDb,args:{projectId:number;taskId:number}):Promise<void>{
+export async function assertBrowserRecoveryFactWriter(tx:BrowserDb,args:{projectId:number;taskId:number;browserWorkItemId?:number}):Promise<void>{
  const completed=completedTransactions.get(tx);
  if(completed?.scope.projectId===args.projectId&&completed.scope.taskId===args.taskId)return;
- await assertBrowserRecoveryWriter(tx,args);
+ await assertBrowserRecoveryWriter(tx,{...args,workItemId:args.browserWorkItemId});
 }
 /** Last transactional check before COMMIT; abort/expiry cannot silently commit a late result. */
 export async function assertBrowserRecoveryCommit(tx:BrowserDb,r:RecoveryReservation,actorId:string,signal:AbortSignal):Promise<void>{

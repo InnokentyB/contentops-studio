@@ -1,0 +1,46 @@
+{
+  "status": "LOCAL_ENGINEERING_VERIFIED",
+  "ownerArchitectureApproved": true,
+  "base": "edef3a111d2ab4eb0b950f5ccde0ecf5828b13f2",
+  "checkedSourceSha256": "e6249ddb284fec0cedc50e81c8068161965b57d33b7d9737d15616b585661471",
+  "checkedFiles": [
+    "ops/owner-command-tests/README.md",
+    "ops/owner-command-tests/compose.yaml",
+    "src/mcp/tools/browser_publication_tools.ts",
+    "src/services/browser_actionable_diagnostics.ts",
+    "src/services/browser_owner_instruction.ts",
+    "src/services/browser_owner_instruction_state.ts",
+    "src/services/browser_publication_confirmation.ts",
+    "src/services/browser_publication_execution.ts",
+    "src/services/browser_publication_guard.ts",
+    "src/services/browser_recovery_guard.ts",
+    "src/tests/browser_actionable_diagnostics.test.ts",
+    "tests/tdpd/owner-browser-instruction-postgres.test.cjs",
+    "tests/tdpd/shared-browser-mcp.test.cjs"
+  ],
+  "red": {
+    "result": "FAIL expected",
+    "reason": "Owner instruction module absent on compiled baseline; ordinary UNKNOWN pre-submit denial confirmed"
+  },
+  "final": {
+    "backendBuild": "PASS",
+    "scenarioTests": 109,
+    "passed": 109,
+    "failed": 0,
+    "qualityGate": "PASS",
+    "score": 77,
+    "baselineFindings": 6823,
+    "baselineChanged": false,
+    "logs": [
+      "build-final-02.log",
+      "regressions-final-03.log",
+      "quality-final-02.log"
+    ]
+  },
+  "scope": "Owner MCP instruction and existing sole Publisher browser controls; no provider transport",
+  "ownerUAT": "PENDING",
+  "publicCI": "NOT_RUN",
+  "productionDeploy": false,
+  "providerSends": 0,
+  "evidence": "Tower ops/owner-publication-command-20261022/evidence"
+}
