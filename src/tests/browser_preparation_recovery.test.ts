@@ -10,7 +10,9 @@ test('PREP-04 unsupported application executor stays held with actionable explan
 });
 test('PREP-06 first-permit admission cannot bypass generic writers or canonical fact guards in the same transaction',async()=>{
  const guard=await import('../services/browser_recovery_guard');const prior=process.env.BROWSER_RECOVERY_V2_ENABLED;process.env.BROWSER_RECOVERY_V2_ENABLED='true';
- const tx={$queryRaw:async()=>[{available:true}],browserDeliveryRecovery:{findFirst:async()=>({stage:'PREPARE'})}} as unknown as Parameters<typeof guard.withBrowserPreparationPermit>[0];
+ const tx={$queryRaw:async()=>[{available:true}],browserDeliveryRecovery:{findFirst:async()=>({stage:'PREPARE'})},
+  contentItem:{findFirst:async(input:unknown)=>{assert.deepEqual(input,{where:{project_id:1,id:2}});return {quality_report:{}};}}
+ } as unknown as Parameters<typeof guard.withBrowserPreparationPermit>[0];
  const scope={projectId:1,taskId:2,attemptId:3,generation:0,packageSha256:'a'.repeat(64),leaseSha256:'b'.repeat(64)};
  try{await guard.withBrowserPreparationPermit(tx,scope,async()=>{
   await assert.rejects(guard.assertBrowserRecoveryWriter(tx,scope),/BROWSER_RECOVERY_V2_HELD/);
