@@ -1,4 +1,5 @@
 import { LinkedInChannelEditor } from '../components/LinkedInChannelEditor'
+import { GroupedPublicationChannels } from '../components/GroupedPublicationChannels'
 import { connectionDiagnostic } from '../components/linkedin-connection-state'
 import { VkSearchTokenField } from '../components/VkSearchTokenField'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -2043,19 +2044,9 @@ export default function Settings() {
                     </details>
 
                     <div className="channel-table-shell">
-                        <table className="channel-table">
-                            <thead>
-                                <tr>
-                                    <th>{locale === 'ru' ? 'Канал' : 'Channel'}</th>
-                                    <th>{locale === 'ru' ? 'Площадка' : 'Platform'}</th>
-                                    <th>{locale === 'ru' ? 'Режим' : 'Workflow'}</th>
-                                    <th>{locale === 'ru' ? 'Подключение' : 'Connection'}</th>
-                                    <th>{locale === 'ru' ? 'Идентификатор' : 'Identifier'}</th>
-                                    <th className="channel-table__actions-heading">{locale === 'ru' ? 'Действия' : 'Actions'}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                        {(projectData as ApiJson)?.channels?.map((channel: SocialChannel) => {
+                        <GroupedPublicationChannels className="channel-table" locale={locale === 'ru' ? 'ru' : 'en'}
+                            channels={(projectData as ApiJson)?.channels || []}>
+                        {(channel: SocialChannel) => {
                             if (editingChannelId === channel.id) {
                                 if (channel.type === 'linkedin' && currentProject) return <tr key={channel.id} className="channel-table__editor-row"><td colSpan={6}>
                                     <LinkedInChannelEditor projectId={currentProject.id} token={token || ''} channel={channel}
@@ -2624,9 +2615,8 @@ export default function Settings() {
                                     </td>
                                 </tr>
                             );
-                        })}
-                            </tbody>
-                        </table>
+                        }}
+                        </GroupedPublicationChannels>
                         {(!projectData || !(projectData as ApiJson).channels?.length) && (
                             <p className="channel-table__empty">{locale === 'ru' ? 'Каналы пока не подключены.' : 'No channels connected.'}</p>
                         )}

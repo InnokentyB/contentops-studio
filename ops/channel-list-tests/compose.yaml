@@ -1,0 +1,40 @@
+name: planner-channel-list-verification
+services:
+  build-fixture:
+    image: planner-owner-manual-confirmation:20261020
+    platform: linux/amd64
+    user: '1000:1000'
+    working_dir: /source/frontend
+    entrypoint: [node, /source/ops/channel-list-tests/build-fixture.cjs]
+    volumes: ['../..:/source:ro', '${CHANNEL_LIST_RESULTS:-/tmp/contentops-channel-list-results}:/results:rw']
+    read_only: true
+    network_mode: none
+    restart: 'no'
+    mem_limit: 2g
+    cpus: 2
+    pids_limit: 256
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    tmpfs: ['/tmp:rw,nosuid,nodev,size=256m,mode=1777']
+    logging: {driver: json-file, options: {max-size: 5m, max-file: '2'}}
+  browser:
+    image: planner-x-native-sandbox-fixture:20261017-v1
+    platform: linux/amd64
+    user: '1000:1000'
+    volumes: ['../..:/source:ro', '${CHANNEL_LIST_RESULTS:-/tmp/contentops-channel-list-results}:/results:rw']
+    read_only: true
+    network_mode: none
+    restart: 'no'
+    mem_limit: 2g
+    cpus: 2
+    pids_limit: 256
+    cap_drop: [ALL]
+    logging: {driver: json-file, options: {max-size: 5m, max-file: '2'}}
+    working_dir: /source
+    entrypoint: [node, /source/tests/tdpd/project-channel-list-browser.cjs]
+    init: true
+    cap_add: [SYS_CHROOT]
+    security_opt: ['no-new-privileges:true', 'seccomp=../x-native-extension/seccomp_profile.json']
+    shm_size: 512m
+    tmpfs: ['/tmp:rw,nosuid,nodev,size=768m,mode=1777']
+    ulimits: {core: 0}
