@@ -42,5 +42,42 @@
   "publicCI": "NOT_RUN",
   "productionDeploy": false,
   "providerSends": 0,
-  "evidence": "Tower ops/owner-publication-command-20261022/evidence"
+  "evidence": "Tower ops/owner-publication-command-20261022/evidence",
+  "postReview": {
+    "reviewedPublicCommit": "f95ee06d8005736cd1d519bedf4650564233f1f4",
+    "findings": [
+      "MCP instruction replay lost work identity",
+      "X native attempt lookup ignored instruction watermark"
+    ],
+    "reproduced": "review-red.log: both failed for expected reasons",
+    "fix": "successful authorization serialization preserves work/package; native start/advance use instruction-scoped attempts; receipt/signature checks unchanged",
+    "checkedSourceSha256": "edf2fc27270f06f1562fd806a0085d4bc97cdc10ac88f14751eacd57460df0f5",
+    "checkedFiles": [
+      ".github/workflows/code-quality.yml",
+      "ops/owner-command-tests/README.md",
+      "ops/owner-command-tests/compose.yaml",
+      "src/mcp/tools/browser_publication_tools.ts",
+      "src/services/browser_actionable_diagnostics.ts",
+      "src/services/browser_owner_instruction.ts",
+      "src/services/browser_owner_instruction_state.ts",
+      "src/services/browser_publication_confirmation.ts",
+      "src/services/browser_publication_execution.ts",
+      "src/services/browser_publication_guard.ts",
+      "src/services/browser_recovery_guard.ts",
+      "src/services/x_native_advance.ts",
+      "src/services/x_native_state.ts",
+      "src/tests/browser_actionable_diagnostics.test.ts",
+      "src/tests/browser_preparation_recovery.test.ts",
+      "tests/tdpd/owner-browser-instruction-postgres.test.cjs",
+      "tests/tdpd/shared-browser-mcp.test.cjs",
+      "tests/tdpd/x-native-postgres.test.cjs"
+    ],
+    "backendBuild": "PASS review-build.log",
+    "tests": 122,
+    "passed": 122,
+    "failed": 0,
+    "qualityGate": "PASS quality-review.log",
+    "publicCI": "pending for this addendum",
+    "providerSends": 0
+  }
 }

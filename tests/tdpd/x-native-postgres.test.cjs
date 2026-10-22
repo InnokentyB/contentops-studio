@@ -187,3 +187,23 @@ test('PostgreSQL UNKNOWN and expired lease remain reconciliation-only; revocatio
     assert.equal(await db.deliveryAttempt.count({ where: { content_item_id: s.args.taskId } }), 1);
     assert.equal(await db.publicationFact.count({ where: { content_item_id: s.args.taskId } }), 0);
 });
+test('explicit Owner instruction scopes native start and advance to the new attempt',async t=>{
+ const s=await ready(t);
+ await execution.executeNativeReceipt(s.receipt(s.challenge),deps,origin);
+ const old=await db.deliveryAttempt.findFirst({where:{content_item_id:s.args.taskId}});
+ await db.deliveryAttempt.update({where:{id:old.id},data:{error_message:'PROVIDER_RESULT_UNCERTAIN'}});
+ const retained=await db.deliveryAttempt.findUnique({where:{id:old.id}});
+ const {withPublicationPrincipal}=require(path.join(base,'mcp/publication-principal.js'));
+ const {authorizeBrowserPublication}=require(path.join(base,'services/browser_owner_instruction.js'));
+ const r=await withPublicationPrincipal({userId:Number(s.args.actorId.slice(5)),actorId:s.args.actorId,projectId:s.args.projectId,profile:'owner'},()=>authorizeBrowserPublication({...s.args,idempotencyKey:'owner-repeat',allowDuplicate:true},deps));
+ const workItemId=r.browser_work_item_id;
+ const lease=await lifecycle.claimBrowserPublication({...s.args,workItemId,idempotencyKey:'new-owner-claim'},deps);
+ const context={...s.args,apply:false,workItemId,leaseToken:lease.lease_token,idempotencyKey:'owner-new-send'};
+ const issued=await control.issueNativeChallenge({context,installationId:s.installationId,bundleSha256,phase:'start',attemptId:null},deps);
+ const start=await execution.executeNativeReceipt(s.receipt(issued.challenge),deps,origin);
+ assert.notEqual(start.attempt_id,old.id);
+ const stage=await advance.advanceNativeChallenge(s.read(issued.challenge,'advance'),false,deps,origin);
+ assert.equal(stage.challenge.phase,'permit');assert.equal(stage.challenge.attemptId,start.attempt_id);
+ assert.equal((await execution.executeNativeReceipt(s.receipt(stage.challenge),deps,origin)).submission_permitted,true);
+ assert.deepEqual(await db.deliveryAttempt.findUnique({where:{id:old.id}}),retained);
+});

@@ -1,4 +1,5 @@
 import { isDeepStrictEqual } from 'node:util';
+import {instructionForRequest} from './browser_owner_instruction_state';
 import { z } from 'zod';
 import { hash, object, type BrowserDb, type BrowserDependencies } from './browser_publication_contract';
 import { browserBoundarySchema, checkedBrowserRelease, assertBrowserLease, type BrowserBoundary } from './browser_publication_guard';
@@ -41,8 +42,13 @@ export async function nativeBoundary(tx: BrowserDb, args: BrowserBoundary, deps:
     if (typeof found.proof.release_key !== 'string') throw new Error('[BROWSER_RELEASE_PROOF_INVALID]');
     return found;
 }
+export async function scopedNativeAttempts(tx:BrowserDb,a:NativeState['context']){
+    const instruction=await instructionForRequest(tx,a);
+    return tx.deliveryAttempt.findMany({where:{project_id:a.projectId,content_item_id:a.taskId,
+        ...(instruction?{id:{gt:instruction.historicalThroughAttemptId}}:{})}});
+}
 export async function nativeAttempts(tx: BrowserDb, a: BrowserBoundary, phase: NativeChallenge['phase'], attemptId: number | null) {
-    const attempts = await tx.deliveryAttempt.findMany({ where: { project_id: a.projectId, content_item_id: a.taskId } });
+    const attempts = await scopedNativeAttempts(tx,a);
     if (phase === 'start' ? attempts.length !== 0 || attemptId !== null
         : attempts.length !== 1 || attempts[0].id !== attemptId || attempts[0].channel_id !== a.snapshot.channelId
             || attempts[0].idempotency_key !== a.idempotencyKey || attempts[0].status !== 'pending'
