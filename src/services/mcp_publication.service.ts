@@ -53,10 +53,13 @@ import {
     updatePublicationContent,
     configureVkStoryPoll,
     preparePublicationTask,
+    sanitizePublicationTaskChannel,
     confirmPublication
 } from './mcp_publication/tasks';
 import { publishDirect } from './mcp_publication/direct_publish';
 import { DirectPublishParams, PublicationOutcome } from './mcp_publication/types';
+import { preparationDiagnosticError } from './publication_preparation_diagnostics';
+import { safePreparationBundle,safePreparationValue,safePreparationAsset } from './publication_preparation_bundle';
 
 export * from './mcp_publication';
 
@@ -237,7 +240,13 @@ export class McpPublicationService {
     }
 
     async preparePublicationTask(projectId: number, taskId: number) {
-        return preparePublicationTask(projectId, taskId);
+        try{
+            const prepared=await preparePublicationTask(projectId, taskId);
+            const item=sanitizePublicationTaskChannel(prepared.item);
+            return {...prepared,item:{...item,quality_report:safePreparationValue(item.quality_report),
+                ...('selected_asset' in item?{selected_asset:item.selected_asset?safePreparationAsset(item.selected_asset):null}:{}),
+                ...('image_assets' in item?{image_assets:item.image_assets.map(safePreparationAsset)}:{})},bundle:safePreparationBundle(prepared.bundle)};
+        }catch(error:unknown){throw preparationDiagnosticError(error);}
     }
 
     async confirmPublication(

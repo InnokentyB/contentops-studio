@@ -1,4 +1,5 @@
 import path from 'path';
+import type { Prisma } from '@prisma/client';
 import prisma from '../../db';
 import publicationPlanService from '../publication_plan.service';
 import { requireUser } from './projects';
@@ -6,8 +7,8 @@ import { requireUser } from './projects';
 /**
  * Load publication plan context stored in project settings.
  */
-export async function loadPublicationPlanContext(projectId: number) {
-    const settings = await prisma.projectSettings.findMany({
+export async function loadPublicationPlanContext(projectId: number, client: Pick<Prisma.TransactionClient, 'projectSettings'> = prisma) {
+    const settings = await client.projectSettings.findMany({
         where: {
             project_id: projectId,
             key: {

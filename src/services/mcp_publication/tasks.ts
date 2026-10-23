@@ -13,6 +13,7 @@ import { derivePublicationContentState } from '../publication_content_state';
 import { derivePublicationGenerationStage } from '../publication_generation_stage';
 import { planAcceptedContentEdit } from '../publication_content_revision_lifecycle';
 import { preparationRoute } from '../publication_approval_guard';
+import { prepareApprovedTelegram } from '../approved_telegram_preparation';
 import { loadPublicationPlanContext } from './plans';
 import { resolveTaskScheduleAt, assertPublicationTaskMutableForMcp } from './helpers';
 import { PublicationOutcome } from './types';
@@ -507,6 +508,10 @@ export async function preparePublicationTask(projectId: number, taskId: number) 
 
     await assertOwnedPublicationMutable(prisma, { projectId, taskId });
     assertPublicationTaskMutableForMcp(item, 'prepare_publication_task');
+    if(item.status==='approved'&&item.publication_mode==='approval_required'&&item.channel?.type==='telegram'){
+        const prepared=await prepareApprovedTelegram(item);
+        return {...prepared,item:{...sanitizePublicationTaskChannel(prepared.item),schedule_at:resolveTaskScheduleAt(prepared.item)}};
+    }
     const hold = (item.quality_report as Record<string, unknown> | null)?.publication_hold;
     if (hold) throw new Error('[PUBLICATION_HOLD_ACTIVE] Audited owner recovery is required before preparation');
     await artDirectionService.assertPublicationReady(projectId, taskId);
