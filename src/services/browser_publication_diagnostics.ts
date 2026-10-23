@@ -1,3 +1,5 @@
+import {Prisma} from '@prisma/client';
+import {diagnoseActivePreparation} from './browser_preparation_diagnosis';
 import {browserRecoveryStorageAvailable} from './browser_recovery_guard';
 import {projectBrowserRecovery} from './browser_recovery_assessment';
 import {assessLegacyBrowserRecovery} from './browser_recovery_assessment';
@@ -15,11 +17,12 @@ export async function diagnoseBrowserPublication(input:unknown,deps:BrowserDepen
         if(!task)throw new Error('[PUBLICATION_TASK_NOT_FOUND]');
         const [attempts,work]=await Promise.all([
             tx.deliveryAttempt.findMany({where:{project_id:args.projectId,content_item_id:args.taskId},
-                select:{id:true,status:true,requires_manual_confirmation:true,created_at:true,actual_published_at:true,error_message:true}}),
+                select:{id:true,status:true,requires_manual_confirmation:true,created_at:true,actual_published_at:true,error_message:true,idempotency_key:true}}),
             tx.workItem.findMany({where:{project_id:args.projectId,content_item_id:args.taskId,kind:'browser_publish'},
-                select:{id:true,state:true,input_context_version:true,lease_expires_at:true}})]);
+                select:{id:true,state:true,input_context_version:true,lease_expires_at:true,lease_actor_id:true}})]);
         const persistedRecovery=await browserRecoveryStorageAvailable(tx)?await tx.browserDeliveryRecovery.findFirst({where:{project_id:args.projectId,content_item_id:args.taskId}}):null;
-        const recovery=persistedRecovery?projectBrowserRecovery({code:persistedRecovery.state==='reading'?'RECOVERY_IN_PROGRESS':persistedRecovery.cause_code}):attempts.length&&!task.publication_fact?assessLegacyBrowserRecovery(attempts[0]?.error_message||undefined):null;
+        const preparation=!persistedRecovery&&!task.publication_fact?await diagnoseActivePreparation(tx,task,attempts,work,args.actorId):null;
+        const recovery=preparation?null:persistedRecovery?projectBrowserRecovery({code:persistedRecovery.state==='reading'?'RECOVERY_IN_PROGRESS':persistedRecovery.cause_code}):attempts.length&&!task.publication_fact?assessLegacyBrowserRecovery(attempts[0]?.error_message||undefined):null;
         const quality=object(task.quality_report),release=object(quality.browser_release);
         const body=object(object(quality.handoff_bundle).publication).body;
         const mismatches=args.expectedSnapshot?browserSnapshotMismatches(task,args.expectedSnapshot):null;
@@ -29,14 +32,15 @@ export async function diagnoseBrowserPublication(input:unknown,deps:BrowserDepen
             selected_asset_id:task.selected_asset_id,asset_sha256:assetHash.success?assetHash.data:null,
             schedule_at:task.schedule_at,publish_at:task.publish_at,
             content_language:quality.content_language||null,handoff_language:object(quality.handoff_bundle).content_language||null,
-            release_snapshot:release.snapshot||null,attempts:attempts.map(({error_message:privateError,...safe})=>safe),browser_work_items:work,
+            release_snapshot:release.snapshot||null,attempts:attempts.map(a=>({id:a.id,status:a.status,requires_manual_confirmation:a.requires_manual_confirmation,created_at:a.created_at,actual_published_at:a.actual_published_at})),
+            browser_work_items:work.map(({lease_actor_id:privateActor,...safe})=>safe),execution_state:preparation,
             recovery,
             persisted_handoff:{bundle_present:quality.handoff_bundle!==undefined,
                 publication_body_present:typeof body==='string',publication_body_sha256:typeof body==='string'?hash(body):null},
             snapshot_check:mismatches?{valid:mismatches.length===0,mismatches}:null,
             publication_fact:task.publication_fact?{id:task.publication_fact.id,public_url:task.publication_fact.public_url,
                 provider_object_id:task.publication_fact.provider_object_id,published_at:task.publication_fact.published_at}:null,
-            next_action:task.publication_fact?'read_only':attempts.length?'reconcile_existing_attempt':work.length?'claim_existing_work_item':'owner_preview',
+            next_action:task.publication_fact?'read_only':preparation?(preparation.code==='BROWSER_PREPARATION_ACTIVE'?'continue_existing_preparation':'recover_existing_preparation'):attempts.length?'reconcile_existing_attempt':work.length?'claim_existing_work_item':'owner_preview',
             mutates_state:false,submission_permitted:false,retry_allowed:false};
-    });
+    },{isolationLevel:Prisma.TransactionIsolationLevel.RepeatableRead,maxWait:2000,timeout:10000});
 }

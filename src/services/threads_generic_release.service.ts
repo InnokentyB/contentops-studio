@@ -187,11 +187,11 @@ export class GenericThreadsReleaseService {
         const proof = assertThreadsOwnerRelease(release, { body_sha256: checked.bodySha256,
             channel_id: checked.task.channel_id, accepted_revision: checked.task.accepted_revision,
             manifest_checksum: a.expectedManifestChecksum, actor_id: a.actorId, approval_reference: a.approvalReference });
+        const dueAt = checked.task.publish_at || checked.task.schedule_at;
+        if (!dueAt || this.deps.now() < dueAt.getTime()) throw new Error('[THREADS_NOT_DUE]');
         if (a.dryRun) return { mode: 'dry_run', task_id: a.taskId, channel_id: checked.task.channel_id,
             live_publish_supported: true, route_executable: true, accepted_revision: checked.task.accepted_revision,
             selected_asset_id: null, delivery_method: 'threads_api', published: false };
-        const dueAt = checked.task.publish_at || checked.task.schedule_at;
-        if (!dueAt || this.deps.now() < dueAt.getTime()) throw new Error('[THREADS_NOT_DUE]');
         await this.providerPreflight(checked.config, checked.bodySha256, String(proof.threads_user_id), String(proof.username));
         if(callerSignal?.aborted)throw new Error('[THREADS_RECOVERY_INTERRUPTED]');
         const claim = await this.deps.db.$transaction(async tx => {

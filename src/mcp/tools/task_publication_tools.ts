@@ -1,4 +1,4 @@
-import type { OwnedPublicationRequest } from '../../services/owned_publication_contract';
+import {publishThreadsWithRelease,type SharedPublicationRequest} from '../../services/threads_publication_dispatch';
 import { registerOwnerManualPublicationTools } from './owner_manual_publication_tools';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
@@ -24,7 +24,7 @@ export function isTaskNativeDzenPublication(projectId: number, taskId: number): 
     return projectId === 10 && TASK_NATIVE_DZEN_PUBLICATION_IDS.has(taskId);
 }
 
-type PublicationTaskArgs = OwnedPublicationRequest;
+type PublicationTaskArgs = SharedPublicationRequest;
 
 type TaskExecutor = { execute(args: PublicationTaskArgs): Promise<Record<string, unknown>> };
 type ThreadsTaskExecutor = TaskExecutor & { isThreadsTask(args: Pick<PublicationTaskArgs, 'projectId' | 'taskId'>): Promise<boolean> };
@@ -45,12 +45,14 @@ export async function executePublicationTaskByChannel(
         dzen: dzenTaskPublicationService,
         threads: threadsTaskPublicationService,
         telegram: telegramTaskPublicationService
-    }
+    },
+    signal?:AbortSignal
 ): Promise<Record<string, unknown>> {
     const owned = await dependencies.owned?.(args);
     if (owned) return owned;
+    if (await dependencies.threads.isThreadsTask(args)) return publishThreadsWithRelease(args,signal);
+    if(args.releaseIdempotencyKey!==undefined||args.actorId!==undefined)throw new Error('[PROVIDER_OPERATION_UNSUPPORTED]');
     if (dependencies.isDzenTask(args.projectId, args.taskId)) return dependencies.dzen.execute(args);
-    if (await dependencies.threads.isThreadsTask(args)) return dependencies.threads.execute(args);
     return dependencies.telegram.execute(args);
 }
 
@@ -275,7 +277,7 @@ export function registerTaskPublicationTools(server: McpServer): void {
     });
 
     server.registerTool('ba_publish_publication_task', {
-        description: 'Governed Dzen uses the existing command with operation release/publish/reconcile and default stored-only dryRun; native actions remain held by policy. Dry-run any canonical publication task using accepted text and approved durable visual. Live Telegram feed tasks target their configured channel. Telegram and VK story tasks target the authorized personal profile; VK photo stories can include a revision-bound native poll configured through ba_configure_vk_story_poll. No browser fallback or silent visual downgrade is used.',
+        description: 'Governed Dzen uses the existing command with operation release/publish/reconcile and default stored-only dryRun; native actions remain held by policy. Threads uses its existing generic text-only API sender only with a complete exact generic release envelope; this command never switches browser transport. Other supported canonical task dry-runs use accepted text and approved durable visual. Live Telegram feed tasks target their configured channel. Telegram and VK story tasks target the authorized personal profile; VK photo stories can include a revision-bound native poll configured through ba_configure_vk_story_poll. No browser fallback or silent visual downgrade is used.',
         annotations: EXTERNAL_PUBLICATION_ANNOTATIONS,
         inputSchema: z.object({
             projectId: z.number().int().positive(),
@@ -287,12 +289,13 @@ export function registerTaskPublicationTools(server: McpServer): void {
             expectedPackageSha256: z.string().regex(/^[a-f0-9]{64}$/).optional(),
             expectedManifestChecksum: z.string().min(1).max(200).optional(),
             approvalReference: z.string().min(1).max(1000).optional(),
-            attemptId: z.number().int().positive().optional()
+            attemptId: z.number().int().positive().optional(),
+            releaseIdempotencyKey: z.string().min(1).max(500).optional().describe('Existing generic Threads release key; never creates a release or changes transport.')
         }).strict()
-    }, async (args) => publicationAdapterDiagnosticResult(() => executePublicationTaskByChannel(args)));
+    }, async (args,extra) => publicationAdapterDiagnosticResult(() => executePublicationTaskByChannel(args,undefined,extra.signal)));
 
     server.registerTool('ba_publish_threads_task', {
-        description: 'Dry-run any canonical Threads task. Live publication of a generic text-only feed task requires an exact audited generic release, creates a durable attempt before dispatch, verifies provider readback, and freezes uncertain outcomes.',
+        description: 'Generic text-only Threads API preparation and sending require the complete existing audited release envelope. Live publication requires an exact audited generic release, creates a durable attempt before dispatch, verifies provider readback, and freezes uncertain outcomes.',
         annotations: EXTERNAL_PUBLICATION_ANNOTATIONS,
         inputSchema: {
             projectId: z.number().int().positive(),
@@ -305,16 +308,6 @@ export function registerTaskPublicationTools(server: McpServer): void {
             releaseIdempotencyKey: z.string().min(1).max(500).optional()
         }
     }, async (args,extra) => {
-        if (args.actorId && args.approvalReference && args.expectedManifestChecksum
-            && args.releaseIdempotencyKey && args.idempotencyKey) {
-            const publishArgs = {
-                projectId: args.projectId, taskId: args.taskId, actorId: args.actorId,
-                approvalReference: args.approvalReference, expectedManifestChecksum: args.expectedManifestChecksum,
-                releaseIdempotencyKey: args.releaseIdempotencyKey, idempotencyKey: args.idempotencyKey,
-                dryRun: args.dryRun
-            };
-            return threadsDiagnosticResult(() => genericThreadsReleaseService.publish(publishArgs,extra.signal));
-        }
-        return threadsDiagnosticResult(() => threadsTaskPublicationService.execute(args));
+        return threadsDiagnosticResult(() => publishThreadsWithRelease(args,extra.signal));
     });
 }

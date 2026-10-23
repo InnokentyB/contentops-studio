@@ -1,0 +1,138 @@
+{
+  "status": "ENGINEERING_COMPLETE_AWAITING_OWNER_UAT_AND_RELEASE_AUTHORIZATION",
+  "approved_scope": "local tests and implementation only",
+  "approval": "Direct Owner reply call_54063f1ac2234c32b30afddc354f0ee3 on2026-10-23",
+  "base_commit": "557365154e415816730bfe744591878c7231941b",
+  "base_tree": "2b333a61cac5e69fcd4dd4fc8e91af5e9a4ae0bc",
+  "environment": "Tower Docker Linux amd64; network-none mock suites; separate internal tmpfs PostgreSQL16; no provider credentials or calls",
+  "source_manifest_sha256": "9088c398de49dd7a0797d4b6dcefe25ada728c6c00e44d5b362eaf99d92599a5",
+  "build": {
+    "log": "build-04.log",
+    "result": "PASS"
+  },
+  "red": [
+    {
+      "log": "red.log",
+      "cause": "Expected route failures plus Prisma Proxy mock setup error; retained as failed setup evidence"
+    },
+    {
+      "log": "red-fixture-corrected.log",
+      "tests": 19,
+      "passed": 11,
+      "failed": 8,
+      "cause": "Expected shared route and preparation diagnosis gaps"
+    },
+    {
+      "log": "future-red.log",
+      "tests": 2,
+      "passed": 1,
+      "failed": 1,
+      "cause": "Future preview incorrectly executable while live rejects not due"
+    },
+    {
+      "log": "parity-red.log",
+      "tests": 2,
+      "passed": 1,
+      "failed": 1,
+      "cause": "Same manifest error has different boundary reason"
+    }
+  ],
+  "green": {
+    "log": "regressions-final.log",
+    "tests": 171,
+    "passed": 171,
+    "failed": 0,
+    "skipped": 0
+  },
+  "postgres": [
+    {
+      "log": "postgres-green.log",
+      "existing_passed": 71,
+      "new_failed": 4,
+      "cause": "New fixture omitted required content type; corrected without product-code change"
+    },
+    {
+      "log": "postgres-focused.log",
+      "tests": 4,
+      "passed": 4,
+      "failed": 0,
+      "mutations_during_diagnosis": false
+    }
+  ],
+  "setup_failures": [
+    {
+      "log": "postgres-setup.log",
+      "cause": "Candidate subnet overlaps another project; no data/workload mutation; selected verified free subnet and retained failure"
+    }
+  ],
+  "quality": {
+    "log": "quality-04.log",
+    "result": "PASS",
+    "runtime_findings": 6823,
+    "baseline": 6823,
+    "baseline_modified": false,
+    "policy_exceptions": false,
+    "earlier_failure": "quality.log classified diagnostic catalog idempotencyKey property text as runtime binding; represented catalog entries explicitly instead, no scanner change"
+  },
+  "old_tests_updated": "Two tests now supply authenticated principal / assert missing-envelope refusal rather than legacy fallback; denial and no-provider expectations preserved",
+  "schema_changes": false,
+  "publication_performed": false,
+  "production_writes": false,
+  "public_push_pr_deploy": false,
+  "cleanup": "Temporary PostgreSQL container/network removed with compose down; no volumes/pruning/backup changes",
+  "acceptance": "Owner UAT pending. Live X login/pairing/UAT/registration and LinkedIn historical executor fencing remain separate operational gates.",
+  "ci_integration_repair": {
+    "ci_run": 40009966185,
+    "failed_stage": "Owned publication principal, queue, fact and mutator boundaries (no provider)",
+    "cause": "Threads classification preceded protected owned/Dzen root; plus obsolete unauthenticated legacy fallback expectation",
+    "repair": "Restore owned-first priority, pass only canonical Threads envelopes onward, reject unsupported fields elsewhere, preserve authenticated exact-release send path",
+    "focused_log": "ci-repair-owned.log",
+    "tests": 62,
+    "passed": 62,
+    "failed": 0,
+    "provider_calls": false,
+    "production_writes": false,
+    "build": {
+      "log": "build-ci-repair.log",
+      "result": "PASS"
+    },
+    "regressions": {
+      "log": "regressions-ci-repair.log",
+      "tests": 171,
+      "passed": 171,
+      "failed": 0
+    },
+    "quality": {
+      "log": "quality-ci-repair.log",
+      "result": "PASS",
+      "runtime_findings": 6823,
+      "baseline": 6823,
+      "baseline_modified": false
+    }
+  },
+  "source_manifest": "checked-sources-final.sha256 in private engineering evidence",
+  "ci_authenticated_fixture_repair": {
+    "ci_run": 40011206570,
+    "cause": "Two existing real-MCP fault suites omitted authenticated principal and stopped at the new required identity guard",
+    "repair": "Supply fixture-owned current actor/project through existing AsyncLocal principal; all fault/redaction/no-send/no-retry assertions unchanged",
+    "focused_log": "ci-repair-principal-fixtures.log",
+    "tests": 48,
+    "passed": 48,
+    "failed": 0,
+    "production_code_changed": false,
+    "provider_calls": false,
+    "full_mcp_stage": {
+      "log": "ci-reliability-mcp-full.log",
+      "runtime_identity_tests": 105,
+      "preview_api_recovery_tests": 70,
+      "failed": 0
+    },
+    "quality": {
+      "log": "quality-principal-fixtures.log",
+      "result": "PASS",
+      "runtime_findings": 6823,
+      "baseline": 6823,
+      "baseline_modified": false
+    }
+  }
+}

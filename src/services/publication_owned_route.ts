@@ -1,10 +1,10 @@
-import type { OwnedPublicationRequest } from './owned_publication_contract';
+import type {SharedPublicationRequest} from './threads_publication_dispatch';
 import { requirePublicationPrincipal, currentPublicationPrincipal } from '../mcp/publication-principal';
 import { isDzenPublicationPlatform } from './vk_publication_route_contract';
 import { requireProjectActorAccess } from './project_access.service';
 import db from '../db';
 /** Existing command and dispatcher share this production-only composition root. */
-export async function tryOwnedPublicationTask(args: OwnedPublicationRequest): Promise<Record<string, unknown> | null> {
+export async function tryOwnedPublicationTask(args: SharedPublicationRequest): Promise<Record<string, unknown> | null> {
     const startedAt = Date.now();
     // Existing local non-Dzen executors retain their own authorization contract.
     // Provider classification exposes no package, credential or execution authority.
@@ -17,13 +17,17 @@ export async function tryOwnedPublicationTask(args: OwnedPublicationRequest): Pr
     }, { timeout: 10000, maxWait: 5000 });
     if (!task || task.channel?.project_id !== args.projectId) throw new Error('[PUBLICATION_TASK_NOT_FOUND]');
     if (!isDzenPublicationPlatform(task.channel.type)) {
+        // Classification only: the shared Threads sender independently verifies its authenticated exact release.
+        if(task.channel.type==='threads')return null;
         if ((args.operation && args.operation !== 'publish') || args.attemptId !== undefined
             || args.expectedPackageSha256 !== undefined || args.expectedManifestChecksum !== undefined
-            || args.approvalReference !== undefined || args.expectedAcceptedRevision !== undefined) {
+            || args.approvalReference !== undefined || args.expectedAcceptedRevision !== undefined
+            || args.releaseIdempotencyKey!==undefined || args.actorId!==undefined) {
             throw new Error('[PROVIDER_OPERATION_UNSUPPORTED]');
         }
         return null;
     }
+    if(args.releaseIdempotencyKey!==undefined||args.actorId!==undefined)throw new Error('[PROVIDER_OPERATION_UNSUPPORTED]');
     const ownedPrincipal = principal || requirePublicationPrincipal(args.projectId);
     const [{ OwnedPublicationService }, { OwnedPublicationStore }, { loadAgentWorkspaceManifest },
         { default: facts }, { createProductionOwnedPublicationAdapter }] = await Promise.all([
