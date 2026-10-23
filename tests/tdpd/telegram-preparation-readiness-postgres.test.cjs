@@ -200,3 +200,33 @@ test('lost commit acknowledgement is reported as unconfirmed, then reconciled wi
  assert.equal((await current(s)).status,'ready_for_execution');assert.equal(await auditCount(s),1);
  await prepare(s);assert.equal(await auditCount(s),1);assert.equal(await db.deliveryAttempt.count({where:{content_item_id:s.task.id}}),0);
 });
+async function failure(s){
+ const response=await withPublicationPrincipal(s.principal,()=>handlers.get('ba_prepare_publication_task')({projectId:s.project.id,taskId:s.task.id}));
+ assert.equal(response.isError,true);return payload(response);
+}
+test('review: storage incident retains the actual cause and storage repair at the MCP boundary',async t=>{
+ const s=await fixture(t);await db.projectSettings.create({data:{project_id:s.project.id,key:'visual_storage_ingest_state',value:JSON.stringify({blocked:true,reason:'storage_quota_exceeded'})}});
+ const before=await current(s),diagnostic=await failure(s);
+ assert.equal(diagnostic.code,'PREPARE_READINESS_STORAGE_BLOCKED');assert.match(diagnostic.reasons[0].action,/storage/i);
+ assert.ok(!/complete.*review/i.test(diagnostic.reasons[0].action));assert.deepEqual(await current(s),before);assert.equal(await auditCount(s),0);
+});
+for(const extra of ['none','storage','stale asset'])test('review: independent channel and schedule failures are collected with '+extra,async t=>{
+ const s=await fixture(t);await db.socialChannel.update({where:{id:s.channel.id},data:{is_active:false}});
+ await db.contentItem.update({where:{id:s.task.id},data:{publish_at:new Date('2026-10-23T11:08:34Z')}});
+ if(extra==='storage')await db.projectSettings.create({data:{project_id:s.project.id,key:'visual_storage_ingest_state',value:JSON.stringify({blocked:true,reason:'storage_quota_exceeded'})}});
+ if(extra==='stale asset')await db.imageAsset.update({where:{id:s.asset.id},data:{content_revision:2}});
+ const before=await current(s),diagnostic=await failure(s);
+ const expected=['PREPARE_READINESS_CHANNEL_INACTIVE','PREPARE_READINESS_SCHEDULE_MISMATCH'];
+ if(extra==='storage')expected.push('PREPARE_READINESS_STORAGE_BLOCKED');
+ if(extra==='stale asset')expected.push('PREPARE_READINESS_ASSET_REVISION_MISMATCH');
+ assert.deepEqual(diagnostic.reasons.map(r=>r.code),expected);
+ assert.deepEqual((await failure(s)).reasons,diagnostic.reasons);
+ assert.equal(diagnostic.retry_allowed,false);assert.deepEqual(await current(s),before);assert.equal(await auditCount(s),0);
+});
+test('review: missing prerequisites are reported without invented downstream mismatches',async t=>{
+ const s=await fixture(t);await db.artDirectionDecision.delete({where:{id:s.decision.id}});
+ await db.contentItem.update({where:{id:s.task.id},data:{schedule_at:null,publish_at:null,accepted_revision:null,draft_text:''}});
+ const before=await current(s),diagnostic=await failure(s);
+ assert.deepEqual(diagnostic.reasons.map(r=>r.code),['PREPARE_READINESS_ACCEPTED_REVISION_MISSING','PREPARE_READINESS_BODY_MISSING','PREPARE_READINESS_SCHEDULE_MISSING','PREPARE_READINESS_PUBLISH_TIME_MISSING','PREPARE_READINESS_VISUAL_DECISION_MISSING']);
+ assert.deepEqual(await current(s),before);assert.equal(await auditCount(s),0);
+});

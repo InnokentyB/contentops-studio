@@ -4,9 +4,10 @@ import prisma from '../db';
 import {currentPublicationPrincipal} from '../mcp/publication-principal';
 import {PublicationDiagnosticError} from './publication_diagnostics';
 import {assertOwnedPublicationMutable,hasLegacyPublicationUncertainty,lockOwnedPublicationTask} from './publication_owned_guard';
-import {assertVisualReassessmentReady,VisualDecisionCode} from './visual_reassessment_binding';
+import {assertVisualReassessmentReady} from './visual_reassessment_binding';
+import {packageReadinessReasons} from './approved_telegram_readiness_guards';
+import {preparationDiagnosticError} from './publication_preparation_diagnostics';
 import {getVisualStorageIngestState} from './visual_storage_incident.service';
-import {isServerResolvableVisualUrl} from './visual_asset_binding.service';
 import {publicationContentLanguage} from './content_language.service';
 import {loadPublicationPlanContext} from './mcp_publication/plans';
 import planService from './publication_plan.service';
@@ -33,28 +34,9 @@ function binding(item:PreparationItem|CheckedItem){
             provenance:item.selected_asset.provenance,reviewed_at:item.selected_asset.reviewed_at,qa_report:item.selected_asset.qa_report}:null,
         handoff:item.handoff_state,schedule:item.schedule_at,publish:item.publish_at};
 }
-function assertPackage(item:CheckedItem):void{
-    if(item.status!=='approved'||item.publication_mode!=='approval_required'||item.channel?.type!=='telegram'
-        ||item.channel.project_id!==item.project_id||!item.channel.is_active||item.text_state!=='accepted'
-        ||!item.accepted_revision||item.content_revision!==item.accepted_revision||!item.draft_text?.trim()
-        ||!item.schedule_at||!item.publish_at||item.schedule_at.getTime()!==item.publish_at.getTime())
-        denied('PREPARE_READINESS_PACKAGE_CONFLICT','The current accepted Telegram package is not eligible for preparation.','Read the current task and complete its normal text/channel/schedule approval; do not change the revision to repair status.');
-    const decision=item.art_direction_decisions[0],asset=item.selected_asset;
-    if(!decision||decision.project_id!==item.project_id||decision.content_item_id!==item.id
-        ||decision.source_content_revision!==item.accepted_revision||decision.decision_version!==item.visual_decision_version
-        ||decision.channel!==item.channel.type||decision.placement!==item.visual_placement)
-        denied('PREPARE_READINESS_VISUAL_INVALID','The active visual decision does not match the current accepted package.','Finish the current art-direction decision and its independent review; do not repeat an old review to change task status.');
-    const withoutVisual=item.visual_state==='NO_VISUAL_NEEDED'&&item.visual_mode!=='required'
-        &&decision.decision===VisualDecisionCode.NotNeeded&&item.selected_asset_id===null;
-    const approvedVisual=item.visual_state==='APPROVED'&&item.visual_mode!=='forbidden'
-        &&asset?.status==='approved'&&asset.project_id===item.project_id&&asset.content_item_id===item.id
-        &&asset.content_revision===item.accepted_revision&&asset.decision_id===decision.id
-        &&asset.placement===item.visual_placement&&isServerResolvableVisualUrl(asset.file_url)
-        &&decision.decision!==VisualDecisionCode.NotNeeded&&decision.decision!==VisualDecisionCode.Blocked;
-    if(!withoutVisual&&!approvedVisual)
-        denied('PREPARE_READINESS_VISUAL_INVALID','The selected visual is not the approved durable visual for this accepted revision.','Read visual readiness and complete the current valid visual workflow; preparation cannot approve or waive a visual.');
-}
-async function assertNoDelivery(tx:Prisma.TransactionClient,item:CheckedItem):Promise<void>{
+async function assertReadiness(tx:Prisma.TransactionClient,item:CheckedItem):Promise<void>{
+    const reasons=packageReadinessReasons(item);
+    const add=(code:string,message:string,action:string)=>reasons.push({code,field:'publication_preparation',message,action});
     const where={project_id:item.project_id,content_item_id:item.id};
     const [attempt,job,work,release]=await Promise.all([
         tx.deliveryAttempt.findFirst({where,select:{id:true}}),
@@ -63,11 +45,19 @@ async function assertNoDelivery(tx:Prisma.TransactionClient,item:CheckedItem):Pr
             {kind:{in:['browser_publish','publication_execute','publish']},state:{not:'cancelled'}}]},select:{id:true}}),
         tx.workflowEvent.findFirst({where:{...where,command:{in:['ba_release_approved_telegram_task','ba_release_browser_publication','ba_authorize_browser_publication']}},select:{id:true}})
     ]);
-    if(item.publication_fact||hasLegacyPublicationUncertainty(item)||attempt||job||work||release||object(item.quality_report).publication_hold)
-        denied('PREPARE_READINESS_EXISTING_AUTHORITY','Preparation cannot reopen a held, leased, released or previously attempted publication.','Read task, work and attempt history; reconcile existing delivery authority or resolve the audited hold before preparing. Never resend an uncertain attempt.');
+    if(item.publication_fact||hasLegacyPublicationUncertainty(item)||attempt||job||work||release)
+        add('PREPARE_READINESS_EXISTING_AUTHORITY','Preparation cannot reopen a held, leased, released or previously attempted publication.','Read task, work and attempt history; reconcile existing delivery authority or resolve the audited hold before preparing. Never resend an uncertain attempt.');
+    if(object(item.quality_report).publication_hold)
+        add('PREPARE_READINESS_HOLD_ACTIVE','An audited publication hold is active; preparation cannot clear it.','Read the task hold and resolve it through the supported Owner recovery workflow before preparing. Preserve any uncertain attempt.');
     if((await getVisualStorageIngestState(item.project_id,tx)).blocked)
-        denied('PREPARE_READINESS_STORAGE_BLOCKED','Visual storage has an unresolved incident.','Resolve the project storage incident and verify durable visual readiness before preparing again.');
-    await assertVisualReassessmentReady(tx,item.project_id,item.id);
+        add('PREPARE_READINESS_STORAGE_BLOCKED','Visual storage has an unresolved incident.','Resolve the project storage incident and verify durable visual readiness before preparing again.');
+    try{await assertVisualReassessmentReady(tx,item.project_id,item.id);}catch(error:unknown){
+        const diagnostic=preparationDiagnosticError(error);
+        if(!(diagnostic instanceof PublicationDiagnosticError))throw error;
+        reasons.push(...diagnostic.diagnostics.reasons);
+    }
+    if(reasons.length)throw new PublicationDiagnosticError({code:reasons.length===1?reasons[0].code:'PREPARE_READINESS_PACKAGE_CONFLICT',
+        message:'Preparation is blocked by the following verified readiness checks.',retry_allowed:false,reasons});
 }
 async function currentBundle(tx:Prisma.TransactionClient,item:CheckedItem){
     const source=await loadPublicationPlanContext(item.project_id,tx),action=object(object(item.assets).action);
@@ -100,7 +90,7 @@ export async function prepareApprovedTelegram(item:PreparationItem){
             selected_asset:{include:{decision:true}},publication_fact:true,art_direction_decisions:{where:{status:'active'},orderBy:{decision_version:'desc'},take:1}}});
         if(!current||sha(binding(current))!==sha(binding(item)))
             denied('PREPARE_READINESS_PACKAGE_CONFLICT','The package changed while it was being prepared.','Read the current task and prepare its exact accepted package again; no preparation was saved.');
-        assertPackage(current);await assertNoDelivery(tx,current);
+        await assertReadiness(tx,current);
         phase.value='handoff';
         const bundle=await currentBundle(tx,current),beforeHash=sha(binding(current));
         phase.value='state_write';

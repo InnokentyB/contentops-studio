@@ -508,6 +508,10 @@ export async function preparePublicationTask(projectId: number, taskId: number) 
 
     await assertOwnedPublicationMutable(prisma, { projectId, taskId });
     assertPublicationTaskMutableForMcp(item, 'prepare_publication_task');
+    if(item.status==='approved'&&item.publication_mode==='approval_required'&&item.channel?.type==='telegram'){
+        const prepared=await prepareApprovedTelegram(item);
+        return {...prepared,item:{...sanitizePublicationTaskChannel(prepared.item),schedule_at:resolveTaskScheduleAt(prepared.item)}};
+    }
     const hold = (item.quality_report as Record<string, unknown> | null)?.publication_hold;
     if (hold) throw new Error('[PUBLICATION_HOLD_ACTIVE] Audited owner recovery is required before preparation');
     await artDirectionService.assertPublicationReady(projectId, taskId);
@@ -534,10 +538,6 @@ export async function preparePublicationTask(projectId: number, taskId: number) 
     const preparation = preparationRoute(item.publication_mode, browserRequired);
 
     if (preparation === 'preserve_approval') {
-        if(item.status==='approved'&&item.publication_mode==='approval_required'&&item.channel?.type==='telegram'&&!browserRequired){
-            const prepared=await prepareApprovedTelegram(item);
-            return {...prepared,item:{...sanitizePublicationTaskChannel(prepared.item),schedule_at:resolveTaskScheduleAt(prepared.item)}};
-        }
         return {
             item: { ...item, schedule_at: resolveTaskScheduleAt(item) },
             bundle: bundleWithLanguage,

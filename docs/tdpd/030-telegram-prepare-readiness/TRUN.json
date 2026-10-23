@@ -5,39 +5,158 @@
   "base_commit": "44a24572150c2f336a5dd9ce93ee516668242126",
   "base_tree": "9af59f63397f399ba4eaae738b9acdb56f9d5eac",
   "equivalent_released_source": "f23a847eb3db1c39b565be2f380c57430dac762e",
-  "source_manifest_sha256": "79596027bc3e4b2ad64f1665cd853bd77b1e3af2fa622860f198244d25ea705a",
-  "source_manifest": "checked-sources.sha256 in durable evidence",
+  "source_manifest_sha256": "483ae68b5426f1c7aa6f09b11abbb538237a296b733622b704c13db611623df7",
+  "source_manifest": "checked-sources-review.sha256 in durable evidence",
   "environment": "Tower Linux amd64 Docker; isolated synthetic PostgreSQL; existing reviewed dependency image",
   "builds": [
-    {"log":"build-01.log","result":"PASS"},
-    {"log":"build-02.log","result":"PASS"},
-    {"log":"build-03.log","result":"PASS"},
-    {"log":"build-04.log","result":"PASS"},
-    {"log":"build-05.log","result":"PASS"},
-    {"log":"build-final.log","result":"PASS"},
-    {"log":"build-06.log","result":"PASS"},
-    {"log":"build-07.log","result":"FAIL","cause":"Typed preparation result union required conditional relation access"},
-    {"log":"build-08.log","result":"PASS"},
-    {"log":"build-09.log","result":"PASS final checked production source"}
+    {
+      "log": "build-01.log",
+      "result": "PASS"
+    },
+    {
+      "log": "build-02.log",
+      "result": "PASS"
+    },
+    {
+      "log": "build-03.log",
+      "result": "PASS"
+    },
+    {
+      "log": "build-04.log",
+      "result": "PASS"
+    },
+    {
+      "log": "build-05.log",
+      "result": "PASS"
+    },
+    {
+      "log": "build-final.log",
+      "result": "PASS"
+    },
+    {
+      "log": "build-06.log",
+      "result": "PASS"
+    },
+    {
+      "log": "build-07.log",
+      "result": "FAIL",
+      "cause": "Typed preparation result union required conditional relation access"
+    },
+    {
+      "log": "build-08.log",
+      "result": "PASS"
+    },
+    {
+      "log": "build-09.log",
+      "result": "PASS final checked production source"
+    }
   ],
   "red": [
-    {"log":"red.log","result":"FAIL","cause":"Absent readiness transition plus two incomplete work fixtures; fixtures repaired before green"},
-    {"log":"red-02.log","result":"FAIL expected","tests":22,"passed":7,"failed":15},
-    {"log":"red-full.log","result":"FAIL expected","tests":28,"passed":9,"failed":19},
-    {"log":"red-diagnostic.log","result":"FAIL expected","tests":1},
-    {"log":"red-metadata-diagnostic.log","result":"FAIL expected","tests":3},
-    {"log":"red-imported.log","result":"FAIL expected","tests":2},
-    {"log":"red-stale-slot.log","result":"FAIL expected","tests":1},
-    {"log":"red-legacy-response.log","result":"FAIL expected","tests":1},
-    {"log":"red-commit-ack.log","result":"FAIL expected","tests":1}
+    {
+      "log": "red.log",
+      "result": "FAIL",
+      "cause": "Absent readiness transition plus two incomplete work fixtures; fixtures repaired before green"
+    },
+    {
+      "log": "red-02.log",
+      "result": "FAIL expected",
+      "tests": 22,
+      "passed": 7,
+      "failed": 15
+    },
+    {
+      "log": "red-full.log",
+      "result": "FAIL expected",
+      "tests": 28,
+      "passed": 9,
+      "failed": 19
+    },
+    {
+      "log": "red-diagnostic.log",
+      "result": "FAIL expected",
+      "tests": 1
+    },
+    {
+      "log": "red-metadata-diagnostic.log",
+      "result": "FAIL expected",
+      "tests": 3
+    },
+    {
+      "log": "red-imported.log",
+      "result": "FAIL expected",
+      "tests": 2
+    },
+    {
+      "log": "red-stale-slot.log",
+      "result": "FAIL expected",
+      "tests": 1
+    },
+    {
+      "log": "red-legacy-response.log",
+      "result": "FAIL expected",
+      "tests": 1
+    },
+    {
+      "log": "red-commit-ack.log",
+      "result": "FAIL expected",
+      "tests": 1
+    }
   ],
-  "green": {"log":"regressions-final-03.log","tests":195,"passed":195,"failed":0,"skipped":0,"focused_postgres_mcp_cases":37,"runner_concurrency":1},
-  "quality": {"log":"quality-final-02.log","result":"PASS","score":77,"runtime_findings":6823,"baseline_findings":6823,"baseline_modified":false,"final_commit_gate":"rerun after documentation and local commit; see handoff"},
-  "infrastructure": {"initial_setup":"FAIL network pool overlap; corrected to verified free10.231.118.0/28","disk_constraint":"root near full; reused existing images; tmpfs source/results; no native project execution"},
+  "green": {
+    "log": "regressions-final-03.log",
+    "tests": 195,
+    "passed": 195,
+    "failed": 0,
+    "skipped": 0,
+    "focused_postgres_mcp_cases": 37,
+    "runner_concurrency": 1
+  },
+  "quality": {
+    "log": "quality-final-02.log",
+    "result": "PASS",
+    "score": 77,
+    "runtime_findings": 6823,
+    "baseline_findings": 6823,
+    "baseline_modified": false,
+    "final_commit_gate": "rerun after documentation and local commit; see handoff"
+  },
+  "infrastructure": {
+    "initial_setup": "FAIL network pool overlap; corrected to verified free10.231.118.0/28",
+    "disk_constraint": "root near full; reused existing images; tmpfs source/results; no native project execution"
+  },
   "evidence_directory": "/home/innokenty/projects/ba-post-planner/ops/telegram-prepare-readiness-20261023/evidence",
   "production_writes": false,
   "public_push": false,
   "deploy": false,
   "provider_sends": 0,
-  "owner_uat": "PENDING"
+  "owner_uat": "PENDING",
+  "release_authorization": "Owner explicitly approved public packet, PR and deployment after CI, backup and isolated restore on 2026-10-23",
+  "review_addendum": {
+    "findings": [
+      "storage cause masked by outer visual gate",
+      "independent readiness guards collapsed"
+    ],
+    "red": {
+      "log": "review-red.log",
+      "failed": 5
+    },
+    "green": {
+      "log": "regressions-review.log",
+      "tests": 200,
+      "passed": 200,
+      "failed": 0
+    },
+    "build": {
+      "log": "build-review.log",
+      "result": "PASS"
+    },
+    "quality": {
+      "log": "quality-review.log",
+      "result": "PASS",
+      "findings": 6823,
+      "baseline": 6823
+    },
+    "provider_calls": false,
+    "schema_changed": false
+  }
 }

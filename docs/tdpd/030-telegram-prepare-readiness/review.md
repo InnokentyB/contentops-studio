@@ -11,3 +11,9 @@ Docker verification:37 focused synthetic PostgreSQL/MCP cases plus158 nearby app
 After an authorized rollout the existing sole Publisher should fresh-read the task/fact/attempt state, call ba_prepare_publication_task, verify ready_for_execution with unchanged approval_required/current revision/asset/slot, then obtain the existing exact Owner release and execute the normal send workflow. An existing attempt/hold/release is an actionable refusal, never a reason to repeat review or reset history. Engineering verification does not prove a real publication.
 
 Local validation used existing reviewed dependency images and source/results under /tmp. Tower root storage remains constrained; only four verified unreferenced dangling images were removed, without force. No containers, volumes, databases or verified backups were pruned. A future release still needs its normal storage reserve/backup/restore checks; those requirements were not weakened.
+
+## PR 201 review corrections
+
+Independent review found two P1 diagnostic defects, reproduced by five failing registered-MCP PostgreSQL cases. Approved Telegram dispatch now reaches its transaction before the legacy fail-fast visual gate. The same storage, visual/reassessment, exact-package and delivery guards remain enforced under lock; unsupported transport is refused before writes. Other states/transports retain their original path. Pure package guards return every independently established cause in stable order, with field-specific correction. Missing prerequisites do not invent dependent mismatches. Storage incidents retain their actual cause at the operator boundary. No gate, baseline or publication authority was removed.
+
+All 200 container regression cases pass, including the five review reproductions; backend compilation passes. No schema changes or provider calls. Initial RED evidence is retained. Release still requires current CI, backup restore verification and deployment health checks.
