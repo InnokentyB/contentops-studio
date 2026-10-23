@@ -13,6 +13,7 @@ import { derivePublicationContentState } from '../publication_content_state';
 import { derivePublicationGenerationStage } from '../publication_generation_stage';
 import { planAcceptedContentEdit } from '../publication_content_revision_lifecycle';
 import { preparationRoute } from '../publication_approval_guard';
+import { prepareApprovedTelegram } from '../approved_telegram_preparation';
 import { loadPublicationPlanContext } from './plans';
 import { resolveTaskScheduleAt, assertPublicationTaskMutableForMcp } from './helpers';
 import { PublicationOutcome } from './types';
@@ -533,6 +534,10 @@ export async function preparePublicationTask(projectId: number, taskId: number) 
     const preparation = preparationRoute(item.publication_mode, browserRequired);
 
     if (preparation === 'preserve_approval') {
+        if(item.status==='approved'&&item.publication_mode==='approval_required'&&item.channel?.type==='telegram'&&!browserRequired){
+            const prepared=await prepareApprovedTelegram(item);
+            return {...prepared,item:{...sanitizePublicationTaskChannel(prepared.item),schedule_at:resolveTaskScheduleAt(prepared.item)}};
+        }
         return {
             item: { ...item, schedule_at: resolveTaskScheduleAt(item) },
             bundle: bundleWithLanguage,

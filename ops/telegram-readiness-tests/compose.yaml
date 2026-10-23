@@ -1,0 +1,28 @@
+name: contentops-telegram-readiness-synthetic
+services:
+  synthetic-db:
+    extends: {file: ../publication-tests/compose.yaml, service: synthetic-db}
+  tests:
+    extends: {file: ../publication-tests/compose.yaml, service: tests}
+    image: planner-owner-manual-confirmation:20261020
+    environment:
+      SHARED_BROWSER_DIST: /results/dist
+      SUPABASE_URL: https://example.supabase.co
+      SUPABASE_KEY: synthetic-only
+      TELEGRAM_BOT_TOKEN: synthetic-only
+    volumes: [../../:/workspace:ro, /tmp/contentops-telegram-readiness-results:/results]
+    command: [node, --test, --test-concurrency=1, /workspace/tests/tdpd/telegram-preparation-readiness-postgres.test.cjs]
+  setup:
+    extends: {service: tests}
+    command: [./node_modules/.bin/prisma, db, push, --schema, /workspace/prisma/schema.prisma]
+  build:
+    extends: {file: ../quality/compose.yaml, service: build-check}
+    image: planner-owner-manual-confirmation:20261020
+    mem_limit: 4g
+    environment: {NODE_OPTIONS: '--max-old-space-size=3072'}
+    volumes: [../../:/workspace:ro, /tmp/contentops-telegram-readiness-results:/results]
+    command: [sh, -c, 'mkdir -p /tmp/compile && cp -R /workspace/src /workspace/prisma /workspace/package.json /workspace/tsconfig.json /tmp/compile/ && ln -s /opt/planner/node_modules /tmp/compile/node_modules && /opt/planner/node_modules/.bin/tsc -p /tmp/compile/tsconfig.json --outDir /results/dist']
+networks:
+  synthetic:
+    internal: true
+    ipam: {config: [{subnet: 10.231.118.0/28}]}

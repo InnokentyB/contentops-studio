@@ -117,8 +117,7 @@ export function registerTaskPublicationTools(server: McpServer): void {
             taskId: z.number().int().positive()
         }
     }, async ({ projectId, taskId }) => {
-        const result = await mcpPublicationService.preparePublicationTask(projectId, taskId);
-        return asToolResult(result);
+        return publicationAdapterDiagnosticResult(()=>mcpPublicationService.preparePublicationTask(projectId, taskId));
     });
 
     server.registerTool('ba_update_publication_content', {
