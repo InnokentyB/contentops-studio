@@ -5,6 +5,7 @@ let provider='telegram',reads=0,legacyCalls=0;
 const db={contentItem:{findFirst:async()=>{reads++;return {channel:{type:provider,project_id:71}};}},projectMember:{findUnique:async()=>({id:1})},$queryRaw:async()=>[],$transaction:async run=>run(db)};
 const load=Module._load;Module._load=function(name,parent,...args){
  if(name.endsWith('/db')&&parent?.filename.includes('/src/'))return {__esModule:true,default:db};
+ if(name.endsWith('threads_generic_release.service'))return {__esModule:true,default:{publish:async input=>({state:'generic_threads',task_id:input.taskId,actor_id:input.actorId})}};
  if(name.endsWith('telegram_task_publication.service'))return {__esModule:true,default:{execute:async input=>{legacyCalls++;return {state:'legacy',task_id:input.taskId};}}};
  if(name.endsWith('threads_task_publication.service'))return {__esModule:true,default:{isThreadsTask:async()=>provider==='threads',execute:async input=>{legacyCalls++;return {state:'legacy_threads',task_id:input.taskId};}}};
  return load.call(this,name,parent,...args);
@@ -20,8 +21,14 @@ test('DA02 actual registered default command preserves legacy non-Dzen stdio wit
  provider='telegram';const result=await callback({projectId:71,taskId:4001,dryRun:true},{});
  assert.equal(result.isError,false);assert.equal(value(result).state,'legacy');assert.equal(legacyCalls,1);
 });
-test('DA02 default command preserves Threads selection without inferring an owned principal',async()=>{
- provider='threads';const result=await callback({projectId:71,taskId:4001,dryRun:true},{});assert.equal(value(result).state,'legacy_threads');
+test('DA02 default Threads command cannot infer an actor or fall back to a legacy sender',async()=>{
+ provider='threads';const before=legacyCalls,result=await callback({projectId:71,taskId:4001,dryRun:true},{});
+ assert.equal(result.isError,true);assert.equal(value(result).code,'THREADS_PRINCIPAL_REQUIRED');assert.equal(legacyCalls,before);
+});
+test('DA02 default command classifies Threads after owned authorization and forwards the exact generic envelope',async()=>{
+ provider='threads';const before=legacyCalls;
+ const result=await withPublicationPrincipal({actorId:'user:701',userId:701,profile:'publisher',projectId:71},()=>callback({projectId:71,taskId:4001,dryRun:true,approvalReference:'synthetic-owner-approval',expectedManifestChecksum:'sha256:'+'b'.repeat(64),releaseIdempotencyKey:'synthetic-release',idempotencyKey:'synthetic-send'},{}));
+ assert.equal(result.isError,false);assert.equal(value(result).state,'generic_threads');assert.equal(value(result).actor_id,'user:701');assert.equal(legacyCalls,before);
 });
 test('DA02 missing owned principal cannot fall through to any legacy executor',async()=>{
  provider='dzen';const prior=legacyCalls;const denied=await callback({projectId:71,taskId:4001,dryRun:true},{});assert.equal(denied.isError,true);assert.equal(value(denied).code,'PUBLICATION_PRINCIPAL_REQUIRED');assert.ok(value(denied).reasons[0].action.length>20);assert.equal(legacyCalls,prior);

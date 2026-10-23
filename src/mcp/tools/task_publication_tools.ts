@@ -48,10 +48,10 @@ export async function executePublicationTaskByChannel(
     },
     signal?:AbortSignal
 ): Promise<Record<string, unknown>> {
-    if (await dependencies.threads.isThreadsTask(args)) return publishThreadsWithRelease(args,signal);
-    if(args.releaseIdempotencyKey!==undefined||args.actorId!==undefined)throw new Error('[PROVIDER_OPERATION_UNSUPPORTED]');
     const owned = await dependencies.owned?.(args);
     if (owned) return owned;
+    if (await dependencies.threads.isThreadsTask(args)) return publishThreadsWithRelease(args,signal);
+    if(args.releaseIdempotencyKey!==undefined||args.actorId!==undefined)throw new Error('[PROVIDER_OPERATION_UNSUPPORTED]');
     if (dependencies.isDzenTask(args.projectId, args.taskId)) return dependencies.dzen.execute(args);
     return dependencies.telegram.execute(args);
 }

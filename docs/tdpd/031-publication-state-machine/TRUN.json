@@ -5,7 +5,7 @@
   "base_commit": "557365154e415816730bfe744591878c7231941b",
   "base_tree": "2b333a61cac5e69fcd4dd4fc8e91af5e9a4ae0bc",
   "environment": "Tower Docker Linux amd64; network-none mock suites; separate internal tmpfs PostgreSQL16; no provider credentials or calls",
-  "source_manifest_sha256": "1ac33a147c96c82a57f8cec1433d4d3f36dc3659410fc65d950a597b499affe8",
+  "source_manifest_sha256": "37eddc7534ac269bced6d8ea468c340fd16295446b7ff47b377a8a9f68125432",
   "build": {
     "log": "build-04.log",
     "result": "PASS"
@@ -80,5 +80,35 @@
   "production_writes": false,
   "public_push_pr_deploy": false,
   "cleanup": "Temporary PostgreSQL container/network removed with compose down; no volumes/pruning/backup changes",
-  "acceptance": "Owner UAT pending. Live X login/pairing/UAT/registration and LinkedIn historical executor fencing remain separate operational gates."
+  "acceptance": "Owner UAT pending. Live X login/pairing/UAT/registration and LinkedIn historical executor fencing remain separate operational gates.",
+  "ci_integration_repair": {
+    "ci_run": 40009966185,
+    "failed_stage": "Owned publication principal, queue, fact and mutator boundaries (no provider)",
+    "cause": "Threads classification preceded protected owned/Dzen root; plus obsolete unauthenticated legacy fallback expectation",
+    "repair": "Restore owned-first priority, pass only canonical Threads envelopes onward, reject unsupported fields elsewhere, preserve authenticated exact-release send path",
+    "focused_log": "ci-repair-owned.log",
+    "tests": 62,
+    "passed": 62,
+    "failed": 0,
+    "provider_calls": false,
+    "production_writes": false,
+    "build": {
+      "log": "build-ci-repair.log",
+      "result": "PASS"
+    },
+    "regressions": {
+      "log": "regressions-ci-repair.log",
+      "tests": 171,
+      "passed": 171,
+      "failed": 0
+    },
+    "quality": {
+      "log": "quality-ci-repair.log",
+      "result": "PASS",
+      "runtime_findings": 6823,
+      "baseline": 6823,
+      "baseline_modified": false
+    }
+  },
+  "source_manifest": "checked-sources-ci-repair.sha256 in private engineering evidence"
 }

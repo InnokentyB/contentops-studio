@@ -23,7 +23,7 @@ function routeMocks(t,errorCode){
  const calls=[];
  t.mock.method(legacy,'isThreadsTask',async()=>true);
  t.mock.method(legacy,'execute',async()=>{calls.push('legacy');throw Error('[THREADS_TASK_SCOPE_MISMATCH] private-provider-secret');});
- t.mock.method(owned,'tryOwnedPublicationTask',async()=>{calls.push('owned');return null;});
+ t.mock.method(owned,'tryOwnedPublicationTask',async()=>null);
  t.mock.method(generic,'publish',async(args,signal)=>{calls.push({args,signal});if(errorCode)throw Error('['+errorCode+'] private-provider-secret');return{mode:'dry_run',live_publish_supported:true,route_executable:true,published:false};});
  return calls;
 }
@@ -107,7 +107,7 @@ for(const kind of ['owned route','telegram route','Threads envelope on another p
  await clientFor(registerTaskPublicationTools,async client=>{
   const args={projectId:19,taskId:87003,dryRun:true,...(kind==='Threads envelope on another provider'?{releaseIdempotencyKey:'synthetic-release'}:{})};
   const r=await withPublicationPrincipal(principal,()=>client.callTool({name:'ba_publish_publication_task',arguments:args}));
-  if(kind==='Threads envelope on another provider'){assert.equal(r.isError,true);assert.equal(ownedCalls,0);assert.equal(telegramCalls,0);}
+  if(kind==='Threads envelope on another provider'){assert.equal(r.isError,true);assert.equal(ownedCalls,1);assert.equal(telegramCalls,0);}
   else{assert.notEqual(r.isError,true);assert.equal(ownedCalls,1);assert.equal(telegramCalls,kind==='owned route'?0:1);}
  });
 });
