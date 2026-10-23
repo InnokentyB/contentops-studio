@@ -1,0 +1,21 @@
+name: contentops-shared-dispatch-postgres
+services:
+  synthetic-db:
+    extends: {file: ../publication-tests/compose.yaml, service: synthetic-db}
+  tests:
+    extends: {file: ../publication-tests/compose.yaml, service: tests}
+    image: planner-owner-manual-confirmation:20261020
+    environment:
+      SHARED_BROWSER_DIST: /results/dist
+      SUPABASE_URL: https://example.supabase.co
+      SUPABASE_KEY: synthetic-only
+      TELEGRAM_BOT_TOKEN: synthetic-only
+    volumes: [../../:/workspace:ro, /tmp/contentops-shared-dispatch-results:/results]
+    command: [node, --test, --test-concurrency=1, /workspace/tests/tdpd/shared-preparation-diagnosis-postgres.test.cjs]
+  setup:
+    extends: {service: tests}
+    command: [./node_modules/.bin/prisma, db, push, --schema, /workspace/prisma/schema.prisma]
+networks:
+  synthetic:
+    internal: true
+    ipam: {config: [{subnet: 10.231.118.0/28}]}

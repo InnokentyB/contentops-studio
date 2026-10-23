@@ -1,0 +1,18 @@
+name: contentops-shared-dispatch-synthetic
+services:
+  build:
+    extends: {file: ../quality/compose.yaml, service: build-check}
+    image: planner-owner-manual-confirmation:20261020
+    mem_limit: 4g
+    environment:
+      NODE_OPTIONS: --max-old-space-size=3072
+      SHARED_BROWSER_DIST: /results/dist
+      SUPABASE_URL: https://example.supabase.co
+      SUPABASE_KEY: synthetic-only
+      TELEGRAM_BOT_TOKEN: synthetic-only
+    volumes: [../../:/workspace:ro, /tmp/contentops-shared-dispatch-results:/results]
+    command: [sh, -c, 'mkdir -p /tmp/compile && cp -R /workspace/src /workspace/prisma /workspace/package.json /workspace/tsconfig.json /tmp/compile/ && ln -s /opt/planner/node_modules /tmp/compile/node_modules && /opt/planner/node_modules/.bin/tsc -p /tmp/compile/tsconfig.json --outDir /results/dist']
+  tests:
+    extends: {service: build}
+    mem_limit: 2g
+    command: [node, --test, --test-concurrency=1, /workspace/tests/tdpd/shared-dispatch-readiness.test.cjs]

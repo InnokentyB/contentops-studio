@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import {withPublicationPrincipal} from '../mcp/publication-principal';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
@@ -172,7 +173,7 @@ test('MCP serializes actionable release diagnostics and logs only safe diagnosti
     const [a, b] = InMemoryTransport.createLinkedPair();
     try {
         await server.connect(a); await client.connect(b);
-        const response = await client.callTool({ name: 'ba_publish_threads_task', arguments: sendArgs(f) });
+        const response = await withPublicationPrincipal({userId:2,actorId:'user:2',profile:'owner',projectId:10},()=>client.callTool({ name: 'ba_publish_threads_task', arguments: sendArgs(f) }));
         assert.equal(response.isError, true);
         const textContent = response.content as { type: string; text?: string }[];
         const diagnostic = JSON.parse(textContent[0].text || '{}');
@@ -208,3 +209,13 @@ for (const [raw, expected] of [
         assert.ok(!JSON.stringify({ response, warnings }).includes('private-provider-payload'));
     });
 }
+
+for(const dryRun of [true,false])test(`future exact released package stays not due during ${dryRun?'preview':'live admission'}`,async()=>{
+    const f=fixture(),future='2026-10-16T12:00:00.000Z';
+    f.task.schedule_at=new Date(future);f.task.publish_at=new Date(future);f.release.expectedScheduleAt=future;
+    await f.service.release(f.release);
+    const before=JSON.stringify({task:f.task,events:f.events,attempts:f.attempts}),reads=f.preflightCalls;
+    await assert.rejects(f.service.publish({...sendArgs(f),dryRun}),/THREADS_NOT_DUE/);
+    assert.equal(f.preflightCalls,reads);assert.equal(f.providerCalls,0);
+    assert.equal(JSON.stringify({task:f.task,events:f.events,attempts:f.attempts}),before);
+});
