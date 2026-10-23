@@ -1,5 +1,6 @@
 const test=require('node:test');const assert=require('node:assert/strict');const path=require('node:path');
 const {fixture,base}=require('./threads-api.fixture.cjs');
+const {withPublicationPrincipal}=require(path.join(base,'mcp/publication-principal.ts'));
 const {ThreadsService}=require(path.join(base,'services/threads.service.ts'));
 const {ThreadsProviderError}=require(path.join(base,'services/threads_provider_error.ts'));
 const {threadsDiagnosticResult}=require(path.join(base,'mcp/tools/threads_diagnostic_result.ts'));
@@ -12,7 +13,7 @@ async function invoke(t,f){
  t.mock.method(singleton,'publish',f.service.publish.bind(f.service));
  const server=new McpServer({name:'threads-preflight',version:'1'});registerTaskPublicationTools(server);
  const client=new Client({name:'operator',version:'1'});const[a,b]=InMemoryTransport.createLinkedPair();
- try{await server.connect(a);await client.connect(b);return await client.callTool({name:'ba_publish_threads_task',arguments:f.send});}
+ try{await server.connect(a);await client.connect(b);return await withPublicationPrincipal({userId:Number(f.send.actorId.slice(5)),actorId:f.send.actorId,projectId:f.send.projectId,profile:'publisher'},()=>client.callTool({name:'ba_publish_threads_task',arguments:f.send}));}
  finally{await client.close();await server.close();}
 }
 const secret='synthetic-private-token-DO-NOT-LOG';

@@ -1,5 +1,6 @@
 const test=require('node:test');const assert=require('node:assert/strict');const path=require('node:path');
 const {fixture,base}=require('./threads-api.fixture.cjs');
+const {withPublicationPrincipal}=require(path.join(base,'mcp/publication-principal.ts'));
 test('T01/T04 arbitrary tenant generic release sends once and canonical recovery replays',async()=>{
  const f=fixture();await f.service.release(f.release);const result=await f.service.publish(f.send);
  assert.equal(result.mode,'published');assert.equal(f.calls,2);assert.equal(f.rows[0].state,'confirmed');assert.equal(f.attempts[0].status,'delivered');
@@ -93,7 +94,7 @@ test('T10 total DB outage after publication returns actionable persistence error
  const {InMemoryTransport}=require('@modelcontextprotocol/sdk/inMemory.js'),{registerTaskPublicationTools}=require(path.join(base,'mcp/tools/task_publication_tools.ts'));
  const server=new McpServer({name:'threads-db-fault',version:'1'}),client=new Client({name:'operator',version:'1'});registerTaskPublicationTools(server);
  const[a,b]=InMemoryTransport.createLinkedPair();try{await server.connect(a);await client.connect(b);
- const response=await client.callTool({name:'ba_publish_threads_task',arguments:f.send});const result=response.structuredContent;
+ const response=await withPublicationPrincipal({userId:Number(f.send.actorId.slice(5)),actorId:f.send.actorId,projectId:f.send.projectId,profile:'publisher'},()=>client.callTool({name:'ba_publish_threads_task',arguments:f.send}));const result=response.structuredContent;
  assert.equal(result.code,'THREADS_ATTEMPT_PERSISTENCE_UNAVAILABLE');assert.ok(!JSON.stringify(response).includes('synthetic-secret-DB'));
  assert.equal(f.rows[0].post_id,undefined);assert.equal(f.rows[0].state,'publish_started');assert.equal(f.calls,2);
  }finally{await client.close();await server.close();service.deps=saved;}

@@ -5,7 +5,7 @@
   "base_commit": "557365154e415816730bfe744591878c7231941b",
   "base_tree": "2b333a61cac5e69fcd4dd4fc8e91af5e9a4ae0bc",
   "environment": "Tower Docker Linux amd64; network-none mock suites; separate internal tmpfs PostgreSQL16; no provider credentials or calls",
-  "source_manifest_sha256": "37eddc7534ac269bced6d8ea468c340fd16295446b7ff47b377a8a9f68125432",
+  "source_manifest_sha256": "9088c398de49dd7a0797d4b6dcefe25ada728c6c00e44d5b362eaf99d92599a5",
   "build": {
     "log": "build-04.log",
     "result": "PASS"
@@ -110,5 +110,29 @@
       "baseline_modified": false
     }
   },
-  "source_manifest": "checked-sources-ci-repair.sha256 in private engineering evidence"
+  "source_manifest": "checked-sources-final.sha256 in private engineering evidence",
+  "ci_authenticated_fixture_repair": {
+    "ci_run": 40011206570,
+    "cause": "Two existing real-MCP fault suites omitted authenticated principal and stopped at the new required identity guard",
+    "repair": "Supply fixture-owned current actor/project through existing AsyncLocal principal; all fault/redaction/no-send/no-retry assertions unchanged",
+    "focused_log": "ci-repair-principal-fixtures.log",
+    "tests": 48,
+    "passed": 48,
+    "failed": 0,
+    "production_code_changed": false,
+    "provider_calls": false,
+    "full_mcp_stage": {
+      "log": "ci-reliability-mcp-full.log",
+      "runtime_identity_tests": 105,
+      "preview_api_recovery_tests": 70,
+      "failed": 0
+    },
+    "quality": {
+      "log": "quality-principal-fixtures.log",
+      "result": "PASS",
+      "runtime_findings": 6823,
+      "baseline": 6823,
+      "baseline_modified": false
+    }
+  }
 }
