@@ -1,4 +1,5 @@
 import {instructionForRequest} from './browser_owner_instruction_state';
+import {BrowserAttemptDiagnosticError,type BrowserAttemptFailure} from './browser_attempt_diagnostic';
 import {assertBrowserRecoveryWriter,type PreparationWriterPurpose} from './browser_recovery_guard';
 import { timingSafeEqual } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
@@ -45,10 +46,15 @@ export function assertBrowserLease(work:{state:string;lease_actor_id:string|null
 }
 export async function checkedBrowserAttempt(tx:BrowserDb,args:BrowserRequest&{attemptId:number}) {
     const attempt=await tx.deliveryAttempt.findFirst({where:{id:args.attemptId,project_id:args.projectId,
-        content_item_id:args.taskId,channel_id:args.snapshot.channelId,idempotency_key:args.idempotencyKey,status:'pending'}});
+        content_item_id:args.taskId,channel_id:args.snapshot.channelId}});
+    if(!attempt)throw new BrowserAttemptDiagnosticError(['BROWSER_ATTEMPT_SCOPE_MISMATCH']);
     const instruction=await instructionForRequest(tx,args),through=instruction?.historicalThroughAttemptId??0;
-    if(!attempt||(instruction&&attempt.id<=through)||await tx.deliveryAttempt.count({where:{project_id:args.projectId,content_item_id:args.taskId,...(instruction?{id:{gt:through}}:{})}})!==1)
-        throw new Error('[BROWSER_RECONCILIATION_REQUIRED]');
+    const failures:BrowserAttemptFailure[]=[];
+    if(attempt.idempotency_key!==args.idempotencyKey)failures.push('BROWSER_ATTEMPT_KEY_MISMATCH');
+    if(attempt.status!=='pending')failures.push('BROWSER_ATTEMPT_NOT_PENDING');
+    if((instruction&&attempt.id<=through)||await tx.deliveryAttempt.count({where:{project_id:args.projectId,content_item_id:args.taskId,...(instruction?{id:{gt:through}}:{})}})!==1)
+        failures.push('BROWSER_ATTEMPT_HISTORY_CONFLICT');
+    if(failures.length)throw new BrowserAttemptDiagnosticError(failures);
     return attempt;
 }
 /** Actual executor observations are necessary, but not independently signed provider proof. */

@@ -37,7 +37,7 @@ export function registerBrowserPublicationTools(server:McpServer,recovery:Browse
         annotations:INTERNAL_MUTATION_ANNOTATIONS,inputSchema:browserBoundarySchema.shape
     },async args=>publicationDiagnosticResult('browser',()=>preparation.start(args),browserErrorDiagnostic,browserResultProjection));
     server.registerTool('ba_pre_submit_browser_submission',{
-        description:'One 30-second Submit permission after actual author/company, exact paragraph/image and duplicate checks. Caller observations are not independent provider proof. Lost/replayed response never renews permission.',
+        description:'One 30-second Submit permission after actual author/company, exact paragraph/image and duplicate checks. idempotencyKey MUST equal the immutable key used by the original ba_start_browser_submission for this exact attempt, not a new per-stage key. An expired lease requires supported fenced same-attempt recovery; correcting a key does not renew it. Caller observations are not independent provider proof. Lost/replayed response never renews permission.',
         annotations:INTERNAL_MUTATION_ANNOTATIONS,inputSchema:browserObservedSchema.shape
     },async args=>publicationDiagnosticResult('browser',()=>preSubmitBrowserSubmission(args),browserErrorDiagnostic,browserResultProjection));
     server.registerTool('ba_confirm_browser_submission',{
