@@ -1,10 +1,12 @@
 import { z } from 'zod';
+import {legacyBrowserRecoveryDiagnostics} from './legacy_browser_recovery_diagnostics';
 import { RECOVERY_LIMITS,type BrowserRecoveryDependencies,type RecoveryContext,type RecoveryOutcome,type RecoveryReservation,type RecoveryReadControl,type VerifiedRecoveryEvidence,type RecoveryClock } from './browser_recovery_contract';
 const hash=z.string().regex(/^[a-f0-9]{64}$/);
 const contextSchema=z.object({scope:z.object({projectId:z.number().int().positive(),taskId:z.number().int().positive(),attemptId:z.number().int().positive(),packageSha256:hash}).strict(),provider:z.string().regex(/^[a-z][a-z0-9_]{0,39}$/),accountSha256:hash,bodySha256:hash,assetSha256:hash.nullable(),publishedAfterMs:z.number().finite(),publishedBeforeMs:z.number().finite(),knownObjectId:z.string().min(1).max(200).regex(/^[^\x00-\x1f\x7f]+$/).optional()}).strict();
 const evidenceSchema=z.object({schemaVersion:z.literal(1),provider:z.string(),accountSha256:hash,packageSha256:hash,bodySha256:hash,assetSha256:hash.nullable(),providerObjectId:z.string().min(1).max(200),publicUrl:z.string().url().max(2000),publishedAtMs:z.number().finite(),observedAtMs:z.number().finite(),evidenceRef:z.string().regex(/^sha256:[a-f0-9]{64}$/)}).strict();
 type Entry=readonly [RecoveryOutcome['recoveryAction'],string,string];
 const catalog:Record<string,Entry>={
+ ...legacyBrowserRecoveryDiagnostics,
  PREPARATION_RECOVERY_FAILED:['CONTACT_ENGINEERING','Preparation recovery failed; the exact cause is not classified.','Ask engineering to inspect safe diagnostics and the original attempt and executor state. Preserve its holds and history; do not clear errors, replace keys or resend.'],
  READBACK_CAPABILITY_UNAVAILABLE:['CONTACT_ENGINEERING','No admitted read-only provider recovery capability is registered.','Ask engineering to implement and admit a bounded reader through the existing approved route. Preserve the current attempt; do not resend or use another transport.'],
  RECONCILIATION_BUDGET_EXHAUSTED:['CONTACT_ENGINEERING','The durable read-only recovery budget is exhausted.','Inspect retained evidence and adapter health. Reconcile the same attempt through its approved route; do not reset counters, replace keys or resend.'],

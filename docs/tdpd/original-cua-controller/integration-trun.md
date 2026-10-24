@@ -1,0 +1,11 @@
+# Integrated LOCK028/current main — 2026-10-25
+
+Base: released PR204 merge2c9516d078493e9e7d6ac05da34de978ecd37b33/treeb32d402975352ed1347b1c0c3da4b1c8c7ccd24f. Imported ONLY reviewed LOCK028 patchafc772c96a2e4252cb3b4939e9ea36afa680386e (20files/755additions), not its unrelated branch history. Patch apply-check clean; PR204 original-key diagnostics retained. Added existing controller evidence helper/architecture fromc178385. Separate checkout/branch; other unfinished copies untouched.
+
+Docker backend buildPASS. Fresh isolated PostgreSQL initialized by40committed migrations; schema/production unchanged. Combined historical adoption/preparation suite40/40PASS: same attempt/lease generation, real PostgreSQL races, audit/fact rollback, denied owner/tenant/demo/issued permits, challenge/readback/old writer/late permission fences, bounded failures and MCP hidden adoption.
+
+Additional regression first run65PASS/1FAIL: existing actionable-boundary test hardcoded11handlers before LOCK028 added a read-only preview. Corrected test to verify preview present, mutating adoption absent without runtime, no duplicate registration, and one redacted log per actual handler. Does not change production guards. Final combined66/66PASS, including PR204 key binding, actual MCP, confirmation/UNKNOWN/expired lease, pure resume contract and real signature verification. Final imageconfig08a568b1f28f69f1e8693a79c02a2ea65373d970203ba877520ae88678f01331. QualitygatePASS77/nohardstops/no new debt6823.
+
+Infrastructure: initial synthetic network10.231.104 overlapped existing SSH backup network; no modification/deletion of that network. Own test network10.235.77.0/28 used. All app/tests Docker-only, synthetic DBuser/database guard, no working secrets/provider calls, no ports/workers/publishers or actual nativeACK. All jobs --rm; own DB/network downwithout-v after checks.
+
+Native adapter remains NOT registered. Historical adoption mutation hidden by default; preview is read-only. Protected ledger, not a test signature or Owner risk statement, gates actual authority. Mac source references from engineer reply are discovery only. Actual original-native stop/drain+stale-command rejection and same-profile reader/pickup transport are still needed before runtime admission/no-send UAT. No production adoption, lease renewal/new attempt or send.

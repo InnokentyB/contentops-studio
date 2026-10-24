@@ -1,0 +1,12 @@
+import type {RecoveryAction} from './browser_recovery_contract';
+/** Reviewed static diagnostics shared by active recovery and later persisted-status reads. */
+export const legacyBrowserRecoveryDiagnostics:Record<string,readonly[RecoveryAction,string,string]>={
+ LEGACY_BROWSER_FACT_EXISTS:['INSPECT_CONFIRMED_FACT','A canonical publication fact already exists for this task.','Read the canonical publication fact and its existing provider object. No preparation recovery or new submission is required.'],
+ LEGACY_BROWSER_VERIFICATION_REQUIRED:['CONTACT_ENGINEERING','A historical pre-permit attempt requires controlled verification.','Use the registered owning-executor recovery operation. It must fence all old executors and verify the exact profile/package before the same attempt can resume.'],
+ LEGACY_BROWSER_SUPERVISOR_UNAVAILABLE:['CONTACT_ENGINEERING','No registered supervisor can prove full historical executor quiescence.','Engineering must connect a supervisor for the existing owning executor, prove all old/offline work is stopped and fenced, then repeat scoped preview. An expired lease or Owner absence statement is insufficient.'],
+ LEGACY_BROWSER_READER_UNAVAILABLE:['CONTACT_ENGINEERING','No supported owning-profile reader is registered for this package.','Engineering must connect the existing permitted profile/duplicate reader with complete scope and coverage. Do not install a second sender or switch transport.'],
+ LEGACY_BROWSER_ACTIVE_EXECUTOR:['CONTACT_ENGINEERING','The historical work item is still active or is not recoverable.','Coordinate with the owning executor, inspect its current work and reconcile the existing attempt. Do not take over an active lease.'],
+ LEGACY_BROWSER_CUSTODY_INCOMPLETE:['CONTACT_ENGINEERING','The complete historical no-dispatch custody was not established.','Engineering must account for every attempt, work item, native challenge, alternate delivery route and issued permission before adoption. Keep UNKNOWN and do not resend.'],
+ POST_SUBMIT_UNKNOWN:['READ_ONLY_RECONCILIATION','A permission or possible dispatch already exists for this attempt.','Reconcile the existing provider result through the permitted reader. Do not adopt pre-permit preparation, renew permission or resend.'],
+ LEGACY_BROWSER_PRE_PERMIT_VERIFIED:['CONTINUE_SAME_ATTEMPT_AFTER_REPAIR','Technical custody and current profile checks verified this historical pre-permit attempt.','Continue only through the registered supervised preparation recovery and private pickup. This status grants no Submit permission.']
+};

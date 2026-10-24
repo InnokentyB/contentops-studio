@@ -1,10 +1,12 @@
 import {Prisma} from '@prisma/client';
 import {hash,snapshotHash,type BrowserDb,type BrowserDependencies,type BrowserRequest} from './browser_publication_contract';
 import {browserRecoveryEnabled} from './browser_recovery_guard';
+import {requireNonDemoBrowserOwner} from './browser_recovery_owner';
 import {loadPreparationState} from './browser_recovery_resume_repository';
 import {preparationLedger,type PreparationLedger,type PreparationRequest,type PreparationSupervisor} from './browser_preparation_contract';
 export const preparationSerial={isolationLevel:Prisma.TransactionIsolationLevel.Serializable,maxWait:2000,timeout:10000};
 export async function loadPreparation(tx:BrowserDb,deps:BrowserDependencies,args:PreparationRequest,executorId:string){
+ await requireNonDemoBrowserOwner(tx,args);
  const state=await loadPreparationState(tx,deps,args);
  if(!state||!state.ownerAuthorized||!state.permissionAllowed)throw new Error('[PERMISSION_DENIED]');
  if(!state.approvalActive||state.originalApprovalSha256!==state.currentApprovalSha256)throw new Error('[APPROVAL_REVOKED]');
