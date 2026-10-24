@@ -27,3 +27,7 @@ Once actual SOURCE implementation and conformance evidence exist, bootstrap pins
 Implemented/tested: controller contract, scoped historical recovery state/transactions, actual MCP denial boundary, immutable-attempt and generation checks, synthetic PostgreSQL concurrency/rollback, envelope signature/binding/freshness verification. Not connected: actual Mac control transport, native stop/revoke/drain/ACK verification, persistent source generation tombstones, native profile reader, receipt-to-durable-challenge wiring and authenticated live private pickup.
 
 Next integration step belongs to the SOURCE capability investigation: identify the actual original-runtime callable and cancellation coverage, obtain an authenticated no-send terminal receipt and stale-call rejection result, then implement/review those callbacks. Current files contain no fictional native call or self-signed stop fallback. No new Owner GO/risk acceptance/manual forwarding is requested.1150/1158 and54/51 remain unconfirmed; this packet makes no publication claim.
+
+## Updated controller status
+
+DURABLE-COMPOSITION.md and browser_executor_challenge_store.ts supersede the earlier statement that durable consumption/composition were unimplemented. The controller now persists/validates/consumes challenges in the existing adoption/quiescence/fact transactions and bootstrap explicitly supplies absent Source ports. The actual native SOURCE implementation, native tombstones, authenticated Mac transport and live private pickup remain NOT connected. Synthetic native ports exist only in tests.

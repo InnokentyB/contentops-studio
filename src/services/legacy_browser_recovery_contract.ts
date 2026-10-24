@@ -1,6 +1,6 @@
 import {z} from 'zod';
 import {preparationRequest,type PreparationSupervisor} from './browser_preparation_contract';
-import type {BrowserRequest,BrowserDependencies} from './browser_publication_contract';
+import type {BrowserRequest,BrowserDependencies,BrowserDb} from './browser_publication_contract';
 import type {RecoveryClock,RecoveryReadControl,RecoveryReservation} from './browser_recovery_contract';
 export const legacyRecoveryRequest=preparationRequest;
 export type LegacyRecoveryRequest=z.infer<typeof legacyRecoveryRequest>;
@@ -9,7 +9,7 @@ export type LegacyRecoveryContext=LegacyRecoveryRequest&{workItemId:number;snaps
 export type LegacyBrowserSupervisor=PreparationSupervisor&{fenceLegacy:(context:LegacyRecoveryContext&{signal:AbortSignal})=>Promise<unknown>};
 /** The existing permitted owning-executor reader; no request can register or replace this port. */
 export type LegacyBrowserReader={supports:(snapshot:BrowserRequest['snapshot'])=>boolean;read:(context:LegacyRecoveryContext,control:RecoveryReadControl)=>Promise<unknown>};
-export type LegacyRecoveryOptions={deps?:BrowserDependencies;supervisor?:LegacyBrowserSupervisor;reader?:LegacyBrowserReader;clock?:RecoveryClock};
+export type LegacyRecoveryOptions={deps?:BrowserDependencies;supervisor?:LegacyBrowserSupervisor;reader?:LegacyBrowserReader;clock?:RecoveryClock;beforeAdoptionCommit?:(tx:BrowserDb,context:LegacyRecoveryContext)=>Promise<void>};
 const sha=z.string().regex(/^[a-f0-9]{64}$/),ref=z.string().regex(/^sha256:[a-f0-9]{64}$/);
 const scope={projectId:z.number().int().positive(),taskId:z.number().int().positive(),attemptId:z.number().int().positive(),packageSha256:sha,challengeSha256:sha};
 export const legacyCustodyProof=z.object({...scope,version:z.literal(1),workItemId:z.number().int().positive(),executorId:z.string().min(1).max(200),approvalSha256:sha,oldLeaseSha256:sha,lifecycleCoverage:z.literal('complete'),oldExecutorQuiescent:z.literal(true),issuedPermitCount:z.literal(0),dispatchCount:z.literal(0),evidenceRef:ref}).strict();

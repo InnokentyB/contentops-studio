@@ -1,10 +1,10 @@
-import {hash,object,type BrowserDependencies} from './browser_publication_contract';
+import {hash,object,type BrowserDependencies,type BrowserDb} from './browser_publication_contract';
 import {createBrowserRecoveryRepository} from './browser_recovery_repository';
 import {requireNonDemoBrowserOwner} from './browser_recovery_owner';
 import {preparationSerial} from './browser_preparation_storage';
 import {preparationLedger,preparationRequest} from './browser_preparation_contract';
 import {loadLegacyBrowserScope} from './legacy_browser_recovery_scope';
-import type {LegacyRecoveryRequest,LegacyReservation} from './legacy_browser_recovery_contract';
+import type {LegacyRecoveryRequest,LegacyReservation,LegacyRecoveryContext} from './legacy_browser_recovery_contract';
 import type {RecoveryClock} from './browser_recovery_contract';
 export async function reserveLegacyBrowser(deps:BrowserDependencies,args:LegacyRecoveryRequest,executorId:string,clock:RecoveryClock){
  const scoped=await deps.db.$transaction(async tx=>{
@@ -30,12 +30,13 @@ export async function reserveLegacyBrowser(deps:BrowserDependencies,args:LegacyR
  return {kind:'reserved' as const,value:{context,reservation:r,operationKey:scoped.operationKey} satisfies LegacyReservation,repository};
 }
 /** Turn UNKNOWN into PREPARE only after verified full historical custody and current provider observation. */
-export async function commitLegacyPreparation(deps:BrowserDependencies,value:LegacyReservation,executorId:string,evidenceSha256:string,clock:RecoveryClock):Promise<void>{
+export async function commitLegacyPreparation(deps:BrowserDependencies,value:LegacyReservation,executorId:string,evidenceSha256:string,clock:RecoveryClock,beforeCommit?:(tx:BrowserDb,context:LegacyRecoveryContext)=>Promise<void>):Promise<void>{
  const {context:c,reservation:r}=value;
  await deps.db.$transaction(async tx=>{
   const scope=await loadLegacyBrowserScope(tx,deps,c,clock.now()),row=scope.row;
   if(!row||row.state!=='reading'||row.row_version!==r.rowVersion||row.execution_generation!==r.executionGeneration||row.recovery_lease_sha256!==hash(r.leaseToken)||!row.recovery_lease_expires_at||row.recovery_lease_expires_at.getTime()<=clock.now()||!row.deadline_at||row.deadline_at.getTime()<=clock.now()||scope.oldLeaseSha256!==c.oldLeaseSha256||hash(scope.work.lease_token||'')!==c.oldLeaseSha256||scope.work.state!=='claimed'||!scope.work.lease_expires_at||scope.work.lease_expires_at.getTime()>clock.now())throw new Error('[RECOVERY_CONFLICT]');
   if(await tx.workflowEvent.count({where:{project_id:c.projectId,content_item_id:c.taskId,command:'ba_pre_submit_browser_submission'}}))throw new Error('[POST_SUBMIT_UNKNOWN]');
+  await beforeCommit?.(tx,c);
   const request=preparationRequest.parse({projectId:c.projectId,taskId:c.taskId,attemptId:c.attemptId,actorId:c.actorId,idempotencyKey:value.operationKey});
   const ledger=preparationLedger.parse({version:1,projectId:c.projectId,taskId:c.taskId,attemptId:c.attemptId,workItemId:c.workItemId,executorSha256:hash(executorId),generation:r.executionGeneration,revision:0,state:'quiescent',resumptions:r.round,startedAtMs:r.startedAtMs,deadlineMs:r.deadlineMs,operationSha256:hash(JSON.stringify(request)),challengeSha256:hash(c.challenge),proofSha256:evidenceSha256,outbox:'none',permitIssued:false,dispatchStarted:false});
   await tx.browserPreparationExecution.create({data:{project_id:c.projectId,attempt_id:c.attemptId,content_item_id:c.taskId,work_item_id:c.workItemId,ledger}});

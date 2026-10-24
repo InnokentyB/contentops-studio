@@ -72,14 +72,14 @@ export function createLegacyBrowserRecovery(options:LegacyRecoveryOptions={}){
    if(object(read).kind==='FOUND'){
     const found=z.object({kind:z.literal('FOUND'),confirmation:browserReconcileSchema}).strict().parse(read).confirmation;
     if(found.projectId!==c.projectId||found.taskId!==c.taskId||found.attemptId!==c.attemptId||found.workItemId!==c.workItemId||found.actorId!==c.actorId||found.idempotencyKey!==c.attemptKey||found.approvalReference!==c.approvalReference||snapshotHash(found.snapshot)!==c.packageSha256)throw new Error('[RECONCILIATION_COVERAGE_INCOMPLETE]');
-    await legacyBounded(clock,r.deadlineMs,signal=>finalizeBrowserRecoverySubmission(found,r,signal,deps,args=>publicationFactService.record({...args,beforeWrite:async tx=>{await loadLegacyBrowserScope(tx,deps,c,clock.now());await args.beforeWrite?.(tx);}})));
+    await legacyBounded(clock,r.deadlineMs,signal=>finalizeBrowserRecoverySubmission(found,r,signal,deps,args=>publicationFactService.record({...args,beforeWrite:async tx=>{await loadLegacyBrowserScope(tx,deps,c,clock.now());await options.beforeAdoptionCommit?.(tx,c);await args.beforeWrite?.(tx);}})));
     return {...legacyBrowserOutcome('RECONCILIATION_FOUND'),mutates_state:true};
    }
    const absence=legacyAbsenceProof.safeParse(read);
    if(!absence.success){const kind=object(read).kind;const code=kind==='TEMPORARY_UNAVAILABLE'?'RECONCILIATION_TEMPORARILY_UNAVAILABLE':kind==='AMBIGUOUS'?'RECONCILIATION_AMBIGUOUS':kind==='PERMISSION_DENIED'?'PERMISSION_DENIED':kind==='APPROVAL_REVOKED'?'APPROVAL_REVOKED':kind==='PACKAGE_CHANGED'?'PACKAGE_CHANGED':'RECONCILIATION_COVERAGE_INCOMPLETE';throw new Error(`[${code}]`);}
    const e=absence.data;
    if(e.projectId!==c.projectId||e.taskId!==c.taskId||e.attemptId!==c.attemptId||e.packageSha256!==c.packageSha256||e.accountSha256!==hash(JSON.stringify(c.snapshot.identity))||e.challengeSha256!==hash(c.challenge)||e.observedAtMs<r.startedAtMs||e.observedAtMs>clock.now()+5000)throw new Error('[RECONCILIATION_COVERAGE_INCOMPLETE]');
-   await commitLegacyPreparation(deps,value,supervisor.executorId,hash(JSON.stringify({custody:proof.data.evidenceRef,readback:e.evidenceRef,challenge:hash(c.challenge)})),clock);
+   await commitLegacyPreparation(deps,value,supervisor.executorId,hash(JSON.stringify({custody:proof.data.evidenceRef,readback:e.evidenceRef,challenge:hash(c.challenge)})),clock,options.beforeAdoptionCommit);
    settle=async()=>true;
    return {...await createPreparationRecovery({deps,supervisor,now:clock.now}).recover({...args,idempotencyKey:value.operationKey}),mutates_state:true};
   }catch(error:unknown){

@@ -1,6 +1,7 @@
 import type {RecoveryAction} from './browser_recovery_contract';
 /** Reviewed static diagnostics shared by active recovery and later persisted-status reads. */
 export const legacyBrowserRecoveryDiagnostics:Record<string,readonly[RecoveryAction,string,string]>={
+ BROWSER_EXECUTOR_RECEIPT_INVALID:['CONTACT_ENGINEERING','The original executor receipt failed authentication, scope or freshness validation.','Inspect the pinned original runtime, native evidence and current durable challenge through the registered controller. Preserve this attempt and hold; do not replace the key, renew a lease or submit based on an invalid receipt.'],
  LEGACY_BROWSER_FACT_EXISTS:['INSPECT_CONFIRMED_FACT','A canonical publication fact already exists for this task.','Read the canonical publication fact and its existing provider object. No preparation recovery or new submission is required.'],
  LEGACY_BROWSER_VERIFICATION_REQUIRED:['CONTACT_ENGINEERING','A historical pre-permit attempt requires controlled verification.','Use the registered owning-executor recovery operation. It must fence all old executors and verify the exact profile/package before the same attempt can resume.'],
  LEGACY_BROWSER_SUPERVISOR_UNAVAILABLE:['CONTACT_ENGINEERING','No registered supervisor can prove full historical executor quiescence.','Engineering must connect a supervisor for the existing owning executor, prove all old/offline work is stopped and fenced, then repeat scoped preview. An expired lease or Owner absence statement is insufficient.'],
