@@ -138,3 +138,17 @@ test('L09 adoption audit failure rolls back proof, preparation and lease changes
  const s=await scenario(t),failing={...deps,db:new Proxy(db,{get(target,key){if(key==='$transaction')return(run,options)=>target.$transaction(tx=>run(new Proxy(tx,{get(t,k){if(k==='workflowEvent')return {...t.workflowEvent,create:async a=>{if(a.data.command==='legacy_browser_preparation_adopted')throw Error('synthetic-audit-failure');return t.workflowEvent.create(a);}};return t[k];}})),options);return target[key];}})};
  const result=await createLegacyBrowserRecovery({...s.options,deps:failing}).adopt(s.request);assert.equal(result.resumed,false);assert.equal(await db.browserPreparationExecution.count({where:{project_id:s.args.projectId}}),0);assert.equal((await custody(s)).delivery_certainty,'UNKNOWN');assert.equal((await db.workItem.findUnique({where:{id:s.send.workItemId}})).lease_token,s.send.leaseToken);
 });
+test('L11 authenticated self-signed envelope cannot register missing original runtime or mutate historical custody',async t=>{
+ const crypto=require('node:crypto'),{browserExecutorReceiptMessage,verifyBrowserExecutorReceipt}=require(path.join(base,'services/browser_executor_receipt.js'));
+ const s=await scenario(t),now=Date.now(),key=crypto.generateKeyPairSync('ec',{namedCurve:'prime256v1'}),h='a'.repeat(64);
+ const expected={projectId:s.args.projectId,taskId:s.args.taskId,attemptId:s.attemptId,workItemId:s.send.workItemId,packageSha256:h,approvalSha256:h,leaseSha256:h,attemptKeySha256:h,runtimeSha256:h,epochSha256:h,contextSha256:h,profileSha256:h,nativeContractSha256:h,generation:0,challengeSha256:h,purpose:'fence_legacy',issuerId:'synthetic-signature-only',issuedAtMs:now,expiresAtMs:now+10000};
+ const payload={...expected,evidenceSha256:h},signature=crypto.sign('sha256',Buffer.from(browserExecutorReceiptMessage(payload)),{key:key.privateKey,dsaEncoding:'ieee-p1363'}).toString('base64url');
+ const pin={issuerId:expected.issuerId,publicKey:key.publicKey.export({format:'jwk'}),runtimeSha256:h,epochSha256:h,contextSha256:h,profileSha256:h,nativeContractSha256:h};
+ const authenticated=verifyBrowserExecutorReceipt({payload,signature},expected,pin,now);assert.equal(authenticated.authenticated,true);
+ const service=createLegacyBrowserRecovery({deps}),before=await db.workItem.findUnique({where:{id:s.send.workItemId}}),events=await db.workflowEvent.count({where:{project_id:s.args.projectId}});
+ assert.equal(service.available(),false);
+ const injected=await service.adopt({...s.request,receipt:authenticated,oldExecutorQuiescent:true});assert.equal(injected.code,'RECOVERY_INPUT_INVALID');
+ const denied=await service.adopt(s.request);assert.equal(denied.code,'LEGACY_BROWSER_SUPERVISOR_UNAVAILABLE');assert.equal(denied.submission_permitted,false);assert.equal(denied.resumed,false);
+ const after=await db.workItem.findUnique({where:{id:s.send.workItemId}});assert.equal(sha(after.lease_token),sha(before.lease_token));assert.equal(after.lease_expires_at.getTime(),before.lease_expires_at.getTime());
+ assert.equal(await db.deliveryAttempt.count({where:{content_item_id:s.args.taskId}}),1);assert.equal(await db.publicationFact.count({where:{content_item_id:s.args.taskId}}),0);assert.equal(await custody(s),null);assert.equal(await db.browserPreparationExecution.count({where:{project_id:s.args.projectId}}),0);assert.equal(await db.workflowEvent.count({where:{project_id:s.args.projectId}}),events);assert.equal(s.quiesced(),0);assert.equal(s.reads(),0);
+});
