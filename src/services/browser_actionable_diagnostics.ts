@@ -1,4 +1,5 @@
 import {ownerManualPreservationDiagnostic} from './owner_manual_publication_diagnostics';
+import {browserAttemptDiagnostic} from './browser_attempt_diagnostic';
 import {projectBrowserRecovery} from './browser_recovery_assessment';
 import {isPublicationStorageConflict} from './publication_storage_conflict';
 import type { PublicationDiagnostic } from './publication_diagnostics';
@@ -42,6 +43,7 @@ function diagnostic(code:string):PublicationDiagnostic {
 }
 /** Accept only known codes/field names. Never expose or log raw values from an exception. */
 export function browserErrorDiagnostic(error:unknown):PublicationDiagnostic {
+ const attempt=browserAttemptDiagnostic(error);if(attempt)return attempt;
     const manual = ownerManualPreservationDiagnostic(error);
     if (manual) return manual;
  if(isPublicationStorageConflict(error)){
