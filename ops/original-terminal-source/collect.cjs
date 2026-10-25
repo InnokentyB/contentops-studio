@@ -9,7 +9,7 @@ async function collect(lines,{turnId,threadId}) {
  let start=null,end=null,lastOrdinal=null,bytes=0;
  const calls=new Map(),results=new Map();
  for await(const line of lines){
-  bytes+=Buffer.byteLength(line);if(bytes>512*1024*1024||line.length>8*1024*1024)invalid();
+  const lineBytes=Buffer.byteLength(line);bytes+=lineBytes;if(bytes>512*1024*1024||lineBytes>16*1024*1024)invalid();
   if(!line.trim())continue;
   let row;try{row=JSON.parse(line);}catch{invalid();}
   const p=row.payload??{},target=p.turn_id===turnId;

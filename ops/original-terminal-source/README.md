@@ -6,4 +6,6 @@ Test/build check (no installation or compilation needed):
 
 `docker compose -f ops/original-cua-controller-20261025/terminal-source/compose.yaml run --rm checks`
 
-All 8 isolated tests passed using reviewed linux/amd64 image planner-original-cua-integration:20261025, no network/credentials, read-only mount. No persistent service, port or volume is created; temporary container is removed. Stdout contains test/observation data, stderr only fixed error codes. Existing archives are opened read-only, never modified. CLI arguments are archive path, original turn ID, original thread ID. Real Mac archive conformance is pending and must be reported separately from synthetic checks.
+All 10 isolated tests passed using reviewed linux/amd64 image planner-original-cua-integration:20261025, no network/credentials, read-only mount. No persistent service, port or volume is created; temporary container is removed. Stdout contains test/observation data, stderr only fixed error codes. Existing archives are opened read-only, never modified. CLI arguments are archive path, original turn ID, original thread ID. Real Mac archive conformance is pending and must be reported separately from synthetic checks.
+
+Real Mac conformance at the first pinned revision found a 12,159,143-byte unrelated archive event before both target turns. Revised event bound is 16 MiB in UTF-8 bytes, total processed bound remains 512 MiB. Added realistic 12 MiB acceptance and >16 MiB rejection cases. Initial real run refused safely and produced no observation; revised real run is pending.
