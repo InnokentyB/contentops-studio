@@ -4,6 +4,7 @@ import { registerVkSearchTools } from './tools/vk_search_tools';
 import { registerReviewHandoffRepairTool } from './tools/review_handoff_repair_tool';
 import { registerLinkedIn1135Tools } from './tools/linkedin1135_tools';
 import { registerBrowserPublicationTools } from './tools/browser_publication_tools';
+import {createOriginalExecutorController} from '../services/browser_original_executor_controller';
 import { registerXNativeTools } from './tools/x_native_tools';
 import { registerPublicationPreviewTools } from './tools/publication_preview_tools';
 import { registerLinkedInApiTools } from './tools/linkedin_api_tools';
@@ -84,7 +85,8 @@ export function createPlannerMcpServer(options: { profile?: McpCapabilityProfile
 export function registerPlannerTools(server: McpServer): void {
     registerReviewHandoffRepairTool(server);
     registerLinkedIn1135Tools(server);
-    registerBrowserPublicationTools(server);
+    const originalExecutor=createOriginalExecutorController();
+    registerBrowserPublicationTools(server,undefined,originalExecutor.preparation,originalExecutor.legacy);
     registerXNativeTools(server);
     // 1. Intelligence & Agent manifest tools
     registerIntelligenceTools(server);

@@ -2,6 +2,8 @@ import {authorizeBrowserPublication,ownerBrowserInstructionSchema} from '../../s
 import {createPublicationRecoveryApplication} from '../../services/browser_recovery_application';
 import type {BrowserRecoveryOperation} from '../../services/browser_recovery_runtime';
 import {createPreparationRecovery} from '../../services/browser_preparation_recovery';
+import {createLegacyBrowserRecovery} from '../../services/legacy_browser_recovery';
+import {registerLegacyBrowserRecoveryTools} from './legacy_browser_recovery_tools';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { browserRequestSchema } from '../../services/browser_publication_contract';
 import { browserClaimSchema,browserBoundarySchema,browserObservedSchema } from '../../services/browser_publication_guard';
@@ -14,7 +16,8 @@ import { INTERNAL_MUTATION_ANNOTATIONS } from './common';
 import { publicationDiagnosticResult } from './publication_diagnostic_result';
 import { browserErrorDiagnostic,browserResultProjection } from '../../services/browser_actionable_diagnostics';
 /** Shared owner-bound controls; admitted recovery may perform bounded provider reads and canonical finalization, never submission. */
-export function registerBrowserPublicationTools(server:McpServer,recovery:BrowserRecoveryOperation=createPublicationRecoveryApplication(),preparation=createPreparationRecovery()):void {
+export function registerBrowserPublicationTools(server:McpServer,recovery:BrowserRecoveryOperation=createPublicationRecoveryApplication(),preparation=createPreparationRecovery(),legacy=createLegacyBrowserRecovery()):void {
+    registerLegacyBrowserRecoveryTools(server,legacy);
     server.registerTool('ba_authorize_browser_publication',{description:'Owner-only one additional browser publication despite UNKNOWN or provider duplicate risk. Preserves old attempts; Publisher consumes authority but cannot mint it. Preview by default; no provider call.',annotations:INTERNAL_MUTATION_ANNOTATIONS,inputSchema:ownerBrowserInstructionSchema.shape},async args=>publicationDiagnosticResult('browser',()=>authorizeBrowserPublication(args),browserErrorDiagnostic));
     server.registerTool('ba_inspect_browser_publication',{
         description:'Read-only owner preview of an exact accepted LinkedIn image or canonical NO_VISUAL_NEEDED text-only post, Setka image post or DEV.to article-cover package. No release, send or independent provider verification.',
