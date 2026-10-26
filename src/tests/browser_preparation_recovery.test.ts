@@ -22,15 +22,17 @@ test('PREP-06 first-permit admission cannot bypass generic writers or canonical 
   await guard.assertBrowserRecoveryWriter(tx,scope,{kind:'first_permit',attemptId:3,generation:0});
  });}finally{if(prior===undefined)delete process.env.BROWSER_RECOVERY_V2_ENABLED;else process.env.BROWSER_RECOVERY_V2_ENABLED=prior;}
 });
-test('PREP-10 actual registered uncertainty handler wires preparation ahead of generic recovery serialization',async()=>{
+test('PREP-10 registered uncertainty handler keeps generic preparation routing when no terminal generation exists',async()=>{
  const {registerBrowserPublicationTools}=await import('../mcp/tools/browser_publication_tools');
  const execution=require('../services/browser_publication_execution') as typeof import('../services/browser_publication_execution');
  const original=execution.markBrowserSubmissionUncertain,handlers=new Map<string,(input:unknown)=>Promise<unknown>>();let invoked=false;
  const server={registerTool(name:string,_configuration:unknown,handler:(input:unknown)=>Promise<unknown>){handlers.set(name,handler);}};
  const preparation=resume.createPreparationRecovery();
+ let terminalChecked=false;
+ const terminal={generation:async()=>{terminalChecked=true;return null;}} as unknown as NonNullable<Parameters<typeof registerBrowserPublicationTools>[4]>;
  preparation.operation=async()=>{invoked=true;return {state:'reconciliation_required',submission_permitted:false,retry_allowed:false,recovery:{code:'PRE_DISPATCH_PROOF_UNAVAILABLE'}};};
  execution.markBrowserSubmissionUncertain=async(input,_deps,_native,_reader,prepare)=>{assert.equal(typeof prepare,'function');return (await prepare!(input))!;};
- try{registerBrowserPublicationTools(server as unknown as Parameters<typeof registerBrowserPublicationTools>[0],undefined,preparation);const result=await handlers.get('ba_mark_browser_submission_uncertain')!({});const serialized=JSON.stringify(result);assert.equal(invoked,true);assert.ok(serialized.includes('PRE_DISPATCH_PROOF_UNAVAILABLE'));assert.ok(serialized.includes('action'));assert.equal(serialized.includes('leaseToken'),false);}finally{execution.markBrowserSubmissionUncertain=original;}
+ try{registerBrowserPublicationTools(server as unknown as Parameters<typeof registerBrowserPublicationTools>[0],undefined,preparation,undefined,terminal);const result=await handlers.get('ba_mark_browser_submission_uncertain')!({});const serialized=JSON.stringify(result);assert.equal(terminalChecked,true);assert.equal(invoked,true);assert.ok(serialized.includes('PRE_DISPATCH_PROOF_UNAVAILABLE'));assert.ok(serialized.includes('action'));assert.equal(serialized.includes('leaseToken'),false);}finally{execution.markBrowserSubmissionUncertain=original;}
 });
 test('PREP-04 unclassified dependency failure has a safe investigation path without inventing a conflict',async()=>{
  const service=resume.createPreparationRecovery({deps:{db:{$transaction:async()=>{throw Error('private-database-token');}}} as unknown as NonNullable<Parameters<typeof resume.createPreparationRecovery>[0]>['deps'],supervisor:{executorId:'synthetic-supervisor',supports:()=>true,quiesce:async()=>{throw Error('must-not-quiesce');}}});
