@@ -235,3 +235,23 @@ test('004 Telegram review recovery is atomic and never accepts or releases a dra
     assert.equal(await db.deliveryAttempt.count({where:{content_item_id:task.id}}),0);
     assert.equal(await db.publicationFact.count({where:{content_item_id:task.id}}),0);
 });
+
+test('PostgreSQL JSONB identity ordering permits audited current-manifest repair without rebinding',async t=>{
+    const{args,user}=await setup(t);
+    await db.socialChannel.update({where:{id:args.snapshot.channelId},data:{name:'Synthetic renamed display label'}});
+    args.snapshot.manifestChecksum=(await manifest(args.projectId,user.id)).checksum;
+    const before=await db.contentItem.findUnique({where:{id:args.taskId}});
+    const originalIdentity=before.quality_report.browser_identity_binding.identity;
+    assert.deepEqual(originalIdentity,args.snapshot.identity);
+    const repair={...args,idempotencyKey:'jsonb-same-identity-repair'};
+    await release.repairBrowserPublicationMetadata({...repair,apply:false},deps);
+    const result=await release.repairBrowserPublicationMetadata(repair,deps);
+    assert.equal(result.applied,true);assert.deepEqual(result.identity_binding.identity,originalIdentity);
+    const after=await db.contentItem.findUnique({where:{id:args.taskId}});
+    for(const key of ['draft_text','content_revision','accepted_revision','schedule_at','publish_at','channel_id','selected_asset_id'])
+        assert.deepEqual(after[key],before[key],key);
+    assert.equal(await db.deliveryAttempt.count({where:{content_item_id:args.taskId}}),0);
+    await release.releaseBrowserPublication({...args,idempotencyKey:'jsonb-refreshed-release'},deps);
+    assert.equal(await db.workItem.count({where:{content_item_id:args.taskId,kind:'browser_publish'}}),1);
+    assert.equal(await db.workflowEvent.count({where:{content_item_id:args.taskId,command:'ba_repair_browser_publication_metadata',idempotency_key:repair.idempotencyKey}}),1);
+});

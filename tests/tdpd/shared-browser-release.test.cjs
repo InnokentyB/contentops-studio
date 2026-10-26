@@ -71,3 +71,57 @@ test('S2 token-bound outer project/task cannot hide a different tenant in the sn
     args.snapshot.projectId=args.projectId;args.snapshot.taskId=999;
     await assert.rejects(svc.inspectBrowserPublication(args,f),/SCOPE_MISMATCH/);
 });
+
+test('identity metadata repair ignores JSON key order and refreshes only the current package snapshot',async()=>{
+    const f=fixture();await prepared(f);
+    const identity=f.state.task.quality_report.browser_identity_binding.identity;
+    f.state.task.quality_report.browser_identity_binding.identity=Object.fromEntries(Object.entries(identity).reverse());
+    f.state.manifest='sha256:'+'e'.repeat(64);
+    const args=structuredClone(request);args.snapshot.manifestChecksum=f.state.manifest;
+    args.idempotencyKey='same-identity-current-package';args.apply=true;
+    const before=structuredClone(f.state);
+    assert.equal((await svc.repairBrowserPublicationMetadata({...args,apply:false},f)).applied,false);
+    assert.deepEqual(f.state,before);
+    const result=await svc.repairBrowserPublicationMetadata(args,f);
+    assert.equal(result.applied,true);assert.deepEqual(result.identity_binding.identity,identity);
+    for(const key of ['draft_text','content_revision','accepted_revision','schedule_at','publish_at','channel_id','selected_asset','art_direction_decisions'])
+        assert.deepEqual(f.state.task[key],before.task[key],key);
+    assert.equal(f.state.attempts.length,0);assert.equal(f.state.fact,null);
+    assert.equal((await svc.releaseBrowserPublication({...args,idempotencyKey:'release-refreshed-package'},f)).applied,true);
+    assert.equal(f.state.work.length,1);assert.equal(f.state.attempts.length,0);
+});
+test('identity equality still rejects every changed field, missing field and unrecognized field atomically',async()=>{
+    const cases=[...Object.keys(snapshot.identity).map(key=>identity=>{identity[key]+='changed';}),
+        identity=>{delete identity.accountRef;},identity=>{identity.unrecognized='not-authorized';}];
+    for(const mutate of cases){const f=fixture();await prepared(f);
+        mutate(f.state.task.quality_report.browser_identity_binding.identity);
+        const before=structuredClone(f.state);
+        await assert.rejects(svc.repairBrowserPublicationMetadata({...request,apply:true,idempotencyKey:'identity-conflict'},f),/BROWSER_IDENTITY_BINDING_CONFLICT/);
+        assert.deepEqual(f.state,before);
+    }
+});
+test('reordered identity repair retains owner, delivery-history, CAS and audit rollback guards',async()=>{
+    for(const mode of ['owner','attempt','cas','audit']){
+        const f=fixture();await prepared(f);
+        const b=f.state.task.quality_report.browser_identity_binding;
+        b.identity=Object.fromEntries(Object.entries(b.identity).reverse());
+        if(mode==='owner')f.state.owner=false;
+        if(mode==='attempt')f.state.attempts.push({id:1,project_id:7,content_item_id:1136,status:'pending'});
+        if(mode==='cas')f.db.contentItem.updateMany=async()=>({count:0});
+        if(mode==='audit')f.state.failAudit=true;
+        const before=structuredClone(f.state);
+        await assert.rejects(svc.repairBrowserPublicationMetadata({...request,apply:true,idempotencyKey:'guarded-repair'},f));
+        assert.deepEqual(f.state,before,mode);
+    }
+});
+test('ordinary X preserves its historical Registry identity while repairing reordered package metadata',async()=>{
+    const{f,args}=require('./shared-x-native.fixture.cjs').xFixture();
+    await svc.repairBrowserPublicationMetadata({...args,apply:true,idempotencyKey:'x-initial'},f);
+    const original=structuredClone(args.snapshot.identity),b=f.state.task.quality_report.browser_identity_binding;
+    b.identity=Object.fromEntries(Object.entries(b.identity).reverse());
+    f.state.manifest='sha256:'+'e'.repeat(64);args.snapshot.manifestChecksum=f.state.manifest;
+    const r=await svc.repairBrowserPublicationMetadata({...args,apply:true,idempotencyKey:'x-current-manifest'},f);
+    assert.deepEqual(r.identity_binding.identity,original);
+    await svc.releaseBrowserPublication({...args,apply:true,idempotencyKey:'x-refreshed-release'},f);
+    assert.equal(f.state.work.length,1);assert.equal(f.state.attempts.length,0);assert.equal(f.state.fact,null);
+});

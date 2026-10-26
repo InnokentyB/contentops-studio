@@ -10,6 +10,16 @@ context; no new executor, credentials, account or browser rights.
 
 ## Exact current package as data
 
+Identity equality compares JSON field names and values, not serialization order.
+An audited metadata repair may refresh the current package/manifest snapshot
+while preserving the adopted identity exactly. Every identity field, including
+historical Registry reference and evidence hash, remains immutable under this
+repair; missing, extra or changed fields still conflict. Re-read current Registry
+and the live provider account before execution. Historical evidence is never
+relabeled as a newer Registry snapshot. Owner, no-delivery-history, CAS, audit and
+accepted-package checks remain mandatory.
+
+
 Read the owning task, current manifest, Registry and durable asset before apply.
 For the first urgent consumer, readback on 2026-10-17 confirmed project7/task1136,
 accepted revision5, decision327/version4, asset166, unchanged dates and no fact.

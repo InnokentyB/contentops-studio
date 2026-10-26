@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { isDeepStrictEqual } from 'node:util';
 import { browserMetadataRepairContext } from './browser_publication_metadata';
 import { browserRequestSchema, BrowserDependencies, browserDefaults, checkedBrowserContext,
     browserPrior, browserCas, browserFingerprint, snapshotHash, hash, object,
@@ -39,7 +40,7 @@ export async function repairBrowserPublicationMetadata(input:unknown,deps:Browse
                 mismatches:context.mismatches,body_sha256:args.snapshot.bodySha256,asset_sha256:args.snapshot.assetSha256},
             publication_authorized:false,provider_called:false,replayed:false};
         if(!args.apply)return result;
-        if(quality.browser_identity_binding&&JSON.stringify(object(quality.browser_identity_binding).identity)!==JSON.stringify(binding.identity))
+        if(quality.browser_identity_binding&&!isDeepStrictEqual(object(quality.browser_identity_binding).identity,binding.identity))
             throw new Error('[BROWSER_IDENTITY_BINDING_CONFLICT]');
         const changed=await tx.contentItem.updateMany({where:browserCas(task),data:{quality_report:{...quality,
             content_language:args.snapshot.contentLanguage,browser_identity_binding:binding,
