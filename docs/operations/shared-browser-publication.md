@@ -67,7 +67,7 @@ state and the exact active, same-tenant/task/channel/feed/revision/version art
 decision must both say `NO_VISUAL_NEEDED`, with no selected asset and no required
 visual mode. The full identity, manifest, accepted body and date bindings remain
 mandatory. LinkedIn text must be nonempty and at most 3,000 characters; X keeps
-its separate 280-character limit and signed-native execution boundary.
+its separate 280-character limit and governed browser execution boundary.
 
 For this package the native observation must contain zero attached images and
 `observedAssetSha256:null`; an unexpected image rejects pre-submit/confirmation.
@@ -139,3 +139,23 @@ reset, baseline widening or automatic metadata/data rollback.
 Engineering tests do not establish live browser readiness or owner UAT. Require
 checked deployment, production control-plane readback and the owning Publisher's
 actual no-send gate before the one authorized publication.
+
+## Ordinary X browser route
+
+For newly started X attempts the ordinary authenticated browser is supported
+without a native extension. Use the existing exact release -> claim -> start ->
+preSubmit -> one Post -> confirm controls. Start returns
+`execution_source: governed_x_browser_v1` and never grants Submit. Keep the
+original start idempotency key and lease across stages. Fresh actual readback
+must establish the exact Registry account/profile, accepted paragraph/body
+hashes, zero images and duplicate absence; X permits expire after15seconds and
+replay never grants another click. Confirm only the actual matching native
+status URL/ID/time. Executor observations are not independent provider proof.
+
+On uncertain result freeze the same attempt, do not start or click again; use
+read-only native-object reconciliation. Old signed-extension attempts cannot
+move into the ordinary route and new ordinary attempts cannot move into the
+extension route. Diagnostics report the persisted execution source. If source
+binding cannot be verified, preserve history and repair the original binding;
+never create a replacement attempt to evade that check. A canonical fact blocks
+subsequent delivery through another transport.

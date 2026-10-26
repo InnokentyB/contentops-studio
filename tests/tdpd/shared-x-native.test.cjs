@@ -52,9 +52,8 @@ test('X mixed-case identity disagreement is rejected before release or provider 
     await assert.rejects(release.inspectBrowserPublication(args,f),/BROWSER_IDENTITY_INVALID/);
     assert.deepEqual(f.state,before);assert.equal(f.state.attempts.length,0);
 });
-test('raw generic X start cannot create an attempt; internal gate failure rolls back its own writes',async()=>{
+test('optional X signed gate failure still rolls back its own writes',async()=>{
     const{f,send}=await ready();const before=structuredClone(f.state);
-    await assert.rejects(exec.startBrowserSubmission(send,f),/BROWSER_NATIVE_RECEIPT_REQUIRED/);
     await assert.rejects(exec.startBrowserSubmission(send,f,async()=>{
         f.state.events.push({command:'must-rollback'});throw Error('synthetic signature rejected');}),/signature rejected/);
     assert.deepEqual(f.state,before);assert.equal(f.state.attempts.length,0);
@@ -80,7 +79,7 @@ test('X confirm/reconcile reject raw caller observations; signed result keeps na
     const before=structuredClone(f.state);
     await assert.rejects(confirm.confirmBrowserSubmission(a,f,writer(f)),/BROWSER_NATIVE_RECEIPT_REQUIRED/);
     const{leaseToken,...r}=a;
-    await assert.rejects(confirm.reconcileBrowserSubmission(r,f,writer(f)),/BROWSER_NATIVE_RECEIPT_REQUIRED/);
+    await assert.rejects(confirm.reconcileBrowserSubmission(r,f,writer(f)),/BROWSER_RECONCILIATION_NOT_REQUIRED/);
     assert.deepEqual(f.state,before);
     const result=await confirm.confirmBrowserSubmission(a,f,writer(f),gate);
     assert.equal(result.public_url,a.publicUrl);assert.equal(f.state.attempts[0].status,'delivered');

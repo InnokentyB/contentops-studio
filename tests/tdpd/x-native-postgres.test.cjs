@@ -207,3 +207,62 @@ test('explicit Owner instruction scopes native start and advance to the new atte
  assert.equal((await execution.executeNativeReceipt(s.receipt(stage.challenge),deps,origin)).submission_permitted,true);
  assert.deepEqual(await db.deliveryAttempt.findUnique({where:{id:old.id}}),retained);
 });
+
+// Ordinary route uses the same durable lifecycle without installing an extension.
+test('PostgreSQL ordinary X start/permit source persists; concurrent permit grants at most once',async t=>{
+ const s=await setup(t);
+ assert.equal(await db.projectSettings.count({where:{project_id:s.args.projectId,key:{startsWith:'x_native:installation:'}}}),0);
+ const r=await release.releaseBrowserPublication(s.args,deps),workItemId=r.browser_work_item_id;
+ const l=await lifecycle.claimBrowserPublication({...s.args,workItemId,idempotencyKey:'ordinary-claim'},deps);
+ const a={...s.args,workItemId,leaseToken:l.lease_token,idempotencyKey:'ordinary-send'};
+ const started=await lifecycle.startBrowserSubmission(a,deps);
+ assert.equal(started.execution_source,'governed_x_browser_v1');
+ const o={...a,attemptId:started.attempt_id,observedProfileUrl:a.snapshot.identity.profileUrl,
+ observedProviderAccountId:a.snapshot.identity.providerAccountId,observedAccountType:'personal',observedBodySha256:sha(body),
+ observedAssetSha256:null,paragraphBlockSha256:body.split(/\n\s*\n/).map(p=>sha(p.trim())),attachedImageCount:0,duplicateAbsent:true,evidenceSha256:'d'.repeat(64)};
+ const results=await Promise.allSettled([lifecycle.preSubmitBrowserSubmission(o,deps),lifecycle.preSubmitBrowserSubmission(o,deps)]);
+ assert.equal(fulfilled(results).filter(r=>r.value.submission_permitted).length,1);
+ assert.equal((await lifecycle.preSubmitBrowserSubmission(o,deps)).submission_permitted,false);
+ const audit=await db.workflowEvent.findFirst({where:{project_id:a.projectId,content_item_id:a.taskId,command:'ba_start_browser_submission'}});
+ assert.equal(audit.after_state.execution_source,'governed_x_browser_v1');
+ await assert.rejects(lifecycle.preSubmitBrowserSubmission(o,deps,async()=>{}),/BROWSER_NATIVE_POLICY_MISMATCH/);
+ await lifecycle.markBrowserSubmissionUncertain({...a,attemptId:started.attempt_id,reasonCode:'PROVIDER_RESULT_UNCERTAIN'},deps);
+ await assert.rejects(lifecycle.preSubmitBrowserSubmission(o,deps));
+ await assert.rejects(lifecycle.startBrowserSubmission({...a,idempotencyKey:'forbidden-new-start'},deps));
+ assert.equal(await db.deliveryAttempt.count({where:{project_id:a.projectId,content_item_id:a.taskId}}),1);
+ assert.equal(await db.publicationFact.count({where:{project_id:a.projectId,content_item_id:a.taskId}}),0);
+});
+
+test('PostgreSQL SDK Publisher transport binds actor/project and serializes ordinary X lifecycle through fact',async t=>{
+ const s=await setup(t),r=await release.releaseBrowserPublication(s.args,deps),workItemId=r.browser_work_item_id;
+ // Full MCP composition imports Telegram even though this synthetic test never calls it.
+ const priorToken=process.env.TELEGRAM_BOT_TOKEN;
+ let createPlannerMcpServer;
+ try{process.env.TELEGRAM_BOT_TOKEN=priorToken||'synthetic-x-sdk-no-provider-token';
+  ({createPlannerMcpServer}=require(path.join(base,'mcp/shared.js')));
+ }finally{if(priorToken===undefined)delete process.env.TELEGRAM_BOT_TOKEN;else process.env.TELEGRAM_BOT_TOKEN=priorToken;}
+ const {Client}=require('@modelcontextprotocol/sdk/client/index.js'),{InMemoryTransport}=require('@modelcontextprotocol/sdk/inMemory.js');
+ const {scopeRemoteMcpRequest}=require(path.join(base,'mcp/remote-auth.js'));
+ const {withPublicationPrincipal}=require(path.join(base,'mcp/publication-principal.js'));
+ const principal={userId:Number(s.args.actorId.slice(5)),actorId:s.args.actorId,projectId:s.args.projectId,profile:'publisher'};
+ const server=createPlannerMcpServer({profile:'publisher',principal}),client=new Client({name:'synthetic-x-browser',version:'1'}),[a,b]=InMemoryTransport.createLinkedPair();
+ try{
+  await server.connect(a);await client.connect(b);const receive=a.onmessage;
+  a.onmessage=message=>{const scoped=scopeRemoteMcpRequest(message,principal);if(!scoped.allowed){void a.send({jsonrpc:'2.0',id:message.id,error:{code:-32001,message:'PROJECT_SCOPE_MISMATCH'}});return;}return withPublicationPrincipal(principal,()=>receive(scoped.body));};
+  const call=async(name,args)=>{const result=await client.callTool({name,arguments:args});assert.equal(result.isError,false,JSON.stringify(result));return JSON.parse(result.content[0].text);};
+  await assert.rejects(client.callTool({name:'ba_claim_browser_publication',arguments:{...s.args,projectId:s.args.projectId+100000,workItemId}}),/PROJECT_SCOPE_MISMATCH/);
+  const l=await call('ba_claim_browser_publication',{...s.args,actorId:'user:999999',workItemId,idempotencyKey:'sdk-claim'});
+  const context={...s.args,actorId:'user:999999',workItemId,leaseToken:l.lease_token,idempotencyKey:'sdk-send'};
+  const started=await call('ba_start_browser_submission',context);assert.equal(started.execution_source,'governed_x_browser_v1');assert.equal(started.submission_permitted,false);
+  const o={...context,attemptId:started.attempt_id,observedProfileUrl:s.args.snapshot.identity.profileUrl,observedProviderAccountId:s.args.snapshot.identity.providerAccountId,observedAccountType:'personal',observedBodySha256:sha(body),observedAssetSha256:null,paragraphBlockSha256:body.split(/\n\s*\n/).map(p=>sha(p.trim())),attachedImageCount:0,duplicateAbsent:true,evidenceSha256:'d'.repeat(64)};
+  assert.equal((await call('ba_pre_submit_browser_submission',o)).submission_permitted,true);
+  assert.equal((await call('ba_pre_submit_browser_submission',o)).submission_permitted,false);
+  const result=await call('ba_confirm_browser_submission',{...o,publicUrl:s.args.snapshot.identity.profileUrl+'/status/987654321',providerObjectId:'987654321',publishedAt:new Date().toISOString()});
+  assert.equal(result.provider_object_id,'987654321');
+  const fact=await db.publicationFact.findUnique({where:{content_item_id:s.args.taskId}});assert.equal(fact.provider_object_id,'987654321');
+  assert.equal(await db.deliveryAttempt.count({where:{content_item_id:s.args.taskId}}),1);
+  const startAudit=await db.workflowEvent.findFirst({where:{project_id:s.args.projectId,content_item_id:s.args.taskId,command:'ba_start_browser_submission'}});
+  assert.equal(startAudit.actor_id,principal.actorId);
+  assert.equal((await db.workItem.findUnique({where:{id:workItemId}})).lease_token,null);
+ }finally{await client.close();await server.close();}
+});

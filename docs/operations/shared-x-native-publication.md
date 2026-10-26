@@ -217,3 +217,14 @@ pairing flow:
 This packet does not authorize engineering to send. Sole Ops then follows the
 existing exact-package release/claim lifecycle. A started/uncertain attempt is
 reconciliation-only, including across bundle changes.
+
+## Owner route decision —26October2026
+
+The signed extension is optional. New ordinary X publications use the existing
+shared browser controls without installation or a fabricated receipt. See
+shared-browser-publication.md. The server records `governed_x_browser_v1` or
+`signed_x_extension_v1` in the start audit. A pending attempt cannot switch
+routes; legacy unlabelled X starts remain signed-extension attempts. Extension
+pairing, enrollment, signature verification and revocation are unchanged for
+operators who deliberately use that route. Absence of an installation is not a
+blocker for a new ordinary browser attempt. UNKNOWN never permits another Post.

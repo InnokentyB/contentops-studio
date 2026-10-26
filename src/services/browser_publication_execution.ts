@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { BrowserDependencies,browserDefaults,hash,object,requireBrowserOwner,browserPrior } from './browser_publication_contract';
 import { browserClaimSchema,browserBoundarySchema,browserObservedSchema,checkedBrowserRelease,
     assertBrowserLease,checkedBrowserAttempt,assertBrowserObserved,browserObservationHash } from './browser_publication_guard';
-import { assertBrowserNativeAdmission,requireBrowserNativeGate,type NativeGate } from './browser_publication_native';
+import { assertBrowserNativeAdmission,requireBrowserNativeGate,requireBrowserExecutionSource,browserExecutionSource,type NativeGate } from './browser_publication_native';
 const serial={isolationLevel:Prisma.TransactionIsolationLevel.Serializable};
 
 /** Claim only a released item. Before an attempt, an expired lease may be reclaimed; after start it cannot. */
@@ -59,7 +59,8 @@ export async function startBrowserSubmission(input:unknown,deps:BrowserDependenc
             status:'browser_required',content_revision:args.snapshot.contentRevision,publication_mode:'browser_required'},data:{status:'publishing'}});
         if(changed.count!==1)throw new Error('[BROWSER_START_CAS_CONFLICT]');
         if(preparation)await preparation(tx,args,attempt.id);
-        const result={status:'started',attempt_id:attempt.id,submission_permitted:false,retry_allowed:false,replayed:false};
+        const source=browserExecutionSource(args,nativeGate);
+        const result={status:'started',attempt_id:attempt.id,...(source?{execution_source:source}:{}),submission_permitted:false,retry_allowed:false,replayed:false};
         await tx.workflowEvent.create({data:{project_id:args.projectId,content_item_id:args.taskId,work_item_id:work.id,
             actor_id:args.actorId,command,idempotency_key:args.idempotencyKey,
             before_state:{request_hash:hash(JSON.stringify(args))},after_state:result}});
@@ -75,6 +76,7 @@ export async function preSubmitBrowserSubmission(input:unknown,deps:BrowserDepen
         const {task,work}=await checkedBrowserRelease(tx,args,deps,preparationWriterPurpose(tx,args));assertBrowserLease(work,args);
         if(task.status!=='publishing')throw new Error('[BROWSER_NOT_STARTED]');
         const attempt=await checkedBrowserAttempt(tx,args);
+        await requireBrowserExecutionSource(tx,args,nativeGate);
         if(attempt.error_message&&!isBrowserPreparationWriter(tx,args))throw new Error('[BROWSER_RECONCILIATION_REQUIRED]');
         const instruction=await instructionForRequest(tx,args);
         assertBrowserObserved(task.draft_text!,args,Boolean(instruction));

@@ -27,12 +27,17 @@ export async function diagnoseBrowserPublication(input:unknown,deps:BrowserDepen
         const body=object(object(quality.handoff_bundle).publication).body;
         const mismatches=args.expectedSnapshot?browserSnapshotMismatches(task,args.expectedSnapshot):null;
         const assetHash=checksum.safeParse(object(object(task.selected_asset?.provenance).planner_storage).sha256);
+        const starts=task.channel?.type==='x'?await tx.workflowEvent.findMany({where:{project_id:args.projectId,
+            content_item_id:args.taskId,command:'ba_start_browser_submission'},select:{after_state:true},take:101}):[];
+        const executionSource=(id:number)=>{const start=starts.find(e=>object(e.after_state).attempt_id===id);
+            const source=object(start?.after_state).execution_source;
+            return start?(source==='governed_x_browser_v1'?source:source===undefined||source==='signed_x_extension_v1'?'signed_x_extension_v1':'unverified'):'unverified';};
         return {project_id:args.projectId,task_id:args.taskId,channel_id:task.channel_id,status:task.status,
             content_revision:task.content_revision,accepted_revision:task.accepted_revision,body_sha256:hash(task.draft_text||''),
             selected_asset_id:task.selected_asset_id,asset_sha256:assetHash.success?assetHash.data:null,
             schedule_at:task.schedule_at,publish_at:task.publish_at,
             content_language:quality.content_language||null,handoff_language:object(quality.handoff_bundle).content_language||null,
-            release_snapshot:release.snapshot||null,attempts:attempts.map(a=>({id:a.id,status:a.status,requires_manual_confirmation:a.requires_manual_confirmation,created_at:a.created_at,actual_published_at:a.actual_published_at})),
+            release_snapshot:release.snapshot||null,attempts:attempts.map(a=>({id:a.id,status:a.status,requires_manual_confirmation:a.requires_manual_confirmation,created_at:a.created_at,actual_published_at:a.actual_published_at,...(task.channel?.type==='x'?{execution_source:executionSource(a.id)}:{})})),
             browser_work_items:work.map(({lease_actor_id:privateActor,...safe})=>safe),execution_state:preparation,
             recovery,
             persisted_handoff:{bundle_present:quality.handoff_bundle!==undefined,
