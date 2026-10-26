@@ -235,7 +235,12 @@ test('PostgreSQL ordinary X start/permit source persists; concurrent permit gran
 
 test('PostgreSQL SDK Publisher transport binds actor/project and serializes ordinary X lifecycle through fact',async t=>{
  const s=await setup(t),r=await release.releaseBrowserPublication(s.args,deps),workItemId=r.browser_work_item_id;
- const {createPlannerMcpServer}=require(path.join(base,'mcp/shared.js'));
+ // Full MCP composition imports Telegram even though this synthetic test never calls it.
+ const priorToken=process.env.TELEGRAM_BOT_TOKEN;
+ let createPlannerMcpServer;
+ try{process.env.TELEGRAM_BOT_TOKEN=priorToken||'synthetic-x-sdk-no-provider-token';
+  ({createPlannerMcpServer}=require(path.join(base,'mcp/shared.js')));
+ }finally{if(priorToken===undefined)delete process.env.TELEGRAM_BOT_TOKEN;else process.env.TELEGRAM_BOT_TOKEN=priorToken;}
  const {Client}=require('@modelcontextprotocol/sdk/client/index.js'),{InMemoryTransport}=require('@modelcontextprotocol/sdk/inMemory.js');
  const {scopeRemoteMcpRequest}=require(path.join(base,'mcp/remote-auth.js'));
  const {withPublicationPrincipal}=require(path.join(base,'mcp/publication-principal.js'));
