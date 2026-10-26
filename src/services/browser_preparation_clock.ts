@@ -7,11 +7,17 @@ export async function replacePreparationClock(tx:BrowserDb,stored:{project_id:nu
  if(prior.permitIssued||prior.dispatchStarted||next.permitIssued||next.dispatchStarted
   ||prior.generation!==next.generation||prior.projectId!==next.projectId||prior.attemptId!==next.attemptId
   ||prior.taskId!==next.taskId||prior.workItemId!==next.workItemId)return conflict();
- for(const ledger of [prior,next]){
+ const width=(ledger:PreparationLedger):number|null=>{
   if((ledger.startedAtMs===null)!==(ledger.deadlineMs===null))return conflict();
-  if(ledger.startedAtMs!==null&&(!Number.isFinite(ledger.startedAtMs)||!Number.isFinite(ledger.deadlineMs)
-   ||ledger.deadlineMs!-ledger.startedAtMs!==180000))return conflict();
- }
+  if(ledger.startedAtMs===null)return null;
+  const duration=ledger.deadlineMs!-ledger.startedAtMs;
+  if(!Number.isFinite(ledger.startedAtMs)||!Number.isFinite(ledger.deadlineMs)||duration<=0||duration>180000)return conflict();
+  return duration;
+ };
+ const oldWidth=width(prior),newWidth=width(next);
+ if(oldWidth===null){if(newWidth!==null&&newWidth!==180000)return conflict();}
+ else if(newWidth!==oldWidth||next.startedAtMs!<prior.startedAtMs!)return conflict();
+ if(next.resumptions<prior.resumptions||next.resumptions>prior.resumptions+1)return conflict();
  const row=await tx.browserDeliveryRecovery.findUnique({where:{project_id_attempt_id:{project_id:prior.projectId,attempt_id:prior.attemptId}}});
  if(!row||row.content_item_id!==prior.taskId||row.work_item_id!==prior.workItemId||row.execution_generation!==prior.generation
   ||row.stage!=='PREPARE'||row.delivery_certainty!=='NOT_DISPATCHED'

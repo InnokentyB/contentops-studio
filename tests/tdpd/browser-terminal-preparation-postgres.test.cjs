@@ -196,3 +196,39 @@ test('TERM-18 a different authorized Owner cannot replace the original Publisher
  assert.equal((await s.app.pickup({...s.scope,generation:1},s.publisher)).workItemId,s.workItemId);
  assert.equal(await db.deliveryAttempt.count({where:{content_item_id:s.task.id}}),1);
 });
+async function shorterTerminalActivity(t){
+ const s=await scenario(t);let time=Date.now();s.app=api.createTerminalPreparationRecovery({deps,clock:()=>time});await recover(s);
+ const pickup=await s.app.pickup({...s.scope,generation:1},s.publisher),{withPublicationPrincipal}=require(base+'/mcp/publication-principal.js');
+ const heartbeat=require(base+'/services/browser_preparation_heartbeat.js').createPreparationHeartbeat(deps,()=>time);
+ const input={projectId:s.scope.projectId,taskId:s.scope.taskId,attemptId:s.attemptId,workItemId:s.workItemId,actorId:s.publisher.actorId,idempotencyKey:pickup.idempotencyKey,leaseToken:pickup.leaseToken,generation:1};
+ await withPublicationPrincipal(s.publisher,()=>heartbeat.renew(input));
+ const key={project_id_attempt_id:{project_id:s.scope.projectId,attempt_id:s.attemptId}},read=async()=>({row:await db.browserDeliveryRecovery.findUnique({where:key}),stored:await db.browserPreparationExecution.findUnique({where:key})});
+ return{...s,input,key,read,clock:()=>time,expire:async()=>{time=(await db.workItem.findUnique({where:{id:s.workItemId}})).lease_expires_at.getTime()+1;}};
+}
+test('TERM-19 genuine shorter terminal admission credits only verified active time, preserving bound, counters and evidence expiry',async t=>{
+ const s=await shorterTerminalActivity(t),before=await s.read(),width=before.stored.ledger.deadlineMs-before.stored.ledger.startedAtMs;
+ assert(width>0&&width<180000);const evidence=await db.workflowEvent.findFirst({where:{project_id:s.project.id,command:'browser_terminal_execution_evidence'}});
+ await s.expire();await require(base+'/services/browser_preparation_liveness.js').closePreparationActivity(deps,s.input,'owner-reviewed-terminal-cua-v1',s.clock);
+ const after=await s.read(),active=before.stored.ledger.activeLiveness,credit=active.leaseExpiresAtMs-active.activatedAtMs;
+ assert.equal(after.row.started_at.getTime(),before.row.started_at.getTime()+credit);assert.equal(after.row.deadline_at.getTime(),before.row.deadline_at.getTime()+credit);
+ assert.equal(after.stored.ledger.startedAtMs,after.row.started_at.getTime());assert.equal(after.stored.ledger.deadlineMs,after.row.deadline_at.getTime());
+ assert.equal(after.stored.ledger.deadlineMs-after.stored.ledger.startedAtMs,width);assert.equal(after.stored.ledger.resumptions,before.stored.ledger.resumptions);
+ assert.equal(after.row.rounds,before.row.rounds);assert.equal(after.row.requests_used,before.row.requests_used);assert.equal(after.row.execution_generation,before.row.execution_generation);
+ assert.deepEqual(await db.workflowEvent.findUnique({where:{id:evidence.id}}),evidence);assert.equal(after.stored.ledger.activeLiveness,undefined);
+ const once=await s.read();await require(base+'/services/browser_preparation_liveness.js').closePreparationActivity(deps,s.input,'owner-reviewed-terminal-cua-v1',s.clock);assert.deepEqual(await s.read(),once);
+ assert.equal(await db.deliveryAttempt.count({where:{content_item_id:s.task.id}}),1);assert.equal(await db.publicationFact.count({where:{content_item_id:s.task.id}}),0);
+});
+test('TERM-20 shorter terminal clock credit and its audit roll back both durable records atomically',async t=>{
+ const s=await shorterTerminalActivity(t);await s.expire();const before=await s.read();let auditReached=false;
+ const bad={...deps,db:new Proxy(db,{get(target,key){if(key==='$transaction')return(run,options)=>target.$transaction(tx=>run(new Proxy(tx,{get(t,k){if(k==='workflowEvent')return new Proxy(t.workflowEvent,{get(w,m){if(m==='create')return async a=>{if(a.data.command==='browser_preparation_liveness_closed'){auditReached=true;throw Error('synthetic-short-clock-audit');}return w.create(a)};return w[m]}});return t[k]}})),options);return target[key]}})};
+ await assert.rejects(()=>require(base+'/services/browser_preparation_liveness.js').closePreparationActivity(bad,s.input,'owner-reviewed-terminal-cua-v1',s.clock),/synthetic-short-clock-audit/);
+ assert.equal(auditReached,true);assert.deepEqual(await s.read(),before);
+});
+test('TERM-21 invalid, mismatched or widened terminal clock bounds refuse without writes',async t=>{
+ const s=await shorterTerminalActivity(t),before=await s.read(),prior=before.stored.ledger,width=prior.deadlineMs-prior.startedAtMs;
+ const {replacePreparationClock}=require(base+'/services/browser_preparation_clock.js'),{preparationSerial}=require(base+'/services/browser_preparation_storage.js');
+ for(const delta of [-1,0,180001,width+1]){
+  const next={...prior,deadlineMs:prior.startedAtMs+delta};await assert.rejects(()=>db.$transaction(tx=>replacePreparationClock(tx,before.stored,prior,next),preparationSerial),/RECOVERY_CONFLICT/);assert.deepEqual(await s.read(),before);
+ }
+ const mismatched={...prior,startedAtMs:prior.startedAtMs+1,deadlineMs:prior.deadlineMs+1};await assert.rejects(()=>db.$transaction(tx=>replacePreparationClock(tx,before.stored,mismatched,mismatched),preparationSerial),/RECOVERY_CONFLICT/);assert.deepEqual(await s.read(),before);
+});
