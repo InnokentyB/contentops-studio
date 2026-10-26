@@ -1,0 +1,17 @@
+name: planner-terminal-source-observation
+services:
+  checks:
+    image: planner-original-cua-integration:20261025
+    platform: linux/amd64
+    user: '1000:1000'
+    entrypoint: [node, --test, /inspection/collect.test.cjs]
+    volumes: ['./:/inspection:ro']
+    read_only: true
+    network_mode: none
+    restart: 'no'
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 64
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    logging: {driver: json-file, options: {max-size: 1m, max-file: '2'}}

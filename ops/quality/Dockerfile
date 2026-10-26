@@ -19,6 +19,10 @@ COPY --chown=1000:1000 prisma ./prisma
 COPY --chown=1000:1000 frontend ./frontend
 COPY --chown=1000:1000 tsconfig.json prisma.config.ts ./
 COPY --chown=1000:1000 scripts/build_vk_connector_consumer.cjs ./scripts/build_vk_connector_consumer.cjs
+COPY --chown=1000:1000 ops/original-terminal-source/collect.cjs ./ops/original-terminal-source/collect.cjs
+COPY --chown=1000:1000 ops/terminal-operation-review/review.cjs ./ops/terminal-operation-review/review.cjs
+COPY --chown=1000:1000 ops/terminal-operation-review/native.cjs ./ops/terminal-operation-review/native.cjs
+COPY --chown=1000:1000 ops/terminal-external-census-20261026/census.cjs ./ops/terminal-external-census-20261026/census.cjs
 RUN mkdir -p node_modules/.prisma dist frontend/node_modules/.vite-temp \
     && chown 1000:1000 /opt/planner node_modules node_modules/.prisma node_modules/@prisma/engines node_modules/@prisma/client dist frontend frontend/node_modules frontend/node_modules/.vite-temp
 USER 1000:1000

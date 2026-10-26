@@ -1,0 +1,196 @@
+{
+  "version": 1,
+  "date": "2026-10-22",
+  "approval": "Owner direct reply call_9b383b5e13564f89a33d2c6cbf3d56e3 before scenarios",
+  "base_commit": "edef3a111d2ab4eb0b950f5ccde0ecf5828b13f2",
+  "branch": "codex/shared-browser-recovery-20261022",
+  "checked_source_sha256": "c9daf71d1c36cfe70a786a9ba57383d2a6cd5b709d04c4783a2f0f7de0cc57e9",
+  "checked_source_files": [
+    "ops/legacy-browser-recovery-tests/README.md",
+    "ops/legacy-browser-recovery-tests/compose.yaml",
+    "src/mcp/browser_publication_capabilities.ts",
+    "src/mcp/tools/browser_publication_tools.ts",
+    "src/mcp/tools/legacy_browser_recovery_tools.ts",
+    "src/services/browser_preparation_storage.ts",
+    "src/services/browser_recovery_coordinator.ts",
+    "src/services/browser_recovery_owner.ts",
+    "src/services/browser_recovery_repository.ts",
+    "src/services/legacy_browser_recovery.ts",
+    "src/services/legacy_browser_recovery_contract.ts",
+    "src/services/legacy_browser_recovery_diagnostics.ts",
+    "src/services/legacy_browser_recovery_scope.ts",
+    "src/services/legacy_browser_recovery_state.ts",
+    "src/tests/browser_actionable_diagnostics.test.ts",
+    "tests/tdpd/legacy-browser-recovery-postgres.test.cjs",
+    "tests/tdpd/shared-browser-mcp.test.cjs"
+  ],
+  "environment": "Tower Docker only; isolated synthetic PostgreSQL; no provider credentials/calls",
+  "runs": [
+    {
+      "run": "RED infrastructure",
+      "result": "ERROR",
+      "cause": "Automatic Docker subnet pool exhausted; fixed using dedicated internal subnet without changing existing networks"
+    },
+    {
+      "run": "RED boundary",
+      "result": "EXPECTED_FAIL",
+      "cause": "legacy_browser_recovery.js capability absent from reviewed baseline; existing shared Setka/recovery regression passed10/10"
+    },
+    {
+      "run": "build initial",
+      "result": "ERROR",
+      "cause": "Node default heap approximately1GiB exhausted; raised bounded build to4GiB/container and3072MiB heap"
+    },
+    {
+      "run": "build-green-01",
+      "result": "PASS"
+    },
+    {
+      "run": "postgres-green-01",
+      "result": "PASS",
+      "tests": 9
+    },
+    {
+      "run": "build-green-02",
+      "result": "PASS"
+    },
+    {
+      "run": "postgres-green-02",
+      "result": "PASS",
+      "tests": 13
+    },
+    {
+      "run": "build-green-03",
+      "result": "PASS"
+    },
+    {
+      "run": "postgres-green-03",
+      "result": "PASS",
+      "tests": 16
+    },
+    {
+      "run": "build-green-04",
+      "result": "PASS"
+    },
+    {
+      "run": "regressions-01",
+      "result": "FAIL",
+      "passed": 129,
+      "failed": 1,
+      "cause": "Existing test expected10 tools; approved database-only preview adds an11th tool. Updated exact count; retained redaction/no-mutation assertions and corrected new invalid-input MCP error flag."
+    },
+    {
+      "run": "build-green-05",
+      "result": "PASS"
+    },
+    {
+      "run": "build-green-06",
+      "result": "PASS"
+    },
+    {
+      "run": "regressions-02",
+      "result": "PASS",
+      "tests": 131,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "run": "quality-01",
+      "result": "PASS",
+      "baseline": 6823,
+      "hard_stops": 0
+    },
+    {
+      "run": "quality-02",
+      "result": "PASS",
+      "score": 77,
+      "baseline": 6823,
+      "hard_stops": 0
+    }
+  ],
+  "scenario_results": [
+    {
+      "scenario": "L01 preview is no-write and distinguishes missing legacy custody/runtime",
+      "result": "PASS"
+    },
+    {
+      "scenario": "L02 complete pre-permit custody resumes same attempt, replay and old writer fences",
+      "result": "PASS"
+    },
+    {
+      "scenario": "L03 an existing exact native object is finalized atomically, with read-only replay",
+      "result": "PASS"
+    },
+    {
+      "scenario": "L04 issued permission excludes adoption before any external call",
+      "result": "PASS"
+    },
+    {
+      "scenario": "L05 wrong challenge or incomplete reader remains UNKNOWN and never creates pickup",
+      "result": "PASS"
+    },
+    {
+      "scenario": "L06 simultaneous adopters cannot create two generations or readers",
+      "result": "PASS"
+    },
+    {
+      "scenario": "L07 authorization and tenant failures do not reserve or invoke capabilities",
+      "result": "PASS"
+    },
+    {
+      "scenario": "L07 demo Owner cannot adopt or pick up an already resumed generation",
+      "result": "PASS"
+    },
+    {
+      "scenario": "L04 active executor and additional history are explicit pre-read blockers",
+      "result": "PASS"
+    },
+    {
+      "scenario": "L05 uncounted or stale/wrong-account absence cannot establish no dispatch",
+      "result": "PASS"
+    },
+    {
+      "scenario": "L10 real MCP boundary is hidden by default and preserves profile/principal restrictions",
+      "result": "PASS"
+    },
+    {
+      "scenario": "L07 package change during reader is rejected before adoption and lease rotation",
+      "result": "PASS"
+    },
+    {
+      "scenario": "L08 new keys cannot reset failed read budget after process restart",
+      "result": "PASS"
+    },
+    {
+      "scenario": "L08 expired durable deadline and late quiescence never admit preparation",
+      "result": "PASS"
+    },
+    {
+      "scenario": "L07 permission or approval denial stays condition-specific and preserves history",
+      "result": "PASS"
+    },
+    {
+      "scenario": "L06 a late old permission or changed lease is rejected inside final adoption",
+      "result": "PASS"
+    },
+    {
+      "scenario": "L09 adoption audit failure rolls back proof, preparation and lease changes",
+      "result": "PASS"
+    }
+  ],
+  "evidence_root": "/home/innokenty/projects/ba-post-planner/ops/legacy-browser-recovery-20261022/evidence",
+  "production_writes": false,
+  "deployment": false,
+  "live_setka_reader_registered": false,
+  "live_setka_supervisor_registered": false,
+  "owner_uat": "PENDING",
+  "status": "LOCAL_CONTRACT_VERIFIED_LIVE_RUNTIME_BLOCKED",
+  "local_acceptance_tests": 17,
+  "regression_tests": 131,
+  "runtime_admission_gaps": [
+    "Supported owning-profile reader",
+    "Technical historical/offline executor quiescence and full custody",
+    "Authenticated existing-executor private pickup/permit/dispatch transport",
+    "Separately authorized live no-send smoke"
+  ]
+}

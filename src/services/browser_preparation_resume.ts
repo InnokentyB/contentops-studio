@@ -32,6 +32,7 @@ export async function recoverPreparation(input:unknown,deps:BrowserDependencies,
    await deps.db.$transaction(async tx=>{
     const loaded=await loadPreparation(tx,deps,args,supervisor.executorId),{ledger,state}=loaded;
     if(ledger.state!=='quiescing'||ledger.generation!==claim.ledger.generation||ledger.operationSha256!==operation||ledger.challengeSha256!==proof.data.challengeSha256||ledger.deadlineMs===null||now()>=ledger.deadlineMs||state.stage!=='PREPARE')throw new Error('[RECOVERY_CONFLICT]');
+    await supervisor.beforeQuiescenceCommit?.(tx,{...args,generation:ledger.generation,challengeSha256:proof.data.challengeSha256});
     await replacePreparation(tx,loaded.stored,{...ledger,state:'quiescent',proofSha256:proof.data.evidenceRef.slice(7)});
     await tx.deliveryAttempt.updateMany({where:{id:args.attemptId,project_id:args.projectId,content_item_id:args.taskId,status:'pending',error_message:null},data:{error_message:proof.data.failureKind,requires_manual_confirmation:true}});
     await tx.workflowEvent.create({data:{project_id:args.projectId,content_item_id:args.taskId,work_item_id:state.workItemId,actor_id:args.actorId,command:'browser_preparation_quiescent',after_state:{attempt_id:args.attemptId,generation:ledger.generation,evidence_sha256:proof.data.evidenceRef.slice(7),cause_code:proof.data.failureKind}}});

@@ -4,6 +4,7 @@ import { registerVkSearchTools } from './tools/vk_search_tools';
 import { registerReviewHandoffRepairTool } from './tools/review_handoff_repair_tool';
 import { registerLinkedIn1135Tools } from './tools/linkedin1135_tools';
 import { registerBrowserPublicationTools } from './tools/browser_publication_tools';
+import {createOriginalExecutorController} from '../services/browser_original_executor_controller';
 import { registerXNativeTools } from './tools/x_native_tools';
 import { registerPublicationPreviewTools } from './tools/publication_preview_tools';
 import { registerLinkedInApiTools } from './tools/linkedin_api_tools';
@@ -70,7 +71,7 @@ export function createPlannerMcpServer(options: { profile?: McpCapabilityProfile
             : `You are connected as the project-scoped ${profile} role. First call ba_get_agent_workspace_manifest without inventing identity fields, then ba_get_agent_chat_bootstrap for your matching chat. Follow returned permissions and handoffs. Never request, reveal, or copy bearer tokens. Publisher must obey release-readiness and approval gates and must never infer delivery success without a confirmed provider result.`
     });
 
-    registerPlannerTools(server);
+    registerPlannerTools(server,options.principal);
     registerPublicationPreviewTools(server, options.principal);
     registerLinkedInApiTools(server, options.principal);
     return filterMcpServerTools(server, profile);
@@ -81,10 +82,11 @@ export function createPlannerMcpServer(options: { profile?: McpCapabilityProfile
  *
  * @param server - Target MCP server instance.
  */
-export function registerPlannerTools(server: McpServer): void {
+export function registerPlannerTools(server: McpServer,principal?:Readonly<RemotePrincipal>|null): void {
     registerReviewHandoffRepairTool(server);
     registerLinkedIn1135Tools(server);
-    registerBrowserPublicationTools(server);
+    const originalExecutor=createOriginalExecutorController();
+    registerBrowserPublicationTools(server,undefined,originalExecutor.preparation,originalExecutor.legacy,undefined,principal);
     registerXNativeTools(server);
     // 1. Intelligence & Agent manifest tools
     registerIntelligenceTools(server);

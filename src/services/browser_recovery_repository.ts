@@ -9,11 +9,12 @@ const scopeSchema=z.object({projectId:z.number().int().positive(),taskId:z.numbe
 const serial={isolationLevel:Prisma.TransactionIsolationLevel.Serializable,maxWait:2000,timeout:10000};
 const reusable=new Set(['RECONCILIATION_NOT_FOUND','RECONCILIATION_TEMPORARILY_UNAVAILABLE','RECONCILIATION_CANCELLED']);
 /** Application-owned repository: every operation rechecks tenant ownership and immutable attempt scope. */
-export function createBrowserRecoveryRepository(deps:BrowserDependencies,actorId:string):BrowserRecoveryRepository {
+export function createBrowserRecoveryRepository(deps:BrowserDependencies,actorId:string,additionalOwnerGuard?:typeof requireBrowserOwner):BrowserRecoveryRepository {
  const transact=<T>(scope:RecoveryScope,run:(tx:BrowserDb)=>Promise<T>)=>{
   scopeSchema.parse(scope);
   return deps.db.$transaction(async tx=>{
    await requireBrowserOwner(tx,{projectId:scope.projectId,actorId});
+   if(additionalOwnerGuard)await additionalOwnerGuard(tx,{projectId:scope.projectId,actorId});
    const attempt=await tx.deliveryAttempt.findFirst({where:{id:scope.attemptId,project_id:scope.projectId,content_item_id:scope.taskId}});
    if(!attempt)throw new Error('[RECOVERY_SCOPE_MISMATCH]');
    return run(tx);

@@ -22,21 +22,22 @@ test('uncertainty and replay require reconciliation; success unchanged',()=>{
 
 test('registered MCP boundary serializes validation failures without input secrets or mutations',async()=>{
  const { registerBrowserPublicationTools }=await import('../mcp/tools/browser_publication_tools');
- const handlers:Array<(args:unknown)=>Promise<unknown>>=[];
- const server={registerTool(_name:string,_config:unknown,handler:(args:unknown)=>Promise<unknown>){handlers.push(handler);}};
+ const handlers=new Map<string,(args:unknown)=>Promise<unknown>>();
+ const server={registerTool(name:string,_config:unknown,handler:(args:unknown)=>Promise<unknown>){assert.equal(handlers.has(name),false);handlers.set(name,handler);}};
  registerBrowserPublicationTools(server as unknown as Parameters<typeof registerBrowserPublicationTools>[0]);
- assert.equal(handlers.length,11);
+ assert.equal(handlers.has('ba_preview_browser_preparation_recovery'),true);
+ assert.equal(handlers.has('ba_adopt_browser_preparation_recovery'),false);
  const logs:string[]=[];const original=console.warn;
  console.warn=(line:unknown)=>{logs.push(String(line));};
  try{
- for(const handler of handlers){
+ for(const handler of handlers.values()){
   const response=await handler({approvalReference:'secret-private-reference',leaseToken:'secret-private-token'});
   const serialized=JSON.stringify(response);
   assert.equal(serialized.includes('secret-private'),false);
   assert.equal((response as {isError:boolean}).isError,true);
   assert.ok(serialized.includes('reasons'));assert.ok(serialized.includes('action'));
  }
- assert.equal(logs.length,11);assert.equal(logs.some(line=>line.includes('secret-private')),false);
+ assert.equal(logs.length,handlers.size);assert.equal(logs.some(line=>line.includes('secret-private')),false);
  }finally{console.warn=original;}
 });
 test('schema rejection explains request correction without raw validation values',()=>{
