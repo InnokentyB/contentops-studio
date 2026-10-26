@@ -1,3 +1,4 @@
+import {replacePreparationClock} from './browser_preparation_clock';
 import {randomUUID} from 'node:crypto';
 import {z} from 'zod';
 import {hash,type BrowserDependencies} from './browser_publication_contract';
@@ -18,7 +19,7 @@ export async function recoverPreparation(input:unknown,deps:BrowserDependencies,
   if(ledger.startedAtMs!==null&&now()<started+([0,30000,120000][ledger.resumptions]??180000))throw new Error('[RECOVERY_IN_PROGRESS]');
   if(await tx.workflowEvent.count({where:{project_id:args.projectId,content_item_id:args.taskId,work_item_id:state.workItemId,command:'ba_pre_submit_browser_submission'}}))throw new Error('[POST_SUBMIT_UNKNOWN]');
   const next={...ledger,state:'quiescing' as const,startedAtMs:started,deadlineMs:deadline,resumptions:ledger.resumptions+1,operationSha256:operation,challengeSha256:hash(challenge),proofSha256:null,outbox:'none' as const};
-  await replacePreparation(tx,loaded.stored,next);
+  await replacePreparationClock(tx,loaded.stored,ledger,next);
   await tx.workflowEvent.create({data:{project_id:args.projectId,content_item_id:args.taskId,work_item_id:state.workItemId,actor_id:args.actorId,command:'browser_preparation_quiesce_requested',after_state:{attempt_id:args.attemptId,generation:ledger.generation,round:next.resumptions,submission_permitted:false}}});
   return{replay:false,ledger:next};
  },preparationSerial);

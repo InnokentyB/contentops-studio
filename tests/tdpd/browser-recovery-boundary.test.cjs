@@ -41,11 +41,12 @@ test('real MCP serialization preserves actionable recovery code and correction w
  const {browserDefaults}=require(path.join(base,'services/browser_publication_contract.js'));
  const {deps,args,attemptId}=await started(),saved={...browserDefaults};Object.assign(browserDefaults,deps);
  const server=new McpServer({name:'recovery-acceptance',version:'1'}),client=new Client({name:'operator',version:'1'});
- registerBrowserPublicationTools(server);const[a,b]=InMemoryTransport.createLinkedPair();
+ let terminalChecked=false;const terminal={generation:async()=>{terminalChecked=true;return null;}};
+ registerBrowserPublicationTools(server,undefined,undefined,undefined,terminal);const[a,b]=InMemoryTransport.createLinkedPair();
  try{await server.connect(a);await client.connect(b);
   const result=await client.callTool({name:'ba_mark_browser_submission_uncertain',arguments:{...args,attemptId,reasonCode:'PROVIDER_RESULT_UNCERTAIN'}});
   const payload=result.structuredContent||JSON.parse(result.content[0].text);
-  assert.equal(payload.recovery.code,'READBACK_CAPABILITY_UNAVAILABLE');assert.equal(payload.recovery.recoveryAction,'CONTACT_ENGINEERING');
+  assert.equal(terminalChecked,true);assert.equal(payload.recovery.code,'READBACK_CAPABILITY_UNAVAILABLE');assert.equal(payload.recovery.recoveryAction,'CONTACT_ENGINEERING');
   assert.equal(payload.recovery.deliveryCertainty,'UNKNOWN');assert.ok(payload.recovery.action);assert.ok(!JSON.stringify(result).includes(args.leaseToken));
  }finally{await client.close();await server.close();Object.assign(browserDefaults,saved);}
 });

@@ -1,6 +1,7 @@
+import {replacePreparationClock} from './browser_preparation_clock';
 import {hash,type BrowserDependencies} from './browser_publication_contract';
 import type {PreparationLedger,PreparationRequest} from './browser_preparation_contract';
-import {loadPreparation,preparationSerial,replacePreparation} from './browser_preparation_storage';
+import {loadPreparation,preparationSerial} from './browser_preparation_storage';
 type WorkLease={lease_token:string|null;lease_expires_at:Date|null};
 /** Server-persisted activity is valid only for the exact current generation and actual private work lease. */
 export function checkedPreparationActivity(ledger:PreparationLedger,work:WorkLease,recoveryExpiry:Date|null,time:number,allowExpired=false){
@@ -40,7 +41,7 @@ export async function closePreparationActivity(deps:BrowserDependencies,args:Pre
   const next={...inactive,startedAtMs:ledger.startedAtMs===null?null:ledger.startedAtMs+pausedMs,
    deadlineMs:ledger.deadlineMs===null?null:ledger.deadlineMs+pausedMs};
   if((next.startedAtMs!==null&&!Number.isFinite(next.startedAtMs))||(next.deadlineMs!==null&&!Number.isFinite(next.deadlineMs)))throw new Error('[RECOVERY_CONFLICT]');
-  await replacePreparation(tx,loaded.stored,next);
+  await replacePreparationClock(tx,loaded.stored,ledger,next);
   await tx.workflowEvent.create({data:{project_id:args.projectId,content_item_id:args.taskId,work_item_id:state.workItemId,actor_id:args.actorId,
    command:'browser_preparation_liveness_closed',after_state:{attempt_id:args.attemptId,generation:ledger.generation,
     lease_sha256:active.leaseSha256,active_interval_ms:pausedMs,recovery_started_at_ms:next.startedAtMs,recovery_deadline_ms:next.deadlineMs,

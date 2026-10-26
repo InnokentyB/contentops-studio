@@ -23,9 +23,10 @@ async function scenario(t){
  const ledger=()=>db.browserPreparationExecution.findUnique({where:{project_id_attempt_id:{project_id:input.projectId,attempt_id:attemptId}}});
  async function edit(delta){const row=await ledger();await db.browserPreparationExecution.update({where:{project_id_attempt_id:{project_id:input.projectId,attempt_id:attemptId}},data:{ledger:{...row.ledger,...delta}}});}
  const work=()=>db.workItem.findUnique({where:{id:workItemId}});
- return{...s,input,request,renew,recovery,observation,ledger,edit,work,executorId,now:()=>clock,advance:ms=>{clock+=ms;}};
+ const recoveryRow=()=>db.browserDeliveryRecovery.findUnique({where:{project_id_attempt_id:{project_id:input.projectId,attempt_id:attemptId}}});
+ return{...s,input,request,renew,recovery,observation,ledger,edit,work,recoveryRow,executorId,now:()=>clock,advance:ms=>{clock+=ms;}};
 }
-async function admittedWindow(s){await s.edit({startedAtMs:s.now()-1000,deadlineMs:s.now()+179000});await db.workItem.update({where:{id:s.input.workItemId},data:{lease_expires_at:new Date(s.now()+30000)}});}
+async function admittedWindow(s){await s.edit({startedAtMs:s.now()-1000,deadlineMs:s.now()+179000});await db.browserDeliveryRecovery.update({where:{project_id_attempt_id:{project_id:s.input.projectId,attempt_id:s.input.attemptId}},data:{started_at:new Date(s.now()-1000),deadline_at:new Date(s.now()+179000)}});await db.workItem.update({where:{id:s.input.workItemId},data:{lease_expires_at:new Date(s.now()+30000)}});}
 async function keepAliveBeyondDeadline(s){await admittedWindow(s);await s.renew();for(let i=0;i<4;i++){s.advance(80000);await s.renew();}}
 test('LIVE01 repeated actual renewals and preSubmit work beyond180s without consuming or resetting recovery clock',async t=>{
  const s=await scenario(t);await keepAliveBeyondDeadline(s);const row=await s.ledger();assert.ok(s.now()>row.ledger.deadlineMs);assert.equal(row.ledger.resumptions,0);assert.equal(row.ledger.deadlineMs-row.ledger.startedAtMs,180000);assert.equal(row.ledger.activeLiveness.generation,0);
@@ -47,6 +48,7 @@ test('LIVE05 later outage pauses only verified active lease interval; downtime i
  const r=await s.recovery.recover(s.request('outage'));assert.equal(r.resumed,true);const after=(await s.ledger()).ledger;
  assert.equal(after.resumptions,before.resumptions+1);assert.equal(after.generation,1);assert.equal(after.activeLiveness,undefined);
  assert.equal(after.deadlineMs,before.deadlineMs+expiry-before.activeLiveness.activatedAtMs);assert.equal(after.deadlineMs-s.now(),169000);
+ const durable=await s.recoveryRow();assert.equal(durable.started_at.getTime(),after.startedAtMs);assert.equal(durable.deadline_at.getTime(),after.deadlineMs);
  const replay=await s.recovery.recover(s.request('outage'));assert.equal(replay.resumed,true);assert.equal((await s.ledger()).ledger.deadlineMs,after.deadlineMs);await assert.rejects(s.renew());
 });
 test('LIVE06 expired180s cumulative budget and3resumptions remain exhausted despite long active time',async t=>{
@@ -57,10 +59,10 @@ test('LIVE07 active state with wrong generation/lease or mismatched work expiry 
  const s=await scenario(t);await keepAliveBeyondDeadline(s);const original=(await s.ledger()).ledger;for(const change of [{generation:1},{leaseSha256:'f'.repeat(64)},{leaseExpiresAtMs:original.activeLiveness.leaseExpiresAtMs+1}]){await s.edit({activeLiveness:{...original.activeLiveness,...change}});await assert.rejects(s.renew());await assert.rejects(s.recovery.preSubmit(s.observation(),0));}assert.equal(await db.workflowEvent.count({where:{content_item_id:s.input.taskId,command:'ba_pre_submit_browser_submission'}}),0);
 });
 test('LIVE08 closing active-clock audit failure rolls back credit and never calls supervisor',async t=>{
- const s=await scenario(t);await keepAliveBeyondDeadline(s);const expiry=(await s.work()).lease_expires_at.getTime();s.advance(expiry-s.now()+1);const before=await s.ledger(),beforeWork=await s.work();let quiesced=0;
+ const s=await scenario(t);await keepAliveBeyondDeadline(s);const expiry=(await s.work()).lease_expires_at.getTime();s.advance(expiry-s.now()+1);const before=await s.ledger(),beforeWork=await s.work(),beforeRecovery=await s.recoveryRow();let quiesced=0;
  const bad={...deps,db:new Proxy(db,{get(target,key){if(key==='$transaction')return (run,options)=>target.$transaction(tx=>run(new Proxy(tx,{get(t,k){if(k==='workflowEvent')return new Proxy(t.workflowEvent,{get(w,m){if(m==='create')return async a=>{if(a.data.command==='browser_preparation_liveness_closed')throw Error('synthetic-audit-failure');return w.create(a);};return w[m];}});return t[k];}})),options);return target[key];}})};
  const recovery=createPreparationRecovery({deps:bad,now:s.now,supervisor:{executorId:s.executorId,supports:()=>true,quiesce:async()=>{quiesced++;throw Error('not-reached');}}});
- const r=await recovery.recover(s.request('outage'));assert.equal(r.resumed,false);assert.equal(quiesced,0);assert.deepEqual(await s.ledger(),before);assert.deepEqual(await s.work(),beforeWork);
+ const r=await recovery.recover(s.request('outage'));assert.equal(r.resumed,false);assert.equal(quiesced,0);assert.deepEqual(await s.ledger(),before);assert.deepEqual(await s.work(),beforeWork);assert.deepEqual(await s.recoveryRow(),beforeRecovery);
 });
 test('LIVE09 concurrent expired recovery closes one active interval only and cannot reset its clock',async t=>{
  const s=await scenario(t);await keepAliveBeyondDeadline(s);const before=(await s.ledger()).ledger,expiry=(await s.work()).lease_expires_at.getTime();s.advance(expiry-s.now()+1);
@@ -77,4 +79,11 @@ test('LIVE11 exact recovery replay after pickup stays read-only and does not den
 test('LIVE12 UNKNOWN or recorded possible dispatch never gets a liveness exemption or clock credit',async t=>{
  const s=await scenario(t);await keepAliveBeyondDeadline(s);await db.browserDeliveryRecovery.update({where:{project_id_attempt_id:{project_id:s.input.projectId,attempt_id:s.input.attemptId}},data:{delivery_certainty:'UNKNOWN'}});const before=await s.ledger();
  await assert.rejects(s.renew());await assert.rejects(s.recovery.pickup({...s.request('pickup'),generation:0}));await assert.rejects(s.recovery.preSubmit(s.observation(),0));const r=await s.recovery.recover(s.request('outage'));assert.equal(r.resumed,false);assert.equal(r.code,'POST_SUBMIT_UNKNOWN');assert.deepEqual(await s.ledger(),before);
+});
+
+test('LIVE13 inconsistent durable clock refuses credit without changing either clock or counters',async t=>{
+ const s=await scenario(t);await keepAliveBeyondDeadline(s);const expiry=(await s.work()).lease_expires_at.getTime();s.advance(expiry-s.now()+1);
+ await db.browserDeliveryRecovery.update({where:{project_id_attempt_id:{project_id:s.input.projectId,attempt_id:s.input.attemptId}},data:{deadline_at:new Date(s.now()+999)}});
+ const before=await s.ledger(),row=await s.recoveryRow();const result=await s.recovery.recover(s.request('mismatch'));
+ assert.equal(result.code,'RECOVERY_CONFLICT');assert.deepEqual(await s.ledger(),before);assert.deepEqual(await s.recoveryRow(),row);
 });
