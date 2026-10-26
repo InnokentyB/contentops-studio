@@ -8,6 +8,10 @@ RUN npm ci
 
 COPY tsconfig.json ./
 COPY src ./src
+COPY ops/original-terminal-source/collect.cjs ./ops/original-terminal-source/collect.cjs
+COPY ops/terminal-operation-review/review.cjs ./ops/terminal-operation-review/review.cjs
+COPY ops/terminal-operation-review/native.cjs ./ops/terminal-operation-review/native.cjs
+COPY ops/terminal-external-census-20261026/census.cjs ./ops/terminal-external-census-20261026/census.cjs
 RUN npx prisma generate && npx tsc
 
 ENV NODE_ENV=production

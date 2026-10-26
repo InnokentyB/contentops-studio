@@ -1,0 +1,35 @@
+name: tower-contentops-legacy-browser-synthetic
+services:
+  synthetic-db:
+    extends:
+      file: ../publication-tests/compose.yaml
+      service: synthetic-db
+  tests:
+    extends:
+      file: ../publication-tests/compose.yaml
+      service: tests
+    image: planner-owner-manual-confirmation:20261020
+    environment:
+      SHARED_BROWSER_DIST: /results/dist
+    volumes:
+      - ${LEGACY_BROWSER_RESULTS:-/tmp/contentops-legacy-browser-results}:/results
+    depends_on:
+      synthetic-db: {condition: service_healthy}
+    command: [node, --test, --test-concurrency=1, /workspace/tests/tdpd/legacy-browser-recovery-postgres.test.cjs]
+  build:
+    extends:
+      file: ../quality/compose.yaml
+      service: build-check
+    image: planner-owner-manual-confirmation:20261020
+    profiles: [build]
+    mem_limit: 4g
+    environment:
+      NODE_OPTIONS: --max-old-space-size=3072
+    volumes:
+      - ${LEGACY_BROWSER_RESULTS:-/tmp/contentops-legacy-browser-results}:/results
+    command: [sh, -c, 'mkdir -p /tmp/compile && cp -R /workspace/src /workspace/prisma /workspace/package.json /workspace/tsconfig.json /tmp/compile/ && ln -s /opt/planner/node_modules /tmp/compile/node_modules && /opt/planner/node_modules/.bin/tsc -p /tmp/compile/tsconfig.json --outDir /results/dist']
+networks:
+  synthetic:
+    internal: true
+    ipam:
+      config: [{subnet: 10.231.97.0/28}]

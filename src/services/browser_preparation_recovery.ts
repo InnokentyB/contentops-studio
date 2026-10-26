@@ -12,6 +12,7 @@ import {recoverPreparation} from './browser_preparation_resume';
 import {admitPreparation,loadPreparation,replacePreparation,preparationSerial} from './browser_preparation_storage';
 import {preparationRequest,preparationPickup,type PreparationSupervisor,type PreparationRequest} from './browser_preparation_contract';
 import type {BrowserRecoveryOperation} from './browser_recovery_runtime';
+import {checkedPreparationActivity,preparationActivity,closePreparationActivity} from './browser_preparation_liveness';
 type Options={deps?:BrowserDependencies;supervisor?:PreparationSupervisor;now?:()=>number};
 function outcome(error:unknown):Record<string,unknown>{
  const code=error instanceof Error?/^\[([A-Z_]+)\]/.exec(error.message)?.[1]:undefined;
@@ -27,7 +28,10 @@ export function createPreparationRecovery(options:Options={}){
  const unsupported=()=>({...assessLegacyBrowserRecovery('BROWSER_UNAVAILABLE'),resumed:false});
  async function recover(input:unknown):Promise<Record<string,unknown>>{
   if(!supervisor)return unsupported();
-  try{return {...await recoverPreparation(input,deps,supervisor,now)};}catch(error:unknown){return outcome(error);}
+  try{
+   await closePreparationActivity(deps,preparationRequest.parse(input),supervisor.executorId,now);
+   return {...await recoverPreparation(input,deps,supervisor,now)};
+  }catch(error:unknown){return outcome(error);}
  }
  async function start(input:unknown){
   const args=browserBoundarySchema.parse(input);
@@ -37,22 +41,30 @@ export function createPreparationRecovery(options:Options={}){
   if(!supervisor)return unsupported();const args=preparationPickup.parse(input);
   return deps.db.$transaction(async tx=>{
    const loaded=await loadPreparation(tx,deps,args,supervisor.executorId),{ledger,state}=loaded;
-   if(ledger.generation!==args.generation||state.stage!=='PREPARE'||ledger.permitIssued||ledger.dispatchStarted||!['queued','preparing'].includes(ledger.state)||ledger.deadlineMs===null||now()>=ledger.deadlineMs)throw new Error('[RECOVERY_CONFLICT]');
+   if(ledger.generation!==args.generation||state.stage!=='PREPARE'||state.deliveryCertainty!=='NOT_DISPATCHED'||state.attemptStatus!=='pending'||ledger.permitIssued||ledger.dispatchStarted||!['queued','preparing'].includes(ledger.state))throw new Error('[RECOVERY_CONFLICT]');
    const work=await tx.workItem.findFirst({where:{id:state.workItemId,project_id:args.projectId,content_item_id:args.taskId,state:'claimed',lease_actor_id:args.actorId,lease_expires_at:{gt:new Date(now())}}});
    const row=await tx.browserDeliveryRecovery.findUnique({where:{project_id_attempt_id:{project_id:args.projectId,attempt_id:args.attemptId}}});
-   if(!work?.lease_token||row?.recovery_lease_sha256!==hash(work.lease_token)||!work.lease_expires_at||work.lease_expires_at.getTime()>ledger.deadlineMs)throw new Error('[RECOVERY_CONFLICT]');
+   if(!work?.lease_token||row?.recovery_lease_sha256!==hash(work.lease_token)||!work.lease_expires_at)throw new Error('[RECOVERY_CONFLICT]');
+   if(ledger.state==='preparing'&&ledger.activeLiveness)checkedPreparationActivity(ledger,work,state.recoveryLeaseExpiresAt,now());
+   else if(ledger.activeLiveness||ledger.deadlineMs===null||now()>=ledger.deadlineMs||work.lease_expires_at.getTime()>ledger.deadlineMs)throw new Error('[RECOVERY_CONFLICT]');
    if(ledger.state==='queued'){
-    await replacePreparation(tx,loaded.stored,{...ledger,state:'preparing',outbox:'claimed'});
+    await replacePreparation(tx,loaded.stored,{...ledger,state:'preparing',outbox:'claimed',activeLiveness:preparationActivity(ledger,work.lease_token,work.lease_expires_at.getTime(),now())});
     await tx.workflowEvent.create({data:{project_id:args.projectId,content_item_id:args.taskId,work_item_id:state.workItemId,actor_id:args.actorId,command:'browser_preparation_pickup',after_state:{attempt_id:args.attemptId,generation:ledger.generation,submission_permitted:false}}});
    }
-   return {generation:ledger.generation,workItemId:state.workItemId,leaseToken:work.lease_token,leaseExpiresAt:work.lease_expires_at!.toISOString(),submission_permitted:false,retry_allowed:false};
+   const attempt=await tx.deliveryAttempt.findFirst({where:{id:args.attemptId,project_id:args.projectId,content_item_id:args.taskId,status:'pending'},select:{idempotency_key:true}});
+   if(!attempt?.idempotency_key)throw new Error('[RECOVERY_CONFLICT]');
+   return {generation:ledger.generation,workItemId:state.workItemId,attemptId:args.attemptId,idempotencyKey:attempt.idempotency_key,leaseToken:work.lease_token,leaseExpiresAt:work.lease_expires_at!.toISOString(),submission_permitted:false,retry_allowed:false};
   },preparationSerial);
  }
  async function preSubmit(input:unknown,generation:number){
   if(!supervisor)throw new Error('[PRE_DISPATCH_PROOF_UNAVAILABLE]');const args=browserObservedSchema.parse(input);
   return preSubmitBrowserSubmission(args,deps,undefined,async(tx,a,run)=>{
    const loaded=await loadPreparation(tx,deps,{...a,idempotencyKey:a.idempotencyKey},supervisor.executorId),{ledger,state}=loaded;
-   if(ledger.generation!==generation||ledger.state!=='preparing'||ledger.permitIssued||ledger.dispatchStarted||(ledger.deadlineMs!==null&&now()>=ledger.deadlineMs))throw new Error('[RECOVERY_CONFLICT]');
+   if(ledger.generation!==generation||state.stage!=='PREPARE'||state.deliveryCertainty!=='NOT_DISPATCHED'||state.attemptStatus!=='pending'||ledger.state!=='preparing'||ledger.permitIssued||ledger.dispatchStarted)throw new Error('[RECOVERY_CONFLICT]');
+   if(ledger.activeLiveness){
+    const work=await tx.workItem.findUnique({where:{id:state.workItemId}});if(!work)throw new Error('[RECOVERY_CONFLICT]');
+    checkedPreparationActivity(ledger,work,state.recoveryLeaseExpiresAt,now());
+   }else if(ledger.deadlineMs!==null&&now()>=ledger.deadlineMs)throw new Error('[RECOVERY_CONFLICT]');
    return withBrowserPreparationPermit(tx,{projectId:a.projectId,taskId:a.taskId,attemptId:a.attemptId,generation,packageSha256:snapshotHash(a.snapshot),leaseSha256:hash(a.leaseToken)},async()=>{
     const result=await run();if(result.submission_permitted!==true)throw new Error('[RECOVERY_CONFLICT]');
     await replacePreparation(tx,loaded.stored,{...ledger,state:'permit_issued',permitIssued:true});

@@ -2,6 +2,13 @@ import {authorizeBrowserPublication,ownerBrowserInstructionSchema} from '../../s
 import {createPublicationRecoveryApplication} from '../../services/browser_recovery_application';
 import type {BrowserRecoveryOperation} from '../../services/browser_recovery_runtime';
 import {createPreparationRecovery} from '../../services/browser_preparation_recovery';
+import {createLegacyBrowserRecovery} from '../../services/legacy_browser_recovery';
+import {createTerminalPreparationRecovery} from '../../services/browser_terminal_preparation_recovery';
+import {registerTerminalPreparationTools,terminalPreparationDiagnostic} from './browser_terminal_preparation_tools';
+import {registerPreparationHeartbeatTools} from './browser_preparation_heartbeat_tools';
+import type {RemotePrincipal} from '../remote-auth';
+import {terminalTransportIdentity} from './browser_terminal_transport_identity';
+import {registerLegacyBrowserRecoveryTools} from './legacy_browser_recovery_tools';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { browserRequestSchema } from '../../services/browser_publication_contract';
 import { browserClaimSchema,browserBoundarySchema,browserObservedSchema } from '../../services/browser_publication_guard';
@@ -14,7 +21,12 @@ import { INTERNAL_MUTATION_ANNOTATIONS } from './common';
 import { publicationDiagnosticResult } from './publication_diagnostic_result';
 import { browserErrorDiagnostic,browserResultProjection } from '../../services/browser_actionable_diagnostics';
 /** Shared owner-bound controls; admitted recovery may perform bounded provider reads and canonical finalization, never submission. */
-export function registerBrowserPublicationTools(server:McpServer,recovery:BrowserRecoveryOperation=createPublicationRecoveryApplication(),preparation=createPreparationRecovery()):void {
+export function registerBrowserPublicationTools(server:McpServer,recovery:BrowserRecoveryOperation=createPublicationRecoveryApplication(),preparation=createPreparationRecovery(),legacy=createLegacyBrowserRecovery(),terminal=createTerminalPreparationRecovery(),principal?:Readonly<RemotePrincipal>|null):void {
+    registerTerminalPreparationTools(server,terminal,principal);
+    registerPreparationHeartbeatTools(server,principal);
+    const terminalPrincipal=(projectId:number)=>terminalTransportIdentity(principal,projectId);
+    const diagnose=(error:unknown)=>error instanceof Error&&error.message.startsWith('[TERMINAL_')?terminalPreparationDiagnostic(error):browserErrorDiagnostic(error);
+    registerLegacyBrowserRecoveryTools(server,legacy);
     server.registerTool('ba_authorize_browser_publication',{description:'Owner-only one additional browser publication despite UNKNOWN or provider duplicate risk. Preserves old attempts; Publisher consumes authority but cannot mint it. Preview by default; no provider call.',annotations:INTERNAL_MUTATION_ANNOTATIONS,inputSchema:ownerBrowserInstructionSchema.shape},async args=>publicationDiagnosticResult('browser',()=>authorizeBrowserPublication(args),browserErrorDiagnostic));
     server.registerTool('ba_inspect_browser_publication',{
         description:'Read-only owner preview of an exact accepted LinkedIn image or canonical NO_VISUAL_NEEDED text-only post, Setka image post or DEV.to article-cover package. No release, send or independent provider verification.',
@@ -39,11 +51,11 @@ export function registerBrowserPublicationTools(server:McpServer,recovery:Browse
     server.registerTool('ba_pre_submit_browser_submission',{
         description:'One 30-second Submit permission after actual author/company, exact paragraph/image and duplicate checks. idempotencyKey MUST equal the immutable key used by the original ba_start_browser_submission for this exact attempt, not a new per-stage key. An expired lease requires supported fenced same-attempt recovery; correcting a key does not renew it. Caller observations are not independent provider proof. Lost/replayed response never renews permission.',
         annotations:INTERNAL_MUTATION_ANNOTATIONS,inputSchema:browserObservedSchema.shape
-    },async args=>publicationDiagnosticResult('browser',()=>preSubmitBrowserSubmission(args),browserErrorDiagnostic,browserResultProjection));
+    },async args=>publicationDiagnosticResult('browser',async()=>{const generation=await terminal.generation(args);return generation===null?preSubmitBrowserSubmission(args):terminal.preSubmit(args,generation,terminalPrincipal(args.projectId));},diagnose,browserResultProjection));
     server.registerTool('ba_confirm_browser_submission',{
         description:'Atomically record provider object/permalink readback, exact attempt, fact and audit under current package/lease/pre-submit fences. Not a screenshot-only claim of independent verification.',
         annotations:INTERNAL_MUTATION_ANNOTATIONS,inputSchema:browserConfirmSchema.shape
-    },async args=>publicationDiagnosticResult('browser',()=>confirmBrowserSubmission(args),browserErrorDiagnostic,browserResultProjection));
+    },async args=>publicationDiagnosticResult('browser',async()=>{const generation=await terminal.generation(args);return generation===null?confirmBrowserSubmission(args):terminal.confirm(args,generation,terminalPrincipal(args.projectId));},diagnose,browserResultProjection));
     server.registerTool('ba_reconcile_browser_submission',{
         description:'Owner-only readback of an existing provider object after UNKNOWN/expired lease. Completes that same attempt, never releases, retries or sends.',
         annotations:INTERNAL_MUTATION_ANNOTATIONS,inputSchema:browserReconcileSchema.shape
@@ -51,7 +63,7 @@ export function registerBrowserPublicationTools(server:McpServer,recovery:Browse
     server.registerTool('ba_mark_browser_submission_uncertain',{
         description:'Freeze the existing scoped attempt after a lost/uncertain result, including expired lease. An admitted reader may reconcile and finalize its verified existing object; no reset or resend. Default has no admitted reader.',
         annotations:INTERNAL_MUTATION_ANNOTATIONS,inputSchema:browserUncertainSchema.shape
-    },async args=>publicationDiagnosticResult('browser',()=>markBrowserSubmissionUncertain(args,undefined,undefined,recovery,input=>preparation.operation(input,recovery)),browserErrorDiagnostic,browserResultProjection));
+    },async args=>publicationDiagnosticResult('browser',()=>markBrowserSubmissionUncertain(args,undefined,undefined,recovery,async input=>(await terminal.generation(input))===null?preparation.operation(input,recovery):terminal.uncertain(input,terminalPrincipal(args.projectId))),diagnose,browserResultProjection));
     server.registerTool('ba_diagnose_browser_publication',{
         description:'Scoped persisted lifecycle readback, including attempts/WI/fact and stored handoff presence/hashes. Optional expectedSnapshot returns exact field mismatches with bounded hash-only evidence. Never returns credentials, copy or raw lease tokens; no provider access.',
         annotations:{readOnlyHint:true},inputSchema:browserDiagnoseSchema.shape

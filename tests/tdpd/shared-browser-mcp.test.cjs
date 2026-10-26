@@ -4,7 +4,7 @@ const {isToolAllowedForProfile}=require(path.join(base,'mcp/capabilities.js'));
 const {scopeRemoteMcpRequest}=require(path.join(base,'mcp/remote-auth.js'));
 const commands=['ba_inspect_browser_publication','ba_repair_browser_publication_metadata','ba_release_browser_publication',
     'ba_claim_browser_publication','ba_start_browser_submission','ba_pre_submit_browser_submission',
-    'ba_confirm_browser_submission','ba_reconcile_browser_submission','ba_mark_browser_submission_uncertain','ba_diagnose_browser_publication'];
+    'ba_confirm_browser_submission','ba_reconcile_browser_submission','ba_mark_browser_submission_uncertain','ba_diagnose_browser_publication','ba_preview_browser_preparation_recovery'];
 test('S6 shared controls are publisher-only; project and actor remain token-principal bound',()=>{
     for(const command of commands){assert.equal(isToolAllowedForProfile('publisher',command),true,command);
         for(const role of ['writer','editor','planner','art_director','strategist','growth_analyst','organization_researcher'])
@@ -25,7 +25,7 @@ test('S6 registered MCP surface matches capabilities and mutations never claim r
     assert.equal(isToolAllowedForProfile('publisher','ba_authorize_browser_publication'),false);
     assert.equal(isToolAllowedForProfile('owner','ba_authorize_browser_publication'),true);
     for(const name of commands){const tool=server._registeredTools[name];
-        const readonly=['ba_inspect_browser_publication','ba_diagnose_browser_publication'].includes(name);
+        const readonly=['ba_inspect_browser_publication','ba_diagnose_browser_publication','ba_preview_browser_preparation_recovery'].includes(name);
         assert.equal(tool.annotations.readOnlyHint,readonly,name);}
 });
 test('Owner instruction replay retains usable work and package at the MCP serialization boundary',async()=>{

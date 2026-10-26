@@ -1,0 +1,27 @@
+import type {PublicationDiagnostic} from './publication_diagnostics';
+type Explanation=readonly[message:string,action:string];
+const explanations:Record<string,Explanation>={
+ TERMINAL_CURRENT_PRINCIPAL_REQUIRED:['This request has no authenticated current control identity.','Use the existing authenticated Owner or project-scoped Publisher connection. A saved server identity cannot authorize an anonymous request.'],
+ TERMINAL_REQUEST_PRINCIPAL_MISMATCH:['The current request identity differs from this session or requested project.','Reconnect with the correct existing role and project scope. Do not supply another actor or reuse a session from another identity.'],
+ TERMINAL_OWNER_REQUIRED:['This evidence review or transfer requires an authenticated project Owner.','Use the Owner control connection for evidence review and transfer. Publisher cannot create or accept this authority.'],
+ TERMINAL_PUBLISHER_REQUIRED:['Only the original project-scoped Publisher may pick up or dispatch this generation.','Use the existing sole Publisher connection for this project. Owner control does not receive its private lease or perform the send.'],
+ TERMINAL_ORIGINAL_PUBLISHER_REQUIRED:['The original work item has no valid bound Publisher identity.','Inspect the original start and work lease identity through Owner control. Restore the supported original Publisher binding without substituting another sender or creating an attempt.'],
+ TERMINAL_RECOVERY_DISABLED:['Terminal-operation recovery is disabled in this deployment.','Verify the reviewed release and its explicit admission setting before continuing. Keep this original attempt; do not start another.'],
+ TERMINAL_LOCAL_OUTPUT_UNVERIFIED:['The local source result contains unsupported, incomplete or unreviewed operations.','Run the exact deployed verifier on the original computer. Resolve each unsupported operation and external execution through the supported source review; a matching response alone is insufficient.'],
+ TERMINAL_PRODUCER_VERSION_MISMATCH:['The native result was produced by different verifier files from this deployment.','Export the current deployment verifier bundle, verify its hashes, and run it locally against the original archive. Keep the raw archive on its original computer.'],
+ TERMINAL_REVIEW_STALE:['The one-use review expired or no longer matches the original package, key or lease.','Read the current original attempt and review budget. Obtain a fresh supported review only within that budget; never replace the attempt or reset UNKNOWN.'],
+ TERMINAL_CONTROL_REVIEW_STALE:['The independent control review is outside the current bounded verification window.','Obtain a current Owner control read of the native verifier result and Published observation, then consume that same review before its deadline.'],
+ TERMINAL_REVIEW_BUDGET_EXHAUSTED:['The original attempt exhausted its three reviews or 180-second review window.','Preserve the original attempt and evidence history. Repair the supported review path with the Owner; changing operation keys cannot restart this budget.'],
+ TERMINAL_CONTROL_DIGEST_MISMATCH:['The supplied control digests do not match the native result or Published observation.','Read the actual control execution and exact result again. Rebuild the bounded evidence from those records; do not edit digests to force acceptance.'],
+ TERMINAL_INDEPENDENT_CONTROL_REQUIRED:['The source review points back to the original Publisher execution context.','Use the independent authenticated Owner control to verify the original native result. A Publisher self-report cannot accept its own evidence.'],
+ TERMINAL_NATIVE_SCOPE_MISMATCH:['The native source result does not describe this exact original browser, turn or operations.','Compare the original control references, operation IDs, digests and profile binding. Use only evidence for this same attempt and accepted package.'],
+ TERMINAL_PACKAGE_CHANGED:['The supplied accepted package or workspace manifest is stale.','Read the current scoped task and manifest and verify the existing Owner approval. Do not change accepted copy, dates or revisions to resume an old package.'],
+ TERMINAL_EVIDENCE_STALE:['The accepted evidence expired or the original attempt key, package or old lease changed.','Preserve this attempt and obtain supported current verification. Never copy another attempt’s evidence or replace the immutable operation key.'],
+ TERMINAL_REPLAY_CONFLICT:['This replay does not match the already committed evidence or fact.','Read the committed operation and canonical fact. Replay only its exact inputs; do not use a new key to request another submission.']
+};
+/** Static explanations preserve specific causes without reflecting raw native payloads or credentials. */
+export function terminalPreparationDiagnostic(error:unknown):PublicationDiagnostic{
+ const code=error instanceof Error?/^\[(TERMINAL_[A-Z_]+)\]/.exec(error.message)?.[1]??'TERMINAL_RECOVERY_INPUT_OR_STATE_INVALID':'TERMINAL_RECOVERY_INPUT_OR_STATE_INVALID';
+ const [message,action]=explanations[code]??['The original attempt is missing matching verified recovery evidence or current custody.','Read the scoped attempt, evidence, lease and generation. Repair that exact prerequisite through Owner control; do not start a new attempt or replay a Submit permission.'];
+ return {code,message,retry_allowed:false,reasons:[{code,field:'terminal_preparation',message,action}]};
+}

@@ -3,7 +3,7 @@ import '../bootstrap-env';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { createPlannerMcpServer, shutdownMcpResources } from './shared';
 
-const server = createPlannerMcpServer();
+const server = createPlannerMcpServer({principal:configuredPublicationPrincipal(process.env)});
 
 async function shutdown(code = 0) {
     try {

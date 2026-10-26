@@ -11,6 +11,14 @@
 !prisma/**
 !frontend/
 !frontend/**
+!ops/
+!ops/original-terminal-source/
+!ops/original-terminal-source/collect.cjs
+!ops/terminal-operation-review/
+!ops/terminal-operation-review/review.cjs
+!ops/terminal-operation-review/native.cjs
+!ops/terminal-external-census-20261026/
+!ops/terminal-external-census-20261026/census.cjs
 **/node_modules
 **/dist
 **/.env*
