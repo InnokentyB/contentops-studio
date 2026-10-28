@@ -191,7 +191,7 @@ function basePlacementAssetContract(
             transport: { materialization: 'feed_post', connector_authority: 'configured' }
         };
     }
-    if (['telegram', 'telegram_chat', 'threads'].includes(normalizedType) && placement === 'feed') {
+    if (['telegram', 'telegram_chat', 'threads', 'linkedin'].includes(normalizedType) && placement === 'feed') {
         // Shared portrait editorial canvas; keep copy inside the insets for feed crops.
         return {
             placement,
@@ -200,7 +200,7 @@ function basePlacementAssetContract(
             safe_area: { unit: 'px', top: 108, right: 86, bottom: 108, left: 86 },
             accepted_mime_types: ['image/png', 'image/jpeg'],
             poll: { supported: false, configuration_mode: 'not_applicable', render_in_asset: false },
-            transport: { materialization: 'feed_post', connector_authority: 'configured' }
+            transport: { materialization: 'feed_post', connector_authority: normalizedType === 'linkedin' ? 'manual_only' : 'configured' }
         };
     }
     if (['medium', 'devto'].includes(normalizedType) && placement === 'article_cover') {

@@ -41,7 +41,7 @@ jobs:
           docker compose -f ops/publication-tests/compose.yaml up -d synthetic-db
           docker compose -f ops/publication-tests/compose.yaml run --rm tests node node_modules/prisma/build/index.js db push
           docker compose -f ops/publication-tests/compose.yaml run --rm tests
-          docker compose -f ops/publication-tests/compose.yaml run --rm tests node --test --test-concurrency=1 /workspace/tests/tdpd/owner-browser-instruction-postgres.test.cjs
+          docker compose -f ops/publication-tests/compose.yaml run --rm tests node --test --test-concurrency=1 /workspace/tests/tdpd/owner-browser-instruction-postgres.test.cjs /workspace/tests/tdpd/linkedin-geometry-refresh-postgres.test.cjs
           docker compose -f ops/publication-tests/compose.yaml run --rm tests node --test --test-concurrency=1 /workspace/tests/tdpd/telegram-preparation-readiness-postgres.test.cjs /workspace/tests/tdpd/shared-preparation-diagnosis-postgres.test.cjs
           X_NATIVE_TEST_IMAGE=planner-policy-build-check:node24 docker compose -f ops/publication-tests/compose.yaml -f tests/tdpd/x-native-postgres.compose.yaml run --rm tests
           X_NATIVE_TEST_IMAGE=planner-policy-build-check:node24 docker compose -f ops/publication-tests/compose.yaml -f tests/tdpd/x-native-postgres.compose.yaml run --rm tests node --test --test-concurrency=1 /workspace/tests/tdpd/x-native-state-read-postgres.test.cjs /workspace/tests/tdpd/x-native-state-read-load.test.cjs
@@ -152,7 +152,7 @@ jobs:
         run: |
           node --test --test-concurrency=1 tests/tdpd/linkedin1086-recovery.red.test.cjs tests/tdpd/linkedin1086-control.unit.test.js tests/tdpd/linkedin1086-lifecycle.unit.test.js
           node --test --test-concurrency=1 tests/tdpd/linkedin1135.unit.test.js dist/tests/linkedin1135_contract.test.js
-          node --test --test-concurrency=1 tests/tdpd/review-handoff-repair.unit.test.js dist/tests/manual_only_handoff.test.js
+          node --test --test-concurrency=1 tests/tdpd/review-handoff-repair.unit.test.js tests/tdpd/linkedin-feed-geometry.test.cjs tests/tdpd/linkedin-geometry-refresh.test.cjs dist/tests/manual_only_handoff.test.js
           node --test --test-concurrency=1 dist/tests/dzen1002_manifest_fence.test.js dist/tests/dzen_task1002_route.test.js dist/tests/dzen1002_inventory*.test.js
           node --test --test-concurrency=1 dist/tests/linkedin1128*.test.js dist/tests/linkedin_browser_owner_release.test.js dist/tests/remote_mcp_auth.test.js
           node --test --test-concurrency=1 tests/tdpd/linkedin1128-store.unit.test.js
