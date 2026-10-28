@@ -191,7 +191,7 @@ function basePlacementAssetContract(
             transport: { materialization: 'feed_post', connector_authority: 'configured' }
         };
     }
-    if (['telegram', 'telegram_chat', 'threads'].includes(normalizedType) && placement === 'feed') {
+    if (['telegram', 'telegram_chat', 'threads', 'linkedin'].includes(normalizedType) && placement === 'feed') {
         // Shared portrait editorial canvas; keep copy inside the insets for feed crops.
         return {
             placement,

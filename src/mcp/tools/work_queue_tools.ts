@@ -134,7 +134,7 @@ export function registerWorkQueueTools(server: McpServer): void {
     });
 
     server.registerTool('ba_repair_publication_placement', {
-        description: 'Owner-only audited metadata repair for an unpublished accepted publication: atomically change only channel and canonical visual placement and create a new revision-bound art-direction work item. The target placement must match the configured channel contract.',
+        description: 'Owner-only audited metadata repair for an unpublished accepted publication: atomically change only channel and canonical visual placement and create a new revision-bound art-direction work item. The target placement must match the configured channel contract. For same LinkedIn/feed missing-geometry blockers, omit expectedGeometryStateSha256 for read-only preview, then supply that exact hash for guarded refresh; old Art history remains immutable.',
         inputSchema: {
             projectId: z.number().int().positive(),
             actorId: z.string(),
@@ -146,7 +146,8 @@ export function registerWorkQueueTools(server: McpServer): void {
             targetChannelId: z.number().int().positive(),
             targetPlacement: z.string(),
             blockedWorkItemId: z.number().int().positive(),
-            idempotencyKey: z.string()
+            idempotencyKey: z.string(),
+            expectedGeometryStateSha256: z.string().regex(/^[a-f0-9]{64}$/).optional()
         }
     }, async (args) => {
         const result = await workQueueService.repairPublicationPlacement(args);
