@@ -1,4 +1,5 @@
 import { LinkedInChannelEditor } from '../components/LinkedInChannelEditor'
+import { TildaChannelEditor } from '../components/TildaChannelEditor'
 import { GroupedPublicationChannels } from '../components/GroupedPublicationChannels'
 import { connectionDiagnostic } from '../components/linkedin-connection-state'
 import { VkSearchTokenField } from '../components/VkSearchTokenField'
@@ -2048,6 +2049,14 @@ export default function Settings() {
                             channels={(projectData as ApiJson)?.channels || []}>
                         {(channel: SocialChannel) => {
                             if (editingChannelId === channel.id) {
+                                if (channel.type === 'tilda' && currentProject) return <tr key={channel.id} className="channel-table__editor-row"><td colSpan={6}>
+                                    <TildaChannelEditor channelId={channel.id} locale={locale === 'ru' ? 'ru' : 'en'}
+                                        disabled={currentProject.role !== 'owner' || Boolean(user?.is_demo)}
+                                        name={editingChannelName} config={editingChannelConfig} saving={editChannel.isPending}
+                                        onName={setEditingChannelName} onConfig={setEditingChannelConfig}
+                                        onSave={() => editChannel.mutate({ id: channel.id, name: editingChannelName, config: editingChannelConfig })}
+                                        onClose={() => setEditingChannelId(null)} />
+                                </td></tr>;
                                 if (channel.type === 'linkedin' && currentProject) return <tr key={channel.id} className="channel-table__editor-row"><td colSpan={6}>
                                     <LinkedInChannelEditor projectId={currentProject.id} token={token || ''} channel={channel}
                                         locale={locale === 'ru' ? 'ru' : 'en'} disabled={currentProject.role !== 'owner' || Boolean(user?.is_demo)}
