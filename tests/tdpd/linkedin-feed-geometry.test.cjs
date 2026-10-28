@@ -7,3 +7,5 @@ test('LinkedIn feed has portrait editorial geometry without changing manual tran
  assert.deepEqual(result.safe_area,{unit:'px',top:108,right:86,bottom:108,left:86});
  assert.deepEqual(result.accepted_mime_types,['image/png','image/jpeg']);assert.equal(result.transport.connector_authority,'manual_only');
 });
+
+test('geometry preserves existing configured authority while explicit manual-only is fenced separately',()=>{assert.equal(exportsObject.publicationPlacementAssetContract({type:'linkedin',config:{execution_modes:['automated','manual']}},'feed').transport.connector_authority,'configured');assert.equal(exportsObject.publicationPlacementAssetContract({type:'linkedin'},'feed').transport.connector_authority,'configured');});
