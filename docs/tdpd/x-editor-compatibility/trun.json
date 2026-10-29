@@ -1,0 +1,31 @@
+{
+  "scope": "X native editor compatibility maintenance, no provider send",
+  "baseline": "8ac0958",
+  "bundleSha256": "5009f169e21f9925008f95ffadb4941ea8a5c9e64481b9c07ecc31413a93816b",
+  "runs": [
+    {"id":"editor-red","result":"EXPECTED_FAIL","cause":"Nested actual-DOM dialog wrappers rejected as ambiguous"},
+    {"id":"focused-first","result":"ENVIRONMENT_ERROR","cause":"Browser fixture image lacks js-yaml/TypeScript; rerun in dependency image"},
+    {"id":"editor-first-green","result":"FIXTURE_ERROR","cause":"Russian synthetic document omitted UTF-8 metadata; corrected fixture charset"},
+    {"id":"editor-green","result":"PASS","tests":18,"failed":0,"skipped":0},
+    {"id":"focused-final","result":"PASS","tests":25,"failed":0,"skipped":0},
+    {"id":"browser-final","result":"PASS","tests":19,"failed":0,"skipped":0,"sandbox":true,"providerCalled":false},
+    {"id":"quality-final","result":"PASS","score":77,"baselineMinimum":77,"hardStops":0},
+    {"id":"extension-build-final","result":"PASS","version":"0.2.1","files":14}
+  ],
+  "followup": {
+    "version":"0.2.2",
+    "bundleSha256":"3ade668f914bff9c66f1a4c823fd4b4df7370396a3f79f4cf405b413f0a83159",
+    "realAccount021":"NATIVE_EDITOR_TEXT_MISMATCH after previous ambiguity/locale guards passed",
+    "cause":"DraftJS innerText has layout-only breaks; exact logical blocks match accepted copy",
+    "red":"EXPECTED_FAIL on exact multiline DraftJS acceptance case",
+    "editorTests":23,
+    "focusedTests":25,
+    "browserIntegrationTests":24,
+    "failed":0,
+    "skipped":0,
+    "qualityGate":"PASS",
+    "installed":false
+  },
+  "uat":"PENDING_REAL_ACCOUNT_NO_SEND",
+  "publicationAuthorized":false
+}
