@@ -1,3 +1,4 @@
+import { projectSettingsReader } from './project_settings_reader';
 import fs from 'fs';
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
@@ -757,20 +758,13 @@ ${languageInstruction}`;
 
     private async getPrompt(projectId: number, key: string, defaultVal: string): Promise<string> {
         try {
-            const setting = await this.prisma.projectSettings.findUnique({
-                where: {
-                    project_id_key: {
-                        project_id: projectId,
-                        key: key
-                    }
-                }
-            });
+            const setting = await projectSettingsReader.read(projectId, key);
             if (setting) return setting.value;
 
             // Create default if missing for this project
-            await this.prisma.projectSettings.create({
+            await projectSettingsReader.write(projectId, key, tx => tx.projectSettings.create({
                 data: { project_id: projectId, key, value: defaultVal }
-            });
+            }));
             return defaultVal;
         } catch (e) {
             console.error(`Failed to fetch prompt for ${key} in project ${projectId} `, e);

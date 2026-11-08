@@ -1,0 +1,6 @@
+FROM ghcr.io/railwayapp/cli@sha256:9ffb93e814f3c1e7d54c7ce9c923e635ab19046ec2377c27fccedb29e4ec9d5c AS railway
+FROM postgres@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+RUN apk add --no-cache python3
+COPY --from=railway /usr/bin/railway /usr/local/bin/railway
+USER 1000:1000
+ENTRYPOINT ["python3", "/inspection/backup_database.py"]

@@ -1,6 +1,9 @@
+import { createMcpUsageTouch } from './mcp_usage_touch';
 import { createHash, randomBytes, randomUUID } from 'crypto';
 import prisma from '../db';
 import type { McpCapabilityProfile } from '../mcp/capabilities';
+
+const touchMcpUsage = createMcpUsageTouch();
 
 export const MANAGED_MCP_PROFILES = [
     'strategist', 'planner', 'writer', 'editor', 'art_director', 'publisher', 'growth_analyst'
@@ -255,20 +258,30 @@ class McpAccessTokenService {
     }
 
     async authenticate(token: string, expectedProfile: McpCapabilityProfile) {
-        const record = await prisma.mcpAccessToken.findUnique({ where: { token_hash: hashMcpToken(token) } });
+        const tokenHash = hashMcpToken(token);
+        const record = await prisma.mcpAccessToken.findUnique({
+            where: { token_hash: tokenHash },
+            select: { id: true, profile: true, project_id: true, organization_id: true,
+                user_id: true, expires_at: true, revoked_at: true }
+        });
         if (!record || record.profile !== expectedProfile || record.revoked_at || (record.expires_at && record.expires_at <= new Date())) return null;
         if (expectedProfile === 'organization_researcher') {
             if (!record.organization_id || record.project_id) return null;
-            const membership = await prisma.organizationMember.findUnique({ where: { organization_id_user_id: { organization_id: record.organization_id, user_id: record.user_id } } });
+            const membership = await prisma.organizationMember.findUnique({ where: { organization_id_user_id: { organization_id: record.organization_id, user_id: record.user_id } }, select: { role: true } });
             if (!membership || !['owner', 'researcher'].includes(membership.role)) return null;
         } else {
             if (!record.project_id || record.organization_id) return null;
-            const membership = await prisma.projectMember.findUnique({ where: { project_id_user_id: { project_id: record.project_id, user_id: record.user_id } } });
+            const membership = await prisma.projectMember.findUnique({ where: { project_id_user_id: { project_id: record.project_id, user_id: record.user_id } }, select: { id: true } });
             if (!membership) return null;
         }
-        await prisma.mcpAccessToken.update({ where: { id: record.id }, data: { last_used_at: new Date() } });
+        const usedAt = new Date();
+        await touchMcpUsage(record.id, () => prisma.mcpAccessToken.updateMany({
+            where: { id: record.id, revoked_at: null,
+                OR: [{ last_used_at: null }, { last_used_at: { lt: new Date(usedAt.getTime() - 60000) } }] },
+            data: { last_used_at: usedAt }
+        }));
         return {
-            credentialId: `db:${record.id}:${record.token_hash}`,
+            credentialId: `db:${record.id}:${tokenHash}`,
             principal: { userId: record.user_id, actorId: `user:${record.user_id}`, ...(record.project_id ? { projectId: record.project_id } : {}), ...(record.organization_id ? { organizationId: record.organization_id } : {}), profile: expectedProfile }
         };
     }

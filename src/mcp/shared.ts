@@ -1,3 +1,4 @@
+import { projectSettingsReader } from '../services/project_settings_reader';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { registerVkSearchTools } from './tools/vk_search_tools';
@@ -251,6 +252,7 @@ export function registerPlannerTools(server: McpServer,principal?:Readonly<Remot
  * Gracefully shuts down MCP database connection pools and Prisma clients.
  */
 export async function shutdownMcpResources(): Promise<void> {
+    await projectSettingsReader.close();
     try {
         await prisma.$disconnect();
     } catch (_error) {
