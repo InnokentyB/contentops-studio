@@ -221,6 +221,10 @@ export class TelegramTaskPublicationService {
                 || proof.body_sha256 !== bodyHash
                 || (task.visual_placement === 'story'
                     ? proof.placement !== task.visual_placement
+                        || (proof.selected_asset_id !== task.selected_asset_id
+                            && !(proof.selected_asset_id === undefined
+                                && task.publication_fact?.outcome === 'published'
+                                && (task.publication_fact.public_url || task.publication_fact.provider_object_id)))
                     : proof.placement && proof.placement !== task.visual_placement)
                 || (task.id === 1099 && (proof.selected_asset_id !== 134
                     || proof.asset_sha256 !== selectedAssetSha256(task.selected_asset)
@@ -324,6 +328,7 @@ export class TelegramTaskPublicationService {
                     id: task.id, project_id: args.projectId, status: { in: claimableStatuses },
                     content_revision: task.content_revision, accepted_revision: task.accepted_revision,
                     selected_asset_id: task.selected_asset_id,
+                    visual_placement: task.visual_placement, type: task.type, draft_text: task.draft_text,
                     publication_mode: task.publication_mode
                 },
                 data: {
