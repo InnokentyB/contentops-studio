@@ -1,3 +1,4 @@
+import { projectSettingsReader } from './services/project_settings_reader';
 import './bootstrap-env';
 import { config } from 'dotenv';
 config();
@@ -302,6 +303,8 @@ const start = async () => {
                 const { connection } = require('./queue/index');
                 await connection.quit();
             }
+
+            await projectSettingsReader.close();
 
             // 4. Disconnect Prisma & close PostgreSQL connection pool
             try {

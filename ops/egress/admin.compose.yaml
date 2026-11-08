@@ -1,0 +1,30 @@
+name: planner-egress-backup-admin
+services:
+  backup:
+    image: tower/contentops-postgres-backup:18
+    build: {context: ../.., dockerfile: ops/egress/Dockerfile.backup}
+    platform: linux/amd64
+    profiles: [admin]
+    user: '1000:1000'
+    working_dir: /railway-home/work
+    read_only: true
+    restart: 'no'
+    environment: {HOME: /railway-home}
+    tmpfs: ['/tmp:rw,nosuid,nodev,size=32m,mode=1777']
+    volumes:
+      - /home/innokenty/migration-private/contentops-railway-cli:/railway-home:ro
+      - /home/innokenty/migration-private/contentops-production-backups:/backups
+      - ./backup_database.py:/inspection/backup_database.py:ro
+      - ./backup_policy.py:/inspection/backup_policy.py:ro
+      - ./schema-fingerprint.sql:/inspection/schema-fingerprint.sql:ro
+    entrypoint: [python3, /inspection/backup_database.py]
+    networks: [admin]
+    mem_limit: 512m
+    cpus: 1
+    pids_limit: 64
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    logging: {driver: json-file, options: {max-size: 5m, max-file: '2'}}
+networks:
+  admin:
+    ipam: {config: [{subnet: 10.238.107.0/28}]}

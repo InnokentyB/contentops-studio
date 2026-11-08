@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import authService from '../services/auth.service';
 import prisma from '../db';
+import { projectSettingsReader } from '../services/project_settings_reader';
 import initiativeService from '../services/initiative.service';
 import { normalizeProjectKind } from '../utils/project.utils';
 import { sanitizeChannelConfig } from '../utils/channel.utils';
@@ -113,7 +114,7 @@ export default async function projectRoutes(fastify: FastifyInstance) {
             return;
         }
 
-        const setting = await prisma.projectSettings.upsert({
+        const setting = await projectSettingsReader.write(projectId, key, tx => tx.projectSettings.upsert({
             where: {
                 project_id_key: {
                     project_id: projectId,
@@ -126,7 +127,7 @@ export default async function projectRoutes(fastify: FastifyInstance) {
                 key,
                 value
             }
-        });
+        }));
 
         if (key === 'default_channel_id') {
             const channelId = parseInt(value, 10);

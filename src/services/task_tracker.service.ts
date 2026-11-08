@@ -1,3 +1,4 @@
+import { SETTINGS_CACHE_EVENT } from './settings_cache_events';
 import prisma from '../db';
 
 export interface SyncTaskTrackerArgs {
@@ -139,7 +140,7 @@ export class TaskTrackerService {
             });
 
             const pendingCount = await prisma.outboxEvent.count({
-                where: { project_id: projectId, status: 'pending' },
+                where: { project_id: projectId, status: 'pending', event_type: { not: SETTINGS_CACHE_EVENT } },
             });
 
             return {
@@ -149,7 +150,7 @@ export class TaskTrackerService {
         }
 
         const pendingEvents = await prisma.outboxEvent.findMany({
-            where: { project_id: projectId, status: 'pending' },
+            where: { project_id: projectId, status: 'pending', event_type: { not: SETTINGS_CACHE_EVENT } },
         });
 
         for (const evt of pendingEvents) {

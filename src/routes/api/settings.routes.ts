@@ -1,3 +1,4 @@
+import { projectSettingsReader } from '../../services/project_settings_reader';
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { Prisma } from '@prisma/client';
 import prisma from '../../db';
@@ -229,19 +230,21 @@ export default async function settingsRoutes(fastify: FastifyInstance): Promise<
 
         try {
             const saveSetting = async (key: string, value: string) => {
-                const existing = await prisma.projectSettings.findUnique({
-                    where: { project_id_key: { project_id: projectId, key } }
+                await projectSettingsReader.write(projectId, key, async tx => {
+                    const existing = await tx.projectSettings.findUnique({
+                        where: { project_id_key: { project_id: projectId, key } }
+                    });
+                    if (existing) {
+                        await tx.projectSettings.update({
+                            where: { id: existing.id },
+                            data: { value }
+                        });
+                    } else {
+                        await tx.projectSettings.create({
+                            data: { project_id: projectId, key, value }
+                        });
+                    }
                 });
-                if (existing) {
-                    await prisma.projectSettings.update({
-                        where: { id: existing.id },
-                        data: { value }
-                    });
-                } else {
-                    await prisma.projectSettings.create({
-                        data: { project_id: projectId, key, value }
-                    });
-                }
             };
 
             await saveSetting(keys.prompt, prompt);
