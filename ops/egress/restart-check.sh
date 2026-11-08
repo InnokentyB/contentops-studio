@@ -6,7 +6,7 @@ job_log=$(mktemp /tmp/planner-cache-restart.XXXXXX)
 docker compose -f ops/egress/compose.yaml run --rm -e EGRESS_RESTART_ONLY=1 postgres-checks >"$job_log" 2>&1 &
 job_pid=$!
 for step in $(seq 1 120); do
-  if rg -q RESTART_REDIS_NOW "$job_log"; then
+  if grep -q RESTART_REDIS_NOW "$job_log"; then
     docker compose -f ops/egress/compose.yaml up -d --wait redis
     break
   fi
