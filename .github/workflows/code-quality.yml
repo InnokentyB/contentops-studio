@@ -143,6 +143,17 @@ jobs:
           stat -c '%F %a %U %n' "$browser_path"
           echo "APP_BROWSER_EXECUTABLE_PATH=$browser_path" >> "$GITHUB_ENV"
           APP_BROWSER_EXECUTABLE_PATH="$browser_path" node --test tests/tdpd/vk-shared-browser.test.cjs
+      - name: Agent settings save diagnostics through API client and real Settings UI (synthetic loopback only)
+        env:
+          AGENT_UI_SOURCE: ${{ github.workspace }}
+          AGENT_UI_MODULES: ${{ github.workspace }}/frontend/node_modules
+          AGENT_UI_RESULTS: ${{ runner.temp }}/agent-save-ui
+          AGENT_PLAYWRIGHT_MODULE: ${{ github.workspace }}/node_modules/playwright
+        run: |
+          mkdir -p "$AGENT_UI_RESULTS"
+          (cd frontend && node ../ops/egress/build-agent-ui.cjs)
+          node "$AGENT_UI_RESULTS/client-tests.cjs"
+          X_BROWSER_EXECUTABLE="$APP_BROWSER_EXECUTABLE_PATH" node tests/egress/agent-save-ui.cjs
       - name: Full backend regression with synthetic auth and bundled consumer
         env:
           # Legacy recurring-trigger fixtures assert Lisbon wall-clock dates.

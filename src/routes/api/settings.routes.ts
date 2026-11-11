@@ -1,4 +1,5 @@
 import { projectSettingsReader } from '../../services/project_settings_reader';
+import { createAgentSettingsSaveResult } from '../../services/agent_settings_save_result';
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { Prisma } from '@prisma/client';
 import prisma from '../../db';
@@ -228,6 +229,7 @@ export default async function settingsRoutes(fastify: FastifyInstance): Promise<
             return reply.code(400).send({ error: 'Invalid role' });
         }
 
+        const saveResult = createAgentSettingsSaveResult();
         try {
             const saveSetting = async (key: string, value: string) => {
                 await projectSettingsReader.write(projectId, key, async tx => {
@@ -247,21 +249,21 @@ export default async function settingsRoutes(fastify: FastifyInstance): Promise<
                 });
             };
 
-            await saveSetting(keys.prompt, prompt);
+            await saveResult.save('prompt', () => saveSetting(keys.prompt, prompt));
             if (apiKey !== undefined) {
                 if (apiKey === '') {
-                    await saveSetting(keys.key, '');
+                    await saveResult.save('api_key', () => saveSetting(keys.key, ''));
                 } else if (!apiKey.includes('••••')) {
-                    await saveSetting(keys.key, safeEncryptProviderKey(apiKey));
+                    await saveResult.save('api_key', () => saveSetting(keys.key, safeEncryptProviderKey(apiKey)));
                 }
             }
-            await saveSetting(keys.model, model);
+            await saveResult.save('model', () => saveSetting(keys.model, model));
 
             return { success: true };
         } catch (e: unknown) {
-            const err = e as Error;
-            console.error(`Failed to save settings for ${role}`, err);
-            return reply.code(500).send({ error: 'Failed to save settings', details: err.message });
+            const failure = saveResult.failure(e);
+            request.log?.warn({code:failure.body.code, save_state:failure.body.save_state}, 'Agent settings save needs attention');
+            return reply.code(failure.status).send(failure.body);
         }
     });
 

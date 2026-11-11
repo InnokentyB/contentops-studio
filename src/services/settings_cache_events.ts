@@ -7,6 +7,10 @@ export class SettingsCacheSyncError extends Error {
     readonly code = 'SETTINGS_CACHE_SYNC_UNAVAILABLE';
     constructor() { super('Settings were not saved: cache synchronization is unavailable. Check Redis connectivity for web and MCP, then retry.'); }
 }
+export class SettingsSavedCacheSyncPendingError extends Error {
+    readonly code = 'SETTINGS_SAVED_CACHE_SYNC_PENDING';
+    constructor() { super('SETTINGS_SAVED_CACHE_SYNC_PENDING: settings were saved. Do not repeat the save blindly; check Redis and the invalidation ledger. Reads bypass pending cache entries.'); }
+}
 function operation(row: {id: number; project_id: number; payload: Prisma.JsonValue}): SettingsOperation {
     const p = row.payload;
     if (!p || Array.isArray(p) || typeof p !== 'object' ||

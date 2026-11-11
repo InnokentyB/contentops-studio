@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import type { Prisma, PrismaClient } from '@prisma/client';
-import { createSettingsEventStore, SettingsCacheSyncError } from './settings_cache_events';
+import { createSettingsEventStore, SettingsCacheSyncError, SettingsSavedCacheSyncPendingError } from './settings_cache_events';
 import { createSettingsRedis } from './settings_cache_redis';
 import { isCacheableSetting } from './settings_cache';
 import { createCoordinatedSettingsReader } from './coordinated_settings_reader';
@@ -75,7 +75,7 @@ export function createSettingsCacheRuntime(db: PrismaClient, redis: ReturnType<t
             try { await ensure(); await store.finish(e,()=>redis.finish(e)); }
             catch {
                 warning();
-                throw new Error('SETTINGS_SAVED_CACHE_SYNC_PENDING: settings were saved. Do not repeat the save blindly; check Redis and the invalidation ledger. Reads bypass pending cache entries.');
+                throw new SettingsSavedCacheSyncPendingError();
             }
             return result;
         },

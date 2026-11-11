@@ -10,7 +10,7 @@ export interface ToastMessage {
 }
 
 export interface ToastContextType {
-    showToast: (message: string, type?: ToastType, details?: string) => void
+    showToast: (message: string, type?: ToastType, details?: string, options?: {persistent?: boolean}) => void
     hideToast: (id: string) => void
 }
 

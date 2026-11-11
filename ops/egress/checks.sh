@@ -13,6 +13,6 @@ fi
 node --test tests/egress/*.test.cjs
 if [ "${EGRESS_POSTGRES:-0}" = 1 ]; then
   node node_modules/prisma/build/index.js db push
-  node --test tests/egress/*.pg.cjs
+  node --test --test-concurrency=1 tests/egress/*.pg.cjs
 fi
 node --test --test-concurrency=1 dist/tests/mcp_access_token_contract.test.js dist/tests/remote_mcp_auth.test.js dist/tests/mcp_organization_researcher_profile.test.js
