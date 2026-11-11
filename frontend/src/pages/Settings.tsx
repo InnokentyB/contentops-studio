@@ -9,6 +9,7 @@ import { useState, useEffect, useRef } from 'react'
 import { api, presetsApi, keysApi, modelsApi, projectsApi, skillConnectionsApi, contentDictionaryApi, contentPolicyMatrixApi, atomaContextApi } from '../api'
 import { useAuth } from '../context/auth'
 import { useToast } from '../components/toast'
+import { agentSaveError } from '../utils/agentSaveError'
 import { useLocale } from '../i18n/locale'
 
 interface AgentConfig {
@@ -975,6 +976,10 @@ export default function Settings() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['agents'] })
             showToast('Agent configuration saved successfully', 'success')
+        },
+        onError: (error: unknown) => {
+            const diagnostic = agentSaveError(error, locale);
+            showToast(diagnostic.message, 'error', diagnostic.details, {persistent:true});
         }
     })
 

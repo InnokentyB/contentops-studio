@@ -8,15 +8,15 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setToasts((prev) => prev.filter((t) => t.id !== id));
     }, []);
 
-    const showToast = useCallback((message: string, type: ToastType = 'info', details?: string) => {
+    const showToast = useCallback((message: string, type: ToastType = 'info', details?: string, options?: {persistent?: boolean}) => {
         const id = Math.random().toString(36).substring(2, 9);
         const newToast: ToastMessage = { id, message, type, details };
         setToasts((prev) => [...prev, newToast]);
 
         // Auto dismiss after 4 seconds
-        setTimeout(() => {
-            hideToast(id);
-        }, 4500);
+        if (!options?.persistent) {
+            setTimeout(() => { hideToast(id); }, 4500);
+        }
     }, [hideToast]);
 
     return (
@@ -32,7 +32,7 @@ const ToastContainer: React.FC<{
     onDismiss: (id: string) => void;
 }> = ({ toasts, onDismiss }) => {
     return (
-        <div className="fixed bottom-5 right-5 z-[9999] flex flex-col gap-3 max-w-md w-full pointer-events-none">
+        <div className="fixed bottom-5 inset-x-4 sm:left-auto sm:right-5 z-[9999] flex flex-col gap-3 max-w-md w-auto sm:w-full pointer-events-none">
             {toasts.map((toast) => (
                 <ToastCard key={toast.id} toast={toast} onDismiss={() => onDismiss(toast.id)} />
             ))}
@@ -79,6 +79,7 @@ const ToastCard: React.FC<{
 
     return (
         <div
+            role={toast.type === 'error' ? 'alert' : 'status'}
             className={`toast-card pointer-events-auto flex flex-col p-4 rounded-xl border backdrop-blur-md shadow-lg transition-all duration-300 transform translate-x-0 animate-slide-in-right ${typeStyles}`}
             style={{
                 animation: 'slideInRight 0.3s ease-out forwards',
@@ -92,6 +93,7 @@ const ToastCard: React.FC<{
                     {toast.message}
                 </div>
                 <button
+                    aria-label="Dismiss notification"
                     onClick={onDismiss}
                     className="shrink-0 text-slate-400 hover:text-white transition-colors duration-150"
                 >

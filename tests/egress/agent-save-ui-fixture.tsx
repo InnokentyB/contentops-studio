@@ -1,0 +1,12 @@
+import {createRoot} from 'react-dom/client';
+import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
+import {AuthContext,type AuthContextType} from '../../frontend/src/context/auth';
+import {LocaleContext} from '../../frontend/src/i18n/locale';
+import {ToastProvider} from '../../frontend/src/components/ToastContainer';
+import Settings from '../../frontend/src/pages/Settings';
+import '../../frontend/src/index.css';
+const locale=new URLSearchParams(location.search).get('lang')==='en'?'en':'ru';
+const project={id:101,name:'Synthetic project',role:'owner' as const};
+const auth:AuthContextType={user:{id:202,email:'test@example.invalid'},currentProject:project,projects:[project],token:'synthetic',isAuthenticated:true,isLoading:false,login:()=>undefined,logout:()=>undefined,setCurrentProject:()=>undefined,createProject:()=>undefined};
+const client=new QueryClient({defaultOptions:{queries:{retry:false,refetchOnWindowFocus:false},mutations:{retry:false}}});
+createRoot(document.getElementById('root')!).render(<QueryClientProvider client={client}><AuthContext.Provider value={auth}><LocaleContext.Provider value={{locale,setLocale:()=>undefined,t:key=>key}}><ToastProvider><Settings/></ToastProvider></LocaleContext.Provider></AuthContext.Provider></QueryClientProvider>);

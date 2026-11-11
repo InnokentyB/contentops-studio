@@ -1,0 +1,10 @@
+name: planner-agent-save-ui
+services:
+  build-fixture:
+    extends: {file: ../channel-list-tests/compose.yaml, service: build-fixture}
+    entrypoint: [node, /source/ops/egress/build-agent-ui.cjs]
+    volumes: ['../..:/source:ro', '/tmp/planner-agent-save-ui:/results:rw']
+  browser:
+    extends: {file: ../channel-list-tests/compose.yaml, service: browser}
+    entrypoint: [node, /source/tests/egress/agent-save-ui.cjs]
+    volumes: ['../..:/source:ro', '/tmp/planner-agent-save-ui:/results:rw']

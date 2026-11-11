@@ -2,7 +2,28 @@ export type ApiOptions = Omit<RequestInit, 'body'> & {
     body?: unknown;
 }
 
-type ApiErrorPayload = { error?: string }
+type ApiErrorPayload = { error?: string; code?: unknown; action?: unknown; save_state?: unknown; fields?: unknown }
+
+/** Error-compatible structured response; never promotes arbitrary details into UI text. */
+export class ApiRequestError extends Error {
+    readonly status: number;
+    readonly code?: string;
+    readonly action?: string;
+    readonly saveState?: string;
+    readonly fields?: Record<string, string>;
+    constructor(status: number, payload: ApiErrorPayload, fallback = 'API Request Failed') {
+        super(typeof payload.error === 'string' ? payload.error : fallback);
+        this.status=status;
+        if (typeof payload.code === 'string') this.code=payload.code;
+        if (typeof payload.action === 'string') this.action=payload.action;
+        if (typeof payload.save_state === 'string') this.saveState=payload.save_state;
+        if (payload.fields && typeof payload.fields === 'object' && !Array.isArray(payload.fields)) {
+            this.fields=Object.fromEntries(Object.entries(payload.fields).filter(([key,value]) =>
+                ['prompt','api_key','model'].includes(key) && typeof value === 'string' &&
+                ['saved','not_saved','not_attempted','synchronization_pending','unknown'].includes(value)));
+        }
+    }
+}
 
 const getHeaders = () => {
     const token = localStorage.getItem('token');
@@ -53,7 +74,7 @@ export const api = {
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({})) as ApiErrorPayload;
-            throw new Error(errorData.error || 'API Request Failed');
+            throw new ApiRequestError(response.status, errorData);
         }
 
         return response.json();
