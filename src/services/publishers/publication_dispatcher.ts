@@ -15,6 +15,7 @@ import { derivePublicationContentState } from '../publication_content_state';
 import { resolveEffectiveChannelConfig } from '../../utils/channel.utils';
 import { telegramPublisher } from './telegram_publisher';
 import { vkPublisher } from './vk_publisher';
+import { isVkRemoteDeliveryReady } from '../vk_remote_delivery.client';
 import { ongoingRulesProcessor } from './ongoing_rules_processor';
 import redditService from '../reddit.service';
 import gscService from '../gsc.service';
@@ -321,7 +322,8 @@ export class PublicationDispatcher {
                 }
                 return vkPublisher.publishVkPersonalStory(storyParams);
             }
-            if (!vkId || !apiKey) {
+            const remoteVkReady = isVkRemoteDeliveryReady(task.project_id, task.channel?.config);
+            if (!vkId || (!apiKey && !remoteVkReady)) {
                 throw new Error('VK channel config is missing vk_id or api_key');
             }
 
