@@ -1,4 +1,5 @@
 import { isVkPublicationPlatform, vkPublicationAdapterRequired } from './vk_publication_route_contract';
+import { isVkRemoteDeliveryReady } from './vk_remote_delivery.client';
 import prisma from '../db';
 import publisherService from './publisher.service';
 import publicationFactService from './publication_fact.service';
@@ -129,19 +130,20 @@ function prepareTaskPayload(task: any, allowUnsupportedDryRun = false) {
             && config.refreshToken
             && config.deviceId
         ));
+        const remoteVkReady = !isVkPersonalStory && isVkRemoteDeliveryReady(task.project_id, task.channel?.config);
         if (isVkPersonalStory && (!hasStoryToken || !config.oauthUserId)) {
             connectorReady = false;
             connectorReason = isVkPersonalStory ? 'vk_personal_oauth_identity_missing' : 'vk_credentials_missing';
             if (!allowUnsupportedDryRun) {
                 throw new Error('[VK_PERSONAL_STORY_CONNECTOR_NOT_READY] Personal VK story requires a server-refreshed VK ID connection and verified profile ID');
             }
-        } else if (!isVkPersonalStory && (!config.vkId || !config.communityToken)) {
+        } else if (!isVkPersonalStory && !remoteVkReady && (!config.vkId || !config.communityToken)) {
             connectorReady = false;
             connectorReason = 'vk_credentials_missing';
             if (!allowUnsupportedDryRun) {
                 throw new Error('[VK_CONNECTOR_NOT_READY] VK channel requires vk_id and a community publication token');
             }
-        } else if (!isVkPersonalStory && hasSelectedVisual && !config.userToken) {
+        } else if (!isVkPersonalStory && !remoteVkReady && hasSelectedVisual && !config.userToken) {
             connectorReady = false;
             connectorReason = 'vk_user_media_token_missing';
             if (!allowUnsupportedDryRun) {
@@ -241,10 +243,12 @@ export class TelegramTaskPublicationService {
         const isTelegramStory = isTelegramStoryTask(task);
         const isVkPersonalStory = isVkPersonalStoryTask(task);
         const isStory = isTelegramStory || isVkPersonalStory;
+        const remoteVkReady = !isVkPersonalStory && isVkRemoteDeliveryReady(args.projectId, task.channel?.config);
         const delivery = isTelegramStory
             ? task.id === TASK1100_STORY.id ? 'mtproto_personal_story_sequence' : 'mtproto_personal_story'
             : isVkPersonalStory ? 'vk_api_personal_story'
-            : task.channel?.type === 'telegram' ? 'mtproto' : task.channel?.type === 'vk' ? 'vk_api' : null;
+            : task.channel?.type === 'telegram' ? 'mtproto'
+            : task.channel?.type === 'vk' ? (remoteVkReady ? 'vk_remote_adapter' : 'vk_api') : null;
         if (task.publication_fact?.outcome === 'published'
             && (task.publication_fact.public_url || task.publication_fact.provider_object_id)) {
             return {
@@ -255,7 +259,7 @@ export class TelegramTaskPublicationService {
             };
         }
 
-        if (isVkPublicationPlatform(task.channel?.type)) return {
+        if (isVkPublicationPlatform(task.channel?.type) && !remoteVkReady) return {
             mode: args.dryRun ? 'dry_run' : 'blocked', project_id: args.projectId, task_id: task.id,
             success: false, blocked: true, provider_execution: 'blocked', reason: 'vk_adapter_required',
             route_executable: false, direct_execution_supported: false, connector_ready: null, adapter_readiness: 'NOT_CHECKED',

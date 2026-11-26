@@ -1,4 +1,5 @@
 import { rejectVkDirectPublication } from '../vk_publication_route_contract';
+import { deliverVkViaRemoteAdapter, isVkRemoteDeliveryReady } from '../vk_remote_delivery.client';
 import prisma from '../../db';
 import vkService from '../vk.service';
 import vkOAuthService from '../vk_oauth.service';
@@ -86,6 +87,9 @@ export class VkPublisher {
         imageUrl?: string;
         idempotencyKey: string;
     }) {
+        if (isVkRemoteDeliveryReady(params.projectId, params.channel?.config)) {
+            return deliverVkViaRemoteAdapter(params);
+        }
         rejectVkDirectPublication();
         const text = typeof params.text === 'string' ? params.text.trim() : '';
         if (!text) throw new Error('[VK_TEXT_REQUIRED] VK publication text must not be empty');

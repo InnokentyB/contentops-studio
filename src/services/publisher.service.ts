@@ -1,4 +1,5 @@
 import { rejectVkDirectPublication } from './vk_publication_route_contract';
+import { isVkRemoteDeliveryReady } from './vk_remote_delivery.client';
 import { PublicationDiagnosticError } from './publication_diagnostics';
 import { diagnoseDirectPublicationError, projectDirectPublicationResult } from './direct_publication_error_diagnostics';
 import { logPublicationDiagnostic } from './publication_diagnostic_log';
@@ -192,6 +193,9 @@ export class PublisherService {
         imageUrl?: string;
         idempotencyKey: string;
     }) {
+        if (isVkRemoteDeliveryReady(params.projectId, params.channel?.config)) {
+            return vkPublisher.publishVkTask(params);
+        }
         rejectVkDirectPublication();
         return vkPublisher.publishVkTask(params);
     }

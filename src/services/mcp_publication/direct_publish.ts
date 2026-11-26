@@ -1,4 +1,5 @@
 import { isVkPublicationPlatform, vkPublicationAdapterRequired, rejectVkDirectPublication } from '../vk_publication_route_contract';
+import { deliverVkViaRemoteAdapter, isVkRemoteDeliveryReady } from '../vk_remote_delivery.client';
 import prisma from '../../db';
 import { Prisma } from '@prisma/client';
 import publisherService from '../publisher.service';
@@ -24,7 +25,9 @@ export async function publishDirect(
     channelResolver: (projectId: number, channelId?: number, channelType?: string) => Promise<Awaited<ReturnType<typeof resolveChannel>>> = resolveChannel
 ) {
     const channel = await channelResolver(params.projectId, params.channelId, params.channelType);
-    if (isVkPublicationPlatform(channel.type)) return {
+    const vkRemoteReady = isVkPublicationPlatform(channel.type)
+        && isVkRemoteDeliveryReady(params.projectId, channel.config as Record<string, unknown> | null | undefined);
+    if (isVkPublicationPlatform(channel.type) && !vkRemoteReady) return {
         mode: params.dryRun ? 'dry_run' : 'blocked', project_id: params.projectId,
         channel: { id: channel.id, name: channel.name, type: channel.type },
         success: false, blocked: true, provider_execution: 'blocked', reason: 'vk_adapter_required',
@@ -103,24 +106,22 @@ export async function publishDirect(
 
         publishedLink = await threadsService.publishPost(threadsUserId, accessToken, params.text, params.imageUrl);
     } else if (isVkPublicationPlatform(channel.type)) {
-        rejectVkDirectPublication();
-        const vkId = config?.vk_id as string | number | undefined;
-        const apiKey = (config?.publish_access_token || config?.api_key) as string | undefined;
-        if (!vkId || !apiKey) {
-            throw new Error(`VK channel ${channel.id} is missing vk_id or api_key`);
+        if (vkRemoteReady) {
+            const directId = Math.max(1, Date.now() % 1_000_000_000);
+            const result = await deliverVkViaRemoteAdapter({
+                projectId: params.projectId,
+                taskId: directId,
+                channel: { id: channel.id, config: (channel.config as Record<string, unknown>) || {} },
+                text: params.text,
+                imageUrl: params.imageUrl,
+                idempotencyKey: `direct-vk-${params.projectId}-${channel.id}-${directId}`,
+            });
+            publishedLink = result.publishedLink;
+            externalId = result.metrics.vk_object_id;
+            deliveryMethod = result.deliveryMethod;
+        } else {
+            rejectVkDirectPublication();
         }
-
-        if (params.imageUrl && !config?.user_access_token) {
-            throw new Error(`VK channel ${channel.id} requires user_access_token to upload an image`);
-        }
-
-        publishedLink = await vkService.publishPost(
-            String(vkId),
-            apiKey,
-            params.text,
-            params.imageUrl,
-            { mediaUploadToken: (config?.user_access_token as string) || undefined }
-        );
     } else if (channel.type === 'linkedin') {
         const urn = config?.linkedin_urn as string | undefined;
         const token = config?.access_token as string | undefined;
