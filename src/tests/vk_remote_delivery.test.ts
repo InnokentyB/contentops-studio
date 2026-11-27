@@ -113,6 +113,45 @@ test('deliverVkViaRemoteAdapter sends canonical planner-delivery/1 packet and pa
     });
 });
 
+test('deliverVkViaRemoteAdapter supports VK clip placement with HTTPS videoUrl and clip receipt', async () => {
+    let capturedBody: Record<string, unknown> = {};
+    const fakeFetch: typeof fetch = async (_input, init) => {
+        capturedBody = JSON.parse(String(init?.body || '{}')) as Record<string, unknown>;
+        const binding = capturedBody.binding as Record<string, unknown>;
+        return new Response(JSON.stringify({
+            state: 'custody_acknowledged',
+            retryAllowed: false,
+            receipt: {
+                attemptId: binding.attemptId,
+                generation: 1,
+                packageDigest: binding.packageDigest,
+                objectId: 'clip-240051152_456239017',
+                publicUrl: 'https://vk.com/clip-240051152_456239017',
+                publishedAt: '2026-11-27T09:15:00.000Z',
+            },
+        }), { status: 200, headers: { 'content-type': 'application/json' } });
+    };
+
+    const result = await deliverVkViaRemoteAdapter({
+        projectId: 10,
+        taskId: 1205,
+        channel: ANALYSTCRAFT_CHANNEL,
+        text: 'Короткий клип из Planner',
+        videoUrl: 'https://cdn.example.com/clip.mp4',
+        placement: 'clip',
+        idempotencyKey: 'task:10:1205:revision:1',
+    }, { env: VALID_ENV, fetchImpl: fakeFetch, nowMs: () => 1795700000000 });
+
+    const payload = capturedBody.payload as Record<string, unknown>;
+    assert.equal(payload.placement, 'clip');
+    assert.equal(payload.videoUrl, 'https://cdn.example.com/clip.mp4');
+    assert.equal(payload.text, 'Короткий клип из Planner');
+    assert.equal(result.publishedLink, 'https://vk.com/clip-240051152_456239017');
+    assert.equal(result.metrics.vk_object_id, 'clip-240051152_456239017');
+    assert.equal(result.metrics.vk_owner_id, '-240051152');
+    assert.equal(result.metrics.vk_post_id, '456239017');
+});
+
 test('deliverVkViaRemoteAdapter fails closed on 401/409/bad-receipt without leaking bearer token', async () => {
     const cases: Array<{ status: number; body: unknown; expected: RegExp }> = [
         { status: 401, body: { code: 'RPD_UNAUTHORIZED' }, expected: /VK_REMOTE_DELIVERY_UNAUTHORIZED/ },

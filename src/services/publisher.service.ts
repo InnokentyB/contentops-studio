@@ -191,6 +191,8 @@ export class PublisherService {
         channel: { id?: number; config?: Record<string, unknown> };
         text: string;
         imageUrl?: string;
+        videoUrl?: string;
+        placement?: 'feed' | 'clip';
         idempotencyKey: string;
     }) {
         if (isVkRemoteDeliveryReady(params.projectId, params.channel?.config)) {

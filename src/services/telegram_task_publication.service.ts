@@ -20,7 +20,7 @@ type Dependencies = {
         publishTelegramPersonalStorySequenceMtproto?(args: { projectId: number; taskId: number;
             idempotencyKey: string; frames: TelegramStoryFrame[] }): Promise<any>;
         publishVkPersonalStory(args: { projectId: number; taskId: number; channel: any; imageUrl: string; idempotencyKey: string; poll?: VkStoryPoll | null }): Promise<any>;
-        publishVkTask(args: { projectId: number; taskId: number; channel: any; text: string; imageUrl?: string; idempotencyKey: string }): Promise<any>;
+        publishVkTask(args: { projectId: number; taskId: number; channel: any; text: string; imageUrl?: string; videoUrl?: string; placement?: 'feed' | 'clip'; idempotencyKey: string }): Promise<any>;
     };
     publicationFacts: { record(args: any): Promise<any> };
 };
@@ -105,9 +105,11 @@ function extractVkConfig(channel: any) {
 function prepareTaskPayload(task: any, allowUnsupportedDryRun = false) {
     const channelType = task.channel?.type;
     const isVkVideo = channelType === 'vk' && visualMetadataFromProvenance(task.selected_asset?.provenance).mime_type === 'video/mp4';
+    const isVkClip = channelType === 'vk' && (task.visual_placement === 'clip' || isVkVideo);
+    const remoteVkClipReady = isVkClip && isVkRemoteDeliveryReady(task.project_id, task.channel?.config);
     const isTelegramVideo = ['telegram', 'telegram_chat'].includes(channelType) && !isTelegramStoryTask(task) && visualMetadataFromProvenance(task.selected_asset?.provenance).mime_type === 'video/mp4';
-    const directSupported = ['telegram', 'vk'].includes(channelType) && !isVkVideo;
-    if (isVkVideo && !allowUnsupportedDryRun) {
+    const directSupported = ['telegram', 'vk'].includes(channelType) && (!isVkVideo || remoteVkClipReady);
+    if (isVkVideo && !remoteVkClipReady && !allowUnsupportedDryRun) {
         throw new Error('[VK_NATIVE_VIDEO_ADAPTER_UNSUPPORTED] Native video transport is not enabled; do not use the photo adapter');
     }
     if (!directSupported && !allowUnsupportedDryRun) {
@@ -117,7 +119,7 @@ function prepareTaskPayload(task: any, allowUnsupportedDryRun = false) {
         throw new Error('[ACCEPTED_REVISION_REQUIRED] Publication requires the current accepted text revision');
     }
     let connectorReady = directSupported;
-    let connectorReason: string | null = isVkVideo ? 'vk_native_video_adapter_unsupported' : null;
+    let connectorReason: string | null = isVkVideo && !remoteVkClipReady ? 'vk_native_video_adapter_unsupported' : null;
     const isTelegramStory = isTelegramStoryTask(task);
     const isVkPersonalStory = isVkPersonalStoryTask(task);
     const isStory = isTelegramStory || isVkPersonalStory;
@@ -165,10 +167,12 @@ function prepareTaskPayload(task: any, allowUnsupportedDryRun = false) {
     if (channelType === 'vk' && !isVkPersonalStory && !text) throw new Error('[VK_TEXT_REQUIRED] VK publication text must not be empty');
     const storyFrames = isTelegramStory ? resolveTask1100StoryFrames(task) : null;
     const payload = storyFrames
-        ? { text: '', imageUrl: null }
+        ? { text: '', imageUrl: null, videoUrl: null, placement: 'feed' as const }
         : channelType === 'telegram'
-        ? normalizeTelegramDeliveryPayload({ text, imageUrl: selectedAsset?.file_url })
-        : { text: isVkPersonalStory ? '' : text, imageUrl: isVkVideo ? null : selectedAsset?.file_url || null };
+        ? { ...normalizeTelegramDeliveryPayload({ text, imageUrl: selectedAsset?.file_url }), videoUrl: null, placement: 'feed' as const }
+        : remoteVkClipReady
+        ? { text, imageUrl: null, videoUrl: selectedAsset?.file_url || null, placement: 'clip' as const }
+        : { text: isVkPersonalStory ? '' : text, imageUrl: isVkVideo ? null : selectedAsset?.file_url || null, videoUrl: null, placement: 'feed' as const };
     return {
         channelType, payload, selectedAsset, directSupported, connectorReady, connectorReason,
         isStory, isTelegramStory, isVkPersonalStory, isVkVideo, isTelegramVideo, nativePoll, storyFrames
@@ -393,7 +397,11 @@ export class TelegramTaskPublicationService {
                 })
                 : await publisher.publishVkTask({
                     projectId: args.projectId, taskId: task.id, channel: task.channel,
-                    text: payload.text, imageUrl: payload.imageUrl || undefined, idempotencyKey: idempotencyKey!
+                    text: payload.text,
+                    imageUrl: payload.imageUrl || undefined,
+                    videoUrl: payload.videoUrl || undefined,
+                    placement: payload.placement,
+                    idempotencyKey: idempotencyKey!
                 });
         } catch (error: any) {
             await this.markUncertain(db, task, prepared.channelType, delivery, idempotencyKey, error?.message || error);
@@ -415,11 +423,14 @@ export class TelegramTaskPublicationService {
         const vkPostId = prepared.channelType === 'vk' ? String(providerResult.metrics?.vk_post_id || '') : '';
         const vkStoryOwnerId = prepared.isVkPersonalStory ? String(providerResult.metrics?.vk_story_owner_id || '') : '';
         const vkStoryId = prepared.isVkPersonalStory ? String(providerResult.metrics?.vk_story_id || '') : '';
+        const vkObjectId = prepared.channelType === 'vk' ? String(providerResult.metrics?.vk_object_id || '') : '';
         const externalId = prepared.channelType === 'telegram'
             ? telegramMessageId
             : prepared.isVkPersonalStory
                 ? /^\d+$/.test(vkStoryOwnerId) && /^\d+$/.test(vkStoryId) ? `story${vkStoryOwnerId}_${vkStoryId}` : null
-                : /^-\d+$/.test(vkOwnerId) && /^\d+$/.test(vkPostId) ? `wall${vkOwnerId}_${vkPostId}` : null;
+                : /^clip-\d+_\d+$/.test(vkObjectId)
+                    ? vkObjectId
+                    : /^-\d+$/.test(vkOwnerId) && /^\d+$/.test(vkPostId) ? `wall${vkOwnerId}_${vkPostId}` : null;
         const expectedVkLink = prepared.channelType === 'vk' && externalId
             ? `https://vk.com/${externalId}`
             : null;
