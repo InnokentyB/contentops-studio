@@ -15,6 +15,8 @@ export interface VkRemoteDeliveryParams {
     channel: { id?: number; config?: Record<string, unknown> };
     text: string;
     imageUrl?: string;
+    videoUrl?: string;
+    placement?: 'feed' | 'clip';
     idempotencyKey: string;
     revision?: number;
     attemptId?: number;
@@ -37,7 +39,7 @@ type FetchLike = typeof fetch;
 
 const TOKEN_RE = /^[a-zA-Z0-9._:-]{1,160}$/;
 const VK_COMMUNITY_ID_RE = /^-[1-9]\d{0,18}$/;
-const VK_OBJECT_ID_RE = /^(-\d+)_(\d+)$/;
+const VK_OBJECT_ID_RE = /^(?:clip)?(-\d+)_(\d+)$/;
 
 function isSafeHttpsEndpoint(raw: string): boolean {
     try {
@@ -91,10 +93,11 @@ export function isVkRemoteDeliveryReady(
     return accountId === cfg.accountId;
 }
 
-function canonicalPayloadJson(payload: { text: string; imageUrl?: string }): string {
+function canonicalPayloadJson(payload: Record<string, string>): string {
     const ordered: Record<string, string> = {};
-    if (payload.imageUrl !== undefined) ordered.imageUrl = payload.imageUrl;
-    ordered.text = payload.text;
+    for (const k of Object.keys(payload).sort()) {
+        ordered[k] = payload[k];
+    }
     return JSON.stringify(ordered);
 }
 
@@ -122,12 +125,29 @@ export async function deliverVkViaRemoteAdapter(
         throw new Error('[VK_REMOTE_DELIVERY_SCOPE_MISMATCH] Channel scope does not match pinned remote VK installation');
     }
 
+    const placement = params.placement === 'clip' ? 'clip' : 'feed';
     const text = typeof params.text === 'string' ? params.text.trim() : '';
-    if (!text || text.length > 16000) {
-        throw new Error('[VK_TEXT_REQUIRED] VK publication text must be non-empty and within 16000 characters');
-    }
     const imageUrl = typeof params.imageUrl === 'string' && params.imageUrl.trim() ? params.imageUrl.trim() : undefined;
-    const payload: { text: string; imageUrl?: string } = imageUrl ? { text, imageUrl } : { text };
+    const videoUrl = typeof params.videoUrl === 'string' && params.videoUrl.trim() ? params.videoUrl.trim() : undefined;
+
+    const payload: Record<string, string> = {};
+    if (placement === 'clip') {
+        if (!videoUrl || !isSafeHttpsEndpoint(videoUrl)) {
+            throw new Error('[VK_CLIP_VIDEO_REQUIRED] VK clip publication requires a valid HTTPS videoUrl');
+        }
+        if (text.length > 4000) {
+            throw new Error('[VK_TEXT_REQUIRED] VK clip caption must be within 4000 characters');
+        }
+        payload.placement = 'clip';
+        payload.videoUrl = videoUrl;
+        if (text) payload.text = text;
+    } else {
+        if (!text || text.length > 16000) {
+            throw new Error('[VK_TEXT_REQUIRED] VK publication text must be non-empty and within 16000 characters');
+        }
+        payload.text = text;
+        if (imageUrl) payload.imageUrl = imageUrl;
+    }
     const packageDigest = createHash('sha256').update(canonicalPayloadJson(payload), 'utf8').digest('hex');
 
     const nowMs = options?.nowMs ? options.nowMs() : Date.now();
@@ -205,7 +225,11 @@ export async function deliverVkViaRemoteAdapter(
     const publicUrl = typeof receipt?.publicUrl === 'string' ? receipt.publicUrl : '';
     const publishedAt = typeof receipt?.publishedAt === 'string' ? receipt.publishedAt : new Date(nowMs).toISOString();
     const match = VK_OBJECT_ID_RE.exec(objectId);
-    if (!match || publicUrl !== `https://vk.com/wall${objectId}` || match[1] !== config.accountId) {
+    const expectedUrl = placement === 'clip'
+        ? `https://vk.com/${objectId}`
+        : `https://vk.com/wall${objectId}`;
+    const validKind = placement === 'clip' ? objectId.startsWith('clip-') : !objectId.startsWith('clip');
+    if (!match || !validKind || publicUrl !== expectedUrl || match[1] !== config.accountId) {
         throw new Error('[VK_REMOTE_DELIVERY_RECEIPT_INVALID] Remote VK adapter returned invalid publication receipt');
     }
 
